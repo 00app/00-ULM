@@ -1,0 +1,28 @@
+/* Floating Navigation Layout Rules - Extracted from globals.css */
+
+.floating-nav {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  padding: 12px 20px;
+  border-radius: 60px;
+  background: var(--color-ice);
+  z-index: 100;
+}
+
+/* Desktop Navigation - Top Right, Vertical Stack */
+@media (min-width: 1024px) {
+  .floating-nav {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+    flex-direction: column !important;
+  }
+}

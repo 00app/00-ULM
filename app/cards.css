@@ -1,0 +1,177 @@
+/* =========================
+   CARD 1 — HERO (LOCKED)
+   ========================= */
+
+/* Mobile — 9:16 portrait */
+.card-hero {
+  width: 370px;
+  height: 658px;
+  border-radius: 60px;
+  position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  display: block;
+}
+
+/* Tablet — 4:3 landscape */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .card-hero {
+    width: 740px;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    padding: 20px 20px 60px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-position: center;
+  }
+
+  .hero-top-row {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+  }
+
+  .hero-data-panel {
+    position: relative;
+    margin-top: auto;
+    width: 360px;
+    left: auto;
+    bottom: auto;
+  }
+}
+
+/* Desktop — 16:9 cinematic */
+@media (min-width: 1024px) {
+  .card-hero {
+    width: 960px;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    background-position: center right;
+  }
+
+  .hero-top-row {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    right: 24px;
+  }
+
+  .hero-data-panel {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    width: 360px;
+    margin-top: 0;
+  }
+
+  .hero-title {
+    font-size: 42px;
+    line-height: 40px;
+  }
+
+  .hero-value {
+    font-size: 52px;
+    line-height: 50px;
+  }
+}
+
+/* =========================
+   CARD  + SHEET TITLE SLOT
+   EXACTLY 3 LINES — LOCKED
+   ========================= */
+
+.card-title-slot {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+
+  height: 114px; /* 3 × 38px (mobile h4) */
+
+  font-family: 'Roboto', sans-serif;
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -2px;
+  text-transform: lowercase;
+  color: var(--color-deep);
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+  padding-right: 4px;
+  text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  box-sizing: border-box;
+}
+
+/* Desktop scale — still EXACTLY 3 lines */
+@media (min-width: 1024px) {
+  .card-title-slot {
+    font-size: 60px;
+    line-height: 58px;
+    height: calc(58px * 3); /* 174px */
+  }
+}
+
+/* Card-Standard - LOCKED STRUCTURE */
+.card-standard {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.card-standard-image {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+}
+
+.card-standard-body {
+  /* Natural flow - no fixed height */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card-standard-title {
+  flex-shrink: 0;
+  margin-bottom: 20px;
+  color: #141268;
+}
+
+.card-standard-data {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.card-standard-source {
+  font-family: 'Roboto', sans-serif;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #141268;
+  opacity: 0.8;
+  line-height: 14px;
+  text-align: left;
+}
+
+/* Card-Standard responsive: image uses aspect-ratio, no fixed dimensions */
+
+/* Card-Compact: flows naturally in grid, no fixed width */
+.card-compact {
+  width: 100%;
+}
+
+/* Card text hyphenation — cards only */
+.hero-title {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}

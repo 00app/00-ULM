@@ -1,0 +1,87 @@
+/* Sheet slide-up animation */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUpDesktop {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+/* Sheet Container - Responsive */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  /* Start hidden below */
+  transform: translateY(100%);
+  opacity: 0;
+  animation: slideUp 220ms var(--easing-zero) forwards;
+}
+
+.sheet-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-bottom: 20px;
+}
+
+.sheet-cta-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  margin-top: 20px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-cool);
+}
+
+/* Desktop - Centered modal, slides up */
+@media (min-width: 1024px) {
+  .sheet {
+    left: 50% !important;
+    right: auto !important;
+    width: 100% !important;
+    max-width: 720px !important;
+    bottom: 0 !important;
+    top: auto !important;
+    border-radius: 60px 60px 0 0 !important;
+    max-height: 90vh !important;
+    padding: 20px 20px 40px 20px !important;
+    box-sizing: border-box !important;
+    /* Use desktop animation */
+    animation: slideUpDesktop 220ms var(--easing-zero) forwards !important;
+  }
+  
+  .sheet-content {
+    max-height: calc(90vh - 180px) !important;
+  }
+}
+
+.sheet-cta-row .primary {
+  background: var(--color-blue);
+  color: var(--color-ice);
+}
+
+@media (hover: hover) {
+  .sheet-cta-row .primary:hover {
+    background: var(--color-deep);
+    color: var(--color-ice);
+  }
+}

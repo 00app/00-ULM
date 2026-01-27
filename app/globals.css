@@ -1,0 +1,359 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Zero Zero Color System - Semantic Only */
+  --color-ice: #FDFDFF;   /* surfaces */
+  --color-cool: #F8F8FE;  /* buttons, cards */
+  --color-blue: #000AFF;  /* actions */
+  --color-deep: #141268;  /* copy */
+  --color-pink: #E80DAD;  /* completed state */
+  
+  /* Motion */
+  --easing-zero: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 150ms;
+  --duration-slow: 180ms;
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 400;
+    background-color: var(--color-ice);
+    color: var(--color-deep);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "liga" on;
+  }
+
+  /* Remove native number input spinners — Zero Zero lock */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+
+  /* Typography System - Exact Specs */
+  h1 {
+    font-family: 'Roboto', sans-serif;
+    font-size: 100px;
+    line-height: 100px; /* 100% */
+    letter-spacing: -2px;
+    font-weight: 900;
+    text-transform: lowercase;
+    color: var(--color-blue);
+  }
+
+  h2 {
+    font-family: 'Roboto', sans-serif;
+    font-size: 80px;
+    line-height: 80px; /* 100% */
+    letter-spacing: -2px;
+    font-weight: 900;
+    text-transform: lowercase;
+    color: var(--color-blue);
+  }
+
+  h3 {
+    font-family: 'Roboto', sans-serif;
+    font-size: 50px;
+    line-height: 50px; /* 100% */
+    letter-spacing: -2px;
+    font-weight: 900;
+    text-transform: lowercase;
+    color: var(--color-blue);
+  }
+
+  h4 {
+    font-family: 'Roboto', sans-serif;
+    font-size: 40px;
+    line-height: 40px; /* 100% */
+    letter-spacing: -2px;
+    font-weight: 900;
+    text-transform: lowercase;
+    color: var(--color-blue);
+  }
+
+  /* Desktop Typography Overrides (≥1024px) */
+  @media (min-width: 1024px) {
+    h1 {
+      font-size: 140px;
+      line-height: 140px; /* 100% */
+      text-align: center;
+    }
+
+    h2 {
+      font-size: 80px;
+      line-height: 80px; /* 100% */
+      text-align: center;
+    }
+
+    h3 {
+      font-size: 90px;
+      line-height: 90px; /* 100% */
+      text-align: center;
+    }
+
+    h4 {
+      font-size: 60px;
+      line-height: 60px; /* 100% */
+      text-align: center;
+    }
+  }
+
+  h5 {
+    font-family: 'Roboto', sans-serif;
+    font-size: 20px;
+    line-height: 20px;
+    letter-spacing: -1px;
+    font-weight: 900;
+    text-transform: lowercase;
+    color: var(--color-ice);
+  }
+
+  /* DATA typography */
+  .text-data {
+    font-family: 'Roboto', sans-serif;
+    font-size: 50px;
+    line-height: 49px;
+    letter-spacing: -2px;
+    font-weight: 900;
+    text-transform: lowercase;
+  }
+
+  /* Label / Answer Typography (LABEL) */
+  .text-label,
+  .text-answer {
+    font-family: 'Roboto', sans-serif;
+    font-size: 10px;
+    line-height: 14px;
+    letter-spacing: 0;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--color-deep);
+    text-align: center;
+  }
+
+  /* Intro/Summary Font Size - Matches h3 (50px mobile, 90px desktop) */
+  .intro-font-size {
+    font-size: 50px;
+    line-height: 50px; /* 100% */
+  }
+
+  @media (min-width: 1024px) {
+    .intro-font-size {
+      font-size: 90px;
+      line-height: 90px; /* 100% */
+    }
+  }
+
+  .text-label.selected,
+  .text-answer.selected {
+    color: var(--color-ice);
+    background-color: var(--color-blue);
+  }
+
+  /* Body Typography (BODY) */
+  .text-body {
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    line-height: 18px;
+    font-weight: 400;
+    color: var(--color-deep);
+    text-transform: capitalize;
+    letter-spacing: 0;
+  }
+
+  p {
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    line-height: 18px;
+    font-weight: 400;
+    color: var(--color-deep);
+    text-transform: none;
+  }
+}
+
+@layer components {
+  /* Question Screen Layout - Flexbox Centered */
+  .question-screen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: var(--color-ice);
+  }
+
+  /* Animation Utilities - Fade only (no translateY) */
+  .animate-fade-up {
+    animation: fadeUp var(--duration-normal) var(--easing-zero) forwards;
+    opacity: 0;
+  }
+
+  .animate-fade-up-fast {
+    animation: fadeUp var(--duration-fast) var(--easing-zero) forwards;
+    opacity: 0;
+  }
+
+  .animate-fade-up-slow {
+    animation: fadeUp var(--duration-slow) var(--easing-zero) forwards;
+    opacity: 0;
+  }
+
+  /* Stagger utilities - 40-60ms increments */
+  .stagger-1 { animation-delay: 0ms; }
+  .stagger-2 { animation-delay: 40ms; }
+  .stagger-3 { animation-delay: 80ms; }
+  .stagger-4 { animation-delay: 120ms; }
+  .stagger-5 { animation-delay: 160ms; }
+  .stagger-6 { animation-delay: 200ms; }
+}
+
+@layer utilities {
+  /* Color Utilities */
+  .text-ice { color: var(--color-ice); }
+  .text-blue { color: var(--color-blue); }
+  .text-deep { color: var(--color-deep); }
+  .bg-ice { background-color: var(--color-ice); }
+  .bg-blue { background-color: var(--color-blue); }
+  .bg-deep { background-color: var(--color-deep); }
+}
+
+@keyframes fadeUp {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes summaryFade {
+  0% {
+    opacity: 0;
+  }
+  13.33% { /* 120ms / 900ms */
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Intro & Summary animation timing */
+/* fade in: 120ms, hold: 900ms, fade out: instant */
+
+/* =========================================================
+   GLOBAL BUTTON INTERACTION MODEL (.zz-button)
+   Single source of truth for all interactive elements
+   ========================================================= */
+
+:root {
+  --btn-bg-rest: var(--color-cool);
+  --btn-bg-hover: var(--color-blue);
+  --btn-bg-active: var(--color-deep);
+
+  --btn-text-rest: var(--color-blue);
+  --btn-text-hover: var(--color-ice);
+  --btn-text-active: var(--color-ice);
+
+  --btn-radius-rest: 40px;
+  --btn-radius-hover: 60px;
+
+  --btn-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --btn-speed: 140ms;
+}
+
+.zz-button {
+  background: var(--btn-bg-rest) !important;
+  color: var(--btn-text-rest) !important;
+  border-radius: var(--btn-radius-rest) !important;
+  border: none !important;
+  transition:
+    background var(--btn-speed) var(--btn-ease),
+    color var(--btn-speed) var(--btn-ease),
+    border-radius var(--btn-speed) var(--btn-ease);
+}
+
+/* Selected state override for AnswerCircle */
+.zz-button.selected {
+  background: var(--color-blue) !important;
+  color: var(--color-ice) !important;
+}
+
+/* Hover + Active (Desktop Only) */
+@media (hover: hover) {
+  .zz-button:hover {
+    background: var(--btn-bg-hover) !important;
+    color: var(--btn-text-hover) !important;
+    border-radius: var(--btn-radius-hover) !important;
+  }
+
+  .zz-button:active,
+  .zz-button:focus {
+    background: var(--btn-bg-active) !important;
+    color: var(--btn-text-active) !important;
+    border-radius: var(--btn-radius-rest) !important;
+  }
+  
+  /* Don't override selected state on hover */
+  .zz-button.selected:hover {
+    background: var(--color-blue) !important;
+    color: var(--color-ice) !important;
+  }
+}
+
+/* Settings Profile Card Wrapper (always applies) */
+.settings-profile-card {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* Auth modal — containment, no overflow */
+.auth-modal {
+  padding: 20px;
+}
+
+.auth-modal .input-field {
+  max-width: 100%;
+}
+
+/* Prevent content underlap with FloatingNav */
+.safe-bottom {
+  padding-bottom: 120px;
+}
