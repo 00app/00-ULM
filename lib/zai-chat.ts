@@ -28,6 +28,11 @@ export interface ZaiContext {
     home_type?: string
     transport_baseline?: string
   }
+  /** From buildUserImpact (Single Source of Truth) — used to personalize answers */
+  totals?: {
+    totalMoney: number
+    totalCarbon: number
+  }
   completedJourneys?: string[]
   visibleCards?: Array<{
     title: string
@@ -54,17 +59,27 @@ export function generateZaiResponse(question: string, context: ZaiContext): stri
     return 'i don\'t have enough information to be confident about legal matters. please consult a legal professional.'
   }
   
-  // Carbon questions
+  // Carbon questions — reference user impact when available (Single Source of Truth)
   if (lowerQuestion.includes('carbon') || lowerQuestion.includes('emission') || lowerQuestion.includes('co2')) {
+    if (context.totals != null && (context.totals.totalCarbon > 0 || context.totals.totalMoney > 0)) {
+      const c = context.totals.totalCarbon
+      const m = context.totals.totalMoney
+      return `based on your data you\'re already cutting ${c} kg co₂ and saving £${m} a year. energy saving trust and defra data show small changes add up. every choice helps.`
+    }
     if (context.visibleCards && context.visibleCards.length > 0) {
       const card = context.visibleCards[0]
       return `carbon impact is about understanding your choices. the card "${card.title}" shows one way to reduce emissions. every small change helps.`
     }
     return 'carbon impact is about understanding your choices. every small change helps.'
   }
-  
-  // Money questions
+
+  // Money questions — reference user impact when available
   if (lowerQuestion.includes('money') || lowerQuestion.includes('save') || lowerQuestion.includes('cost')) {
+    if (context.totals != null && (context.totals.totalMoney > 0 || context.totals.totalCarbon > 0)) {
+      const m = context.totals.totalMoney
+      const c = context.totals.totalCarbon
+      return `based on your data you\'re already saving £${m} a year and cutting ${c} kg co₂. uk sources like energy saving trust show where you can save more. no pressure.`
+    }
     if (lowerQuestion.includes('save') || lowerQuestion.includes('saving')) {
       return 'saving money varies by situation. the cards show estimated savings, but your actual savings depend on your choices and circumstances. there\'s no pressure.'
     }

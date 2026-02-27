@@ -16,11 +16,13 @@
   background: var(--color-ice);
 }
 
-/* Incomplete heading */
+/* Incomplete heading — Marvin Visions Bold */
 .incomplete-label {
   margin: 0;
   text-align: center;
   color: var(--color-deep);
+  font-family: var(--font-label);
+  font-weight: bold;
 }
 
 /* Journey grid container */

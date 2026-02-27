@@ -1,8 +1,20 @@
 'use client'
 
-import React from 'react'
-import { getJourneyImage } from '@/lib/content/images'
+import React, { useState, useEffect } from 'react'
 import { JourneyId } from '@/lib/journeys'
+import { getJourneyColorHex, JOURNEY_COLOR_MAP } from '@/lib/journeyColors'
+
+/** Strike 1: Local path in /public/cards/{journey}/{variant}.jpg */
+function getLocalCardPath(journey: JourneyId, variant: 'card-hero' | 'card-standard'): string {
+  const v = variant === 'card-hero' ? 'hero' : 'standard'
+  return `/cards/${journey}/${v}.jpg`
+}
+
+/** Strike 2: Live Unsplash — featured/800x600?{keyword} (keywords from journeyColors) */
+function getUnsplashImageUrl(journey: JourneyId): string {
+  const keyword = JOURNEY_COLOR_MAP[journey]?.keyword ?? 'minimalist-lifestyle'
+  return `https://source.unsplash.com/featured/800x600?${keyword}`
+}
 
 /**
  * COLOR SYSTEM - Semantic color decisions (LOCKED)
@@ -133,33 +145,29 @@ export default function Card({ variant, children, onClick, image, journey, title
     return null
   }
 
-  // Image resolution logic (LOCKED):
-  // 1. card-liked and card-compact NEVER render images
-  // 2. Use image prop ONLY if it's a valid non-null string
-  // 3. ALWAYS fallback to journey-based resolution if journey exists (even if image is null)
-  // 4. Return null if no image (CSS handles with COOL background)
-  const resolvedImage =
-    variant === 'card-liked' || variant === 'card-compact'
-      ? null // NEVER render images on compact/liked cards
-      : image != null && typeof image === 'string' && image.length > 0
-        ? image
-        : journey
-          ? getJourneyImage(journey, variant, 0)
-          : null
-
-  // Validation: Settings page must NOT render images
-  if (variant === 'card-liked' && resolvedImage) {
-    console.error(`[Card] card-liked variant must NOT render images. Image: ${resolvedImage}`)
+  // Three-Strike Fallback: 1) Local → 2) Unsplash 800x600?keyword → 3) Journey color + category label
+  const [imageStrike, setImageStrike] = useState<1 | 2 | 3>(1)
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const hasImageVariant = (variant === 'card-hero' || variant === 'card-standard') && journey
+  const localPath = hasImageVariant ? getLocalCardPath(journey!, variant) : null
+  const unsplashUrl = hasImageVariant ? getUnsplashImageUrl(journey!) : null
+  const strike1Url = (image != null && typeof image === 'string' && image.length > 0)
+    ? image
+    : hasImageVariant ? localPath : null
+  const currentImageSrc =
+    imageStrike === 1 ? strike1Url : imageStrike === 2 ? unsplashUrl ?? null : null
+  const useColorFallback = !currentImageSrc || imageStrike === 3
+  const handleImageError = () => {
+    if (imageStrike === 1 && unsplashUrl) setImageStrike(2)
+    else setImageStrike(3)
   }
+  const handleImageLoad = () => setImageLoaded(true)
+  useEffect(() => {
+    setImageLoaded(false)
+  }, [imageStrike, journey])
 
-  // Dev-time assertion: Warn if hero/standard cards are missing images
-  if ((variant === 'card-hero' || variant === 'card-standard') && !resolvedImage && journey) {
-    console.warn(`[Card] Missing image for ${variant} (journey: ${journey}). Expected path: /cards/${journey}/${variant === 'card-hero' ? 'hero' : 'standard'}.jpg`)
-  }
-
-  // Log resolved image path for debugging
-  if (process.env.NODE_ENV === 'development' && resolvedImage && variant !== 'card-liked' && variant !== 'card-compact') {
-    console.log(`[Card] Resolved image: ${resolvedImage} for ${variant} (journey: ${journey})`)
+  if (variant === 'card-liked' && currentImageSrc) {
+    console.error(`[Card] card-liked variant must NOT render images. Image: ${currentImageSrc}`)
   }
 
   // Get semantic colors for this card
@@ -185,14 +193,10 @@ export default function Card({ variant, children, onClick, image, journey, title
         }}
         style={{
           borderRadius: 60,
-          ...(resolvedImage ? {
-            backgroundImage: `url(${resolvedImage})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-          } : {
-            background: '#F8F8FE', // COOL fallback if no image
-          }),
+          ...(useColorFallback && journey ? {
+            ['--fallback-color' as string]: getJourneyColorHex(journey),
+            background: 'var(--fallback-color)',
+          } : currentImageSrc ? {} : { background: '#F8F8FE' }),
           cursor: onClick ? 'pointer' : 'default',
           touchAction: 'manipulation',
           WebkitTapHighlightColor: 'transparent',
@@ -200,6 +204,14 @@ export default function Card({ variant, children, onClick, image, journey, title
           overflow: 'hidden',
         }}
       >
+        {currentImageSrc && (
+          <img
+            src={currentImageSrc}
+            alt=""
+            onError={handleImageError}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        )}
         {/* Top Row: Badge + Arrow */}
         <div className="hero-top-row" style={{
           position: 'absolute',
@@ -390,21 +402,19 @@ export default function Card({ variant, children, onClick, image, journey, title
     )
   }
 
-  // Card-Standard (Card 2): Image + Text Below — LOCKED
+  // Card-Standard: Full-card journey color, image panel with Unsplash pipeline, no-image = category h4
   if (variant === 'card-standard') {
+  const journeyBg = journey ? `var(--color-j-${journey})` : 'var(--color-cool)'
+  const showCategoryInPanel = useColorFallback || (currentImageSrc && !imageLoaded)
 
   return (
     <div
       className="card card-standard"
       onClick={onClick}
       onTouchStart={(e) => {
-        // Ensure touch events work on mobile
-        if (onClick) {
-          e.stopPropagation()
-        }
+        if (onClick) e.stopPropagation()
       }}
       onTouchEnd={(e) => {
-        // Trigger onClick on touch end for mobile
         if (onClick) {
           e.stopPropagation()
           onClick()
@@ -413,7 +423,7 @@ export default function Card({ variant, children, onClick, image, journey, title
       style={{
         display: 'flex',
         flexDirection: 'column',
-        background: 'var(--color-cool)',
+        background: journeyBg,
         borderRadius: 60,
         overflow: 'hidden',
         cursor: onClick ? 'pointer' : 'default',
@@ -421,80 +431,124 @@ export default function Card({ variant, children, onClick, image, journey, title
         WebkitTapHighlightColor: 'transparent',
       }}
     >
-        {/* IMAGE */}
+        {/* IMAGE — Unsplash 800x600?keyword; border matches card for seamless block; no-image = category h4 center */}
         <div
-          className="card-standard-image"
-            style={{
-              width: '100%',
-              aspectRatio: '4 / 3',
-              ...(resolvedImage ? {
-                backgroundImage: `url(${resolvedImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              } : {
-                background: '#F8F8FE', // COOL fallback if no image
-              }),
-              position: 'relative',
-              overflow: 'hidden',
-            }}
+          className="card-standard-image-container"
+          style={{
+            position: 'relative',
+            overflow: 'hidden',
+            background: journeyBg,
+            border: 'none',
+          }}
         >
-          {/* Badge + Arrow */}
+          {currentImageSrc ? (
+            <img
+              key={`${imageStrike}-${journey}`}
+              src={currentImageSrc}
+              alt=""
+              className="card-standard-image"
+              onError={handleImageError}
+              onLoad={handleImageLoad}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          ) : null}
+          {useColorFallback && journey && (
+            <div
+              className="card-standard-image"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: getJourneyColorHex(journey),
+              }}
+              aria-hidden
+            />
+          )}
+          {/* No-image fallback: category name in center (h4). While image loads, show overlay until onLoad. */}
+          {showCategoryInPanel && journey && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: useColorFallback ? 1 : 1,
+                transition: 'opacity 0.2s ease',
+                pointerEvents: 'none',
+              }}
+            >
+              <h4
+                className="text-ice"
+                style={{
+                  fontFamily: 'Roboto',
+                  fontSize: 40,
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  letterSpacing: '-2px',
+                  textTransform: 'lowercase',
+                  color: 'var(--color-ice)',
+                }}
+              >
+                {category || journey}
+              </h4>
+            </div>
+          )}
+          {/* Badge — top-left */}
           <div
             style={{
               position: 'absolute',
               top: 20,
               left: 20,
-              right: 20,
-              display: 'flex',
-              justifyContent: 'space-between',
+              height: 30,
+              padding: '0 12px',
+              borderRadius: 15,
+              background: 'rgba(253, 253, 255, 0.25)',
+              fontFamily: 'Roboto',
+              fontSize: 10,
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              color: 'var(--color-ice)',
+              display: 'inline-flex',
               alignItems: 'center',
             }}
           >
-            <div
-              style={{
-                height: 30,
-                padding: '0 12px',
-                borderRadius: 15,
-                background: '#F8F8FE',
-                fontFamily: 'Roboto',
-                fontSize: 10,
-                fontWeight: 900,
-                textTransform: 'uppercase',
-                color: '#141268',
-                display: 'inline-flex',
-                alignItems: 'center',
-              }}
-            >
-              {category || 'home'}
-            </div>
-
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: '#000AFF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M6 4L10 8L6 12"
-                  stroke="#FDFDFF"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
+            {category || 'home'}
           </div>
         </div>
 
-        {/* TEXT */}
+        {/* Arrow — bottom-right of card wrapper (aligns with text container padding) */}
         <div
-          className="card-standard-body"
+          className="card-standard-arrow-overlay"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            background: '#000AFF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M6 4L10 8L6 12"
+              stroke="#FDFDFF"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+
+        {/* TEXT — Vibrant panel: journey color background + .text-on-color (ICE) for legibility */}
+        <div
+          className={`card-standard-body text-on-color${journey ? '' : ''}`}
           style={{
             padding: 20,
             paddingBottom: 20,
@@ -502,71 +556,44 @@ export default function Card({ variant, children, onClick, image, journey, title
             flexDirection: 'column',
             gap: 20,
             textAlign: 'left',
+            background: journey ? `var(--color-j-${journey})` : 'var(--color-cool)',
           }}
         >
-          {/* Title — locked 3-line slot, no jumping */}
           {title && (
-            <h4
-              className="card-title-slot card-standard-title"
-            >
+            <h4 className="card-title-slot card-standard-title text-on-color">
               {title ?? ''}
             </h4>
           )}
 
-          {/* DATA - Tight spacing between label and value */}
-          <div className="card-standard-data" style={{ display: 'flex', gap: 20, textAlign: 'left', marginBottom: source ? 4 : 0 }}>
+          <div className="card-standard-data text-on-color" style={{ display: 'flex', gap: 20, textAlign: 'left', marginBottom: source ? 4 : 0 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'left' }}>
-              <span
-                style={{
-                  fontFamily: 'Roboto',
-                  fontSize: 10,
-                  fontWeight: 900,
-                  textTransform: 'uppercase',
-                  color: '#141268',
-                  lineHeight: '14px',
-                  textAlign: 'left',
-                }}
-              >
+              <span className="text-label" style={{ fontFamily: 'Roboto', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', lineHeight: '14px', textAlign: 'left' }}>
                 CO₂ SAVING
               </span>
-              <span className="text-data" style={{ color: colors.carbonValue, textAlign: 'left' }}>
+              <span className="text-data" style={{ textAlign: 'left' }}>
                 {data?.carbon || 'n/a'}
               </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'left' }}>
-              <span
-                style={{
-                  fontFamily: 'Roboto',
-                  fontSize: 10,
-                  fontWeight: 900,
-                  textTransform: 'uppercase',
-                  color: colors.label,
-                  lineHeight: '14px',
-                  textAlign: 'left',
-                }}
-              >
+              <span className="text-label" style={{ fontFamily: 'Roboto', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', lineHeight: '14px', textAlign: 'left' }}>
                 MONEY SAVING
               </span>
-              <span className="text-data" style={{ color: colors.moneyValue, textAlign: 'left' }}>
+              <span className="text-data" style={{ textAlign: 'left' }}>
                 {data?.money || 'n/a'}
               </span>
             </div>
           </div>
 
-          {/* SOURCE - Use sourceLabel if provided */}
-          <div style={{ marginBottom: 20 }}>
+          <div className="text-on-color" style={{ marginBottom: 20 }}>
             {source ? (
               <a
                 href={source}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="card-standard-source"
+                className="card-standard-source text-on-color"
                 onClick={(e) => e.stopPropagation()}
-                style={{
-                  textDecoration: 'none',
-                  color: 'inherit',
-                }}
+                style={{ textDecoration: 'none', color: 'inherit' }}
               >
                 {sourceLabel || 'SOURCE.'}
               </a>

@@ -7,5 +7,6 @@ CREATE TABLE users (
   household TEXT,
   home_type TEXT,
   transport_baseline TEXT,
+  age_group TEXT,
   created_at TIMESTAMP DEFAULT now()
 );

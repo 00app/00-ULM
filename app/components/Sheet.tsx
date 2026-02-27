@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCarbon } from '@/lib/format'
-import { getJourneyImage } from '@/lib/content/images'
 import { JourneyId } from '@/lib/journeys'
+import { getJourneyColorHex, JOURNEY_COLOR_MAP } from '@/lib/journeyColors'
+import { useApp } from '@/app/context/AppContext'
 import CircleCTA from './CircleCTA'
 
 interface CardAction {
@@ -40,6 +41,8 @@ interface SheetProps {
   onClose: () => void
   onSwitch?: () => void // Primary action (SWITCH button)
   data?: SheetData
+  /** When true, hide the Start CTA (journey already completed) */
+  isJourneyComplete?: boolean
 }
 
 /**
@@ -52,8 +55,29 @@ interface SheetProps {
  * 4. DATA ROW (carbon first, money second)
  * 5. ACTION ROW — START | ACTION (optional) | LEARN. Never mix.
  */
-export default function Sheet({ isOpen, onClose, data }: SheetProps) {
+export default function Sheet({ isOpen, onClose, data, isJourneyComplete = false }: SheetProps) {
   const router = useRouter()
+  const { state, toggleLike } = useApp()
+  const isLiked = data?.id ? state.likedCards.includes(data.id) : false
+  const [imageStrike, setImageStrike] = useState<1 | 2 | 3>(1)
+
+  // Completion: hide Start if parent says complete OR journey_answers exist in localStorage
+  const hasJourneyAnswers = (() => {
+    if (typeof window === 'undefined' || !data?.journey) return false
+    const raw = localStorage.getItem(`journey_${data.journey}_answers`)
+    if (!raw) return false
+    try {
+      const obj = JSON.parse(raw)
+      return obj && typeof obj === 'object' && Object.keys(obj).length > 0
+    } catch {
+      return false
+    }
+  })()
+  const showStart = data?.journey && !isJourneyComplete && !hasJourneyAnswers
+
+  useEffect(() => {
+    if (data?.id || data?.journey) setImageStrike(1)
+  }, [data?.id, data?.journey])
 
   if (!isOpen) return null
   
@@ -133,13 +157,18 @@ export default function Sheet({ isOpen, onClose, data }: SheetProps) {
     ? data.body
     : (data.subtitle ? data.subtitle.split('\n') : [])
 
-  // Resolve image - check data.image first, then journey-based resolution
-  const journeyImage = data.journey ? getJourneyImage(data.journey, 'card-standard', 0) : null
-  const resolvedImage = data.image !== undefined
-    ? data.image
-    : journeyImage
-  // Only show image if we have a valid path
-  const hasImage = resolvedImage !== null && resolvedImage !== undefined
+  // Three-Strike: 1) Local /cards/{journey}/standard.jpg 2) Unsplash API 3) Journey color + ICE icon
+  const journey = data.journey
+  const localPath = journey ? `/cards/${journey}/standard.jpg` : null
+  const unsplashKeyword = journey ? (JOURNEY_COLOR_MAP[journey]?.keyword ?? 'minimalist-lifestyle') : null
+  const unsplashUrl = journey ? `https://source.unsplash.com/featured/800x600?${unsplashKeyword}` : null
+  const strike1Url = data.image ?? localPath
+  const currentImageSrc = imageStrike === 1 ? strike1Url : imageStrike === 2 ? unsplashUrl : null
+  const useColorBlock = !currentImageSrc || imageStrike === 3
+  const handleSheetImageError = () => {
+    if (imageStrike === 1 && unsplashUrl) setImageStrike(2)
+    else setImageStrike(3)
+  }
 
   return (
     <>
@@ -191,30 +220,38 @@ export default function Sheet({ isOpen, onClose, data }: SheetProps) {
       >
         {/* Content container - scrollable (normal flow) */}
         <div className="sheet-content">
-          {/* 1. IMAGE (TOP) - Only show if image exists */}
-          {hasImage && (
+          {/* 1. IMAGE / COLOR BLOCK — Three-Strike: local → Unsplash → journey color + ICE icon */}
+          {currentImageSrc ? (
+            <div className="sheet-image-container">
+              <img src={currentImageSrc} alt="" onError={handleSheetImageError} key={imageStrike} />
+            </div>
+          ) : journey ? (
             <div
+              className="sheet-image-container"
               style={{
-                width: '100%',
-                aspectRatio: '16 / 9',
-                borderRadius: 40,
-                backgroundImage: `url(${resolvedImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-                marginBottom: 20,
-                flexShrink: 0,
+                background: getJourneyColorHex(journey),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
-            />
-          )}
+            >
+              <span
+                style={{
+                  fontFamily: 'Roboto',
+                  fontSize: 40,
+                  fontWeight: 900,
+                  color: 'var(--color-ice)',
+                  textTransform: 'lowercase',
+                }}
+                aria-hidden
+              >
+                {journey.charAt(0)}
+              </span>
+            </div>
+          ) : null}
 
-          {/* 2. HEADING - shared 3-line title slot */}
-          <h3
-            className="card-title-slot"
-            style={{
-              color: 'var(--color-deep)',
-            }}
-          >
+          {/* 2. HEADING */}
+          <h3 className="sheet-title-slot" style={{ marginBottom: 4 }}>
             {data.title ?? ''}
           </h3>
 
@@ -279,14 +316,12 @@ export default function Sheet({ isOpen, onClose, data }: SheetProps) {
           )}
         </div>
 
-        {/* 5. ACTION ROW — normal flow, always below content */}
+        {/* 5. ACTION ROW — centered: [Start] [Action?] [Heart] [Learn]; Heart sibling of Learn, both 80×80; Start hidden when journey_answers exist */}
         <div className="sheet-cta-row">
-          {/* START — internal route */}
-          {data.journey && (
-            <CircleCTA variant="text" text="start" onClick={handleStart} />
+          {showStart && (
+            <CircleCTA variant="text" text="start learning" onClick={handleStart} />
           )}
 
-          {/* ACTION — external provider URL (optional) */}
           {data.actions?.actionUrl && (
             <CircleCTA
               variant="text"
@@ -296,7 +331,32 @@ export default function Sheet({ isOpen, onClose, data }: SheetProps) {
             />
           )}
 
-          {/* LEARN — source URL, always */}
+          {/* Heart (Like) — 80×80, sibling of Learn */}
+          <CircleCTA
+            variant="icon"
+            icon="heart"
+            onClick={async () => {
+              if (!data?.id) return
+              const userId = state.userId || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null)
+              if (userId) {
+                try {
+                  await fetch('/api/likes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, card_id: data.id }),
+                  })
+                } catch {
+                  // ignore
+                }
+              }
+              if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                navigator.vibrate([12, 60, 12])
+              }
+              toggleLike(data.id)
+            }}
+            style={isLiked ? { background: 'var(--color-pink)', color: 'var(--color-ice)' } : undefined}
+          />
+
           <CircleCTA
             variant="text"
             text="learn"

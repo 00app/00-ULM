@@ -1,25 +1,9 @@
 /**
- * Format carbon value:
- * - 2 decimal places normally
- * - No decimals when over 100kg
- * - Change to tons when over 1000kg
+ * Format carbon value for display (kg CO₂e). Accepts number or string.
  */
-export const formatCarbon = (value?: number | string): string => {
-  if (!value) return 'n/a'
-  const num = typeof value === 'string' ? parseFloat(value) : value
-  if (isNaN(num)) return 'n/a'
-  
-  // Over 1000kg: convert to tons
-  if (num >= 1000) {
-    const tons = num / 1000
-    return `${tons.toFixed(2)}t`
-  }
-  
-  // Over 100kg: no decimals
-  if (num >= 100) {
-    return `${Math.round(num)}kg`
-  }
-  
-  // Under 100kg: 2 decimal places
-  return `${num.toFixed(2)}kg`
+export function formatCarbon(kg: number | string): string {
+  const n = typeof kg === 'string' ? Number(kg) : kg
+  if (isNaN(n)) return '0 kg CO₂'
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}t CO₂`
+  return `${Math.round(n)} kg CO₂`
 }

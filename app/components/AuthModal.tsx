@@ -1,23 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import InputField from './InputField'
-
-const AUTH_MOCK_KEY = 'auth_mock'
-
-function getAuthMock(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(AUTH_MOCK_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-function setAuthMock(obj: Record<string, string>) {
-  localStorage.setItem(AUTH_MOCK_KEY, JSON.stringify(obj))
-}
 
 interface AuthModalProps {
   isOpen: boolean
@@ -29,56 +14,92 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-
-  const userExists = useMemo(() => {
-    if (!email?.trim()) return false
-    const mock = getAuthMock()
-    return email.trim().toLowerCase() in mock
-  }, [email])
-
-  const ctaLabel = userExists ? 'log in' : 'sign up'
+  const [loading, setLoading] = useState(false)
 
   if (!isOpen) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSignup = async (eTrim: string, passwordValue: string) => {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email: eTrim, password: passwordValue }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setError(data.error || 'Sign up failed')
+      return null
+    }
+    return data.user_id
+  }
+
+  const handleLogin = async (eTrim: string, passwordValue: string) => {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email: eTrim, password: passwordValue }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setError(data.error || 'Log in failed')
+      return null
+    }
+    return data.user_id
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
     const eTrim = email.trim().toLowerCase()
-    const mock = getAuthMock()
-
     if (!eTrim || !password) return
 
-    if (!(eTrim in mock)) {
-      // New user → sign up silently
-      mock[eTrim] = password
-      setAuthMock(mock)
-      const userId = `user_${eTrim.replace(/[^a-z0-9]/g, '_')}_${Date.now()}`
-      localStorage.setItem('userId', userId)
-      localStorage.setItem('user_id', userId)
-      localStorage.setItem('userEmail', email)
-      setUserId(userId)
-      setEmail('')
-      setPassword('')
-      onClose()
-      return
-    }
+    setLoading(true)
+    try {
+      const loginRes = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: eTrim, password }),
+      })
+      const loginData = await loginRes.json().catch(() => ({}))
+      if (loginRes.ok && loginData.user_id) {
+        localStorage.setItem('userId', loginData.user_id)
+        localStorage.setItem('user_id', loginData.user_id)
+        localStorage.setItem('userEmail', email)
+        setUserId(loginData.user_id)
+        setEmail('')
+        setPassword('')
+        onClose()
+        return
+      }
 
-    if (mock[eTrim] !== password) {
-      setError('wrong password')
-      return
-    }
+      const signupRes = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: eTrim, password }),
+      })
+      const signupData = await signupRes.json().catch(() => ({}))
+      if (signupRes.ok && signupData.user_id) {
+        localStorage.setItem('userId', signupData.user_id)
+        localStorage.setItem('user_id', signupData.user_id)
+        localStorage.setItem('userEmail', email)
+        setUserId(signupData.user_id)
+        setEmail('')
+        setPassword('')
+        onClose()
+        return
+      }
 
-    // Existing user, correct password → log in
-    const userId = `user_${eTrim.replace(/[^a-z0-9]/g, '_')}_${Date.now()}`
-    localStorage.setItem('userId', userId)
-    localStorage.setItem('user_id', userId)
-    localStorage.setItem('userEmail', email)
-    setUserId(userId)
-    setEmail('')
-    setPassword('')
-    onClose()
+      setError(loginData.error || signupData.error || 'Wrong email or password')
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const ctaLabel = loading ? '...' : 'log in'
 
   return (
     <div
@@ -107,7 +128,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close — chevron top right, no text */}
         <button
           type="button"
           onClick={onClose}
@@ -140,7 +160,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </svg>
         </button>
 
-        {/* H4 — get more free tips (centred, one line, blue) */}
         <h4
           style={{
             fontFamily: 'Roboto',
@@ -199,9 +218,9 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </p>
           )}
 
-          {/* Single CTA — 80×80 circle, .zz-button, COOL / BLUE hover / DEEP active */}
           <button
             type="submit"
+            disabled={loading}
             className="zz-button"
             style={{
               width: 80,
@@ -219,7 +238,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer',
+              cursor: loading ? 'wait' : 'pointer',
               alignSelf: 'center',
             }}
           >

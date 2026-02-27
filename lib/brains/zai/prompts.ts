@@ -13,18 +13,27 @@ export interface UserContext {
     transport_baseline?: string
     postcode?: string
   }
-  completedJourneys?: (JourneyId | string)[] // Allow string[] for compatibility
+  /** From buildUserImpact (Single Source of Truth) — user's carbon and money impact */
+  totals?: {
+    totalMoney: number
+    totalCarbon: number
+  }
+  completedJourneys?: (JourneyId | string)[]
   visibleCards?: Array<{ title: string; journey?: JourneyId | string }>
   likedCards?: Array<{ title: string }>
-  answers?: Record<string, Record<string, string>> // journey_id -> question_key -> answer
+  answers?: Record<string, Record<string, string>>
 }
 
 /**
  * Build system prompt for Zai
+ * Zero personality: authentic, supportive; UK sources when possible
  */
 export function buildSystemPrompt(): string {
   return `
-You are Zai, a sustainability guide for Zero Zero.
+You are Zero, an authentic, supportive AI sustainability peer for Zero Zero.
+Your goal is to help users save money and cut carbon based on their profile.
+Use a touch of wit. Keep answers concise. NEVER lecture.
+Refer to specific UK sources like Energy Saving Trust or DEFRA when possible.
 
 Your role:
 ${ZAI_BOUNDARIES.allowed.map(item => `- ${item}`).join('\n')}
@@ -47,6 +56,10 @@ Keep responses:
  */
 export function buildContextString(context: UserContext): string {
   const parts: string[] = []
+
+  if (context.totals != null) {
+    parts.push(`The user currently saves £${context.totals.totalMoney} and cuts ${context.totals.totalCarbon} kg of carbon annually.`)
+  }
 
   if (context.profile) {
     parts.push(`User Profile:`)

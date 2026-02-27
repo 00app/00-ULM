@@ -1,79 +1,45 @@
 'use client'
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 
 interface DropdownProps {
   options: string[]
-  value?: string
-  placeholder?: string
-  onSelect?: (value: string) => void
+  value: string
+  placeholder: string
+  onSelect: (value: string) => void
   autoAdvance?: boolean
 }
 
-/**
- * Dropdown - For >9 options only
- * - Same size & typography as input
- * - Select = auto-advance
- * - No CTA arrow
- */
-export default function Dropdown({ 
-  options, 
+export default function Dropdown({
+  options,
   value,
-  placeholder = 'select',
+  placeholder,
   onSelect,
-  autoAdvance = true
 }: DropdownProps) {
-  const [isOpen, setIsOpen] = useState(false)
-
-  const handleSelect = (option: string) => {
-    onSelect?.(option)
-    setIsOpen(false)
-    // Auto-advance handled by parent
-  }
-
+  const [open, setOpen] = useState(false)
   return (
-    <div style={{ position: 'relative', width: 350, height: 60 }}>
-      <div style={{
-        display: 'flex',
-        width: 350,
-        height: 60,
-        padding: '0 20px',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderRadius: 30,
-        background: value ? '#000AFF' : '#F8F8FE',
-        color: value ? '#FDFDFF' : '#000AFF',
-      }}>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          style={{
-            width: '100%',
-            height: '100%',
-            border: 'none',
-            outline: 'none',
-            background: 'transparent',
-            color: value ? '#FDFDFF' : '#000AFF',
-            fontFamily: 'Roboto',
-            fontSize: 40,
-            lineHeight: '38px',
-            letterSpacing: '-2px',
-            fontWeight: 900,
-            textTransform: 'lowercase',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            cursor: 'pointer',
-            textAlign: 'left',
-            padding: 0
-          }}
-        >
-          <span>{value || placeholder}</span>
-          <span>↓</span>
-        </button>
-      </div>
-
-      {isOpen && (
+    <div style={{ position: 'relative', width: '100%', maxWidth: 320 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        style={{
+          width: '100%',
+          padding: '16px 20px',
+          borderRadius: 40,
+          border: 'none',
+          background: 'var(--color-cool)',
+          color: value ? 'var(--color-deep)' : 'var(--color-deep)',
+          fontFamily: 'Roboto',
+          fontSize: 14,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          textAlign: 'left',
+          cursor: 'pointer',
+        }}
+      >
+        {value || placeholder}
+      </button>
+      {open && (
         <div
           style={{
             position: 'absolute',
@@ -81,43 +47,37 @@ export default function Dropdown({
             left: 0,
             right: 0,
             marginTop: 8,
-            borderRadius: 30,
-            background: '#F8F8FE',
-            maxHeight: 300,
+            background: 'var(--color-ice)',
+            borderRadius: 20,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+            maxHeight: 280,
             overflowY: 'auto',
-            zIndex: 1000,
-            border: '1px solid #000AFF',
+            zIndex: 10,
           }}
         >
-          {options.map((option) => (
+          {options.map((opt) => (
             <button
-              key={option}
-              onClick={() => handleSelect(option)}
+              key={opt}
+              type="button"
+              onClick={() => {
+                onSelect(opt)
+                setOpen(false)
+              }}
               style={{
                 width: '100%',
-                padding: '16px 20px',
+                padding: '12px 20px',
                 border: 'none',
-                background: 'transparent',
-                color: '#000AFF',
+                background: value === opt ? 'var(--color-cool)' : 'transparent',
+                color: 'var(--color-deep)',
                 fontFamily: 'Roboto',
-                fontSize: 40,
-                lineHeight: '38px',
-                letterSpacing: '-2px',
+                fontSize: 12,
                 fontWeight: 900,
-                textTransform: 'lowercase',
+                textTransform: 'uppercase',
                 textAlign: 'left',
                 cursor: 'pointer',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#000AFF'
-                e.currentTarget.style.color = '#FDFDFF'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-                e.currentTarget.style.color = '#000AFF'
-              }}
             >
-              {option}
+              {opt.replace('_', ' ')}
             </button>
           ))}
         </div>

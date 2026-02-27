@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import { getSessionFromRequest } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { user_id, card_id } = body
+    const session = await getSessionFromRequest()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const user_id = session.userId
 
-    if (!user_id || !card_id) {
+    const body = await request.json()
+    const { card_id } = body
+
+    if (!card_id) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -45,15 +52,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const user_id = searchParams.get('user_id')
-
-    if (!user_id) {
-      return NextResponse.json(
-        { error: 'Missing user_id' },
-        { status: 400 }
-      )
+    const session = await getSessionFromRequest()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const user_id = session.userId
 
     const result = await pool.query(
       'SELECT card_id FROM likes WHERE user_id = $1',

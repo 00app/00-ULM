@@ -6,11 +6,15 @@ export async function createUser(profile: {
   household: string
   home_type: string
   transport: string
+  age_group?: string
 }) {
   const response = await fetch('/api/user', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(profile),
+    body: JSON.stringify({
+      ...profile,
+      age_group: profile.age_group ?? null,
+    }),
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))

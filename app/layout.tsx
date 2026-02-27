@@ -1,22 +1,9 @@
-import type { Metadata, Viewport } from 'next'
+import { AppProvider } from '@/app/context/AppContext'
 import './globals.css'
-import './cards.css'
-import './zone.css'
-import './journey-grid.css'
-import './floating-nav.css'
-import './sheet.css'
-import './animations.css'
-import { AppProvider } from './context/AppContext'
 
-export const metadata: Metadata = {
+export const metadata = {
   title: 'Zero Zero',
-  description: 'Understand and reduce your everyday impact',
-}
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
+  description: 'Zero Zero app',
 }
 
 export default function RootLayout({
@@ -25,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" style={{ backgroundColor: '#FDFDFF' }}>
+      <body style={{ backgroundColor: '#FDFDFF', minHeight: '100vh' }}>
         <AppProvider>{children}</AppProvider>
       </body>
     </html>

@@ -1,13 +1,14 @@
 /**
  * ZERO ZERO — SINGLE SOURCE OF TRUTH FOR USER IMPACT
- * 
+ *
  * This is the ONLY place where money and carbon are calculated.
  * UI components MUST read from this, never calculate.
- * 
+ *
  * Rules:
  * - Money and carbon are NEVER calculated in UI
- * - UI only reads: journey.summary, totals.money, totals.carbon
- * - All calculations use lib/brains/calculations.ts
+ * - All calculations use lib/brains/calculations.ts (annualized: monthly × 12 where applicable)
+ * - Persona (profile.age) is used by buildZoneViewModel for tips, not here
+ * - S UPDATE: Optional scraped data is applied via applyScrapedOverlay (≤20% delta).
  */
 
 import { JourneyId, JOURNEY_ORDER } from '@/lib/journeys'
@@ -21,53 +22,69 @@ import {
   calculateTech,
   calculateWaste,
   calculateHolidays,
+  calculateGeneralHomeLiving,
+  calculateGeneralTransport,
+  calculateGeneralHomeExtra,
   type ImpactResult,
 } from './calculations'
+import { applyScrapedOverlay, type ScrapedOverlayResult } from './scrapedOverlay'
+import type { ScrapedDataPoint } from '@/lib/scraper/sources'
+import type { Persona, ImpactProfile, UserData } from './types'
+
+export type { Persona, ImpactProfile, UserData } from './types'
+export type { ScrapedOverlayResult } from './scrapedOverlay'
 
 export interface UserImpact {
-  perJourneyResults: Record<JourneyId, ImpactResult>
+  /** Per-journey results; may include insightLabel/insightAlert when scraped data applied */
+  perJourneyResults: Record<JourneyId, ScrapedOverlayResult>
+  /** Three general cards for Zone "act now." based on profile (household, home_type, transport_baseline). */
+  generalCards: [ImpactResult, ImpactResult, ImpactResult]
   totals: {
     totalCarbon: number
     totalMoney: number
   }
 }
 
-export interface UserData {
-  profile?: {
-    name?: string
-    postcode?: string
-    household?: string
-    home_type?: string
-    transport_baseline?: string
-  }
-  journeyAnswers: Record<JourneyId, Record<string, string>>
+export interface BuildUserImpactOptions {
+  /** S UPDATE: scraped data from 001 Scraper (e.g. from scraped_summary table). Partial = only some journeys may have data. */
+  scraped?: Partial<Record<JourneyId, ScrapedDataPoint>>
 }
 
 /**
  * Build user impact from profile and journey answers.
- * 
- * This is the SINGLE SOURCE OF TRUTH for all impact calculations.
- * UI components read from this, never calculate directly.
+ * Single source of truth; all values annualized (e.g. monthly_cost × 12 in calculations).
+ * S UPDATE: Pass options.scraped to blend in 001 Scraper data (≤20% delta); sets insightLabel/insightAlert for UI.
  */
-export function buildUserImpact(user: UserData): UserImpact {
-  const perJourneyResults: Record<JourneyId, ImpactResult> = {} as Record<
+export function buildUserImpact(user: UserData, options?: BuildUserImpactOptions): UserImpact {
+  const perJourneyResults: Record<JourneyId, ScrapedOverlayResult> = {} as Record<
     JourneyId,
-    ImpactResult
+    ScrapedOverlayResult
   >
   let totalCarbon = 0
   let totalMoney = 0
+  const scraped = options?.scraped
 
-  // Calculate impact for each journey
+  // Calculate impact for each journey; apply scraped overlay when available
   JOURNEY_ORDER.forEach((journeyKey) => {
     const answers = user.journeyAnswers[journeyKey] || {}
-    const impact = calculateJourneyImpact(journeyKey, answers)
-    perJourneyResults[journeyKey] = impact
-    totalCarbon += impact.carbonKg
-    totalMoney += impact.moneyGbp
+    const base = calculateJourneyImpact(journeyKey, answers)
+    const result = applyScrapedOverlay(base, scraped?.[journeyKey], journeyKey)
+    perJourneyResults[journeyKey] = result
+    totalCarbon += result.carbonKg
+    totalMoney += result.moneyGbp
   })
+
+  // General cards for Zone "act now." — based on profile only (Single Source of Truth)
+  const profile = user.profile
+  const generalCards: [ImpactResult, ImpactResult, ImpactResult] = [
+    calculateGeneralHomeLiving(profile),
+    calculateGeneralTransport(profile),
+    calculateGeneralHomeExtra(profile),
+  ]
 
   return {
     perJourneyResults,
+    generalCards,
     totals: {
       totalCarbon: Math.round(totalCarbon),
       totalMoney: Math.round(totalMoney),

@@ -1,300 +1,799 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;900&display=swap');
 
+@font-face {
+  font-family: 'Marvin Visions Bold';
+  src: url('/assets/Marvin%20Visions%20Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   ZERO ZERO — DESIGN TOKENS (FORK-ZONE-SPEC)
+   ========================================================================== */
+
 :root {
-  /* Zero Zero Color System - Semantic Only */
-  --color-ice: #FDFDFF;   /* surfaces */
-  --color-cool: #F8F8FE;  /* buttons, cards */
-  --color-blue: #000AFF;  /* actions */
-  --color-deep: #141268;  /* copy */
-  --color-pink: #E80DAD;  /* completed state */
-  
+  /* Labels & numbers only — Marvin Visions Bold */
+  --font-label: 'Marvin Visions Bold', 'Roboto', sans-serif;
+
+  /* Colors */
+  --color-ice: #FDFDFF;
+  --color-cool: #F8F8FE;
+  --color-blue: #000AFF;
+  --color-deep: #141268;
+  --color-pink: #E80DAD;
+  /* Burnt text on color panels (zone dashboard legibility) */
+  --color-burnt: #0a0a0a;
+
+  /* Journey palette */
+  --color-j-home: #F5A623;
+  --color-j-travel: #0096FF;
+  --color-j-food: #00D26A;
+  --color-j-shopping: #7A1FA2;
+  --color-j-money: #141268;
+  --color-j-carbon: #000AFF;
+  --color-j-tech: #00B8D4;
+  --color-j-waste: #E64A19;
+  --color-j-holidays: #D81B60;
+
+  /* Spacing (FORK-ZONE-SPEC) */
+  --gap-xs: 2px;
+  --gap-sm: 4px;
+  --gap-md: 10px;
+  --gap-lg: 20px;
+  --gap-xl: 40px;
+  --padding-sm: 12px;
+  --padding-md: 20px;
+  --padding-lg: 30px;
+  --margin-top-sm: 3px;
+  --margin-top-md: 20px;
+  --margin-top-lg: 30px;
+  --margin-top-xl: 40px;
+  --margin-bottom-md: 20px;
+
   /* Motion */
   --easing-zero: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --easing-groovy: cubic-bezier(0.34, 1.56, 0.64, 1);
   --duration-fast: 120ms;
   --duration-normal: 150ms;
   --duration-slow: 180ms;
-}
 
-@layer base {
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+  /* Unified kinetic bloom — pop-back spring (Zone, Zai, Settings, Likes) */
+  --spring-bloom: 500;
+  --spring-bloom-damping: 30;
 
-  body {
-    font-family: 'Roboto', sans-serif;
-    font-weight: 400;
-    background-color: var(--color-ice);
-    color: var(--color-deep);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: "liga" on;
-  }
+  /* 60s Groovy Grid palette (Mid-Century) */
+  --color-atomic-orange: #E85D04;
+  --color-sunshine-yellow: #FFC300;
+  --color-paprika: #DC2F02;
+  --color-turquoise: #00B4D8;
+  --color-groovy-teal: #0077B6;
 
-  /* Remove native number input spinners — Zero Zero lock */
-  input[type='number']::-webkit-outer-spin-button,
-  input[type='number']::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  input[type='number'] {
-    -moz-appearance: textfield;
-  }
-
-  /* Typography System - Exact Specs */
-  h1 {
-    font-family: 'Roboto', sans-serif;
-    font-size: 100px;
-    line-height: 100px; /* 100% */
-    letter-spacing: -2px;
-    font-weight: 900;
-    text-transform: lowercase;
-    color: var(--color-blue);
-  }
-
-  h2 {
-    font-family: 'Roboto', sans-serif;
-    font-size: 80px;
-    line-height: 80px; /* 100% */
-    letter-spacing: -2px;
-    font-weight: 900;
-    text-transform: lowercase;
-    color: var(--color-blue);
-  }
-
-  h3 {
-    font-family: 'Roboto', sans-serif;
-    font-size: 50px;
-    line-height: 50px; /* 100% */
-    letter-spacing: -2px;
-    font-weight: 900;
-    text-transform: lowercase;
-    color: var(--color-blue);
-  }
-
-  h4 {
-    font-family: 'Roboto', sans-serif;
-    font-size: 40px;
-    line-height: 40px; /* 100% */
-    letter-spacing: -2px;
-    font-weight: 900;
-    text-transform: lowercase;
-    color: var(--color-blue);
-  }
-
-  /* Desktop Typography Overrides (≥1024px) */
-  @media (min-width: 1024px) {
-    h1 {
-      font-size: 140px;
-      line-height: 140px; /* 100% */
-      text-align: center;
-    }
-
-    h2 {
-      font-size: 80px;
-      line-height: 80px; /* 100% */
-      text-align: center;
-    }
-
-    h3 {
-      font-size: 90px;
-      line-height: 90px; /* 100% */
-      text-align: center;
-    }
-
-    h4 {
-      font-size: 60px;
-      line-height: 60px; /* 100% */
-      text-align: center;
-    }
-  }
-
-  h5 {
-    font-family: 'Roboto', sans-serif;
-    font-size: 20px;
-    line-height: 20px;
-    letter-spacing: -1px;
-    font-weight: 900;
-    text-transform: lowercase;
-    color: var(--color-ice);
-  }
-
-  /* DATA typography */
-  .text-data {
-    font-family: 'Roboto', sans-serif;
-    font-size: 50px;
-    line-height: 49px;
-    letter-spacing: -2px;
-    font-weight: 900;
-    text-transform: lowercase;
-  }
-
-  /* Label / Answer Typography (LABEL) */
-  .text-label,
-  .text-answer {
-    font-family: 'Roboto', sans-serif;
-    font-size: 10px;
-    line-height: 14px;
-    letter-spacing: 0;
-    font-weight: 900;
-    text-transform: uppercase;
-    color: var(--color-deep);
-    text-align: center;
-  }
-
-  /* Intro/Summary Font Size - Matches h3 (50px mobile, 90px desktop) */
-  .intro-font-size {
-    font-size: 50px;
-    line-height: 50px; /* 100% */
-  }
-
-  @media (min-width: 1024px) {
-    .intro-font-size {
-      font-size: 90px;
-      line-height: 90px; /* 100% */
-    }
-  }
-
-  .text-label.selected,
-  .text-answer.selected {
-    color: var(--color-ice);
-    background-color: var(--color-blue);
-  }
-
-  /* Body Typography (BODY) */
-  .text-body {
-    font-family: 'Roboto', sans-serif;
-    font-size: 16px;
-    line-height: 18px;
-    font-weight: 400;
-    color: var(--color-deep);
-    text-transform: capitalize;
-    letter-spacing: 0;
-  }
-
-  p {
-    font-family: 'Roboto', sans-serif;
-    font-size: 16px;
-    line-height: 18px;
-    font-weight: 400;
-    color: var(--color-deep);
-    text-transform: none;
-  }
-}
-
-@layer components {
-  /* Question Screen Layout - Flexbox Centered */
-  .question-screen {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background-color: var(--color-ice);
-  }
-
-  /* Animation Utilities - Fade only (no translateY) */
-  .animate-fade-up {
-    animation: fadeUp var(--duration-normal) var(--easing-zero) forwards;
-    opacity: 0;
-  }
-
-  .animate-fade-up-fast {
-    animation: fadeUp var(--duration-fast) var(--easing-zero) forwards;
-    opacity: 0;
-  }
-
-  .animate-fade-up-slow {
-    animation: fadeUp var(--duration-slow) var(--easing-zero) forwards;
-    opacity: 0;
-  }
-
-  /* Stagger utilities - 40-60ms increments */
-  .stagger-1 { animation-delay: 0ms; }
-  .stagger-2 { animation-delay: 40ms; }
-  .stagger-3 { animation-delay: 80ms; }
-  .stagger-4 { animation-delay: 120ms; }
-  .stagger-5 { animation-delay: 160ms; }
-  .stagger-6 { animation-delay: 200ms; }
-}
-
-@layer utilities {
-  /* Color Utilities */
-  .text-ice { color: var(--color-ice); }
-  .text-blue { color: var(--color-blue); }
-  .text-deep { color: var(--color-deep); }
-  .bg-ice { background-color: var(--color-ice); }
-  .bg-blue { background-color: var(--color-blue); }
-  .bg-deep { background-color: var(--color-deep); }
-}
-
-@keyframes fadeUp {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-@keyframes fadeIn {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-@keyframes summaryFade {
-  0% {
-    opacity: 0;
-  }
-  13.33% { /* 120ms / 900ms */
-    opacity: 1;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-/* Intro & Summary animation timing */
-/* fade in: 120ms, hold: 900ms, fade out: instant */
-
-/* =========================================================
-   GLOBAL BUTTON INTERACTION MODEL (.zz-button)
-   Single source of truth for all interactive elements
-   ========================================================= */
-
-:root {
+  /* Button (zz-button) */
   --btn-bg-rest: var(--color-cool);
   --btn-bg-hover: var(--color-blue);
   --btn-bg-active: var(--color-deep);
-
   --btn-text-rest: var(--color-blue);
   --btn-text-hover: var(--color-ice);
   --btn-text-active: var(--color-ice);
-
   --btn-radius-rest: 40px;
   --btn-radius-hover: 60px;
-
-  --btn-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --btn-ease: var(--easing-zero);
   --btn-speed: 140ms;
+}
+
+/* ==========================================================================
+   BASE & RESET
+   ========================================================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--color-ice);
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 400;
+  background-color: var(--color-ice);
+  color: var(--color-deep);
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* ==========================================================================
+   TYPOGRAPHY — HEADINGS (FORK-ZONE-SPEC)
+   ========================================================================== */
+
+h1, .zz-h1 {
+  font-family: 'Roboto', sans-serif;
+  font-size: 100px;
+  line-height: 98px;
+  letter-spacing: -2px;
+  font-weight: 900;
+  text-transform: lowercase;
+  color: var(--color-blue);
+}
+
+h2, .zz-h2 {
+  font-family: 'Roboto', sans-serif;
+  font-size: 80px;
+  line-height: 76px;
+  letter-spacing: -2px;
+  font-weight: 900;
+  text-transform: lowercase;
+  color: var(--color-blue);
+}
+
+h3, .zz-h3 {
+  font-family: 'Roboto', sans-serif;
+  font-size: 50px;
+  line-height: 48px;
+  letter-spacing: -2px;
+  font-weight: 900;
+  text-transform: lowercase;
+  color: var(--color-blue);
+}
+
+h4, .zz-h4 {
+  font-family: 'Roboto', sans-serif;
+  font-size: 40px;
+  line-height: 38px;
+  letter-spacing: -2px;
+  font-weight: 900;
+  text-transform: lowercase;
+  color: var(--color-blue);
+}
+
+@media (min-width: 1024px) {
+  h1, .zz-h1 { font-size: 200px; line-height: 190px; }
+  h2, .zz-h2 { font-size: 120px; line-height: 108px; }
+  h3, .zz-h3 { font-size: 90px; line-height: 81px; }
+  h4, .zz-h4 { font-size: 60px; line-height: 58px; }
+}
+
+/* Page title (internal pages: Settings, Likes, Summary) — Marvin Visions */
+.zz-page-title {
+  font-family: var(--font-label);
+  font-size: 40px;
+  line-height: 38px;
+  letter-spacing: -2px;
+  font-weight: bold;
+  text-transform: lowercase;
+  color: var(--color-deep);
+  margin-bottom: var(--margin-bottom-md);
+}
+
+@media (min-width: 1024px) {
+  .zz-page-title { font-size: 60px; line-height: 58px; }
+}
+
+/* DATA — key metrics (£, kg): Marvin Visions, 60/90px (Groovy scale) */
+.text-data,
+.zz-data {
+  font-family: var(--font-label);
+  font-size: 60px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--color-blue);
+}
+
+@media (min-width: 1024px) {
+  .text-data, .zz-data { font-size: 90px; }
+}
+
+/* LABEL — sub-headers, units, journey names: Marvin Visions, 10px (Impact Scale "technical markers") */
+.zz-label {
+  font-family: var(--font-label);
+  font-size: 10px;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: var(--color-deep);
+}
+
+@media (min-width: 1024px) {
+  .zz-label { font-size: 14px; }
+}
+
+/* Hero Totals — Impact Scale: 100px mobile / 200px desktop, Marvin Visions (no exceptions) */
+.hero-total,
+.zone-hero-total {
+  font-family: var(--font-label);
+  font-size: 100px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+@media (min-width: 1024px) {
+  .hero-total, .zone-hero-total { font-size: 200px; }
+}
+
+/* Bento Numbers — DATA 50px (slot-machine count-up on expand) */
+.bento-data,
+.zone-card-number--bento {
+  font-family: var(--font-label);
+  font-size: 50px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+/* BODY — descriptions, chat text: Roboto 400, 18/20px (see LAYOUT section) */
+
+/* Neo-Bento: Zone journey grid + big numbers */
+.zero-zone-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  padding: 0 20px 120px;
+}
+
+@media (min-width: 1024px) {
+  .zero-zone-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    max-width: 900px;
+  }
+}
+
+/* ==========================================================================
+   GROOVY GRID — 60s Mid-Century Asymmetrical Layout
+   ========================================================================== */
+
+.groovy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 0 16px 120px;
+}
+
+@media (min-width: 641px) {
+  .groovy-grid {
+    max-width: 640px;
+    gap: 20px;
+    padding: 0 24px 120px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .groovy-grid {
+    max-width: 900px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+}
+
+.groovy-span-1 { grid-column: span 1; }
+.groovy-span-2 { grid-column: span 2; }
+
+/* Kinetic Bento Grid — push-aside reflow; expansion stays in layout */
+.groovy-zone-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  padding: 20px;
+  grid-auto-flow: dense;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding-bottom: 120px;
+}
+
+@media (min-width: 641px) {
+  .groovy-zone-grid {
+    max-width: 640px;
+    gap: 20px;
+    padding: 20px 24px 120px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .groovy-zone-grid {
+    max-width: 900px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+}
+
+/* Total Screen Bloom — unified kinetic expansion (Zone, Zai, Settings, Likes) */
+.bloom-expansion {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  transition: all 0.6s var(--easing-groovy);
+}
+
+/* Grid Pulse — when local grid intensity < 50g, Carbon/Pulse glows (Live Living feed) */
+.grid-pulse--low-carbon {
+  box-shadow: 0 0 0 2px var(--color-blue);
+  animation: grid-pulse-glow 2.5s ease-in-out infinite;
+}
+@keyframes grid-pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 2px var(--color-blue); }
+  50% { box-shadow: 0 0 0 2px var(--color-blue), 0 0 12px rgba(0, 10, 255, 0.3); }
+}
+
+/* Expanded card in grid: full width, pushes other cards down */
+.card-expanded {
+  grid-column: 1 / -1;
+  min-height: 80vh;
+  background: white !important;
+  color: var(--journey-color, var(--color-burnt)) !important;
+  z-index: 10;
+  border-radius: 48px;
+  overflow: auto;
+}
+
+/* 60s Bento card — massive radius, bouncy spring */
+.bento-card-groovy {
+  border-radius: 48px;
+  padding: 30px;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition: transform 0.6s var(--easing-groovy);
+}
+
+.bento-card-groovy:active {
+  transform: scale(0.92) rotate(-1deg);
+}
+
+/* Groovy expanded state — full screen on mobile, solid color flood */
+.bento-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  border-radius: 0;
+  padding: 40px;
+  overflow: auto;
+}
+
+@media (min-width: 768px) {
+  .bento-expanded {
+    border-radius: 48px;
+    margin: 2vh 5vw;
+    inset: auto;
+    max-width: 90vw;
+    max-height: 96vh;
+  }
+}
+
+/* Zone dashboard: big numbers — Marvin Visions, burnt for legibility on colour panels */
+.zero-zone-grid .text-data {
+  font-family: var(--font-label);
+  font-weight: bold;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-burnt);
+}
+
+.journey-icon {
+  filter: grayscale(1) brightness(0);
+}
+
+/* Zone dashboard: legible burnt text on colour panels — Marvin Visions Bold */
+.zone-card-label,
+.zone-card-number,
+.zone-card-unit {
+  color: var(--color-burnt);
+  /* Subtle shadow so text stays readable on light and dark panels */
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.5), 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.zone-card-label {
+  font-family: var(--font-label);
+  font-weight: bold;
+}
+
+.zone-card-number {
+  font-family: var(--font-label);
+}
+
+.zone-card-unit {
+  font-family: var(--font-label);
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  opacity: 0.92;
+}
+
+/* ==========================================================================
+   S UPDATE v1.2 — Economic-First / Zero-Zero Clean-Up Layer
+   ========================================================================== */
+
+.bento-card-clean {
+  background-color: var(--journey-color, var(--color-cool));
+  border-radius: 40px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: none;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Leading metric typography (hero value) */
+.hero-value {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 900;
+  font-size: clamp(2rem, 8vw, 5rem);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+/* 80px Action Core circle — squish-bounce */
+.action-circle-80 {
+  width: 80px;
+  height: 80px;
+  background: black;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  border: none;
+  cursor: pointer;
+}
+
+/* Crawler insight box (Latest Scraped Tip) */
+.crawler-insight-box {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 24px;
+  padding: 16px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.crawler-tip-text {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-burnt);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* S UPDATE: Scraped insight label — Marvin Visions, burnt on panels */
+.scraped-insight-tag {
+  font-family: var(--font-label);
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: var(--color-burnt);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* S UPDATE: High Saving / Insight Alert — 1px blue border on Bento card */
+.insight-alert {
+  border: 1px solid var(--color-blue) !important;
+}
+
+/* Local Living: "Local" tag on Home/Travel cards when postcode set */
+.local-tag-badge {
+  font-family: var(--font-label);
+  font-size: 9px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-burnt);
+  background: rgba(255, 255, 255, 0.75);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Local Living: real-time gCO₂/kWh on Carbon card */
+.local-pulse-badge {
+  font-family: var(--font-label);
+  font-size: 9px;
+  font-weight: bold;
+  color: var(--color-burnt);
+  background: rgba(255, 255, 255, 0.7);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Local Living: 80px circle pulses green when council has local grant (Home) */
+.action-circle-local-grant {
+  animation: local-grant-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes local-grant-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 214, 106, 0.35); }
+  50% { box-shadow: 0 0 0 10px rgba(0, 214, 106, 0); }
+}
+
+/* Victory Shiver: when local data locks in */
+.zone-grid-local-shiver {
+  animation: zone-local-shiver 0.4s ease-out;
+}
+
+@keyframes zone-local-shiver {
+  0% { transform: scale(0.995); }
+  50% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+
+/* S Update: Warm Homes / priority eligible — pulsing gold border */
+.bento-card-priority-alert {
+  border: 2px solid #d4a017 !important;
+  animation: priority-alert-pulse 2s ease-in-out infinite;
+}
+
+@keyframes priority-alert-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 160, 23, 0.35); }
+  50% { box-shadow: 0 0 0 8px rgba(212, 160, 23, 0); }
+}
+
+/* S UPDATE: Big number “counting” feel — first view after scraper update */
+.text-data--count-in {
+  animation: text-data-count-in 0.6s var(--easing-zero) forwards;
+}
+
+@keyframes text-data-count-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* LABEL — Marvin Visions Bold for all labels */
+.text-label,
+.zz-label {
+  font-family: var(--font-label);
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: var(--color-deep);
+}
+
+/* BODY — Groovy scale: 18/20px */
+.text-body,
+.zz-body {
+  font-family: 'Roboto', sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-deep);
+}
+
+@media (min-width: 1024px) {
+  .text-body, .zz-body { font-size: 20px; }
+}
+
+/* Question text (profile/journey) — Marvin Visions */
+.question-text {
+  font-family: var(--font-label);
+  font-size: 80px;
+  line-height: 80px;
+  letter-spacing: -2px;
+  font-weight: bold;
+  text-transform: lowercase;
+  color: var(--color-blue);
+}
+
+/* ==========================================================================
+   LAYOUT — CONTENT PAGES (Settings, Likes, Profile Summary, Fork, Zai)
+   ========================================================================== */
+
+.zz-page {
+  min-height: 100vh;
+  background: var(--color-ice);
+  padding: var(--padding-md);
+  padding-top: var(--margin-top-xl);
+  padding-bottom: 120px; /* safe-bottom for FloatingNav */
+  display: flex;
+  flex-direction: column;
+}
+
+.zz-page-back {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: var(--color-blue);
+  margin-bottom: var(--gap-lg);
+  display: inline-block;
+  text-decoration: none;
+}
+
+.zz-page-back:hover {
+  text-decoration: underline;
+}
+
+.zz-page-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-lg);
+}
+
+.zz-card {
+  background: var(--color-cool);
+  border-radius: 40px;
+  padding: var(--padding-md);
+}
+
+.zz-card-lg {
+  border-radius: 60px;
+  padding: var(--padding-lg);
+}
+
+.zz-card-item {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  line-height: 18px;
+  color: var(--color-deep);
+  margin-bottom: var(--gap-sm);
+}
+.zz-card-item:last-child { margin-bottom: 0; }
+
+/* List (e.g. liked cards) */
+.zz-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.zz-list-item {
+  background: var(--color-cool);
+  border-radius: 40px;
+  padding: var(--padding-md);
+  margin-bottom: var(--gap-md);
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  color: var(--color-deep);
+}
+.zz-list-item:last-child { margin-bottom: 0; }
+
+.zz-page-intro {
+  margin-bottom: var(--gap-lg);
+}
+
+/* Profile Summary — big bold audit, 60s panels, DATA scale */
+.summary-page--groovy {
+  max-width: 480px;
+  margin: 0 auto;
+}
+.summary-page__title {
+  margin-bottom: var(--gap-md);
+}
+.summary-page__intro {
+  margin-bottom: var(--margin-top-xl);
+}
+.summary-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.summary-panel {
+  background: var(--color-cool);
+  border-radius: 48px;
+  padding: 24px 28px;
+}
+.summary-panel--impact {
+  background: var(--color-atomic-orange);
+  color: var(--color-burnt);
+}
+.summary-panel--impact .hero-total,
+.summary-panel--impact .zz-label {
+  color: var(--color-burnt);
+}
+.summary-panel__heading {
+  margin-bottom: 16px;
+  opacity: 0.9;
+}
+.summary-panel__list {
+  margin: 0;
+}
+.summary-panel__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.summary-panel__row:last-child {
+  margin-bottom: 0;
+}
+.summary-impact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+}
+.summary-impact__unit {
+  font-size: 12px;
+  opacity: 0.9;
+}
+.summary-cta {
+  display: block;
+  width: 100%;
+  padding: 24px 32px;
+  background: var(--color-blue);
+  color: var(--color-ice);
+  font-family: var(--font-label);
+  font-size: clamp(18px, 4vw, 24px);
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 48px;
+  margin-top: var(--margin-top-xl);
+}
+.summary-cta:hover {
+  filter: brightness(1.05);
+}
+
+.mb-xl { margin-bottom: var(--gap-xl); }
+.mb-0 { margin-bottom: 0; }
+
+/* ==========================================================================
+   CALL-TO-ACTION — CIRCLES & BUTTONS (FORK-ZONE-SPEC)
+   ========================================================================== */
+
+/* Circle CTA: 80×80, radius 40, LABEL typography */
+.circle-cta,
+.zz-cta-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 40px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Roboto', sans-serif;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--btn-speed) var(--btn-ease), color var(--btn-speed) var(--btn-ease);
 }
 
 .zz-button {
@@ -302,58 +801,159 @@
   color: var(--btn-text-rest) !important;
   border-radius: var(--btn-radius-rest) !important;
   border: none !important;
-  transition:
-    background var(--btn-speed) var(--btn-ease),
-    color var(--btn-speed) var(--btn-ease),
-    border-radius var(--btn-speed) var(--btn-ease);
+  transition: background var(--btn-speed) var(--btn-ease), color var(--btn-speed) var(--btn-ease), border-radius var(--btn-speed) var(--btn-ease);
 }
 
-/* Selected state override for AnswerCircle */
 .zz-button.selected {
   background: var(--color-blue) !important;
   color: var(--color-ice) !important;
 }
 
-/* Hover + Active (Desktop Only) */
 @media (hover: hover) {
   .zz-button:hover {
     background: var(--btn-bg-hover) !important;
     color: var(--btn-text-hover) !important;
     border-radius: var(--btn-radius-hover) !important;
   }
-
   .zz-button:active,
   .zz-button:focus {
     background: var(--btn-bg-active) !important;
     color: var(--btn-text-active) !important;
-    border-radius: var(--btn-radius-rest) !important;
   }
-  
-  /* Don't override selected state on hover */
   .zz-button.selected:hover {
     background: var(--color-blue) !important;
     color: var(--color-ice) !important;
   }
 }
 
-/* Settings Profile Card Wrapper (always applies) */
-.settings-profile-card {
+/* Primary CTA (blue fill) */
+.zz-cta-primary {
+  background: var(--color-blue);
+  color: var(--color-ice);
+}
+
+/* ==========================================================================
+   QUESTION SCREENS (Profile, Journey)
+   ========================================================================== */
+
+.question-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: var(--color-ice);
+}
+
+.zz-profile-page,
+.zz-journey-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  background: var(--color-ice);
+  position: relative;
+  padding-bottom: 120px;
+}
+
+.progress-bar-wrap {
+  position: absolute;
+  top: var(--margin-top-sm);
+  left: 0;
+  right: 0;
+  padding: 0 var(--padding-md);
+}
+
+.zz-profile-label-wrap {
+  margin-top: var(--margin-top-xl);
+}
+
+.question-container {
+  margin-top: 110px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0;
+  max-width: 640px;
 }
 
-/* Auth modal — containment, no overflow */
-.auth-modal {
-  padding: 20px;
+.answer-container {
+  margin-top: var(--gap-xl);
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
-.auth-modal .input-field {
-  max-width: 100%;
+.answer-options-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--gap-lg);
+  max-width: 360px;
 }
 
-/* Prevent content underlap with FloatingNav */
+/* ==========================================================================
+   UTILITIES
+   ========================================================================== */
+
 .safe-bottom {
   padding-bottom: 120px;
+}
+
+/* FloatingNav — Kinetic Anchor: 80px circles, squish-bloom */
+.floating-nav {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  border-radius: 9999px;
+  background: var(--color-ice);
+  z-index: 100;
+}
+.kinetic-nav-circle {
+  flex-shrink: 0;
+}
+.kinetic-nav-pulse {
+  box-shadow: 0 0 0 0 var(--color-blue);
+}
+
+.floating-nav.safe-bottom {
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 1024px) {
+  .floating-nav {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+    flex-direction: column !important;
+  }
+}
+
+.text-ice { color: var(--color-ice); }
+.text-blue { color: var(--color-blue); }
+.text-deep { color: var(--color-deep); }
+.bg-ice { background-color: var(--color-ice); }
+.bg-cool { background-color: var(--color-cool); }
+.bg-blue { background-color: var(--color-blue); }
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-up {
+  animation: fadeUp var(--duration-normal) var(--easing-zero) forwards;
+  opacity: 0;
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import { getSessionFromRequest } from '@/lib/auth'
 
 // This route is always dynamic (user-specific Zone content)
 export const dynamic = 'force-dynamic'
@@ -98,12 +99,11 @@ function daysBetween(date1: number, date2: number | Date): number {
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId') || searchParams.get('user_id')
-
-    if (!userId) {
-      return NextResponse.json({ items: [] })
+    const session = await getSessionFromRequest()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const userId = session.userId
 
     const now = Date.now()
 

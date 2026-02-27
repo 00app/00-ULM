@@ -1,41 +1,30 @@
-/* === ZERO ZERO GLITCH LOGO === */
-
+/* ZERO ZERO GLITCH LOGO */
 .zz-glitch {
   position: relative;
   width: 126px;
   height: 200px;
 }
-
 .zz-glitch img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: auto;
 }
-
-/* Base (final state) */
 .glitch-layer.base {
   z-index: 3;
   filter: none;
   animation: glitchBase 2s linear forwards;
 }
-
-/* Pink offset */
 .glitch-layer.pink {
   z-index: 2;
   filter: hue-rotate(320deg);
   animation: glitchPink 2s linear forwards;
 }
-
-/* Cool offset */
 .glitch-layer.cool {
   z-index: 1;
   filter: hue-rotate(200deg);
   animation: glitchCool 2s linear forwards;
 }
-
-/* === KEYFRAMES === */
-
 @keyframes glitchPink {
   0%   { opacity: 0; transform: translate(0,0); }
   10%  { opacity: 1; transform: translate(5px,-5px); }
@@ -45,7 +34,6 @@
   60%  { opacity: 0.8; }
   100% { opacity: 0; transform: translate(0,0); }
 }
-
 @keyframes glitchCool {
   0%   { opacity: 0; transform: translate(0,0); }
   15%  { opacity: 1; transform: translate(-5px,5px); }
@@ -55,7 +43,6 @@
   60%  { opacity: 0.8; }
   100% { opacity: 0; transform: translate(0,0); }
 }
-
 @keyframes glitchBase {
   0%   { opacity: 0; }
   20%  { opacity: 1; }

@@ -1,68 +1,69 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface IntroWordCycleProps {
   words: string[]
   onComplete?: () => void
 }
 
-/**
- * IntroWordCycle — Unified word cycler for all intro animations
- * 
- * Behavior:
- * - One word visible at a time
- * - Word fades in (120ms), disappears, next word
- * - Gap between words: 80ms
- * - Uses H1 only
- * - No stacked text
- * - State-driven only (no CSS keyframes)
- */
-export default function IntroWordCycle({
-  words,
-  onComplete,
-}: IntroWordCycleProps) {
+const spring = { type: 'spring' as const, stiffness: 400, damping: 28 }
+
+export default function IntroWordCycle({ words, onComplete }: IntroWordCycleProps) {
   const [index, setIndex] = useState(0)
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout
-
-    // show word
+    let timeout: ReturnType<typeof setTimeout>
     setVisible(true)
-
     timeout = setTimeout(() => {
-      // hide word
       setVisible(false)
-
       timeout = setTimeout(() => {
         if (index < words.length - 1) {
           setIndex(index + 1)
         } else {
           onComplete?.()
         }
-      }, 80) // gap between words
-    }, 120) // visible duration
-
+      }, 80)
+    }, 120)
     return () => clearTimeout(timeout)
   }, [index, words.length, onComplete])
 
   return (
-    <h1
+    <div
       style={{
-        opacity: visible ? 1 : 0,
-        transition: 'opacity 120ms linear',
         position: 'absolute',
         inset: 0,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         pointerEvents: 'none',
-        color: 'var(--color-blue)',
-        margin: 0,
       }}
     >
-      {words[index]}.
-    </h1>
+      <AnimatePresence mode="wait">
+        {visible && (
+          <motion.h1
+            key={index}
+            initial={{ opacity: 0, y: 18, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            transition={spring}
+            style={{
+              color: 'var(--color-blue)',
+              margin: 0,
+              fontFamily: 'Roboto, sans-serif',
+              fontSize: 'clamp(60px, 15vw, 100px)',
+              lineHeight: 1,
+              letterSpacing: '-2px',
+              fontWeight: 900,
+              textTransform: 'lowercase',
+            }}
+          >
+            {words[index]}.
+          </motion.h1>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

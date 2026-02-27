@@ -1,108 +1,103 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useApp } from '../../context/AppContext'
-import CircleCTA from '../../components/CircleCTA'
+import Link from 'next/link'
+import { useApp } from '@/app/context/AppContext'
+import { useEffect, useState } from 'react'
+import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
+import { buildZoneViewModel } from '@/lib/zone/buildZoneViewModel'
 
 export default function ProfileSummaryPage() {
-  const router = useRouter()
   const { state } = useApp()
-  const [currentLineIndex, setCurrentLineIndex] = useState(0)
-  const [showCTA, setShowCTA] = useState(false)
+  const p = state.profile
+  const [totals, setTotals] = useState<{ money: string; carbon: string } | null>(null)
 
-  // Summary text - one line at a time
-  const summaryLines = [
-    'you could save',
-    '£1145',
-    'and',
-    '1000k co₂e.',
-  ]
-
-  // Animation: Match intro speed - 0.4s per line (hard cuts, no fade delays)
   useEffect(() => {
-    if (currentLineIndex < summaryLines.length) {
-      const timer = setTimeout(() => {
-        if (currentLineIndex < summaryLines.length - 1) {
-          setCurrentLineIndex(prev => prev + 1)
-        } else {
-          // Final line complete - auto-advance to Fork
-          setTimeout(() => {
-            router.push('/fork')
-          }, 400) // Small delay after final word
+    const profile = p
+      ? {
+          name: p.name,
+          postcode: p.postcode,
+          household: p.livingSituation,
+          home_type: p.homeType,
+          transport_baseline: p.transport,
+          age: p.age,
         }
-      }, 400) // 0.4s per line (matches intro speed)
-
-      return () => clearTimeout(timer)
-    }
-  }, [currentLineIndex, summaryLines.length, router])
-
-  const handleContinue = () => {
-    router.push('/fork')
-  }
-
-  useEffect(() => {
-    if (!state.userId) {
-      router.push('/profile')
-    }
-  }, [state.userId, router])
-
-  if (!state.userId) {
-    return null
-  }
+      : {}
+    const journeyAnswers: Record<JourneyId, Record<string, string>> = {} as Record<
+      JourneyId,
+      Record<string, string>
+    >
+    JOURNEY_ORDER.forEach((journeyId) => {
+      if (typeof localStorage === 'undefined') return
+      const stored = localStorage.getItem(`journey_${journeyId}_answers`)
+      if (stored) journeyAnswers[journeyId] = JSON.parse(stored)
+    })
+    const vm = buildZoneViewModel({ profile, journeyAnswers })
+    setTotals({
+      money: vm.hero.data.money,
+      carbon: vm.hero.data.carbon,
+    })
+  }, [p])
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      background: '#FDFDFF',
-      position: 'relative'
-    }}>
-      {/* Summary text container - 385×172 */}
-      <div style={{
-        display: 'flex',
-        width: 385,
-        height: 172,
-        flexDirection: 'column',
-        justifyContent: 'center',
-        flexShrink: 0
-      }}>
-        {summaryLines.map((line, index) => (
-          <div
-            key={index}
-            style={{
-              fontFamily: 'Roboto',
-              fontWeight: 900,
-              letterSpacing: '-2px',
-              textTransform: 'lowercase',
-              color: '#000AFF',
-              textAlign: 'center',
-              opacity: index === currentLineIndex ? 1 : 0,
-              transition: 'none',
-              position: index === currentLineIndex ? 'relative' : 'absolute',
-              visibility: index === currentLineIndex ? 'visible' : 'hidden'
-            }}
-            className="intro-font-size"
-          >
-            {line}
-          </div>
-        ))}
+    <div className="zz-page summary-page summary-page--groovy">
+      <Link href="/profile" className="zz-page-back zz-label">
+        ← Back
+      </Link>
+
+      <h1 className="zz-h2 summary-page__title">Summary</h1>
+      <p className="zz-body summary-page__intro">
+        Here’s what we’ve got. You can change it anytime from settings.
+      </p>
+
+      {/* Stacked 60s-colored panels — 48px radius (big bold audit) */}
+      <div className="summary-panels">
+        <section className="summary-panel summary-panel--profile" aria-label="Your profile">
+          <h2 className="zz-label summary-panel__heading">Profile</h2>
+          <dl className="summary-panel__list">
+            <div className="summary-panel__row">
+              <dt className="zz-label">Name</dt>
+              <dd className="zz-body">{p?.name ?? '—'}</dd>
+            </div>
+            <div className="summary-panel__row">
+              <dt className="zz-label">Postcode</dt>
+              <dd className="zz-body">{p?.postcode || '—'}</dd>
+            </div>
+            <div className="summary-panel__row">
+              <dt className="zz-label">Household</dt>
+              <dd className="zz-body">{p?.livingSituation || '—'}</dd>
+            </div>
+            <div className="summary-panel__row">
+              <dt className="zz-label">Home</dt>
+              <dd className="zz-body">{p?.homeType || '—'}</dd>
+            </div>
+            <div className="summary-panel__row">
+              <dt className="zz-label">Transport</dt>
+              <dd className="zz-body">{p?.transport || '—'}</dd>
+            </div>
+            <div className="summary-panel__row">
+              <dt className="zz-label">Age</dt>
+              <dd className="zz-body">{p?.age ?? '—'}</dd>
+            </div>
+          </dl>
+        </section>
+
+        {totals && (
+          <section className="summary-panel summary-panel--impact" aria-label="Your impact">
+            <h2 className="zz-label summary-panel__heading">Your impact</h2>
+            <div className="summary-impact">
+              <span className="hero-total summary-impact__money" style={{ color: 'var(--color-burnt)' }}>{totals.money}</span>
+              <span className="zz-label summary-impact__unit">/ yr</span>
+              <span className="hero-total summary-impact__carbon" style={{ color: 'var(--color-burnt)', fontSize: 'clamp(60px, 15vw, 100px)' }}>{totals.carbon}</span>
+              <span className="zz-label summary-impact__unit">kg CO₂e / yr</span>
+            </div>
+          </section>
+        )}
       </div>
-      
-      {/* CTA appears after animation */}
-      {showCTA && (
-        <div style={{
-          position: 'absolute',
-          bottom: 40,
-          left: '50%',
-          transform: 'translateX(-50%)'
-        }}>
-          <CircleCTA onClick={handleContinue} variant="arrow" />
-        </div>
-      )}
+
+      {/* Massive screen-wide BLUE pill CTA */}
+      <Link href="/zone" className="summary-cta">
+        Go to Zone
+      </Link>
     </div>
   )
 }

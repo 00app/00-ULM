@@ -39,6 +39,7 @@
   flex-direction: column;
   gap: 0;
   padding-bottom: 20px;
+  text-align: left;
 }
 
 .sheet-cta-row {
@@ -72,6 +73,34 @@
   .sheet-content {
     max-height: calc(90vh - 180px) !important;
   }
+}
+
+/* Sheet Image — 16:9 cinematic, 40px radius (spec) */
+.sheet-image-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 40px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.sheet-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Sheet title — h3 style (50px mobile), spec [8, 9, 22] */
+.sheet-title-slot {
+  font-family: 'Roboto', sans-serif;
+  font-size: 50px;
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -2px;
+  text-transform: lowercase;
+  color: var(--color-blue);
+  margin-bottom: 20px;
+  text-align: left;
 }
 
 .sheet-cta-row .primary {

@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { JOURNEY_ORDER, JOURNEYS, type JourneyId } from '@/lib/journeys'
 import { useRouter } from 'next/navigation'
 
@@ -23,6 +23,10 @@ export default function JourneyGrid({
   showLabel = false
 }: JourneyGridProps) {
   const router = useRouter()
+
+  useEffect(() => {
+    JOURNEY_ORDER.forEach((id) => router.prefetch(`/journeys/${id}`))
+  }, [router])
   
   const getJourneyState = (journeyId: JourneyId): 'not_started' | 'in_progress' | 'completed' => {
     if (completedJourneys.includes(journeyId)) {
@@ -31,7 +35,8 @@ export default function JourneyGrid({
     return 'not_started'
   }
 
-  const handleJourneyClick = (journeyId: JourneyId) => {
+  const handleJourneyClick = (e: React.MouseEvent, journeyId: JourneyId) => {
+    e.preventDefault()
     if (onJourneyClick) {
       onJourneyClick(journeyId)
     } else {
@@ -97,8 +102,9 @@ export default function JourneyGrid({
           return (
             <button
               key={journeyId}
+              type="button"
               className={`journey-button zz-button ${state === 'completed' ? 'completed' : ''}`}
-              onClick={() => handleJourneyClick(journeyId)}
+              onClick={(e) => handleJourneyClick(e, journeyId)}
               style={getButtonStyle(state)}
               aria-label={`${journeyId} - ${state}`}
             >

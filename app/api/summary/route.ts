@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import { getSessionFromRequest } from '@/lib/auth'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import { type JourneyId } from '@/lib/journeys'
 
@@ -44,16 +45,14 @@ async function calculateProfileSummary(userId: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const user_id = searchParams.get('user_id')
-    const type = searchParams.get('type') // 'profile' or 'journey'
-
-    if (!user_id) {
-      return NextResponse.json(
-        { error: 'Missing user_id' },
-        { status: 400 }
-      )
+    const session = await getSessionFromRequest()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const user_id = session.userId
+
+    const { searchParams } = new URL(request.url)
+    const type = searchParams.get('type') // 'profile' or 'journey'
 
     if (type === 'profile') {
       // Get user profile

@@ -1,902 +1,362 @@
-# ZERO ZERO — PROJECT SPECIFICATION
+# Zero Zero — Project Specification
 
-**Version:** 3.0.0  
-**Last Updated:** January 23, 2026  
-**Status:** Production Locked — System Hard-Locked (Phases 1, 2, 3 Complete)
+**Version:** 1.2  
+**Last Updated:** February 2026  
+**Status:** Production Locked
 
----
-
-## TABLE OF CONTENTS
-
-1. [Project Overview](#project-overview)
-2. [Technology Stack](#technology-stack)
-3. [Design System](#design-system)
-4. [Architecture: Single Source of Truth](#architecture-single-source-of-truth)
-5. [Calculation System](#calculation-system)
-6. [Journey Questions](#journey-questions)
-7. [Card System](#card-system)
-8. [Components](#components)
-9. [Page Structures](#page-structures)
-10. [Layout System](#layout-system)
-11. [API Routes](#api-routes)
-12. [Database Schema](#database-schema)
-13. [Image Sources](#image-sources)
-14. [Rules & Constraints](#rules--constraints)
+Single source of truth for product overview, user flow, design system, data model, calculations, app logic, APIs, and deployment.
 
 ---
 
-## PROJECT OVERVIEW
+## 1. Overview
 
-**Zero Zero** is a sustainability journey application that guides users through personalized recommendations for reducing carbon footprint and saving money. The system is fully locked to a single source of truth for calculations, four card variants, a single Zone grid system, deterministic journey-based images/sources, and a fixed layout system to prevent drift.
+**Zero Zero** is a mobile-first web app that helps people understand and reduce their everyday impact on **money**, **energy**, **carbon**, and **home life**. Users complete a short profile and up to nine “journeys” (home, travel, food, shopping, money, carbon, tech, waste, holidays). The app calculates personalised annual carbon (kg CO₂e) and money (£) impact using UK data and shows a Zone dashboard with a hero total, per-journey cards, and tips.
 
-### Core Features
+### Principles
 
-- **Journey System**: 9 journey categories (home, travel, food, shopping, money, carbon, tech, waste, holidays)
-- **Card Recommendations**: Dynamic cards generated from journeys with deterministic images and sources
-- **Zone Page**: Single grid system; 1 hero (full width), 9 standard cards, 3 compact tip cards
-- **Likes System**: User favorites saved as liked cards (card-liked variant)
-- **Journey Grid**: Visual progress tracker; 3×3 mobile, wraps on tablet/desktop
-- **Progressive Summaries**: Live impact updates as users answer questions
+- **Progressive disclosure:** Intro → Profile → Zone → Journeys
+- **Single source of truth:** All impact calculations via `buildUserImpact()` in `lib/brains/buildUserImpact.ts`
+- **UK data only:** Government and industry sources (DEFRA, Energy Saving Trust, WRAP, etc.)
+- **Partial answers supported:** UK averages used when data is missing
+- **Real-time updates:** Impact updates as the user answers questions
 
-### Application Type
+### Tech Stack
 
-- **Framework**: Next.js 14.2.35 (App Router)
-- **Language**: TypeScript 5.3.3
-- **Database**: PostgreSQL (Neon-ready)
-- **Styling**: Tailwind CSS + Modular CSS files
-- **Deployment**: Vercel
+- **Framework:** Next.js (App Router)
+- **Database:** Neon PostgreSQL
+- **State:** React Context (`AppContext`) + `localStorage` for profile and journey answers
+- **Styling:** Tailwind CSS + design tokens in `app/globals.css`
 
 ---
 
-## TECHNOLOGY STACK
+## 2. Deploy & Connections
 
-### Core Dependencies
+| Service | Details |
+|--------|---------|
+| **Neon** | Postgres via `DATABASE_URL`; database **neondb** (pooler). Copy `.env.example` → `.env.local`. |
+| **Vercel** | Project **00-ULM**; production URL **https://00-ulm.vercel.app**. Set `DATABASE_URL` and `GEMINI_API_KEY` in env. |
+| **GitHub** | Remote **origin**: `git@github.com:00app/00-ULM.git`. Push to `main` triggers Vercel deploy. |
 
-```json
-{
-  "next": "^14.2.0",
-  "react": "^18.3.0",
-  "react-dom": "^18.3.0",
-  "pg": "^8.11.3",
-  "typescript": "^5.3.3"
-}
-```
-
-### Scripts
-
-```bash
-npm run dev        # Development server
-npm run build      # Production build
-npm start          # Start production server
-npm run lint       # Lint code
-```
+**Commands:** `npm run build` (local build), `npm run dev` (http://localhost:3000), `npm run init-db` (schema), `npm run deploy` or `vercel --prod --yes` (deploy).
 
 ---
 
-## DESIGN SYSTEM
+## 3. User Flow
 
-### Color System
+| Step | Route | Description |
+|------|--------|-------------|
+| 1 | `/intro` | Intro screen (auto-advance) |
+| 2 | `/profile` | 6 profile questions (name, postcode, household, home, transport, age) |
+| 3 | `/profile/summary` | Profile summary; CTA: “go to zone” |
+| 4 | `/zone` | Zone dashboard: hero, Groovy Grid (journey cards + Pulse), tips |
+| 5 | `/journeys/[journeyId]` | Journey questions; live summary; then return to Zone |
 
-All colors are defined as CSS variables with semantic naming:
-
-```css
-:root {
-  --color-ice: #FDFDFF;   /* Surfaces, backgrounds */
-  --color-cool: #F8F8FE;  /* Buttons, cards, secondary backgrounds */
-  --color-blue: #000AFF;  /* Primary actions, links, accents, carbon data */
-  --color-deep: #141268;  /* Text, copy, labels, money data */
-  --color-pink: #E80DAD;  /* Completed state, highlights */
-}
-```
-
-**Usage Rules:**
-- **ICE**: Text on dark backgrounds (e.g. hero data panel, compact-blue cards) and light page surfaces
-- **COOL**: Neutral/informational surfaces — card backgrounds, input fields, journey grid buttons
-- **BLUE**: Carbon-first signals — primary carbon data values, carbon-led CTAs, hero data panels
-- **DEEP**: Money/finance emphasis — money values, finance-led headings, body text/labels on light backgrounds
-- **PINK**: Completed journeys and highlight states (never used for primary CTAs)
-
-### Typography
-
-**Font Family:** Roboto (Google Fonts)  
-**Weights:** 400 (regular), 900 (bold)
-
-#### Heading System
-
-| Element | Mobile | Desktop (≥1024px) | Line Height | Letter Spacing | Weight |
-|---------|--------|-------------------|-------------|----------------|--------|
-| h1 | 100px | 200px | 95% | -2px | 900 |
-| h2 | 80px | 120px | 90% | -2px | 900 |
-| h3 | 50px | 90px | 90% | -2px | 900 |
-| h4 | 40px | 60px | 96.667% | -2px | 900 |
-| h5 | 20px | 20px | 100% | -1px | 900 |
-
-**All headings:**
-- Transform: lowercase
-- Color: `var(--color-blue)` (default)
-- Desktop: center-aligned
-
-#### Data Typography
-
-```css
-.text-data {
-  font-size: 50px;
-  line-height: 49px;
-  letter-spacing: -2px;
-  font-weight: 900;
-  text-transform: lowercase;
-  color: var(--color-blue);
-}
-```
-
-#### Label Typography
-
-```css
-.text-label {
-  font-size: 10px;
-  line-height: 14px;
-  letter-spacing: 0;
-  font-weight: 900;
-  text-transform: uppercase;
-  color: var(--color-deep);
-}
-```
-
-#### Body Typography
-
-```css
-.text-body {
-  font-size: 16px;
-  line-height: 18px;
-  font-weight: 400;
-  color: var(--color-deep);
-  text-transform: capitalize;
-  letter-spacing: 0;
-}
-```
-
-### Responsive Breakpoints
-
-| Breakpoint | Range | Usage |
-|------------|-------|-------|
-| Mobile | ≤640px | Default, single column |
-| Tablet | 641px–1023px | Two columns, adjusted card sizes |
-| Desktop | ≥1024px | Three columns, full layout |
+**Sequence:** Intro → Profile (localStorage + AppContext) → Summary → Zone. Tapping a journey card opens questions; completing them updates Zone hero and cards. Tips are biased by profile age (Junior → tech/food, Retired → home/holidays).
 
 ---
 
-## ARCHITECTURE: SINGLE SOURCE OF TRUTH
+## 4. Routes & Key Pages
 
-### Core Principle
+| Route | Purpose |
+|-------|---------|
+| `/` | Root (redirect/splash) |
+| `/intro` | Onboarding intro |
+| `/profile` | Profile setup (6 questions) |
+| `/profile/summary` | Profile summary; entry to Zone |
+| `/zone` | Main dashboard (hero + Groovy Grid + tips) |
+| `/fork` | Fork entry (design-spec entry point) |
+| `/journeys` | Journeys list |
+| `/journeys/[journeyId]` | Single journey questions & summary |
+| `/zai` | Zai chat / assistant |
+| `/likes` | Liked cards |
+| `/settings` | Settings |
 
-**Money and carbon are NEVER calculated in UI. UI only reads from `buildUserImpact()`.**
-
-### Data Flow
-
-```
-User Data (profile + journeyAnswers)
-  ↓
-buildUserImpact(user: UserData)
-  ↓
-perJourneyResults + totals
-  ↓
-buildZoneViewModel() (for Zone/Sheets)
-getJourneyImpact() (for journey summaries)
-  ↓
-UI reads: journey.summary, totals.money, totals.carbon
-```
-
-### Single Responsibility Files
-
-**There must be exactly one of each:**
-
-| Responsibility | File |
-|----------------|------|
-| User Impact Calculator | `lib/brains/buildUserImpact.ts` |
-| Journey Calculations | `lib/brains/calculations.ts` |
-| Zone Builder | `lib/zone/buildZoneViewModel.ts` |
-| Card Renderer | `app/components/Card.tsx` |
-| Sheet Renderer | `app/components/Sheet.tsx` |
-
-**Deprecated Files (DO NOT USE):**
-- `lib/zone.ts` — DEPRECATED
-- `lib/zone-cards.ts` — DEPRECATED
-- `lib/zone-content.ts` — DEPRECATED
-- `lib/zone/buildZoneItems.ts` — DEPRECATED
+Zone view model: `lib/zone/buildZoneViewModel.ts` (calls `buildUserImpact()`).
 
 ---
 
-## CALCULATION SYSTEM
+## 5. Design System
 
-### Single Source: `buildUserImpact()`
+### Colors
 
-**File:** `lib/brains/buildUserImpact.ts`
+- **ICE** #FDFDFF — Surfaces, backgrounds  
+- **COOL** #F8F8FE — Buttons, cards  
+- **BLUE** #000AFF — Actions, CTAs, headings  
+- **DEEP** #141268 — Copy, section labels  
+- **PINK** #E80DAD — Completed journey state  
+- **Burnt** #0a0a0a — Text on color panels (labels/numbers)  
+- **Journey palette:** `--color-j-home` … `--color-j-holidays` in `app/globals.css`; map in `lib/journeyColors.ts`.  
+- **60s Groovy:** Atomic Orange, Sunshine Yellow, Paprika, Turquoise (see globals + Tailwind).
 
-**Function:**
-```typescript
-export function buildUserImpact(user: UserData): UserImpact {
-  // Returns:
-  // - perJourneyResults: Record<JourneyId, ImpactResult>
-  // - totals: { totalCarbon: number, totalMoney: number }
-}
-```
+### Typography (Groovy scale — stabilized hierarchy)
 
-**Rules:**
-- This is the ONLY place where money and carbon are calculated
-- UI components MUST read from this, never calculate
-- All calculations use `lib/brains/calculations.ts`
-- Supports partial answers (uses UK averages when answers missing)
+| Level | Size (Mobile / Desktop) | Font | Usage |
+|-------|-------------------------|------|--------|
+| **H1** | 100px / 200px | Roboto 900 | Hero totals, Splash titles |
+| **H2** | 80px / 120px | Roboto 900 | Section headers (Zone) |
+| **DATA** | 60px / 90px | Marvin Visions | Key metrics (£, kg) |
+| **LABEL** | 12px / 14px | Marvin Visions | Sub-headers, units, journey names |
+| **BODY** | 18px / 20px | Roboto 400 | Descriptions, chat text |
 
-### Calculation Engine: `lib/brains/calculations.ts`
+- **Roboto** 900 (headings), 400 (body). **Marvin Visions Bold** for DATA and LABEL (`.text-data`, `.zz-data`, `.zz-label`).
 
-**Interface:**
-```typescript
-export interface ImpactResult {
-  carbonKg: number      // Annual kg CO₂e
-  moneyGbp: number      // Annual £
-  source: string        // UK source attribution
-  explanation: string[] // Human, UK-based reasoning
-}
-```
+### Spacing
 
-**All 9 Journey Functions:**
-- `calculateHome(answers)` → Home/Energy calculations
-- `calculateTravel(answers)` → Travel calculations
-- `calculateFood(answers)` → Food calculations
-- `calculateShopping(answers)` → Shopping calculations
-- `calculateMoney(answers)` → Money calculations
-- `calculateCarbon(answers)` → Carbon tracking calculations
-- `calculateTech(answers)` → Tech calculations
-- `calculateWaste(answers)` → Waste calculations
-- `calculateHolidays(answers)` → Holidays calculations
+| Token | Value | Usage |
+|-------|-------|--------|
+| gap-xs/sm/md/lg/xl | 2px–40px | Gaps and section spacing |
+| padding-sm/md/lg | 12px–30px | Containers |
+| margin-top-xl | 40px | Section labels, “40px below Hero” in expanded cards |
 
-**Rules:**
-- Annual values only (kg CO₂e per year, £ per year)
-- Money is never negative (0 minimum)
-- Carbon is never negative (0 minimum)
-- All values rounded to whole numbers
-- Source attribution is ALWAYS present
-- Supports partial answers (UK average fallbacks)
+### Components
 
-**UK Data Sources:**
-- Home/Energy → Energy Saving Trust UK
-- Travel → DEFRA Transport Emissions Factors
-- Food/Waste → WRAP UK
-- Carbon → Carbon Trust UK
-- Holidays → DEFRA Aviation Factors
-- Money → UK Household Spending data
-- Tech → UK consumer electronics lifecycle studies
-- Shopping → UK retail emissions data
-
-### Calculation Details
-
-#### HOME
-- **Monthly cost**: UK avg fallback: 120/month
-- **Annual spend**: monthly × 12
-- **Base carbon**: annualSpend × 0.45
-- **Green tariff = NO**: +120 money
-- **Provider switching** (green_tariff = NO AND provider ≠ OCTOPUS): +400kg carbon, +180 money
-
-#### TRAVEL
-- **Distance**: `distance_amount` (UK avg: 50 miles/week)
-- **Period**: `distance_period` (WEEK | MONTH)
-- **Annual miles**: WEEK × 52, MONTH × 12
-- **Fuel factors**: PETROL 0.404, DIESEL 0.447, ELECTRIC/HYBRID 0.05, NONE 0
-- **Money**: CAR transport → 300, else 0
-
-#### FOOD
-- **Carbon**: VEGAN 800, VEGETARIAN 1100, FLEXI 1400, default 1800 (UK omnivore avg)
-- **Money**: HIGH waste 300, MEDIUM 150, LOW 0
-
-#### SHOPPING
-- **Monthly spend**: UK avg fallback: 200/month
-- **Annual spend**: monthly × 12
-- **Carbon**: annualSpend × 2.5
-- **Money**: OFTEN buy_new 20%, SOMETIMES 10%, RARELY 0
-
-#### MONEY
-- **Carbon**: 0
-- **Money**: finances_tight = YES → 250, else 0
-
-#### CARBON
-- **Carbon**: tracking = NO → 300, else 0
-- **Money**: 0
-
-#### TECH
-- **Carbon**: upgrade_often = YES → 400, else 0
-- **Money**: upgrade_often = YES → 200, else 0
-
-#### WASTE
-- **Carbon**: recycle = NEVER 350, SOMETIMES 175, ALWAYS 0
-- **Money**: compost = NO → 100, else 0
-
-#### HOLIDAYS
-- **Carbon**: fly_frequency = OFTEN 2000, YEARLY 1000, NEVER 0
-- **Money**: long_haul = YES → 300, else 150 (UK short-haul avg)
+- **zero-** prefixed classes; 80px circular CTAs; flat design (no shadows).  
+- **Groovy Grid:** Asymmetrical 2-column layout; Hero span 2, Pulse span 1, Long (Home/Travel) span 2, Square span 1. Bouncy spring (`--easing-groovy`), 48px radius, twist on press.
 
 ---
 
-## JOURNEY QUESTIONS
+## 6. Data & Storage
 
-**File:** `lib/journeys.ts`
+### Client
 
-**All 9 Journeys with Complete Questions:**
+- **localStorage:** `userId`, `userPostcode`, `profile_name`, `profile_postcode`, `profile_household`, `profile_home_type`, `profile_transport`, `profile_age`, `journey_{id}_answers` (JSON), `completedJourneys`.
 
-### HOME
-1. `energy_type` — options: GAS, ELECTRIC, MIXED, SOLAR, UNKNOWN
-2. `electricity_provider` — options: OCTOPUS, BRITISH_GAS, EDF, EON, OVO, SCOTTISH_POWER, SHELL, UTILITA, OTHER (two-line text)
-3. `gas_provider` — options: OCTOPUS, BRITISH_GAS, EDF, EON, OVO, SCOTTISH_POWER, SHELL, UTILITA, OTHER (two-line text)
-4. `monthly_cost` — number (repeatLabel: "even a rough estimate helps — what do you spend each month?")
-5. `green_tariff` — options: YES, NO, UNKNOWN
+### Server
 
-### TRAVEL
-1. `primary_transport` — options: CAR, BUS, TRAIN, BIKE, WALK
-2. `fuel_type` — options: PETROL, DIESEL, ELECTRIC, HYBRID, NONE
-3. `distance_amount` — number (repeatLabel: "even a rough estimate helps — how many miles?")
-4. `distance_period` — options: WEEK, MONTH
+- **Neon PostgreSQL:** `users`, `journey_answers`, `likes`, etc. Sync via `/api/user`, `/api/answers`, `/api/likes`.
 
-### FOOD
-1. `diet_type` — options: OMNIVORE, FLEXI, VEGETARIAN, VEGAN
-2. `food_waste` — options: LOW, MEDIUM, HIGH
+### Calculation Engine
 
-### SHOPPING
-1. `buy_new` — options: OFTEN, SOMETIMES, RARELY
-2. `secondhand` — options: YES, NO
-3. `monthly_spend` — number (repeatLabel: "even a rough estimate helps — how much do you spend?")
-
-### MONEY
-1. `finances_tight` — options: YES, NO
-2. `biggest_cost` — options: HOUSING, ENERGY, FOOD, TRAVEL
-
-### CARBON
-1. `priority` — options: LOW, MEDIUM, HIGH
-2. `tracking` — options: YES, NO
-
-### TECH
-1. `upgrade_often` — options: YES, NO
-2. `device_count` — options: FEW, AVERAGE, MANY
-
-### WASTE
-1. `recycle` — options: ALWAYS, SOMETIMES, NEVER
-2. `compost` — options: YES, NO
-
-### HOLIDAYS
-1. `fly_frequency` — options: NEVER, YEARLY, OFTEN
-2. `long_haul` — options: YES, NO
-
-### Question Logic
-
-**Numeric Questions with Conditional Repeat:**
-- If value is 0, empty, or implausibly low → re-ask once with `repeatLabel`
-- One repeat only per question
-- Thresholds:
-  - `monthly_cost`: < 10
-  - `distance_amount`: 0 or empty
-  - `monthly_spend`: < 5
-
-**Storage:**
-- Answers stored in `localStorage` as `journey_{journeyId}_answers` (JSON object)
-- Format: `{ [question_id]: answer }`
+- **Entry:** `buildUserImpact(userData)` in `lib/brains/buildUserImpact.ts`  
+- **Per-journey:** `lib/brains/calculations.ts` — `calculateHome`, `calculateTravel`, … (one per journey).  
+- **Output:** `UserImpact` — `perJourneyResults` (carbon + money + source + explanation), `totals` (annual kg CO₂e, annual £). Scraped overlay via `lib/brains/scrapedOverlay.ts` and optional `scraped` in `buildUserImpact`.  
+- **Zone:** `buildZoneViewModel({ profile, journeyAnswers, scraped, localData })` returns hero, journeys, tips.
 
 ---
 
-## CARD SYSTEM
+## 7. Profile Questions (6)
 
-### Variant Lock (ABSOLUTE)
+**Route:** `/profile`. **Storage:** `profile_*` in localStorage; synced to Neon `users` via `/api/user`.
 
-**ONLY FOUR CARD VARIANTS ALLOWED:**
+| # | ID | Question | Type | Options / notes |
+|---|----|----------|------|------------------|
+| 1 | name | what's your name? | input | — |
+| 2 | postcode | your postcode? | input | UK postcode |
+| 3 | livingSituation | who do you live with? | options | ALONE, COUPLE, FAMILY, SHARED |
+| 4 | homeType | your home? | options | FLAT, HOUSE |
+| 5 | transport | how do you get around? | options | WALK, BIKE, PUBLIC, CAR, MIX |
+| 6 | age | how old are you? | options | JUNIOR, MID, RETIRED |
 
-1. `card-hero` — Hero card (full image, data panel)
-2. `card-standard` — Image + text below (natural flow)
-3. `card-compact` — Text-only
-4. `card-liked` — Same as compact, DEEP background (Likes/Settings only)
-
-**FORBIDDEN FOREVER:**
-- Any "pod-*" naming
-- Aliases, fallbacks, or normalization layers
-- New variants
-
-### Runtime Validation
-
-```typescript
-const allowedVariants = ['card-hero', 'card-standard', 'card-compact', 'card-liked'] as const
-if (!allowedVariants.includes(variant as any)) {
-  console.error(`[Card] Invalid variant "${variant}"`)
-  return null
-}
-```
-
-### CARD 1: card-hero
-
-**Layout:**
-- Full image background
-- Badge + arrow overlay at top
-- Blue data panel bottom-left
-- Mobile: 370×658px
-- Desktop: 960×420px
-- Card radius: 60px
-- Data panel radius: 40px
-
-### CARD 2: card-standard (CRITICAL)
-
-**Structure: TWO STACKED SIBLINGS ONLY:**
-
-```
-[ Image container ]
-[ Text container ]
-```
-
-**Wrapper:**
-- `display: flex`
-- `flex-direction: column`
-- `align-items: center`
-- `padding-bottom: 20px`
-- NO background on wrapper
-
-**Image:**
-- Mobile: 370×278px
-- Tablet: 320×240px
-- Desktop: 300×225px
-- `border-radius: 60px`
-- Badge + arrow overlay ONLY (absolute)
-- NO text inside image
-- NO absolute positioning of text container
-
-**Text container (SIBLING, NOT ABSOLUTE):**
-- Mobile: 330px × auto (natural flow)
-- Tablet: 300px × auto
-- Desktop: 280px × auto
-- `padding: 20px`
-- `border-radius: 40px`
-- `background: var(--color-cool)`
-- `display: flex`
-- `flex-direction: column`
-- `gap: 20px`
-
-**Title:**
-- h4 typography ONLY
-- MAX 3 LINES (line-clamp: 3)
-- `overflow: hidden`
-- `text-overflow: ellipsis`
-- NO subtitle text
-
-**Data:**
-- Carbon FIRST, money SECOND
-- Labels always visible
-- Source always visible
-- NO extra text
-
-**NEVER:**
-- Overlay text on image
-- Reuse hero layout
-- Absolute-position the text container
-- Fixed heights on text container (use natural flow)
-
-### CARD 3: card-compact
-
-- `width: 330px`
-- `padding: 20px`
-- `border-radius: 40px`
-- Text only
-- Badge + arrow at top
-- Tone:
-  - `blue` → BLUE bg, ICE text
-  - `cool` → COOL bg, DEEP text
-
-### CARD 4: card-liked
-
-- Same layout as card-compact
-- `background: var(--color-deep)`
-- `text/data: var(--color-ice)`
-- USED ONLY on Likes screen and Settings page
-- NEVER renders images
+**Neon:** `name`, `postcode`, `household`, `home_type`, `transport_baseline`, `age_group`.
 
 ---
 
-## COMPONENTS
+## 8. Journey Questions (9)
 
-### Card.tsx
+**Source:** `lib/journeys.ts`. **Storage:** `journey_{journeyId}_answers` (JSON); sync via `/api/answers`. **Order:** home, travel, food, shopping, money, carbon, tech, waste, holidays.
 
-**Props:**
-```typescript
-interface CardProps {
-  variant: 'card-hero' | 'card-standard' | 'card-compact' | 'card-liked'
-  title?: string
-  subtitle?: string
-  journey?: JourneyId
-  category?: string
-  source?: string
-  sourceLabel?: string
-  data?: { money?: string; carbon?: string }
-  tone?: 'cool' | 'blue'
-  image?: string | null
-  onClick?: () => void
-  children?: React.ReactNode
-}
-```
+### Home (5)
 
-**Image Resolution:**
-- `card-liked` and `card-compact`: NEVER render images (returns `null`)
-- `card-hero` and `card-standard`: Uses `getJourneyImage(journey, variant, 0)`
-- Path: `/public/cards/{journey}/hero.jpg` or `/public/cards/{journey}/standard.jpg`
-- Dev warnings for missing images
+energy_type (GAS|ELECTRIC|MIXED|SOLAR|UNKNOWN), electricity_provider, gas_provider, monthly_cost (number; re-ask if &lt; 10), green_tariff (YES|NO|UNKNOWN).
 
-### Sheet.tsx
+### Travel (4)
 
-**Structure (top → bottom):**
-1. IMAGE (16:9 aspect ratio, 40px radius) — optional
-2. HEADING (h3 style, uses `.card-title-slot`)
-3. BODY COPY (explanation paragraphs, scrolls if needed)
-4. DATA ROW (carbon first, money second)
-5. ACTION ROW — START | ACTION (optional) | LEARN
+primary_transport (skipped if `profile_transport` exists), fuel_type, distance_amount (number; re-ask if 0), distance_period (WEEK|MONTH).
 
-**CTA Row (Normal Flow):**
-- START: `router.push(/journeys/${journey})` → internal route
-- ACTION: `window.open(actionUrl, '_blank')` → external provider URL (if exists)
-- LEARN: `window.open(learnUrl, '_blank')` → source URL (always)
+### Food (2)
 
-**Layout:**
-- `.sheet`: `display: flex`, `flex-direction: column`
-- `.sheet-content`: `flex: 1`, `overflow-y: auto` (scrolls naturally)
-- `.sheet-cta-row`: `margin-top: 20px`, normal flow (sibling after content)
-- NO absolute positioning on CTA row
+diet_type (OMNIVORE|FLEXI|VEGETARIAN|VEGAN), food_waste (LOW|MEDIUM|HIGH).
 
-### CircleCTA.tsx
+### Shopping (3)
 
-**Circular button component (80×80px)**
+buy_new (OFTEN|SOMETIMES|RARELY), secondhand (YES|NO), monthly_spend (number; re-ask if &lt; 5).
 
-**Variants:**
-- `variant="arrow"`: Arrow icon (default)
-- `variant="text"`: Text label
-- `variant="icon"`: Icon (heart)
+### Money (2)
 
-**Props:**
-- `primary?: boolean` — Sheet primary CTA styling
-- `disabled?: boolean` — Disabled state
-- `icon?: 'heart'` — Heart icon for like button
+finances_tight (YES|NO), biggest_cost (HOUSING|ENERGY|FOOD|TRAVEL).
 
-**States:**
-- Default: COOL background, BLUE text/icon
-- Hover: BLUE background, ICE text/icon
-- Active: DEEP background, ICE text/icon
-- Primary: BLUE background, ICE text (default)
-- Disabled: Overrides all (grey/muted)
+### Carbon (2)
 
-### InputField.tsx
+priority (LOW|MEDIUM|HIGH), tracking (YES|NO).
 
-**Text input with advance arrow**
+### Tech (2)
 
-**Dimensions:**
-- Width: 350px (default), or `width="100%"` for constrained containers
-- Height: 60px
-- Background: `var(--color-cool)`
+upgrade_often (YES|NO), device_count (FEW|AVERAGE|MANY).
 
-**Typography:**
-- Font: h4 (40px, -2px letter spacing)
-- Color: `var(--color-blue)`
+### Waste (2)
 
-**Behavior:**
-- Type: `text` (NOT `number`)
-- Input mode: `numeric` (for mobile keyboards)
-- Pattern: `[0-9]*` (for numeric validation)
-- Arrow appears ONLY when field is filled
-- Hover arrow: DEEP background, ICE arrow
-- ENTER key advances
+recycle (ALWAYS|SOMETIMES|NEVER), compost (YES|NO).
 
-**Props:**
-- `width?: string | number` — Override default width (e.g., `"100%"` for auth modal)
-- `className?: string` — For CSS targeting (e.g., `.input-field`)
+### Holidays (2)
 
-**Forbidden:** Native number spinners
-
-### AnswerCircle.tsx
-
-**Circular answer option button**
-
-- Size: 80×80px
-- Background: COOL (default), BLUE (selected)
-- Text: DEEP (default), ICE (selected)
-- `twoLine?: boolean` — Supports two-line text (splits on `_`, centers, no overflow)
-
-### FloatingNav.tsx
-
-**Persistent navigation component**
-
-**Items (3 only):**
-1. Heart icon → `/likes` (Likes page)
-2. Circle icon → `/zone` (Zone/home page)
-3. Leaf icon → `/settings` (Summary/settings page)
-
-**Layout:**
-- Mobile: Bottom center, horizontal layout (`flex-direction: row`)
-- Desktop: Top right, vertical layout (`flex-direction: column`)
-- `position: fixed`
-- `z-index: 100`
-
-### AuthModal.tsx
-
-**Authentication modal**
-
-**Structure:**
-1. H4 heading: "get more free tips" (centred, one line, blue)
-2. Email input (`width="100%"`, `className="input-field"`)
-3. Password input (`width="100%"`, `className="input-field"`)
-4. Single CTA: "log in" or "sign up" (80×80 circle, dynamic label)
-5. Close chevron (top right, no text)
-
-**Behavior:**
-- Submit on button tap
-- Submit on ENTER
-- If email not found → create account silently
-- If password wrong → inline error (text-body, deep)
-- No separate "mode switching"
-
-**CSS:**
-- `.auth-modal { padding: 20px; }`
-- `.auth-modal .input-field { max-width: 100%; }`
+fly_frequency (NEVER|YEARLY|OFTEN), long_haul (YES|NO).
 
 ---
 
-## PAGE STRUCTURES
+## 9. Calculation Logic
 
-### Zone Page (`/zone`)
+**Single source of truth:** `lib/brains/calculations.ts`. Rules: annual values only (kg CO₂e/year, £/year); money and carbon ≥ 0; rounded; source always present.
 
-**Structure (fixed order):**
-1. Tagline ("USE LESS." / "MORE.") — fixed top-left
-2. Logo (20px from top)
-3. Personal message (H3)
-4. Ask Zero input
-5. "best." → exactly 1 × card-hero
-6. "act now." → exactly 9 × card-standard
-7. "tips." → exactly 3 × card-compact
-8. "get more personalised tips" → Load more module
-9. "explore more." → JourneyGrid
-10. FloatingNav
+### Summary
 
-**Layout:**
-- `.zone`: `display: flex`, `flex-direction: column`, `align-items: center`, `width: 100%`, `gap: 20px`, `padding-bottom: 100px`
-- `.zone-content-container`: `max-width: 480px` mobile, `max-width: 1100px` tablet+, `padding: 0 20px`, `gap: 20px`
-- `.zone-grid`: 1 column mobile, 2 tablet, 3 desktop, `gap: 20px`
-- `.zone-grid .card-hero`: `grid-column: 1 / -1` (full width)
+- **Home:** Carbon from annual spend × 0.45; +400 kg if not green/Octopus. Money: +£120 if no green tariff; +£180 if provider switch. UK fallback monthly_cost £120.  
+- **Travel:** Carbon = milesPerYear × factor (PETROL 0.404, DIESEL 0.447, ELECTRIC 0.05, etc.). Money: £300 if CAR. Fallbacks: 50 miles, WEEK.  
+- **Food:** Carbon by diet (VEGAN 800 … OMNIVORE 1800 kg). Money: waste HIGH £300, MEDIUM £150.  
+- **Shopping:** Carbon = annualSpend × 2.5; money by buy_new (OFTEN 20%, etc.). Fallback monthly_spend £200.  
+- **Money:** £250 if finances_tight YES.  
+- **Carbon:** 300 kg if tracking NO.  
+- **Tech:** 400 kg / £200 if upgrade_often YES.  
+- **Waste:** Carbon by recycle (NEVER 350 … ALWAYS 0); £100 if compost NO.  
+- **Holidays:** Carbon by fly_frequency (OFTEN 2000 … NEVER 0); money by long_haul.
 
-**NO other cards. NO profile cards here. NO extra sections.**
-
-### Journey Page (`/journeys/[journeyId]`)
-
-**Structure:**
-1. Intro screen (auto-advances after 2s)
-2. Questions (progressive, with live summary)
-3. Summary screen (per-journey impact only)
-
-**Live Summary:**
-- Updates after every answered question
-- Shows: "Based on what you've told us so far…"
-- Displays: `{carbonKg} kg CO₂ / year · £{moneyGbp} a year`
-- Only visible when at least one answer exists
-
-**Summary Screen:**
-- Calculated from current journey only (not cumulative)
-- Format: "you could save" → "£X a year" → "and cut" → "X kg CO₂ / year"
-- Uses `getJourneyImpact(journeyId, answers)`
-
-**Question Logic:**
-- Numeric questions: Re-ask once if 0/empty/implausible (uses `repeatLabel`)
-- Options: Auto-advance after selection
-- Number: Advance on ENTER
-
-### Settings Page (`/settings`)
-
-**Structure:**
-1. Profile card (`card-liked` variant)
-2. Journey cards (all 9, `card-liked` variant)
-3. Reset and Log/Signin buttons (bottom, text-based, 80×80)
-4. FloatingNav
-
-**Journey Cards:**
-- Display full journey answers (all questions + answers)
-- Format: `{label} {answer.toLowerCase()}`
-- Edit button (pencil icon, top-right)
-- NO images on Settings page
-
-### Likes Page (`/likes`)
-
-**Structure:**
-1. Heading: "your likes."
-2. Liked cards (`card-liked` variant)
-3. FloatingNav
-
-**Cards:**
-- All use `card-liked` variant
-- DEEP background, ICE text
-- NO images
-
-### Fork Page (`/fork`)
-
-**Structure:**
-1. Logo
-2. H3: "continue or go to your zone."
-3. Incomplete container (JourneyGrid)
-4. CircleCTA "ZONE" pinned bottom
-
-**NO legacy layouts. NO alternate grids.**
+**General cards** (profile-only, for Zone “act now.”): general home living, general transport, general home extra — formulas in `calculations.ts`.
 
 ---
 
-## LAYOUT SYSTEM
+## 10. App Logic
 
-### Zone Container
+### Deduplication
 
-**Mobile:**
-- `max-width: 480px` (420-480px range)
-- Single centered column
-- Vertical stack with `gap: 20px`
-- `padding-bottom: 100px` (minimum for FloatingNav)
+- **Travel:** If `profile_transport` in localStorage, skip first question `primary_transport` and use profile value.  
+- **Home:** Prefill `home_type` from `profile_home_type` when present.
 
-**Tablet/Desktop:**
-- `max-width: 1100px`
-- Grid: 2 columns tablet, 3 columns desktop
-- Centered horizontally
+### Completion
 
-### Card Grid
+- **Sheet “Start learning”:** Hidden when `isJourneyComplete` or when `journey_{journey}_answers` exists in localStorage.  
+- **Completed journeys:** Stored in `completedJourneys` (localStorage); used for progress and Zone display.
 
-**`.zone-grid`:**
-- Mobile: 1 column
-- Tablet (≥641px): 2 columns
-- Desktop (≥1024px): 3 columns
-- `gap: 20px`
-- Hero always spans full width (`grid-column: 1 / -1`)
+### Zone View Model
 
-### Sheet Layout
+- **Input:** Profile + all journey answers (+ optional `scraped`, `localData`).  
+- **Hero:** Totals; hero journey = max by `carbonKg×0.6 + moneyGbp×0.4`.  
+- **Journey cards:** One per journey in `JOURNEY_ORDER`; general cards from profile.  
+- **Tips:** Top 3 by impact with **age persona boost** — JUNIOR: tech/food +600; RETIRED: home/holidays +600; MID: no boost.
 
-**`.sheet`:**
-- `display: flex`
-- `flex-direction: column`
-- `position: fixed`
-- `bottom: 0`
-- `max-height: 90vh`
+### Sheet CTA Row
 
-**`.sheet-content`:**
-- `flex: 1`
-- `overflow-y: auto`
-- Scrolls naturally
-
-**`.sheet-cta-row`:**
-- Normal flow (sibling after content)
-- `margin-top: 20px`
-- `padding: 20px`
-- NO absolute positioning
-
-### FloatingNav Spacing
-
-**All scrollable pages must:**
-- Add `safe-bottom` class or `padding-bottom: 120px` (minimum 100px)
-- Prevents overlap with FloatingNav
-
-**Pages with FloatingNav:**
-- Zone: `padding-bottom: 100px`
-- Settings: `safe-bottom` class
-- Likes: `safe-bottom` class
-- Zai: Input positioned at `bottom: 100px` (above nav)
+Order: [Start learning] (if shown) → [Action] (if actionUrl) → [Heart] → [Learn]. Heart toggles like via `/api/likes`; haptic success on save.
 
 ---
 
-## API ROUTES
+## 11. API Endpoints
 
-### `/api/summary`
-
-**Method:** GET  
-**Purpose:** User summary data
-
-**Uses:** `buildUserImpact()` (single source of truth)
-
-**Response:**
-```typescript
-{
-  savings: number  // totalMoney
-  carbon: number   // totalCarbon
-  text: string
-}
-```
-
-### `/api/analytics`
-
-**Method:** POST  
-**Purpose:** Track analytics events
-
-### `/api/likes`
-
-**Method:** GET, POST, DELETE  
-**Purpose:** Manage user likes
-
-### `/api/reset`
-
-**Method:** POST  
-**Purpose:** Reset user data
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | /api/health | Database connectivity |
+| POST | /api/user | Create/update user profile |
+| POST | /api/answers | Save journey answer |
+| POST | /api/journey | Update journey state |
+| GET | /api/cards | Card definitions |
+| GET / POST | /api/likes | Get or toggle liked cards |
+| GET | /api/space | Space items (6) |
+| GET | /api/summary | Summary data |
+| GET | /api/analytics | Analytics |
+| GET | /api/local-offers | Local offers (postcode) |
+| GET | /api/local-intelligence?postcode= | Postcodes.io + Carbon Intensity (council, localCarbonG) |
+| GET / POST | /api/scrape-sync | Scraped 2026 data |
+| POST | /api/zai | Zai chat (Gemini 2.0 Flash) |
+| GET | /api/zone | Zone data |
+| GET | /api/journey | Journey data |
+| POST | /api/reset | Reset |
 
 ---
 
-## DATABASE SCHEMA
+## 12. Key Files
 
-### Tables
-
-#### `users`
-```sql
-id: uuid (primary key)
-name: text
-postcode: text
-household: text
-home_type: text
-transport_baseline: text
-created_at: timestamp
-updated_at: timestamp
-```
-
-#### `journey_answers`
-```sql
-id: uuid (primary key)
-user_id: uuid (foreign key -> users.id)
-journey_key: text
-question_id: text
-answer: text
-created_at: timestamp
-updated_at: timestamp
-```
-
-#### `likes`
-```sql
-id: uuid (primary key)
-user_id: uuid (foreign key -> users.id)
-card_id: text
-created_at: timestamp
-```
+| Area | Files |
+|------|--------|
+| Questions & structure | `lib/journeys.ts`, `lib/journeys/lockedQuestions.ts`, `app/profile/page.tsx` |
+| Calculations | `lib/brains/buildUserImpact.ts`, `lib/brains/calculations.ts`, `lib/brains/scrapedOverlay.ts` |
+| Zone & tips | `lib/zone/buildZoneViewModel.ts`, `app/zone/page.tsx` |
+| Journey colors | `lib/journeyColors.ts`, `lib/journeyColorMap.json` |
+| State & sync | `app/context/AppContext.tsx`, `/api/user`, `/api/answers` |
+| Flow | `app/intro/page.tsx`, `app/profile/page.tsx`, `app/profile/summary/page.tsx`, `app/journeys/[journeyId]/page.tsx` |
+| Local / scraped | `lib/local/getLocalData.ts`, `lib/scraper/uk2026Defaults.ts` |
 
 ---
 
-## IMAGE SOURCES
+## 13. S Update (Feb 2026)
 
-**Deterministic Paths:**
-- Hero: `/public/cards/{journey}/hero.jpg`
-- Standard: `/public/cards/{journey}/standard.jpg`
-- Compact/Liked: NEVER render images (returns `null`)
-
-**Resolution:**
-- `getJourneyImage(journey: JourneyId, variant: CardVariant, index: number): string | null`
-- Dev warnings for missing images
+- **Economic-first:** Zone cards lead with £ when money saving &gt; carbon; 5s flip £/kg. Scraped defaults: Warm Homes (£0 cost), EV £500 grant, Food £1k/yr, Carbon £117 cap drop.  
+- **Local Living:** Postcodes.io + Carbon Intensity via `/api/local-intelligence`; council + regional gCO₂/kWh; “Local” tag (Home/Travel); Local Context Bar 40px below Hero; “Claim Offer” 80px with GOV.UK deep-link.  
+- **Expanded card:** Hero (slot-machine count-up) → Local Context Bar (40px) → scraped offer (.text-data, 40px) → 80px CTA. Squish (scaleY 0.8), heavy haptic; spring expand; light haptic on settle. Priority: Home + council → pulsing gold border; 80px can pulse green.  
+- **Zai:** Context includes postcode → council; haptic success on save to Likes.
 
 ---
 
-## RULES & CONSTRAINTS
+## 14. Groovy Grid (60s Zone)
 
-### Absolute Rules
+- **Layout:** 2-column asymmetrical grid. Hero span 2 (full width); Pulse (live carbon) span 1 when `localCarbonG` set; Home/Travel span 2 (Long); other journeys span 1 (Square).  
+- **Palette:** Atomic Orange (hero), Turquoise (pulse), journey colors.  
+- **Kinetics:** `.bento-card-groovy` — 48px radius, bouncy spring (`--easing-groovy`), `:active` scale(0.92) rotate(-1deg). Journey cards with `groovy` use same spring and twist on press; expanded state floods with card color.
 
-1. **Card Variants**: ONLY 4 variants. Runtime validation required.
-2. **Calculations**: NEVER in UI. Always use `buildUserImpact()`.
-3. **Layout**: NO absolute positioning on card text containers or sheet CTAs.
-4. **Zone Structure**: Fixed order, no extra sections.
-5. **Questions**: All questions defined in `lib/journeys.ts` only.
-6. **Images**: Deterministic paths only, no APIs or randomization.
-7. **Buttons**: All interactive elements 80×80px circles (`.zz-button`).
-8. **FloatingNav**: Never overlaps inputs (use `safe-bottom`).
+### Card expansion and collapse (fixed, in-place)
 
-### Forbidden
+- **Single data per card (no bouncing):** Each journey card shows **one** stable view: **money and carbon together** (e.g. £ and kg CO₂e side by side or stacked), at a **reduced size** so both fit in the collapsed card. No 5s flip between two values — no cards “bouncing” between different data.
+- **Fixed expansion:** Tapping a card expands it **in place**. The expanded card fills a defined portion of the grid (e.g. full width, min height); it does not open as an overlay.
+- **Grid reflow:** When a card expands, **all other cards move out of the way** (reflow) to make space; the grid layout updates (e.g. expanded cell gets `grid-column: 1 / -1`) and sibling cells wrap or shift with layout animation.
+- **Pop-back:** When the user closes the expanded card, it collapses and **all cards pop back into place**; the grid returns to its previous layout with the same layout animation so nothing “jumps” or shows duplicate data.
+- **Implementation:** `app/zone/page.tsx` (single `expandedCardId`); `app/components/JourneyBentoCard.tsx` (kinetic grid: collapsed = money + carbon together, no flip; expanded = full content). CSS: `.card-expanded` spans full width; Framer `layout` + `layoutId` on grid and cards for reflow and pop-back.
 
-- ❌ "pod-*" naming
-- ❌ New card variants
-- ❌ Calculations in UI components
-- ❌ Absolute positioning on text containers
-- ❌ Fixed heights on card-standard-body (use natural flow)
-- ❌ Duplicate zone builders or card components
-- ❌ Layout drift (inline width/height overrides on cards)
+### Route-specific polish
 
-### Required
+- **`/profile/summary`:** Final “Audit” before Zone. Hero numbers use **DATA** scale (60/90px); stacked 60s-colored panels (48px radius); “Go to Zone” = massive screen-wide pill in **BLUE** (#000AFF).
+- **`/zone`:** Collapsed cards: **white** text; expanded: **white** background, text in **journey color**. Data pairing: £ and kg at **LABEL** size (no flip). Reflow spring: stiffness 500, damping 30.
+- **`/zai`:** Immersive **ICE** (#FDFDFF) screen. Message bubbles: **32px** radius. **Agent (Zai)** responses: **BLUE** background for prominence.
 
-- ✅ Single source of truth for calculations (`buildUserImpact`)
-- ✅ Runtime variant validation in Card component
-- ✅ Progressive summaries (live updates as user answers)
-- ✅ Per-journey summaries (not cumulative)
-- ✅ Natural flow layout (no absolute positioning)
-- ✅ Safe-bottom spacing for FloatingNav
+### Unified Kinetic “Total Screen Bloom”
+
+- **Expansion:** Tapping a card or nav icon (Zone, Zai, Settings, Likes) triggers a `layoutId` transition. The element expands to **100vw × 100vh**, pushing the rest of the app out of view (no standard overlays).
+- **Pop-back:** Closing uses a high-tension spring (`stiffness: 500`, `damping: 30`) so content “pops back” into its 80px circular anchor or grid cell. CSS: `.bloom-expansion`, `--spring-bloom` / `--spring-bloom-damping` in `app/globals.css`.
+- **Uniformity:** Same physics for `/zone` (card expand), `/zai`, `/settings`, `/likes` — each can “bloom” from its nav icon into a full-screen immersive panel (ICE for Zai, journey color for Zone cards).
 
 ---
 
-**END OF SPECIFICATION**
+## 15. Setup
+
+1. **Prerequisites:** Node.js 18+, Neon Postgres.  
+2. **Install:** `npm install`.  
+3. **Env:** Copy `.env.example` → `.env.local`; set `DATABASE_URL`, `GEMINI_API_KEY`.  
+4. **DB:** `npm run init-db`.  
+5. **Run:** `npm run dev` → http://localhost:3000.  
+6. **Build:** `npm run build`.  
+7. **Deploy:** `npm run deploy` or `vercel --prod --yes`; set env vars in Vercel.
+
+**Troubleshooting:** If DB fails, check `DATABASE_URL` and `npm run init-db`. If build fails, run `npm run lint`.
+
+---
+
+## 16. S Update Master Layer — Physicality & Live Orchestration
+
+The UI is a **singular mechanical organism**: same squish-bloom logic everywhere, real-time local data, production-locked typography.
+
+### Kinetic Anchor Navigation
+
+- **Living dock:** `FloatingNav` uses **80px** perfect circles (not 54px). Tap = squish (scale 0.92); navigation “blooms” into full-screen (router + layoutId).
+- **Active states:** If Zai has a new scraped tip, the chat circle **pulses** with `var(--color-blue)` and a slow liquid wobble (`hasNewTipForZai` prop).
+- **Haptic gravity:** On hover, circles slightly “lean” (scale 1.08) via Framer Motion; spring `stiffness: 500`, `damping: 30`.
+
+### Impact Scale (Typography)
+
+| Element | Rule |
+|--------|------|
+| **Hero Totals** | **200px** (desktop) / **100px** (mobile) Marvin Visions Bold. Classes: `.hero-total`, `.zone-hero-total`. |
+| **Bento Numbers** | **DATA 50px** (`.bento-data`). On expand, numbers “slot machine” count up from 0 to target. |
+| **Labels** | **LABEL 10px** (`.zz-label`) all-caps Marvin Visions — technical markers. |
+| **Reverse-Out** | Expanded cards: white background, journey-colored text for legibility. |
+
+### Proportional Impact Card & Deep Content
+
+- **Collapsed card:** Background is a **live bar**: top = **Atomic Orange** (Money), bottom = **Turquoise** (Carbon). Proportion = `moneyGbp / (moneyGbp + carbonKg)` so the bigger “win” fills more height. **White** text (Marvin Visions Bold); Money value in top section, Carbon in bottom.
+- **Push-aside expansion:** Tap → card expands in place (`grid-column: 1 / -1`); siblings reflow down. **Reverse-Out:** background floods to **White**, text to journey color.
+- **Deep content stack (expanded):** (1) **Top Hero** — £ and kg, H1 Marvin Visions. (2) **40px down** — Scraped offer / local tip, BODY Roboto 400. (3) **Action Row** — **Trinity of 80px circles:** **ACTION** (BLUE, “Claim”/“Go”), **LIKE** (ICE + heart icon), **LEARN** (COOL, external link). Groovy spring `stiffness: 500`, `damping: 30`, `mass: 1`; squish-effect on buttons: `whileTap: { scaleX: 1.15, scaleY: 0.85 }`, spring 600/15.
+
+### Real-Time Local Living Feed
+
+- **Grid Pulse:** When local grid intensity **&lt; 50 gCO₂/kWh**, the Carbon/Pulse bento gets a 2px `var(--color-blue)` border and subtle glow (`.grid-pulse--low-carbon`).
+- **Grant alerts:** 001 Crawler can inject council-specific grants (e.g. £12,000 Fully Funded Solar). Shown **40px below** Hero in Home card via `localContextBar`; “Claim Offer” = 80px circle deep-linking to GOV.UK.
+- **ScrapedOverlay grant weighting:** `ScrapedDataPoint.local_grant_gbp` is added to `moneyGbp` in the user’s final impact score so local grants are weighted correctly. `lib/brains/scrapedOverlay.ts` exposes `localGrantGbp` on the result for UI (e.g. “Claim £12,000”).
+
+### Production Stability
+
+- No images in core flow; no shadows; locked 2-column grid. **Production Locked** for February 2026 launch.

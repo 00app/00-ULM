@@ -1,20 +1,61 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { JOURNEY_IDS, JOURNEY_LABELS, JOURNEY_COLORS } from '@/lib/journeys'
 
-export default function JourneysPage() {
-  const router = useRouter()
-
+export default function JourneysListPage() {
   return (
-    <div className="question-screen">
-      <div className="flex flex-col items-center gap-8">
-        <h1 className="text-3xl md:text-5xl text-h1">journeys</h1>
-        <button
-          onClick={() => router.push('/journeys/travel')}
-          className="card-zero bg-ice border border-deep/10 p-6"
-        >
-          <p className="text-body">travel</p>
-        </button>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'var(--color-ice)',
+        padding: 24,
+        paddingTop: 48,
+      }}
+    >
+      <Link
+        href="/zone"
+        style={{
+          fontFamily: 'Roboto',
+          fontSize: 14,
+          color: 'var(--color-blue)',
+          marginBottom: 24,
+          display: 'inline-block',
+        }}
+      >
+        ← Zone
+      </Link>
+      <h1
+        style={{
+          fontFamily: 'Roboto',
+          fontSize: 24,
+          fontWeight: 900,
+          letterSpacing: '-1px',
+          color: 'var(--color-deep)',
+          marginBottom: 24,
+        }}
+      >
+        Journeys
+      </h1>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {JOURNEY_IDS.map((id) => (
+          <Link
+            key={id}
+            href={`/journeys/${id}`}
+            style={{
+              background: JOURNEY_COLORS[id],
+              color: 'var(--color-deep)',
+              borderRadius: 16,
+              padding: 20,
+              textDecoration: 'none',
+              fontFamily: 'Roboto',
+              fontSize: 16,
+              fontWeight: 900,
+            }}
+          >
+            {JOURNEY_LABELS[id]}
+          </Link>
+        ))}
       </div>
     </div>
   )

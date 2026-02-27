@@ -10,7 +10,6 @@ import AnswerCircle from '../../components/AnswerCircle'
 import InputField from '../../components/InputField'
 import Dropdown from '../../components/Dropdown'
 import CircleCTA from '../../components/CircleCTA'
-import Card from '../../components/Card'
 
 export default function JourneyPage() {
   const router = useRouter()
@@ -36,15 +35,25 @@ export default function JourneyPage() {
       return
     }
 
-    // Load existing answers from localStorage
+    // Load existing answers from localStorage; de-dupe: prefill from profile where applicable
     const storedAnswers = localStorage.getItem(`journey_${journeyId}_answers`)
+    const profileTransport = typeof localStorage !== 'undefined' ? localStorage.getItem('profile_transport') : null
+    const profileHomeType = typeof localStorage !== 'undefined' ? localStorage.getItem('profile_home_type') : null
+    let initial: Record<string, string> = {}
     if (storedAnswers) {
       try {
-        setAnswers(JSON.parse(storedAnswers))
+        initial = JSON.parse(storedAnswers)
       } catch (e) {
         // Ignore
       }
     }
+    if (journeyId === 'travel' && profileTransport && !initial.primary_transport) {
+      initial.primary_transport = profileTransport
+    }
+    if (journeyId === 'home' && profileHomeType) {
+      if (!initial.home_type) initial.home_type = profileHomeType
+    }
+    if (Object.keys(initial).length > 0) setAnswers(initial)
 
     // Load completed journeys (local state for now)
     const stored = localStorage.getItem('completedJourneys')
@@ -84,7 +93,14 @@ export default function JourneyPage() {
     return null
   }
 
-  const currentQuestion = journey.questions[currentStep]
+  // No redundancy: if profile_transport exists (e.g. from Neon), skip first Travel question
+  const profileTransport = typeof window !== 'undefined' ? localStorage.getItem('profile_transport') : null
+  const displayQuestions =
+    journeyId === 'travel' && profileTransport
+      ? journey.questions.filter((q) => q.id !== 'primary_transport')
+      : journey.questions
+
+  const currentQuestion = displayQuestions[currentStep]
   const currentAnswer = answers[currentQuestion?.id] || ''
   const canProceed = currentAnswer.trim() !== ''
   const isRepeatedNumeric = numericRepeatUsedAtStep === currentStep
@@ -123,7 +139,7 @@ export default function JourneyPage() {
     window.dispatchEvent(new Event('journey-answers-updated'))
 
     setTimeout(() => {
-      if (currentStep < journey.questions.length - 1) {
+      if (currentStep < displayQuestions.length - 1) {
         setCurrentStep((prev) => prev + 1)
       } else {
         showJourneySummary(answersSoFar)
@@ -154,7 +170,7 @@ export default function JourneyPage() {
         return
       }
     }
-    if (currentStep < journey.questions.length - 1) {
+    if (currentStep < displayQuestions.length - 1) {
       setNumericRepeatUsedAtStep(null)
       setCurrentStep((prev) => prev + 1)
     } else {
@@ -171,7 +187,7 @@ export default function JourneyPage() {
     window.dispatchEvent(new Event('journey-answers-updated'))
 
     setTimeout(() => {
-      if (currentStep < journey.questions.length - 1) {
+      if (currentStep < displayQuestions.length - 1) {
         setCurrentStep((prev) => prev + 1)
       } else {
         showJourneySummary(answersSoFar)
@@ -245,7 +261,7 @@ export default function JourneyPage() {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        background: '#FDFDFF',
+        background: 'var(--color-ice)',
         position: 'relative'
       }}>
         {/* Summary text container - 385×172 */}
@@ -313,73 +329,55 @@ export default function JourneyPage() {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
+      alignItems: 'center',
       minHeight: '100vh',
-      background: '#FDFDFF',
-      position: 'relative'
+      background: 'var(--color-ice)',
+      position: 'relative',
+      padding: '0 20px',
+      paddingBottom: '120px' // Spec: safe-bottom spacing for FloatingNav
     }}>
-      {/* Progress bar at top (3px from top) */}
+      {/* 1. Progress Bar - Fixed at top */}
       <div style={{ position: 'absolute', top: 3, left: 0, right: 0, padding: '0 20px' }}>
-        <ProgressBar progress={(currentStep + 1) / journey.questions.length} />
+        <ProgressBar progress={(currentStep + 1) / displayQuestions.length} />
       </div>
 
-      {/* Category badge at 40px */}
-      <div style={{
-        position: 'absolute',
-        top: 40,
-        left: '50%',
-        transform: 'translateX(-50%)'
-      }}>
-        <span style={{
-          fontFamily: 'Roboto',
-          fontSize: 10,
-          lineHeight: '14px',
-          letterSpacing: '0.6px',
-          fontWeight: 900,
-          textTransform: 'uppercase',
-          color: '#141268'
-        }}>
-          {journey.name.toLowerCase()}
-        </span>
+      {/* 2. Category Badge */}
+      <div style={{ marginTop: '40px' }}>
+        <span className="text-label">{journey.name.toLowerCase()}</span>
       </div>
 
-      {/* Question at 110px (H2) */}
-      <div style={{
-        position: 'absolute',
-        top: 110,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '100%',
-        maxWidth: 640,
-        padding: '0 20px',
-        textAlign: 'center'
-      }}>
-        <h2 className="question-text" style={{
-          fontFamily: 'Roboto',
-          fontSize: 80,
-          lineHeight: '76px',
-          letterSpacing: '-2px',
-          fontWeight: 900,
-          textTransform: 'lowercase',
-          color: '#000AFF'
-        }}>
+      {/* 3. Question container — fixed height prevents jumping when question length changes */}
+      <div
+        className="question-container"
+        style={{
+          marginTop: '110px',
+          height: 200,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          maxWidth: 640,
+          width: '100%',
+        }}
+      >
+        <h2 className="question-text">
           {displayLabel}
         </h2>
       </div>
 
-      {/* Answers */}
+      {/* 4. Answers Container — exactly 40px below hero question (S Update clean-up) */}
       {isTextOptions && (
-        <div style={{
-          position: 'absolute',
-          top: 400,
-          left: '50%',
-          transform: 'translateX(-50%)',
+        <div
+          className="answer-container"
+          style={{
+            marginTop: 40,
           display: 'flex',
           flexWrap: 'wrap',
           justifyContent: 'center',
-          alignItems: 'center',
-          gap: 20,
+          alignContent: 'center', // Centers grid vertically if flex-1 provides extra height
+          gap: '20px', // Equal vertical and horizontal spacing
           maxWidth: 360,
-          margin: '0 auto'
+          flex: 1 
         }}>
           {currentQuestion.options?.map((option) => (
             <AnswerCircle
@@ -394,13 +392,18 @@ export default function JourneyPage() {
         </div>
       )}
 
+      {/* Dropdown variant — consistent spacing */}
       {isDropdown && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)'
-        }}>
+        <div
+          className="answer-container"
+          style={{
+            marginTop: 40,
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <Dropdown
             options={currentQuestion.options || []}
             value={currentAnswer}
@@ -411,60 +414,31 @@ export default function JourneyPage() {
         </div>
       )}
 
+      {/* Number input variant — consistent spacing */}
       {isNumber && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)'
-        }}>
+        <div
+          className="answer-container"
+          style={{
+            marginTop: 40,
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <InputField
             value={currentAnswer}
             placeholder={
               currentQuestion.id === 'monthly_cost' || currentQuestion.id === 'monthly_spend'
                 ? 'amount'
                 : currentQuestion.id === 'distance_amount'
-                ? 'miles'
-                : 'amount'
+                  ? 'miles'
+                  : 'amount'
             }
             onChange={handleTextChange}
             onAdvance={handleTextAdvance}
             type="number"
           />
-        </div>
-      )}
-
-      {/* Live summary — updates after every answered question */}
-      {liveImpact && (
-        <div style={{
-          position: 'absolute',
-          bottom: 48,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          textAlign: 'center',
-          maxWidth: 320,
-        }}>
-          <p style={{
-            fontFamily: 'Roboto',
-            fontSize: 14,
-            fontWeight: 500,
-            letterSpacing: 0,
-            color: '#141268',
-            margin: 0,
-            marginBottom: 4,
-          }}>
-            Based on what you&apos;ve told us so far…
-          </p>
-          <p style={{
-            fontFamily: 'Roboto',
-            fontSize: 16,
-            fontWeight: 700,
-            letterSpacing: '-1px',
-            color: '#000AFF',
-            margin: 0,
-          }}>
-            {liveImpact.carbonKg} kg CO₂ / year · £{Math.round(liveImpact.moneyGbp)} a year
-          </p>
         </div>
       )}
     </div>

@@ -1,69 +1,41 @@
 'use client'
 
-import React from 'react'
-
 interface AnswerCircleProps {
   text: string
-  selected?: boolean
-  onClick?: () => void
-  autoAdvance?: boolean // If true, onClick automatically advances
-  /** When true (e.g. electricity/gas provider options): 2-line centred, no overflow. Only on these buttons. */
+  selected: boolean
+  onClick: () => void
+  autoAdvance?: boolean
   twoLine?: boolean
 }
 
-/**
- * AnswerCircle - For ≤9 option answers
- * - Circular shape
- * - Uppercase label typography
- * - Tap = auto-advance (if autoAdvance is true)
- * - No CTA arrow needed
- */
-export default function AnswerCircle({ 
-  text, 
-  selected = false, 
+export default function AnswerCircle({
+  text,
+  selected,
   onClick,
-  autoAdvance = true,
-  twoLine = false,
+  twoLine,
 }: AnswerCircleProps) {
-  const handleClick = () => {
-    onClick?.()
-    // Auto-advance logic would be handled by parent
-  }
-
-  // Energy provider options: 2 lines centred, no overflow. Split on underscore (e.g. BRITISH_GAS → BRITISH\nGAS).
-  const displayText = twoLine && text.includes('_')
-    ? text.split('_').join('\n')
-    : text
-
+  const displayText = twoLine ? text.replace('_', '\n') : text
   return (
     <button
-      className={`answer-circle zz-button ${selected ? 'selected' : ''}`}
-      onClick={handleClick}
+      type="button"
+      onClick={onClick}
       style={{
-        display: 'flex',
-        width: 80,
-        height: 80,
-        padding: '4px 6px',
-        justifyContent: 'center',
-        alignItems: 'center',
+        minWidth: 80,
+        minHeight: 80,
+        padding: '12px 20px',
         borderRadius: 40,
         border: 'none',
-        background: selected 
-          ? 'var(--color-blue)' 
-          : 'var(--btn-bg-rest)',
-        color: selected 
-          ? 'var(--color-ice)' 
-          : 'var(--btn-text-rest)',
+        background: selected ? 'var(--color-blue)' : 'var(--color-cool)',
+        color: selected ? 'var(--color-ice)' : 'var(--color-blue)',
         fontFamily: 'Roboto',
-        fontSize: 10,
-        lineHeight: '14px',
-        letterSpacing: '0.6px',
+        fontSize: twoLine ? 10 : 14,
         fontWeight: 900,
+        letterSpacing: '0',
         textTransform: 'uppercase',
-        cursor: 'pointer',
         whiteSpace: twoLine ? 'pre-line' : 'nowrap',
-        textAlign: 'center',
-        overflow: 'hidden',
+        lineHeight: 1.2,
+        cursor: 'pointer',
+        transition: 'background 120ms ease, color 120ms ease',
       }}
     >
       {displayText}

@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import { getSessionFromRequest } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { user_id, journey_id, state } = body
+    const session = await getSessionFromRequest()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const user_id = session.userId
 
-    if (!user_id || !journey_id || !state) {
+    const body = await request.json()
+    const { journey_id, state } = body
+
+    if (!journey_id || !state) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }

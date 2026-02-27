@@ -2,6 +2,9 @@
 
 import { createContext, useContext, useState, ReactNode } from 'react'
 
+/** Age persona for tips: Junior (tech, food) vs Retired (home, holidays) */
+export type ProfileAge = 'JUNIOR' | 'MID' | 'RETIRED'
+
 interface ProfileData {
   id?: string
   name: string
@@ -9,6 +12,7 @@ interface ProfileData {
   livingSituation: string
   homeType: string
   transport: string
+  age?: ProfileAge
 }
 
 interface AppState {

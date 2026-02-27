@@ -1,6 +1,5 @@
-/* Zone Page Layout Rules - Extracted from globals.css */
+/* Zone Page — Physical UI + FORK-ZONE-SPEC */
 
-/* Zone Layout - Mobile First */
 .zone {
   display: flex;
   flex-direction: column;
@@ -8,39 +7,286 @@
   width: 100%;
   min-height: 100vh;
   background: var(--color-ice);
-  padding-bottom: 100px; /* minimum space for FloatingNav */
+  padding-bottom: 120px;
   box-sizing: border-box;
-  gap: 20px; /* vertical stack with gap */
 }
+
+/* =========================
+   Physical UI — Anchor Header
+   ========================= */
+
+.zone-anchor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 280px;
+  padding-top: var(--margin-top-xl);
+}
+
+/* Menu: "LESS MORE" top left — Marvin Visions Bold */
+.zone-menu {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--color-burnt);
+  z-index: 10;
+}
+
+.zone-anchor .zone-logo {
+  width: 51px;
+  height: auto;
+  margin-top: 0;
+  margin-bottom: var(--gap-lg);
+}
+
+/* Ask Zai pill: below logo, full pill radius */
+.zone-ask-zai-wrap {
+  width: 100%;
+  margin-top: 0;
+  margin-bottom: 10px; /* 10px vertical margin above grid */
+}
+
+.zone-ask-zai-pill {
+  width: 100%;
+  border-radius: 9999px;
+  background: var(--color-cool);
+  padding: 14px 20px;
+  border: none;
+  font-family: var(--font-label);
+  font-size: 16px;
+  color: var(--color-deep);
+  box-sizing: border-box;
+}
+
+.zone-ask-zai-pill::placeholder {
+  color: var(--color-deep);
+  opacity: 0.7;
+}
+
+/* =========================
+   Physical UI — Bento Grid (280px, 80/64/40/96 radius hierarchy)
+   ========================= */
+
+.zone-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 10px;
+  width: 280px;
+  margin-top: 20px;
+}
+
+/* Card 1: Hero — full width, 135px height, 80px radius */
+.zone-card.hero-card {
+  grid-column: 1 / -1;
+  height: 135px;
+  min-height: 135px;
+  border-radius: 80px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: border-radius 0.25s var(--easing-zero), min-height 0.3s var(--easing-zero), grid-column 0.3s var(--easing-zero);
+}
+
+/* Cards 2 & 3: Squares — 135×135, 64px radius */
+.zone-card.square-card {
+  grid-column: span 6;
+  height: 135px;
+  min-height: 135px;
+  border-radius: 64px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: border-radius 0.25s var(--easing-zero), min-height 0.3s var(--easing-zero), grid-column 0.3s var(--easing-zero);
+}
+
+/* Cards 4–12: Small — 86px height, 40px radius */
+.zone-card.small-card {
+  grid-column: span 4;
+  height: 86px;
+  min-height: 86px;
+  border-radius: 40px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: border-radius 0.25s var(--easing-zero), min-height 0.3s var(--easing-zero), grid-column 0.3s var(--easing-zero);
+}
+
+/* Pill label — top left, 1.5px solid journey color */
+.zone-card-pill {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: transparent;
+  border: 1.5px solid;
+  font-family: 'Roboto', sans-serif;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  line-height: 14px;
+  color: var(--color-deep);
+}
+
+.small-card .zone-card-pill { top: 8px; left: 8px; padding: 2px 8px; font-size: 9px; }
+
+/* Expanded state — focus: full row, 96px radius */
+.zone-card.expanded {
+  grid-column: 1 / -1 !important;
+  min-height: 320px;
+  height: auto !important;
+  border-radius: 96px;
+  padding: 32px;
+  background: var(--color-ice);
+  box-shadow: 0 4px 24px rgba(20, 18, 104, 0.08);
+}
+
+.zone-card.expanded .zone-card-pill {
+  top: 24px;
+  left: 24px;
+}
+
+/* Brand logo in expanded view — top right */
+.zone-card-expanded-logo {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 32px;
+  height: auto;
+  opacity: 0.9;
+}
+
+/* Shimmer overlay */
+.zone-card-shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    var(--color-cool) 40%,
+    var(--color-ice) 50%,
+    var(--color-cool) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-position: -200% 0;
+  opacity: 0;
+  border-radius: inherit;
+}
+
+.zone-card.expanded .zone-card-shimmer,
+.zone-card.zone-card--shimmer .zone-card-shimmer {
+  animation: zone-shimmer-flow 0.4s var(--easing-zero) forwards;
+}
+
+@keyframes zone-shimmer-flow {
+  0% { background-position: -200% 0; opacity: 0.85; }
+  100% { background-position: 200% 0; opacity: 0; }
+}
+
+/* Expanded content — fade in after shimmer */
+.zone-card-expanded-content {
+  position: relative;
+  z-index: 1;
+  opacity: 0;
+  animation: zone-expand-fade 0.3s var(--easing-zero) 0.15s forwards;
+}
+
+@keyframes zone-expand-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 3-Button Action Row */
+.zone-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.zone-card-actions .zz-button {
+  min-width: 80px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 40px;
+  font-size: 10px;
+}
+
+/* Collapsed card value line */
+.zone-card-value {
+  font-family: 'Roboto', sans-serif;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 900;
+  letter-spacing: -1px;
+  text-transform: lowercase;
+  color: var(--color-deep);
+}
+
+.hero-card .zone-card-value { font-size: 24px; }
+.small-card .zone-card-value { font-size: 14px; }
+
+/* =========================
+   Legacy / shared (content container, message, etc.)
+   ========================= */
 
 .zone-content-container {
   width: 100%;
-  max-width: 480px; /* 420-480px range for mobile */
-  padding: 0 20px;
+  max-width: 480px;
+  padding: 0 var(--padding-md);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--gap-lg);
 }
 
 @media (min-width: 641px) {
   .zone-content-container {
     max-width: 1100px;
-    padding: 0 40px;
+    padding: 0 var(--gap-xl);
   }
 }
 
 .zone-tagline {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: 30px;
+  left: 30px;
   font-family: 'Roboto', sans-serif;
   font-size: 10px;
   font-weight: 900;
   line-height: 14px;
   letter-spacing: 0;
   text-transform: uppercase;
-  color: #000AFF;
+  color: var(--color-blue);
   display: flex;
   flex-direction: column;
   z-index: 10;
@@ -50,8 +296,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 40px;
-  padding: 0 0 60px 0;
+  gap: var(--gap-xl);
+  padding: var(--gap-xl) 0 60px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -60,15 +306,15 @@
 .zone-logo {
   width: 51px;
   height: auto;
-  margin-top: 20px;
+  margin-top: var(--margin-top-xl);
 }
 
 .zone-message {
   font-family: 'Roboto', sans-serif;
   font-size: 50px;
-  font-weight: 900;
   line-height: 48px;
   letter-spacing: -2px;
+  font-weight: 900;
   text-transform: lowercase;
   text-align: center;
   max-width: 320px;
@@ -85,16 +331,13 @@
   }
 }
 
-.zone-message-name {
-  color: #000AFF;
+.zone-message-name,
+.zone-message-strong {
+  color: var(--color-blue);
 }
 
 .zone-message-muted {
-  color: #141268;
-}
-
-.zone-message-strong {
-  color: #000AFF;
+  color: var(--color-deep);
 }
 
 .zone-ask-zero {
@@ -154,15 +397,15 @@
 
 .zone-label {
   text-align: center;
-  font-family: 'Roboto', sans-serif;
+  font-family: var(--font-label);
   font-size: 40px;
-  font-weight: 900;
   line-height: 38px;
   letter-spacing: -2px;
+  font-weight: bold;
   text-transform: lowercase;
-  margin-top: 40px;
-  margin-bottom: 20px;
-  color: #141268;
+  margin-top: var(--margin-top-xl);
+  margin-bottom: var(--margin-bottom-md);
+  color: var(--color-deep);
   width: 100%;
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -182,7 +425,7 @@
 .zone-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: var(--gap-lg);
   width: 100%;
 }
 
@@ -222,20 +465,20 @@
   justify-content: center;
   align-items: flex-start;
   width: 370px;
-  padding: 30px;
+  padding: var(--padding-lg);
   border-radius: 60px;
-  background: #000AFF;
+  background: var(--color-blue);
   flex-shrink: 0;
 }
 
 .potential-saving-text {
   font-family: 'Roboto', sans-serif;
   font-size: 50px;
-  font-weight: 900;
   line-height: 48px;
   letter-spacing: -2px;
+  font-weight: 900;
   text-transform: lowercase;
-  color: #FDFDFF;
+  color: var(--color-ice);
   text-align: left;
   margin: 0;
 }
@@ -256,5 +499,75 @@
 
 .zone-incomplete-wrapper {
   width: 100%;
-  margin-top: 40px;
+  margin-top: var(--margin-top-xl);
+}
+
+/* Incomplete container (Fork + Zone) — spec */
+.incomplete-container {
+  width: 320px;
+  padding: var(--padding-md) var(--padding-sm);
+  border-radius: 60px;
+  background: var(--color-ice);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gap-lg);
+}
+
+.incomplete-label {
+  font-family: var(--font-label);
+  font-size: 40px;
+  line-height: 38px;
+  letter-spacing: -2px;
+  font-weight: bold;
+  text-transform: lowercase;
+  color: var(--color-deep);
+  text-align: center;
+  margin: 0;
+}
+
+@media (min-width: 1024px) {
+  .incomplete-label {
+    font-size: 60px;
+    line-height: 58px;
+  }
+}
+
+/* Journey grid (shared Zone + Fork) */
+.journey-grid-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  align-items: center;
+  gap: var(--gap-lg);
+}
+
+.journey-grid {
+  display: grid;
+  gap: var(--gap-lg);
+  width: 100%;
+  justify-items: center;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (min-width: 641px) {
+  .journey-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.journey-grid-label {
+  font-family: 'Roboto', sans-serif;
+  font-size: 40px;
+  line-height: 38px;
+  letter-spacing: -2px;
+  font-weight: 900;
+  text-transform: lowercase;
+}
+
+@media (min-width: 1024px) {
+  .journey-grid-label {
+    font-size: 60px;
+    line-height: 58px;
+  }
 }

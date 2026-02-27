@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import { getSessionFromRequest } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { user_id } = body
-
-    if (!user_id) {
-      return NextResponse.json(
-        { error: 'Missing user_id' },
-        { status: 400 }
-      )
+    const session = await getSessionFromRequest()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const user_id = session.userId
 
-    // Delete user data (cascades to related tables)
+    // User can only delete their own data (cascades to related tables)
     await pool.query('DELETE FROM users WHERE id = $1', [user_id])
 
     return NextResponse.json({ success: true })
