@@ -1,14 +1,12 @@
 import { Pool } from 'pg'
 
-// Get connection string from environment or use default
-const connectionString = process.env.DATABASE_URL || 
-  'postgresql://neondb_owner:npg_RO51JATEGYZz@ep-super-mountain-abpl2434-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+// Set DATABASE_URL in production (e.g. Vercel). Fallback for local build only.
+const connectionString =
+  process.env.DATABASE_URL || 'postgresql://localhost/neondb?sslmode=require'
 
 const pool = new Pool({
   connectionString,
-  ssl: connectionString.includes('neon.tech') ? {
-    rejectUnauthorized: false,
-  } : undefined,
+  ssl: connectionString.includes('neon.tech') ? { rejectUnauthorized: true } : undefined,
 })
 
 // Handle connection errors gracefully
