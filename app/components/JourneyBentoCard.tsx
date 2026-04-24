@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal, flushSync } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { type JourneyId } from '@/lib/journeys'
 import { getJourneyCardTextHex } from '@/lib/journeyColors'
 import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
@@ -31,6 +31,8 @@ import {
   SLAM_INTRO_INITIAL,
   SLAM_INTRO_ANIMATE,
   SLAM_SPRING,
+  DAMPED_SLAM_INITIAL,
+  DAMPED_SLAM_ANIMATE,
 } from '@/lib/animations'
 import {
   PRICE_CAP_APRIL_2026,
@@ -213,6 +215,7 @@ export function JourneyBentoCard({
 }: JourneyBentoCardProps) {
   const { state } = useApp()
   const profilePostcode = state.profile?.postcode ?? null
+  const prefersReducedMotion = useReducedMotion()
   type ExpandedViewState = 'QUESTION' | 'RESULT'
   const effectiveOpen = kineticGrid ? isExpanded : false
   const [isExiting, setIsExiting] = useState(false)
@@ -708,10 +711,17 @@ export function JourneyBentoCard({
                 ['--journey-cta-text' as string]: 'var(--color-yellow)',
               } as React.CSSProperties
             }
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={isExiting ? { scale: 0.95, opacity: 0 } : { scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 550, damping: 32, mass: 1 }}
+            {...(prefersReducedMotion
+              ? {
+                  initial: false as const,
+                  animate: { opacity: isExiting ? 0 : 1 },
+                  transition: { duration: 0.16 },
+                }
+              : {
+                  initial: DAMPED_SLAM_INITIAL,
+                  animate: isExiting ? DAMPED_SLAM_INITIAL : DAMPED_SLAM_ANIMATE,
+                  transition: SLAM_SPRING,
+                })}
             onAnimationComplete={() => {
               if (isExiting) {
                 handleCloseComplete()

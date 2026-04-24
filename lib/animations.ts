@@ -91,10 +91,15 @@ export const WORD_PULSE_APPEAR = {
 // ZONE
 // =============================================================================
 
+/** Legacy slide-up anchor — prefer `DAMPED_SLAM_*` + `SLAM_SPRING` on Zone masthead for one motion vocabulary */
 export const ZONE_ANCHOR_VARIANTS = {
   hidden: { opacity: 0, y: 28 },
   visible: { opacity: 1, y: 0, transition: SPRING_BLOOM },
 }
+
+/** Zone wall: masthead (logo + tag + greeting + Ask Zai) lands first; then each grid cell as a whole card */
+export const ZONE_GRID_STAGGER_CHILD_S = 0.055
+export const ZONE_GRID_AFTER_ANCHOR_S = 0.14
 
 export const FADE_VARIANTS = {
   hidden: { opacity: 0 },

@@ -21,12 +21,13 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { ROUTES } from '@/lib/routes'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import {
-  ZONE_ANCHOR_VARIANTS,
-  SPRING_BLOOM,
   SPRING_TAP,
-  FADE_IN_UP,
+  DAMPED_SLAM_INITIAL,
+  DAMPED_SLAM_ANIMATE,
+  SLAM_SPRING,
   ZONE_HERO_FROM_SUMMARY,
-  ELASTIC_PING,
+  ZONE_GRID_STAGGER_CHILD_S,
+  ZONE_GRID_AFTER_ANCHOR_S,
 } from '@/lib/animations'
 
 import { JourneyBentoCard } from '../components/JourneyBentoCard'
@@ -765,6 +766,8 @@ export default function ZonePage() {
     <LayoutGroup>
       <motion.main
         className="zone relative min-h-screen overflow-x-hidden"
+        initial={false}
+        animate={{ opacity: 1 }}
         style={{
           background: 'transparent',
           color: 'var(--color-yellow)',
@@ -772,15 +775,14 @@ export default function ZonePage() {
             ? `inset 0 0 140px color-mix(in srgb, ${sentinel.pulseColor} 22%, transparent)`
             : undefined,
         }}
-        {...FADE_IN_UP}
       >
         {/* 1. ZONE ANCHOR (Masthead + Ask Zai) — design system: purple bg, yellow type */}
         <motion.div
           className={`zone-anchor flex flex-col items-center pt-0 pb-0${isFocusViewOpen ? ' zone-focus-hidden' : ''}`}
           aria-hidden={isFocusViewOpen}
-          variants={ZONE_ANCHOR_VARIANTS}
-          initial="hidden"
-          animate="visible"
+          initial={DAMPED_SLAM_INITIAL}
+          animate={DAMPED_SLAM_ANIMATE}
+          transition={SLAM_SPRING}
         >
           <header className="zone-masthead flex items-start w-full px-4 flex-shrink-0">
             <div className="flex-1 min-w-0" aria-hidden>
@@ -823,8 +825,12 @@ export default function ZonePage() {
             className={`groovy-zone-grid mx-auto ${localJustLoaded ? 'zone-grid-local-shiver' : ''}`}
             variants={{
               initial: {},
-              /* Brand: one wall beat — no per-cell stagger (tips + journeys + hero land together) */
-              animate: { transition: { staggerChildren: 0 } },
+              animate: {
+                transition: {
+                  staggerChildren: ZONE_GRID_STAGGER_CHILD_S,
+                  delayChildren: ZONE_GRID_AFTER_ANCHOR_S,
+                },
+              },
             }}
             initial="initial"
             animate="animate"
@@ -868,10 +874,10 @@ export default function ZonePage() {
                   key={cellKey}
                   layout
                   layoutId={`kinetic-cell-${cellKey}`}
-                  transition={SPRING_BLOOM}
+                  transition={SLAM_SPRING}
                   variants={{
-                    initial: { scale: 0.9, opacity: 0 },
-                    animate: { scale: isHidden ? 0.9 : 1, opacity: isHidden ? 0 : 1 }
+                    initial: DAMPED_SLAM_INITIAL,
+                    animate: isHidden ? DAMPED_SLAM_INITIAL : DAMPED_SLAM_ANIMATE,
                   }}
                   className={`${spanClass} groovy-cell-radius`.trim() || 'groovy-cell-radius'}
                   style={{
@@ -995,10 +1001,10 @@ export default function ZonePage() {
                           ['--semantic-carbon' as string]: semanticWin === 'carbon' ? 'var(--color-pink)' : tipTextColor,
                         }}
                         onClick={handleTipClick}
-                        initial={springBloomIn || isDiscoveryInject ? { scale: 0.88, opacity: 0 } : false}
-                        animate={{ scale: 1, opacity: 1 }}
+                        initial={springBloomIn || isDiscoveryInject ? DAMPED_SLAM_INITIAL : false}
+                        animate={DAMPED_SLAM_ANIMATE}
                         whileTap={{ scale: 0.96 }}
-                        transition={SPRING_BLOOM}
+                        transition={SLAM_SPRING}
                         aria-label={`Expand: ${tipHeadline}`}
                         data-dominant-win={semanticWin}
                       >
@@ -1080,7 +1086,7 @@ export default function ZonePage() {
                           : sentinelPingJourneyKeys[cell.item.journey_key] ||
                               (sentinel.gridLowPulse && cell.item.journey_key === 'carbon')
                             ? { type: "spring", stiffness: 600, damping: 30 }
-                            : SPRING_BLOOM
+                            : SLAM_SPRING
                       }
                       className="w-full h-full min-h-0"
                       id={`zone-journey-${cell.item.journey_key}`}
@@ -1239,8 +1245,7 @@ export default function ZonePage() {
                     </motion.div>
                   )}
                   {cell.type === 'custom' && (
-                    <motion.div
-                      layout
+                    <div
                       className="bento-card-groovy flex flex-col justify-between w-full h-full border-0 text-left"
                       style={{
                         backgroundColor: 'var(--color-purple)',
@@ -1248,9 +1253,6 @@ export default function ZonePage() {
                         borderRadius: 60,
                         boxShadow: 'none',
                       }}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                     >
                       <div className="flex items-center justify-between w-full shrink-0">
                         <span className="card-top-label" style={{ color: 'var(--color-yellow)' }}>YOUR GOAL</span>
@@ -1263,7 +1265,7 @@ export default function ZonePage() {
                       <h2 className="card-headline m-0" lang="en" style={{ color: 'var(--color-yellow)' }}>
                         {cell.headline}
                       </h2>
-                    </motion.div>
+                    </div>
                   )}
                   {cell.type === 'general_question' && (
                     <motion.div

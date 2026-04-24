@@ -7,7 +7,7 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { type JourneyId, getOptionFullLabel } from '@/lib/journeys'
 import { formatMoneyImpact, formatCarbonImpact, formatZoneCardMoney } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
@@ -20,6 +20,8 @@ import {
   SPRING_BLOOM,
   soloFocusSlamMotionProps,
   SLAM_SPRING,
+  DAMPED_SLAM_INITIAL,
+  DAMPED_SLAM_ANIMATE,
 } from '@/lib/animations'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import {
@@ -187,6 +189,7 @@ export function SoloFocusOverlay({
   onEmbeddedAnswerSuccess,
 }: SoloFocusOverlayProps) {
   const { setHeroTotals, state, toggleLike } = useApp()
+  const prefersReducedMotion = useReducedMotion()
   const profilePostcode = state.profile?.postcode ?? null
   const locationPhrase = locationInPhrase(state.locationState?.locationName ?? '')
   const [trapComplete, setTrapComplete] = useState(() => !discoveryFollowUp)
@@ -497,10 +500,19 @@ export function SoloFocusOverlay({
             ...(currentMorphData ? { transformOrigin: '50% 50%' } : {}),
           } as React.CSSProperties
         }
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        transition={{ type: "spring", stiffness: 550, damping: 32, mass: 1 }}
+        {...(prefersReducedMotion
+          ? {
+              initial: false as const,
+              animate: { opacity: 1 },
+              exit: { opacity: 0, transition: { duration: 0.16 } },
+              transition: { duration: 0.16 },
+            }
+          : {
+              initial: DAMPED_SLAM_INITIAL,
+              animate: DAMPED_SLAM_ANIMATE,
+              exit: DAMPED_SLAM_INITIAL,
+              transition: SLAM_SPRING,
+            })}
       >
       <PulseExpandedSync providerName={diagnosticProvider} sourceUrl={diagnosticUrl} />
       <motion.div layout className="solo-focus-body-scroll w-full min-w-0">
