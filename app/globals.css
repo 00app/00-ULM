@@ -6631,6 +6631,19 @@ h1, h2, h3, h4, h5, h6,
   overflow: hidden;
 }
 
+/* Journey category tiles: pack content from the top — avoids space-between + tall row min-height gap under impact (tips use the same shell but read tighter with shorter copy). */
+.groovy-zone-grid .bento-card-groovy[data-journey] {
+  justify-content: flex-start;
+  gap: clamp(10px, 1.4vw, 16px);
+  padding-bottom: clamp(14px, 2vw, 22px) !important;
+}
+.groovy-zone-grid .bento-card-groovy[data-journey] .card-headline {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  height: auto !important;
+  flex: 0 1 auto;
+}
+
 /* Final masthead lock: force tighter "use less, / more." stack */
 .zone .zone-menu {
   display: inline-block !important;

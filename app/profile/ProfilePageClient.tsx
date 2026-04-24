@@ -1,19 +1,26 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useCallback, useEffect, useLayoutEffect, type CSSProperties } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, type CSSProperties } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
 import InputField from '@/app/components/InputField'
+import IntroWordCycle from '@/app/components/IntroWordCycle'
 import { createUser } from '@/lib/api'
 import { ROUTES } from '@/lib/routes'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import type { ProfileAge } from '@/app/context/AppContext'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
+import { PROFILE_KINETIC_DWELL_MS, SLAM_SPRING } from '@/lib/animations'
 
-/** Tap feedback only — no stagger / slam entrance on profile steps */
+/** Tap feedback on profile option / continue controls */
 const PROFILE_BUTTON_TAP = { scale: 0.94 }
+
+function profileHeadlineTokens(label: string): string[] {
+  const t = label.trim().split(/\s+/).filter(Boolean)
+  return t.length ? t : [label.trim() || '—']
+}
 
 const PROFILE_QUESTIONS = [
   { id: 'name', label: 'name', type: 'input' as const, placeholder: 'alex' },
@@ -129,6 +136,24 @@ export default function ProfilePageClient() {
 
   const current = PROFILE_QUESTIONS[step]
   const currentVal = values[current?.id] ?? ''
+
+  const prefersReducedMotion = useReducedMotion()
+  /** Strobe headline only when reduced motion is explicitly off (null = unknown → static + controls). */
+  const headlineStrobe = prefersReducedMotion === false
+  const headlineWords = useMemo(
+    () => [...profileHeadlineTokens(current?.label ?? '')],
+    [current?.label]
+  )
+  const headlineWordDwells = useMemo(
+    () => headlineWords.map(() => PROFILE_KINETIC_DWELL_MS),
+    [headlineWords]
+  )
+  const [headlineDone, setHeadlineDone] = useState(false)
+
+  useLayoutEffect(() => {
+    if (headlineStrobe) setHeadlineDone(false)
+    else setHeadlineDone(true)
+  }, [step, current?.id, headlineStrobe])
 
   useEffect(() => {
     const pc = (values.postcode ?? '').replace(/\s+/g, '').trim()
@@ -273,81 +298,120 @@ export default function ProfilePageClient() {
       }}
     >
       <div key={step} className="profile-step-slam w-full flex flex-col items-center" style={{ gap: 40, maxWidth: 520 }}>
-      <h2 className="text-marvin profile-question-headline" style={{ marginBottom: 0, marginLeft: 'auto', marginRight: 'auto' }}>
-        {current.label}
-      </h2>
-      {current.type === 'input' ? (
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 360,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 20,
-          }}
-        >
-          <InputField
-            value={currentVal}
-            onChange={(v) => setValue(current.id, v)}
-            onAdvance={handleNext}
-            placeholder={
-              (current as { label: string; placeholder?: string }).placeholder ?? current.label
-            }
-            autoFocus
-          />
-          <motion.button
-            type="button"
-            className="profile-answer-btn"
-            disabled={!currentVal.trim()}
-            onClick={() => {
-              if (!currentVal.trim()) return
-              handleNext()
-            }}
-            whileTap={PROFILE_BUTTON_TAP}
-            aria-label="Continue"
+        {headlineStrobe ? (
+          <div
+            className="relative w-full flex justify-center"
+            style={{ minHeight: 'clamp(92px, 12vh, 140px)' }}
+            aria-live="polite"
           >
-            <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
-          </motion.button>
-        </div>
-      ) : (
-        <div
+            <IntroWordCycle
+              key={`${step}-${current.id}`}
+              words={headlineWords}
+              wordDurations={headlineWordDwells}
+              preserveCase
+              trailingPeriod={false}
+              gapMs={0}
+              onComplete={() => setHeadlineDone(true)}
+            />
+          </div>
+        ) : (
+          <h2
+            className="text-marvin profile-question-headline"
+            style={{ marginBottom: 0, marginLeft: 'auto', marginRight: 'auto' }}
+          >
+            {current.label}
+          </h2>
+        )}
+        <motion.div
+          key={`profile-controls-${step}`}
+          className="w-full flex flex-col items-center"
+          initial={headlineStrobe ? { opacity: 0, scale: 0.97 } : false}
+          animate={headlineDone ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.97 }}
+          transition={SLAM_SPRING}
           style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 16,
-            justifyContent: 'center',
-            maxWidth: 360,
+            pointerEvents: headlineDone ? 'auto' : 'none',
+            gap: current.type === 'input' ? 20 : 0,
+            maxWidth: current.type === 'input' ? 360 : undefined,
+            width: '100%',
           }}
         >
-          {(current.options ?? []).map((opt: any) => {
-            const isObj = typeof opt === 'object' && opt !== null
-            const optLabel = isObj ? opt.label : opt
-            const optValue = isObj ? opt.value : opt
-            const optTheme = isObj ? opt.theme : undefined
-            const optAria =
-              isObj && typeof opt.ariaLabel === 'string' && opt.ariaLabel.trim()
-                ? opt.ariaLabel.trim()
-                : String(optLabel).replace(/_/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
-
-            return (
+          {current.type === 'input' ? (
+            <div
+              style={{
+                width: '100%',
+                maxWidth: 360,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 20,
+              }}
+            >
+              <InputField
+                value={currentVal}
+                onChange={(v) => setValue(current.id, v)}
+                onAdvance={handleNext}
+                placeholder={
+                  (current as { label: string; placeholder?: string }).placeholder ?? current.label
+                }
+                autoFocus={headlineDone}
+              />
               <motion.button
-                key={optValue}
                 type="button"
-                aria-label={optAria}
-                className={`profile-answer-btn ${currentVal === optValue ? 'selected' : ''}`}
-                style={optTheme ? ({ '--local-theme': optTheme } as CSSProperties & { '--local-theme'?: string }) : undefined}
-                onClick={() => handleOptionClick(opt)}
+                className="profile-answer-btn"
+                disabled={!currentVal.trim()}
+                onClick={() => {
+                  if (!currentVal.trim()) return
+                  handleNext()
+                }}
                 whileTap={PROFILE_BUTTON_TAP}
+                aria-label="Continue"
               >
-                <span className="profile-answer-btn__text zz-h4">
-                  {typeof optLabel === 'string' ? optLabel.replace(/_/g, '\n') : optLabel}
-                </span>
+                <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
               </motion.button>
-            )
-          })}
-        </div>
-      )}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 16,
+                justifyContent: 'center',
+                maxWidth: 360,
+                marginLeft: 'auto',
+                marginRight: 'auto',
+              }}
+            >
+              {(current.options ?? []).map((opt: any) => {
+                const isObj = typeof opt === 'object' && opt !== null
+                const optLabel = isObj ? opt.label : opt
+                const optValue = isObj ? opt.value : opt
+                const optTheme = isObj ? opt.theme : undefined
+                const optAria =
+                  isObj && typeof opt.ariaLabel === 'string' && opt.ariaLabel.trim()
+                    ? opt.ariaLabel.trim()
+                    : String(optLabel).replace(/_/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
+
+                return (
+                  <motion.button
+                    key={optValue}
+                    type="button"
+                    aria-label={optAria}
+                    className={`profile-answer-btn ${currentVal === optValue ? 'selected' : ''}`}
+                    style={
+                      optTheme ? ({ '--local-theme': optTheme } as CSSProperties & { '--local-theme'?: string }) : undefined
+                    }
+                    onClick={() => handleOptionClick(opt)}
+                    whileTap={PROFILE_BUTTON_TAP}
+                  >
+                    <span className="profile-answer-btn__text zz-h4">
+                      {typeof optLabel === 'string' ? optLabel.replace(/_/g, '\n') : optLabel}
+                    </span>
+                  </motion.button>
+                )
+              })}
+            </div>
+          )}
+        </motion.div>
       </div>
     </main>
   )

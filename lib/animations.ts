@@ -52,6 +52,9 @@ export const SPRING_TAP = { type: 'spring' as const, stiffness: 620, damping: 24
 
 export const KINETIC_WORD_DWELL_MS = 400
 
+/** Profile builder headline strobe — slightly snappier than intro so multi-step flow stays light */
+export const PROFILE_KINETIC_DWELL_MS = 320
+
 // =============================================================================
 // PRESETS
 // =============================================================================

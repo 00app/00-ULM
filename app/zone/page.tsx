@@ -823,7 +823,8 @@ export default function ZonePage() {
             className={`groovy-zone-grid mx-auto ${localJustLoaded ? 'zone-grid-local-shiver' : ''}`}
             variants={{
               initial: {},
-              animate: { transition: { staggerChildren: 0.08 } }
+              /* Brand: one wall beat — no per-cell stagger (tips + journeys + hero land together) */
+              animate: { transition: { staggerChildren: 0 } },
             }}
             initial="initial"
             animate="animate"
@@ -1064,7 +1065,9 @@ export default function ZonePage() {
                   {cell.type === 'journey' && (
                     <motion.div
                       layout
-                      initial={cell.index === popInIndex ? { scale: 0, opacity: 0 } : { scale: 0, rotate: -5 }}
+                      initial={
+                        cell.index === popInIndex && popInIndex != null ? { scale: 0, opacity: 0 } : false
+                      }
                       animate={
                         sentinelPingJourneyKeys[cell.item.journey_key] ||
                         (sentinel.gridLowPulse && cell.item.journey_key === 'carbon')
