@@ -1446,8 +1446,8 @@ body, p, span, input, button, textarea, select,
   display: flex !important;
   flex-direction: column !important;
   align-items: center;
-  justify-content: center;
-  justify-content: safe center;
+  /* Top-align: vertical centering left a large empty band under short Solo Focus stacks */
+  justify-content: flex-start;
   margin: 0 !important;
   min-height: 0;
   height: 100dvh;
@@ -5726,8 +5726,16 @@ select,
   align-items: center;
   width: 100%;
   min-height: 100vh;
-  padding-bottom: 80px;
+  /* Desktop: FloatingNav is top-right — no large bottom gutter. Mobile: reserve space for bottom nav pill. */
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
+}
+
+@media (max-width: 1023px) {
+  .zone {
+    /* Bottom pill nav (~60px hit + padding + offset) — tight but clears the bar */
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
 }
 /* Three-colour lock: solid text only (no tints) */
 .zone,
