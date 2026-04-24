@@ -1,7 +1,12 @@
 /** Display lock for UI + API contract (`verified_date`). */
 export const SENTINEL_VERIFIED_DATE = 'April 2026'
 
-export type SoftSaveId = 'flow-temp-55c' | 'phantom-load' | 'wash-30c' | 'flow-regulators'
+export type SoftSaveId =
+  | 'flow-temp-55c'
+  | 'phantom-load'
+  | 'wash-30c'
+  | 'flow-regulators'
+  | 'draught-proofing'
 
 export interface SoftSaveCard {
   id: SoftSaveId
@@ -21,7 +26,7 @@ export const SOFT_SAVES: SoftSaveCard[] = [
     id: 'flow-temp-55c',
     headline: 'DEFEAT HIGH FLOW TEMPERATURE',
     description:
-      'Lower your boiler flow to 55C to reduce waste heat while maintaining comfort in most homes.',
+      'Lowering flow temperature to 55°C (Nesta pathway) trims wasted heat; typical households save around £70 a year.',
     sourceLabel: 'Nesta',
     sourceUrl: 'https://www.nesta.org.uk/',
     verifiedDate: SENTINEL_VERIFIED_DATE,
@@ -47,7 +52,7 @@ export const SOFT_SAVES: SoftSaveCard[] = [
     id: 'wash-30c',
     headline: 'WASH COLD, SAVE MORE',
     description:
-      'Use 30C laundry cycles to reduce heating demand from appliance loads without extra spend.',
+      'Eco-laundry at 30°C (Energy Saving Trust) cuts wash-related demand; typical saving around £27 a year.',
     sourceLabel: 'Energy Saving Trust',
     sourceUrl: 'https://energysavingtrust.org.uk/',
     verifiedDate: SENTINEL_VERIFIED_DATE,
@@ -55,6 +60,19 @@ export const SOFT_SAVES: SoftSaveCard[] = [
     annualCarbonKg: 32,
     childQuestion: 'What wash temperature do you use most often?',
     childOptions: ['20-30C', '40C', '60C+', 'Mixed'],
+  },
+  {
+    id: 'draught-proofing',
+    headline: 'BLOCK THE DRAUGHT',
+    description:
+      'Draught-proofing doors, windows and letterboxes (Energy Saving Trust) stops cold air bypassing your heat; typical saving around £45 a year.',
+    sourceLabel: 'Energy Saving Trust',
+    sourceUrl: 'https://energysavingtrust.org.uk/',
+    verifiedDate: SENTINEL_VERIFIED_DATE,
+    annualSavingGbp: 45,
+    annualCarbonKg: 52,
+    childQuestion: 'Where do you notice cold draughts most?',
+    childOptions: ['Doors', 'Windows', 'Floors / skirting', 'Several areas'],
   },
   {
     id: 'flow-regulators',
@@ -93,6 +111,11 @@ export function getPhantomStandbySoftSave(): SoftSaveCard {
   return softSaveById('phantom-load')
 }
 
+/** EST draught-proofing pathway — renter “soft save” lane with flow temperature. */
+export function getDraughtProofingSoftSave(): SoftSaveCard {
+  return softSaveById('draught-proofing')
+}
+
 export function pickBehavioralSoftSave(params: {
   occupancyCount?: unknown
   heatingType?: unknown
@@ -102,10 +125,10 @@ export function pickBehavioralSoftSave(params: {
   const transit = String(params.transitMode ?? '').toLowerCase()
   const occupancy = clampInt(params.occupancyCount, 1, 8, 2)
 
-  if (heating.includes('gas') || heating.includes('boiler')) return SOFT_SAVES[0]
-  if (transit.includes('public') || transit.includes('cycle')) return SOFT_SAVES[2]
-  if (occupancy >= 4) return SOFT_SAVES[3]
-  return SOFT_SAVES[1]
+  if (heating.includes('gas') || heating.includes('boiler')) return softSaveById('flow-temp-55c')
+  if (transit.includes('public') || transit.includes('cycle')) return softSaveById('wash-30c')
+  if (occupancy >= 4) return softSaveById('flow-regulators')
+  return softSaveById('phantom-load')
 }
 
 export function scaleSoftSaveForOccupancy(card: SoftSaveCard, occupancyCount: unknown) {

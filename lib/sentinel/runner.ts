@@ -9,12 +9,24 @@ import { getDbPool } from '@/lib/db'
 import type { Pool } from 'pg'
 import { getLocalData, type LocalIntelligence } from '@/lib/local/getLocalData'
 import type { SoftSaveCard } from '@/lib/sentinel/scraper'
+import type {
+  MotherChildMotherPayload,
+  MotherChildSlide,
+  SentinelMotherRecardPayload,
+  SentinelViewState,
+} from '@/lib/sentinel/recardTypes'
+export type {
+  MotherChildMotherPayload,
+  MotherChildSlide,
+  SentinelMotherRecardPayload,
+  SentinelViewState,
+} from '@/lib/sentinel/recardTypes'
 import {
+  getDraughtProofingSoftSave,
   getFlowTempSoftSave,
   getPhantomStandbySoftSave,
   scaleSoftSaveForOccupancy,
   SENTINEL_VERIFIED_DATE,
-  softSaveById,
 } from '@/lib/sentinel/scraper'
 
 export const APRIL_2026_ENERGY_CAP_GBP = 1641
@@ -24,8 +36,6 @@ export const NORTH_SCOTLAND_GRID_G_PER_KWH = NORTH_SCOTLAND_KW_GRID_G_PER_KWH
 export const SCOTTISH_HES_URL = 'https://www.homeenergyscotland.org/home-energy-scotland-grant-loan'
 export const GOV_UK_BUS_URL = 'https://www.gov.uk/apply-boiler-upgrade-scheme'
 export const HOME_CHILD_QUESTION = 'What is your primary heating source?'
-
-export type SentinelViewState = 'LIVE' | 'RESULT'
 
 type Genome = Record<string, unknown>
 type TenureType = 'rent' | 'own'
@@ -48,26 +58,6 @@ export interface SyncUserZoneInput {
    * If omitted, runner falls back to direct local resolver.
    */
   appOrigin?: string
-}
-
-export interface MotherChildMotherPayload {
-  heading: string
-  description: string
-  source: string
-  sourceUrl: string
-  verifiedDate: string
-  ctaUrl: string
-  saveGbp: number
-  carbonKg: number
-  category: 'behavioral' | 'structural'
-}
-
-export interface MotherChildSlide {
-  mother: MotherChildMotherPayload
-  child: {
-    question: string
-    options: string[]
-  }
 }
 
 export interface MotherChildJourneyState {
@@ -104,19 +94,6 @@ export function primaryHomeSlide(state: MotherChildJourneyState): MotherChildSli
     throw new Error('MotherChildJourneyState has no slides')
   }
   return slide
-}
-
-export interface SentinelMotherRecardPayload {
-  headline: string
-  description: string
-  moneyValue: number
-  carbonValue: number
-  source_url: string
-  verified_date: string
-  viewState: SentinelViewState
-  slideCursor: number
-  sessionAnswerCount: number
-  currentSlide: MotherChildSlide | null
 }
 
 function motherSlideToRecard(
@@ -369,8 +346,8 @@ function buildHomeMotherChildState(params: {
       : null
 
   const flowSlide = buildBehavioralSlide(getFlowTempSoftSave(), g.occupancyCount, grid)
+  const draughtSlide = buildBehavioralSlide(getDraughtProofingSoftSave(), g.occupancyCount, grid)
   const standbySlide = buildBehavioralSlide(getPhantomStandbySoftSave(), g.occupancyCount, grid)
-  const washSlide = buildBehavioralSlide(softSaveById('wash-30c'), g.occupancyCount, grid)
 
   const busSlideUk: MotherChildSlide = {
     mother: {
@@ -393,12 +370,12 @@ function buildHomeMotherChildState(params: {
   const slides: MotherChildSlide[] = (() => {
     if (wick) {
       if (grantSlide) return [grantSlide, flowSlide, standbySlide]
-      return [flowSlide, standbySlide, washSlide]
+      return [flowSlide, draughtSlide, standbySlide]
     }
     if (allowStructural) {
       return [busSlideUk, flowSlide, standbySlide]
     }
-    return [flowSlide, standbySlide, washSlide]
+    return [flowSlide, draughtSlide, standbySlide]
   })()
 
   return {

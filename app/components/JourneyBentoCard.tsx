@@ -62,6 +62,31 @@ import {
 } from '@/lib/soloFocusSessionSnapshot'
 import { pickOfferLineFromAnswerMorph } from '@/lib/soloFocusAnswerHandoff'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
+import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
+
+type HomeSentinelRecard = {
+  headline: string
+  description: string
+  moneyGbp: number
+  carbonKg: number
+  sourceUrl?: string
+  verifiedAt?: string
+}
+
+function parseSentinelMotherRefresh(raw: unknown): HomeSentinelRecard | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  if (typeof o.headline !== 'string' || typeof o.description !== 'string') return null
+  if (typeof o.moneyValue !== 'number' || typeof o.carbonValue !== 'number') return null
+  return {
+    headline: o.headline,
+    description: o.description,
+    moneyGbp: o.moneyValue,
+    carbonKg: o.carbonValue,
+    sourceUrl: typeof o.source_url === 'string' ? o.source_url : undefined,
+    verifiedAt: typeof o.verified_date === 'string' ? o.verified_date : undefined,
+  }
+}
 
 /** Hydrate morph deck + citation after reload even when the bottom rail is still QUESTION (infinite loop). */
 function readHydrationSnap(snapKey: string, journeyId: JourneyId): SoloFocusResultSnapshotV1 | null {
@@ -253,20 +278,31 @@ export function JourneyBentoCard({
   const [soloEmbedQuestionLabel, setSoloEmbedQuestionLabel] = useState<string | null>(null)
   const [impactAnswerPulse, setImpactAnswerPulse] = useState(false)
   const [heroTotalsOverride, setHeroTotalsOverride] = useState<{ money: number; carbon: number } | null>(null)
+  const [homeSentinelRecard, setHomeSentinelRecard] = useState<HomeSentinelRecard | null>(null)
+  const prevIsExpandedRef = useRef(false)
   const soloFocusViewStatePrev = useRef<ExpandedViewState>(viewState)
   const currentMorphData =
     morphDeckCursor > 0 && morphDeck[morphDeckCursor - 1] != null
       ? morphDeck[morphDeckCursor - 1]
       : null
-  
+
+  const sentinelMoneyCarbon =
+    journeyId === 'home' && homeSentinelRecard && !currentMorphData
+      ? { money: `£${homeSentinelRecard.moneyGbp}`, carbon: `${homeSentinelRecard.carbonKg}kg CO₂` }
+      : null
+
   const displayJourneyId = currentMorphData?.journey_key ?? journeyId
   const displayTitle = currentMorphData?.heading ?? currentMorphData?.title ?? title
-  const displayMoneyValue = currentMorphData?.impactMoney
-    ? `£${currentMorphData.impactMoney}`
-    : currentMorphData?.data?.money ?? (heroTotalsOverride ? `£${heroTotalsOverride.money}` : moneyValue)
-  const displayCarbonValue = currentMorphData?.impactCarbon
-    ? `${currentMorphData.impactCarbon}kg CO₂`
-    : currentMorphData?.data?.carbon ?? (heroTotalsOverride ? `${heroTotalsOverride.carbon}kg CO₂` : carbonValue)
+  const displayMoneyValue = sentinelMoneyCarbon?.money
+    ? sentinelMoneyCarbon.money
+    : currentMorphData?.impactMoney
+      ? `£${currentMorphData.impactMoney}`
+      : currentMorphData?.data?.money ?? (heroTotalsOverride ? `£${heroTotalsOverride.money}` : moneyValue)
+  const displayCarbonValue = sentinelMoneyCarbon?.carbon
+    ? sentinelMoneyCarbon.carbon
+    : currentMorphData?.impactCarbon
+      ? `${currentMorphData.impactCarbon}kg CO₂`
+      : currentMorphData?.data?.carbon ?? (heroTotalsOverride ? `${heroTotalsOverride.carbon}kg CO₂` : carbonValue)
   const activeCardId = currentMorphData?.id ?? cardId
 
   const moneyTargetGbp = parseMoneyGbpFromImpactDisplay(displayMoneyValue)
@@ -345,6 +381,16 @@ export function JourneyBentoCard({
 
   const wasExpandedRef = useRef(false)
   useEffect(() => {
+    if (isExpanded && !prevIsExpandedRef.current) {
+      const lk = `zz_sf_lane_${cardId ?? journeyId}`
+      try {
+        sessionStorage.removeItem(lk)
+      } catch {
+        /* ignore */
+      }
+      setHomeSentinelRecard(null)
+    }
+    prevIsExpandedRef.current = isExpanded
     if (isExpanded) {
       wasExpandedRef.current = true
       return
@@ -352,6 +398,7 @@ export function JourneyBentoCard({
     /* Initial mount is collapsed — do not wipe a hydrated morph deck from session (full reload). */
     if (!wasExpandedRef.current) return
     wasExpandedRef.current = false
+    setHomeSentinelRecard(null)
     setMorphDeck([])
     setMorphDeckCursor(0)
     setResearchAttribution(null)
@@ -568,11 +615,14 @@ export function JourneyBentoCard({
   // —— EXPANDED (Solo Focus): v1.7 Active Intelligence — strict 00-00 Industrial Layout ——
   if (kineticGrid && (effectiveOpen || isExiting)) {
     /* v1.8.2 — H1 from morph card, else latest research_results.agent_headline, else tile title */
-    const effectiveTitleRaw = currentMorphData
-      ? String(displayTitle || displayJourneyId).trim() || displayJourneyId
-      : researchAttribution?.headline?.trim() ||
-        String(displayTitle || title || journeyId).trim() ||
-        journeyId
+    const effectiveTitleRaw =
+      journeyId === 'home' && homeSentinelRecard && !currentMorphData
+        ? homeSentinelRecard.headline
+        : currentMorphData
+          ? String(displayTitle || displayJourneyId).trim() || displayJourneyId
+          : researchAttribution?.headline?.trim() ||
+            String(displayTitle || title || journeyId).trim() ||
+            journeyId
     const recommendationTitle = headlineFromTitle(effectiveTitleRaw).toUpperCase()
     let sourceName = 'our partners'
     if (resolvedOfferUrl) {
@@ -584,7 +634,14 @@ export function JourneyBentoCard({
     const travelFuel = state.journeyAnswers?.travel?.fuel_type ?? null
     const locationPhrase = locationInPhrase(state.locationState?.locationName ?? '')
     const insightDisplay = resolveSoloFocusInsightDisplay({
-      morphParts: [currentMorphData?.description, insightLabel, crawlerTip, localContextBar, offerOneLine],
+      morphParts: [
+        journeyId === 'home' && homeSentinelRecard && !currentMorphData ? homeSentinelRecard.description : undefined,
+        currentMorphData?.description,
+        insightLabel,
+        crawlerTip,
+        localContextBar,
+        offerOneLine,
+      ],
       journeyId: String(displayJourneyId || journeyId),
       headline: recommendationTitle,
       moneyGbp: moneyTargetGbp,
@@ -1167,6 +1224,7 @@ export function JourneyBentoCard({
                 >
                   <EmbeddedJourneyQuestion
                     journeyId={journeyId}
+                    sessionLaneKey={String(cardId ?? journeyId)}
                     onClose={onClose}
                     onJourneyAnswered={onJourneyAnswered}
                     triggerHaptic={triggerHaptic}
@@ -1192,7 +1250,16 @@ export function JourneyBentoCard({
                         sourceCitation: citeSnap,
                         hasNextQuestion,
                         newTotals,
+                        sentinelMotherRefresh,
                       } = payload
+                      if (journeyId === 'home' && sentinelMotherRefresh) {
+                        const parsed = parseSentinelMotherRefresh(
+                          sentinelMotherRefresh as SentinelMotherRecardPayload
+                        )
+                        if (parsed) {
+                          setHomeSentinelRecard(parsed)
+                        }
+                      }
                       if (
                         newTotals &&
                         typeof newTotals.totalMoney === 'number' &&

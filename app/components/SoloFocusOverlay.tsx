@@ -226,6 +226,15 @@ export function SoloFocusOverlay({
   const [questionCount, setQuestionCount] = useState(0)
 
   useEffect(() => {
+    const lk = `zz_sf_lane_${cardId ?? journeyId ?? 'solo-overlay'}`
+    try {
+      sessionStorage.removeItem(lk)
+    } catch {
+      /* ignore */
+    }
+  }, [cardId, journeyId])
+
+  useEffect(() => {
     if (!isGlitchingMoney) return
     const interval = setInterval(() => setGlitchDisplayGbp(Math.floor(Math.random() * 9999)), 50)
     return () => clearInterval(interval)
@@ -1121,6 +1130,7 @@ export function SoloFocusOverlay({
                   >
                     <EmbeddedJourneyQuestion
                       journeyId={journeyId}
+                      sessionLaneKey={String(cardId ?? journeyId ?? 'solo-overlay')}
                       onClose={handleClose}
                       onJourneyAnswered={onJourneyAnswered}
                       triggerHaptic={triggerHaptic}
@@ -1146,7 +1156,9 @@ export function SoloFocusOverlay({
                       sourceCitation: citeSnap,
                       hasNextQuestion,
                       newTotals,
+                      sentinelMotherRefresh: _sentinelMotherRefresh,
                     }) => {
+                      void _sentinelMotherRefresh
                       setQuestionCount((c) => c + 1)
                       const isLoopComplete = questionCount >= 5 || !hasNextQuestion
                       if (

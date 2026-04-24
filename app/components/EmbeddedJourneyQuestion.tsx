@@ -16,6 +16,7 @@ import { ELASTIC_PING, SPRING_BLOOM, SPRING_TAP } from '@/lib/animations'
 import { injectNewDiscoveryCard } from '@/lib/discoveryInject'
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
+import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
 
 /** Merge API + generate-next morph lists without duplicate ids. */
 function mergeMorphCardLists(server: unknown[] | undefined, client: unknown[] | undefined): any[] {
@@ -241,6 +242,7 @@ export function EmbeddedJourneyQuestion({
   onZipShutEnd,
   deferJourneyAnsweredForZipRebirth = false,
   layoutAlign = 'start',
+  sessionLaneKey,
 }: {
   journeyId: JourneyId
   onClose?: () => void
@@ -290,9 +292,16 @@ export function EmbeddedJourneyQuestion({
     hasNextQuestion?: boolean
     /** Updated totals for live hero count-up during zip morph. */
     newTotals?: { totalMoney: number; totalCarbon: number }
+    /** v5.9 — Sentinel Mother deck recard (home lane). */
+    sentinelMotherRefresh?: SentinelMotherRecardPayload | null
   }) => void
   /** Latest research citation from `research_results` (after POST /api/answers returns). */
   onSourceCitation?: (citation: { label: string; url?: string; verifiedAt?: string }) => void
+  /**
+   * Solo Focus session scope for lane-lock (immutable `journeyId` while this surface is open).
+   * Defaults to `journey_${journeyId}` when omitted.
+   */
+  sessionLaneKey?: string
 }) {
   const { setHeroTotals, state, refreshProfile } = useApp()
   const profile = state.profile
@@ -347,6 +356,17 @@ export function EmbeddedJourneyQuestion({
   const runSubmit = async (value: string) => {
     if (!value.trim() || !firstUnanswered) return
     const trimmed = value.trim()
+    const laneStorageKey = `zz_sf_lane_${sessionLaneKey ?? journeyId}`
+    if (typeof window !== 'undefined') {
+      try {
+        const prevLane = sessionStorage.getItem(laneStorageKey)
+        if (prevLane != null && prevLane !== journeyId) {
+          return
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     const obj = { ...answers, [firstUnanswered.id]: trimmed }
 
     const questionIdSnapshot = firstUnanswered.id
@@ -408,6 +428,16 @@ export function EmbeddedJourneyQuestion({
       }
 
       postOk = true
+
+      if (typeof window !== 'undefined') {
+        try {
+          if (sessionStorage.getItem(laneStorageKey) == null) {
+            sessionStorage.setItem(laneStorageKey, journeyId)
+          }
+        } catch {
+          /* ignore */
+        }
+      }
 
       if (typeof window !== 'undefined') {
         try {
@@ -521,6 +551,8 @@ export function EmbeddedJourneyQuestion({
             questionId: questionIdSnapshot,
             answerValue: trimmed,
             discovery,
+            sentinelMotherRefresh:
+              (data?.sentinelMotherRefresh as SentinelMotherRecardPayload | undefined) ?? null,
             discovery_win: typeof data?.discovery_win === 'string' ? data.discovery_win : undefined,
             grid_context: data?.grid_context as
               | { intensity_g_per_kwh?: number | null; cleaner_vs_2025_pct?: number | null }
@@ -587,6 +619,8 @@ export function EmbeddedJourneyQuestion({
             questionId: questionIdSnapshot,
             answerValue: trimmed,
             discovery,
+            sentinelMotherRefresh:
+              (data?.sentinelMotherRefresh as SentinelMotherRecardPayload | undefined) ?? null,
             discovery_win: typeof data?.discovery_win === 'string' ? data.discovery_win : undefined,
             morphCards: merged,
             userContext: userContext,

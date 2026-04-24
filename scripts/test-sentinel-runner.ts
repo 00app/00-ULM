@@ -9,7 +9,7 @@ import {
   primaryHomeSlide,
   syncUserZone,
 } from '@/lib/sentinel/runner'
-import { getFlowTempSoftSave } from '@/lib/sentinel/scraper'
+import { getDraughtProofingSoftSave, getFlowTempSoftSave } from '@/lib/sentinel/scraper'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
@@ -131,6 +131,11 @@ async function main() {
     assert(
       r0.child.question === flow.childQuestion,
       'Expected first renter slide to be Nesta flow-temperature pathway'
+    )
+    const draught = getDraughtProofingSoftSave()
+    assert(
+      renter.homeState.slides[1]?.child.question === draught.childQuestion,
+      'Expected P2 renter slide to be EST draught-proofing soft save'
     )
     assert(
       renter.homeState.slides[0]?.mother.saveGbp === 105,
