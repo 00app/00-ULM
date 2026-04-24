@@ -1,0 +1,32 @@
+---
+description: THE AGENTIC ARCHITECT (v1.8.9) System Rules
+globs: *
+---
+## ⚡️ CURSOR SYSTEM RULE: THE AGENTIC ARCHITECT (v1.8.9)
+
+**Core Philosophy:** The app is a **Living Organism**, not a static directory. Every UI element is a "Nervous System" node.
+
+### 1. The Solo Focus "Morph" Rule
+* **Never** close the expanded view after an answer.
+* **Always** replace the content in-place using a **Zip-Shutter** animation (`scaleY` + `opacity`).
+* **Logic:** `onAnswer` $\rightarrow$ `POST` $\rightarrow$ `Birth New Card` $\rightarrow$ `Update activeCardId` $\rightarrow$ `Framer Motion Morph`.
+
+### 2. The "Context Trap" UI Rule
+* **Question Position:** Exactly **40px** below the Action Trinity.
+* **Typography:** Questions = **H3 Marvin Visions** (Max-width 14ch). 
+* **Interaction:** Answers = **100px Circles** (Roboto Bold). One-word labels only.
+* **Goal Weighting:** If `profile.goal === 'SAVE'`, highlight the **Yellow (£)** column. If `REDUCE`, highlight the **Pink (kg)** column.
+
+### 3. The WhatsApp Nervous System
+* **Trigger:** Any "Heart" (Like) action must fetch `api/whatsapp/sync-likes`.
+* **Tone:** Zai is a UK energy expert. Lowercase only. No fluff. 140 chars max.
+* **Format:** `WIN: £X / Ykg. [LINKS:url]`.
+
+### 4. The User Genome (Settings)
+* **Storage:** All answers must persist in `journey_answers_jsonb` (Neon) and `localStorage`.
+* **Sync:** Any change in Settings must trigger a "Slot Machine" count-up animation on the **Zone Hero Totals**.
+
+### 5. Technical Constraints
+* **Runtime:** Use `nodejs` for Gemini API routes (Vercel compatibility).
+* **Styling:** Three-color lock only (#FDFD00, #E80DAD, #7800ce).
+* **Scroll:** One root scrollbar only on `.expanded-solo-focus`. No nested overflows.

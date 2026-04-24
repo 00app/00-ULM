@@ -1,0 +1,211 @@
+'use client'
+
+/**
+ * Zero Zero Funky v1.4 — 1. Kinetic Buttons (CTAs & Answers)
+ * Rules: zero shadows, 9999px pill radius, 80px circles, Marvin Visions Bold.
+ * Framer Motion "Swish" physics baked in; do not redefine.
+ */
+
+import { track } from '@vercel/analytics'
+import { motion } from 'framer-motion'
+import type { JourneyId } from '@/lib/journeys'
+
+import { SPRING_TAP } from '@/lib/animations'
+
+export type FunkyCircleCTAVariant = 'primary' | 'journey' | 'secondary'
+
+export interface FunkyCircleCTAProps {
+  label: string
+  variant?: FunkyCircleCTAVariant
+  journeyColor?: JourneyId
+  onClick?: () => void
+  disabled?: boolean
+  className?: string
+  /** Icon slot: e.g. heart for LIKE. Renders after label. */
+  icon?: React.ReactNode
+  /** v1.4: Button labels = Roboto Bold (one-word CLAIM, LIKE, ASK). Default 'marvin'. */
+  labelFont?: 'marvin' | 'roboto-bold'
+}
+
+/**
+ * Zero Zero Funky v1.4 — 80×80px circle CTA.
+ * Max 1-word label. Marvin Visions Bold. Squish on tap.
+ */
+export function FunkyCircleCTA({
+  label,
+  variant = 'secondary',
+  journeyColor,
+  onClick,
+  disabled = false,
+  className = '',
+  icon,
+  labelFont = 'marvin',
+}: FunkyCircleCTAProps) {
+  const bg =
+    variant === 'primary'
+      ? 'var(--color-purple)'
+      : variant === 'journey' && journeyColor
+        ? `var(--color-j-${journeyColor})`
+        : 'var(--color-purple)'
+  const color =
+    variant === 'primary' || variant === 'journey' ? 'var(--color-yellow)' : 'var(--color-purple)'
+  const fontStyle =
+    labelFont === 'roboto-bold'
+      ? {
+          fontFamily: 'var(--font-roboto), sans-serif',
+          fontWeight: 800,
+          fontSize: 'var(--zz-body-size)',
+          lineHeight: 'var(--zz-lh-body)',
+          textTransform: 'uppercase' as const,
+        }
+      : {
+          fontFamily: 'var(--font-label)',
+          fontWeight: 'bold',
+          textTransform: 'uppercase' as const,
+        }
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      whileTap={{ scaleX: 1.15, scaleY: 0.85, transition: SPRING_TAP }}
+      className={`flex items-center justify-center rounded-[9999px] border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${labelFont === 'marvin' ? 'zz-h4' : ''} ${className}`}
+      style={{
+        width: 80,
+        height: 80,
+        minWidth: 80,
+        minHeight: 80,
+        background: bg,
+        color,
+        boxShadow: 'none',
+        textShadow: 'none',
+        ...fontStyle,
+      }}
+    >
+      {icon ? (
+        <span className="flex items-center justify-center gap-1">
+          {label}
+          {icon}
+        </span>
+      ) : (
+        label
+      )}
+    </motion.button>
+  )
+}
+
+/** v1.4 — One-word answer circle (100px). Roboto Bold. Flat cool bg. No shadow. */
+export interface FunkyAnswerCircleProps {
+  label: string
+  onClick?: () => void
+  className?: string
+}
+
+export function FunkyAnswerCircle({ label, onClick, className = '' }: FunkyAnswerCircleProps) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      whileTap={{ scale: 0.95 }}
+      className={`flex items-center justify-center rounded-[9999px] border-0 cursor-pointer funky-answer-circle zz-h4 ${className}`}
+      style={{
+        width: 100,
+        height: 100,
+        minWidth: 100,
+        minHeight: 100,
+        background: 'var(--color-purple)',
+        color: 'var(--color-yellow)',
+        boxShadow: 'none',
+        textShadow: 'none',
+      }}
+    >
+      {label}
+    </motion.button>
+  )
+}
+
+export interface FunkyAnswerPillProps {
+  label: string
+  selected?: boolean
+  journeyColor?: string
+  onClick?: () => void
+  className?: string
+}
+
+/**
+ * Zero Zero Funky v1.4 — Full-width pill answer. 9999px radius. Selected = journey color + white text.
+ */
+export function FunkyAnswerPill({
+  label,
+  selected = false,
+  journeyColor = 'var(--color-purple)',
+  onClick,
+  className = '',
+}: FunkyAnswerPillProps) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      whileTap={{ scale: 0.95 }}
+      className={`w-full max-w-[300px] rounded-[9999px] border-0 py-3 px-5 text-left cursor-pointer ${className}`}
+      style={{
+        background: selected ? journeyColor : 'var(--color-purple)',
+        color: selected ? 'var(--color-yellow)' : 'var(--color-purple)',
+        boxShadow: 'none',
+        textShadow: 'none',
+        fontFamily: 'var(--font-label)',
+        fontSize: 'var(--zz-h4-mobile)',
+        lineHeight: 'var(--zz-lh-heading)',
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+      }}
+    >
+      {label}
+    </motion.button>
+  )
+}
+
+export interface IndustrialHandoffButtonProps {
+  url: string
+  journeyId?: string | null
+  moneyValue?: number
+  ctaLabel?: string
+  className?: string
+}
+
+export function IndustrialHandoffButton({
+  url,
+  journeyId,
+  moneyValue,
+  ctaLabel = 'CLAIM',
+  className = ''
+}: IndustrialHandoffButtonProps) {
+  const handleClick = () => {
+    try {
+      track('handoff_click', { journey: journeyId || 'unknown', target: url, value: moneyValue || 0 })
+    } catch {
+      // Ignore if analytics fails
+    }
+    setTimeout(() => {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }, 150)
+  }
+
+  return (
+    <motion.button
+      type="button"
+      onClick={handleClick}
+      whileTap={{ scale: 0.85 }}
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 550, damping: 32 }}
+      className={`circle-btn border-0 cursor-pointer ${className}`}
+      style={{
+        boxShadow: 'none',
+      }}
+    >
+      {ctaLabel}
+    </motion.button>
+  )
+}

@@ -1,0 +1,65 @@
+{
+  "home": {
+    "journey": "home",
+    "keyword": "solar-panels",
+    "name": "Electric Amber",
+    "hex": "#FFB800",
+    "usage": "Energy/Warmth"
+  },
+  "travel": {
+    "journey": "travel",
+    "keyword": "electric-car",
+    "name": "Mint Green",
+    "hex": "#00D1FF",
+    "usage": "Movement/Air"
+  },
+  "food": {
+    "journey": "food",
+    "keyword": "vegetables",
+    "name": "Leaf Green",
+    "hex": "#00FF85",
+    "usage": "Growth/Nature"
+  },
+  "shopping": {
+    "journey": "shopping",
+    "keyword": "sustainable-fashion",
+    "name": "Vibrant Violet",
+    "hex": "#8A2BE2",
+    "usage": "Retail/Style"
+  },
+  "money": {
+    "journey": "money",
+    "keyword": "savings",
+    "name": "Deep Navy",
+    "hex": "#141268",
+    "usage": "Stability (Master Deep)"
+  },
+  "carbon": {
+    "journey": "carbon",
+    "keyword": "nature",
+    "name": "Carbon Blue",
+    "hex": "#000AFF",
+    "usage": "Impact (Master Blue)"
+  },
+  "tech": {
+    "journey": "tech",
+    "keyword": "electronics-repair",
+    "name": "Cyber Cyan",
+    "hex": "#00F0FF",
+    "usage": "Digital/Future"
+  },
+  "waste": {
+    "journey": "waste",
+    "keyword": "compost",
+    "name": "Earth Orange",
+    "hex": "#FF4D00",
+    "usage": "Circularity/Soil"
+  },
+  "holidays": {
+    "journey": "holidays",
+    "keyword": "train-travel",
+    "name": "Sunset Pink",
+    "hex": "#FF00BD",
+    "usage": "Leisure (Master Pink)"
+  }
+}

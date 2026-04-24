@@ -1,0 +1,51 @@
+---
+description: Kinetic Sentinel v5.8 — Lane-Lock Auditor, Mother/Child shells, 2026 UK auditor brain (session + data contract).
+alwaysApply: true
+---
+
+# Kinetic Sentinel — Lane-Lock Auditor Logic (v5.8)
+
+## 1. Context & geography
+
+- **Baseline:** Pull `location` (postcode) and **genome** (house, travel, tenure, occupancy) before generating slides or API-side copy.
+- **Wick lock:** KW postcodes — homeowners: £9k rural grant pathway (HES + rural uplift); renters: behavioural P1 (no structural grant lead).
+- **2026 truth (April band):** Typical cap / audit copy aligns with locked economy constants in `lib/brains/constants.ts` — e.g. **£1,641** reference band, **24.67p/kWh** electricity, **5.74p/kWh** gas (see spec + `MARCH_2026_ECONOMY`).
+
+## 2. Lane-lock discipline
+
+- **Lane focus:** A Solo Focus session **must not** change `journeyId` mid-flow (no category jumping).
+- **Depth limit:** **Max 3** Child questions per category session; track progress (e.g. `slideCursor` / question index).
+- **Recard rule:** Every Child (B) answer **refreshes** Mother (A) payload where product implements the sentinel deck (horizontal sweep + word-cycle timing per design tokens — **~120ms** per beat when animating).
+- **Word-cycle:** When animating, headline + narrative honour the existing word-cycle helpers — no ad-hoc `fontSize` on industrial shells.
+
+## 3. Universal auditor engine
+
+- **Tenure filter:** If `tenure_type === 'rent'` (or equivalent profile field), **suppress** structural grant-first slides (heat pumps, solar); prioritise **soft saves** (habits, Nesta/EST-style behavioural wins).
+- **Occupancy multiplier:** Scale behavioural / soft-save £ displays by **`occupancy_count`** where calculators support it.
+- **Provenance:** Generated cards carry **`source_url`** and a **2026** verification label (provider + month/year) per source contract.
+
+## 4. Sentinel data deck (per category)
+
+- **Slide 1:** Base category win.
+- **Slide 2:** Refined habit win (conditioned on Q1).
+- **Slide 3:** Verification / ultimate win (conditioned on Q2).
+- **Source contract:** Every slide: `Source: {Provider} April 2026` (or current locked month in copy).
+
+## 5. UI/UX contract (v2.1.3 — no drift)
+
+- **Mother (A) / Child (B):** Two shells; **#F0FF00** zone mother field where specified; **40px** shell padding, **60px** radius; **20px** gap between mother and child stacks on the rail.
+- **Rail:** Desktop rail **max-width 800px**, centred (`solo-focus-rail` / grow-layer patterns).
+- **Typography:** Marvin + Roboto scales from **`globals.css`** tokens only on Solo Focus shells — **no** stray `px` font sizes on Mother/Child industrial components.
+- **CTA geometry:** Trinity / handoff circles use **`circle-btn`** + **`--zz-h4-*`** under `.expanded-solo-focus` (100px via **`--circle-cta-size`**).
+- **Headline density:** Prefer **≤11 words** per headline line on desktop for Mother copy (existing trim/word-cycle rules).
+
+## 6. Cleanup & legacy
+
+- **No** purple MORE/filler tiles, **no** duplicate expand routes — see `PROJECT-SPECIFICATION.md`.
+- **Progress pips** on Mother (when deck length > 1) should reflect **3-step** (or actual deck length) sentinel journey — keep pager state in sync with `slideCursor`.
+
+## 7. Implementation boundaries
+
+- **Logic:** `lib/sentinel/**`, `lib/brains/**`, `app/api/**`, journey/slide persistence.
+- **UI:** `JourneyBentoCard`, `SoloFocusOverlay`, `EmbeddedJourneyQuestion` — behaviour changes must preserve the locked shell contract above.
+- **Do not** reintroduce “general tips” filler components removed from the Zone wall.

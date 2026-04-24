@@ -1,0 +1,797 @@
+'use client'
+
+/**
+ * Embedded question chamber for Solo Focus (journey card + tip/filler overlay).
+ * Split from JourneyBentoCard so SoloFocusOverlay does not import the whole card module
+ * (avoids heavy coupling / init-order issues in production bundles).
+ */
+import React, { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { JOURNEYS, FUNKY_QUESTION_LABEL, getOptionFullLabel, type JourneyId, type JourneyQuestion } from '@/lib/journeys'
+import { getNextQuestion } from '@/lib/zone/questionHandler'
+import { useApp } from '@/app/context/AppContext'
+import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
+import { syncSessionState } from '@/lib/sessionStateSync'
+import { ELASTIC_PING, SPRING_BLOOM, SPRING_TAP } from '@/lib/animations'
+import { injectNewDiscoveryCard } from '@/lib/discoveryInject'
+import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
+import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
+
+/** Merge API + generate-next morph lists without duplicate ids. */
+function mergeMorphCardLists(server: unknown[] | undefined, client: unknown[] | undefined): any[] {
+  const a = Array.isArray(server) ? server : []
+  const b = Array.isArray(client) ? client : []
+  const seen = new Set<string>()
+  const out: any[] = []
+  for (const raw of [...a, ...b]) {
+    if (!raw || typeof raw !== 'object') continue
+    const c = raw as { id?: unknown }
+    const id = typeof c.id === 'string' ? c.id : ''
+    if (id) {
+      if (seen.has(id)) continue
+      seen.add(id)
+    }
+    out.push(raw)
+  }
+  return out
+}
+
+/** When discovery returns no ZoneTip morph rows, still append one deck page so Solo Focus can pager + zip-rebirth. */
+function buildSyntheticMorphCardForSoloFocus(
+  journeyId: JourneyId,
+  questionId: string,
+  data: Record<string, any> | null | undefined,
+  profile: {
+    postcode?: string
+    homeType?: string
+    transport?: string
+    fuelType?: string
+  }
+): any {
+  const highValueFallback = getNextMorphCard(journeyId, profile)
+  if (highValueFallback) return highValueFallback
+  const ndc = data?.new_discovery_card as { title?: string } | undefined
+  const win = typeof data?.discovery_win === 'string' ? data.discovery_win.trim() : ''
+  const disc = data?.discovery as { recommendation_copy?: string } | undefined
+  const rec = typeof disc?.recommendation_copy === 'string' ? disc.recommendation_copy.trim() : ''
+  const title =
+    (ndc?.title && String(ndc.title).trim()) ||
+    (win ? win.slice(0, 80) : '') ||
+    (rec ? rec.slice(0, 80) : '') ||
+    'Your personalised win'
+
+  const desc = win || rec || ''
+  const totals = data?.newTotals as { totalMoney?: number; totalCarbon?: number } | undefined
+  const money =
+    totals && typeof totals.totalMoney === 'number' ? formatZoneCardMoney(totals.totalMoney) : '—'
+  const carbon =
+    totals && typeof totals.totalCarbon === 'number' ? formatCarbon(totals.totalCarbon) : '—'
+
+  return {
+    id: `synthetic-morph-${journeyId}-${questionId}-${Date.now()}`,
+    variant: 'card-compact',
+    title,
+    heading: title,
+    journey_key: journeyId,
+    category: journeyId,
+    data: { money, carbon },
+    explanation: desc ? [desc] : undefined,
+    description: desc,
+  }
+}
+
+/** Solo-focus dropdown: same style as zz-input, purple/yellow, Marvin H4, full words, open animation */
+const DROPDOWN_STYLE = {
+  fontFamily: 'var(--font-marvin)',
+  fontWeight: 700,
+  fontSize: 'var(--zz-h4-mobile)',
+  padding: '14px 20px',
+  borderRadius: 40,
+  minWidth: 200,
+  maxWidth: 360,
+  width: '100%',
+} as const
+
+/**
+ * Solo Focus (zip-shut) uses **100px circles only** — no `<input>` fields in expanded view.
+ * Values are coarse bands that `lib/brains/calculations.ts` accepts via `Number(...)`.
+ */
+function getSoloFocusNumberPresets(questionId: string): { label: string; value: string }[] {
+  switch (questionId) {
+    case 'monthly_cost':
+      return [
+        { label: '£80', value: '80' },
+        { label: '£120', value: '120' },
+        { label: '£180', value: '180' },
+        { label: '£260', value: '260' },
+      ]
+    case 'distance_amount':
+      return [
+        { label: '10MI', value: '10' },
+        { label: '25MI', value: '25' },
+        { label: '50MI', value: '50' },
+        { label: '80MI', value: '80' },
+      ]
+    case 'monthly_spend':
+      return [
+        { label: '£80', value: '80' },
+        { label: '£150', value: '150' },
+        { label: '£250', value: '250' },
+        { label: '£400', value: '400' },
+      ]
+    default:
+      return [
+        { label: '50', value: '50' },
+        { label: '100', value: '100' },
+        { label: '200', value: '200' },
+        { label: '350', value: '350' },
+      ]
+  }
+}
+
+/** Number-type question: input + submit — used only outside Solo Focus zip-shut (e.g. future settings). */
+function NumberQuestionInput({
+  firstUnanswered,
+  onSubmit,
+  restBg,
+  restText,
+  activeBg,
+  activeText,
+  triggerHaptic,
+  alignStart,
+}: {
+  firstUnanswered: JourneyQuestion
+  onSubmit: (value: string) => void
+  restBg: string
+  restText: string
+  activeBg: string
+  activeText: string
+  triggerHaptic: (p: 'light' | 'medium' | 'heavy') => void
+  alignStart?: boolean
+}) {
+  const [value, setValue] = useState('')
+  const handleSubmit = () => {
+    const trimmed = value.trim()
+    if (!trimmed) return
+    triggerHaptic('medium')
+    onSubmit(trimmed)
+    setValue('')
+  }
+  const placeholder = firstUnanswered.repeatLabel ?? firstUnanswered.label
+  return (
+    <div
+      style={{
+        width: '100%',
+        maxWidth: 360,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: alignStart ? 'flex-start' : 'center',
+        gap: 12,
+      }}
+    >
+      <input
+        type="text"
+        inputMode="decimal"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+        style={{
+          ...DROPDOWN_STYLE,
+          border: `2px solid var(--color-purple)`,
+          background: restBg,
+          color: restText,
+          outline: 'none',
+        }}
+      />
+      <motion.button
+        type="button"
+        onClick={handleSubmit}
+        disabled={!value.trim()}
+        style={{
+          ...DROPDOWN_STYLE,
+          border: 'none',
+          cursor: value.trim() ? 'pointer' : 'not-allowed',
+          background: value.trim() ? activeBg : 'var(--color-purple)',
+          color: activeText,
+          opacity: value.trim() ? 1 : 0.7,
+        }}
+        whileTap={value.trim() ? { scale: 0.98 } : {}}
+        transition={SPRING_TAP}
+      >
+        Save
+      </motion.button>
+    </div>
+  )
+}
+
+/** Circle button style for expanded card options — matches --solo-focus-answer-chip in globals.css */
+const ANSWER_CIRCLE_STYLE = {
+  width: 'var(--solo-focus-answer-chip)',
+  height: 'var(--solo-focus-answer-chip)',
+  minWidth: 'var(--solo-focus-answer-chip)',
+  minHeight: 'var(--solo-focus-answer-chip)',
+  borderRadius: 9999,
+  border: 'none',
+  cursor: 'pointer' as const,
+  display: 'flex',
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+  flexShrink: 0,
+}
+
+const ZIP_SHUTTER_SPRING = {
+  type: 'spring' as const,
+  stiffness: 600,
+  damping: 35,
+}
+
+export function EmbeddedJourneyQuestion({
+  journeyId,
+  onClose,
+  onJourneyAnswered,
+  textColor,
+  triggerHaptic,
+  soloFocusZipShut,
+  onSoloEmbedComplete,
+  onSoloFocusPostSuccess,
+  onSourceCitation,
+  onActiveQuestionLabelChange,
+  onZipShutStart,
+  onZipShutEnd,
+  deferJourneyAnsweredForZipRebirth = false,
+  layoutAlign = 'start',
+}: {
+  journeyId: JourneyId
+  onClose?: () => void
+  onJourneyAnswered?: () => void
+  textColor?: string
+  triggerHaptic: (p: 'light' | 'medium' | 'heavy') => void
+  /** Fired when the visible embed question label changes (for Ask Zai context). */
+  onActiveQuestionLabelChange?: (label: string | null) => void
+  /** `start` = industrial left rail (Solo Focus); `center` = legacy centered block */
+  layoutAlign?: 'start' | 'center'
+  /** One answer → close overlay, refresh Zone, scroll to card */
+  soloFocusZipShut?: boolean
+  onSoloEmbedComplete?: () => void
+  /** After POST /api/answers OK: discovery JSON + swap to RESULT (Solo Focus). */
+  onZipShutStart?: () => void
+  onZipShutEnd?: (postOk: boolean) => void
+  /** When true with `soloFocusZipShut`, skip immediate `onJourneyAnswered` so the parent can fire it mid zip-rebirth (after shut, before open). */
+  deferJourneyAnsweredForZipRebirth?: boolean
+  onSoloFocusPostSuccess?: (payload: {
+    questionId: string
+    answerValue: string
+    discovery_win?: string
+    grid_context?: {
+      intensity_g_per_kwh?: number | null
+      cleaner_vs_2025_pct?: number | null
+    }
+    grid_pulse_card?: unknown
+    new_discovery_card?: {
+      id: string
+      title: string
+      value: string
+      journey_key: string
+      source_url: string
+      nested_question_id: string | null
+    }
+    discovery?: {
+      recommendation_copy?: string
+      source_url?: string
+      new_card_data?: unknown
+    }
+    morphCards?: any[]
+    userContext?: any
+    researchAttribution?: { headline?: string | null; supplied_by?: string | null } | null
+    /** Snapshot for session reload — same payload parent shows in Source footer. */
+    sourceCitation?: { label: string; url?: string; verifiedAt?: string }
+    /** When true, parent keeps QUESTION rail for the next step after rebirth (infinite loop). */
+    hasNextQuestion?: boolean
+    /** Updated totals for live hero count-up during zip morph. */
+    newTotals?: { totalMoney: number; totalCarbon: number }
+  }) => void
+  /** Latest research citation from `research_results` (after POST /api/answers returns). */
+  onSourceCitation?: (citation: { label: string; url?: string; verifiedAt?: string }) => void
+}) {
+  const { setHeroTotals, state, refreshProfile } = useApp()
+  const profile = state.profile
+  const def = JOURNEYS[journeyId]
+  const questions = def?.questions ?? []
+  const storageKey = `journey_${journeyId}_answers`
+  const [submitted, setSubmitted] = useState(false)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [mounted, setMounted] = useState(false)
+  const isMountedRef = useRef(true)
+  const [swishingOption, setSwishingOption] = useState<string | null>(null)
+
+  useEffect(() => {
+    setMounted(true)
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return
+    try {
+      const raw = localStorage.getItem(storageKey) || '{}'
+      setAnswers(JSON.parse(raw) as Record<string, string>)
+    } catch {
+      setAnswers({})
+    }
+  }, [mounted, storageKey, submitted])
+
+  const firstUnanswered = getNextQuestion(journeyId, answers)
+  const selectedOption = firstUnanswered ? answers[firstUnanswered.id] : undefined
+
+  const isNumberQuestionEarly = firstUnanswered?.type === 'number'
+  const hasOptionsEarly = (firstUnanswered?.options?.length ?? 0) > 0
+  const activeQuestionLabelForZai =
+    onJourneyAnswered &&
+    !submitted &&
+    firstUnanswered &&
+    (isNumberQuestionEarly || hasOptionsEarly)
+      ? questions[0] && firstUnanswered.id === questions[0].id
+        ? (FUNKY_QUESTION_LABEL[journeyId] ?? firstUnanswered.label)
+        : firstUnanswered.label
+      : null
+
+  useEffect(() => {
+    onActiveQuestionLabelChange?.(activeQuestionLabelForZai)
+  }, [activeQuestionLabelForZai, onActiveQuestionLabelChange])
+
+  if (!onJourneyAnswered) return null
+  if (!mounted) return <div style={{ minHeight: 120 }} aria-busy aria-label="Journey questions" />
+
+  const runSubmit = async (value: string) => {
+    if (!value.trim() || !firstUnanswered) return
+    const trimmed = value.trim()
+    const obj = { ...answers, [firstUnanswered.id]: trimmed }
+
+    const questionIdSnapshot = firstUnanswered.id
+
+    let allAnswers = {}
+    if (typeof window !== 'undefined') {
+      try {
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('journey_') && k.endsWith('_answers'))
+        keys.forEach(k => {
+          allAnswers = { ...allAnswers, ...JSON.parse(localStorage.getItem(k) || '{}') }
+        })
+      } catch {}
+    }
+    const userContext = {
+      onboardingAnswers: profile,
+      expandedViewAnswers: { ...allAnswers, [questionIdSnapshot]: trimmed },
+      lastExpandedAnswer: {
+        journey_key: journeyId,
+        question_id: questionIdSnapshot,
+        answer_value: trimmed,
+      },
+    }
+
+    const nextPromise = fetch('/api/zone/generate-next', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userContext }),
+    })
+
+    onZipShutStart?.()
+    const postPromise = fetch('/api/answers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        journey_key: journeyId,
+        question_id: questionIdSnapshot,
+        answer_value: trimmed,
+      }),
+      credentials: 'include',
+    })
+    let postOk = false
+    try {
+      const [res, nextRes] = await Promise.all([postPromise, nextPromise.catch(() => null)])
+      const nextData = nextRes?.ok ? await nextRes.json().catch(() => ({})) : null
+
+      /** Logged-out Zone: `/api/answers` is 401 — still run Solo Focus zip + morph from generate-next + local answers. */
+      const guestSoloFocusOk =
+        !res.ok &&
+        res.status === 401 &&
+        Boolean(soloFocusZipShut && onSoloFocusPostSuccess)
+
+      let data: Record<string, any> | null = null
+      if (res.ok) {
+        data = (await res.json().catch(() => ({}))) as Record<string, any>
+      } else if (guestSoloFocusOk) {
+        data = {}
+      } else {
+        return
+      }
+
+      postOk = true
+
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(obj))
+        } catch {
+          // ignore storage failures
+        }
+        try {
+          persistUnifiedUserProfileMemory()
+        } catch {
+          // ignore
+        }
+        refreshProfile()
+      }
+      if (data?.newTotals && typeof data.newTotals.totalMoney === 'number' && typeof data.newTotals.totalCarbon === 'number') {
+        setHeroTotals({ totalMoney: data.newTotals.totalMoney, totalCarbon: data.newTotals.totalCarbon })
+      }
+      const discovery = data?.discovery as
+        | {
+            recommendation_copy?: string
+            source_url?: string
+            new_card_data?: unknown
+          }
+        | undefined
+      const cite = data?.sourceCitation as { label?: string; url?: string; verifiedAt?: string } | undefined
+      let sourceCitationForSnap: { label: string; url?: string; verifiedAt?: string } | undefined
+      if (discovery?.source_url && typeof discovery.source_url === 'string') {
+        const c = {
+          label: 'Live recommendation',
+          url: discovery.source_url,
+          verifiedAt: typeof cite?.verifiedAt === 'string' ? cite.verifiedAt : undefined,
+        }
+        onSourceCitation?.(c)
+        sourceCitationForSnap = c
+      } else if (cite && typeof cite.label === 'string' && cite.label.trim()) {
+        const c = {
+          label: cite.label.trim(),
+          url: typeof cite.url === 'string' ? cite.url : undefined,
+          verifiedAt: typeof cite.verifiedAt === 'string' ? cite.verifiedAt : undefined,
+        }
+        onSourceCitation?.(c)
+        sourceCitationForSnap = c
+      }
+
+      const zoneCard = discovery?.new_card_data
+      if (zoneCard && typeof zoneCard === 'object' && zoneCard !== null && 'id' in zoneCard && typeof (zoneCard as { id: unknown }).id === 'string') {
+        injectNewDiscoveryCard(zoneCard)
+      }
+      const pulse = data?.grid_pulse_card
+      if (pulse && typeof pulse === 'object' && pulse !== null && 'id' in pulse && typeof (pulse as { id: unknown }).id === 'string') {
+        injectNewDiscoveryCard(pulse)
+      }
+
+      if (typeof window !== 'undefined') {
+        try {
+          const completed = JSON.parse(localStorage.getItem('completedJourneys') || '[]') as string[]
+          if (!completed.includes(journeyId)) {
+            completed.push(journeyId)
+            localStorage.setItem('completedJourneys', JSON.stringify(completed))
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // Always update local question state immediately after a successful POST.
+      // This prevents the same question from reappearing if parent RESULT state is delayed.
+      setAnswers(obj)
+
+      syncSessionState()
+      triggerHaptic('medium')
+      const nextQ = getNextQuestion(journeyId, obj)
+      if (soloFocusZipShut) {
+        if (!deferJourneyAnsweredForZipRebirth) {
+          onJourneyAnswered?.()
+        }
+        onSoloEmbedComplete?.()
+        if (onSoloFocusPostSuccess) {
+          const serverMorph = data?.morphCards
+          const genMorph = nextData?.cards
+          let morphMerged = mergeMorphCardLists(serverMorph, genMorph)
+          if (morphMerged.length === 0) {
+            morphMerged = [
+              buildSyntheticMorphCardForSoloFocus(journeyId, questionIdSnapshot, data, {
+                postcode: profile?.postcode,
+                homeType: profile?.homeType,
+                transport: profile?.transport,
+                fuelType:
+                  journeyId === 'travel'
+                    ? obj.fuel_type
+                    : journeyId === 'home'
+                      ? obj.energy_type
+                      : undefined,
+              }),
+            ]
+          }
+          const ndc = data?.new_discovery_card as
+            | {
+                id?: string
+                title?: string
+                value?: string
+                journey_key?: string
+                source_url?: string
+                nested_question_id?: string | null
+              }
+            | undefined
+          const researchAttribution = data?.researchAttribution as
+            | { headline?: string | null; supplied_by?: string | null }
+            | undefined
+          onSoloFocusPostSuccess({
+            questionId: questionIdSnapshot,
+            answerValue: trimmed,
+            discovery,
+            discovery_win: typeof data?.discovery_win === 'string' ? data.discovery_win : undefined,
+            grid_context: data?.grid_context as
+              | { intensity_g_per_kwh?: number | null; cleaner_vs_2025_pct?: number | null }
+              | undefined,
+            grid_pulse_card: data?.grid_pulse_card,
+            new_discovery_card:
+              ndc && typeof ndc.id === 'string' && typeof ndc.title === 'string'
+                ? {
+                    id: ndc.id,
+                    title: ndc.title,
+                    value: typeof ndc.value === 'string' ? ndc.value : '',
+                    journey_key: typeof ndc.journey_key === 'string' ? ndc.journey_key : '',
+                    source_url: typeof ndc.source_url === 'string' ? ndc.source_url : '',
+                    nested_question_id:
+                      typeof ndc.nested_question_id === 'string' ? ndc.nested_question_id : null,
+                  }
+                : undefined,
+            morphCards: morphMerged,
+            userContext: userContext,
+            researchAttribution: researchAttribution ?? undefined,
+            sourceCitation: sourceCitationForSnap,
+            hasNextQuestion: Boolean(nextQ),
+            newTotals:
+              data?.newTotals &&
+              typeof data.newTotals.totalMoney === 'number' &&
+              typeof data.newTotals.totalCarbon === 'number'
+                ? {
+                    totalMoney: data.newTotals.totalMoney,
+                    totalCarbon: data.newTotals.totalCarbon,
+                  }
+                : undefined,
+          })
+          return
+        }
+        /* Zip-shut without parent RESULT handler: refresh Zone, advance queue — do not close overlay */
+        setAnswers(obj)
+        if (isMountedRef.current) setSwishingOption(null)
+        return
+      }
+      
+      if (!nextQ) {
+        if (onSoloFocusPostSuccess) {
+           setSubmitted(true)
+           let merged = mergeMorphCardLists(data?.morphCards, nextData?.cards)
+           if (merged.length === 0) {
+             merged = [
+               buildSyntheticMorphCardForSoloFocus(journeyId, questionIdSnapshot, data, {
+                 postcode: profile?.postcode,
+                 homeType: profile?.homeType,
+                 transport: profile?.transport,
+                 fuelType:
+                   journeyId === 'travel'
+                     ? obj.fuel_type
+                     : journeyId === 'home'
+                       ? obj.energy_type
+                       : undefined,
+               }),
+             ]
+           }
+           const researchAttribution = data?.researchAttribution as
+             | { headline?: string | null; supplied_by?: string | null }
+             | undefined
+           onSoloFocusPostSuccess({
+            questionId: questionIdSnapshot,
+            answerValue: trimmed,
+            discovery,
+            discovery_win: typeof data?.discovery_win === 'string' ? data.discovery_win : undefined,
+            morphCards: merged,
+            userContext: userContext,
+            researchAttribution: researchAttribution ?? undefined,
+            sourceCitation: sourceCitationForSnap,
+            hasNextQuestion: false,
+            newTotals:
+              data?.newTotals &&
+              typeof data.newTotals.totalMoney === 'number' &&
+              typeof data.newTotals.totalCarbon === 'number'
+                ? {
+                    totalMoney: data.newTotals.totalMoney,
+                    totalCarbon: data.newTotals.totalCarbon,
+                  }
+                : undefined,
+          })
+        } else {
+          onClose?.()
+          setSubmitted(true)
+        }
+      }
+      
+      onJourneyAnswered()
+    } catch {
+      // leave UI unchanged on error
+    } finally {
+      onZipShutEnd?.(postOk)
+      if (isMountedRef.current) {
+        window.setTimeout(() => {
+          if (isMountedRef.current) setSwishingOption(null)
+        }, 90)
+      }
+    }
+  }
+
+  const handleEmbedSubmit = (value: string) => {
+    if (!value.trim() || !firstUnanswered) return
+    if (swishingOption !== null) return
+    setSwishingOption(value)
+    void runSubmit(value)
+  }
+
+  const messageColor = textColor ?? 'var(--color-purple)'
+
+  const isNumberQuestion = firstUnanswered ? firstUnanswered.type === 'number' : false
+  const hasOptions = (firstUnanswered?.options?.length ?? 0) > 0
+
+  const questionLabel =
+    questions[0] && firstUnanswered?.id === questions[0].id
+      ? (FUNKY_QUESTION_LABEL[journeyId] ?? (firstUnanswered?.label ?? ''))
+      : (firstUnanswered?.label ?? '')
+
+  const restBg = 'var(--color-pink)'
+  const restText = 'var(--color-yellow)'
+  const activeBg = 'var(--color-purple)'
+  const activeText = 'var(--color-yellow)'
+  const toChipLabel = (opt: string) =>
+    getOptionFullLabel(opt).replace(/\s+/g, '').toUpperCase()
+
+  const isSwishing = swishingOption !== null
+
+  const railAlign = layoutAlign === 'start'
+  const showResultCopy = submitted || !firstUnanswered || (!isNumberQuestion && !hasOptions)
+  if (showResultCopy) {
+    return (
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="zip-result"
+          initial={{ height: 0, scaleY: 0, opacity: 0 }}
+          animate={{ height: 'auto', scaleY: 1, opacity: 1 }}
+          exit={{ height: 0, scaleY: 0, opacity: 0 }}
+          transition={ZIP_SHUTTER_SPRING}
+          style={{ width: '100%', transformOrigin: railAlign ? 'left top' : 'center top', overflow: 'hidden' }}
+        >
+          <p
+            className={`zz-body-bold mt-6 ${layoutAlign === 'start' ? 'text-left' : 'text-center'}`}
+            style={{ color: messageColor }}
+          >
+            All set for this journey.
+          </p>
+        </motion.div>
+      </AnimatePresence>
+    )
+  }
+  return (
+    <motion.div
+      className={`flex flex-col ${railAlign ? 'items-start justify-start' : 'items-center justify-center'} gap-4 sm:gap-6 w-full pt-0 pb-0`}
+      style={{ transformOrigin: railAlign ? 'left top' : 'center top' }}
+      variants={{
+        hidden: { y: 20, opacity: 0 },
+        visible: { y: 0, opacity: 1, transition: SPRING_BLOOM },
+      }}
+      initial={{ height: 'auto', scaleY: 1, opacity: 1 }}
+      animate={{
+        height: isSwishing ? 0 : 'auto',
+        opacity: isSwishing ? 0 : 1,
+        scaleY: isSwishing ? 0 : 1,
+        transition: ZIP_SHUTTER_SPRING,
+      }}
+    >
+      <h4
+        className={`solo-focus-question-label solo-focus-copy-width text-marvin uppercase ${railAlign ? 'text-left' : 'text-center'}`}
+        style={{
+          margin: 0,
+          fontFamily: 'var(--font-marvin)',
+          fontWeight: 700,
+          fontSize: '30px',
+          color: textColor ?? 'var(--color-purple)',
+        }}
+      >
+        {questionLabel}
+      </h4>
+
+      {isNumberQuestion ? (
+        soloFocusZipShut ? (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              columnGap: 16,
+              rowGap: 16,
+              justifyContent: railAlign ? 'flex-start' : 'center',
+              maxWidth: railAlign ? '100%' : 302,
+            }}
+          >
+            {getSoloFocusNumberPresets(firstUnanswered.id).map(({ label, value }) => {
+              const isThisSwishing = swishingOption === value
+              return (
+                <motion.button
+                  key={value}
+                  type="button"
+                  aria-label={label}
+                  className="solo-focus-answer-option answer-circle-100"
+                  onClick={() => handleEmbedSubmit(value)}
+                  style={{
+                    ...ANSWER_CIRCLE_STYLE,
+                    background: restBg,
+                    color: restText,
+                  }}
+                  animate={{
+                    scale: isThisSwishing ? 0.5 : 1,
+                    transition: ELASTIC_PING.transition,
+                  }}
+                  whileTap={!isSwishing ? { scale: 0.96 } : {}}
+                  transition={SPRING_TAP}
+                >
+                  {label.replace(/\s+/g, '').toUpperCase()}
+                </motion.button>
+              )
+            })}
+          </div>
+        ) : (
+          <NumberQuestionInput
+            firstUnanswered={firstUnanswered}
+            onSubmit={(v) => handleEmbedSubmit(v)}
+            restBg={restBg}
+            restText={restText}
+            activeBg={activeBg}
+            activeText={activeText}
+            triggerHaptic={triggerHaptic}
+            alignStart={railAlign}
+          />
+        )
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            columnGap: 16,
+            rowGap: 16,
+            justifyContent: railAlign ? 'flex-start' : 'center',
+            maxWidth: railAlign ? '100%' : 302,
+          }}
+        >
+          {firstUnanswered.options!.map((opt) => {
+            const isSelected = selectedOption === opt
+            const isThisSwishing = swishingOption === opt
+            const isDense = firstUnanswered.options!.length > 6
+            const circleClass = isDense ? 'answer-circle-80' : 'answer-circle-100'
+            const circleStyle = isDense ? { width: 80, height: 80, fontSize: 16 } : ANSWER_CIRCLE_STYLE
+            return (
+              <motion.button
+                key={opt}
+                type="button"
+                aria-label={opt}
+                className={`solo-focus-answer-option ${circleClass}`}
+                onClick={() => handleEmbedSubmit(opt)}
+                style={{
+                  ...circleStyle,
+                  background: isSelected ? activeBg : restBg,
+                  color: isSelected ? activeText : restText,
+                }}
+                animate={{
+                  scale: isThisSwishing ? 0.5 : 1,
+                  transition: ELASTIC_PING.transition,
+                }}
+                whileTap={!isSwishing ? { scale: 0.96 } : {}}
+                transition={SPRING_TAP}
+              >
+                {toChipLabel(opt)}
+              </motion.button>
+            )
+          })}
+        </div>
+      )}
+    </motion.div>
+  )
+}
