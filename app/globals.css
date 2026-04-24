@@ -1436,8 +1436,8 @@ body, p, span, input, button, textarea, select,
   min-height: 100vh;
 }
 
-/* Growing Bento: purple ring (viewport) + rounded journey card fills inset area */
-/* v2.4 — Floating Machine: viewport gutter (card never touches edges) + centered rail */
+/* Growing Bento: transparent viewport shell so global mesh / grain shows through; expanded card is the surface */
+/* v2.4 — viewport gutter + centred rail (zone chrome is hidden while open, so mesh reads as “stage”) */
 .solo-focus-grow-layer {
   position: fixed !important;
   inset: 0 !important;
@@ -1446,8 +1446,7 @@ body, p, span, input, button, textarea, select,
   display: flex !important;
   flex-direction: column !important;
   align-items: center;
-  /* Top-align: vertical centering left a large empty band under short Solo Focus stacks */
-  justify-content: flex-start;
+  justify-content: center;
   margin: 0 !important;
   min-height: 0;
   height: 100dvh;
@@ -1457,9 +1456,9 @@ body, p, span, input, button, textarea, select,
   overscroll-behavior: contain;
   /* v4.1 — fixed viewport gutter: 20px mobile / 40px desktop (+ safe areas) */
   padding: calc(20px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px)) 20px;
-  background-color: var(--color-purple);
+  background-color: transparent;
   pointer-events: auto;
-  isolation: isolate;
+  /* No isolate: avoid extra stacking paint that can flatten the atmospheric layer behind */
 }
 
 @media (min-width: 1024px) {
