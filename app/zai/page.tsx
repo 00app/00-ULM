@@ -232,13 +232,9 @@ export default function ZaiPage() {
   }
 
   return (
-    <motion.div
-      className="zz-page zai-interface zai-page"
-      style={{ background: 'transparent' }}
-      {...WORD_APPEAR}
-    >
+    <motion.div className="zai-interface zai-page zz-page-shell" {...WORD_APPEAR}>
       <ZoneBackToZoneLink />
-      <h1 className="zz-page-title zai-page-title">Ask Zai</h1>
+      <h1 className="zz-page-title zz-page-title--shell">Ask Zai</h1>
       <div className="zai-intro-bubble">
         <p className="zz-body">Your assistant for tips and questions. Ask Zero anything.</p>
         <p className="zz-body">Ask about money, carbon, or any journey. Zai uses UK 2026 data.</p>

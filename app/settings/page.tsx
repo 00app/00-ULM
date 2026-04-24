@@ -273,21 +273,15 @@ export default function SettingsPage() {
 
   return (
     <motion.div
-      className="settings-page"
-      style={{
-        color: 'var(--color-yellow)',
-        minHeight: '100vh',
-        position: 'relative',
-        paddingTop: 56,
-        paddingBottom: 40,
-      }}
+      className="settings-page zz-page-shell"
+      style={{ color: 'var(--color-yellow)', position: 'relative' }}
       {...WORD_APPEAR}
     >
       <ZoneBackToZoneLink />
 
       {/* Heading centred in the middle (horizontal centre) */}
       <div className="settings-heading-wrap">
-        <h1 className="zz-page-title zai-page-title">Settings</h1>
+        <h1 className="zz-page-title zz-page-title--shell">Settings</h1>
       </div>
 
       <div className="settings-grid-wrap">

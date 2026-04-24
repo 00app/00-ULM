@@ -100,15 +100,9 @@ export default function LikesPage() {
   }
 
   return (
-    <motion.div
-      className="zz-page likes-page mode-carbon"
-      style={{ background: 'unset', color: 'var(--color-yellow)', minHeight: '100vh', paddingBottom: 48 }}
-      {...WORD_APPEAR}
-    >
+    <motion.div className="likes-page zz-page-shell" style={{ color: 'var(--color-yellow)' }} {...WORD_APPEAR}>
       <ZoneBackToZoneLink />
-      <h1 className="zz-page-title zai-page-title">
-        LIKES
-      </h1>
+      <h1 className="zz-page-title zz-page-title--shell">Likes</h1>
       <p className="zz-body zz-page-intro" style={{ color: 'var(--color-yellow)', textAlign: 'center' }}>
         Cards you’ve liked. Unlike, mark as actioned, or open the link.
       </p>

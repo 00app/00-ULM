@@ -885,11 +885,11 @@ input[type='number'] {
   grid-template-columns: 1fr;
   grid-auto-rows: minmax(clamp(180px, 18vw, 320px), auto);
   grid-auto-flow: dense;
-  row-gap: 20px;
+  row-gap: var(--gap-lg);
   column-gap: clamp(16px, 2vw, 24px);
-  padding: 20px;
+  padding: var(--padding-md);
   padding-bottom: 0;
-  margin: 0 auto;
+  margin: var(--gap-lg) auto 0;
   width: 100%;
   max-width: min(1400px, 100%);
   box-sizing: border-box;
@@ -914,9 +914,9 @@ input[type='number'] {
   .groovy-zone-grid {
     grid-template-columns: 1fr !important;
     grid-auto-flow: row;
-    row-gap: 20px;
+    row-gap: var(--gap-lg);
     column-gap: 16px;
-    padding: 20px;
+    padding: var(--padding-md);
     padding-bottom: 0;
   }
   .groovy-zone-grid > * {
@@ -933,7 +933,7 @@ input[type='number'] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     max-width: 920px;
     gap: 18px;
-    padding: 20px;
+    padding: var(--padding-md);
     padding-bottom: 0;
   }
   .groovy-zone-grid > * {
@@ -948,9 +948,9 @@ input[type='number'] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-rows: minmax(340px, auto);
     max-width: 980px;
-    row-gap: 20px;
-    column-gap: 20px;
-    padding: 40px;
+    row-gap: var(--gap-lg);
+    column-gap: var(--gap-lg);
+    padding: var(--gap-xl);
     padding-bottom: 0;
   }
   /* Desktop lock: all cards share same row height. */
@@ -965,9 +965,9 @@ input[type='number'] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-rows: minmax(340px, auto);
     max-width: 1060px;
-    row-gap: 20px;
+    row-gap: var(--gap-lg);
     column-gap: 22px;
-    padding: 40px;
+    padding: var(--gap-xl);
     padding-bottom: 0;
   }
   .groovy-zone-grid .span-tall {
@@ -3292,20 +3292,6 @@ body, p, span, input, button, textarea, select,
   box-sizing: border-box;
   overflow: visible;
 }
-.settings-page-title {
-  font-family: var(--font-marvin);
-  font-weight: 900;
-  font-size: var(--zz-h3-mobile);
-  letter-spacing: -0.04em;
-  line-height: 0.8;
-  color: var(--color-yellow);
-  margin: 0;
-  text-align: left;
-  text-transform: uppercase;
-}
-@media (min-width: 1024px) {
-  .settings-page-title { font-size: var(--zz-h3-desktop); }
-}
 .settings-data-value {
   font-size: var(--zz-h2-mobile);
   line-height: 0.8;
@@ -3818,10 +3804,10 @@ body, p, span, input, button, textarea, select,
   text-align: left;
 }
 
-/* Shared page title: Marvin, centred (Zai + Settings + Likes) */
-.zai-interface .zai-page-title,
-.settings-page .zai-page-title,
-.likes-page .zai-page-title {
+/* Secondary shells (Zai, Settings, Likes): large centred Marvin page title */
+.zai-interface .zz-page-title--shell,
+.settings-page .zz-page-title--shell,
+.likes-page .zz-page-title--shell {
   text-align: center;
   font-family: var(--font-marvin);
   font-weight: bold;
@@ -3833,9 +3819,11 @@ body, p, span, input, button, textarea, select,
   margin-bottom: var(--gap-lg);
 }
 @media (min-width: 1024px) {
-  .zai-interface .zai-page-title,
-  .settings-page .zai-page-title,
-  .likes-page .zai-page-title { font-size: 90px; }
+  .zai-interface .zz-page-title--shell,
+  .settings-page .zz-page-title--shell,
+  .likes-page .zz-page-title--shell {
+    font-size: 90px;
+  }
 }
 
 .expanded-view--solid {
@@ -4429,6 +4417,34 @@ body, p, span, input, button, textarea, select,
 .zz-page.zai-page {
   /* Room above the home indicator / edge; global mesh shows through transparent shell */
   padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Secondary full-viewport shells (Zai, Likes, Settings) — replaces ad-hoc `.zz-page` combos */
+.zz-page-shell {
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: transparent;
+}
+.zai-page.zz-page-shell {
+  padding: var(--padding-md);
+  padding-top: var(--margin-top-xl);
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+}
+.likes-page.zz-page-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: var(--padding-md);
+  padding-top: var(--margin-top-xl);
+  padding-bottom: calc(var(--gap-xl) + env(safe-area-inset-bottom, 0px));
+}
+.settings-page.zz-page-shell {
+  min-height: 100vh;
+  padding: var(--padding-md);
+  padding-top: 56px;
+  padding-bottom: var(--gap-xl);
 }
 
 /* Links: purple background, yellow text */
@@ -5963,12 +5979,6 @@ select,
   overflow-x: hidden;
   padding-left: 0;
   padding-right: 0;
-}
-
-.groovy-zone-grid {
-  margin-top: 1.5rem;
-  width: 100%;
-  box-sizing: border-box;
 }
 
 .bento-grid {

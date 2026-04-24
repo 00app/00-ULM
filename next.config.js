@@ -26,7 +26,6 @@ const nextConfig = {
           '**/test-results/**',
           '**/playwright-report/**',
           '**/coverage/**',
-          '**/export/**',
           '**/*.tsbuildinfo',
         ],
       }
