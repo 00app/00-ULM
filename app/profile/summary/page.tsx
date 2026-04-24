@@ -17,7 +17,7 @@ import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
 import IntroWordCycle from '@/app/components/IntroWordCycle'
 import { syncSessionState } from '@/lib/sessionStateSync'
-import { KINETIC_WORD_DWELL_MS, SLAM_SPRING, ELASTIC_PING } from '@/lib/animations'
+import { KINETIC_WORD_DWELL_MS, SLAM_SPRING } from '@/lib/animations'
 
 const REDIRECT_NO_PROFILE_MS = 1800
 const WASTE_FACTOR = 0.22
@@ -373,7 +373,7 @@ export default function ProfileSummaryPage() {
       <motion.button
         initial={{ scale: 0, rotate: -90 }}
         animate={{ scale: 1, rotate: 0 }}
-        transition={ELASTIC_PING.transition}
+        transition={SLAM_SPRING}
         onClick={() => setPhase('exit')}
         style={{
           position: 'absolute',

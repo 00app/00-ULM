@@ -8,7 +8,7 @@ import { useApp, type ProfileAge } from '@/app/context/AppContext'
 import { motion } from 'framer-motion'
 import { JOURNEY_ORDER, JOURNEYS, getFunkyOptionDisplay, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
-import { SPRING_TAP, SPRING_BLOOM, ELASTIC_PING } from '@/lib/animations'
+import { SPRING_TAP, SPRING_BLOOM, WORD_APPEAR } from '@/lib/animations'
 import { SoloFocusOverlay } from '@/app/components/SoloFocusOverlay'
 import { AnimatePresence } from 'framer-motion'
 import { buildZoneViewModel } from '@/lib/zone/buildZoneViewModel'
@@ -281,7 +281,7 @@ export default function SettingsPage() {
         paddingTop: 56,
         paddingBottom: 40,
       }}
-      {...ELASTIC_PING}
+      {...WORD_APPEAR}
     >
       <ZoneBackToZoneLink />
 

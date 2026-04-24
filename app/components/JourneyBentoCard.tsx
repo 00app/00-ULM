@@ -23,13 +23,9 @@ import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import {
   SPRING_BLOOM,
   SPRING_TAP,
-  ELASTIC_PING,
-  INTRO_FADE_UP_NO_DELAY,
   FADE_VARIANTS,
   WORD_APPEAR,
   soloFocusSlamMotionProps,
-  SLAM_INTRO_INITIAL,
-  SLAM_INTRO_ANIMATE,
   SLAM_SPRING,
   DAMPED_SLAM_INITIAL,
   DAMPED_SLAM_ANIMATE,
@@ -753,9 +749,9 @@ export function JourneyBentoCard({
                 layout
                 className="solo-focus-category zz-label m-0 text-left"
                 style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
-                initial={INTRO_FADE_UP_NO_DELAY.initial}
-                animate={INTRO_FADE_UP_NO_DELAY.animate}
-                transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.05 }}
+                initial={DAMPED_SLAM_INITIAL}
+                animate={DAMPED_SLAM_ANIMATE}
+                transition={{ ...SLAM_SPRING, delay: 0.05 }}
               >
                 {String(displayJourneyId || journeyId || '').replace(/-/g, ' ').toUpperCase()}
               </motion.h5>
@@ -1050,8 +1046,8 @@ export function JourneyBentoCard({
                         fontFamily: 'var(--font-marvin)',
                         fontWeight: 700,
                       }}
-                      initial={SLAM_INTRO_INITIAL}
-                      animate={SLAM_INTRO_ANIMATE}
+                      initial={DAMPED_SLAM_INITIAL}
+                      animate={DAMPED_SLAM_ANIMATE}
                       transition={SLAM_SPRING}
                     >
                       {wrapResultSupportingAsterisks(`We found a new win! ${birthedZoneTitle} is now in your Zone.`)}
@@ -1080,9 +1076,9 @@ export function JourneyBentoCard({
                             fontFamily: 'var(--font-roboto)',
                             fontWeight: 800,
                           }}
-                          initial={INTRO_FADE_UP_NO_DELAY.initial}
-                          animate={INTRO_FADE_UP_NO_DELAY.animate}
-                          transition={INTRO_FADE_UP_NO_DELAY.transition}
+                          initial={DAMPED_SLAM_INITIAL}
+                          animate={DAMPED_SLAM_ANIMATE}
+                          transition={SLAM_SPRING}
                         >
                           {wrapResultSupportingAsterisks(discoveryWinLine)}
                         </motion.p>
@@ -1094,9 +1090,9 @@ export function JourneyBentoCard({
                             fontFamily: 'var(--font-roboto)',
                             fontWeight: 800,
                           }}
-                          initial={INTRO_FADE_UP_NO_DELAY.initial}
-                          animate={INTRO_FADE_UP_NO_DELAY.animate}
-                          transition={INTRO_FADE_UP_NO_DELAY.transition}
+                          initial={DAMPED_SLAM_INITIAL}
+                          animate={DAMPED_SLAM_ANIMATE}
+                          transition={SLAM_SPRING}
                         >
                           {wrapResultSupportingAsterisks(geminiRecommendationCopy)}
                         </motion.p>
@@ -1104,10 +1100,10 @@ export function JourneyBentoCard({
                       <motion.p
                         className="zz-body-bold solo-focus-copy-width text-left m-0"
                         style={{ color: 'var(--journey-text)' }}
-                        initial={INTRO_FADE_UP_NO_DELAY.initial}
-                        animate={INTRO_FADE_UP_NO_DELAY.animate}
+                        initial={DAMPED_SLAM_INITIAL}
+                        animate={DAMPED_SLAM_ANIMATE}
                         transition={{
-                          ...INTRO_FADE_UP_NO_DELAY.transition,
+                          ...SLAM_SPRING,
                           delay: discoveryWinLine || geminiRecommendationCopy ? 0.06 : 0,
                         }}
                       >
@@ -1124,9 +1120,9 @@ export function JourneyBentoCard({
                               fontFamily: 'var(--font-roboto)',
                               fontWeight: 800,
                             }}
-                            initial={INTRO_FADE_UP_NO_DELAY.initial}
-                            animate={INTRO_FADE_UP_NO_DELAY.animate}
-                            transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.07 }}
+                            initial={DAMPED_SLAM_INITIAL}
+                            animate={DAMPED_SLAM_ANIMATE}
+                            transition={{ ...SLAM_SPRING, delay: 0.07 }}
                           >
                             {wrapResultSupportingAsterisks(
                               `IMPACT: −${
@@ -1139,9 +1135,9 @@ export function JourneyBentoCard({
                           <motion.p
                             className="zz-body solo-focus-copy-width text-left m-0 opacity-95"
                             style={{ color: 'var(--journey-text)' }}
-                            initial={INTRO_FADE_UP_NO_DELAY.initial}
-                            animate={INTRO_FADE_UP_NO_DELAY.animate}
-                            transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.09 }}
+                            initial={DAMPED_SLAM_INITIAL}
+                            animate={DAMPED_SLAM_ANIMATE}
+                            transition={{ ...SLAM_SPRING, delay: 0.09 }}
                           >
                             {wrapResultSupportingAsterisks(
                               `That is the equivalent of planting ${treeEquivalent} trees this year.`
@@ -1152,9 +1148,9 @@ export function JourneyBentoCard({
                       <motion.p
                         className="zz-body-bold solo-focus-copy-width text-left m-0"
                         style={{ color: 'var(--journey-text)' }}
-                        initial={INTRO_FADE_UP_NO_DELAY.initial}
-                        animate={INTRO_FADE_UP_NO_DELAY.animate}
-                        transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.08 }}
+                        initial={DAMPED_SLAM_INITIAL}
+                        animate={DAMPED_SLAM_ANIMATE}
+                        transition={{ ...SLAM_SPRING, delay: 0.08 }}
                       >
                         {wrapResultSupportingAsterisks(
                           `${discovery.rec.headline.replace(/_/g, ' ')} — ${discovery.rec.body}`
@@ -1163,9 +1159,9 @@ export function JourneyBentoCard({
                       <motion.p
                         className="zz-body solo-focus-copy-width text-left m-0 opacity-95"
                         style={{ color: 'var(--journey-text)' }}
-                        initial={INTRO_FADE_UP_NO_DELAY.initial}
-                        animate={INTRO_FADE_UP_NO_DELAY.animate}
-                        transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.14 }}
+                        initial={DAMPED_SLAM_INITIAL}
+                        animate={DAMPED_SLAM_ANIMATE}
+                        transition={{ ...SLAM_SPRING, delay: 0.14 }}
                       >
                         {wrapResultSupportingAsterisks(
                           `You’re on track — save £${formatMoneyImpact(moneyValue)} and ${formatCarbonImpact(carbonValue).value} ${formatCarbonImpact(carbonValue).unit} from this journey.`

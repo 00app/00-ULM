@@ -12,7 +12,7 @@ import { getJourneyColorHex } from '@/lib/journeyColors'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { motion } from 'framer-motion'
-import { ELASTIC_PING } from '@/lib/animations'
+import { WORD_APPEAR } from '@/lib/animations'
 
 const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
 
@@ -103,7 +103,7 @@ export default function LikesPage() {
     <motion.div
       className="zz-page likes-page mode-carbon"
       style={{ background: 'unset', color: 'var(--color-yellow)', minHeight: '100vh', paddingBottom: 48 }}
-      {...ELASTIC_PING}
+      {...WORD_APPEAR}
     >
       <ZoneBackToZoneLink />
       <h1 className="zz-page-title zai-page-title">

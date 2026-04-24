@@ -13,8 +13,6 @@ import { formatMoneyImpact, formatCarbonImpact, formatZoneCardMoney } from '@/li
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
 import {
-  ELASTIC_PING,
-  INTRO_FADE_UP_NO_DELAY,
   FADE_VARIANTS,
   SPRING_TAP,
   SPRING_BLOOM,
@@ -541,9 +539,9 @@ export function SoloFocusOverlay({
                     layout
                     className="solo-focus-category zz-label m-0 text-left"
                     style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
-                    initial={INTRO_FADE_UP_NO_DELAY.initial}
-                    animate={INTRO_FADE_UP_NO_DELAY.animate}
-                    transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.05 }}
+                    initial={DAMPED_SLAM_INITIAL}
+                    animate={DAMPED_SLAM_ANIMATE}
+                    transition={{ ...SLAM_SPRING, delay: 0.05 }}
                   >
                     {displayCategory.toUpperCase().replace(/-/g, ' ')}
                   </motion.h5>
@@ -679,10 +677,10 @@ export function SoloFocusOverlay({
                   className="solo-focus-close-circle"
                   onClick={handleClose}
                   whileTap={{ scale: 0.96 }}
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0, opacity: 0 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  initial={DAMPED_SLAM_INITIAL}
+                  animate={DAMPED_SLAM_ANIMATE}
+                  exit={DAMPED_SLAM_INITIAL}
+                  transition={SLAM_SPRING}
                   style={{ transformOrigin: 'top right' }}
                 >
                   <BackArrowDownLeft size={24} />
@@ -834,9 +832,9 @@ export function SoloFocusOverlay({
               <motion.div
                 className="solo-focus-loop trinity-to-question flex-shrink-0 w-full flex flex-col items-start view-expanded solo-focus-trap-block gap-4 pt-0"
                 variants={FADE_VARIANTS}
-                initial={INTRO_FADE_UP_NO_DELAY.initial}
-                animate={INTRO_FADE_UP_NO_DELAY.animate}
-                transition={INTRO_FADE_UP_NO_DELAY.transition}
+                initial={DAMPED_SLAM_INITIAL}
+                animate={DAMPED_SLAM_ANIMATE}
+                transition={SLAM_SPRING}
               >
               <h4
                 className="solo-focus-question-label solo-focus-copy-width text-marvin text-left uppercase m-0"
@@ -1285,9 +1283,9 @@ export function SoloFocusOverlay({
           className="circle-btn flex items-center justify-center"
           onClick={handleClose}
           whileTap={{ scale: 0.9 }}
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={ELASTIC_PING.transition}
+          initial={DAMPED_SLAM_INITIAL}
+          animate={DAMPED_SLAM_ANIMATE}
+          transition={SLAM_SPRING}
           style={{
             width: 40,
             height: 40,
@@ -1308,9 +1306,9 @@ export function SoloFocusOverlay({
               likeFn(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
             }}
             whileTap={{ scale: 0.9 }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={ELASTIC_PING.transition}
+            initial={DAMPED_SLAM_INITIAL}
+            animate={DAMPED_SLAM_ANIMATE}
+            transition={SLAM_SPRING}
             aria-label="Like"
             style={{
               width: 40,
@@ -1366,9 +1364,9 @@ export function SoloFocusOverlay({
               onAskZai()
             }}
             whileTap={{ scale: 0.9 }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={ELASTIC_PING.transition}
+            initial={DAMPED_SLAM_INITIAL}
+            animate={DAMPED_SLAM_ANIMATE}
+            transition={SLAM_SPRING}
             aria-label="Ask Zai about this"
             style={{
               width: 40,

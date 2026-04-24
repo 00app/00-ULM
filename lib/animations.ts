@@ -22,10 +22,6 @@ export const DAMPED_SLAM_INITIAL = { scale: 1.08, opacity: 0 }
 export const DAMPED_SLAM_ANIMATE = { scale: 1, opacity: 1 }
 export const DAMPED_SLAM_EXIT = { scale: 0.96, opacity: 0 }
 
-export const SLAM_INTRO_INITIAL = DAMPED_SLAM_INITIAL
-export const SLAM_INTRO_ANIMATE = DAMPED_SLAM_ANIMATE
-export const SLAM_INTRO_EXIT = DAMPED_SLAM_EXIT
-
 /** Props for `motion.div` (AnimatePresence) — respects reduced motion. */
 export function soloFocusSlamMotionProps(reduceMotion: boolean, skipInitialSlam: boolean) {
   if (reduceMotion) {
@@ -59,13 +55,6 @@ export const PROFILE_KINETIC_DWELL_MS = 320
 // PRESETS
 // =============================================================================
 
-export const FADE_IN_UP = {
-  initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -12 },
-  transition: SPRING_BLOOM,
-}
-
 export const WORD_APPEAR = {
   initial: DAMPED_SLAM_INITIAL,
   animate: DAMPED_SLAM_ANIMATE,
@@ -91,12 +80,6 @@ export const WORD_PULSE_APPEAR = {
 // ZONE
 // =============================================================================
 
-/** Legacy slide-up anchor — prefer `DAMPED_SLAM_*` + `SLAM_SPRING` on Zone masthead for one motion vocabulary */
-export const ZONE_ANCHOR_VARIANTS = {
-  hidden: { opacity: 0, y: 28 },
-  visible: { opacity: 1, y: 0, transition: SPRING_BLOOM },
-}
-
 /** Zone wall: masthead (logo + tag + greeting + Ask Zai) lands first; then each grid cell as a whole card */
 export const ZONE_GRID_STAGGER_CHILD_S = 0.055
 export const ZONE_GRID_AFTER_ANCHOR_S = 0.14
@@ -104,20 +87,6 @@ export const ZONE_GRID_AFTER_ANCHOR_S = 0.14
 export const FADE_VARIANTS = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: SPRING_BLOOM },
-}
-
-export const ELASTIC_PING = {
-  initial: { scale: 0.95, opacity: 0 },
-  animate: { scale: 1, opacity: 1 },
-  exit: { scale: 0.95, opacity: 0 },
-  transition: { type: 'spring' as const, stiffness: 550, damping: 32, mass: 1 },
-} as const
-
-export const INTRO_FADE_UP_NO_DELAY = {
-  initial: { opacity: 0, y: 15 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: 10 },
-  transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as const },
 }
 
 export const ZONE_HERO_FROM_SUMMARY = {

@@ -11,7 +11,7 @@ import {
 } from '@/lib/expandStorage'
 import { sanitizeText } from '@/lib/sanitize'
 
-import { SPRING_TAP, ELASTIC_PING } from '@/lib/animations'
+import { SPRING_TAP, WORD_APPEAR } from '@/lib/animations'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 
 const ZAI_FALLBACK = "i'm scanning the 2026 grid, try in a sec."
@@ -235,7 +235,7 @@ export default function ZaiPage() {
     <motion.div
       className="zz-page zai-interface zai-page"
       style={{ background: 'transparent' }}
-      {...ELASTIC_PING}
+      {...WORD_APPEAR}
     >
       <ZoneBackToZoneLink />
       <h1 className="zz-page-title zai-page-title">Ask Zai</h1>

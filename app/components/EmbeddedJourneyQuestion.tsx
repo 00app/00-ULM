@@ -12,7 +12,7 @@ import { getNextQuestion } from '@/lib/zone/questionHandler'
 import { useApp } from '@/app/context/AppContext'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { syncSessionState } from '@/lib/sessionStateSync'
-import { ELASTIC_PING, SPRING_BLOOM, SPRING_TAP } from '@/lib/animations'
+import { SLAM_SPRING, SPRING_BLOOM, SPRING_TAP } from '@/lib/animations'
 import { injectNewDiscoveryCard } from '@/lib/discoveryInject'
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
@@ -762,7 +762,7 @@ export function EmbeddedJourneyQuestion({
                   }}
                   animate={{
                     scale: isThisSwishing ? 0.5 : 1,
-                    transition: ELASTIC_PING.transition,
+                    transition: SLAM_SPRING,
                   }}
                   whileTap={!isSwishing ? { scale: 0.96 } : {}}
                   transition={SPRING_TAP}
@@ -815,7 +815,7 @@ export function EmbeddedJourneyQuestion({
                 }}
                 animate={{
                   scale: isThisSwishing ? 0.5 : 1,
-                  transition: ELASTIC_PING.transition,
+                  transition: SLAM_SPRING,
                 }}
                 whileTap={!isSwishing ? { scale: 0.96 } : {}}
                 transition={SPRING_TAP}
