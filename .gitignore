@@ -7,6 +7,10 @@
 
 # testing
 /coverage
+/test-results/
+
+# local archives (do not version)
+scripts.zip
 
 # next.js
 /.next/
