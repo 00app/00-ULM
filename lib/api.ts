@@ -79,13 +79,3 @@ export async function getLikes(_user_id?: string) {
   return response.json()
 }
 
-export async function getZone(_user_id?: string) {
-  const response = await fetch('/api/zone', { credentials: 'include' })
-  if (!response.ok) throw new Error('Failed to fetch zone')
-  return response.json()
-}
-
-// Legacy alias for backward compatibility
-export async function getSpace(user_id?: string) {
-  return getZone(user_id)
-}

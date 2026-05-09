@@ -8,12 +8,13 @@ import { z } from 'zod'
 import { getUserContextMarkdown } from '@/lib/memory/store'
 import { triggerSupplementalResearch } from '@/lib/agents/researchAgent'
 import { isGeminiQuotaExceeded, setGeminiQuotaExceeded } from '@/lib/geminiQuota'
-import { buildFallbackInjectionCards } from '@/lib/zone/fallbackDeals'
 import { validateInjectionCards } from '@/lib/zone/injections'
 import { setStoredInjections } from '@/lib/zone/injectionStore'
 import { validateAndRailCards, TRUE_WIN_RAILS } from '@/lib/zone/trueWinRails'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+export const maxDuration = 60
 
 const ZONE_TIPS_SYSTEM = `You are Zai, the Zero Zero Carbon Expert, building a live UK 2026 savings stream for the Zone dashboard.
 
@@ -69,6 +70,52 @@ const GeminiCardSchema = z.object({
 })
 const GeminiCardsSchema = z.array(GeminiCardSchema)
 
+function fallbackZoneTips(postcodeNorm: string | null): unknown[] {
+  const locality = postcodeNorm ? ` ${postcodeNorm}` : ''
+  const OFGEM_CAP_URL = 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap'
+  return [
+    {
+      id: 'inject-fallback-home-cap',
+      title: `Price-cap trim${locality}`,
+      journey_key: 'home',
+      category: 'home',
+      data: { money: `£${Math.round(TRUE_WIN_RAILS.energyCapGbp * 0.08)}`, carbon: '140 kg CO₂' },
+      source: OFGEM_CAP_URL,
+      sourceLabel: 'Ofgem',
+      dominant_win: 'money',
+      explanation: ['Use official cap context to cut standby and heating drift this month.'],
+      actions: { actionType: 'learn', learnUrl: OFGEM_CAP_URL },
+    },
+    {
+      id: 'inject-fallback-travel-mode',
+      title: 'Commute shift check',
+      journey_key: 'travel',
+      category: 'travel',
+      data: { money: '£180', carbon: '220 kg CO₂' },
+      source: 'https://www.energysavingtrust.org.uk/advice/transport/',
+      sourceLabel: 'Energy Saving Trust',
+      dominant_win: 'carbon',
+      explanation: ['Swap one regular high-cost trip pattern for a lower-emission mode this week.'],
+      actions: { actionType: 'learn', learnUrl: 'https://www.energysavingtrust.org.uk/advice/transport/' },
+    },
+    {
+      id: 'inject-fallback-tech-load',
+      title: 'Device standby sweep',
+      journey_key: 'tech',
+      category: 'tech',
+      data: { money: '£95', carbon: '95 kg CO₂' },
+      source: 'https://www.which.co.uk/reviews/energy/article/how-to-save-energy-at-home-aHm2V3M2PKwH',
+      sourceLabel: 'Which?',
+      dominant_win: 'money',
+      explanation: ['Target always-on sockets and chargers to recover cash and avoid phantom draw.'],
+      actions: {
+        actionType: 'learn',
+        learnUrl: 'https://www.which.co.uk/reviews/energy/article/how-to-save-energy-at-home-aHm2V3M2PKwH',
+      },
+    },
+  ]
+}
+
 function parseGeminiCards(text: string): unknown[] {
   const trimmed = text.trim()
   const jsonMatch = trimmed.match(/\[[\s\S]*\]/)
@@ -91,10 +138,25 @@ export async function POST() {
   const userContext = getUserContextMarkdown()
   const postcodeNorm = postcodeFromContext(userContext)
 
-  if (isGeminiQuotaExceeded() || !apiKey) {
-    const fallback = validateAndRailCards(buildFallbackInjectionCards(postcodeNorm), postcodeNorm)
+  if (!apiKey) {
+    return NextResponse.json(
+      { ok: false, error: 'Missing GEMINI_API_KEY for live zone tips' },
+      { status: 503 }
+    )
+  }
+  if (isGeminiQuotaExceeded()) {
+    const fallback = validateAndRailCards(validateInjectionCards(fallbackZoneTips(postcodeNorm)), postcodeNorm)
     setStoredInjections(fallback)
-    return NextResponse.json({ ok: true, source: 'fallback', count: fallback.length })
+    return NextResponse.json(
+      {
+        ok: true,
+        source: 'fallback',
+        count: fallback.length,
+        degraded: true,
+        geminiError: 'quota_exceeded',
+      },
+      { status: 200 }
+    )
   }
 
   let supplementalMarkdown = ''
@@ -159,22 +221,23 @@ export async function POST() {
       setStoredInjections(cards)
       return NextResponse.json({ ok: true, source: 'gemini', count: cards.length })
     }
-    const fallback = validateAndRailCards(buildFallbackInjectionCards(postcodeNorm), postcodeNorm)
+    const fallback = validateAndRailCards(validateInjectionCards(fallbackZoneTips(postcodeNorm)), postcodeNorm)
     setStoredInjections(fallback)
-    return NextResponse.json({ ok: true, source: 'fallback', count: fallback.length })
+    return NextResponse.json({ ok: true, source: 'fallback', count: fallback.length, degraded: true })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     const status = (err as { status?: number })?.status
     const isQuota = status === 429 || status === 529 || /429|529|quota|resource exhausted/i.test(msg)
     if (isQuota) setGeminiQuotaExceeded()
-    const fallback = validateAndRailCards(buildFallbackInjectionCards(postcodeNorm), postcodeNorm)
+    const fallback = validateAndRailCards(validateInjectionCards(fallbackZoneTips(postcodeNorm)), postcodeNorm)
     setStoredInjections(fallback)
     return NextResponse.json({
       ok: true,
       source: 'fallback',
       count: fallback.length,
+      degraded: true,
       geminiError: isQuota ? 'quota_exceeded' : undefined,
-    })
+    }, { status: 200 })
   }
 }
 

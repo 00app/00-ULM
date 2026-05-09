@@ -24,7 +24,7 @@ export interface LocalIntelligence {
   ward?: string
   /** Outcode used for carbon API (e.g. "SW1A") */
   outcode?: string
-  /** Parish / settlement label when Postcodes.io returns it — best for “In Wick”. */
+  /** Parish / settlement label when Postcodes.io returns it — best for “In {locality}”. */
   locality?: string
   /** e.g. "England", "Scotland", "Wales" — from Postcodes.io `country` / nuts heuristics */
   country?: string
@@ -51,10 +51,10 @@ function attachHeatPumpGrantContext(cleanPostcode: string, data: LocalIntelligen
     return {
       ...data,
       heat_pump_grant_context: {
-        primary_scheme_label: 'Home Energy Scotland — North Scotland / Wick rural pathways',
+        primary_scheme_label: 'Home Energy Scotland — north Scotland rural pathways',
         primary_max_gbp: 9000,
         comparison_note:
-          'UK Boiler Upgrade Scheme (April 2026) offers up to £7,500 in England & Wales; eligible Scottish rural installs can access up to £9,000 via HES.',
+          'England & Wales official heat pump support is typically up to £7,500 where rules allow; eligible north Scotland installs may access higher support via HES.',
         source_url: HES_HEAT_PUMP_URL,
         verified_date: 'April 2026',
       },
@@ -63,10 +63,10 @@ function attachHeatPumpGrantContext(cleanPostcode: string, data: LocalIntelligen
   return {
     ...data,
     heat_pump_grant_context: {
-      primary_scheme_label: 'Boiler Upgrade Scheme (England & Wales)',
+      primary_scheme_label: 'England & Wales heat pump support (official cap pathway)',
       primary_max_gbp: 7500,
       comparison_note:
-        'Scottish households (e.g. KW) may access Home Energy Scotland with different ceilings (up to £9,000 with rural uplift where eligible).',
+        'North Scotland outward codes may access Home Energy Scotland with different ceilings (up to £9,000 with rural uplift where eligible).',
       source_url: GOV_UK_BUS_URL,
       verified_date: 'April 2026',
     },
@@ -137,10 +137,12 @@ function getRegionFromOutcode(outcode: string): string {
 function getEmergencyPostcodeFallback(cleanPostcode: string): LocalIntelligence {
   const outcode = cleanPostcode.slice(0, Math.max(2, Math.min(4, cleanPostcode.length)))
   const region = getRegionFromOutcode(outcode)
+  const inferredLocality = region === 'London' ? 'London' : outcode
+  const inferredCouncil = `${region} Council`
   return attachHeatPumpGrantContext(cleanPostcode, {
-    council: 'Local Area',
+    council: inferredCouncil,
     region,
-    locality: region === 'London' ? 'London' : 'Local Area',
+    locality: inferredLocality,
     outcode,
     country: region === 'Scotland' ? 'Scotland' : region === 'Wales' ? 'Wales' : 'England',
   })

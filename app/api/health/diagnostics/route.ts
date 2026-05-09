@@ -1,13 +1,31 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { ROCK_HABIT_COUNT, ROCK_HABITS } from '@/lib/rock/habitsCatalog'
+import { getSessionFromRequest } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * Server-side nervous-system checks (no secret values exposed — booleans + timestamps only).
  */
-export async function GET() {
+function hasGatewayAuth(request: NextRequest): boolean {
+  const expected =
+    process.env.GATEWAY_TOKEN?.trim() ||
+    process.env.OPENCLAW_GATEWAY_TOKEN?.trim() ||
+    process.env.CRON_SECRET?.trim()
+  if (!expected) return false
+  const got =
+    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')?.trim() ??
+    request.headers.get('x-gateway-token')?.trim()
+  return got === expected
+}
+
+export async function GET(request: NextRequest) {
+  const session = await getSessionFromRequest().catch(() => null)
+  if (!session && !hasGatewayAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   let neonOk = false
   let dbLatencyMs: number | null = null
   let lastResearchScrapedAt: string | null = null

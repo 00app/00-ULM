@@ -13,7 +13,7 @@ function stripAdministrativeNoise(s: string): string {
 }
 
 /**
- * Prefer parish / ward fragment / council for display (e.g. “Wick”, “Westminster”).
+ * Prefer parish / ward fragment / council for display (e.g. settlement name, “Westminster”).
  */
 export function formatLocationDisplayName(
   local: LocalIntelligence | null | undefined,
@@ -29,13 +29,12 @@ export function formatLocationDisplayName(
   if (loc) return stripAdministrativeNoise(loc)
 
   const pc = postcode?.replace(/\s+/g, '').toUpperCase() ?? ''
-  if (pc.startsWith('KW')) return 'Wick'
   if (local?.outcode) return local.outcode
   const spaced = postcode?.replace(/\s+/g, ' ').trim()
-  return spaced || ''
+  return pc ? pc.slice(0, 4) : spaced || ''
 }
 
-/** Phrase for UI: “In Wick” (caller supplies leading copy). */
+/** Phrase for UI: “In {locality}” (caller supplies leading copy). */
 export function locationInPhrase(displayName: string): string {
   const t = displayName.trim()
   if (!t) return ''

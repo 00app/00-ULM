@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Allow local dev access from both localhost and 127.0.0.1 so HMR/hydration isn't blocked.
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   /** Expose Vercel deploy type to client (Pulse widget on preview; prod uses NEXT_PUBLIC_PULSE_WIDGET). */
   env: {
     NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV ?? '',
@@ -26,6 +28,7 @@ const nextConfig = {
           '**/test-results/**',
           '**/playwright-report/**',
           '**/coverage/**',
+          '**/export/**',
           '**/*.tsbuildinfo',
         ],
       }

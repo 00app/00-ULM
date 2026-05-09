@@ -12,10 +12,10 @@ description: >-
 
 ## 1. Load project rules before product code changes
 
-When editing `app/**`, `lib/**`, or user-facing copy, **read** (Read tool) both:
+When editing `app/**`, `lib/**`, or user-facing copy, **read** (Read tool):
 
 - `.cursor/rules/mechanical-pulse.mdc`
-- `.cursor/rules/agentic-architect.mdc`
+- `lib/logic/engine.ts` (economic truth, regional grid tiers, audit placeholders)
 
 If they conflict with an explicit user request, **the user wins**; otherwise treat them as the design and interaction contract.
 

@@ -6,6 +6,7 @@ import {
   getLatestResearchCitation,
   getLatestResearchAttribution,
   persistDiscoveryInjection,
+  upsertUserGenomeFromAnswer,
   upsertJourneyAnswerJsonb,
 } from '@/lib/db/neon'
 import pool from '@/lib/db'
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
     const [answersBeforeUpsert, profileRow] = await Promise.all([
       getJourneyAnswersForUser(user_id),
       pool.query(
-        'SELECT postcode, home_type, household, transport_baseline, name, age_group, employment_status FROM users WHERE id = $1',
+        'SELECT postcode, home_type, household, transport_baseline, name, age_group, employment_status, user_genome FROM users WHERE id = $1',
         [user_id]
       ).then((r) =>
         r.rows[0] as
@@ -105,11 +106,17 @@ export async function POST(request: NextRequest) {
               name?: string
               age_group?: string
               employment_status?: string | null
+              user_genome?: Record<string, unknown> | null
               goal?: string | null
             }
           | undefined
       ).catch(() => undefined),
     ])
+    const profileGenome = (profileRow?.user_genome ?? {}) as Record<string, unknown>
+    const tenureFromGenome = profileGenome.tenure ?? profileGenome.tenure_type ?? profileGenome.housing_tenure
+    const householdSizeRaw = Number(profileGenome.household_size ?? profileGenome.householdSize)
+    const householdSize =
+      Number.isFinite(householdSizeRaw) && householdSizeRaw > 0 ? Math.round(householdSizeRaw) : null
     const postcodeNorm = profileRow?.postcode?.replace(/\s+/g, '').trim() ?? null
     const profileData = profileRow
       ? {
@@ -118,9 +125,12 @@ export async function POST(request: NextRequest) {
           household: profileRow.household ?? null,
           transport_baseline: profileRow.transport_baseline ?? null,
           employment_status: profileRow.employment_status ?? null,
+          tenure: typeof tenureFromGenome === 'string' ? tenureFromGenome : null,
+          household_size: householdSize != null ? String(householdSize) : null,
         }
       : null
     const upsertPromise = upsertJourneyAnswerJsonb(user_id, jKey, qKey, String(value))
+    const genomeUpsertPromise = upsertUserGenomeFromAnswer(user_id, jKey, qKey, String(value))
     const sourceCitationPromise = getLatestResearchCitation(postcodeNorm)
     const hybridLiveZoneTipPromise =
       jKey === 'home' &&
@@ -139,7 +149,7 @@ export async function POST(request: NextRequest) {
       let payload: {
         recommendation_copy: string
         source_url: string
-        new_card_data: import('@/lib/zone/buildZoneViewModel').ZoneTipCard
+        new_card_data: import('@/lib/logic/zone').ZoneTipCard
       } | null = null
       try {
         payload = await raceDiscoveryBirth({
@@ -186,7 +196,7 @@ export async function POST(request: NextRequest) {
     const [sourceCitation, discoveryPayload, journeyAnswers, hybridLiveEarly] = await Promise.all([
       sourceCitationPromise,
       discoveryRacePromise,
-      upsertPromise.then(() => getJourneyAnswersForUser(user_id)),
+      Promise.all([upsertPromise, genomeUpsertPromise]).then(() => getJourneyAnswersForUser(user_id)),
       hybridLiveZoneTipPromise,
     ])
     const profile: ImpactProfile | undefined = profileRow
@@ -212,7 +222,9 @@ export async function POST(request: NextRequest) {
     const homeJustFinished = jKey === 'home' && homeNowComplete && !homeWasComplete
 
     const canLiveResearch = Boolean(
-      process.env.OPENCLAW_GATEWAY_TOKEN?.trim() || process.env.FIRECRAWL_API_KEY?.trim()
+      process.env.OPENCLAW_API_KEY?.trim() ||
+      process.env.OPENCLAW_GATEWAY_TOKEN?.trim() ||
+      process.env.FIRECRAWL_API_KEY?.trim()
     )
     if (canLiveResearch) {
       const researchPayload = {
@@ -266,7 +278,7 @@ export async function POST(request: NextRequest) {
     const intensityG = await intensityPromise
     const grid_cleaner_pct = gridCleanerPercentVs2025(intensityG)
 
-    let nextData: { cards: import('@/lib/zone/buildZoneViewModel').ZoneTipCard[] } | null = null
+    let nextData: { cards: import('@/lib/logic/zone').ZoneTipCard[] } | null = null
     try {
       nextData = await fetchNextDiscoveryCards(
         user_id,
@@ -312,7 +324,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    let grid_pulse_card: import('@/lib/zone/buildZoneViewModel').ZoneTipCard | undefined
+    let grid_pulse_card: import('@/lib/logic/zone').ZoneTipCard | undefined
     if (shouldBirthNightChargeCard(intensityG)) {
       const nc = buildNightChargeDiscoveryCard()
       if (nc) {
@@ -367,35 +379,6 @@ export async function POST(request: NextRequest) {
       } catch {
         sentinelMotherRefresh = null
       }
-    }
-
-    if (
-      jKey === 'home' &&
-      qKey === 'energy_type' &&
-      String(value).trim().toUpperCase() === 'GAS' &&
-      postcodeNorm?.toUpperCase().startsWith('KW')
-    ) {
-      const scotGrantUrl = 'https://www.homeenergyscotland.org/funding-grants/heat-pump-grants-loans/'
-      const scotGrantCard = {
-        id: `inject-home-kw-gas-grant-${Date.now()}`,
-        variant: 'card-compact' as const,
-        title: 'scottish heat pump uplift',
-        journey_key: 'home' as const,
-        category: 'home' as const,
-        data: { money: '£9,000', carbon: '1.2T CO₂' },
-        source: scotGrantUrl,
-        sourceLabel: 'source. home energy scotland',
-        explanation: ['Up to £7,500 plus a £1,500 rural uplift is available for eligible KW households.'],
-        actions: {
-          actionType: 'apply' as const,
-          learnUrl: scotGrantUrl,
-          actionUrl: scotGrantUrl,
-        },
-        cta: { label: 'Check eligibility', url: scotGrantUrl },
-        architectSuppliedBy: 'HOME ENERGY SCOTLAND',
-        dominant_win: 'money' as const,
-      }
-      morphCards = [scotGrantCard, ...morphCards.filter((c) => c.actions?.learnUrl !== scotGrantUrl)]
     }
 
     return NextResponse.json({

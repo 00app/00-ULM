@@ -61,7 +61,7 @@ export const JOURNEY_QUESTIONS: Record<JourneyId, LockedQuestion[]> = {
 
   tech: [
     { id: 'upgrade_often', question: 'upgrade often?', type: 'options',
-      options: ['YES','NO'] },
+      options: ['MONTHLY','YEARLY','2+ YEARS'] },
     { id: 'device_count', question: 'device count?', type: 'options',
       options: ['FEW','AVERAGE','MANY'] },
   ],

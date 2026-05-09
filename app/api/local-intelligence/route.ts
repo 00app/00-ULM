@@ -8,6 +8,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
 
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
 const LOCAL_INTEL_MAX_PER_MINUTE = 30
 
 export async function GET(req: NextRequest) {

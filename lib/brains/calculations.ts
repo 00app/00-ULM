@@ -1,9 +1,10 @@
 /**
  * ZERO ZERO — Impact calculations (UK annualized).
  *
- * March 2026: Electricity £0.2769/kWh (MARCH_2026_ECONOMY.ELEC_UNIT_RATE) via lib/carbonCashCalculator.
- * Uses March 2026 factors from lib/carbonCashCalculator for home (elec/gas) and travel (petrol).
- * Scraped variable hook: real-time data applied in buildUserImpact via scrapedOverlay.ts.
+ * v42.8 — April–June 2026 lock: electricity **24.67p/kWh**, gas **5.74p/kWh** (`MARCH_2026_ECONOMY`),
+ * typical cap **£1,641/yr**, automatic **~£150** green-levy shift off bills + cap-step savings (`PRICE_CAP_SAVING_APRIL_1`).
+ * Re-exported aliases: `BASELINE_2026_CAP_GBP`, `ELEC_UNIT_RATE_PENCE`, `GAS_UNIT_RATE_PENCE`.
+ * Scraped/live rates: `buildUserImpact` + `scrapedOverlay`.
  */
 import {
   FACTORS_2026,
@@ -17,9 +18,15 @@ import {
   MARCH_2026_ECONOMY,
   GREEN_LEVY_SHIFT_APRIL_2026_GBP,
   PRICE_CAP_APRIL_2026,
-  PRICE_CAP_MARCH_2026,
   PRICE_CAP_SAVING_APRIL_1,
+  TRUTH_2026_MARCH,
+  APRIL_2026_TRUTH_PENCE,
 } from '@/lib/brains/constants'
+
+/** April 2026 typical household cap (£/yr) — single import for summary + calculators. */
+export const BASELINE_2026_CAP_GBP = TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP
+export const ELEC_UNIT_RATE_PENCE = APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH
+export const GAS_UNIT_RATE_PENCE = APRIL_2026_TRUTH_PENCE.GAS_PER_KWH
 import type { JourneyId } from '@/lib/journeys'
 import type { EmploymentStatus } from '@/lib/brains/types'
 import { formatZoneCardMoney } from '@/lib/format'
@@ -80,21 +87,26 @@ export function calculateHome(
     const savedGas = gasSaving2026(gasKwh, optGas, gasPence)
     money += Math.round(saved.moneyGbp + savedGas.moneyGbp)
   }
-  /** Economic truth (March 2026): April 1 cap drop — typical household automatic £117/yr (Ofgem dual-fuel story). */
+  /** April 2026: Ofgem cap step (~£117) + green levies moved to taxation (~£150) — both automatic bill effects from April 1. */
   money += PRICE_CAP_SAVING_APRIL_1
-  /** April 2026: green levy shift off dual-fuel bills (~£150/yr) into general taxation. */
   money += GREEN_LEVY_SHIFT_APRIL_2026_GBP
-  const eligibleForGrant = a.energy_type === 'GAS'
-  const capLead = `Save £${PRICE_CAP_SAVING_APRIL_1} on 1 April — typical cap ${formatZoneCardMoney(PRICE_CAP_MARCH_2026)}/yr → ${formatZoneCardMoney(PRICE_CAP_APRIL_2026)}/yr (7% fall).`
-  const levyLead = `Green levy shift: ~£${GREEN_LEVY_SHIFT_APRIL_2026_GBP}/yr of policy costs move off dual-fuel bills from April 2026 — another automatic line-item win.`
+  const hasLeakOpportunity = a.energy_type === 'GAS'
+  const isSolar = String(a.energy_type ?? '').toUpperCase() === 'SOLAR'
+  const capLead = `April 1–June 30 2026: typical direct-debit cap £${PRICE_CAP_APRIL_2026.toLocaleString('en-GB')}/yr (~6.6% vs Q1) — automatic £${PRICE_CAP_SAVING_APRIL_1} cap step plus £${GREEN_LEVY_SHIFT_APRIL_2026_GBP} green-levy shift off bills.`
+  const unitLead = `Verified unit rates: ${ELEC_UNIT_RATE_PENCE}p/kWh electricity, ${GAS_UNIT_RATE_PENCE}p/kWh gas (April 2026).`
+  const warmHomesLead =
+    isSolar || String(a.energy_type ?? '').toUpperCase() === 'ELECTRIC'
+      ? `£15bn Warm Homes Plan: low-interest loans for solar/batteries and street-level upgrades — stack with your audit.`
+      : `£15bn Warm Homes Plan backs fabric and clean heat — check eligibility alongside tariff moves.`
+  const capLeadHome = [capLead, unitLead, warmHomesLead]
   return {
     carbonKg: Math.round(Math.max(0, carbon)),
     moneyGbp: Math.round(Math.max(0, money)),
     source: 'energy saving trust uk (2026 factors)',
-    explanation: [capLead, levyLead, 'Home energy is a big part of UK household carbon.'],
-    claimOfferUrl: eligibleForGrant ? 'https://www.gov.uk/apply-boiler-upgrade-scheme' : null,
-    insight: eligibleForGrant
-      ? `You're eligible for a ${formatZoneCardMoney(MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP)} Heat Pump grant.`
+    explanation: capLeadHome,
+    claimOfferUrl: hasLeakOpportunity ? 'https://octopus.energy/tracker/' : null,
+    insight: hasLeakOpportunity
+      ? 'Your current heating profile is above the efficient regional baseline; optimise tariff and controls first.'
       : 'Your home is running efficiently.',
   }
 }
@@ -125,15 +137,22 @@ export function calculateTravel(
     money = 300
   } else if (isEv) {
     carbon = Math.round(kmPerYear * 0.05)
+    money = 0
   } else if (a.primary_transport === 'CAR') {
     carbon = petrolCarbon2026(kmPerYear)
     money = 300
   }
+  const ozevLine = `OZEV £${TRUTH_2026_MARCH.EV_GRANT_NEW_GBP} chargepoint grant (flats & renters) from 1 Apr 2026 — £500 per socket (was £350).`
+  const travelExplain =
+    isEv || a.fuel_type === 'HYBRID'
+      ? [ozevLine, 'How you get around shapes your carbon — claim the verified grant before you size the install.']
+      : ['How you get around shapes your carbon.']
   return {
     carbonKg: Math.round(Math.max(0, carbon)),
     moneyGbp: Math.max(0, money),
     source: 'defra transport factors (2026 petrol)',
-    explanation: ['How you get around shapes your carbon.'],
+    explanation: travelExplain,
+    claimOfferUrl: isEv || a.fuel_type === 'HYBRID' ? 'https://www.gov.uk/ev-chargepoint-grant' : undefined,
     insight: mode === 'CAR' || isPetrol || isDiesel ? 'Switching to an EV could save you £1,400/yr.' : 'Your commute is high-value.',
   }
 }
@@ -164,7 +183,17 @@ export function calculateShopping(a: Record<string, string>): ImpactResult {
 
 export function calculateMoney(a: Record<string, string>): ImpactResult {
   const money = a.finances_tight === 'YES' ? 250 : 0
-  return { carbonKg: 0, moneyGbp: money, source: 'uk household spending', explanation: ['Where you spend most affects budget and carbon.'] }
+  return {
+    carbonKg: 0,
+    moneyGbp: money,
+    source: 'uk household spending',
+    explanation: [
+      'Warm Home Discount expanded to ~6m households; £150 rebate — eligibility widened for hard-to-heat homes from April 2026.',
+      '£15bn Warm Homes Plan: broader support for bills efficiency — pair with your biggest cost bucket below.',
+      'Where you spend most affects budget and carbon.',
+    ],
+    claimOfferUrl: 'https://www.gov.uk/apply-warm-home-discount-scheme',
+  }
 }
 
 export function calculateCarbon(a: Record<string, string>): ImpactResult {
@@ -173,8 +202,15 @@ export function calculateCarbon(a: Record<string, string>): ImpactResult {
 }
 
 export function calculateTech(a: Record<string, string>): ImpactResult {
-  const carbon = a.upgrade_often === 'YES' ? 400 : 0
-  const money = a.upgrade_often === 'YES' ? 200 : 0
+  const cadence = String(a.upgrade_often ?? '').toUpperCase()
+  const carbon =
+    cadence === 'MONTHLY' ? 400 :
+    cadence === 'YEARLY' ? 200 :
+    cadence === '2+ YEARS' ? 80 : 0
+  const money =
+    cadence === 'MONTHLY' ? 220 :
+    cadence === 'YEARLY' ? 120 :
+    cadence === '2+ YEARS' ? 40 : 0
   return { carbonKg: carbon, moneyGbp: money, source: 'uk tech emissions', explanation: ['Making devices last longer cuts carbon and saves cash.'] }
 }
 

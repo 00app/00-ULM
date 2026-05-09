@@ -195,11 +195,8 @@ export function useSentinel(params: UseSentinelParams): SentinelOutput {
         if (data?.firecrawl_grant && typeof data.firecrawl_grant === 'object') {
           const grant = data.firecrawl_grant as Record<string, unknown>
           setFirecrawlGrant({
-            title: typeof grant.title === 'string' ? grant.title : '£9,000 RURAL HEAT GRANT',
-            claimOfferUrl:
-              typeof grant.claimOfferUrl === 'string'
-                ? grant.claimOfferUrl
-                : 'https://www.homeenergyscotland.org/home-energy-scotland-grant-loan',
+            title: typeof grant.title === 'string' && grant.title.trim() ? grant.title : 'LIVE HEAT UPGRADE GRANT',
+            claimOfferUrl: typeof grant.claimOfferUrl === 'string' ? grant.claimOfferUrl : '',
             totalRuralGrantGbp:
               typeof grant.totalRuralGrantGbp === 'number' ? grant.totalRuralGrantGbp : null,
           })

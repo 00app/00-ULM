@@ -1,4 +1,4 @@
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 
 function morphCardBlob(c: ZoneTipCard): string {
   const expl = Array.isArray(c.explanation) ? c.explanation.join(' ') : ''

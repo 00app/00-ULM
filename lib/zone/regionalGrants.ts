@@ -4,14 +4,14 @@
 
 import { MARCH_2026_ECONOMY } from '@/lib/brains/constants'
 
-/** Glasgow `G` outward + Scottish outward codes (incl. Wick KW). */
+/** Glasgow `G` outward + Scottish outward codes (incl. KW). */
 const SCOTLAND_OUTWARD_POSTCODE = /^(G[0-9]|KW|IV|HS|PH|ZE|AB|DD|FK|PA|EH|DG|TD|ML|KY|KA)/i
 
 /** England & Wales Boiler Upgrade Scheme cap (reference). */
 export const ENGLAND_WALES_BUS_HEAT_PUMP_GBP = MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP
 
 /**
- * Home Energy Scotland–style narrative cap for Scottish postcodes (Wick KW seed uses £9,000 rural uplift).
+ * Home Energy Scotland–style narrative cap for Scottish postcodes (KW seed uses £9,000 rural uplift).
  * Falls back to BUS £7,500 when not Scotland.
  */
 export function regionalHeatPumpGrantGbp(postcode: string | null | undefined): number {

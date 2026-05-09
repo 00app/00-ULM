@@ -7,6 +7,7 @@ export type SoftSaveId =
   | 'wash-30c'
   | 'flow-regulators'
   | 'draught-proofing'
+  | 'food-waste-wrap'
 
 export interface SoftSaveCard {
   id: SoftSaveId
@@ -75,6 +76,19 @@ export const SOFT_SAVES: SoftSaveCard[] = [
     childOptions: ['Doors', 'Windows', 'Floors / skirting', 'Several areas'],
   },
   {
+    id: 'food-waste-wrap',
+    headline: 'STOP FOOD WASTE LEAKS',
+    description:
+      'Reducing avoidable food waste (WRAP) protects household budgets and lowers embedded carbon from discarded food.',
+    sourceLabel: 'WRAP',
+    sourceUrl: 'https://wrap.org.uk/taking-action/food-drink/household-food-waste',
+    verifiedDate: SENTINEL_VERIFIED_DATE,
+    annualSavingGbp: 110,
+    annualCarbonKg: 130,
+    childQuestion: 'How often do you throw away edible food?',
+    childOptions: ['Rarely', 'Weekly', 'Several times weekly', 'Daily'],
+  },
+  {
     id: 'flow-regulators',
     headline: 'CUT HOT WATER WASTE',
     description:
@@ -114,6 +128,11 @@ export function getPhantomStandbySoftSave(): SoftSaveCard {
 /** EST draught-proofing pathway — renter “soft save” lane with flow temperature. */
 export function getDraughtProofingSoftSave(): SoftSaveCard {
   return softSaveById('draught-proofing')
+}
+
+/** WRAP avoidable food waste pathway for behavioural audit sequencing. */
+export function getFoodWasteSoftSave(): SoftSaveCard {
+  return softSaveById('food-waste-wrap')
 }
 
 export function pickBehavioralSoftSave(params: {

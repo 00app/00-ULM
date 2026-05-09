@@ -181,6 +181,11 @@ export function IndustrialHandoffButton({
   ctaLabel = 'CLAIM',
   className = ''
 }: IndustrialHandoffButtonProps) {
+  const words = ctaLabel.trim().split(/\s+/).filter(Boolean)
+  const line1 = words[0] ?? ''
+  const line2 = words.length <= 2 ? (words[1] ?? '') : words.slice(1, -1).join(' ')
+  const line3 = words.length >= 3 ? words[words.length - 1] : ''
+
   const handleClick = () => {
     try {
       track('handoff_click', { journey: journeyId || 'unknown', target: url, value: moneyValue || 0 })
@@ -205,7 +210,11 @@ export function IndustrialHandoffButton({
         boxShadow: 'none',
       }}
     >
-      {ctaLabel}
+      <span className="circle-btn-label-stack" aria-hidden="true">
+        <span>{line1}</span>
+        <span>{line2}</span>
+        <span>{line3}</span>
+      </span>
     </motion.button>
   )
 }

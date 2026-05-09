@@ -3,7 +3,7 @@
 import { getCarbonStampParts, getMoneyStampParts } from '@/lib/format'
 
 /** SAVE row — stamped unit composition: £ prefix, then figures, then scale suffix. */
-export function StampedMoneyGbp({ gbp }: { gbp: number }) {
+export function StampedMoneyGbp({ gbp, live }: { gbp: number; live?: boolean }) {
   const p = getMoneyStampParts(gbp)
   return (
     <>
@@ -14,6 +14,14 @@ export function StampedMoneyGbp({ gbp }: { gbp: number }) {
       {p.scaleSuffix ? (
         <span className="data-symbol-unit" aria-hidden>
           {p.scaleSuffix}
+        </span>
+      ) : null}
+      {live ? (
+        <span
+          className="data-symbol-unit"
+          style={{ marginLeft: 6, padding: '0 6px', borderRadius: 9999, border: '1px solid currentColor' }}
+        >
+          Live
         </span>
       ) : null}
     </>

@@ -12,6 +12,8 @@ export default function InteractiveBackground() {
   const yellowY = useSpring(mouseY, { stiffness: 50, damping: 20 })
   const pinkX = useSpring(mouseX, { stiffness: 30, damping: 35 })
   const pinkY = useSpring(mouseY, { stiffness: 30, damping: 35 })
+  const cursorX = useSpring(mouseX, { stiffness: 120, damping: 24 })
+  const cursorY = useSpring(mouseY, { stiffness: 120, damping: 24 })
 
   useEffect(() => {
     const toOffsets = (x: number, y: number) => {
@@ -50,6 +52,7 @@ export default function InteractiveBackground() {
       <div className="zz-background-env" aria-hidden>
         <motion.div className="zz-blob zz-blob--yellow" style={{ x: yellowX, y: yellowY }} />
         <motion.div className="zz-blob zz-blob--pink" style={{ x: pinkX, y: pinkY }} />
+        <motion.div className="zz-cursor-glow" style={{ x: cursorX, y: cursorY }} />
         <motion.div
           className="zz-blob zz-blob--purple"
           animate={{ rotate: 360 }}

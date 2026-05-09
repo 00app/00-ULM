@@ -2,15 +2,23 @@
  * Solo Focus v1.8.3 — shared headline + insight/RESULT asterisk logic (one template, dual entry).
  */
 
+import type { JourneyId } from '@/lib/journeys'
+import { JOURNEY_ORDER } from '@/lib/journeys'
 import { sanitizeAgentMarkdown } from '@/lib/agents/zeroHunterMarkdown'
+import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
+import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 
-/** Headline = max 5 words for visual balance (recommendation title from Zone card). */
-export function headlineFromTitle(title: string): string {
-  return title
+function coerceJourneyId(id: string): JourneyId {
+  return (JOURNEY_ORDER.includes(id as JourneyId) ? id : 'home') as JourneyId
+}
+
+/** Headline = max N words (defaults to 8 for Zone cards) with ellipsis when clipped. */
+export function headlineFromTitle(title: string, maxWords = 8): string {
+  const words = title
     .split(/\s+/)
     .filter(Boolean)
-    .slice(0, 5)
-    .join(' ')
+  if (words.length <= maxWords) return words.join(' ')
+  return `${words.slice(0, maxWords).join(' ')}...`
 }
 
 /**
@@ -53,13 +61,13 @@ export function enrichSoloFocusInsightBody(raw: string, titleHint?: string): str
   }
   if (sentences.length === 0 && titleHint?.trim()) {
     sentences.push(
-      `${titleHint.trim()} compresses the signal on this tile into one decisive move you can execute without re-reading the whole grid.`
+      `${titleHint.trim()} turns today’s waste pattern into one decisive move you can execute immediately.`
     )
   }
   const padA =
-    'Your answers and postcode context refine the estimate as verified rows land, so treat this copy as live guidance that tightens with each save.'
+    'Your answers and postcode context refine the estimate as verified updates land, so treat this as live guidance that tightens with each save.'
   const padB =
-    'The Zone keeps stacking evidence behind the headline: fewer words, higher leverage, and a clear next tap when you are ready to move.'
+    'The Zone keeps evidence behind the headline: fewer words, higher leverage, and a clear next tap when you are ready to move.'
   while (sentences.length < 2) {
     sentences.push(sentences.length === 1 ? padA : padB)
   }
@@ -108,12 +116,12 @@ export function buildSoloFocusAgenticImpactFallback(args: {
     fuel === 'DIESEL' ||
     fuel === 'HYBRID' ||
     (['CAR', 'MIX'].includes(baseline) && fuel !== 'ELECTRIC')
-  const s1 = `This ${j} tile is anchored to about £${m.toLocaleString('en-GB')} annual cash slack and roughly ${c} kg CO₂e once behaviour catches the headline.`
+  const s1 = `Your ${j} pattern is leaking about £${formatMoneyValue(m)} a year and roughly ${formatCarbonValue(c)} CO₂e until this action is locked in.`
   const s2 = iceFirst
-    ? 'Your profile skews combustion-first, so we are weighting mpg hygiene, pump discipline, and maintenance wins ahead of EV salary-sacrifice plays until your answers show a battery-led commute.'
-    : 'Your profile skews cleaner miles, so we are weighting tariff-shaped charging, route efficiency, and grant-backed upgrades that compound with each verified save.'
+    ? 'April 2026 is still expensive for combustion-heavy routines, so this move prioritises lower fuel burn, cleaner maintenance habits, and verified provider offers first.'
+    : 'April 2026 still rewards efficient electric and mixed-mile routines, so this move prioritises tariff timing, cleaner routes, and grant-backed upgrades.'
   const s3 =
-    'Open the official programme page to lock eligibility, then keep the Solo Focus loop running so the next morph can tighten numbers against your postcode stack.'
+    'Use the primary action below to execute the verified next step now, then continue the Solo Focus loop for the next gain.'
   return `${s1} ${s2} ${s3}`
 }
 
@@ -126,9 +134,71 @@ export function resolveSoloFocusInsightDisplay(args: {
   carbonKg: number
   transportBaseline?: string | null
   travelFuelType?: string | null
+  /** v35.0 — postcode string for Detection paragraph */
+  userPostcode?: string | null
+  /** v35.0 — display name for Proof paragraph */
+  sourceDisplayName?: string | null
+  /** v42.8 — strip duplicate "In [locality]" lines (header already shows VERIFIED — LOCALITY). */
+  auditHeaderLocality?: string | null
 }): string {
   const scraped = composeScrapedInsightDescription(args.morphParts, 3).trim()
-  if (scraped && !GENERIC_SCRAPED.test(scraped)) return scraped
-  // Real-content lock: never inject synthetic narrative when source-backed copy is absent.
-  return 'Open the verified source to view live guidance.'
+  const toParagraphs = (text: string): string[] => {
+    const sentences = text
+      .split(/(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (sentences.length >= 3) return sentences.slice(0, 3)
+    if (sentences.length === 2) return [sentences[0], sentences[1], 'Open the verified source to complete this action.']
+    if (sentences.length === 1) {
+      return [
+        sentences[0],
+        `This maps to roughly £${formatMoneyValue(Math.max(0, Math.round(args.moneyGbp)))} and ${formatCarbonValue(Math.max(0, Math.round(args.carbonKg)))} in this audit pathway.`,
+        'Use the verified source to execute the action plan this week.',
+      ]
+    }
+    return []
+  }
+  if (scraped && !GENERIC_SCRAPED.test(scraped)) {
+    const joined = toParagraphs(scraped).join('\n\n')
+    return pruneDuplicateLocalityInsight(joined, args.headline, args.auditHeaderLocality, args.journeyId)
+  }
+  const j = coerceJourneyId(args.journeyId)
+  const pc = (args.userPostcode ?? '').trim() || 'your postcode'
+  const src = (args.sourceDisplayName ?? '').trim() || 'UK Government'
+  const fallback = buildAuditorNarrativeParagraphs({
+    userPostcode: pc,
+    sourceName: src,
+    journey: j,
+    moneyGbp: args.moneyGbp,
+    carbonKg: args.carbonKg,
+    locality: '',
+  }).join('\n\n')
+  return pruneDuplicateLocalityInsight(fallback, args.headline, args.auditHeaderLocality, args.journeyId)
+}
+
+/** Remove redundant locality / travel-prefixed lines so expanded copy does not repeat the audit header. */
+function pruneDuplicateLocalityInsight(
+  text: string,
+  headline: string,
+  auditLocality: string | null | undefined,
+  journeyId: string
+): string {
+  const loc = (auditLocality ?? '').trim()
+  const locNorm = loc.toUpperCase().replace(/\s+/g, ' ')
+  const headUp = headline.toUpperCase()
+  const travelContext = journeyId === 'travel' || headUp.includes('TRAVEL')
+  const parts = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+  const out = parts.filter((p) => {
+    const u = p.replace(/\s+/g, ' ').toUpperCase()
+    if (travelContext && /^TRAVEL IN\b/.test(u)) return false
+    if (locNorm.length >= 4 && /^IN\s+/i.test(p.trim())) {
+      const locShort = locNorm.slice(0, Math.min(locNorm.length, 28))
+      if (u.includes(locShort) && p.length < 200) return false
+    }
+    return true
+  })
+  return out.join('\n\n')
 }

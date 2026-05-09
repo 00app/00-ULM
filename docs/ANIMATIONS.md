@@ -1,6 +1,8 @@
 # Zero Zero — Animation & motion reference
 
-This document describes **all first-class animation tokens** in the repo: Framer Motion presets from `lib/animations.ts`, the Solo Focus **Intro Slam** bridge, and **CSS keyframes / transitions** in `app/globals.css`. It is the companion to code comments in `lib/animations.ts`.
+This document describes **Framer Motion presets** from `lib/animations.ts`, the Solo Focus **Intro Slam** bridge, and **CSS keyframes / transitions** in `app/globals.css`.
+
+**April 2026:** For the **canonical** intro sequence, v6 **kinetic shimmer** token table, profile **summary** phases, and a concise description of the app, read **`docs/PRODUCT-AND-MOTION-SPEC.md`**. Some tables below are historical inventories — **always verify numbers in `lib/animations.ts`**.
 
 ---
 
@@ -18,85 +20,42 @@ This document describes **all first-class animation tokens** in the repo: Framer
 
 ---
 
-## TypeScript — `lib/animations.ts`
+## TypeScript — `lib/animations.ts` (snapshot)
 
 Import: `import { … } from '@/lib/animations'`.
 
-### Core springs (Framer `type: 'spring'`)
+### Core springs & slam
 
+| Export | Notes |
+|--------|--------|
+| `SLAM_SPRING` | `stiffness: 450`, `damping: 32`, `mass: 1` — damped slam for typography / data |
+| `SPRING_BLOOM` / `INSTANT_BLOOM` | `550 / 32` — layout bloom |
+| `SPRING_TAP` | `620 / 24` — tap feedback |
+| `DAMPED_SLAM_*` / `SLAM_INTRO_*` | Scale + opacity slam preset |
+| `soloFocusSlamMotionProps(reduceMotion, skipInitialSlam)` | Slam with reduced-motion fallback |
 
-| Export         | Stiffness | Damping | Use                                          |
-| -------------- | --------- | ------- | -------------------------------------------- |
-| `SPRING_SLAM`  | 400       | 30      | Data slams, tight typographic motion         |
-| `SPRING_BLOOM` | 320       | 24      | Default “bloom” for layouts and most presets |
-| `SPRING_TAP`   | 500       | 15      | `whileTap` on CTAs, circles, inputs          |
-| `SPRING_FUNKY` | 380       | 22      | Bouncy expanded open/close                   |
-| `SPRING_POP`   | 600       | 22      | Fast pop open/shut on expanded cards         |
+### Durations
 
+| Export | Value | Role |
+|--------|-------|------|
+| `KINETIC_WORD_DWELL_MS` | **400** | Default dwell per word in `IntroWordCycle` (e.g. profile summary) |
 
-**Aliases:** `GROOVY_SPRING_MORPH` → `SPRING_BLOOM`. `SOLO_FOCUS_ZIP_TRANSITION` → `SPRING_BLOOM` (deprecated name; Solo Focus hero uses Intro Slam below).
+### v6 — Kinetic shimmer (intro only)
 
-### Solo Focus — Intro Slam (`AnimatePresence` shell swap)
+| Export | Role |
+|--------|------|
+| `SHIMMER_FOCUS_INITIAL` / `SHIMMER_FOCUS_ANIMATE` | Blur 20px→0, opacity, scale 0.96→1 |
+| `SHIMMER_FOCUS_SPRING` | `400 / 30 / mass 1` — lens snap |
+| `INTRO_DECISION_CTA_SPRING` | `520 / 28` — CREATE/SKIP bloom |
+| `INTRO_SHIMMER_WORD_DWELL_MS` | **520** — intro word hold after focus |
+| `INTRO_SHIMMER_WORD_GAP_MS` | **120** — gap before next word |
 
-Replaces the old zip-shutter **for the hero / result shell** in Solo Focus. Answer → exit at **0.95** scale + blur + fade → content swap → enter from **1.05** scale springing to **1**.
+### Other presets (still in file)
 
-
-| Export                                                    | Meaning                                                                                                                                     |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SLAM_INTRO_ENTER_TRANSITION`                             | Spring: stiffness **500**, damping **25**                                                                                                   |
-| `SLAM_INTRO_INITIAL`                                      | Enter from: `scale: 1.05`, `opacity: 0`, `filter: blur(0px)`                                                                                |
-| `SLAM_INTRO_ANIMATE`                                      | Settle to: `scale: 1`, `opacity: 1`, `filter: blur(0px)`                                                                                    |
-| `SLAM_INTRO_EXIT`                                         | Exit: `scale: 0.95`, `opacity: 0`, `filter: blur(10px)`, **0.15s** duration tween                                                           |
-| `slamTransition`                                          | Bundle: `{ initial, animate, exit, enterTransition }` for docs/tests                                                                        |
-| `soloFocusSlamMotionProps(reduceMotion, skipInitialSlam)` | Returns Framer props for `motion.`*; if `reduceMotion`, uses short opacity-only tween; if `skipInitialSlam`, skips overscaled initial state |
-
-
-**Re-export barrel:** `app/animations.ts` re-exports only the Slam bundle for routes that prefer a shorter import path.
-
-### Durations & beats (seconds unless noted)
-
-
-| Export                       | Value                              | Role                                              |
-| ---------------------------- | ---------------------------------- | ------------------------------------------------- |
-| `BEAT_DURATION`              | `0.4`                              | Kinetic text beat (summary, data slams)           |
-| `KINETIC_WORD_DWELL_MS`      | `450`                              | Hold per word in `IntroWordCycle` / summary cycle |
-| `SUMMARY_WORD_MS`            | alias of above                     |                                                   |
-| `SUMMARY_ENTER_DELAY_MS`     | `500`                              | Delay before ENTER after final slam on summary    |
-| `SUMMARY_END_DELAY_MS`       | alias of `SUMMARY_ENTER_DELAY_MS`  |                                                   |
-| `BG_TRANSITION`              | `0.35s`, ease `[0.23, 1, 0.32, 1]` | Profile steps, summary phase backgrounds          |
-| `CONTENT_REVEAL_DURATION_MS` | `480`                              | Shimmer → content                                 |
-| `CONTENT_REVEAL_EASE`        | `[0.2, 0.8, 0.2, 1]`               | Content reveal curve                              |
-| `SHIMMER_MS`                 | `1200`                             | Card shimmer duration token                       |
-
-
-### Motion presets (objects for `motion` components)
-
-
-| Export                           | Motion idea                                                                       | Transition                         |
-| -------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------- |
-| `FADE_IN_UP` / `SWOOP_FADE_IN`   | `y: 24 → 0`, fade                                                                 | `SPRING_BLOOM`                     |
-| `SCALE_BLOOM`                    | Hero ENTER / AUDIT: scale `0.85 → 1`                                              | `SPRING_BLOOM`                     |
-| `WORD_APPEAR`                    | Intro/headline: `y` + slight scale                                                | `SPRING_BLOOM`                     |
-| `WORD_PULSE_APPEAR`              | Industrial word pulse: **fixed 0.16s** tween (pairs with `KINETIC_WORD_DWELL_MS`) | ease `[0.22, 1, 0.36, 1]`          |
-| `PING_OPEN`                      | Container ping: scale `0.98 → 1`, opacity                                         | **0.3s** ease `[0.2, 0.8, 0.2, 1]` |
-| `INTRO_FADE_UP`                  | Content feed: `y: 15`, **150ms** delay                                            | **0.45s** ease `[0.16, 1, 0.3, 1]` |
-| `INTRO_FADE_UP_NO_DELAY`         | Same without delay                                                                | same duration/ease                 |
-| `FADE_VARIANTS`                  | `{ hidden, visible }` opacity only                                                | `SPRING_BLOOM`                     |
-| `CARD_CHILD_VARIANTS`            | Stagger children: `y: 8`                                                          | `SPRING_BLOOM`                     |
-| `ZONE_ANCHOR_VARIANTS`           | Zone anchor slide                                                                 | `SPRING_BLOOM`                     |
-| `ZONE_PAGE_SLIDE_UP`             | Full page `y: 56` slide                                                           | `SPRING_BLOOM`                     |
-| `zoneGridVariants(delayPerItem)` | Grid stagger; default **45ms** per index                                          | `SPRING_BLOOM`                     |
-| `ZONE_GRID_VARIANTS`             | `zoneGridVariants(0.045)`                                                         |                                    |
-| `ZONE_CARD_STAGGER_DELAY`        | `0.032`                                                                           | Per-item stagger constant          |
-| `SUMMARY_CYCLE_EXIT`             | Vertical zip exit: `opacity`, `scaleY: 0`                                         | **0.8s**, `ZIP_SHUTTER_EASE`       |
-| `SUMMARY_REVEAL_ENTER`           | Zip enter from `scaleY: 0`                                                        | **0.65s**, `ZIP_SHUTTER_EASE`      |
-| `SUMMARY_PAGE_EXIT`              | Whole summary surface zip                                                         | **0.8s**, `ZIP_SHUTTER_EASE`       |
-| `ZONE_HERO_FROM_SUMMARY`         | Post-summary zone hero zoom                                                       | **0.75s**, `ZIP_SHUTTER_EASE`      |
-
-
-`ZIP_SHUTTER_EASE` = `[0.22, 1, 0.36, 1]` — shared zip / handoff language.
+`WORD_APPEAR`, `WORD_PULSE_APPEAR`, `FADE_IN_UP`, `FADE_VARIANTS`, `ELASTIC_PING`, `ZONE_ANCHOR_VARIANTS`, `INTRO_FADE_UP_NO_DELAY`, `ZONE_HERO_FROM_SUMMARY`, … — see source for exact shapes.
 
 ---
+
 
 ## Where TS tokens are used (quick map)
 
@@ -104,8 +63,8 @@ Replaces the old zip-shutter **for the hero / result shell** in Solo Focus. Answ
 | Area                 | Files (representative)                                                                                              | Tokens                                                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Solo Focus / journey | `JourneyBentoCard.tsx`, `SoloFocusOverlay.tsx`                                                                      | Slam props, `WORD_APPEAR`, `FADE_VARIANTS`, `SPRING_TAP`, `INTRO_FADE_UP_NO_DELAY`, zone-style staggers; **expanded close** — `BackArrowDownLeft` (**same stroke** as bento `card-top-arrow` / Trinity link arrow, **180°** in `BackArrowDownLeft.tsx`), **`INTRO_FADE_UP_NO_DELAY`** on mount + **`SPRING_TAP`** on `whileTap` (toolbar row with category) |
-| Intro                | `IntroScreen.tsx`, `IntroWordCycle.tsx`                                                                             | `WORD_APPEAR`, `WORD_PULSE_APPEAR`, `KINETIC_WORD_DWELL_MS`, `SPRING_BLOOM`                             |
-| Summary              | `app/profile/summary/page.tsx`                                                                                      | `SUMMARY_PAGE_EXIT`, `KINETIC_WORD_DWELL_MS`                                                            |
+| Intro                | `IntroScreen.tsx`, `IntroWordCycle.tsx`                                                                             | v6 **shimmer** on first-run words + decision (`SHIMMER_FOCUS_*`, `INTRO_DECISION_CTA_SPRING`, `INTRO_SHIMMER_WORD_*`). **`WORD_PULSE_APPEAR`** is for **other** `IntroWordCycle` callers (e.g. profile summary), not the intro kinetic line. |
+| Summary              | `app/profile/summary/page.tsx`                                                                                      | `IntroWordCycle` + **`WORD_PULSE_APPEAR`** / **`KINETIC_WORD_DWELL_MS`**; **`SLAM_SPRING`**, **`ELASTIC_PING`** on shell / close; phase timers in page |
 | Zone                 | `app/zone/page.tsx`                                                                                                 | Zone grid / page slide presets                                                                          |
 | UI kit               | `Buttons.tsx`, `Inputs.tsx`, `AnswerCircle.tsx`, `FloatingNav.tsx`, `BentoCards.tsx`, `QuestionLayout.tsx`          | `SPRING_TAP`, `SPRING_BLOOM`                                                                            |
 | Profile / settings   | `ProfilePageClient.tsx`, `settings/page.tsx`                                                                        | `SPRING_BLOOM`, `SPRING_TAP`                                                                            |
@@ -180,11 +139,20 @@ Replaces the old zip-shutter **for the hero / result shell** in Solo Focus. Answ
 ### Intro glitch logo
 
 
-| Name                | Duration     | What it does                                          |
-| ------------------- | ------------ | ----------------------------------------------------- |
-| `glitchWrapperDone` | 0.67s linear | No-op transform step so `animationend` fires reliably |
-| `glitchPurple`      | 0.67s linear | Purple layer offset + opacity dance                   |
-| `glitchBase`        | 0.67s linear | Base layer fade up                                    |
+| Name                | Duration      | What it does                                          |
+| ------------------- | ------------- | ----------------------------------------------------- |
+| `glitchWrapperDone` | **670ms** linear | Wrapper transform step (duration locked with `IntroScreen` glitch timers) |
+| `glitchPurple`      | **670ms** linear | Purple layer offset + opacity dance                 |
+| `glitchBase`        | **670ms** linear | Base layer fade up                                  |
+
+**Reduced motion:** `@media (prefers-reduced-motion: reduce)` disables glitch keyframes; layers snap to settled state (see `globals.css` next to `.zz-glitch`).
+
+### v6 — Shimmer utility classes
+
+| Class | Purpose |
+|-------|---------|
+| `.zz-shimmer-focus` | `will-change: filter, transform` + compositing hints — intro words + decision headline |
+| `.zz-shimmer-cta` | `will-change: transform` — decision CTA bloom wrappers |
 
 
 ### Global utility
@@ -224,4 +192,4 @@ Replaces the old zip-shutter **for the hero / result shell** in Solo Focus. Answ
 
 ---
 
-*Last aligned with `lib/animations.ts` (ends at `ZONE_HERO_FROM_SUMMARY`) and `app/globals.css` keyframe inventory in-repo.*
+*Partially refreshed April 2026 (intro shimmer + glitch durations). Full intro/summary narrative: `docs/PRODUCT-AND-MOTION-SPEC.md`.*

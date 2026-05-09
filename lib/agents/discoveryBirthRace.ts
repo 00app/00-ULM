@@ -2,7 +2,7 @@
  * Race structured discovery vs ZeroHunter — first valid card wins; single persist at the route layer.
  */
 
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 
 export interface DiscoveryBirthPayload {
   recommendation_copy: string

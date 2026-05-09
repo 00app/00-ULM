@@ -2,9 +2,18 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal, flushSync } from 'react-dom'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { type JourneyId } from '@/lib/journeys'
-import { getJourneyCardTextHex } from '@/lib/journeyColors'
+import { getNextQuestion } from '@/lib/zone/questionHandler'
+import {
+  COLOR_YELLOW,
+  getJourneyCardTextHex,
+  getJourneyColorHex,
+  getJourneyCtaBgHex,
+  getJourneyCtaTextHex,
+  getSystemCtaBgHex,
+  getSystemCtaTextHex,
+} from '@/lib/journeyColors'
 import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
 import {
   formatMoneyImpact,
@@ -16,19 +25,25 @@ import {
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
-import { IndustrialHandoffButton } from '@/app/components/ui/Buttons'
+import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { EmbeddedJourneyQuestion } from '@/app/components/EmbeddedJourneyQuestion'
-import { pickPrimaryHttpUrl, fallbackDiagnosticUrl } from '@/lib/soloFocusDiagnosticMeta'
+import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import {
   SPRING_BLOOM,
   SPRING_TAP,
+  ELASTIC_PING,
+  INTRO_FADE_UP_NO_DELAY,
   FADE_VARIANTS,
-  WORD_APPEAR,
+  SHIMMER_FOCUS,
+  SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION,
   soloFocusSlamMotionProps,
+  soloFocusShellZipMotionProps,
+  ZIP_OPEN_Z_ANIMATE,
+  ZIP_OPEN_Z_TRANSITION,
+  SLAM_INTRO_INITIAL,
+  SLAM_INTRO_ANIMATE,
   SLAM_SPRING,
-  DAMPED_SLAM_INITIAL,
-  DAMPED_SLAM_ANIMATE,
 } from '@/lib/animations'
 import {
   PRICE_CAP_APRIL_2026,
@@ -43,12 +58,17 @@ import {
   wrapResultSupportingAsterisks,
 } from '@/lib/soloFocusCopy'
 import { useApp } from '@/app/context/AppContext'
-import { isScottishPostcodeArea, regionalHeatPumpGrantGbp } from '@/lib/zone/regionalGrants'
 import { normalizeCategoryToJourneyKey, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import { parseMoneyGbpFromImpactDisplay, parseCarbonKgFromImpactDisplay } from '@/lib/soloFocusImpactParse'
 import { useSoloFocusExpandedGestures } from '@/lib/hooks/useSoloFocusExpandedGestures'
-import { locationInPhrase } from '@/lib/locationIdentity'
+import {
+  VERIFIED_SOURCE_DATE,
+  formatVerifiedCitation,
+  inferRevenueCtaKind,
+  pickFirstHttpUrl,
+  resolveRevenueCtaLabel,
+} from '@/lib/zone/verifiedRevenue'
 import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
 import {
   SOLO_FOCUS_SNAPSHOT_V,
@@ -69,6 +89,18 @@ type HomeSentinelRecard = {
   carbonKg: number
   sourceUrl?: string
   verifiedAt?: string
+}
+
+function readSoloFocusSessionQuestionCount(storageKeyCore: string): number {
+  if (typeof window === 'undefined') return 0
+  try {
+    const raw = sessionStorage.getItem(`zz_sf_q_${storageKeyCore}`)
+    if (raw == null || raw === '') return 0
+    const n = Number.parseInt(raw, 10)
+    return Number.isFinite(n) && n >= 0 ? n : 0
+  } catch {
+    return 0
+  }
 }
 
 function parseSentinelMotherRefresh(raw: unknown): HomeSentinelRecard | null {
@@ -121,6 +153,8 @@ export interface JourneyBentoCardProps {
   onLike?: (id: string, title?: string, moneyGbp?: number) => void
   isLiked?: boolean
   learnUrl?: string
+  /** Zone card actions.actionType when morph deck is empty (switch vs learn). */
+  learnActionType?: string | null
   onAskZai?: () => void
   onJourneyAnswered?: () => void
   /** Bento Wall: card is in a Tall (1x2) cell and should fill height */
@@ -148,6 +182,12 @@ export interface JourneyBentoCardProps {
    * open the next journey in wall order, using `offerLine` as contextual copy on that tile.
    */
   onAdvanceToNextJourneyAfterAnswer?: (payload: { fromJourneyId: JourneyId; offerLine: string }) => void
+  /** v35.0 verified audit citation + revenue handoff */
+  verifiedSourceName?: string | null
+  verifiedSourceDate?: string | null
+  partnerLink?: string | null
+  /** v42.8 — Zone VM audit gate; when LIVE, expanded header stays VERIFIED with locality. */
+  auditState?: 'LIVE_AUDIT' | 'ESTIMATED_AUDIT' | null
 }
 
 /** Card text follows industrial surface lock (journeyColors). */
@@ -208,10 +248,16 @@ export function JourneyBentoCard({
   onEmbeddedAnswerSuccess,
   onSwipeNextJourney,
   onAdvanceToNextJourneyAfterAnswer,
+  hasLocalGrant = false,
+  isPriorityAlert = false,
+  verifiedSourceName,
+  verifiedSourceDate,
+  partnerLink,
+  learnActionType,
+  auditState = null,
 }: JourneyBentoCardProps) {
   const { state } = useApp()
   const profilePostcode = state.profile?.postcode ?? null
-  const prefersReducedMotion = useReducedMotion()
   type ExpandedViewState = 'QUESTION' | 'RESULT'
   const effectiveOpen = kineticGrid ? isExpanded : false
   const [isExiting, setIsExiting] = useState(false)
@@ -331,21 +377,59 @@ export function JourneyBentoCard({
         })()
       : ''
 
-  const resolvedOfferUrl =
-    [
-      liveClaimUrl,
-      morphLearnResolved,
-      resultCitation?.url,
-      offerUrlOverride,
-      claimOfferUrl,
-      learnUrl,
-      discoveryRecUrl,
-      pickPrimaryHttpUrl(fallbackDiagnosticUrl((displayJourneyId as JourneyId | undefined) ?? journeyId)),
-    ].find((u) => typeof u === 'string' && u.trim().length > 0)?.trim() ?? ''
+  const isGenericHomepageUrl = (u: string): boolean => {
+    try {
+      const parsed = new URL(u)
+      return parsed.pathname === '/' || parsed.pathname === ''
+    } catch {
+      return false
+    }
+  }
+  const buildZaiAuditUrl = (): string => {
+    const journeyKey = String(displayJourneyId || journeyId)
+    const context = `reclaim_${journeyKey}`
+    const params = new URLSearchParams({
+      context,
+      journey: journeyKey,
+      title: String(displayTitle || title || ''),
+      money: String(Math.round(moneyTargetGbp)),
+      carbon: String(Math.round(carbonTargetKg)),
+      source: String(attributionSourceLabel || ''),
+    })
+    return `/zai?${params.toString()}`
+  }
+
+  const partnerHttp = pickFirstHttpUrl(partnerLink ?? undefined)
+  const liveDiscoveryUrl = [
+    liveClaimUrl,
+    offerUrlOverride,
+    claimOfferUrl,
+    morphLearnResolved,
+    resultCitation?.url,
+    learnUrl,
+    discoveryRecUrl,
+  ].find(
+    (u) => typeof u === 'string' && u.trim().length > 0 && !isGenericHomepageUrl(u.trim())
+  )?.trim()
+  const resolvedOfferUrl = liveDiscoveryUrl || partnerHttp || buildZaiAuditUrl()
 
   const physicalSoloHref = pickPrimaryHttpUrl(resolvedOfferUrl)
+  const ctaActionTypeRaw =
+    typeof currentMorphData?.actions?.actionType === 'string'
+      ? currentMorphData.actions.actionType.toLowerCase()
+      : (typeof learnActionType === 'string' ? learnActionType.toLowerCase() : '')
+  const revenueKind = inferRevenueCtaKind({
+    journey: displayJourneyId as JourneyId,
+    actionType: ctaActionTypeRaw || 'learn',
+    needsSwitching: ctaActionTypeRaw === 'switch',
+    isPriorityHome: Boolean(isPriorityAlert && ctaActionTypeRaw !== 'switch'),
+  })
+  const journeyCtaLabel = resolveRevenueCtaLabel(revenueKind, moneyTargetGbp)
 
-  const recommendationTitle = headlineFromTitle((displayTitle || String(displayJourneyId)).trim() || String(displayJourneyId)).toUpperCase()
+  const recommendationTitle = headlineFromTitle(
+    (displayTitle || String(displayJourneyId)).trim() || String(displayJourneyId),
+    12
+  ).toUpperCase()
   let sourceName = 'our partners'
   if (resolvedOfferUrl) {
     try { sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '') } catch {}
@@ -362,6 +446,9 @@ export function JourneyBentoCard({
     carbonKg: carbonTargetKg,
     transportBaseline: profileTransport,
     travelFuelType: travelFuel,
+    userPostcode: profilePostcode ?? undefined,
+    sourceDisplayName: verifiedSourceName ?? undefined,
+    auditHeaderLocality: state.locationState?.locationName ?? undefined,
   })
 
   useEffect(() => {
@@ -381,9 +468,37 @@ export function JourneyBentoCard({
   const wasExpandedRef = useRef(false)
   useEffect(() => {
     if (isExpanded && !prevIsExpandedRef.current) {
-      const lk = `zz_sf_lane_${cardId ?? journeyId}`
+      const core = cardId ?? journeyId
+      const lk = `zz_sf_lane_${core}`
+      const qk = `zz_sf_q_${core}`
       try {
         sessionStorage.removeItem(lk)
+        sessionStorage.removeItem(qk)
+        // Start each Solo Focus open as a fresh Child-question session.
+        // Prevent stale completed answers from forcing immediate RESULT copy.
+        localStorage.removeItem(`journey_${journeyId}_answers`)
+      } catch {
+        /* ignore */
+      }
+      // If this lane still has unanswered prompts, always reopen on Child question.
+      // Avoid replaying archived RESULT copy when user expects the next question.
+      try {
+        const raw = localStorage.getItem(`journey_${journeyId}_answers`) || '{}'
+        const parsed = JSON.parse(raw) as Record<string, string>
+        const stillHasQuestion = getNextQuestion(journeyId, parsed) != null
+        if (stillHasQuestion) {
+          setViewState('QUESTION')
+          sessionStorage.setItem(soloFocusViewKey, 'QUESTION')
+          clearSoloFocusSnapshot(soloFocusSnapKey)
+          setResultCitation(null)
+          setLiveClaimUrl(null)
+          setDiscoverySnap(null)
+          setDiscoveryWinLine(null)
+          setBirthedZoneTitle(null)
+          setGridContext(null)
+          setGeminiRecommendationCopy(null)
+          setResearchAttribution(null)
+        }
       } catch {
         /* ignore */
       }
@@ -402,6 +517,8 @@ export function JourneyBentoCard({
     setMorphDeckCursor(0)
     setResearchAttribution(null)
     setLoopZipCollapsing(false)
+    // Lane/session strings are read inside but Solo Focus collapse must run only on expand/collapse edges (avoid morph wipes on unrelated prop churn).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset keyed to isExpanded edge only
   }, [isExpanded])
 
   const handleCloseStart = useCallback(() => {
@@ -622,7 +739,14 @@ export function JourneyBentoCard({
           : researchAttribution?.headline?.trim() ||
             String(displayTitle || title || journeyId).trim() ||
             journeyId
-    const recommendationTitle = headlineFromTitle(effectiveTitleRaw).toUpperCase()
+    const recommendationTitle = headlineFromTitle(effectiveTitleRaw, 12).toUpperCase()
+    const localityLabel = (state.locationState?.locationName ?? '').trim().toUpperCase()
+    const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
+    const useEstimated =
+      auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
+    const auditHeaderLabel = localityLabel
+      ? `OFFER PREVIEW — ${localityLabel}`
+      : 'OFFER PREVIEW'
     let sourceName = 'our partners'
     if (resolvedOfferUrl) {
       try { sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '') } catch {}
@@ -631,7 +755,6 @@ export function JourneyBentoCard({
       state.profile?.transport ??
       (typeof window !== 'undefined' ? localStorage.getItem('profile_transport') : null)
     const travelFuel = state.journeyAnswers?.travel?.fuel_type ?? null
-    const locationPhrase = locationInPhrase(state.locationState?.locationName ?? '')
     const insightDisplay = resolveSoloFocusInsightDisplay({
       morphParts: [
         journeyId === 'home' && homeSentinelRecard && !currentMorphData ? homeSentinelRecard.description : undefined,
@@ -647,7 +770,17 @@ export function JourneyBentoCard({
       carbonKg: carbonTargetKg,
       transportBaseline: profileTransport,
       travelFuelType: travelFuel,
+      userPostcode: profilePostcode ?? undefined,
+      sourceDisplayName: verifiedSourceName ?? undefined,
+      auditHeaderLocality: state.locationState?.locationName ?? undefined,
     })
+    const insightNarrative = insightDisplay
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .filter((p, idx, arr) => arr.findIndex((candidate) => candidate.toLowerCase() === p.toLowerCase()) === idx)
+      .join(' ')
 
     const diagnosticProviderJourney = resolveSuppliedByDisplayName({
       researchSuppliedBy: researchAttribution?.supplied_by,
@@ -656,9 +789,15 @@ export function JourneyBentoCard({
       sourceName,
       liveScrapeSourceUrl: pickPrimaryHttpUrl(resolvedOfferUrl) ?? undefined,
     })
+    const sourceFooter = partnerHttp
+      ? ''
+      : 'Fresh Audit: live partner offer unavailable, running verified fallback.'
+    const verifiedCitation = formatVerifiedCitation(
+      (verifiedSourceName ?? diagnosticProviderJourney).trim(),
+      (verifiedSourceDate ?? VERIFIED_SOURCE_DATE).trim()
+    )
     const diagnosticUrlJourney =
-      pickPrimaryHttpUrl(resolvedOfferUrl) ||
-      fallbackDiagnosticUrl((displayJourneyId as JourneyId | undefined) ?? journeyId)
+      pickPrimaryHttpUrl(resolvedOfferUrl) || buildZaiAuditUrl()
 
     const discovery =
       discoverySnap != null
@@ -676,6 +815,17 @@ export function JourneyBentoCard({
         : 0
     const treeEquivalent = Math.max(1, Math.round(discoveryImpactKg / 21))
     const pagerPageCount = 1 + morphDeck.length
+    const motherShimmerKey = `${morphDeckCursor}-${currentMorphData?.id ?? 'base'}-${homeSentinelRecard?.headline ?? ''}-${homeSentinelRecard?.moneyGbp ?? 0}`
+    const auditPipCore = String(cardId ?? journeyId)
+    const auditAnswered =
+      viewState === 'QUESTION' && typeof window !== 'undefined'
+        ? readSoloFocusSessionQuestionCount(auditPipCore)
+        : 0
+    const useAuditPips = viewState === 'QUESTION'
+    const pipCount = useAuditPips ? SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION : pagerPageCount
+    const pipActiveIndex = useAuditPips
+      ? Math.min(auditAnswered, SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION - 1)
+      : morphDeckCursor
 
     const handleCloseComplete = () => {
       onClose?.()
@@ -686,38 +836,39 @@ export function JourneyBentoCard({
     }
 
     const surfaceJourneyId = displayJourneyId as JourneyId
+    const expandedJourneyBg = getJourneyColorHex(surfaceJourneyId)
+    const expandedJourneyText = getJourneyCardTextHex(surfaceJourneyId)
+    const expandedCtaBg = getJourneyCtaBgHex(surfaceJourneyId) || getSystemCtaBgHex()
+    const expandedCtaText = getJourneyCtaTextHex(surfaceJourneyId) || getSystemCtaTextHex()
+    const isYellowSurface = expandedJourneyBg.toUpperCase() === COLOR_YELLOW.toUpperCase()
 
     const expandedOverlay = (
         kineticGrid && (effectiveOpen || isExiting) ? (
           <motion.div key={`sf-grow-${journeyId}-${cardId ?? 'card'}`} className="solo-focus-grow-layer" initial={false}>
             <motion.div
-            layout
             layoutId={currentMorphData ? undefined : `card-${journeyId}`}
             data-journey={displayJourneyId}
-            data-sf-yellow-slab="true"
-            className="expanded-solo-focus view-expanded solo-focus-mobile-expand"
+            {...(isYellowSurface ? { 'data-sf-yellow-slab': 'true' } : {})}
+            className="expanded-solo-focus view-expanded solo-focus-mobile-expand zz-shimmer-focus"
             style={
               {
-                ['--journey-bg' as string]: '#F0FF00',
-                ['--journey-text' as string]: 'var(--color-purple)',
-                ['--color-ink' as string]: 'var(--color-purple)',
-                ['--journey-accent' as string]: 'var(--color-purple)',
-                ['--journey-on-accent' as string]: 'var(--color-yellow)',
-                ['--journey-cta-bg' as string]: 'var(--color-purple)',
-                ['--journey-cta-text' as string]: 'var(--color-yellow)',
+                ['--journey-bg' as string]: expandedJourneyBg,
+                ['--journey-text' as string]: expandedJourneyText,
+                ['--color-ink' as string]: expandedJourneyText,
+                ['--journey-accent' as string]: expandedCtaBg,
+                ['--journey-on-accent' as string]: expandedCtaText,
+                ['--journey-cta-bg' as string]: expandedCtaBg,
+                ['--journey-cta-text' as string]: expandedCtaText,
+                transformOrigin: '50% 50%',
               } as React.CSSProperties
             }
-            {...(prefersReducedMotion
-              ? {
-                  initial: false as const,
-                  animate: { opacity: isExiting ? 0 : 1 },
-                  transition: { duration: 0.16 },
-                }
-              : {
-                  initial: DAMPED_SLAM_INITIAL,
-                  animate: isExiting ? DAMPED_SLAM_INITIAL : DAMPED_SLAM_ANIMATE,
-                  transition: SLAM_SPRING,
-                })}
+            {...soloFocusShellZipMotionProps(reducePagerMotion)}
+            animate={
+              isExiting
+                ? { scale: 0.9, opacity: 0, z: -100, rotateX: -5 }
+                : ZIP_OPEN_Z_ANIMATE
+            }
+            transition={isExiting ? { duration: 0.2 } : ZIP_OPEN_Z_TRANSITION}
             onAnimationComplete={() => {
               if (isExiting) {
                 handleCloseComplete()
@@ -731,12 +882,9 @@ export function JourneyBentoCard({
           sourceUrl={diagnosticUrlJourney}
         />
 
-        <motion.div layout ref={bodyScrollRef} className="solo-focus-body-scroll w-full min-w-0">
+        <motion.div ref={bodyScrollRef} className="solo-focus-body-scroll w-full min-w-0">
         <div className="solo-focus-rail w-full min-w-0">
-        <motion.div
-          layout
-          className="solo-focus-stack flex flex-col items-stretch justify-start w-full min-w-0"
-        >
+        <motion.div className="solo-focus-stack flex flex-col items-stretch justify-start w-full min-w-0">
           {/* Hero + metrics + actions */}
             <motion.div
               key={`sf-hero-${morphDeckCursor}-${displayJourneyId}-${String(activeCardId ?? 'base')}`}
@@ -745,16 +893,18 @@ export function JourneyBentoCard({
             <div className="solo-focus-expanded-toolbar solo-focus-mother-columns w-full min-w-0">
               <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
               <div className="flex flex-col gap-2 w-full min-w-0">
-              <motion.h5
-                layout
-                className="solo-focus-category zz-label m-0 text-left"
-                style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
-                initial={DAMPED_SLAM_INITIAL}
-                animate={DAMPED_SLAM_ANIMATE}
-                transition={{ ...SLAM_SPRING, delay: 0.05 }}
+              <motion.div
+                initial={INTRO_FADE_UP_NO_DELAY.initial}
+                animate={INTRO_FADE_UP_NO_DELAY.animate}
+                transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.05 }}
               >
-                {String(displayJourneyId || journeyId || '').replace(/-/g, ' ').toUpperCase()}
-              </motion.h5>
+            <motion.div
+              key={motherShimmerKey}
+              className="flex flex-col gap-2 w-full min-w-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
+            >
             {physicalSoloHref ? (
               <motion.a
                 href={physicalSoloHref}
@@ -766,7 +916,7 @@ export function JourneyBentoCard({
               >
                 <motion.h3
                   layoutId={`headline-${journeyId}`}
-                  className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3"
+                  className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3 zz-shimmer-focus"
                   style={{
                     fontFamily: 'var(--font-marvin)',
                     fontWeight: 700,
@@ -774,27 +924,39 @@ export function JourneyBentoCard({
                     color: 'var(--journey-text)',
                     margin: 0,
                     padding: 0,
+                    willChange: 'filter, transform',
                   }}
-                  {...WORD_APPEAR}
+                  initial={reducePagerMotion ? false : SHIMMER_FOCUS.initial}
+                  animate={reducePagerMotion ? { opacity: 1, filter: 'none', scale: 1 } : SHIMMER_FOCUS.animate}
+                  transition={SHIMMER_FOCUS.transition}
                 >
                   {recommendationTitle}
                 </motion.h3>
-                <motion.p
-                  className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left"
-                  style={{
-                    color: 'var(--journey-text)',
-                    margin: 0,
-                  }}
-                  variants={FADE_VARIANTS}
+                <h5
+                  className="solo-focus-category solo-focus-offer-preview zz-label m-0 text-left"
+                  style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
                 >
-                  {insightDisplay}
-                </motion.p>
+                  {auditHeaderLabel}
+                </h5>
+                {insightNarrative ? (
+                  <motion.p
+                    key="insight-link-single"
+                    className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left"
+                    style={{
+                      color: 'var(--journey-text)',
+                      margin: 0,
+                    }}
+                    variants={FADE_VARIANTS}
+                  >
+                    {insightNarrative}
+                  </motion.p>
+                ) : null}
               </motion.a>
             ) : (
               <>
                 <motion.h3
                   layoutId={`headline-${journeyId}`}
-                  className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3"
+                  className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3 zz-shimmer-focus"
                   style={{
                     fontFamily: 'var(--font-marvin)',
                     fontWeight: 700,
@@ -802,84 +964,51 @@ export function JourneyBentoCard({
                     color: 'var(--journey-text)',
                     margin: 0,
                     padding: 0,
+                    willChange: 'filter, transform',
                   }}
-                  {...WORD_APPEAR}
+                  initial={reducePagerMotion ? false : SHIMMER_FOCUS.initial}
+                  animate={reducePagerMotion ? { opacity: 1, filter: 'none', scale: 1 } : SHIMMER_FOCUS.animate}
+                  transition={SHIMMER_FOCUS.transition}
                 >
                   {recommendationTitle}
                 </motion.h3>
-                <motion.p
-                  className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left"
-                  style={{ color: 'var(--journey-text)', margin: 0 }}
-                  variants={FADE_VARIANTS}
+                <h5
+                  className="solo-focus-category solo-focus-offer-preview zz-label m-0 text-left"
+                  style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
                 >
-                  {insightDisplay}
-                </motion.p>
+                  {auditHeaderLabel}
+                </h5>
+                {insightNarrative ? (
+                  <motion.p
+                    key="insight-single"
+                    className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left"
+                    style={{ color: 'var(--journey-text)', margin: 0 }}
+                    variants={FADE_VARIANTS}
+                  >
+                    {insightNarrative}
+                  </motion.p>
+                ) : null}
               </>
             )}
 
-            <motion.p
-              className="solo-focus-supplied-by headline-to-insight text-left w-full min-w-0"
-              style={{
-                color: 'var(--journey-text)',
-                margin: 0,
-                opacity: 0.92,
-              }}
-              variants={FADE_VARIANTS}
-            >
-              Supplied by {diagnosticProviderJourney}
-            </motion.p>
-            {profilePostcode && locationPhrase ? (
-              <motion.p
-                className="solo-focus-location-tag zz-body solo-focus-copy-width text-left m-0"
-                style={{ color: 'var(--journey-text)', opacity: 0.9 }}
-                variants={FADE_VARIANTS}
-              >
-                {locationPhrase}
-              </motion.p>
-            ) : null}
-
-            {architectActionLine?.trim() ? (
-              <motion.p
-                className="solo-focus-action-line solo-focus-copy-width solo-focus-content-text text-left"
-                style={{
-                  color: 'var(--journey-text)',
-                  margin: 0,
-                  opacity: 0.95,
-                }}
-                variants={FADE_VARIANTS}
-              >
-                {architectActionLine.trim()}
-              </motion.p>
-            ) : null}
+            <MotherCardRenderer
+              categoryLabel=""
+              headline={null}
+              narrative={null}
+              sourceFooter={sourceFooter}
+              verifiedSourceCitation={verifiedCitation}
+              actionLine={architectActionLine}
+              moneyGbp={animatedMoneyGbp}
+              carbonKg={animatedCarbonKg}
+              impactPulse={impactAnswerPulse}
+              ctaUrl={resolvedOfferUrl || null}
+              ctaJourneyId={displayJourneyId as string}
+              ctaLabel={journeyCtaLabel}
+            />
+            </motion.div>
+            </motion.div>
               </div>
-            <motion.div
-              className={`solo-focus-impact-hero insight-to-impact card-impact-grid solo-focus-impact-grid grid grid-cols-2 gap-x-10 gap-y-0 w-full min-w-0${impactAnswerPulse ? ' solo-focus-impact-answer-pulse' : ''}`}
-              variants={FADE_VARIANTS}
-            >
-            <div className="solo-focus-data-stack data-stack data-stack--tight">
-              <span className="data-label" style={{ color: 'var(--color-ink)' }}>
-                SAVE
-              </span>
-              <span
-                className="data-value solo-focus-data-value data-stamp-metric"
-                style={{ color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums' }}
-              >
-                <StampedMoneyGbp gbp={animatedMoneyGbp} />
-              </span>
             </div>
-            <div className="solo-focus-data-stack data-stack data-stack--tight data-stack--secondary solo-focus-carbon-stack">
-              <span className="data-label" style={{ color: 'var(--color-ink)' }}>
-                CARBON
-              </span>
-              <span
-                className="data-value solo-focus-data-value data-stamp-metric"
-                style={{ color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums' }}
-              >
-                <StampedCarbonKg kg={animatedCarbonKg} />
-              </span>
-            </div>
-          </motion.div>
-              </div>
               <div
                 className="solo-focus-utility-strip flex flex-col items-end"
                 style={{ gap: 20 }}
@@ -988,25 +1117,6 @@ export function JourneyBentoCard({
                 ) : null}
               </div>
             </div>
-
-            <motion.div
-              className="solo-focus-trinity impact-to-trinity flex flex-row items-center justify-start flex-shrink-0 w-full"
-              style={{
-                gap: 20,
-                marginTop: 0,
-                marginBottom: 0,
-              }}
-              variants={FADE_VARIANTS}
-            >
-            {physicalSoloHref && (
-              <IndustrialHandoffButton
-                url={profilePostcode?.toUpperCase().startsWith('KW') && displayJourneyId === 'home' ? 'https://www.homeenergyscotland.org/' : physicalSoloHref}
-                journeyId={displayJourneyId as string}
-                moneyValue={parseMoneyGbpFromImpactDisplay(String(displayMoneyValue))}
-                ctaLabel="CLAIM"
-              />
-            )}
-            </motion.div>
             </motion.div>
 
           {/* Question / Result — below hero stack */}
@@ -1046,8 +1156,8 @@ export function JourneyBentoCard({
                         fontFamily: 'var(--font-marvin)',
                         fontWeight: 700,
                       }}
-                      initial={DAMPED_SLAM_INITIAL}
-                      animate={DAMPED_SLAM_ANIMATE}
+                      initial={SLAM_INTRO_INITIAL}
+                      animate={SLAM_INTRO_ANIMATE}
                       transition={SLAM_SPRING}
                     >
                       {wrapResultSupportingAsterisks(`We found a new win! ${birthedZoneTitle} is now in your Zone.`)}
@@ -1076,9 +1186,9 @@ export function JourneyBentoCard({
                             fontFamily: 'var(--font-roboto)',
                             fontWeight: 800,
                           }}
-                          initial={DAMPED_SLAM_INITIAL}
-                          animate={DAMPED_SLAM_ANIMATE}
-                          transition={SLAM_SPRING}
+                          initial={INTRO_FADE_UP_NO_DELAY.initial}
+                          animate={INTRO_FADE_UP_NO_DELAY.animate}
+                          transition={INTRO_FADE_UP_NO_DELAY.transition}
                         >
                           {wrapResultSupportingAsterisks(discoveryWinLine)}
                         </motion.p>
@@ -1090,39 +1200,30 @@ export function JourneyBentoCard({
                             fontFamily: 'var(--font-roboto)',
                             fontWeight: 800,
                           }}
-                          initial={DAMPED_SLAM_INITIAL}
-                          animate={DAMPED_SLAM_ANIMATE}
-                          transition={SLAM_SPRING}
+                          initial={INTRO_FADE_UP_NO_DELAY.initial}
+                          animate={INTRO_FADE_UP_NO_DELAY.animate}
+                          transition={INTRO_FADE_UP_NO_DELAY.transition}
                         >
                           {wrapResultSupportingAsterisks(geminiRecommendationCopy)}
                         </motion.p>
                       ) : null}
-                      <motion.p
+                      <p
                         className="zz-body-bold solo-focus-copy-width text-left m-0"
                         style={{ color: 'var(--journey-text)' }}
-                        initial={DAMPED_SLAM_INITIAL}
-                        animate={DAMPED_SLAM_ANIMATE}
-                        transition={{
-                          ...SLAM_SPRING,
-                          delay: discoveryWinLine || geminiRecommendationCopy ? 0.06 : 0,
-                        }}
                       >
                         {wrapResultSupportingAsterisks(
                           `UK average saving for ${discovery.sav.answerLabel} is £${formatMoneyImpact(Math.round(discovery.sav.gbp))}.`
                         )}
-                      </motion.p>
+                      </p>
                       {discoveryImpactKg > 0 ? (
                         <>
-                          <motion.p
+                          <p
                             className="zz-body-bold solo-focus-copy-width text-left m-0"
                             style={{
                               color: 'var(--journey-text)',
                               fontFamily: 'var(--font-roboto)',
                               fontWeight: 800,
                             }}
-                            initial={DAMPED_SLAM_INITIAL}
-                            animate={DAMPED_SLAM_ANIMATE}
-                            transition={{ ...SLAM_SPRING, delay: 0.07 }}
                           >
                             {wrapResultSupportingAsterisks(
                               `IMPACT: −${
@@ -1131,42 +1232,33 @@ export function JourneyBentoCard({
                                   : `${Math.round(discoveryImpactKg)} kg`
                               } CO₂e`
                             )}
-                          </motion.p>
-                          <motion.p
+                          </p>
+                          <p
                             className="zz-body solo-focus-copy-width text-left m-0 opacity-95"
                             style={{ color: 'var(--journey-text)' }}
-                            initial={DAMPED_SLAM_INITIAL}
-                            animate={DAMPED_SLAM_ANIMATE}
-                            transition={{ ...SLAM_SPRING, delay: 0.09 }}
                           >
                             {wrapResultSupportingAsterisks(
                               `That is the equivalent of planting ${treeEquivalent} trees this year.`
                             )}
-                          </motion.p>
+                          </p>
                         </>
                       ) : null}
-                      <motion.p
+                      <p
                         className="zz-body-bold solo-focus-copy-width text-left m-0"
                         style={{ color: 'var(--journey-text)' }}
-                        initial={DAMPED_SLAM_INITIAL}
-                        animate={DAMPED_SLAM_ANIMATE}
-                        transition={{ ...SLAM_SPRING, delay: 0.08 }}
                       >
                         {wrapResultSupportingAsterisks(
                           `${discovery.rec.headline.replace(/_/g, ' ')} — ${discovery.rec.body}`
                         )}
-                      </motion.p>
-                      <motion.p
+                      </p>
+                      <p
                         className="zz-body solo-focus-copy-width text-left m-0 opacity-95"
                         style={{ color: 'var(--journey-text)' }}
-                        initial={DAMPED_SLAM_INITIAL}
-                        animate={DAMPED_SLAM_ANIMATE}
-                        transition={{ ...SLAM_SPRING, delay: 0.14 }}
                       >
                         {wrapResultSupportingAsterisks(
                           `You’re on track — save £${formatMoneyImpact(moneyValue)} and ${formatCarbonImpact(carbonValue).value} ${formatCarbonImpact(carbonValue).unit} from this journey.`
                         )}
-                      </motion.p>
+                      </p>
                     </>
                   ) : (
                     <p className="zz-body-bold solo-focus-copy-width text-left m-0" style={{ color: 'var(--journey-text)' }}>
@@ -1189,15 +1281,7 @@ export function JourneyBentoCard({
                       fromStorage = false
                     }
                     if (!fromDiscovery && !fromStorage) return null
-                    const grantGbp = regionalHeatPumpGrantGbp(profilePostcode)
-                    const grantLine = isScottishPostcodeArea(profilePostcode)
-                      ? `${formatZoneCardMoney(grantGbp)} Home Energy Scotland / rural uplift`
-                      : `${formatZoneCardMoney(grantGbp)} Boiler Upgrade`
-                    return (
-                      <p className="zz-body-bold solo-focus-copy-width text-left m-0" style={{ color: 'var(--journey-text)' }}>
-                        {grantLine}
-                      </p>
-                    )
+                    return null
                   })()}
                     <p className="zz-body solo-focus-copy-width text-left m-0 opacity-90" style={{ color: 'var(--journey-text)' }}>
                       From the top: swipe up to Zone, down for next journey. With several tips in this journey, swipe left/right between them.
@@ -1394,14 +1478,16 @@ export function JourneyBentoCard({
           aria-live="polite"
           data-solo-focus-no-swipe
         >
-          {Array.from({ length: pagerPageCount }).map((_, i) => (
+          {Array.from({ length: pipCount }).map((_, i) => (
             <button
               type="button"
               key={`pip-${i}`}
-              className={`pager-pip${i === morphDeckCursor ? ' pager-pip--active' : ''}`}
-              aria-label={`Go to tip ${i + 1}`}
-              aria-pressed={i === morphDeckCursor}
-              onClick={() => handlePagerSelect(i)}
+              className={`pager-pip${i === pipActiveIndex ? ' pager-pip--active' : ''}`}
+              aria-label={useAuditPips ? `Audit step ${i + 1} of ${pipCount}` : `Go to tip ${i + 1}`}
+              aria-pressed={i === pipActiveIndex}
+              onClick={() => {
+                handlePagerSelect(i)
+              }}
             />
           ))}
         </div>
@@ -1432,12 +1518,12 @@ export function JourneyBentoCard({
           triggerHaptic('medium')
           onExpand?.()
         }}
-        className={`bento-card-groovy cursor-pointer w-full h-auto ${isTall ? 'span-tall-block' : ''}`.trim()}
+        className={`bento-card-groovy cursor-pointer w-full h-full ${isTall ? 'span-tall-block' : ''}`.trim()}
         style={{
           background: color,
           color: textColor,
           ['--color-ink' as string]: textColor,
-          height: 'auto',
+          height: '100%',
           ...(isTall && { minHeight: '100%' }),
         }}
         whileTap={{ scale: 0.96, rotate: -0.5 }}
@@ -1455,7 +1541,7 @@ export function JourneyBentoCard({
       </div>
       <motion.h2
         layoutId={`headline-${journeyId}`}
-        className="card-headline"
+        className="card-headline min-w-0"
         lang="en"
         style={{ color: textColor }}
       >

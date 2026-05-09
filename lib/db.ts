@@ -1,5 +1,5 @@
-import { Pool } from 'pg'
-import { neon } from '@neondatabase/serverless'
+import { Pool as PgPool } from 'pg'
+import { neon, Pool as NeonPool } from '@neondatabase/serverless'
 
 const isProduction = process.env.NODE_ENV === 'production'
 const connectionString = process.env.DATABASE_URL?.trim()
@@ -16,10 +16,15 @@ if (!resolved) {
   throw new Error('DATABASE_URL is required in production.')
 }
 
-const pool = new Pool({
-  connectionString: resolved,
-  ssl: resolved.includes('neon.tech') ? { rejectUnauthorized: true } : undefined,
-})
+const useNeonServerless = resolved.includes('neon.tech')
+
+/** Neon-hosted: WebSocket Pool survives Vercel Fluid cold starts better than raw `pg`. Local: standard `pg`. */
+const pool = useNeonServerless
+  ? new NeonPool({ connectionString: resolved })
+  : new PgPool({
+      connectionString: resolved,
+      ssl: undefined,
+    })
 
 // Handle connection errors gracefully
 pool.on('error', (err) => {

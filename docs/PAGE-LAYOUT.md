@@ -1,8 +1,8 @@
 # Zero Zero — Page layout reference
 
-**Last updated:** April 15, 2026
+**Last updated:** April 26, 2026
 
-Single living spec for screens, grid, spacing, typography, and colour. Implementation detail lives in `app/globals.css`, `app/floating-nav.css`, and each route under `app/`. Product + API narrative: `PROJECT-SPECIFICATION.md`.
+Single living spec for screens, grid, spacing, typography, and colour. Implementation detail lives in `app/globals.css`, `app/floating-nav.css`, and each route under `app/`. Product narrative + intro/summary motion: **`docs/PRODUCT-AND-MOTION-SPEC.md`**.
 
 ---
 
@@ -81,15 +81,15 @@ Links to Zone, Likes, Settings, Zai (implementation in `FloatingNav.tsx`).
 
 ### 4.1 `/` and `/intro` — Intro
 
-**Component:** `IntroScreen.tsx`
+**Component:** `IntroScreen.tsx` (+ `IntroWordCycle.tsx`)
 
 | Stage | Content |
 |-------|---------|
-| Glitch | Brand mark layers (SVG assets), **transparent** full-screen shell (global mesh visible) |
-| Word cycles | `IntroWordCycle` — yellow type (`--color-intro-type`) |
-| Decision | CREATE vs SKIP — circle CTAs, routes to profile or zone |
+| **Glitch** | Brand mark layers (SVG), **670ms** CSS animations + **settled hold** before copy; reduced-motion uses static layers (`globals.css` + timers in `IntroScreen`). |
+| **Words** | `IntroWordCycle` with **`lensFocusShimmer`** — blur→sharp lens focus, **520ms** dwell per word, **120ms** gap between words; yellow type (`--color-intro-type`), classes **`intro-text-large`** + **`zz-shimmer-focus`**. |
+| **Decision** | **`motion.h2`** headline shimmer (same token family); **CREATE** / **SKIP** wrapped in **`motion.div`** with **`.zz-shimmer-cta`**, elastic bloom (**400ms** / **600ms** delays). |
 
-**Layout:** Full viewport, centered stacks; motion via Framer Motion.
+**Layout:** Full viewport, centered stacks; **transparent** shell so **`InteractiveBackground`** stays visible; Framer Motion for all kinetic steps. See **`docs/PRODUCT-AND-MOTION-SPEC.md`** §3–4.
 
 ---
 
@@ -114,10 +114,11 @@ Links to Zone, Likes, Settings, Zai (implementation in `FloatingNav.tsx`).
 
 | Element | Behaviour |
 |---------|-----------|
-| Copy / beats | Animated sequence + count-ups for money/carbon where built |
-| Auto-redirect | After timing constants, routes to **Zone** |
+| **Phases** | **`cycle`** → `IntroWordCycle` with dynamic **`kineticWords`** (`WORD_PULSE_APPEAR`, **400ms** dwell, **`gapMs: 0`**) → **`settle`** → **`exit`** (page blur/scale + **`SLAM_SPRING`**) → **`router.push`** to Zone after **`PAGE_EXIT_NAV_MS`**. |
+| **Data** | `buildUserImpact`, **`buildSummaryKineticWords`** / `summaryLogic.ts`, local intelligence where available. |
+| **Chrome** | Top-right close: **`ELASTIC_PING`**-style spring; optional skip mirrors exit handoff. |
 
-Layout: full-height centered content; uses `buildUserImpact` / local data for display values.
+Layout: full-height centred **`.summary-page--minimal`** shell; yellow on purple; see **`docs/PRODUCT-AND-MOTION-SPEC.md`** §5.
 
 ---
 
@@ -248,6 +249,7 @@ Layout: full-height centered content; uses `buildUserImpact` / local data for di
 
 ## 6. Related docs
 
-- **`PROJECT-SPECIFICATION.md`** — Full product spec, Q/A inventory, APIs, agents, DB.  
+- **`docs/PRODUCT-AND-MOTION-SPEC.md`** — Product narrative, intro + summary sequences, v6 shimmer tokens, CSS class map.  
 - **`docs/APP-FLOW.md`** — Linear user flow only.  
+- **`docs/ANIMATIONS.md`** — Keyframes and preset cross-reference (verify numbers against `lib/animations.ts`).  
 - **`.cursor/rules/mechanical-pulse.mdc`** — Motion and layout constraints for agents.

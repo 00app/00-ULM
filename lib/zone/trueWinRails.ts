@@ -1,5 +1,5 @@
 import { UK_2026_MONEY_LEAD } from '@/lib/scraper/uk2026Defaults'
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 import type { JourneyId } from '@/lib/journeys'
 import { TRUTH_2026_MARCH, MARCH_2026_ECONOMY } from '@/lib/brains/constants'
 

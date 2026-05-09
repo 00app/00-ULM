@@ -1,12 +1,13 @@
 /**
- * March 2026 Production Build — Source of Truth until April 1st.
- * Elec £0.2769/kWh, Gas £0.0593/kWh (Ofgem Jan–Mar 2026).
+ * **April 2026 hard-lock (v6.4 auditor)** — display and Sentinel truth strings use:
+ * Electricity **24.67p/kWh**, gas **5.74p/kWh**, typical cap **£1,641** (`APRIL_2026_TRUTH_PENCE`, `TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP`).
+ * Unit £/kWh for calculators: `MARCH_2026_ECONOMY` (locked to the same April reference rates).
  *
- * Live DB-backed rates: `lib/brains/liveEconomy.ts` (`resolveLiveUnitRatesForPostcode`) — not imported here (keeps client bundles free of `pg`).
+ * Live DB-backed rates: `lib/brains/liveEconomy.ts` — not imported here (keeps client bundles free of `pg`).
  */
 
 /**
- * Verified baseline — **March 21, 2026** production lock (**v1.8.3**).
+ * Verified baseline — grid intensity and April cap headline (**v6.4**).
  * April typical cap **£1,641** (`APRIL_PRICE_CAP_TYPICAL_GBP`); green-levy shift **£150** (`GREEN_LEVY_SAVING_GBP`).
  * All spend-to-carbon paths use `GRID_INTENSITY` → **0.129 kg CO₂e/kWh** via `MARCH_2026_ECONOMY.CARBON_FACTOR_ELEC`.
  */
@@ -24,11 +25,14 @@ export const APRIL_2026_TRUTH_PENCE = {
   GAS_PER_KWH: 5.74,
 } as const
 
-/** Sentinel / auditor regional grid fallback when Carbon Intensity API returns nothing (not KW). */
-export const UK_AVERAGE_GRID_INTENSITY_G_PER_KWH = 140
-
-/** North Scotland (KW) — locked low-carbon grid figure for Sentinel Truth Engine. */
-export const NORTH_SCOTLAND_KW_GRID_G_PER_KWH = 8
+/** Universal Auditor regional grid tiers (April 2026 lock). */
+export const REG_HI_RURAL_G_PER_KWH = 8
+export const REG_URBAN_LEZ_G_PER_KWH = 48
+export const REG_GB_BASE_G_PER_KWH = 140
+/** Backwards compatibility alias. */
+export const UK_AVERAGE_GRID_INTENSITY_G_PER_KWH = REG_GB_BASE_G_PER_KWH
+/** Backwards compatibility alias. */
+export const NORTH_SCOTLAND_KW_GRID_G_PER_KWH = REG_HI_RURAL_G_PER_KWH
 
 export const MARCH_2026_ECONOMY = {
   /** Unit rates — April 2026: Electricity £0.2467/kWh, Gas £0.0574/kWh */

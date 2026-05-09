@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
-import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
+import { UNIFIED_PROFILE_MEMORY_EVENT, persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 
 /** Age persona for tips: Junior | Adult (MID) | Retired */
@@ -28,6 +28,7 @@ export interface HeroTotals {
 
 const HERO_TOTALS_KEY = 'heroTotals'
 const LOCATION_STATE_KEY = 'zz_location_state_v1'
+const V23_FIRST_LOAD_KEY = 'zz_v23_first_load_done'
 
 function readHeroTotalsFromStorage(): HeroTotals | null {
   if (typeof window === 'undefined') return null
@@ -70,6 +71,10 @@ export interface AppState {
     locationName: string
     local: LocalIntelligence | null
   } | null
+  soloFocus: {
+    activeCardId: string | null
+    activeType: 'journey' | 'tip' | 'discovery' | null
+  }
 }
 
 interface AppContextValue {
@@ -79,6 +84,8 @@ interface AppContextValue {
   refreshProfile: () => void
   setHeroTotals: (totals: HeroTotals | null) => void
   setLocationState: (next: { locationName: string; local: LocalIntelligence | null } | null) => void
+  openSoloFocus: (cardId: string, type: 'journey' | 'tip' | 'discovery') => boolean
+  closeSoloFocus: () => void
 }
 
 function readJourneyAnswersFromStorage(): Record<JourneyId, Record<string, string>> {
@@ -117,9 +124,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [userId, setUserIdState] = useState<string | null>(null)
   const [heroTotals, setHeroTotalsState] = useState<HeroTotals | null>(null)
   const [locationState, setLocationStateState] = useState<{ locationName: string; local: LocalIntelligence | null } | null>(null)
+  const [soloFocus, setSoloFocus] = useState<{
+    activeCardId: string | null
+    activeType: 'journey' | 'tip' | 'discovery' | null
+  }>({
+    activeCardId: null,
+    activeType: null,
+  })
   const [journeyAnswers, setJourneyAnswers] = useState<Record<JourneyId, Record<string, string>>>(() =>
     typeof window === 'undefined' ? ({} as Record<JourneyId, Record<string, string>>) : readJourneyAnswersFromStorage()
   )
+  const [lastPostcodeSynced, setLastPostcodeSynced] = useState<string>('')
 
   const refreshProfile = useCallback(() => {
     setProfile(readProfileFromStorage())
@@ -127,6 +142,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && !localStorage.getItem(V23_FIRST_LOAD_KEY)) {
+      try {
+        const keysToDelete: string[] = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (!key) continue
+          if (
+            key.startsWith('profile_') ||
+            key.startsWith('journey_') ||
+            key.startsWith('zz_') ||
+            key === HERO_TOTALS_KEY ||
+            key === 'userId' ||
+            key === 'user_id'
+          ) {
+            keysToDelete.push(key)
+          }
+        }
+        keysToDelete.forEach((k) => localStorage.removeItem(k))
+        localStorage.setItem(V23_FIRST_LOAD_KEY, '1')
+      } catch {
+        // ignore storage lock/quota failures
+      }
+    }
     refreshProfile()
     if (typeof window !== 'undefined') {
       const id = localStorage.getItem('userId') ?? localStorage.getItem('user_id')
@@ -147,6 +185,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onMemory)
     return () => window.removeEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onMemory)
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const postcode = (profile?.postcode ?? '').trim().toUpperCase()
+    if (!postcode || postcode === lastPostcodeSynced) return
+    setLastPostcodeSynced(postcode)
+    persistUnifiedUserProfileMemory()
+  }, [profile?.postcode, lastPostcodeSynced])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -207,14 +253,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const openSoloFocus = useCallback((cardId: string, type: 'journey' | 'tip' | 'discovery'): boolean => {
+    let accepted = false
+    setSoloFocus((prev) => {
+      // Anti-double-focus guard: once open, block second mount attempts.
+      if (prev.activeCardId && prev.activeCardId !== cardId) {
+        return prev
+      }
+      accepted = true
+      return { activeCardId: cardId, activeType: type }
+    })
+    return accepted
+  }, [])
+
+  const closeSoloFocus = useCallback(() => {
+    setSoloFocus({ activeCardId: null, activeType: null })
+  }, [])
+
   const state: AppState = useMemo(
-    () => ({ profile, likedCards, userId, heroTotals, journeyAnswers, locationState }),
-    [profile, likedCards, userId, heroTotals, journeyAnswers, locationState]
+    () => ({ profile, likedCards, userId, heroTotals, journeyAnswers, locationState, soloFocus }),
+    [profile, likedCards, userId, heroTotals, journeyAnswers, locationState, soloFocus]
   )
 
   const value: AppContextValue = useMemo(
-    () => ({ state, setUserId, toggleLike, refreshProfile, setHeroTotals, setLocationState }),
-    [state, setUserId, toggleLike, refreshProfile, setHeroTotals, setLocationState]
+    () => ({
+      state,
+      setUserId,
+      toggleLike,
+      refreshProfile,
+      setHeroTotals,
+      setLocationState,
+      openSoloFocus,
+      closeSoloFocus,
+    }),
+    [state, setUserId, toggleLike, refreshProfile, setHeroTotals, setLocationState, openSoloFocus, closeSoloFocus]
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

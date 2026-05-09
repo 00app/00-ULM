@@ -36,7 +36,7 @@ export default function Error({
       >
         Something went wrong
       </h1>
-      <p style={{ margin: 0, maxWidth: 420, opacity: 0.9 }}>{error?.message || 'Unknown error'}</p>
+      <p style={{ margin: 0, maxWidth: 420 }}>{error?.message || 'Unknown error'}</p>
       <button
         type="button"
         onClick={reset}

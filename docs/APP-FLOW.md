@@ -1,26 +1,21 @@
 # Zero Zero — App Flow
 
-**Last Updated:** March 24, 2026
+**Last updated:** April 26, 2026
 
-This file is a focused flow reference for how users move through the product.
-For full implementation detail, use `PROJECT-SPECIFICATION.md`.
+Linear journey reference. **Authoritative detail on intro timing, shimmer, and summary phases:** `docs/PRODUCT-AND-MOTION-SPEC.md`.
 
 ## 1) Entry and Intro
 
-- Route: `/` (renders intro flow)
-- Route: `/intro` (explicit intro route)
-- Intro sequence:
-  1. Glitch logo
-  2. Value word cycle
-  3. "use less more" cycle
-  4. Decision screen: **Create** or **Skip**
+- Routes: **`/`** and **`/intro`** — both render **`IntroScreen`** (same flow).
+- Intro sequence (three beats):
+  1. **Glitch logo** — dual-layer brand mark (CSS **670ms** keyframes + settled hold); optional URL **`?skip=1`** / **`?step=message`** skips straight to words.
+  2. **Kinetic value line** — `IntroWordCycle`: **SAVE → MONEY → CUT → CARBON → FEEL → GOOD → USE → LESS → MORE** (v6 **lens-focus shimmer** + stagger gap between words).
+  3. **Decision** — headline **“CREATE A PROFILE TO START.”** + **CREATE** (profile) or **SKIP** (zone).
 
 ## 2) Profile Path
 
-- Route: `/profile`
-- User answers 6 profile questions (name, postcode, household, home type, transport, age)
-- Route: `/profile/summary`
-- CTA sends user to Zone
+- Route: **`/profile`** — step-through questions (name, postcode, household, home type, transport, age, etc.; see `ProfilePageClient`).
+- Route: **`/profile/summary`** — kinetic word cycle built from profile + impact (`buildSummaryKineticWords`), then **settle → exit** animation and auto navigation to **Zone** (or user closes early).
 
 ## 3) Skip Path
 

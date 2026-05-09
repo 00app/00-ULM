@@ -11,7 +11,7 @@ import {
 } from '@/lib/expandStorage'
 import { sanitizeText } from '@/lib/sanitize'
 
-import { SPRING_TAP, WORD_APPEAR } from '@/lib/animations'
+import { SPRING_TAP, ELASTIC_PING } from '@/lib/animations'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 
 const ZAI_FALLBACK = "i'm scanning the 2026 grid, try in a sec."
@@ -232,9 +232,13 @@ export default function ZaiPage() {
   }
 
   return (
-    <motion.div className="zai-interface zai-page zz-page-shell" {...WORD_APPEAR}>
+    <motion.div
+      className="zz-page zai-interface zai-page"
+      style={{ background: 'transparent' }}
+      {...ELASTIC_PING}
+    >
       <ZoneBackToZoneLink />
-      <h1 className="zz-page-title zz-page-title--shell">Ask Zai</h1>
+      <h1 className="zz-page-title zai-page-title">Ask Zai</h1>
       <div className="zai-intro-bubble">
         <p className="zz-body">Your assistant for tips and questions. Ask Zero anything.</p>
         <p className="zz-body">Ask about money, carbon, or any journey. Zai uses UK 2026 data.</p>

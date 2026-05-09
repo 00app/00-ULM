@@ -4,8 +4,15 @@
  */
 
 import type { JourneyId } from '@/lib/journeys'
-import type { ZoneViewModel } from '@/lib/zone/buildZoneViewModel'
-import { MARCH_2026_ECONOMY, PRICE_CAP_SAVING_APRIL_1 } from '@/lib/brains/constants'
+import type { ZoneViewModel } from '@/lib/logic/zone'
+import {
+  MARCH_2026_ECONOMY,
+  PRICE_CAP_SAVING_APRIL_1,
+  TRUTH_2026_MARCH,
+  APRIL_2026_TRUTH_PENCE,
+  PRICE_CAP_SOURCE_URL,
+} from '@/lib/brains/constants'
+import { TRUSTED_JOURNEY_URLS } from '@/lib/zone/trustedJourneyUrls'
 
 export type ArchitectJourneyPayload = {
   headline: string
@@ -18,14 +25,34 @@ export type ContentArchitectCardInput = {
   journey_key: JourneyId
   money_gbp: number
   carbon_kg: number
+  money_compact?: string
+  carbon_compact?: string
+  home_type?: string
+  tenure?: string
+  household_size?: number
+  age?: string
+  locality?: string
+  local_grid_g_per_kwh?: number
+  price_cap_gbp?: number
   baseline_title: string
   baseline_insight?: string
   source_hint?: string
+  source_url?: string
+  deep_link_url?: string
+  verified_saving_value?: number
+  offer_expiry_date?: string
+  postcode?: string
   journey_answers?: Record<string, string>
   flags?: string[]
+  /** Live home £/kWh from Neon (optional). */
+  live_elec_gbp_per_kwh?: number
+  live_gas_gbp_per_kwh?: number
+  /** Ofgem/GOV citation for those rates when stored. */
+  rates_citation_url?: string
 }
 
-const MAX_HEADLINE_CHARS = 25
+const MAX_HEADLINE_CHARS = 160
+const DEV_SPEAK_BANNED = /\b(tile|tiles|lane|lanes|anchored|anchor|ui shell|card rail|component)\b/gi
 
 /** Stable short fingerprint for sessionStorage cache keys (profile + answers + £/kg). */
 export function architectCacheFingerprint(payload: unknown): string {
@@ -68,6 +95,19 @@ function suppliedByRules(): string {
   return `suppliedBy must be a SHORT verified provider name only (no sentences): e.g. GOV.UK, OFGEM, WHICH?, ENERGY SAVING TRUST, WRAP, CARBON TRUST, OCTOPUS ENERGY, HOME ENERGY SCOTLAND. Match the strongest source for that card's claim.`
 }
 
+function lockedFactsBlock(): string {
+  const catalogue = Object.entries(TRUSTED_JOURNEY_URLS)
+    .map(([k, u]) => `${k}: ${u}`)
+    .join('\n')
+  return `LOCKED UK FACTS (April–June 2026 — use in paragraph 2 for national policy; do NOT invent different caps, unit pence, grant £ amounts, or new URLs):
+- Typical price-cap headline about £${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr; bill composition shift ~£${TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP} (green levy) off dual-fuel statements.
+- Reference unit rates: electricity ~${APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH}p/kWh, gas ~${APRIL_2026_TRUTH_PENCE.GAS_PER_KWH}p/kWh. Ofgem cap hub: ${PRICE_CAP_SOURCE_URL}
+- OZEV flats/renters chargepoint support £${TRUTH_2026_MARCH.EV_GRANT_NEW_GBP} per eligible socket (April 2026 framing).
+- When live_elec_gbp_per_kwh/live_gas_gbp_per_kwh are present on a home card, treat them as the user's grounded bill maths and mention rates_citation_url if provided.
+- Paragraph 3 MUST tell the user to use the HTTPS source_url (or deep_link_url) supplied for THAT card in the JSON input — never fabricate government links.
+Canonical HTTPS fallbacks by journey (for suppliedBy alignment only):\n${catalogue}`
+}
+
 function extractJsonObject(text: string): Record<string, unknown> | null {
   const t = text.trim()
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/)
@@ -93,10 +133,52 @@ function normalisePayload(
   if (!headline || !insight || !actionLine || !suppliedBy) return null
   return {
     headline: clampArchitectHeadline(headline),
-    insight: insight.trim().replace(/\s+/g, ' ').slice(0, 280),
+    insight: normaliseInsightEditorialSandwich(insight),
     actionLine: actionLine.trim().replace(/\s+/g, ' ').slice(0, 200),
     suppliedBy: suppliedBy.trim().replace(/\s+/g, ' ').slice(0, 48).toUpperCase(),
   }
+}
+
+function replaceDevSpeak(text: string): string {
+  return text.replace(DEV_SPEAK_BANNED, 'audit')
+}
+
+function scrubBulletPrefix(line: string): string {
+  return line.replace(/^\s*(?:[-*•]|\d+\.)\s+/, '').trim()
+}
+
+function normaliseInsightEditorialSandwich(raw: string): string {
+  const stripped = replaceDevSpeak(raw)
+    .split('\n')
+    .map((line) => scrubBulletPrefix(line))
+    .join('\n')
+    .trim()
+  const paragraphs = stripped
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+  const deDuped = paddedUniqueParagraphs(paragraphs)
+  const padded = [
+    deDuped[0] ?? 'Performance audit detects a measurable leak in your local setup.',
+    deDuped[1] ?? 'April 2026 market conditions keep this waste expensive if left untouched.',
+    deDuped[2] ?? 'Tap RECLAIM now to convert this audit finding into a live action.',
+  ]
+  return padded.slice(0, 3).join('\n\n').slice(0, 1200)
+}
+
+function paddedUniqueParagraphs(paragraphs: string[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const p of paragraphs) {
+    const t = p.trim()
+    if (!t) continue
+    const k = t.toLowerCase().replace(/\s+/g, ' ').replace(/[^\w£%./\s-]/g, '')
+    if (k.includes('green pension funds hitting 20')) continue
+    if (seen.has(k)) continue
+    seen.add(k)
+    out.push(t)
+  }
+  return out
 }
 
 /**
@@ -130,15 +212,30 @@ export async function generateCardContextsBatch(
     },
   })
 
-  const system = `You are a Technical Lifestyle Architect for a UK climate/savings product (2026).
-Format raw savings into precise instructions. Use lowercase for insight and actionLine except proper nouns (gov.uk, kWh, CO₂, £).
-No marketing fluff, no emojis, no "you could save". Industrial, factual tone.
-Headline = THE WHAT (max ${MAX_HEADLINE_CHARS} characters, UPPERCASE, no trailing period).
-Insight = THE WHY (one technical sentence tying £ and/or kg to mechanism).
-actionLine = THE HOW (one short imperative, e.g. "check eligibility on gov.uk".)
+  const system = `You are the Performance Auditor for a UK climate/savings product (2026).
+Market accuracy beats creative writing. If any value is uncertain, stay conservative and tie claims to provided source_url/source_hint.
+Format raw savings into precise instructions. No marketing fluff, no emojis, no "you could save".
+Absolute voice constraints:
+- No dev-speak words: tile, lane, anchored, component, card rail.
+- No bullet points or numbered list formatting.
+- Never use repetitive generic line: "Green pension funds hitting 20% ROI in 2026."
+- Keep each journey insight unique in wording and mechanism.
+Headline must follow this exact structure:
+[ACTION] £[VALUE] FROM YOUR [HOMETYPE] IN [LOCALITY] — [SPECIFIC_REASON]
+Keep headline <= ${MAX_HEADLINE_CHARS} chars, uppercase, no trailing period.
+Insight must be exactly 3 paragraphs separated by blank lines:
+Paragraph 1 (Detection): identify the specific leak in [User_Location], explicitly stating compact money figure.
+Paragraph 2 (2026 Context): ground the waste in April 2026 price-cap reality and local grid context.
+Paragraph 3 (The Bridge): direct the user to press RECLAIM and tie it to deep_link_url/source_url/source_hint.
+Use compact figures only: £1.4k / 0.3t style, never long-form integers in prose.
+When verified_saving_value is provided, cite it explicitly in compact £ format and mention offer_expiry_date when present.
+Always reference locality and postcode context when provided.
+actionLine = one short imperative.
 Reply with ONLY valid JSON: an object whose keys are journey_key strings (home, travel, food, shopping, money, carbon, tech, waste, holidays). Each value: { "headline", "insight", "actionLine", "suppliedBy" }.`
 
-  const user = `${thresholdRulesBlock()}
+  const user = `${lockedFactsBlock()}
+
+${thresholdRulesBlock()}
 ${marketSeedsBlock()}
 ${suppliedByRules()}
 
@@ -167,9 +264,10 @@ Return a single JSON object whose keys are exactly those journey_key values pres
 export function applyArchitectEnrichment(
   vm: ZoneViewModel,
   byJourney: Partial<Record<JourneyId, ArchitectJourneyPayload>>,
-  options?: { skipJourneys?: Iterable<JourneyId> }
+  options?: { skipJourneys?: Iterable<JourneyId>; claimUrls?: Partial<Record<JourneyId, string>> }
 ): ZoneViewModel {
   const skip = new Set(options?.skipJourneys ?? [])
+  const claimUrls = options?.claimUrls ?? {}
   return {
     ...vm,
     journeys: vm.journeys.map((j) => {
@@ -177,13 +275,27 @@ export function applyArchitectEnrichment(
       const key = j.journey_key
       if (skip.has(key)) return j
       const arch = byJourney[key]
-      if (!arch) return j
+      const rawUrl = claimUrls[key]?.trim()
+      const https =
+        rawUrl && /^https:\/\//i.test(rawUrl) ? rawUrl : undefined
+      let next = j
+      if (arch) {
+        next = {
+          ...j,
+          title: arch.headline,
+          insightLabel: arch.insight,
+          architectSuppliedBy: arch.suppliedBy,
+          architectActionLine: arch.actionLine,
+          source_name: arch.suppliedBy,
+        }
+      }
+      if (!https) return next
       return {
-        ...j,
-        title: arch.headline.toLowerCase(),
-        insightLabel: arch.insight,
-        architectSuppliedBy: arch.suppliedBy,
-        architectActionLine: arch.actionLine,
+        ...next,
+        claimOfferUrl: https,
+        actions: next.actions
+          ? { ...next.actions, learnUrl: https, actionUrl: https }
+          : { actionType: 'learn', learnUrl: https, actionUrl: https },
       }
     }),
   }

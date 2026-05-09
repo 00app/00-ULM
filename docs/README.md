@@ -1,5 +1,12 @@
 # Documentation
 
-All product and technical documentation lives in **`PROJECT-SPECIFICATION.md`** at the repository root.
+Technical and product notes for this repository live under **`docs/`**.
 
-**`PROJECT-SPECIFICATION.md` is authoritative** for behaviour, APIs, and design locks. Other files here (e.g. flow notes) are **supplements**; if they disagree, update them or the spec so they align.
+| Document | Purpose |
+|----------|---------|
+| **`PRODUCT-AND-MOTION-SPEC.md`** | **Start here** for what the app is, **intro** (glitch → words → decision), **v6 kinetic shimmer** (tokens + CSS), **profile summary** phases, and motion vocabulary aligned with `lib/animations.ts`. |
+| **`PAGE-LAYOUT.md`** | Colours, type scale, grid, floating nav, screen-by-screen layout. |
+| **`APP-FLOW.md`** | Short linear user journey (routes and handoffs). |
+| **`ANIMATIONS.md`** | CSS keyframes and Framer preset map (large file; cross-check constants in code). |
+
+Canonical architecture and structure are now defined in the root **`PROJECT-SPECIFICATION.md`**.

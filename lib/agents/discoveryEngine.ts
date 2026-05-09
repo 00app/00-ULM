@@ -1,4 +1,4 @@
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 import { researchNextWinAfterAnswer } from '@/lib/agents/nextWinInvoke'
 
 /**

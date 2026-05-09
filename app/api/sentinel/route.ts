@@ -5,6 +5,7 @@ import { runSentinelBrainRefresh } from '@/lib/agents/sentinel'
 import { syncUserZone } from '@/lib/sentinel/runner'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 type IncomingPriority = {
   id?: string
@@ -18,6 +19,17 @@ type IncomingPriority = {
 }
 
 const REMOTE_POSTCODE_PREFIX = /^(KW|IV|HS|ZE|PH|PA|AB|TR|LL)/i
+
+function resolveAppOrigin(request: NextRequest): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (!configured) return request.nextUrl.origin
+  const withProtocol = /^https?:\/\//i.test(configured) ? configured : `https://${configured}`
+  try {
+    return new URL(withProtocol).origin
+  } catch {
+    return request.nextUrl.origin
+  }
+}
 
 function hasRuralGrantSignal(markdown: string, citations: Array<{ source_name?: string; url?: string; snippet?: string }>): boolean {
   const blob = `${markdown} ${citations.map((c) => `${c.source_name ?? ''} ${c.url ?? ''} ${c.snippet ?? ''}`).join(' ')}`.toLowerCase()
@@ -48,11 +60,12 @@ export async function POST(request: NextRequest) {
     })
     const liveImpact = sentinelBrain.liveImpact
 
+    const appOrigin = resolveAppOrigin(request)
     await syncUserZone({
       userId: session.userId,
       location: postcode,
       genome,
-      appOrigin: request.nextUrl.origin,
+      appOrigin,
     })
 
     const baselineCost = liveImpact?.homeIdle24h?.totalCostGbp ?? 0
@@ -73,8 +86,7 @@ export async function POST(request: NextRequest) {
     let grantFound = Boolean(sentinelBrain.grant.found && isRemoteRegion)
     if (runScrapeSync && postcode.length >= 4) {
       try {
-        const origin = request.nextUrl.origin
-        const scrapeRes = await fetch(`${origin}/api/scrape-sync`, {
+        const scrapeRes = await fetch(`${appOrigin}/api/scrape-sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', cookie: request.headers.get('cookie') ?? '' },
           body: JSON.stringify({ trigger: true, postcode }),

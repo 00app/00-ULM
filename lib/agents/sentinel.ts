@@ -4,9 +4,9 @@ import { getLiveBaseline } from '@/app/lib/skills/liveImpact'
 import { scrapeFirecrawlZoneResearchStructured } from '@/lib/agents/researchAgent'
 
 export const SENTINEL_REASONING_MODEL = 'gemini-3.1-pro-preview'
-const SENTINEL_FIRECRAWL_URL = 'https://www.gov.uk/apply-boiler-upgrade-scheme'
+const SENTINEL_FIRECRAWL_URL = 'https://www.gov.uk/energy-advice-households'
 const SENTINEL_FIRECRAWL_PROMPT =
-  "Extract the current grant amounts for air-source heat pumps and the new £1,500 rural uplift specifically for the KW (Wick) area."
+  'Extract current official heat pump support ceilings and any rural uplift cues for remote UK outward codes (e.g. KW).'
 
 type SentinelRefreshArgs = {
   region?: string
@@ -45,14 +45,25 @@ function parseGrantExtract(extract: unknown): SentinelGrantResult {
   const heat = Number.isFinite(heatPumpGrant) ? heatPumpGrant : null
   const uplift = Number.isFinite(ruralUplift) ? ruralUplift : null
   const total = heat != null ? heat + (uplift ?? 0) : null
+  const sourceHints = JSON.stringify(obj).toLowerCase()
+  const preferHes = /home energy scotland|rural uplift|kw|wick/.test(sourceHints)
+  const claimOfferUrl = preferHes
+    ? 'https://www.homeenergyscotland.org/funding-grants/heat-pump-grants-loans/'
+    : 'https://www.gov.uk/apply-boiler-upgrade-scheme'
+  const title =
+    total != null
+      ? `LIVE HEAT UPGRADE GRANT £${Math.round(total).toLocaleString('en-GB')}`
+      : heat != null
+        ? `LIVE HEAT UPGRADE GRANT £${Math.round(heat).toLocaleString('en-GB')}`
+        : 'LIVE HEAT UPGRADE GRANT'
 
   return {
     found: total != null && total > 0,
     heatPumpGrantGbp: heat,
     ruralUpliftGbp: uplift,
     totalRuralGrantGbp: total,
-    claimOfferUrl: 'https://www.homeenergyscotland.org/home-energy-scotland-grant-loan',
-    title: '£9,000 RURAL HEAT GRANT',
+    claimOfferUrl,
+    title,
     firecrawlSourceUrl: SENTINEL_FIRECRAWL_URL,
   }
 }
@@ -66,7 +77,7 @@ export async function runSentinelBrainRefresh(args: SentinelRefreshArgs): Promis
   })
   const scrapeEnergyGrantsTool = tool({
     description:
-      "Firecrawl v2 structured extract for UK energy grants. URL fixed to gov.uk Boiler Upgrade Scheme; returns grant values and rural uplift cues.",
+      'Firecrawl v2 structured extract for UK household energy support pages; returns support ceilings and uplift cues.',
     inputSchema: z.object({
       postcode: z.string().optional(),
     }),
@@ -90,8 +101,8 @@ export async function runSentinelBrainRefresh(args: SentinelRefreshArgs): Promis
     heatPumpGrantGbp: null,
     ruralUpliftGbp: null,
     totalRuralGrantGbp: null,
-    claimOfferUrl: 'https://www.homeenergyscotland.org/home-energy-scotland-grant-loan',
-    title: '£9,000 RURAL HEAT GRANT',
+    claimOfferUrl: '',
+    title: 'LIVE HEAT UPGRADE GRANT',
     firecrawlSourceUrl: SENTINEL_FIRECRAWL_URL,
   }
   const grant = !args.runScrapeSync || !remote

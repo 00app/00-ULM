@@ -5,8 +5,9 @@
 
 import { getDbPool } from '@/lib/db'
 import { OFGEM_LIVE_PRICE_CAP_URL } from '@/lib/agents/scraper'
-import { triggerSupplementalResearch } from '@/lib/agents/researcher'
+import { parseApril2026UnitRatesFromMarkdown, triggerSupplementalResearch } from '@/lib/agents/researcher'
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
+import { APRIL_2026_TRUTH_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
 
 export interface ResearchCitation {
   source_name: string
@@ -187,6 +188,9 @@ export async function persistResearchResult(params: {
   elecUnitRateGbpPerKwh?: number | null
   gasUnitRateGbpPerKwh?: number | null
   sourceUrl?: string | null
+  deepLink?: string | null
+  verifiedSaving?: number | null
+  localityContext?: string | null
   providerName?: string | null
   agentHeadline?: string | null
   /** Stored in research_results.openclaw_raw_json (legacy column name). */
@@ -194,6 +198,18 @@ export async function persistResearchResult(params: {
 }): Promise<void> {
   try {
     const pool = getDbPool()
+    await pool.query(
+      `ALTER TABLE research_results
+       ADD COLUMN IF NOT EXISTS elec_unit_rate_gbp_per_kwh DOUBLE PRECISION,
+       ADD COLUMN IF NOT EXISTS gas_unit_rate_gbp_per_kwh DOUBLE PRECISION,
+       ADD COLUMN IF NOT EXISTS source_url TEXT,
+       ADD COLUMN IF NOT EXISTS deep_link TEXT,
+       ADD COLUMN IF NOT EXISTS verified_saving DOUBLE PRECISION,
+       ADD COLUMN IF NOT EXISTS locality_context TEXT,
+       ADD COLUMN IF NOT EXISTS provider_name TEXT,
+       ADD COLUMN IF NOT EXISTS agent_headline TEXT,
+       ADD COLUMN IF NOT EXISTS openclaw_raw_json JSONB`
+    )
     const providerName =
       params.providerName?.trim() ||
       (params.citations[0]?.source_name ? String(params.citations[0].source_name).trim() : null)
@@ -201,9 +217,10 @@ export async function persistResearchResult(params: {
       `INSERT INTO research_results (
          postcode, profile_snapshot, markdown, citations,
          elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
+         deep_link, verified_saving, locality_context,
          provider_name, agent_headline, openclaw_raw_json, created_at
        )
-       VALUES ($1, $2::jsonb, $3, $4::jsonb, $5, $6, $7, $8, $9, $10::jsonb, NOW())`,
+       VALUES ($1, $2::jsonb, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, NOW())`,
       [
         params.postcode ?? null,
         JSON.stringify(params.profileData ?? {}),
@@ -212,6 +229,9 @@ export async function persistResearchResult(params: {
         params.elecUnitRateGbpPerKwh ?? null,
         params.gasUnitRateGbpPerKwh ?? null,
         params.sourceUrl ?? null,
+        params.deepLink ?? params.sourceUrl ?? null,
+        params.verifiedSaving ?? null,
+        params.localityContext ?? null,
         providerName,
         params.agentHeadline?.trim() ?? null,
         params.invokePayload !== undefined ? JSON.stringify(params.invokePayload) : null,
@@ -252,11 +272,23 @@ export async function runZeroResearchWithProfile(params: {
     userContext,
   })
   if (params.persistToNeon && (result.markdown || result.citations.length > 0)) {
+    const parsed = await parseApril2026UnitRatesFromMarkdown(result.markdown)
+    const degraded = parsed.electricityGbpPerKwh == null || parsed.gasGbpPerKwh == null
     await persistResearchResult({
       postcode: params.postcode,
       profileData: params.profileData,
       markdown: result.markdown,
       citations: result.citations,
+      elecUnitRateGbpPerKwh:
+        parsed.electricityGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH / 100,
+      gasUnitRateGbpPerKwh: parsed.gasGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.GAS_PER_KWH / 100,
+      sourceUrl: PRICE_CAP_SOURCE_URL,
+      providerName: degraded ? 'Ofgem (degraded fallback)' : undefined,
+      invokePayload: {
+        trigger: 'Location',
+        fallbackPath: 'runZeroResearchWithProfile',
+        degraded,
+      },
     })
   }
   return result

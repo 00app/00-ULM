@@ -59,7 +59,7 @@ export const UK_2026_MONEY_LEAD: Record<JourneyId, JourneyMoneyLead> = {
     money_value: 1400,
     carbon_backup: '19 Tonnes (Divestment)',
     carbon_value: 19000,
-    crawler_tip: 'Green pension funds hitting 20% ROI in 2026.',
+    crawler_tip: 'Review pension fund carbon disclosures and fee drag; switching default funds can reduce both emissions exposure and long-run cost leakage.',
     agent_focus: 'Divestment is your largest single carbon win.',
   },
   carbon: {

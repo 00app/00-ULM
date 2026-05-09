@@ -2,10 +2,58 @@ import { NextResponse } from 'next/server'
 import { generateCardContextsBatch, type ContentArchitectCardInput } from '@/lib/agents/contentArchitect'
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
+import { trustedUrlForJourney, isHttpsUrl } from '@/lib/zone/trustedJourneyUrls'
+import { getLatestResearchUnitRates } from '@/lib/db/neon'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 const ALLOWED = new Set<JourneyId>(JOURNEY_ORDER)
+
+async function fetchDuckDuckGoOfferUrl(query: string): Promise<string | null> {
+  try {
+    const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'text/html,application/xhtml+xml',
+        'User-Agent': 'zero-zero-content-architect/1.0',
+      },
+      cache: 'no-store',
+    })
+    if (!res.ok) return null
+    const html = await res.text()
+    const m = html.match(/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"/i)
+    if (!m?.[1]) return null
+    const href = m[1].trim()
+    return /^https?:\/\//i.test(href) ? href : null
+  } catch {
+    return null
+  }
+}
+
+function resolveAppBaseUrl(req: Request): string | null {
+  const configured =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
+  if (configured) return configured.replace(/\/+$/, '')
+  try {
+    const u = new URL(req.url)
+    return `${u.protocol}//${u.host}`
+  } catch {
+    return null
+  }
+}
+
+async function triggerImmediateScrapeFallback(req: Request, postcode: string): Promise<void> {
+  const base = resolveAppBaseUrl(req)
+  if (!base) return
+  const url = `${base}/api/scrape-sync?postcode=${encodeURIComponent(postcode)}`
+  try {
+    await fetch(url, { method: 'GET', cache: 'no-store' })
+  } catch {
+    // keep request non-blocking
+  }
+}
 
 function sanitiseCard(raw: unknown): ContentArchitectCardInput | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
@@ -15,10 +63,25 @@ function sanitiseCard(raw: unknown): ContentArchitectCardInput | null {
   const jk = journey_key as JourneyId
   const money_gbp = Number(o.money_gbp)
   const carbon_kg = Number(o.carbon_kg)
+  const money_compact = typeof o.money_compact === 'string' ? o.money_compact.slice(0, 16) : undefined
+  const carbon_compact = typeof o.carbon_compact === 'string' ? o.carbon_compact.slice(0, 16) : undefined
+  const local_grid_g_per_kwh = Number(o.local_grid_g_per_kwh)
+  const price_cap_gbp = Number(o.price_cap_gbp)
   const baseline_title = typeof o.baseline_title === 'string' ? o.baseline_title.slice(0, 200) : ''
   const baseline_insight =
     typeof o.baseline_insight === 'string' ? o.baseline_insight.slice(0, 400) : undefined
   const source_hint = typeof o.source_hint === 'string' ? o.source_hint.slice(0, 120) : undefined
+  const source_url = typeof o.source_url === 'string' ? o.source_url.slice(0, 300) : undefined
+  const deep_link_url = typeof o.deep_link_url === 'string' ? o.deep_link_url.slice(0, 300) : undefined
+  const offer_expiry_date =
+    typeof o.offer_expiry_date === 'string' ? o.offer_expiry_date.slice(0, 32) : undefined
+  const verified_saving_value = Number(o.verified_saving_value)
+  const postcode = typeof o.postcode === 'string' ? o.postcode.slice(0, 16) : undefined
+  const home_type = typeof o.home_type === 'string' ? o.home_type.slice(0, 32) : undefined
+  const tenure = typeof o.tenure === 'string' ? o.tenure.slice(0, 32) : undefined
+  const age = typeof o.age === 'string' ? o.age.slice(0, 32) : undefined
+  const household_size = Number(o.household_size)
+  const locality = typeof o.locality === 'string' ? o.locality.slice(0, 64) : undefined
   let journey_answers: Record<string, string> | undefined
   if (o.journey_answers && typeof o.journey_answers === 'object' && !Array.isArray(o.journey_answers)) {
     journey_answers = {}
@@ -29,16 +92,43 @@ function sanitiseCard(raw: unknown): ContentArchitectCardInput | null {
   const flags = Array.isArray(o.flags)
     ? o.flags.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 48)).slice(0, 12)
     : undefined
+  const live_elec_gbp_per_kwh = Number(o.live_elec_gbp_per_kwh)
+  const live_gas_gbp_per_kwh = Number(o.live_gas_gbp_per_kwh)
+  const rates_citation_url =
+    typeof o.rates_citation_url === 'string' ? o.rates_citation_url.slice(0, 300) : undefined
 
   return {
     journey_key: jk,
     money_gbp: Number.isFinite(money_gbp) ? Math.max(0, Math.round(money_gbp)) : 0,
     carbon_kg: Number.isFinite(carbon_kg) ? Math.max(0, Math.round(carbon_kg)) : 0,
+    money_compact,
+    carbon_compact,
     baseline_title,
     baseline_insight,
     source_hint,
+    source_url,
+    deep_link_url,
+    offer_expiry_date,
+    verified_saving_value: Number.isFinite(verified_saving_value) ? Math.max(0, Math.round(verified_saving_value)) : undefined,
+    postcode,
+    home_type,
+    tenure,
+    age,
+    household_size: Number.isFinite(household_size) ? Math.max(1, Math.round(household_size)) : undefined,
+    locality,
+    local_grid_g_per_kwh: Number.isFinite(local_grid_g_per_kwh) ? local_grid_g_per_kwh : undefined,
+    price_cap_gbp: Number.isFinite(price_cap_gbp) ? price_cap_gbp : undefined,
     journey_answers,
     flags,
+    live_elec_gbp_per_kwh:
+      Number.isFinite(live_elec_gbp_per_kwh) && live_elec_gbp_per_kwh > 0
+        ? live_elec_gbp_per_kwh
+        : undefined,
+    live_gas_gbp_per_kwh:
+      Number.isFinite(live_gas_gbp_per_kwh) && live_gas_gbp_per_kwh > 0
+        ? live_gas_gbp_per_kwh
+        : undefined,
+    rates_citation_url,
   }
 }
 
@@ -69,6 +159,47 @@ export async function POST(req: Request) {
     return NextResponse.json({ byJourney: {} })
   }
 
-  const byJourney = await generateCardContextsBatch(cards)
-  return NextResponse.json({ byJourney })
+  const cardsWithLiveSource = await Promise.all(
+    cards.map(async (c) => {
+      if (c.journey_key === 'home') {
+        const pc = c.postcode?.replace(/\s+/g, '').trim()
+        if (pc && (!c.live_elec_gbp_per_kwh || !c.live_gas_gbp_per_kwh)) {
+          const row = await getLatestResearchUnitRates(pc)
+          if (row?.elec_unit_rate_gbp_per_kwh && row?.gas_unit_rate_gbp_per_kwh) {
+            c = {
+              ...c,
+              live_elec_gbp_per_kwh: row.elec_unit_rate_gbp_per_kwh,
+              live_gas_gbp_per_kwh: row.gas_unit_rate_gbp_per_kwh,
+              rates_citation_url: c.rates_citation_url ?? row.source_url ?? undefined,
+            }
+          } else {
+            await triggerImmediateScrapeFallback(req, pc)
+          }
+        }
+      }
+      const preferredDeepLink = c.deep_link_url?.trim()
+      if (preferredDeepLink && isHttpsUrl(preferredDeepLink)) {
+        return { ...c, source_url: preferredDeepLink }
+      }
+      if (c.source_url?.trim() && isHttpsUrl(c.source_url)) return c
+      const locality = c.locality?.trim() || 'UK'
+      const postcode = c.postcode?.trim()
+      const query = `${c.journey_key} grants ${locality}${postcode ? ` ${postcode}` : ''} site:gov.uk 2026`
+      const ddg = await fetchDuckDuckGoOfferUrl(query)
+      const trusted = trustedUrlForJourney(c.journey_key)
+      if (ddg && isHttpsUrl(ddg) && /gov\.uk|ofgem\.gov\.uk|nhs\.uk|scotland\.gov\.uk/i.test(ddg)) {
+        return { ...c, source_url: ddg }
+      }
+      return { ...c, source_url: trusted }
+    })
+  )
+
+  const resolvedLinks: Partial<Record<JourneyId, string>> = {}
+  for (const c of cardsWithLiveSource) {
+    const u = c.source_url?.trim()
+    if (u && isHttpsUrl(u)) resolvedLinks[c.journey_key] = u
+  }
+
+  const byJourney = await generateCardContextsBatch(cardsWithLiveSource)
+  return NextResponse.json({ byJourney, resolvedLinks })
 }

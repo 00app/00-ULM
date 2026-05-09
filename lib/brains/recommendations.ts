@@ -34,8 +34,8 @@ export function getDiscoveryRecommendation(
   if (journeyId === 'home' && questionId === 'energy_type') {
     if (a === 'GAS') {
       return {
-        headline: 'HEAT PUMP GRANT',
-        body: 'Gas homes can claim up to £7,500 toward a heat pump via the Boiler Upgrade Scheme — insulation quality changes what installers will quote.',
+        headline: 'HEAT PUMP UPGRADE',
+        body: 'Gas-heated homes can access official heat pump support up to £7,500 where rules apply — insulation quality still changes what installers quote.',
         gridJourneyKey: 'home',
         learnUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
         actionUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',

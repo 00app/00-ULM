@@ -5,7 +5,7 @@
 import type { JourneyId } from '@/lib/journeys'
 import { triggerSupplementalResearch, type ResearchProfileData } from '@/lib/agents/researchAgent'
 import { validateInjectionCard } from '@/lib/zone/injections'
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 import { buildDiscoveryInjectionCardAsync, buildDiscoveryInjectionId } from '@/lib/zone/discoveryCard'
 import { enforceTrueWinRails, TRUE_WIN_RAILS } from '@/lib/zone/trueWinRails'
 

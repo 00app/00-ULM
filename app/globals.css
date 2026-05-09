@@ -36,6 +36,19 @@ nextjs-portal > * {
    3-colour lock · 60px radius · 30px bento (--padding-bento) · spring-shutter motion
    ========================================================================== */
 
+/* v28 — Z-axis zip: perspective on app shell so Framer `z` / `rotateX` read as true 3D lift */
+.zz-main-perspective-shell {
+  perspective: 1000px;
+  perspective-origin: 50% 50%;
+  background: transparent !important;
+}
+
+.solo-focus-grow-layer,
+.expanded-solo-focus {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
 :root {
   /* Typography — Marvin (display / stamps) + Roboto (all body / UI copy); one body size */
   --font-marvin: 'Marvin Visions Bold', sans-serif;
@@ -179,6 +192,25 @@ body {
   opacity: 0.42;
 }
 
+.zz-cursor-glow {
+  position: absolute;
+  width: clamp(180px, 18vw, 280px);
+  height: clamp(180px, 18vw, 280px);
+  left: 0;
+  top: 0;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-yellow) 40%, transparent) 0%,
+    color-mix(in srgb, var(--color-pink) 28%, transparent) 45%,
+    transparent 100%
+  );
+  filter: blur(36px);
+  opacity: 0.34;
+  mix-blend-mode: screen;
+  transform: translate3d(0, 0, 0);
+}
+
 .zz-grain-overlay {
   position: fixed;
   inset: 0;
@@ -198,9 +230,10 @@ body {
   z-index: 40;
   display: grid;
   place-items: center;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  background: color-mix(in srgb, var(--color-purple) 70%, transparent);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .zz-gate-logo {
@@ -585,7 +618,7 @@ p,
 
 .pager-pip {
   appearance: none;
-  background: transparent;
+  background: currentColor;
   padding: 0;
   cursor: pointer;
   width: 10px;
@@ -596,29 +629,10 @@ p,
   border: none;
   color: inherit;
   flex: 0 0 auto;
-  position: relative;
-}
-.pager-pip::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  min-width: 8px;
-  min-height: 8px;
-  border-radius: 50%;
-  border: 1.5px solid currentColor;
-  transform: translate(-50%, -50%);
   transition:
-    width 0.3s var(--easing-groovy),
-    height 0.3s var(--easing-groovy),
-    min-width 0.3s var(--easing-groovy),
-    min-height 0.3s var(--easing-groovy),
-    border-radius 0.3s var(--easing-groovy),
-    background-color 0.3s var(--easing-groovy),
-    border-color 0.3s var(--easing-groovy),
+    transform 0.3s var(--easing-groovy),
     opacity 0.3s var(--easing-groovy);
+  opacity: 0.45;
 }
 .pager-pip:focus-visible {
   outline: 2px solid var(--journey-cta-text, var(--color-yellow));
@@ -626,16 +640,8 @@ p,
 }
 
 .pager-pip--active {
-  background: transparent;
-}
-.pager-pip--active::before {
-  background: var(--color-pink);
-  width: 10px;
-  height: 10px;
-  min-width: 10px;
-  min-height: 10px;
-  border-radius: 50%;
-  border-color: var(--color-pink);
+  opacity: 1;
+  transform: scale(1.15);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -647,19 +653,13 @@ p,
 
 .content-feed {
   opacity: 0;
-  animation: slamContentReveal 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: introFadeUp 450ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   animation-delay: 150ms;
 }
 
-@keyframes slamContentReveal {
-  from {
-    opacity: 0;
-    transform: scale(1.06);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+@keyframes introFadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /** Data/hero numbers — Marvin */
@@ -885,11 +885,11 @@ input[type='number'] {
   grid-template-columns: 1fr;
   grid-auto-rows: minmax(clamp(180px, 18vw, 320px), auto);
   grid-auto-flow: dense;
-  row-gap: var(--gap-lg);
-  column-gap: clamp(16px, 2vw, 24px);
-  padding: var(--padding-md);
+  row-gap: 20px;
+  column-gap: 20px;
+  padding: 20px;
   padding-bottom: 0;
-  margin: var(--gap-lg) auto 0;
+  margin: 0 auto;
   width: 100%;
   max-width: min(1400px, 100%);
   box-sizing: border-box;
@@ -906,6 +906,7 @@ input[type='number'] {
   min-height: 0;
   width: 100%;
   max-width: 100%;
+  display: flex;
   box-sizing: border-box;
 }
 
@@ -914,9 +915,9 @@ input[type='number'] {
   .groovy-zone-grid {
     grid-template-columns: 1fr !important;
     grid-auto-flow: row;
-    row-gap: var(--gap-lg);
-    column-gap: 16px;
-    padding: var(--padding-md);
+    row-gap: 20px;
+    column-gap: 20px;
+    padding: 20px;
     padding-bottom: 0;
   }
   .groovy-zone-grid > * {
@@ -931,9 +932,11 @@ input[type='number'] {
 @media (min-width: 768px) {
   .groovy-zone-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: auto;
     max-width: 920px;
-    gap: 18px;
-    padding: var(--padding-md);
+    row-gap: 20px;
+    column-gap: 20px;
+    padding: 20px;
     padding-bottom: 0;
   }
   .groovy-zone-grid > * {
@@ -946,11 +949,11 @@ input[type='number'] {
 @media (min-width: 1024px) {
   .groovy-zone-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-auto-rows: minmax(340px, auto);
+    grid-auto-rows: auto;
     max-width: 980px;
-    row-gap: var(--gap-lg);
-    column-gap: var(--gap-lg);
-    padding: var(--gap-xl);
+    row-gap: 20px;
+    column-gap: 20px;
+    padding: 20px;
     padding-bottom: 0;
   }
   /* Desktop lock: all cards share same row height. */
@@ -963,11 +966,11 @@ input[type='number'] {
 @media (min-width: 1440px) {
   .groovy-zone-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-auto-rows: minmax(340px, auto);
+    grid-auto-rows: auto;
     max-width: 1060px;
-    row-gap: var(--gap-lg);
-    column-gap: 22px;
-    padding: var(--gap-xl);
+    row-gap: 20px;
+    column-gap: 20px;
+    padding: 20px;
     padding-bottom: 0;
   }
   .groovy-zone-grid .span-tall {
@@ -1031,7 +1034,7 @@ body, p, span, input, button, textarea, select,
   overflow: auto;
 }
 
-/* Zone cards: shell = var(--padding-bento) (30px, same as --padding-lg). Clears 60px groovy radius. */
+/* Zone cards: shell inset lock (Mechanical Pulse grid). */
 .bento-card-groovy {
   position: relative;
   overflow: hidden;
@@ -1043,7 +1046,7 @@ body, p, span, input, button, textarea, select,
   flex-direction: column;
   justify-content: space-between;
   gap: clamp(12px, 1.8vw, 20px);
-  padding: var(--padding-bento) !important;
+  padding: 30px !important;
   border-radius: var(--radius-groovy) !important;
   will-change: transform, opacity;
   
@@ -1053,12 +1056,80 @@ body, p, span, input, button, textarea, select,
   transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Zone grid height logic: content-driven card height with row minimums (prevents clipping on long headlines). */
+/* Zone grid wall — 30px inset all around. */
+.groovy-zone-grid .bento-card-groovy,
+.groovy-zone-grid .zone-hero-card {
+  padding: 30px !important;
+}
+
+/* Zone grid height lock: all cards in a row share tallest-card height. */
 @media (min-width: 1024px) {
   .groovy-zone-grid .bento-card-groovy,
   .groovy-zone-grid .zone-hero-card {
-    height: auto !important;
-    min-height: 0 !important;
+    height: 100% !important;
+    min-height: 100% !important;
+  }
+}
+
+/*
+ * Zone wall — headline ↔ metrics rhythm (no space-between “tennis court” gap).
+ * Equal-height rows stay; content stacks from the top with fixed gaps so middle doesn’t stretch.
+ */
+.groovy-zone-grid .bento-card-groovy,
+.groovy-zone-grid .zone-hero-card,
+.groovy-zone-grid button.bento-card-groovy {
+  justify-content: flex-start !important;
+  gap: clamp(10px, 2.5cqw, 16px) !important;
+}
+
+.groovy-zone-grid .card-headline {
+  flex: 0 1 auto !important;
+  height: auto !important;
+  max-height: none;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  align-self: stretch;
+}
+
+.groovy-zone-grid .card-impact-grid {
+  flex-shrink: 0;
+  margin-top: 0 !important;
+  width: 100%;
+  min-width: 0 !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  column-gap: clamp(0.45rem, 3.5cqw, 1.25rem) !important;
+}
+
+.groovy-zone-grid .card-impact-grid .data-stack,
+.groovy-zone-grid .card-impact-grid .data-stack--tight {
+  min-width: 0;
+}
+
+.groovy-zone-grid .card-impact-grid .data-value {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Zone metrics — no negative “kiss” margins (they collided label + figure on tight cards) */
+.groovy-zone-grid .card-impact-grid .data-stack--tight {
+  gap: 3px !important;
+}
+.groovy-zone-grid .card-impact-grid .data-label {
+  margin-bottom: 0 !important;
+  min-height: 0;
+  line-height: 0.85 !important;
+}
+.groovy-zone-grid .card-impact-grid .data-value,
+.groovy-zone-grid .card-impact-grid .solo-focus-data-value {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+@media (max-width: 767px) {
+  .groovy-zone-grid .bento-card-groovy,
+  .groovy-zone-grid .zone-hero-card,
+  .groovy-zone-grid button.bento-card-groovy {
+    padding: clamp(20px, 5vw, 30px) !important;
   }
 }
 
@@ -1072,7 +1143,7 @@ body, p, span, input, button, textarea, select,
   appearance: none;
   -webkit-appearance: none;
   margin: 0;
-  padding: var(--padding-bento) !important;
+  padding: 30px !important;
 }
 
 /* Rock strip: two-column tips — shorter than full-grid cells, same bento tokens */
@@ -1442,8 +1513,8 @@ body, p, span, input, button, textarea, select,
   min-height: 100vh;
 }
 
-/* Growing Bento: transparent viewport shell so global mesh / grain shows through; expanded card is the surface */
-/* v2.4 — viewport gutter + centred rail (zone chrome is hidden while open, so mesh reads as “stage”) */
+/* Growing Bento: purple ring (viewport) + rounded journey card fills inset area */
+/* v2.4 — Floating Machine: viewport gutter (card never touches edges) + centered rail */
 .solo-focus-grow-layer {
   position: fixed !important;
   inset: 0 !important;
@@ -1453,6 +1524,7 @@ body, p, span, input, button, textarea, select,
   flex-direction: column !important;
   align-items: center;
   justify-content: center;
+  justify-content: safe center;
   margin: 0 !important;
   min-height: 0;
   height: 100dvh;
@@ -1461,15 +1533,19 @@ body, p, span, input, button, textarea, select,
   overflow-y: hidden;
   overscroll-behavior: contain;
   /* v4.1 — fixed viewport gutter: 20px mobile / 40px desktop (+ safe areas) */
-  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px)) 20px;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px env(safe-area-inset-bottom, 0px) 20px;
   background-color: transparent;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
   pointer-events: auto;
-  /* No isolate: avoid extra stacking paint that can flatten the atmospheric layer behind */
+  isolation: auto !important;
 }
 
 @media (min-width: 1024px) {
   .solo-focus-grow-layer {
-    padding: calc(40px + env(safe-area-inset-top, 0px)) 40px calc(40px + env(safe-area-inset-bottom, 0px)) 40px;
+    padding: calc(40px + env(safe-area-inset-top, 0px)) 40px env(safe-area-inset-bottom, 0px) 40px;
   }
 }
 
@@ -1497,9 +1573,21 @@ body, p, span, input, button, textarea, select,
   box-sizing: border-box !important;
   
   background-color: transparent !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   color: var(--journey-text, var(--color-yellow));
   transition: color 0.35s ease;
-  isolation: isolate;
+  isolation: auto !important;
+}
+
+/* Hard lock: no translucent/film panel in expanded view root wrappers. */
+.expanded-solo-focus .solo-focus-body-scroll,
+.expanded-solo-focus .solo-focus-rail,
+.expanded-solo-focus .solo-focus-stack {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* v2.9 — Insight bridge: headline + scraped description share one outbound affordance */
@@ -1543,8 +1631,9 @@ body, p, span, input, button, textarea, select,
   border-radius: 50%;
   padding: 0;
   border: none;
-  background: var(--color-purple);
-  color: var(--color-yellow);
+  /* Inherit palette from .expanded-solo-focus (--journey-cta-*); avoid inline bg/color on the button or :hover cannot win */
+  background: var(--journey-cta-bg, var(--color-purple));
+  color: var(--journey-cta-text, var(--color-yellow));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1580,19 +1669,24 @@ body, p, span, input, button, textarea, select,
 }
 .expanded-solo-focus .solo-focus-close-circle:hover,
 .zz-close-btn:hover {
-  background: var(--color-yellow);
-  color: var(--color-purple);
-  transform: scale(1.1) rotate(-90deg);
+  background: var(--journey-cta-text, var(--color-purple));
+  color: var(--journey-cta-bg, var(--color-yellow));
+  transform: scale(1.06);
 }
 .expanded-solo-focus .solo-focus-close-circle:active,
 .zz-close-btn:active {
   transform: scale(0.96);
 }
+.expanded-solo-focus .solo-focus-close-circle:focus-visible,
+.zz-close-btn:focus-visible {
+  outline: 2px solid var(--journey-cta-text, var(--color-purple));
+  outline-offset: 2px;
+}
 .expanded-solo-focus .solo-focus-close-circle svg {
   color: inherit;
 }
 .expanded-solo-focus .solo-focus-close-circle:hover svg {
-  color: var(--color-purple);
+  color: inherit;
 }
 
 /* Category + close share one row; vertical center matches Marvin cap-height to disc */
@@ -1659,7 +1753,7 @@ body, p, span, input, button, textarea, select,
   width: 100%;
   border-radius: 60px;
   padding: 40px !important;
-  background-color: var(--journey-bg, var(--color-purple)) !important;
+  background-color: transparent !important;
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus .solo-focus-rail {
@@ -1981,17 +2075,40 @@ body, p, span, input, button, textarea, select,
 }
 /* Hero block → Supplied by (first meta after headline + optional description) */
 .expanded-solo-focus .headline-to-insight {
-  margin-top: 10px !important;
+  margin-top: 4px !important;
 }
-/* Headline (H3) → description paragraph — 10px gap inside bridge or stack */
+/* Headline (H3) → description paragraph — 4px gap inside bridge or stack */
 .expanded-solo-focus .solo-focus-insight-bridge .solo-focus-recommendation-headline + .solo-focus-description,
 .expanded-solo-focus .solo-focus-content-stack > .solo-focus-recommendation-headline + .solo-focus-description {
+  margin-top: 4px !important;
+}
+/* Heading → OFFER PREVIEW — 10px (offer-preview had margin-top:0 which fought this; see block below) */
+.expanded-solo-focus .solo-focus-recommendation-headline + .solo-focus-category {
   margin-top: 10px !important;
+}
+.expanded-solo-focus .solo-focus-category + .solo-focus-description,
+.expanded-solo-focus .solo-focus-category + .solo-focus-insight {
+  margin-top: 4px !important;
+}
+/* Paragraph stack rhythm inside expanded insight blocks (4px between text lines/blocks) */
+.expanded-solo-focus .solo-focus-insight + .solo-focus-insight,
+.expanded-solo-focus .solo-focus-description + .solo-focus-description,
+.expanded-solo-focus .solo-focus-scraped-tip + .solo-focus-scraped-tip,
+.expanded-solo-focus .solo-focus-insight + .solo-focus-description,
+.expanded-solo-focus .solo-focus-description + .solo-focus-insight {
+  margin-top: 4px !important;
+}
+/* Dedicated OFFER PREVIEW rhythm lock — do not zero margin-top (headline + category needs 10px gap) */
+.expanded-solo-focus .solo-focus-offer-preview {
+  margin-bottom: 4px !important;
+}
+.expanded-solo-focus .solo-focus-recommendation-headline {
+  margin-bottom: 0 !important;
 }
 .expanded-solo-focus .insight-to-impact {
   margin-top: 40px !important;
 }
-/* Tighten "In Local Area" -> impact row spacing for expanded Solo Focus. */
+/* Tighten "In {locality}" -> impact row spacing for expanded Solo Focus. */
 .expanded-solo-focus .solo-focus-location-tag + .insight-to-impact {
   margin-top: 20px !important;
 }
@@ -2050,9 +2167,14 @@ body, p, span, input, button, textarea, select,
   margin: 0;
   padding: 0;
   text-align: left;
-  max-width: 32ch;
+  max-width: 100%;
   margin-inline: 0;
   align-self: flex-start;
+  /* Up to 12 words (JS cap) — max 3 lines */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
 .expanded-solo-focus .solo-focus-description {
@@ -2158,7 +2280,16 @@ body, p, span, input, button, textarea, select,
 }
 /* Trap block answer options: pink default, yellow hover, bounce (match profile/trinity) */
 .expanded-solo-focus .solo-focus-trap-block .solo-focus-answer-option {
+  font-family: var(--font-marvin) !important;
+  font-size: var(--zz-h4-mobile) !important;
+  font-weight: 700 !important;
+  line-height: 0.8 !important;
   transition: background-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@media (min-width: 1024px) {
+  .expanded-solo-focus .solo-focus-trap-block .solo-focus-answer-option {
+    font-size: var(--zz-h4-desktop) !important;
+  }
 }
 /* Hover colours: semantic contrast block (:is yellow vs pink surfaces) */
 .expanded-solo-focus .solo-focus-trap-block .solo-focus-answer-option:active {
@@ -2459,12 +2590,6 @@ body, p, span, input, button, textarea, select,
   padding-bottom: 0;
 }
 
-.zone-focus-hidden {
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
 /* Rail stacks from top; scroll lives on body-scroll only */
 .expanded-solo-focus .solo-focus-body-scroll > .solo-focus-rail {
   flex: 0 0 auto !important;
@@ -2532,6 +2657,19 @@ body, p, span, input, button, textarea, select,
   font-weight: 700;
   font-size: 10pt;
   cursor: pointer;
+  transition:
+    transform 0.2s var(--easing-groovy),
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+.circle-btn:hover {
+  background: var(--color-purple);
+  color: var(--color-yellow);
+  transform: scale(1.03);
+}
+.circle-btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 
 /* Expanded view (purple page): circle CTAs = yellow bg, purple text */
@@ -2556,10 +2694,33 @@ body, p, span, input, button, textarea, select,
   line-height: 0.8 !important;
   letter-spacing: var(--zz-track-circle-marvin) !important;
   font-weight: 700 !important;
-  padding: 0 !important;
+  padding: 5px !important;
   background-color: var(--journey-cta-bg, var(--color-yellow)) !important;
   color: var(--journey-cta-text, var(--color-purple)) !important;
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+.expanded-solo-focus .circle-btn .circle-btn-label-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-marvin) !important;
+  font-size: var(--zz-h4-mobile) !important;
+  font-weight: 700 !important;
+  letter-spacing: var(--zz-track-circle-marvin) !important;
+  line-height: 0.8 !important;
+  text-transform: uppercase;
+  text-align: center;
+}
+@media (min-width: 1024px) {
+  .expanded-solo-focus .circle-btn .circle-btn-label-stack {
+    font-size: var(--zz-h4-desktop) !important;
+  }
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus .circle-btn,
@@ -2569,18 +2730,18 @@ body, p, span, input, button, textarea, select,
 }
 .expanded-solo-focus .circle-btn:hover,
 .expanded-solo-focus .solo-focus-action-btn:hover {
-  background-color: var(--journey-cta-bg, var(--color-yellow)) !important;
-  color: var(--journey-cta-text, var(--color-purple)) !important;
+  background-color: var(--journey-cta-text, var(--color-purple)) !important;
+  color: var(--journey-cta-bg, var(--color-yellow)) !important;
+}
+.expanded-solo-focus .circle-btn:focus-visible,
+.expanded-solo-focus .solo-focus-action-btn:focus-visible {
+  outline: 2px solid var(--journey-cta-text, var(--color-purple));
+  outline-offset: 2px;
 }
 .expanded-solo-focus .circle-btn:active,
 .expanded-solo-focus .solo-focus-action-btn:active {
   transform: scale(0.96);
 }
-.expanded-solo-focus .circle-btn .zz-h4,
-.expanded-solo-focus .solo-focus-action-btn .zz-h4 {
-  letter-spacing: var(--zz-track-circle-marvin) !important;
-}
-
 /* Solo Focus typography — scale only */
 .solo-focus-hero {
   font-family: var(--font-marvin);
@@ -3012,6 +3173,21 @@ body, p, span, input, button, textarea, select,
 .expanded-solo-focus .solo-focus-shell.view-expanded {
   background-color: var(--journey-bg, var(--color-purple)) !important;
 }
+/* Mother shell can render without .view-expanded; keep slab fill like child card. */
+.expanded-solo-focus .solo-focus-shell.solo-focus-mother {
+  background-color: var(--journey-bg, var(--color-purple)) !important;
+}
+/* Child shell must always match Mother slab color (no drift to transparent/purple overlays). */
+.expanded-solo-focus .solo-focus-shell.solo-focus-child {
+  background-color: var(--journey-bg, var(--color-purple)) !important;
+}
+/* Zone lock: never paint a secondary panel on .view-expanded wrappers. */
+.zone .view-expanded {
+  background: transparent !important;
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
 
 /* Zai: transparent page shell; yellow text; bubbles/cards stay solid */
 .zai-interface {
@@ -3291,6 +3467,20 @@ body, p, span, input, button, textarea, select,
   padding-right: clamp(12px, 4vw, 24px);
   box-sizing: border-box;
   overflow: visible;
+}
+.settings-page-title {
+  font-family: var(--font-marvin);
+  font-weight: 900;
+  font-size: var(--zz-h3-mobile);
+  letter-spacing: -0.04em;
+  line-height: 0.8;
+  color: var(--color-yellow);
+  margin: 0;
+  text-align: left;
+  text-transform: uppercase;
+}
+@media (min-width: 1024px) {
+  .settings-page-title { font-size: var(--zz-h3-desktop); }
 }
 .settings-data-value {
   font-size: var(--zz-h2-mobile);
@@ -3804,10 +3994,10 @@ body, p, span, input, button, textarea, select,
   text-align: left;
 }
 
-/* Secondary shells (Zai, Settings, Likes): large centred Marvin page title */
-.zai-interface .zz-page-title--shell,
-.settings-page .zz-page-title--shell,
-.likes-page .zz-page-title--shell {
+/* Shared page title: Marvin, centred (Zai + Settings + Likes) */
+.zai-interface .zai-page-title,
+.settings-page .zai-page-title,
+.likes-page .zai-page-title {
   text-align: center;
   font-family: var(--font-marvin);
   font-weight: bold;
@@ -3819,11 +4009,9 @@ body, p, span, input, button, textarea, select,
   margin-bottom: var(--gap-lg);
 }
 @media (min-width: 1024px) {
-  .zai-interface .zz-page-title--shell,
-  .settings-page .zz-page-title--shell,
-  .likes-page .zz-page-title--shell {
-    font-size: 90px;
-  }
+  .zai-interface .zai-page-title,
+  .settings-page .zai-page-title,
+  .likes-page .zai-page-title { font-size: 90px; }
 }
 
 .expanded-view--solid {
@@ -4417,34 +4605,6 @@ body, p, span, input, button, textarea, select,
 .zz-page.zai-page {
   /* Room above the home indicator / edge; global mesh shows through transparent shell */
   padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
-}
-
-/* Secondary full-viewport shells (Zai, Likes, Settings) — replaces ad-hoc `.zz-page` combos */
-.zz-page-shell {
-  min-height: 100vh;
-  box-sizing: border-box;
-  background: transparent;
-}
-.zai-page.zz-page-shell {
-  padding: var(--padding-md);
-  padding-top: var(--margin-top-xl);
-  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
-  display: flex;
-  flex-direction: column;
-}
-.likes-page.zz-page-shell {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  padding: var(--padding-md);
-  padding-top: var(--margin-top-xl);
-  padding-bottom: calc(var(--gap-xl) + env(safe-area-inset-bottom, 0px));
-}
-.settings-page.zz-page-shell {
-  min-height: 100vh;
-  padding: var(--padding-md);
-  padding-top: 56px;
-  padding-bottom: var(--gap-xl);
 }
 
 /* Links: purple background, yellow text */
@@ -5693,12 +5853,12 @@ select,
   align-items: center;
   gap: 12px;
 }
-/* Wrapper runs a short animation so animationend fires and intro can advance (3× faster). */
+/* Wrapper duration — keep in sync with IntroScreen.tsx GLITCH_WRAPPER_DURATION_MS */
 .zz-glitch {
   position: relative;
   width: 126px;
   height: 200px;
-  animation: glitchWrapperDone 0.67s linear forwards;
+  animation: glitchWrapperDone 670ms linear forwards;
 }
 @keyframes glitchWrapperDone {
   0% { transform: translateZ(0); }
@@ -5717,12 +5877,12 @@ select,
 .glitch-layer.base {
   z-index: 2;
   filter: none;
-  animation: glitchBase 0.67s linear forwards;
+  animation: glitchBase 670ms linear forwards;
 }
 .glitch-layer.purple {
   z-index: 1;
   filter: none;
-  animation: glitchPurple 0.67s linear forwards;
+  animation: glitchPurple 670ms linear forwards;
 }
 @keyframes glitchPurple {
   0%   { opacity: 0; transform: translate(0,0); }
@@ -5737,6 +5897,44 @@ select,
   100% { opacity: 1; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .zz-glitch,
+  .zz-glitch .glitch-layer.base,
+  .zz-glitch .glitch-layer.purple {
+    animation: none !important;
+  }
+  .zz-glitch .glitch-layer.base {
+    opacity: 1;
+  }
+  .zz-glitch .glitch-layer.purple {
+    opacity: 0;
+    transform: none;
+  }
+}
+
+/* v6 / v6.1 — Kinetic shimmer + CTA bloom. Motion: lib/animations SHIMMER_FOCUS_* & INTRO_DECISION_CTA_*.
+   Profile: `.profile-step-slam.zz-shimmer-focus` (step shell), `.profile-answer-btn.zz-shimmer-cta` (100×100 circles). */
+.zz-shimmer-focus {
+  will-change: filter, transform;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.zz-shimmer-cta {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zz-shimmer-focus {
+    will-change: opacity;
+  }
+  .zz-shimmer-cta {
+    will-change: opacity;
+  }
+}
+
 
 /* ========== v1.8.3 merged from zone.css (purge) ========== */
 /* Zone Page — Physical UI + FORK-ZONE-SPEC */
@@ -5747,16 +5945,8 @@ select,
   align-items: center;
   width: 100%;
   min-height: 100vh;
-  /* Desktop: FloatingNav is top-right — no large bottom gutter. Mobile: reserve space for bottom nav pill. */
-  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  padding-bottom: 0;
   box-sizing: border-box;
-}
-
-@media (max-width: 1023px) {
-  .zone {
-    /* Bottom pill nav (~60px hit + padding + offset) — tight but clears the bar */
-    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-  }
 }
 /* Three-colour lock: solid text only (no tints) */
 .zone,
@@ -5835,6 +6025,18 @@ select,
 
 .zone-anchor .zone-masthead {
   margin-bottom: 12px;
+}
+
+/* Hard lock: no panel/tint behind "USE LESS, MORE." masthead cluster. */
+.zone .zone-anchor,
+.zone .zone-anchor .zone-masthead,
+.zone .zone-menu,
+.zone .zone-menu-line {
+  background: transparent !important;
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
 }
 
 /* Menu: "USE LESS, MORE" top left — inherits zone main color (yellow on purple) */
@@ -5979,6 +6181,12 @@ select,
   overflow-x: hidden;
   padding-left: 0;
   padding-right: 0;
+}
+
+.groovy-zone-grid {
+  margin-top: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .bento-grid {
@@ -6640,23 +6848,11 @@ h1, h2, h3, h4, h5, h6,
 .groovy-zone-grid .bento-card-groovy {
   min-width: 0;
   min-height: 0;
+  height: 100%;
 }
 
 .groovy-zone-grid .bento-card-groovy {
   overflow: hidden;
-}
-
-/* Journey category tiles: pack content from the top — avoids space-between + tall row min-height gap under impact (tips use the same shell but read tighter with shorter copy). */
-.groovy-zone-grid .bento-card-groovy[data-journey] {
-  justify-content: flex-start;
-  gap: clamp(10px, 1.4vw, 16px);
-  padding-bottom: clamp(14px, 2vw, 22px) !important;
-}
-.groovy-zone-grid .bento-card-groovy[data-journey] .card-headline {
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  height: auto !important;
-  flex: 0 1 auto;
 }
 
 /* Final masthead lock: force tighter "use less, / more." stack */

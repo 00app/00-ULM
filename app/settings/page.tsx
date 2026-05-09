@@ -8,14 +8,16 @@ import { useApp, type ProfileAge } from '@/app/context/AppContext'
 import { motion } from 'framer-motion'
 import { JOURNEY_ORDER, JOURNEYS, getFunkyOptionDisplay, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
-import { SPRING_TAP, SPRING_BLOOM, WORD_APPEAR } from '@/lib/animations'
+import { ENGINE_UI_LABELS } from '@/lib/logic/engine'
+import { SPRING_TAP, SPRING_BLOOM, KINETIC_ZIP_PULSE } from '@/lib/animations'
 import { SoloFocusOverlay } from '@/app/components/SoloFocusOverlay'
 import { AnimatePresence } from 'framer-motion'
-import { buildZoneViewModel } from '@/lib/zone/buildZoneViewModel'
+import { buildZoneViewModel } from '@/lib/logic/zone'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { clearLocalStorageExceptProfileAndUser } from '@/lib/utils/migrate'
+import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 
 const PROFILE_LABELS: Record<string, string> = {
   name: "What's your name?",
@@ -110,9 +112,9 @@ function SettingsBentoCard({
           <span style={{ width: 42, height: 42 }} aria-hidden />
         )}
       </div>
-      <h2 className="card-headline m-0" style={{ color: textColor }}>
+      <h3 className="card-headline m-0" style={{ color: textColor }}>
         {headline}
-      </h2>
+      </h3>
       {children}
     </div>
   )
@@ -152,11 +154,39 @@ export default function SettingsPage() {
   const router = useRouter()
   const [hasMounted, setHasMounted] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [liveTotals, setLiveTotals] = useState<{ savings: number; carbon: number } | null>(null)
   const [activeJourneyEdit, setActiveJourneyEdit] = useState<{ id: JourneyId; title: string } | null>(null)
   
   useEffect(() => setHasMounted(true), [])
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onMemory = () => setRefreshKey((k) => k + 1)
+    window.addEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onMemory)
+    return () => window.removeEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onMemory)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/summary?type=profile', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled) return
+        const savings = Number(d?.savings)
+        const carbon = Number(d?.carbon)
+        if (Number.isFinite(savings) && Number.isFinite(carbon)) {
+          setLiveTotals({ savings: Math.max(0, savings), carbon: Math.max(0, carbon) })
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLiveTotals(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [refreshKey, state.profile?.postcode, state.journeyAnswers])
 
   const profileForOverview = useMemo(() => {
+    void refreshKey
     const p = state.profile
     if (p) return p
     if (typeof window === 'undefined' || !hasMounted) return null
@@ -169,7 +199,7 @@ export default function SettingsPage() {
     if (!name && !postcode) return null
     const employmentStatus = localStorage.getItem('profile_employment_status') ?? ''
     return { name, postcode, livingSituation, homeType, transport, age, employmentStatus }
-  }, [state.profile, hasMounted])
+  }, [state.profile, hasMounted, refreshKey])
 
   const profileRows = useMemo(() => {
     if (!profileForOverview) return []
@@ -190,6 +220,7 @@ export default function SettingsPage() {
   }, [profileForOverview])
 
   const journeyCardsData = useMemo(() => {
+    void refreshKey
     if (typeof window === 'undefined' || !hasMounted) return []
     const cards: { journey: JourneyId; title: string; answers: { question: string; answer: string }[] }[] = []
     JOURNEY_ORDER.forEach((jid) => {
@@ -210,9 +241,11 @@ export default function SettingsPage() {
       }
     })
     return cards
-  }, [hasMounted])
+  }, [hasMounted, refreshKey])
 
   const journeyAnswers = useMemo((): Record<JourneyId, Record<string, string>> => {
+    void refreshKey
+    void state.journeyAnswers
     if (typeof window === 'undefined' || !hasMounted) return {} as Record<JourneyId, Record<string, string>>
     const out = {} as Record<JourneyId, Record<string, string>>
     JOURNEY_ORDER.forEach((jid) => {
@@ -225,7 +258,7 @@ export default function SettingsPage() {
       }
     })
     return out
-  }, [hasMounted])
+  }, [hasMounted, refreshKey, state.journeyAnswers])
 
   const viewModel = useMemo(() => {
     const validAges: ProfileAge[] = ['JUNIOR', 'MID', 'RETIRED']
@@ -259,8 +292,8 @@ export default function SettingsPage() {
 
   const heroMoney = viewModel?.hero?.data?.money ?? '0'
   const heroCarbonStr = viewModel?.hero?.data?.carbon ?? '0'
-  const displayMoneyNum = parseMoneyGbpFromDisplay(heroMoney)
-  const carbonNum = parseCarbonKgFromDisplay(heroCarbonStr)
+  const displayMoneyNum = liveTotals?.savings ?? parseMoneyGbpFromDisplay(heroMoney)
+  const carbonNum = liveTotals?.carbon ?? parseCarbonKgFromDisplay(heroCarbonStr)
 
   const animatedMoney = useCountUp(displayMoneyNum, { duration: 900 })
   const animatedCarbon = useCountUp(carbonNum, { duration: 900 })
@@ -273,15 +306,21 @@ export default function SettingsPage() {
 
   return (
     <motion.div
-      className="settings-page zz-page-shell"
-      style={{ color: 'var(--color-yellow)', position: 'relative' }}
-      {...WORD_APPEAR}
+      className="settings-page"
+      style={{
+        color: 'var(--color-yellow)',
+        minHeight: '100vh',
+        position: 'relative',
+        paddingTop: 56,
+        paddingBottom: 40,
+      }}
+      {...KINETIC_ZIP_PULSE}
     >
       <ZoneBackToZoneLink />
 
       {/* Heading centred in the middle (horizontal centre) */}
       <div className="settings-heading-wrap">
-        <h1 className="zz-page-title zz-page-title--shell">Settings</h1>
+        <h1 className="zz-page-title zai-page-title">Settings</h1>
       </div>
 
       <div className="settings-grid-wrap">
@@ -299,8 +338,8 @@ export default function SettingsPage() {
                 style={{ color: 'var(--color-yellow)', ['--color-ink' as string]: 'var(--color-yellow)' }}
               >
                 <div className="grid grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-0 items-start settings-overview-impact-grid">
-                  <span className="data-label text-marvin settings-overview-label">SAVE</span>
-                  <span className="data-label text-marvin settings-overview-label">CARBON</span>
+                  <span className="data-label text-marvin settings-overview-label">{ENGINE_UI_LABELS.potentialSavings}</span>
+                  <span className="data-label text-marvin settings-overview-label">{ENGINE_UI_LABELS.carbon}</span>
                   <span
                     className="data-value text-marvin font-bold settings-data-value data-stamp-metric"
                     style={{ color: 'var(--color-ink)' }}

@@ -13,6 +13,8 @@ import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+export const maxDuration = 60
 
 async function geminiPulseNote(): Promise<string | null> {
   const key = process.env.GEMINI_API_KEY?.trim()

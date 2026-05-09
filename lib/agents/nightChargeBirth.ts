@@ -3,7 +3,7 @@
  */
 
 import { validateInjectionCard } from '@/lib/zone/injections'
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 
 const NIGHT_INTENSITY_THRESHOLD_G = 50
 

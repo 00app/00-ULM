@@ -9,13 +9,13 @@
     "dev:alt": "WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev -p 3001 -H 127.0.0.1",
     "dev:open": "WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev -p 3030 -H 0.0.0.0",
     "run": "rm -rf .next node_modules/.cache && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev -p 3030 -H 0.0.0.0",
-    "ultimate": "npm install && node scripts/ensure-dev-manifests.js && npm run build",
+    "ultimate": "node scripts/npm-sandbox-clean.cjs install && node scripts/ensure-dev-manifests.js && node scripts/build-with-manifest-fix.js",
     "ultimate:dev": "node scripts/ultimate-dev.js",
     "build": "node scripts/build-with-manifest-fix.js",
     "build:clean": "rm -rf .next && BUILD_CLEAN=0 node scripts/build-with-manifest-fix.js",
-    "build:all": "rm -rf .next && npm install && npm run build",
+    "build:all": "rm -rf .next && node scripts/npm-sandbox-clean.cjs install && node scripts/build-with-manifest-fix.js",
     "build:next": "node node_modules/.bin/next build",
-    "setup": "npm install && rm -rf .next && npm run build",
+    "setup": "node scripts/npm-sandbox-clean.cjs install && rm -rf .next && node scripts/build-with-manifest-fix.js",
     "start": "node scripts/ensure-dev-manifests.js && node node_modules/.bin/next start",
     "start:3001": "node node_modules/.bin/next start -p 3001",
     "start:3030": "node node_modules/.bin/next start -p 3030",
@@ -24,7 +24,7 @@
     "start:5000": "node node_modules/.bin/next start -p 5000",
     "start:8765": "node node_modules/.bin/next start -p 8765",
     "check": "tsc --noEmit",
-    "check:build": "tsc --noEmit && npm run build",
+    "check:build": "tsc --noEmit && node scripts/build-with-manifest-fix.js",
     "lint": "node node_modules/.bin/eslint .",
     "audit": "npm audit",
     "test:e2e": "playwright test",
@@ -34,16 +34,16 @@
     "test:schema:firecrawl-zone": "node scripts/validate-firecrawl-zone-schema.mjs",
     "test:firecrawl:zone-schema": "tsx scripts/test-firecrawl.ts --zone-schema",
     "deploy": "vercel --prod --yes",
-    "ship": "npm run build && npm run deploy",
+    "ship": "node scripts/build-with-manifest-fix.js && vercel --prod --yes",
     "init-db": "tsx scripts/init-db.ts",
     "reset-db": "tsx scripts/reset-schema.ts"
   },
   "dependencies": {
+    "@google/genai": "^1.50.1",
     "@google/generative-ai": "^0.21.0",
     "@mendable/firecrawl-js": "^1.29.3",
     "@neondatabase/serverless": "^1.0.2",
     "@vercel/analytics": "^2.0.1",
-    "@vercel/sandbox": "^1.9.0",
     "ai": "^6.0.168",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
@@ -67,13 +67,14 @@
     "autoprefixer": "^10.4.17",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.2.4",
-    "postcss": "8.4.35",
+    "postcss": "^8.5.14",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   },
   "overrides": {
-    "postcss": "8.4.35"
+    "axios": "^1.15.2",
+    "postcss": "^8.5.14"
   },
   "engines": {
     "node": ">=18"

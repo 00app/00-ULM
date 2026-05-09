@@ -163,6 +163,9 @@ CREATE TABLE IF NOT EXISTS research_results (
   citations JSONB DEFAULT '[]',
   elec_unit_rate_gbp_per_kwh DOUBLE PRECISION,
   gas_unit_rate_gbp_per_kwh DOUBLE PRECISION,
+  deep_link TEXT,
+  verified_saving DOUBLE PRECISION,
+  locality_context TEXT,
   source_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -172,6 +175,12 @@ CREATE INDEX IF NOT EXISTS idx_research_results_created_at ON research_results(c
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS provider_name TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS agent_headline TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS openclaw_raw_json JSONB;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS elec_unit_rate_gbp_per_kwh DOUBLE PRECISION;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS gas_unit_rate_gbp_per_kwh DOUBLE PRECISION;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS deep_link TEXT;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS verified_saving DOUBLE PRECISION;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS locality_context TEXT;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS source_url TEXT;
 
 -- Optional question bank — query with WHERE journey_key = $1 only (no cross-category leak).
 CREATE TABLE IF NOT EXISTS journey_questions (
@@ -223,3 +232,19 @@ CREATE TABLE IF NOT EXISTS micro_answers (
   answer TEXT,
   created_at TIMESTAMP DEFAULT now()
 );
+
+-- =========================
+-- SCRAPED SUMMARY (001 scraper output for Zone overlay)
+-- =========================
+CREATE TABLE IF NOT EXISTS scraped_summary (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  journey_key TEXT NOT NULL,
+  scraped_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  carbon_value INTEGER NOT NULL,
+  money_value INTEGER NOT NULL,
+  deep_content_tip TEXT,
+  high_saving BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE (journey_key)
+);
+CREATE INDEX IF NOT EXISTS idx_scraped_summary_journey ON scraped_summary(journey_key);
+CREATE INDEX IF NOT EXISTS idx_scraped_summary_scraped_at ON scraped_summary(scraped_at);

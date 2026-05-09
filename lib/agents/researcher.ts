@@ -10,7 +10,7 @@ import {
   fetchUkEconomicSeedMarkdown,
   OFGEM_LIVE_PRICE_CAP_URL,
 } from '@/lib/agents/scraper'
-import { PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
+import { APRIL_2026_TRUTH_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
 import type { ResearchCitation, ResearchProfileData, ZeroResearchResult } from '@/lib/agents/researchAgent'
 
 const GATEWAY_HTTP = (process.env.OPENCLAW_GATEWAY_URL ?? 'http://127.0.0.1:18789').replace(/\/$/, '')
@@ -62,7 +62,7 @@ function accumulateMarkdownFromMessage(buf: string, raw: string): string {
 
 /** Collect streamed markdown from the research gateway WebSocket. */
 export function gatherResearchMarkdownViaWebSocket(body: Record<string, unknown>): Promise<string> {
-  const token = process.env.OPENCLAW_GATEWAY_TOKEN?.trim()
+  const token = process.env.OPENCLAW_API_KEY?.trim() || process.env.OPENCLAW_GATEWAY_TOKEN?.trim()
   if (!token) return Promise.resolve('')
 
   return new Promise((resolve) => {
@@ -130,7 +130,7 @@ export function gatherResearchMarkdownViaWebSocket(body: Record<string, unknown>
 }
 
 async function invokeGatewayHttp(body: Record<string, unknown>): Promise<ZeroResearchResult | null> {
-  const token = process.env.OPENCLAW_GATEWAY_TOKEN?.trim()
+  const token = process.env.OPENCLAW_API_KEY?.trim() || process.env.OPENCLAW_GATEWAY_TOKEN?.trim()
   if (!token) return null
   try {
     const res = await fetch(`${GATEWAY_HTTP}/tools/invoke`, {
@@ -158,6 +158,44 @@ function normalizeGbpPerKwh(n: unknown): number | null {
   if (v > 2) v /= 100
   if (v < 0.02 || v > 1.2) return null
   return Math.round(v * 10000) / 10000
+}
+
+function parseUnitRatesFromRegex(markdown: string): {
+  electricityGbpPerKwh: number | null
+  gasGbpPerKwh: number | null
+} {
+  const text = markdown.replace(/\s+/g, ' ')
+  const elecCandidates = [
+    /electricity[^.\d]{0,40}(\d{1,2}(?:\.\d{1,3})?)\s*p\/?\s*kwh/i,
+    /electric[^.\d]{0,40}(\d{1,2}(?:\.\d{1,3})?)\s*p\/?\s*kwh/i,
+  ]
+  const gasCandidates = [
+    /gas[^.\d]{0,40}(\d{1,2}(?:\.\d{1,3})?)\s*p\/?\s*kwh/i,
+  ]
+  const pick = (patterns: RegExp[]): number | null => {
+    for (const re of patterns) {
+      const m = text.match(re)
+      const v = Number(m?.[1] ?? NaN)
+      if (Number.isFinite(v)) return normalizeGbpPerKwh(v / 100)
+    }
+    return null
+  }
+  return {
+    electricityGbpPerKwh: pick(elecCandidates),
+    gasGbpPerKwh: pick(gasCandidates),
+  }
+}
+
+function isWeakResearchMarkdown(markdown: string): boolean {
+  const t = markdown.toLowerCase()
+  if (t.length < 220) return true
+  const weakMarkers = [
+    "sorry, we can't seem to find that content",
+    "sorry, we couldn’t find that page",
+    "that content isn't available",
+    'no scraped content available',
+  ]
+  return weakMarkers.some((m) => t.includes(m))
 }
 
 /**
@@ -196,12 +234,17 @@ ${markdown.slice(0, 12_000)}`
       electricity_gbp_per_kwh?: unknown
       gas_gbp_per_kwh?: unknown
     }
-    return {
+    const llm = {
       electricityGbpPerKwh: normalizeGbpPerKwh(parsed.electricity_gbp_per_kwh as number),
       gasGbpPerKwh: normalizeGbpPerKwh(parsed.gas_gbp_per_kwh as number),
     }
+    const regex = parseUnitRatesFromRegex(markdown)
+    return {
+      electricityGbpPerKwh: llm.electricityGbpPerKwh ?? regex.electricityGbpPerKwh,
+      gasGbpPerKwh: llm.gasGbpPerKwh ?? regex.gasGbpPerKwh,
+    }
   } catch {
-    return { electricityGbpPerKwh: null, gasGbpPerKwh: null }
+    return parseUnitRatesFromRegex(markdown)
   }
 }
 
@@ -215,6 +258,45 @@ function citationForOfgem(snippet: string): ResearchCitation[] {
       title: 'Energy price cap',
     },
   ]
+}
+
+async function fetchDuckDuckGoFallbackMarkdown(query: string): Promise<{
+  markdown: string
+  citations: ResearchCitation[]
+} | null> {
+  try {
+    const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'text/html,application/xhtml+xml',
+        'User-Agent': 'zero-zero-research-fallback/1.0',
+      },
+      cache: 'no-store',
+    })
+    if (!res.ok) return null
+    const html = await res.text()
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 3500)
+    if (text.length < 80) return null
+    return {
+      markdown: `## DuckDuckGo fallback research\n\n${text}`,
+      citations: [
+        {
+          source_name: 'DuckDuckGo',
+          url,
+          snippet: text.slice(0, 320),
+          title: 'DuckDuckGo search fallback',
+        },
+      ],
+    }
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -247,8 +329,27 @@ export async function triggerSupplementalResearch(params: {
       citations = citationForOfgem(fallbackMd)
     }
   }
+  if (markdown.length < 200 && !process.env.FIRECRAWL_API_KEY?.trim()) {
+    const ddg = await fetchDuckDuckGoFallbackMarkdown(
+      `UK energy price cap ${params.postcode ?? ''} Ofgem April 2026`
+    )
+    if (ddg && ddg.markdown.length > markdown.length) {
+      markdown = ddg.markdown
+      citations = ddg.citations
+    }
+  }
 
   if (markdown.length < 40) return null
+
+  if (isWeakResearchMarkdown(markdown)) {
+    const ddg = await fetchDuckDuckGoFallbackMarkdown(
+      `Ofgem electricity p/kWh gas p/kWh April 2026 default tariff UK`
+    )
+    if (ddg && ddg.markdown.length > markdown.length) {
+      markdown = ddg.markdown
+      citations = ddg.citations
+    }
+  }
 
   if (process.env.FIRECRAWL_API_KEY?.trim()) {
     const seeds = await fetchUkEconomicSeedMarkdown()
@@ -264,17 +365,47 @@ export async function triggerSupplementalResearch(params: {
   const result: ZeroResearchResult = { markdown, citations }
 
   if (params.persistToNeon) {
-    const parsed = await parseApril2026UnitRatesFromMarkdown(markdown)
+    let parsed = await parseApril2026UnitRatesFromMarkdown(markdown)
+    if (parsed.electricityGbpPerKwh == null || parsed.gasGbpPerKwh == null) {
+      const ddgRates = await fetchDuckDuckGoFallbackMarkdown(
+        `UK Ofgem default tariff unit rates electricity gas p/kWh`
+      )
+      if (ddgRates?.markdown) {
+        const reparsed = await parseApril2026UnitRatesFromMarkdown(
+          `${markdown}\n\n---\n\n${ddgRates.markdown}`
+        )
+        parsed = {
+          electricityGbpPerKwh: reparsed.electricityGbpPerKwh ?? parsed.electricityGbpPerKwh,
+          gasGbpPerKwh: reparsed.gasGbpPerKwh ?? parsed.gasGbpPerKwh,
+        }
+      }
+    }
+    const degraded =
+      parsed.electricityGbpPerKwh == null || parsed.gasGbpPerKwh == null || isWeakResearchMarkdown(markdown)
+    // Never persist null rates; lock to April 2026 truth when scrape quality is degraded.
+    const persistedElec = parsed.electricityGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH / 100
+    const persistedGas = parsed.gasGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.GAS_PER_KWH / 100
     const { persistResearchResult } = await import('@/lib/agents/researchAgent')
     await persistResearchResult({
       postcode: params.postcode,
       profileData: params.profileData,
       markdown,
       citations,
-      elecUnitRateGbpPerKwh: parsed.electricityGbpPerKwh,
-      gasUnitRateGbpPerKwh: parsed.gasGbpPerKwh,
+      elecUnitRateGbpPerKwh: persistedElec,
+      gasUnitRateGbpPerKwh: persistedGas,
       sourceUrl: PRICE_CAP_SOURCE_URL,
-      invokePayload: { trigger: 'Location', markdownChars: markdown.length, citationCount: citations.length },
+      providerName: degraded ? 'Ofgem (degraded fallback)' : 'Ofgem',
+      invokePayload: {
+        trigger: 'Location',
+        markdownChars: markdown.length,
+        citationCount: citations.length,
+        degraded,
+        parsedRates: parsed,
+        persistedRates: {
+          electricityGbpPerKwh: persistedElec,
+          gasGbpPerKwh: persistedGas,
+        },
+      },
     })
   }
 

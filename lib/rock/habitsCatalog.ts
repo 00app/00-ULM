@@ -8,6 +8,7 @@ import type { RockHabit } from '@/lib/rock/types'
 import { trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 import { defaultVerifiedArchitectSuppliedBy } from '@/lib/soloFocusSuppliedBy'
+import { VERIFIED_SOURCE_DATE, resolvePartnerLink, formatVerifiedSourceNameFromLabel } from '@/lib/zone/verifiedRevenue'
 
 export const ROCK_HABIT_COUNT = 60
 
@@ -579,9 +580,18 @@ export function sumRockLikedImpact(likedCardIds: readonly string[]): { money: nu
   return { money, carbon }
 }
 
-export function habitToTipCard(h: RockHabit): import('@/lib/zone/buildZoneViewModel').ZoneTipCard {
+export function habitToTipCard(h: RockHabit): import('@/lib/logic/zone').ZoneTipCard {
   const learnUrl = (h.learn_url?.trim() || trustedUrlForJourney(h.journey_key)).trim()
   const sourceLabel = `source. ${h.provider_name}`
+  const source_name = formatVerifiedSourceNameFromLabel(h.provider_name)
+  const partner_link = resolvePartnerLink({
+    journey: h.journey_key,
+    actionType: 'learn',
+    needsSwitching: false,
+    learnUrl,
+    sourceUrl: learnUrl,
+    variant: 'tip',
+  })
   return {
     id: rockCardId(h.slug),
     variant: 'card-compact',
@@ -595,6 +605,9 @@ export function habitToTipCard(h: RockHabit): import('@/lib/zone/buildZoneViewMo
     explanation: [h.insight],
     source: learnUrl,
     sourceLabel,
+    source_name,
+    source_date: VERIFIED_SOURCE_DATE,
+    partner_link,
     architectSuppliedBy: defaultVerifiedArchitectSuppliedBy({
       sourceLabel,
       sourceUrl: learnUrl,

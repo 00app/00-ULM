@@ -2,24 +2,27 @@
 
 /**
  * Solo Focus expanded view — same content template as JourneyBentoCard expanded (kinetic grid).
- * Tips / filler use this overlay; journey cards use JourneyBentoCard + shared layoutId where applicable.
+ * Tips use this overlay; journey cards use JourneyBentoCard + shared layoutId where applicable.
  * §18.5: portaled to `document.body`; v1.8.3: QUESTION ↔ RESULT (140ms), source footer, insight/RESULT asterisk lock.
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { type JourneyId, getOptionFullLabel } from '@/lib/journeys'
 import { formatMoneyImpact, formatCarbonImpact, formatZoneCardMoney } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
 import {
+  ELASTIC_PING,
+  INTRO_FADE_UP_NO_DELAY,
   FADE_VARIANTS,
   SPRING_TAP,
   SPRING_BLOOM,
+  SHIMMER_FOCUS,
   soloFocusSlamMotionProps,
+  soloFocusShellZipMotionProps,
+  ZIP_OPEN_Z_ANIMATE,
   SLAM_SPRING,
-  DAMPED_SLAM_INITIAL,
-  DAMPED_SLAM_ANIMATE,
 } from '@/lib/animations'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import {
@@ -28,7 +31,7 @@ import {
 } from '@/lib/soloFocusImpactParse'
 import { EmbeddedJourneyQuestion } from '@/app/components/EmbeddedJourneyQuestion'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 import { useApp } from '@/app/context/AppContext'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import {
@@ -39,28 +42,36 @@ import {
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
 import { injectNewDiscoveryCard } from '@/lib/discoveryInject'
-import { IndustrialHandoffButton } from '@/app/components/ui/Buttons'
+import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import {
   PRICE_CAP_APRIL_2026,
   PRICE_CAP_MARCH_2026,
   PRICE_CAP_SAVING_APRIL_1,
 } from '@/lib/brains/constants'
-import { isScottishPostcodeArea, regionalHeatPumpGrantGbp } from '@/lib/zone/regionalGrants'
 import { normalizeCategoryToJourneyKey, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 import {
+  COLOR_YELLOW,
   getJourneyCardTextHex,
+  getJourneyColorHex,
   getJourneyCtaBgHex,
   getJourneyCtaTextHex,
   getSystemCtaBgHex,
   getSystemCtaTextHex,
 } from '@/lib/journeyColors'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
-import { pickPrimaryHttpUrl, fallbackDiagnosticUrl } from '@/lib/soloFocusDiagnosticMeta'
+import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
-import { locationInPhrase } from '@/lib/locationIdentity'
 import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
+import { getNextQuestion } from '@/lib/zone/questionHandler'
+import {
+  VERIFIED_SOURCE_DATE,
+  formatVerifiedCitation,
+  inferRevenueCtaKind,
+  pickFirstHttpUrl,
+  resolveRevenueCtaLabel,
+} from '@/lib/zone/verifiedRevenue'
 
 export interface SoloFocusOverlayProps {
   category: string
@@ -88,6 +99,15 @@ export interface SoloFocusOverlayProps {
   startInQuestionMode?: boolean
   /** After POST /api/answers + RESULT (e.g. Rock: rotate slot / zip-shutter — not tied to Like). */
   onEmbeddedAnswerSuccess?: (info: { cardId?: string }) => void
+  ctaLabel?: string
+  /** v35.0 */
+  partnerLink?: string | null
+  verifiedSourceName?: string | null
+  verifiedSourceDate?: string | null
+  tipNeedsSwitching?: boolean
+  isPriorityHome?: boolean
+  /** v42.8 — when LIVE, header shows VERIFIED with locality even if title lacks prefix. */
+  auditState?: 'LIVE_AUDIT' | 'ESTIMATED_AUDIT' | null
 }
 
 function triggerHaptic(p: 'light' | 'medium' | 'heavy') {
@@ -98,66 +118,10 @@ function triggerHaptic(p: 'light' | 'medium' | 'heavy') {
   }
 }
 
-function BentoNortheastOpenArrow({ size = 22 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M7 17L17 7M17 7H7M17 7v10" />
-    </svg>
-  )
-}
-
 function trimToWords(text: string, maxWords: number): string {
   const words = text.trim().split(/\s+/).filter(Boolean)
   if (words.length <= maxWords) return text.trim()
   return `${words.slice(0, maxWords).join(' ')}...`
-}
-
-const WORD_CYCLE_STAGGER_S = 0.12
-
-function renderWordCycle(text: string, keyPrefix: string) {
-  const words = text.trim().split(/\s+/).filter(Boolean)
-  return (
-    <motion.span
-      initial="hidden"
-      animate="show"
-      variants={{
-        hidden: {},
-        show: {
-          transition: {
-            staggerChildren: WORD_CYCLE_STAGGER_S,
-          },
-        },
-      }}
-      style={{ display: 'inline' }}
-    >
-      {words.map((word, idx) => (
-        <motion.span
-          key={`${keyPrefix}-${idx}-${word}`}
-          variants={{
-            hidden: { opacity: 0, y: 6 },
-            show: {
-              opacity: 1,
-              y: 0,
-              transition: { duration: WORD_CYCLE_STAGGER_S, ease: [0.22, 1, 0.36, 1] },
-            },
-          }}
-          style={{ display: 'inline-block', marginRight: idx === words.length - 1 ? 0 : '0.32ch' }}
-        >
-          {word}
-        </motion.span>
-      ))}
-    </motion.span>
-  )
 }
 
 type OverlayViewState = 'QUESTION' | 'RESULT'
@@ -185,11 +149,23 @@ export function SoloFocusOverlay({
   onDiscoveryTrapComplete,
   startInQuestionMode = false,
   onEmbeddedAnswerSuccess,
+  ctaLabel,
+  partnerLink,
+  verifiedSourceName,
+  verifiedSourceDate,
+  tipNeedsSwitching = false,
+  isPriorityHome = false,
+  auditState = null,
 }: SoloFocusOverlayProps) {
   const { setHeroTotals, state, toggleLike } = useApp()
-  const prefersReducedMotion = useReducedMotion()
   const profilePostcode = state.profile?.postcode ?? null
-  const locationPhrase = locationInPhrase(state.locationState?.locationName ?? '')
+  const localityLabel = (state.locationState?.locationName ?? '').trim().toUpperCase()
+  const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(title ?? ''))
+  const useEstimated =
+    auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
+  const auditHeaderLabel = localityLabel
+    ? `OFFER PREVIEW — ${localityLabel}`
+    : 'OFFER PREVIEW'
   const [trapComplete, setTrapComplete] = useState(() => !discoveryFollowUp)
   const sfStorageKey = `zz_sf_view_${cardId ?? 'solo-overlay'}`
   const [viewState, setViewState] = useState<OverlayViewState>(() => {
@@ -227,9 +203,12 @@ export function SoloFocusOverlay({
   const [questionCount, setQuestionCount] = useState(0)
 
   useEffect(() => {
-    const lk = `zz_sf_lane_${cardId ?? journeyId ?? 'solo-overlay'}`
+    const core = cardId ?? journeyId ?? 'solo-overlay'
+    const lk = `zz_sf_lane_${core}`
+    const qk = `zz_sf_q_${core}`
     try {
       sessionStorage.removeItem(lk)
+      sessionStorage.removeItem(qk)
     } catch {
       /* ignore */
     }
@@ -309,7 +288,30 @@ export function SoloFocusOverlay({
         })()
       : ''
 
-  const resolvedOpenUrl =
+  const isGenericHomepageUrl = (u: string): boolean => {
+    try {
+      const parsed = new URL(u)
+      return parsed.pathname === '/' || parsed.pathname === ''
+    } catch {
+      return false
+    }
+  }
+  const buildZaiAuditUrl = (): string => {
+    const journeyKey = String(displayJourneyId || journeyId || 'home')
+    const context = `reclaim_${journeyKey}`
+    const params = new URLSearchParams({
+      context,
+      journey: journeyKey,
+      title: String(displayTitle || title || displayRecommendation || ''),
+      money: String(Math.round(moneyTargetGbp)),
+      carbon: String(Math.round(carbonTargetKg)),
+      source: String(sourceLabel || ''),
+    })
+    return `/zai?${params.toString()}`
+  }
+
+  const partnerHttp = pickFirstHttpUrl(partnerLink ?? undefined)
+  const liveDiscoveryUrl =
     [
       liveClaimUrl,
       morphLearnResolved,
@@ -317,7 +319,12 @@ export function SoloFocusOverlay({
       offerUrl,
       sourceUrl,
       discoveryRecUrl,
-    ].find((u) => typeof u === 'string' && u.trim().length > 0)?.trim() ?? ''
+    ]
+      .find(
+        (u) => typeof u === 'string' && u.trim().length > 0 && !isGenericHomepageUrl(u.trim())
+      )
+      ?.trim()
+  const resolvedOpenUrl = liveDiscoveryUrl || partnerHttp || buildZaiAuditUrl()
 
   const effectiveTitleRaw = currentMorphData
     ? String(displayTitle || displayRecommendation).trim() || displayRecommendation
@@ -325,13 +332,7 @@ export function SoloFocusOverlay({
       String(displayTitle || displayRecommendation || title).trim() ||
       displayRecommendation
   const isZoneMotherChild = !startInQuestionMode
-  const isWickHome = Boolean(
-    String(displayJourneyId ?? journeyId ?? '').toLowerCase() === 'home' &&
-    profilePostcode?.toUpperCase().startsWith('KW')
-  )
-  const recommendationTitle = (
-    isWickHome ? '£9,000 RURAL HEAT GRANT' : headlineFromTitle(effectiveTitleRaw)
-  ).toUpperCase()
+  const recommendationTitle = headlineFromTitle(effectiveTitleRaw, 12).toUpperCase()
   let sourceName = sourceLabel
   if (!sourceName && resolvedOpenUrl) {
     try { sourceName = new URL(resolvedOpenUrl).hostname.replace('www.', '') } catch {}
@@ -345,9 +346,20 @@ export function SoloFocusOverlay({
     liveScrapeSourceUrl: pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) ?? undefined,
   })
   const diagnosticUrl =
-    pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) ||
-    fallbackDiagnosticUrl((displayJourneyId as JourneyId | undefined) ?? journeyId ?? null)
-  const scrapedOverlay = composeScrapedInsightDescription([displayInsight ?? insight], 3).trim()
+    pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) || buildZaiAuditUrl()
+  const rawInsight = (displayInsight ?? insight ?? '').trim()
+  const preSplitAuditor =
+    rawInsight.includes('\n\n')
+      ? rawInsight
+          .split(/\n\s*\n/)
+          .map((x: string) => x.trim())
+          .filter(Boolean)
+          .slice(0, 3)
+      : []
+  const scrapedOverlay =
+    preSplitAuditor.length >= 3
+      ? preSplitAuditor.join(' ')
+      : composeScrapedInsightDescription([displayInsight ?? insight], 3).trim()
   const genericCopy = /answer a few questions|personalise your/i
   const insightDisplay =
     scrapedOverlay && !genericCopy.test(scrapedOverlay)
@@ -355,19 +367,60 @@ export function SoloFocusOverlay({
       : resolvedOpenUrl.trim() && sourceName
         ? `${sourceName} carries the tariff notes, eligibility copy, and programme detail behind this headline. Use the link to read the authoritative wording on site before acting.`
         : scrapedOverlay
-  const insightParagraphs = (() => {
+  const insightNarrative = ((): string => {
+    if (preSplitAuditor.length >= 3) {
+      return preSplitAuditor
+        .map((p: string) => trimToWords(p, 34))
+        .filter((p: string, idx: number, arr: string[]) => arr.findIndex((candidate: string) => candidate.toLowerCase() === p.toLowerCase()) === idx)
+        .join(' ')
+    }
     const base = (insightDisplay || '').trim()
-    if (!base) return [] as string[]
+    if (!base) return ''
+    const paragraphChunks = base
+      .split(/\n\s*\n/)
+      .map((part: string) => part.trim())
+      .filter(Boolean)
+    if (paragraphChunks.length >= 3) {
+      return paragraphChunks
+        .slice(0, 3)
+        .map((p: string) => trimToWords(p, 34))
+        .filter((p: string, idx: number, arr: string[]) => arr.findIndex((candidate: string) => candidate.toLowerCase() === p.toLowerCase()) === idx)
+        .join(' ')
+    }
     const chunks = base
       .split(/(?<=[.!?])\s+/)
-      .map((part) => part.trim())
+      .map((part: string) => part.trim())
       .filter(Boolean)
-    if (chunks.length <= 2) return chunks.map((chunk) => trimToWords(chunk, 11))
+    if (chunks.length <= 3) {
+      return chunks
+        .map((chunk: string) => trimToWords(chunk, 24))
+        .filter((p: string, idx: number, arr: string[]) => arr.findIndex((candidate: string) => candidate.toLowerCase() === p.toLowerCase()) === idx)
+        .join(' ')
+    }
     return [
-      trimToWords(chunks.slice(0, Math.ceil(chunks.length / 2)).join(' '), 11),
-      trimToWords(chunks.slice(Math.ceil(chunks.length / 2)).join(' '), 11),
+      trimToWords(chunks.slice(0, Math.ceil(chunks.length / 3)).join(' '), 24),
+      trimToWords(chunks.slice(Math.ceil(chunks.length / 3), Math.ceil((2 * chunks.length) / 3)).join(' '), 24),
+      trimToWords(chunks.slice(Math.ceil((2 * chunks.length) / 3)).join(' '), 24),
     ]
+      .filter((p: string, idx: number, arr: string[]) => arr.findIndex((candidate: string) => candidate.toLowerCase() === p.toLowerCase()) === idx)
+      .join(' ')
   })()
+  const sourceFooter = partnerHttp
+    ? ''
+    : 'Fresh Audit: live partner offer unavailable, running verified fallback.'
+  const overlayCtaKind = inferRevenueCtaKind({
+    journey: (journeyId ?? 'home') as JourneyId,
+    actionType: tipNeedsSwitching
+      ? 'switch'
+      : String(currentMorphData?.actions?.actionType || 'learn').toLowerCase(),
+    needsSwitching: tipNeedsSwitching,
+    isPriorityHome: Boolean(isPriorityHome),
+  })
+  const effectiveHandoffLabel = ctaLabel ?? resolveRevenueCtaLabel(overlayCtaKind, moneyTargetGbp)
+  const verifiedOverlayCitation = formatVerifiedCitation(
+    (verifiedSourceName ?? diagnosticProvider).trim(),
+    (verifiedSourceDate ?? VERIFIED_SOURCE_DATE).trim()
+  )
 
   const persistViewState = useCallback((next: OverlayViewState, opts?: { preserveResultContext?: boolean }) => {
     setViewState(next)
@@ -413,6 +466,22 @@ export function SoloFocusOverlay({
   useEffect(() => {
     setTrapComplete(!discoveryFollowUp)
   }, [discoveryFollowUp])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!journeyId || !onJourneyAnswered) return
+    if (viewState === 'QUESTION') return
+    try {
+      const raw = localStorage.getItem(`journey_${journeyId}_answers`) || '{}'
+      const parsed = JSON.parse(raw) as Record<string, string>
+      const hasPendingQuestion = getNextQuestion(journeyId, parsed) != null
+      if (hasPendingQuestion) {
+        persistViewState('QUESTION')
+      }
+    } catch {
+      /* ignore storage parse errors */
+    }
+  }, [journeyId, onJourneyAnswered, viewState, persistViewState])
 
   useEffect(() => {
     if (viewState !== 'RESULT' || !discoverySnap) {
@@ -464,28 +533,23 @@ export function SoloFocusOverlay({
   const treeEquivalent = Math.max(1, Math.round(discoveryImpactKg / 21))
 
   const surfaceJid = (displayJourneyId ?? journeyId) as JourneyId | undefined
-  const overlayJourneyBg = isZoneMotherChild ? ('#F0FF00' as const) : (surfaceJid != null ? (`var(--color-j-${surfaceJid})` as const) : ('var(--color-purple)' as const))
+  const overlayJourneyBg =
+    surfaceJid != null ? getJourneyColorHex(surfaceJid) : 'var(--color-purple)'
   const overlayJourneyText =
-    isZoneMotherChild ? ('var(--color-purple)' as const) : (surfaceJid != null ? getJourneyCardTextHex(surfaceJid) : ('var(--color-yellow)' as const))
-  const overlayCtaBg = isZoneMotherChild
-    ? 'var(--color-purple)'
-    : surfaceJid != null
-      ? getJourneyCtaBgHex(surfaceJid)
-      : getSystemCtaBgHex()
-  const overlayCtaText = isZoneMotherChild
-    ? 'var(--color-yellow)'
-    : surfaceJid != null
-      ? getJourneyCtaTextHex(surfaceJid)
-      : getSystemCtaTextHex()
+    surfaceJid != null ? getJourneyCardTextHex(surfaceJid) : 'var(--color-yellow)'
+  const overlayCtaBg = surfaceJid != null ? getJourneyCtaBgHex(surfaceJid) : getSystemCtaBgHex()
+  const overlayCtaText = surfaceJid != null ? getJourneyCtaTextHex(surfaceJid) : getSystemCtaTextHex()
+  const isYellowSurface =
+    typeof overlayJourneyBg === 'string' &&
+    overlayJourneyBg.toUpperCase() === COLOR_YELLOW.toUpperCase()
 
   const overlay = (
     <AnimatePresence mode="wait">
       <motion.div key={activeCardId} className="solo-focus-grow-layer" initial={false}>
       <motion.div
-        layout
-        className="expanded-solo-focus view-expanded solo-focus-mobile-expand"
+        className="expanded-solo-focus view-expanded solo-focus-mobile-expand zz-shimmer-focus"
         data-journey={displayJourneyId ?? 'overlay'}
-        {...(isZoneMotherChild ? { 'data-sf-yellow-slab': 'true' } : {})}
+        {...(isZoneMotherChild && isYellowSurface ? { 'data-sf-yellow-slab': 'true' } : {})}
         style={
           {
             ['--journey-bg' as string]: overlayJourneyBg,
@@ -495,27 +559,14 @@ export function SoloFocusOverlay({
             ['--journey-on-accent' as string]: overlayCtaText,
             ['--journey-cta-bg' as string]: overlayCtaBg,
             ['--journey-cta-text' as string]: overlayCtaText,
-            ...(currentMorphData ? { transformOrigin: '50% 50%' } : {}),
+            transformOrigin: '50% 50%',
           } as React.CSSProperties
         }
-        {...(prefersReducedMotion
-          ? {
-              initial: false as const,
-              animate: { opacity: 1 },
-              exit: { opacity: 0, transition: { duration: 0.16 } },
-              transition: { duration: 0.16 },
-            }
-          : {
-              initial: DAMPED_SLAM_INITIAL,
-              animate: DAMPED_SLAM_ANIMATE,
-              exit: DAMPED_SLAM_INITIAL,
-              transition: SLAM_SPRING,
-            })}
+        {...soloFocusShellZipMotionProps(reducePagerMotion)}
       >
       <PulseExpandedSync providerName={diagnosticProvider} sourceUrl={diagnosticUrl} />
-      <motion.div layout className="solo-focus-body-scroll w-full min-w-0">
+      <motion.div className="solo-focus-body-scroll w-full min-w-0">
         <motion.div
-          layout
           className={`solo-focus-stack solo-focus-rail flex flex-col justify-start w-full items-center min-w-[280px] max-w-[800px] md:w-[90%] lg:w-[800px] ${isZoneMotherChild ? 'px-4 sm:px-0' : ''}`}
         >
           {/* Card A: The Mother */}
@@ -523,28 +574,18 @@ export function SoloFocusOverlay({
           <AnimatePresence mode="wait">
               <motion.div
                 key={`overlay-hero-${activeSiblingIndex}-${String(activeCardId ?? 'base')}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, scale: isGlitchingMoney ? 1.05 : 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 550, damping: 35 }}
-                style={{ transformOrigin: 'top center', willChange: 'transform', backgroundColor: '#F0FF00' }}
+                {...soloFocusSlamMotionProps(reducePagerMotion, false)}
+                animate={{ ...ZIP_OPEN_Z_ANIMATE, scale: isGlitchingMoney ? 1.05 : 1 }}
+                style={{
+                  transformOrigin: 'top center',
+                  willChange: 'transform',
+                  backgroundColor: overlayJourneyBg,
+                }}
                 className="solo-focus-shell solo-focus-mother solo-focus-content-stack w-full min-w-0 rounded-[60px] p-[40px] relative"
               >
-            {isZoneMotherChild && (
-              <>
             <div className="solo-focus-expanded-toolbar solo-focus-mother-columns w-full min-w-0">
               <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
                 <div className="flex flex-col gap-2 w-full min-w-0">
-                  <motion.h5
-                    layout
-                    className="solo-focus-category zz-label m-0 text-left"
-                    style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
-                    initial={DAMPED_SLAM_INITIAL}
-                    animate={DAMPED_SLAM_ANIMATE}
-                    transition={{ ...SLAM_SPRING, delay: 0.05 }}
-                  >
-                    {displayCategory.toUpperCase().replace(/-/g, ' ')}
-                  </motion.h5>
                 {resolvedOpenUrl.trim() ? (
                   <motion.a
                     href={resolvedOpenUrl}
@@ -555,7 +596,7 @@ export function SoloFocusOverlay({
                     onClick={() => triggerHaptic('light')}
                   >
                     <motion.h3
-                      className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3"
+                      className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3 zz-shimmer-focus"
                       style={{
                         fontFamily: 'var(--font-marvin)',
                         fontWeight: 700,
@@ -563,17 +604,25 @@ export function SoloFocusOverlay({
                         color: 'var(--journey-text)',
                         margin: 0,
                         padding: 0,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
                       }}
+                      initial={reducePagerMotion ? false : SHIMMER_FOCUS.initial}
+                      animate={reducePagerMotion ? { opacity: 1, filter: 'none', scale: 1 } : SHIMMER_FOCUS.animate}
+                      transition={SHIMMER_FOCUS.transition}
                     >
-                      {renderWordCycle(trimToWords(recommendationTitle, 11), 'mother-heading-link')}
+                      {trimToWords(recommendationTitle, 12)}
                     </motion.h3>
-                    {insightParagraphs.map((paragraph, idx) => (
+                    <motion.h5
+                      className="solo-focus-category solo-focus-offer-preview zz-label m-0 text-left"
+                      style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
+                      initial={INTRO_FADE_UP_NO_DELAY.initial}
+                      animate={INTRO_FADE_UP_NO_DELAY.animate}
+                      transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.05 }}
+                    >
+                      {auditHeaderLabel}
+                    </motion.h5>
+                    {insightNarrative ? (
                       <motion.p
-                        key={`insight-a-${idx}`}
+                        key="insight-a-single"
                         className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left"
                         style={{
                           color: 'var(--journey-text)',
@@ -581,14 +630,14 @@ export function SoloFocusOverlay({
                         }}
                         variants={FADE_VARIANTS}
                       >
-                        {renderWordCycle(paragraph, `mother-insight-link-${idx}`)}
+                        {insightNarrative}
                       </motion.p>
-                    ))}
+                    ) : null}
                   </motion.a>
                 ) : (
                   <>
                     <motion.h3
-                      className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3"
+                      className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3 zz-shimmer-focus"
                       style={{
                         fontFamily: 'var(--font-marvin)',
                         fontWeight: 700,
@@ -596,75 +645,49 @@ export function SoloFocusOverlay({
                         color: 'var(--journey-text)',
                         margin: 0,
                         padding: 0,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
                       }}
+                      initial={reducePagerMotion ? false : SHIMMER_FOCUS.initial}
+                      animate={reducePagerMotion ? { opacity: 1, filter: 'none', scale: 1 } : SHIMMER_FOCUS.animate}
+                      transition={SHIMMER_FOCUS.transition}
                     >
-                      {renderWordCycle(trimToWords(recommendationTitle, 11), 'mother-heading-static')}
+                      {trimToWords(recommendationTitle, 12)}
                     </motion.h3>
-                    {insightParagraphs.map((paragraph, idx) => (
+                    <motion.h5
+                      className="solo-focus-category solo-focus-offer-preview zz-label m-0 text-left"
+                      style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
+                      initial={INTRO_FADE_UP_NO_DELAY.initial}
+                      animate={INTRO_FADE_UP_NO_DELAY.animate}
+                      transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.05 }}
+                    >
+                      {auditHeaderLabel}
+                    </motion.h5>
+                    {insightNarrative ? (
                       <motion.p
-                        key={`insight-b-${idx}`}
+                        key="insight-b-single"
                         className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left"
                         style={{ color: 'var(--journey-text)', margin: 0 }}
                         variants={FADE_VARIANTS}
                       >
-                        {renderWordCycle(paragraph, `mother-insight-static-${idx}`)}
+                        {insightNarrative}
                       </motion.p>
-                    ))}
+                    ) : null}
                   </>
                 )}
 
-                <motion.p
-                  className="solo-focus-supplied-by headline-to-insight text-left w-full min-w-0"
-                  style={{
-                    color: 'var(--journey-text)',
-                    margin: 0,
-                    opacity: 0.92,
-                  }}
-                  variants={FADE_VARIANTS}
-                >
-                  Supplied by {diagnosticProvider}
-                </motion.p>
-                {profilePostcode && locationPhrase ? (
-                  <motion.p
-                    className="solo-focus-location-tag zz-body solo-focus-copy-width text-left m-0"
-                    style={{ color: 'var(--journey-text)', opacity: 0.9 }}
-                    variants={FADE_VARIANTS}
-                  >
-                    {locationPhrase}
-                  </motion.p>
-                ) : null}
-                </div>
-                <motion.div
-                  className={`solo-focus-impact-hero insight-to-impact card-impact-grid solo-focus-impact-grid grid grid-cols-2 gap-x-10 gap-y-0 w-full min-w-0${impactAnswerPulse ? ' solo-focus-impact-answer-pulse' : ''}`}
-                  variants={FADE_VARIANTS}
-                >
-                  <div className="solo-focus-data-stack data-stack data-stack--tight">
-                    <span className="data-label" style={{ color: 'var(--color-ink)' }}>
-                      SAVE
-                    </span>
-                    <span
-                      className="data-value solo-focus-data-value data-stamp-metric"
-                      style={{ color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      <StampedMoneyGbp gbp={isGlitchingMoney ? glitchDisplayGbp : animatedMoneyGbp} />
-                    </span>
-                  </div>
-                  <div className="solo-focus-data-stack data-stack data-stack--tight data-stack--secondary solo-focus-carbon-stack">
-                    <span className="data-label" style={{ color: 'var(--color-ink)' }}>
-                      CARBON
-                    </span>
-                    <span
-                      className="data-value solo-focus-data-value data-stamp-metric"
-                      style={{ color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      <StampedCarbonKg kg={animatedCarbonKg} />
-                    </span>
-                  </div>
-                </motion.div>
+                <MotherCardRenderer
+                  categoryLabel=""
+                  headline={null}
+                  narrative={null}
+                  sourceFooter={sourceFooter}
+                  verifiedSourceCitation={verifiedOverlayCitation}
+                  moneyGbp={isGlitchingMoney ? glitchDisplayGbp : animatedMoneyGbp}
+                  carbonKg={animatedCarbonKg}
+                  impactPulse={impactAnswerPulse}
+                  ctaUrl={resolvedOpenUrl.trim() || null}
+                  ctaJourneyId={journeyId}
+                  ctaLabel={effectiveHandoffLabel}
+                />
+              </div>
               </div>
               <div
                 className="solo-focus-utility-strip flex flex-col items-end"
@@ -677,10 +700,10 @@ export function SoloFocusOverlay({
                   className="solo-focus-close-circle"
                   onClick={handleClose}
                   whileTap={{ scale: 0.96 }}
-                  initial={DAMPED_SLAM_INITIAL}
-                  animate={DAMPED_SLAM_ANIMATE}
-                  exit={DAMPED_SLAM_INITIAL}
-                  transition={SLAM_SPRING}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={ELASTIC_PING.transition}
                   style={{ transformOrigin: 'top right' }}
                 >
                   <BackArrowDownLeft size={24} />
@@ -775,46 +798,6 @@ export function SoloFocusOverlay({
                 ) : null}
               </div>
             </div>
-
-                <motion.div
-                  className="solo-focus-trinity impact-to-trinity flex flex-row items-center justify-start flex-shrink-0 w-full"
-                  style={{
-                    gap: 20,
-                    marginTop: 0,
-                    marginBottom: 0,
-                  }}
-                  variants={FADE_VARIANTS}
-                >
-                  {resolvedOpenUrl.trim() && (
-                    <IndustrialHandoffButton
-                      url={profilePostcode?.toUpperCase().startsWith('KW') && journeyId === 'home' ? 'https://www.homeenergyscotland.org/' : resolvedOpenUrl.trim()}
-                      journeyId={journeyId}
-                      moneyValue={parseMoneyGbpFromImpactDisplay(String(displayMoneyValue))}
-                      ctaLabel="CLAIM"
-                    />
-                  )}
-                </motion.div>
-              </>
-            )}
-                {deck.length > 1 && (
-                  <div className="flex flex-row items-center justify-center gap-3 w-full mt-8">
-                    {deck.map((_, idx) => (
-                      <motion.button
-                        key={idx}
-                        type="button"
-                        onClick={() => setActiveSiblingIndex(idx)}
-                        className="rounded-full border-none cursor-pointer"
-                        style={{ backgroundColor: 'var(--journey-text)' }}
-                        animate={{
-                          width: activeSiblingIndex === idx ? 14 : 10,
-                          height: activeSiblingIndex === idx ? 14 : 10,
-                          opacity: activeSiblingIndex === idx ? 1 : 0.4,
-                        }}
-                        transition={{ ease: [0.32, 0.72, 0, 1], duration: 0.5 }}
-                      />
-                    ))}
-                  </div>
-                )}
               </motion.div>
           </AnimatePresence>
           )}
@@ -822,19 +805,20 @@ export function SoloFocusOverlay({
           {/* Card B: The Gate */}
           <motion.div
             className="solo-focus-shell solo-focus-child w-full flex flex-col items-start rounded-[60px] p-[40px]"
-            style={{ backgroundColor: '#F0FF00', transformOrigin: 'top center', willChange: 'transform' }}
-            initial={{ scaleY: 0, opacity: 0 }}
-            animate={{ scaleY: 1, opacity: 1 }}
-            exit={{ scaleY: 0, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 550, damping: 35 }}
+            style={{
+              backgroundColor: overlayJourneyBg,
+              transformOrigin: 'top center',
+              willChange: 'transform',
+            }}
+            {...soloFocusSlamMotionProps(reducePagerMotion, false)}
           >
             {discoveryFollowUp && !trapComplete ? (
               <motion.div
                 className="solo-focus-loop trinity-to-question flex-shrink-0 w-full flex flex-col items-start view-expanded solo-focus-trap-block gap-4 pt-0"
                 variants={FADE_VARIANTS}
-                initial={DAMPED_SLAM_INITIAL}
-                animate={DAMPED_SLAM_ANIMATE}
-                transition={SLAM_SPRING}
+                initial={INTRO_FADE_UP_NO_DELAY.initial}
+                animate={INTRO_FADE_UP_NO_DELAY.animate}
+                transition={INTRO_FADE_UP_NO_DELAY.transition}
               >
               <h4
                 className="solo-focus-question-label solo-focus-copy-width text-marvin text-left uppercase m-0"
@@ -851,7 +835,21 @@ export function SoloFocusOverlay({
                   {discoveryFollowUp.options.map((opt) => {
                     const isDense = discoveryFollowUp.options.length > 6
                     const circleClass = isDense ? 'answer-circle-80' : 'answer-circle-100'
-                    const circleStyle = isDense ? { width: 80, height: 80, fontSize: 16 } : {}
+                    const circleStyle = isDense
+                      ? {
+                          width: 80,
+                          height: 80,
+                          fontSize: 'var(--zz-h4-mobile)',
+                          fontFamily: 'var(--font-marvin)',
+                          fontWeight: 700,
+                          lineHeight: 'var(--zz-lh-heading)',
+                        }
+                      : {
+                          fontSize: 'var(--zz-h4-mobile)',
+                          fontFamily: 'var(--font-marvin)',
+                          fontWeight: 700,
+                          lineHeight: 'var(--zz-lh-heading)',
+                        }
                     return (
                     <motion.button
                       key={opt}
@@ -860,6 +858,19 @@ export function SoloFocusOverlay({
                       onClick={() => {
                       triggerHaptic('medium')
                       const j = journeyId ?? 'home'
+                      if (typeof window !== 'undefined') {
+                        try {
+                          const sk = `journey_${j}_answers`
+                          const prev = JSON.parse(window.localStorage.getItem(sk) || '{}') as Record<string, string>
+                          window.localStorage.setItem(
+                            sk,
+                            JSON.stringify({ ...prev, [discoveryFollowUp.targetField]: opt })
+                          )
+                          persistUnifiedUserProfileMemory()
+                        } catch {
+                          /* ignore */
+                        }
+                      }
                       setLoopZipCollapsing(true)
                       void (async () => {
                         try {
@@ -1099,15 +1110,7 @@ export function SoloFocusOverlay({
                         fromStorage = false
                       }
                       if (!fromDiscovery && !fromStorage) return null
-                      const grantGbp = regionalHeatPumpGrantGbp(profilePostcode)
-                      const grantLine = isScottishPostcodeArea(profilePostcode)
-                        ? `${formatZoneCardMoney(grantGbp)} Home Energy Scotland / rural uplift`
-                        : `${formatZoneCardMoney(grantGbp)} Boiler Upgrade`
-                      return (
-                        <p className="zz-body-bold solo-focus-copy-width text-left m-0" style={{ color: 'var(--journey-text)' }}>
-                          {grantLine}
-                        </p>
-                      )
+                      return null
                     })()}
                     <p className="zz-body solo-focus-copy-width text-left m-0 opacity-90" style={{ color: 'var(--journey-text)' }}>
                       Tap the close control to return to your zone.
@@ -1271,6 +1274,21 @@ export function SoloFocusOverlay({
               </AnimatePresence>
             </motion.div>
           ) : null}
+          {deck.length > 1 && (
+            <div className="solo-focus-pager-rail" aria-label="Card pager" aria-live="polite">
+              {deck.map((_, idx) => (
+                <motion.button
+                  key={`overlay-pip-${idx}`}
+                  type="button"
+                  onClick={() => setActiveSiblingIndex(idx)}
+                  className={`pager-pip${idx === activeSiblingIndex ? ' pager-pip--active' : ''}`}
+                  aria-label={`Go to tip ${idx + 1}`}
+                  aria-pressed={idx === activeSiblingIndex}
+                  whileTap={{ scale: 0.92 }}
+                />
+              ))}
+            </div>
+          )}
           </motion.div>
         </motion.div>
 
@@ -1283,9 +1301,9 @@ export function SoloFocusOverlay({
           className="circle-btn flex items-center justify-center"
           onClick={handleClose}
           whileTap={{ scale: 0.9 }}
-          initial={DAMPED_SLAM_INITIAL}
-          animate={DAMPED_SLAM_ANIMATE}
-          transition={SLAM_SPRING}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={ELASTIC_PING.transition}
           style={{
             width: 40,
             height: 40,
@@ -1306,9 +1324,9 @@ export function SoloFocusOverlay({
               likeFn(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
             }}
             whileTap={{ scale: 0.9 }}
-            initial={DAMPED_SLAM_INITIAL}
-            animate={DAMPED_SLAM_ANIMATE}
-            transition={SLAM_SPRING}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={ELASTIC_PING.transition}
             aria-label="Like"
             style={{
               width: 40,
@@ -1364,9 +1382,9 @@ export function SoloFocusOverlay({
               onAskZai()
             }}
             whileTap={{ scale: 0.9 }}
-            initial={DAMPED_SLAM_INITIAL}
-            animate={DAMPED_SLAM_ANIMATE}
-            transition={SLAM_SPRING}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={ELASTIC_PING.transition}
             aria-label="Ask Zai about this"
             style={{
               width: 40,

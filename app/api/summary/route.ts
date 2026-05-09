@@ -5,6 +5,7 @@ import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import type { ImpactProfile } from '@/lib/brains/types'
 import { getJourneyAnswersForUser } from '@/lib/db/neon'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
+import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 
 // This route is always dynamic (user-specific summary)
 export const dynamic = 'force-dynamic'
@@ -32,12 +33,13 @@ async function calculateProfileSummary(
   profile: ImpactProfile
 ) {
   const journeyAnswers = await getJourneyAnswersForUser(userId)
+  const homeUnitRates = await resolveLiveUnitRatesForPostcode(profile.postcode ?? null)
 
   // SINGLE SOURCE OF TRUTH: buildUserImpact (brain) — same as Zone and profile/summary page
   const userImpact = buildUserImpact({
     profile,
     journeyAnswers,
-  })
+  }, { homeUnitRates })
 
   return {
     savings: userImpact.totals.totalMoney,

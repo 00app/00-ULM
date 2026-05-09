@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDbPool } from '@/lib/db'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
+import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +28,7 @@ function hashIp(ip: string): string {
 function getSessionId(request: NextRequest): string {
   const cookie = request.cookies.get(COOKIE_NAME)?.value?.trim()
   if (cookie && cookie.length >= 16 && cookie.length <= 128) return cookie
-  return `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`
+  return `sess_${crypto.randomBytes(24).toString('hex')}`
 }
 
 function getIpHash(request: NextRequest): string | null {
@@ -86,7 +87,13 @@ export async function GET(request: NextRequest) {
       }, {}),
       completedJourneys,
     })
-    res.cookies.set(COOKIE_NAME, setCookieValue, { path: '/', maxAge: COOKIE_MAX_AGE, sameSite: 'lax', httpOnly: false })
+    res.cookies.set(COOKIE_NAME, setCookieValue, {
+      path: '/',
+      maxAge: COOKIE_MAX_AGE,
+      sameSite: 'lax',
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== 'development',
+    })
     return res
   } catch (e) {
     console.error('[session-state] GET error:', e)
@@ -119,7 +126,13 @@ export async function POST(request: NextRequest) {
     )
 
     const res = NextResponse.json({ ok: true })
-    res.cookies.set(COOKIE_NAME, sessionId, { path: '/', maxAge: COOKIE_MAX_AGE, sameSite: 'lax', httpOnly: false })
+    res.cookies.set(COOKIE_NAME, sessionId, {
+      path: '/',
+      maxAge: COOKIE_MAX_AGE,
+      sameSite: 'lax',
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== 'development',
+    })
     return res
   } catch (e) {
     console.error('[session-state] POST error:', e)

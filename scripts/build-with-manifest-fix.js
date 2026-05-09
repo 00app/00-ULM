@@ -36,6 +36,22 @@ if (!process.env.BUILD_SKIP_ICLOUD_CHECK) {
 const nextDir = path.join(cwd, '.next')
 const distDir = path.join(nextDir, 'server')
 
+/**
+ * Next.js can throw ENOTEMPTY when `rmdir('.next/server')` runs against a stale or
+ * partially-written tree (crashed build, sandbox, sync). Pre-remove `.next` unless opted out.
+ */
+function preCleanNextOutput() {
+  if (process.env.BUILD_SKIP_PRE_CLEAN === '1') return
+  try {
+    if (fs.existsSync(nextDir)) {
+      fs.rmSync(nextDir, { recursive: true, force: true })
+      console.log('Pre-clean: removed .next (avoids ENOTEMPTY on .next/server).')
+    }
+  } catch (err) {
+    console.warn('Warning: could not pre-clean .next:', err?.message ?? err)
+  }
+}
+
 // Only backfill manifests that don't affect route resolution (pages-manifest is written by Next's server build)
 const manifestFiles = [
   'next-font-manifest.json',
@@ -78,30 +94,11 @@ function ensureManifests() {
   } catch (_) {}
 }
 
-// Clean only when BUILD_CLEAN=1
-if (process.env.BUILD_CLEAN === '1') {
-  if (fs.existsSync(nextDir)) {
-    fs.rmSync(nextDir, { recursive: true })
-    console.log('Cleaned .next for fresh build.')
-  }
-}
+// Fresh .next before every build unless BUILD_SKIP_PRE_CLEAN=1 (BUILD_CLEAN=1 is redundant but documented in BOOT.md).
+preCleanNextOutput()
 
 // Do not pre-create .next — let Next create it so .next/types etc. are correct.
 // Watcher below will backfill .next/server and manifests when Next creates them.
-// Next may try to `rmdir` `.next/export` during "Collecting page data"; if the folder
-// is left non-empty from a crashed/partial build, that throws ENOTEMPTY — remove it first.
-const exportDir = path.join(nextDir, 'export')
-const serverAppDir = path.join(nextDir, 'server', 'app')
-try {
-  if (fs.existsSync(exportDir)) {
-    fs.rmSync(exportDir, { recursive: true, force: true })
-  }
-  if (fs.existsSync(serverAppDir)) {
-    fs.rmSync(serverAppDir, { recursive: true, force: true })
-  }
-} catch (err) {
-  console.warn('Warning: could not clean stale .next build folders before build:', err?.message ?? err)
-}
 
 console.log('Running next build...')
 

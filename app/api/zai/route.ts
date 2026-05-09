@@ -2,7 +2,7 @@
  * Zai (Zero) chat API — Single Source of Truth: buildUserImpact
  * Uses @google/generative-ai (Gemini) for AI responses.
  * Brand voice: lowercase, grounded, witty, never lecturing.
- * Local Living: when postcode/council is present, agent can mention council-specific grants (e.g. Boiler Upgrade Scheme £7,500).
+ * Local Living: when postcode/council is present, agent can mention council-published efficiency schemes where rules allow.
  * When user is logged in, injects user_context (profile + journey answers) so Gemini gives grounded advice.
  */
 
@@ -17,8 +17,10 @@ import { buildUserContextMarkdown } from "@/lib/memory/userContext"
 import type { JourneyId } from "@/lib/journeys"
 import { isValidJourneyQuestion } from "@/lib/journeys"
 import { generateDiscoveryWinWithGemini } from "@/lib/agents/discoveryWin";
+import { ZAI_PERFORMANCE_AUDITOR_V3_MATRIX } from "@/lib/brains/zai/prompts";
 
 export const runtime = 'nodejs';
+export const maxDuration = 60
 const textEncoder = new TextEncoder()
 const ZAI_FALLBACK = "i'm scanning the 2026 grid, try in a sec."
 
@@ -134,27 +136,23 @@ function heatingPhraseForOpener(ja: Record<string, Record<string, string>>): str
   return raw.length > 24 ? `${raw.slice(0, 24)}…` : raw
 }
 
-/** Place name for opener: KW postcodes → Wick (spec grounding); else postcode lowercased. */
+/** Place token for opener — UK outward code from postcode (no legacy place-name lock-ins). */
 function postcodePlaceForOpener(postcode: string | null): string {
   if (!postcode?.trim()) return ''
   const compact = postcode.replace(/\s+/g, '').toUpperCase()
-  if (compact.startsWith('KW')) return 'wick'
-  return postcode.replace(/\s+/g, ' ').trim().toLowerCase()
+  const m = compact.match(/^([A-Z]{1,2}\d[A-Z\d]?)/)
+  return `${(m?.[1] ?? compact.slice(0, 4)).toLowerCase()} area`
 }
 
 /**
  * v1.8.12 Zai lock: first sentence MUST ground heating + postcode when known.
- * Example (KW + gas): "since you're in wick and have gas heating, you should …"
+ * Example: "since you're in sw1a area and have gas heating, you should …"
  * `journey_answers_jsonb` is merged with client payload before this runs.
  */
 function mandatoryOpenerPrefix(
   ja: Record<string, Record<string, string>>,
   postcode: string | null
 ): string {
-  const compact = postcode?.replace(/\s+/g, '').toUpperCase() ?? ''
-  if (compact.startsWith('KW')) {
-    return "since you're in wick, you're eligible for the £9,000 rural heat grant."
-  }
   const heat = heatingPhraseForOpener(ja)
   const place = postcodePlaceForOpener(postcode)
   if (place && heat) return `since you're in ${place} and have ${heat}, you should`
@@ -293,14 +291,10 @@ export async function POST(req: Request) {
     let sentinelGrantContextLine = ''
     if (contextSentinelGrant) {
       const grantTitle =
-        typeof contextSentinelGrant.title === 'string'
-          ? contextSentinelGrant.title
-          : '£9,000 RURAL HEAT GRANT'
+        typeof contextSentinelGrant.title === 'string' ? contextSentinelGrant.title : 'LIVE HEAT UPGRADE GRANT'
       const grantUrl =
-        typeof contextSentinelGrant.claimOfferUrl === 'string'
-          ? contextSentinelGrant.claimOfferUrl
-          : 'https://www.homeenergyscotland.org/home-energy-scotland-grant-loan'
-      sentinelGrantContextLine = ` sentinel grant context: ${grantTitle}; claim portal: ${grantUrl}; quote £9,000 when the user asks about kw/wick rural support.`
+        typeof contextSentinelGrant.claimOfferUrl === 'string' ? contextSentinelGrant.claimOfferUrl : ''
+      sentinelGrantContextLine = ` sentinel grant context: ${grantTitle}; claim portal: ${grantUrl}; use the live amount provided in context.`
     }
     const session = await getSessionFromRequest()
     let journeyAnswersForContext: Record<string, Record<string, string>> = {}
@@ -353,12 +347,12 @@ export async function POST(req: Request) {
         const grantFound = Boolean(sentinelGenome?.grant_found)
         if (!sentinelGrantContextLine && grantFound && firecrawlGrant) {
           const grantTitle =
-            typeof firecrawlGrant.title === 'string' ? firecrawlGrant.title : '£9,000 RURAL HEAT GRANT'
+            typeof firecrawlGrant.title === 'string' ? firecrawlGrant.title : 'LIVE HEAT UPGRADE GRANT'
           const grantUrl =
             typeof firecrawlGrant.claimOfferUrl === 'string'
               ? firecrawlGrant.claimOfferUrl
-              : 'https://www.homeenergyscotland.org/home-energy-scotland-grant-loan'
-          sentinelGrantContextLine = ` sentinel grant context: ${grantTitle}; claim portal: ${grantUrl}; quote £9,000 when the user asks about kw/wick rural support.`
+              : ''
+          sentinelGrantContextLine = ` sentinel grant context: ${grantTitle}; claim portal: ${grantUrl}; use the live amount provided in context.`
         }
       } catch {
         /* optional profile load */
@@ -392,7 +386,7 @@ export async function POST(req: Request) {
     }
 
     const locationLine = council
-      ? ` user is in ${council}: when relevant mention they're eligible for local grants (e.g. Warm Homes, Boiler Upgrade Scheme £7,500).`
+      ? ` user is in ${council}: when relevant mention council-published efficiency schemes only when verifiable.`
       : ''
 
     const userContextNote = userContextBlock
@@ -425,13 +419,14 @@ export async function POST(req: Request) {
       ? ` mandatory opener: your entire reply MUST start with this exact prefix (first sentence): "${mandatoryOpener} " — then continue in brand voice with specific uk advice. do not add any words before that prefix.`
       : ' if journey answers later include home heating, start with "since you have {their heating}, you should". if postcode is known, mention it in the first sentence.'
 
+    const auditorBlock = ` ${ZAI_PERFORMANCE_AUDITOR_V3_MATRIX}`
     const systemInstruction = isExpandedContext
-      ? `you are zai, the zero zero assistant. the user is currently viewing their [Category: ${categoryLabel}] audit. their personal spend is ${personalSpend} and the regional average is ${regionalAvg}.${scrapedSourceLine}${journeyFormQuestionLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${energyOpenerRule} answer the following question strictly in relation to this data and suggest ways to close the saving gap.${moneyFirst}${userContextNote} brand voice: strictly lowercase, grounded, witty. keep responses under 4 sentences.${roleGuard}${userContextBlock}`
-      : `you are zero, an authentic sustainability peer.${moneyFirst}
+      ? `you are zai, the zero zero assistant. the user is currently viewing their [Category: ${categoryLabel}] audit. their personal spend is ${personalSpend} and the regional average is ${regionalAvg}.${scrapedSourceLine}${journeyFormQuestionLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${energyOpenerRule} answer the following question strictly in relation to this data and suggest ways to close the saving gap.${moneyFirst}${userContextNote} brand voice: strictly lowercase, grounded, witty. keep responses under 4 sentences.${auditorBlock}${roleGuard}${userContextBlock}`
+      : `you are zero zero's performance auditor chat surface.${moneyFirst}
       brand voice: strictly lowercase, grounded, witty, never lecturing.
       user data: they are currently saving £${totalMoney} and cutting ${totalCarbon}kg of carbon annually.${locationLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${energyOpenerRule}
-      context: focus on uk-specific advice (defra, wrap uk, energy saving trust). march 2026 uk baseline: electricity ~£0.2769/kWh (price cap period).${userContextNote}
-      keep responses under 3 sentences.${roleGuard}${userContextBlock}`
+      context: focus on uk-specific advice (defra, wrap uk, energy saving trust). april 2026 uk baseline: typical domestic cap £1,641/yr (ofgem reference).${userContextNote}
+      keep responses under 3 sentences.${auditorBlock}${roleGuard}${userContextBlock}`
 
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash-lite",

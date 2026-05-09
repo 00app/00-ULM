@@ -1,26 +1,33 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import IntroWordCycle from './IntroWordCycle'
 import { ROUTES } from '@/lib/routes'
+import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import {
-  DAMPED_SLAM_INITIAL,
-  DAMPED_SLAM_ANIMATE,
-  SLAM_SPRING,
   KINETIC_WORD_DWELL_MS,
+  INTRO_DECISION_CTA_TRANSITION,
+  INTRO_SHIMMER_WORD_DWELL_MS,
+  INTRO_SHIMMER_WORD_GAP_MS,
+  SHIMMER_FOCUS,
 } from '@/lib/animations'
 
-type IntroScreenState = 'glitch' | 'value-message' | 'glitch-out' | 'decision'
+type IntroScreenState = 'glitch' | 'value-message' | 'decision'
 
-// Match logo glitch animation duration (intro.css: glitch ~0.67s — 3× faster)
-const GLITCH_DURATION_MS = 667
-const LOGO_TO_TEXT_DELAY_MS = 180
+/** Must match `.zz-glitch` / layer keyframe duration in `app/globals.css` */
+const GLITCH_ANIM_MS = 670
+/** Extra time on the final (settled) frame after layers finish — intro words never start mid-glitch */
+const GLITCH_SETTLE_HOLD_MS = 420
+/** Reduced motion: static logo beat before words (CSS animations off via globals) */
+const GLITCH_REDUCE_MOTION_HOLD_MS = 380
+
+const WORD_EXIT_MS = 150
 
 /**
- * Mechanical sequence (400ms dwell per word; gap 0):
- * SAVE MONEY CUT CARBON FEEL GOOD USE LESS MORE
+ * Mechanical sequence (SAVE MONEY CUT CARBON…):
+ * v6 — dwell tuned for lens snap + stagger gap between words.
  */
 const INTRO_KINETIC_WORDS = [
   'SAVE',
@@ -34,9 +41,17 @@ const INTRO_KINETIC_WORDS = [
   'MORE',
 ] as const
 
-const INTRO_WORD_DURATIONS = INTRO_KINETIC_WORDS.map(() => KINETIC_WORD_DWELL_MS)
-/** Stable array identity for IntroWordCycle deps (avoid effect resets on parent re-render). */
 const INTRO_KINETIC_WORDS_ARRAY = [...INTRO_KINETIC_WORDS]
+const INTRO_WORD_SHIMMER_DURATIONS = INTRO_KINETIC_WORDS.map(() => INTRO_SHIMMER_WORD_DWELL_MS)
+
+function introWordsMinDurationMs(
+  wordCount: number,
+  gapMs: number,
+  dwellMs: number = KINETIC_WORD_DWELL_MS,
+): number {
+  const perWord = dwellMs + WORD_EXIT_MS + gapMs
+  return wordCount * perWord + 800
+}
 
 const fullScreenStyle: React.CSSProperties = {
   position: 'relative',
@@ -51,7 +66,6 @@ const fullScreenStyle: React.CSSProperties = {
   zIndex: 2,
 }
 
-/** Parse ?skip=1 or ?step=message from URL without useSearchParams (avoids Suspense block). */
 function getSkipFromUrl(): boolean {
   if (typeof window === 'undefined') return false
   const params = new URLSearchParams(window.location.search)
@@ -76,106 +90,88 @@ const ctaCircleStyle = {
 }
 
 export default function IntroScreen() {
-  const [screen, setScreen] = useState<IntroScreenState>(() => {
-    if (typeof window === 'undefined') return 'glitch'
-    try {
-      const seen = sessionStorage.getItem('zz_intro_logo_seen')
-      return seen === '1' ? 'value-message' : 'glitch'
-    } catch {
-      return 'glitch'
-    }
-  })
-  const glitchAdvancedRef = useRef(false)
-  const glitchAdvanceTimerRef = useRef<number | null>(null)
+  const reduceMotion = useReducedMotion()
+  const [screen, setScreen] = useState<IntroScreenState>('glitch')
+  const urlHandledRef = useRef(false)
 
-  const advanceFromGlitch = useCallback(() => {
-    if (glitchAdvancedRef.current) return
-    glitchAdvancedRef.current = true
-    window.setTimeout(() => {
-      setScreen((s) => (s === 'glitch' ? 'value-message' : s))
-    }, LOGO_TO_TEXT_DELAY_MS)
-  }, [])
-
-  // URL skip: ?skip=1 or ?step=message → go straight to value-message
   useEffect(() => {
-    try {
-      sessionStorage.setItem('zz_intro_logo_seen', '1')
-    } catch {
-      // ignore
-    }
+    if (urlHandledRef.current) return
+    urlHandledRef.current = true
     if (getSkipFromUrl()) {
-      glitchAdvancedRef.current = true
-      setScreen('value-message')
-      return
-    }
-    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      glitchAdvancedRef.current = true
       setScreen('value-message')
     }
   }, [])
 
-  // Single deterministic gate: always show logo briefly, then advance.
   useEffect(() => {
     if (screen !== 'glitch') return
-    glitchAdvanceTimerRef.current = window.setTimeout(advanceFromGlitch, GLITCH_DURATION_MS + 350)
-    return () => {
-      if (glitchAdvanceTimerRef.current) {
-        window.clearTimeout(glitchAdvanceTimerRef.current)
-        glitchAdvanceTimerRef.current = null
-      }
-    }
-  }, [screen, advanceFromGlitch])
-
-  // Hard fail-safe: never let intro remain on glitch indefinitely.
-  useEffect(() => {
-    if (screen !== 'glitch') return
-    const hardGuard = window.setTimeout(() => {
+    const reduce =
+      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const glitchMs = reduce ? GLITCH_REDUCE_MOTION_HOLD_MS : GLITCH_ANIM_MS + GLITCH_SETTLE_HOLD_MS
+    const id = window.setTimeout(() => {
       setScreen((s) => (s === 'glitch' ? 'value-message' : s))
-      glitchAdvancedRef.current = true
-    }, 2500)
-    return () => window.clearTimeout(hardGuard)
+    }, glitchMs)
+    return () => window.clearTimeout(id)
   }, [screen])
 
-  // Guardrail: if kinetic callback is dropped, reveal logo handoff deterministically.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!('geolocation' in navigator)) return
+    if (localStorage.getItem('profile_postcode')) return
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const params = new URLSearchParams({
+            lat: String(position.coords.latitude),
+            lon: String(position.coords.longitude),
+          })
+          const res = await fetch(`/api/geocode?${params.toString()}`)
+          if (!res.ok) return
+          const json = (await res.json()) as { postcode?: string }
+          const postcode = typeof json.postcode === 'string' ? json.postcode.trim() : ''
+          if (!postcode) return
+          localStorage.setItem('profile_postcode', postcode.toUpperCase())
+          try {
+            persistUnifiedUserProfileMemory()
+          } catch {
+            //
+          }
+        } catch {
+          // Non-fatal: users can still enter postcode manually.
+        }
+      },
+      () => {
+        // Silent fallback to manual postcode flow.
+      },
+      { enableHighAccuracy: false, timeout: 6000, maximumAge: 300000 }
+    )
+  }, [])
+
   useEffect(() => {
     if (screen !== 'value-message') return
-    const expectedMs = INTRO_KINETIC_WORDS.length * (KINETIC_WORD_DWELL_MS + 150) + 200
-    const tid = window.setTimeout(() => setScreen((s) => (s === 'value-message' ? 'glitch-out' : s)), expectedMs)
+    const safetyMs = introWordsMinDurationMs(
+      INTRO_KINETIC_WORDS.length,
+      INTRO_SHIMMER_WORD_GAP_MS,
+      INTRO_SHIMMER_WORD_DWELL_MS,
+    )
+    const tid = window.setTimeout(() => {
+      setScreen((s) => (s === 'value-message' ? 'decision' : s))
+    }, safetyMs)
     return () => window.clearTimeout(tid)
   }, [screen])
 
-  // Final MORE transitions directly into glitch logo, then decision.
-  useEffect(() => {
-    if (screen !== 'glitch-out') return
-    const tid = window.setTimeout(() => setScreen((s) => (s === 'glitch-out' ? 'decision' : s)), GLITCH_DURATION_MS)
-    return () => window.clearTimeout(tid)
-  }, [screen])
-
-  // First screen: animated logo; advances after 2s or on tap
-  if (screen === 'glitch' || screen === 'glitch-out') {
+  if (screen === 'glitch') {
     return (
       <div
-        role="button"
-        tabIndex={0}
-        onClick={screen === 'glitch' ? advanceFromGlitch : undefined}
-        onPointerDown={screen === 'glitch' ? advanceFromGlitch : undefined}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            if (screen === 'glitch') advanceFromGlitch()
-          }
-        }}
         style={{
           ...fullScreenStyle,
           background: 'transparent',
           gap: 24,
-          cursor: screen === 'glitch' ? 'pointer' : 'default',
         }}
-        aria-label={screen === 'glitch' ? "Zero Zero logo — tap to continue" : "Zero Zero logo"}
+        aria-label="Zero Zero animated logo"
       >
         <div className="zz-glitch-wrap">
           <div className="zz-glitch">
-            {/* Visual lock: Yellow (base) + Pink (overlay) — animations in intro.css */}
             <img src="/assets/00%20brand%20mark%20yellow.svg" className="glitch-layer base" alt="" aria-hidden />
             <img src="/assets/00%20brand%20mark%20pink.svg" className="glitch-layer purple" alt="Zero Zero" />
           </div>
@@ -186,10 +182,7 @@ export default function IntroScreen() {
 
   if (screen === 'value-message') {
     return (
-      <motion.div
-        initial={DAMPED_SLAM_INITIAL}
-        animate={DAMPED_SLAM_ANIMATE}
-        transition={SLAM_SPRING}
+      <div
         style={{
           ...fullScreenStyle,
           background: 'transparent',
@@ -202,13 +195,31 @@ export default function IntroScreen() {
           words={INTRO_KINETIC_WORDS_ARRAY}
           preserveCase
           trailingPeriod={false}
-          gapMs={0}
-          wordDurations={INTRO_WORD_DURATIONS}
-          onComplete={() => setScreen((s) => (s === 'value-message' ? 'glitch-out' : s))}
+          gapMs={INTRO_SHIMMER_WORD_GAP_MS}
+          wordDurations={INTRO_WORD_SHIMMER_DURATIONS}
+          lensFocusShimmer
+          onComplete={() => setScreen((s) => (s === 'value-message' ? 'decision' : s))}
         />
-      </motion.div>
+      </div>
     )
   }
+
+  const headlineInitial = reduceMotion
+    ? { opacity: 0, scale: 0.995 }
+    : { ...SHIMMER_FOCUS.initial }
+  const headlineAnimate = reduceMotion
+    ? { opacity: 1, scale: 1, filter: 'none' }
+    : { ...SHIMMER_FOCUS.animate }
+  const headlineTransition = reduceMotion
+    ? { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const }
+    : SHIMMER_FOCUS.transition
+
+  /** ELASTIC_PING family + v6 520/28 tension; scale 0 → 1 (no layout/copy change). */
+  const ctaInitial = reduceMotion ? { opacity: 0 } : { scale: 0, opacity: 1 }
+  const ctaAnimate = reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }
+  const ctaTransitionBase = reduceMotion
+    ? { type: 'tween' as const, duration: 0.22, ease: [0.22, 1, 0.36, 1] as const }
+    : INTRO_DECISION_CTA_TRANSITION
 
   return (
     <div
@@ -222,8 +233,11 @@ export default function IntroScreen() {
         pointerEvents: 'auto',
       }}
     >
-      <h2
-        className="intro-decision-headline"
+      <motion.h2
+        className="intro-decision-headline zz-shimmer-focus"
+        initial={headlineInitial}
+        animate={headlineAnimate}
+        transition={headlineTransition}
         style={{
           textAlign: 'center',
           margin: 0,
@@ -232,11 +246,18 @@ export default function IntroScreen() {
         }}
       >
         CREATE A PROFILE TO START.
-      </h2>
+      </motion.h2>
       <div
         style={{ display: 'flex', gap: 40, alignItems: 'center', justifyContent: 'center' }}
       >
-        <div>
+        {/* v6.1: staggered bloom — 400ms / 600ms; same 520/28 spring as profile answers (INTRO_DECISION_CTA_TRANSITION) */}
+        <motion.div
+          className="zz-shimmer-cta"
+          initial={ctaInitial}
+          animate={ctaAnimate}
+          transition={{ ...ctaTransitionBase, delay: 0.4 }}
+          style={{ display: 'flex' }}
+        >
           <Link
             href={ROUTES.PROFILE}
             prefetch={false}
@@ -250,8 +271,14 @@ export default function IntroScreen() {
           >
             CREATE
           </Link>
-        </div>
-        <div>
+        </motion.div>
+        <motion.div
+          className="zz-shimmer-cta"
+          initial={ctaInitial}
+          animate={ctaAnimate}
+          transition={{ ...ctaTransitionBase, delay: 0.6 }}
+          style={{ display: 'flex' }}
+        >
           <Link
             href={ROUTES.ZONE}
             prefetch={false}
@@ -265,7 +292,7 @@ export default function IntroScreen() {
           >
             SKIP
           </Link>
-        </div>
+        </motion.div>
       </div>
     </div>
   )

@@ -5,14 +5,14 @@ import ZoneBackToZoneLink from '@/app/components/ZoneBackToZoneLink'
 import { useMemo, useState, useEffect } from 'react'
 import { ROUTES } from '@/lib/routes'
 import { useApp, type ProfileAge } from '@/app/context/AppContext'
-import { buildZoneViewModel } from '@/lib/zone/buildZoneViewModel'
-import type { ZoneViewModel, ZoneJourneyCard, ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import { buildZoneViewModel } from '@/lib/logic/zone'
+import type { ZoneViewModel, ZoneJourneyCard, ZoneTipCard } from '@/lib/logic/zone'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { getJourneyColorHex } from '@/lib/journeyColors'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { motion } from 'framer-motion'
-import { WORD_APPEAR } from '@/lib/animations'
+import { KINETIC_ZIP_PULSE } from '@/lib/animations'
 
 const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
 
@@ -100,9 +100,15 @@ export default function LikesPage() {
   }
 
   return (
-    <motion.div className="likes-page zz-page-shell" style={{ color: 'var(--color-yellow)' }} {...WORD_APPEAR}>
+    <motion.div
+      className="zz-page likes-page mode-carbon"
+      style={{ background: 'unset', color: 'var(--color-yellow)', minHeight: '100vh', paddingBottom: 48 }}
+      {...KINETIC_ZIP_PULSE}
+    >
       <ZoneBackToZoneLink />
-      <h1 className="zz-page-title zz-page-title--shell">Likes</h1>
+      <h1 className="zz-page-title zai-page-title">
+        LIKES
+      </h1>
       <p className="zz-body zz-page-intro" style={{ color: 'var(--color-yellow)', textAlign: 'center' }}>
         Cards you’ve liked. Unlike, mark as actioned, or open the link.
       </p>

@@ -8,6 +8,9 @@ import {
 } from '@/lib/zone/trustedJourneyUrls'
 import type { JourneyId } from '@/lib/journeys'
 
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
 type LastExpanded = {
   journey_key?: string
   question_id?: string

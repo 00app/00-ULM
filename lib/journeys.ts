@@ -93,7 +93,12 @@ export const JOURNEYS: Record<JourneyId, JourneyDefinition> = {
     id: 'tech',
     name: 'tech',
     questions: [
-      { id: 'upgrade_often', label: 'How often do you upgrade your phone?', type: 'options', options: ['YES', 'NO'] },
+      {
+        id: 'upgrade_often',
+        label: 'How often do you upgrade your phone?',
+        type: 'options',
+        options: ['MONTHLY', 'YEARLY', '2+ YEARS'],
+      },
       { id: 'device_count', label: 'device count?', type: 'options', options: ['FEW', 'AVERAGE', 'MANY'] },
     ],
   },

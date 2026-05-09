@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 function authorizeGatewayInject(request: NextRequest): boolean {
   const expected = process.env.GATEWAY_TOKEN?.trim() || process.env.OPENCLAW_GATEWAY_TOKEN?.trim()
-  if (!expected) return true
+  if (!expected) return false
   const got =
     request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')?.trim() ??
     request.headers.get('x-gateway-token')?.trim()

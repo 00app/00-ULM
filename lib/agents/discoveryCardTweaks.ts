@@ -3,7 +3,7 @@
  */
 
 import type { JourneyId } from '@/lib/journeys'
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 
 /** Days before 1 April 2026 (UTC) when ECO4 / cap messaging gets a visible urgency strip. */
 const APRIL_1_2026_UTC = Date.UTC(2026, 3, 1)

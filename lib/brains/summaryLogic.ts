@@ -46,7 +46,7 @@ export interface ProfileSummaryNarrativeInput {
   annualWasteCarbon: number
 }
 
-/** Prefer parish / ward / council for “people in Wick” style beats. */
+/** Prefer parish / ward / council for locality-led summary beats. */
 export function resolveSummaryAreaLabel(input: ProfileSummaryNarrativeInput): string {
   const loc = input.local
   const li: LocalIntelligence | null = loc

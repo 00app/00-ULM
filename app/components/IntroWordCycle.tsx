@@ -1,8 +1,14 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { WORD_PULSE_APPEAR, KINETIC_WORD_DWELL_MS } from '@/lib/animations'
+import { useEffect, useState, useRef, useMemo } from 'react'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import {
+  WORD_PULSE_APPEAR,
+  KINETIC_WORD_DWELL_MS,
+  SHIMMER_FOCUS,
+  SHIMMER_FOCUS_EXIT,
+  SHIMMER_FOCUS_EXIT_TRANSITION,
+} from '@/lib/animations'
 
 interface IntroWordCycleProps {
   words: string[]
@@ -17,6 +23,13 @@ interface IntroWordCycleProps {
   wordDurations?: number[]
   /** Gap between exit and next word (ms). Use `0` for a strict dwell-only heartbeat (e.g. 400ms intro/outro). */
   gapMs?: number
+  /**
+   * v6 — Fussy blur → sharp lens focus per word (pairs with `.zz-shimmer-focus` + SHIMMER_FOCUS_*).
+   * Default off so summary / other cycles keep WORD_PULSE_APPEAR.
+   */
+  lensFocusShimmer?: boolean
+  /** Optional viewport padding budget for auto-fit (e.g. 40 => 40px left + right). */
+  fitToViewportPaddingPx?: number
 }
 
 const DEFAULT_GAP_MS = 90
@@ -30,12 +43,17 @@ export default function IntroWordCycle({
   trailingPeriod = true,
   wordDurations,
   gapMs = DEFAULT_GAP_MS,
+  lensFocusShimmer = false,
+  fitToViewportPaddingPx = 0,
 }: IntroWordCycleProps) {
+  const reduceMotion = useReducedMotion()
   const [index, setIndex] = useState(0)
   const [visible, setVisible] = useState(true)
+  const [fitScale, setFitScale] = useState(1)
   const onCompleteRef = useRef(onComplete)
   const innerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const completedRef = useRef(false)
+  const wordRef = useRef<HTMLHeadingElement | null>(null)
   onCompleteRef.current = onComplete
 
   const currentWord = words[index] ?? ''
@@ -51,6 +69,36 @@ export default function IntroWordCycle({
   })()
 
   const dwellMs = wordDurations?.[index] ?? KINETIC_WORD_DWELL_MS
+
+  const motionPreset = useMemo(() => {
+    if (!lensFocusShimmer) {
+      return {
+        className: 'intro-text-large intro-word-pulse',
+        initial: WORD_PULSE_APPEAR.initial,
+        animate: WORD_PULSE_APPEAR.animate,
+        exit: WORD_PULSE_APPEAR.exit,
+      }
+    }
+    if (reduceMotion) {
+      return {
+        className: 'intro-text-large intro-word-pulse zz-shimmer-focus',
+        initial: { opacity: 0, scale: 0.99 },
+        animate: { opacity: 1, scale: 1, filter: 'none' },
+        exit: { opacity: 0, scale: 0.99, transition: { duration: 0.14, ease: [0.22, 1, 0.36, 1] as const } },
+        transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const },
+      }
+    }
+    return {
+      className: 'intro-text-large intro-word-pulse zz-shimmer-focus',
+      initial: { ...SHIMMER_FOCUS.initial },
+      animate: { ...SHIMMER_FOCUS.animate },
+      exit: {
+        ...SHIMMER_FOCUS_EXIT,
+        transition: SHIMMER_FOCUS_EXIT_TRANSITION,
+      },
+      transition: SHIMMER_FOCUS.transition,
+    }
+  }, [lensFocusShimmer, reduceMotion])
 
   useEffect(() => {
     if (completedRef.current) return
@@ -77,7 +125,7 @@ export default function IntroWordCycle({
   }, [index, words.length, dwellMs, gapMs])
 
   // Last resort if word timers never finish (tab sleep, Strict Mode edge cases).
-  // Must exceed real wall time: dwell + exit + gap per word.
+  // Must exceed real wall time: dwell + exit+gap per word.
   useEffect(() => {
     const maxDwell = Math.max(KINETIC_WORD_DWELL_MS, ...(wordDurations ?? []))
     const perWordMs = maxDwell + WORD_EXIT_MS + gapMs + 300
@@ -91,10 +139,32 @@ export default function IntroWordCycle({
     return () => clearTimeout(safety)
   }, [words.length, wordDurations, gapMs])
 
-  const variants = WORD_PULSE_APPEAR
+  useEffect(() => {
+    if (fitToViewportPaddingPx <= 0) {
+      setFitScale(1)
+      return
+    }
+    if (typeof window === 'undefined') return
+    const updateScale = () => {
+      const el = wordRef.current
+      if (!el) return
+      const available = Math.max(120, window.innerWidth - fitToViewportPaddingPx * 2)
+      const needed = Math.ceil(el.scrollWidth)
+      if (needed <= 0) {
+        setFitScale(1)
+        return
+      }
+      const next = Math.min(1, available / needed)
+      setFitScale(next)
+    }
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  }, [currentWord, displayText, fitToViewportPaddingPx])
 
   return (
     <div
+      className={lensFocusShimmer ? 'zz-shimmer-focus' : undefined}
       style={{
         position: 'absolute',
         inset: 0,
@@ -108,19 +178,26 @@ export default function IntroWordCycle({
       <AnimatePresence mode="wait">
         {visible && (
           <motion.h1
+            ref={wordRef}
             key={currentWord}
-            className="intro-text-large intro-word-pulse"
-            initial={variants.initial}
-            animate={variants.animate}
-            exit={variants.exit}
+            className={motionPreset.className}
+            initial={motionPreset.initial}
+            animate={motionPreset.animate}
+            exit={motionPreset.exit}
+            {...('transition' in motionPreset && motionPreset.transition
+              ? { transition: motionPreset.transition }
+              : {})}
             style={{
               margin: 0,
               padding: 0,
-              width: '100%',
-              maxWidth: 'min(96vw, 28ch)',
+              width: 'auto',
+              maxWidth: fitToViewportPaddingPx > 0 ? `calc(100vw - ${fitToViewportPaddingPx * 2}px)` : 'min(96vw, 28ch)',
               textAlign: 'center',
+              whiteSpace: 'nowrap',
               textTransform: preserveCase ? 'none' : 'uppercase',
               fontFamily: 'var(--font-marvin), var(--font-label), sans-serif',
+              transform: `scale(${fitScale})`,
+              transformOrigin: 'center center',
             }}
           >
             {displayText}

@@ -1,13 +1,15 @@
+import { PRICE_CAP_SOURCE_URL, REG_GB_BASE_G_PER_KWH } from '@/lib/brains/constants'
 import {
   APRIL_2026_TRUTH_PENCE,
-  MARCH_2026_ECONOMY,
-  NORTH_SCOTLAND_KW_GRID_G_PER_KWH,
-  PRICE_CAP_SOURCE_URL,
-  UK_AVERAGE_GRID_INTENSITY_G_PER_KWH,
-} from '@/lib/brains/constants'
+  buildAuditBaselineMotherCopy,
+  deriveGridTier,
+  ENGINE_PRICE_CAP_TYPICAL_GBP,
+  getCarbonIntensity,
+} from '@/lib/logic/engine'
 import { getDbPool } from '@/lib/db'
 import type { Pool } from 'pg'
 import { getLocalData, type LocalIntelligence } from '@/lib/local/getLocalData'
+import { runLiveGrounding } from '@/lib/sentinel/liveGrounding'
 import type { SoftSaveCard } from '@/lib/sentinel/scraper'
 import type {
   MotherChildMotherPayload,
@@ -22,20 +24,24 @@ export type {
   SentinelViewState,
 } from '@/lib/sentinel/recardTypes'
 import {
-  getDraughtProofingSoftSave,
+  getFoodWasteSoftSave,
   getFlowTempSoftSave,
   getPhantomStandbySoftSave,
   scaleSoftSaveForOccupancy,
   SENTINEL_VERIFIED_DATE,
 } from '@/lib/sentinel/scraper'
 
-export const APRIL_2026_ENERGY_CAP_GBP = 1641
-export const WICK_GRANT_GBP = 9000
-/** @deprecated Use {@link NORTH_SCOTLAND_KW_GRID_G_PER_KWH} from `lib/brains/constants` — kept for scripts/tests. */
-export const NORTH_SCOTLAND_GRID_G_PER_KWH = NORTH_SCOTLAND_KW_GRID_G_PER_KWH
-export const SCOTTISH_HES_URL = 'https://www.homeenergyscotland.org/home-energy-scotland-grant-loan'
-export const GOV_UK_BUS_URL = 'https://www.gov.uk/apply-boiler-upgrade-scheme'
+export const APRIL_2026_ENERGY_CAP_GBP = ENGINE_PRICE_CAP_TYPICAL_GBP
 export const HOME_CHILD_QUESTION = 'What is your primary heating source?'
+const EST_AFFILIATE_LINK =
+  'https://energysavingtrust.org.uk/advice/?utm_source=00-00&utm_medium=sentinel&utm_campaign=reg_gb_base'
+const EST_URBAN_LEZ_LINK =
+  'https://energysavingtrust.org.uk/advice/energy-efficient-home/?utm_source=00-00&utm_medium=sentinel&utm_campaign=reg_urban_lez'
+const EST_HI_RURAL_LINK =
+  'https://energysavingtrust.org.uk/advice/heating-and-hot-water/?utm_source=00-00&utm_medium=sentinel&utm_campaign=reg_hi_rural'
+const EST_SOURCE_FOOTER = 'Source: National Grid | Verified April 2026'
+const NESTA_SOURCE_FOOTER = 'Source: Nesta | Verified April 2026'
+const WRAP_SOURCE_FOOTER = 'Source: WRAP | Verified April 2026'
 
 type Genome = Record<string, unknown>
 type TenureType = 'rent' | 'own'
@@ -62,7 +68,7 @@ export interface SyncUserZoneInput {
 
 export interface MotherChildJourneyState {
   journeyKey: string
-  /** P1–P3 deck for KW homeowners (grant + Nesta flow + EST standby); renters get three behavioral slides. */
+  /** P1–P3 home audit deck (baseline + behavioural slides); tenure steers ordering. */
   slides: MotherChildSlide[]
   context: {
     postcode: string
@@ -119,8 +125,8 @@ function buildResultMotherRecard(slides: MotherChildSlide[]): SentinelMotherReca
   const carbon = slides.reduce((sum, s) => sum + s.mother.carbonKg, 0)
   const lastIdx = Math.max(0, slides.length - 1)
   return {
-    headline: 'VERIFIED HOME AUDIT',
-    description: `April 2026 Sentinel lane complete — combined deck £${money.toLocaleString('en-GB')} with indicative ${carbon} kg CO₂e (structural + behavioural pathways, grid-scaled).`,
+    headline: 'Audit: verified home profile',
+    description: `April 2026 audit complete — combined indicative gap £${money.toLocaleString('en-GB')} and ${carbon} kg CO₂e.\n\n${EST_SOURCE_FOOTER}`,
     moneyValue: money,
     carbonValue: carbon,
     source_url: PRICE_CAP_SOURCE_URL,
@@ -232,16 +238,10 @@ function toPostcode(v: unknown): string {
   return typeof v === 'string' ? v.replace(/\s+/g, '').toUpperCase().trim() : ''
 }
 
-function isWickContext(postcode: string): boolean {
-  return /^KW/i.test(postcode)
-}
-
-function resolveGridGPerKwh(postcode: string, localCarbonG?: number): number {
-  if (isWickContext(postcode)) return NORTH_SCOTLAND_KW_GRID_G_PER_KWH
-  if (typeof localCarbonG === 'number' && Number.isFinite(localCarbonG) && localCarbonG > 0) {
-    return localCarbonG
-  }
-  return UK_AVERAGE_GRID_INTENSITY_G_PER_KWH
+function resolveAffiliateLinkForTier(tier: ReturnType<typeof deriveGridTier>): string {
+  if (tier === 'REG_HI_RURAL') return EST_HI_RURAL_LINK
+  if (tier === 'REG_URBAN_LEZ') return EST_URBAN_LEZ_LINK
+  return EST_AFFILIATE_LINK
 }
 
 function toTransitMode(v: unknown): TransitMode {
@@ -283,18 +283,24 @@ function normalizeGenome(genome: Genome): NormalizedGenome {
 
 function buildBehavioralSlide(card: SoftSaveCard, occupancy: number, gridGPerKwh: number): MotherChildSlide {
   const scaled = scaleSoftSaveForOccupancy(card, occupancy)
+  const sourceFooter =
+    card.sourceLabel === 'Nesta'
+      ? NESTA_SOURCE_FOOTER
+      : card.sourceLabel === 'WRAP'
+        ? WRAP_SOURCE_FOOTER
+        : EST_SOURCE_FOOTER
   return {
     mother: {
-      heading: card.headline,
-      description: `${card.description} \n\nScaled for ${scaled.occupancy} people with zero-cost behaviour first logic.`,
-      source: card.sourceLabel,
+      heading: `Audit: ${card.headline}`,
+      description: `${card.description}\n\nScaled for ${scaled.occupancy} occupants with behavioural-first logic.\n\n${sourceFooter}`,
+      source: sourceFooter,
       sourceUrl: card.sourceUrl,
       verifiedDate: SENTINEL_VERIFIED_DATE,
       ctaUrl: card.sourceUrl,
       saveGbp: scaled.saveGbp,
       carbonKg: Math.max(
         0,
-        Math.round((scaled.carbonKg * gridGPerKwh) / UK_AVERAGE_GRID_INTENSITY_G_PER_KWH)
+        Math.round((scaled.carbonKg * gridGPerKwh) / REG_GB_BASE_G_PER_KWH)
       ),
       category: 'behavioral',
     },
@@ -305,61 +311,56 @@ function buildBehavioralSlide(card: SoftSaveCard, occupancy: number, gridGPerKwh
   }
 }
 
-function buildHomeMotherChildState(params: {
+async function buildHomeMotherChildState(params: {
   postcode: string
   genome: Genome
   local: LocalIntelligence | null
-}): MotherChildJourneyState {
-  const wick = isWickContext(params.postcode)
+}): Promise<MotherChildJourneyState> {
   const g = normalizeGenome(params.genome)
-  const allowStructural = g.tenureType === 'own'
-  const grid = resolveGridGPerKwh(params.postcode, params.local?.localCarbonG)
-  const locality = params.local?.locality ?? params.local?.council ?? null
+  const gridTier = deriveGridTier(params.postcode, params.local)
+  const grid = getCarbonIntensity(params.postcode, params.local)
+  const affiliateLink = resolveAffiliateLinkForTier(gridTier)
+  const grounded = await runLiveGrounding({
+    postcode: params.postcode,
+    tenureType: g.tenureType,
+    local: params.local,
+    genome: params.genome,
+  })
+  const locality = grounded.real_locality || params.postcode
+  const homeOffer = {
+    label: grounded.offer_name,
+    amountGbp: grounded.real_grant_amount,
+    sourceUrl: grounded.source_url,
+    sourceLabel: grounded.source,
+  }
+  const grantCarbonKg = Math.max(1, Math.round(grounded.carbon_kg))
 
-  const structuralSave = wick ? Math.max(0, WICK_GRANT_GBP - APRIL_2026_ENERGY_CAP_GBP) : APRIL_2026_ENERGY_CAP_GBP
   const elec = APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH
   const gas = APRIL_2026_TRUTH_PENCE.GAS_PER_KWH
-  const busGrant = MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP
-
-  const grantSlide: MotherChildSlide | null =
-    allowStructural && wick
-      ? {
-          mother: {
-            heading: '£9,000 RURAL HEAT GRANT (WICK / HES)',
-            description: `Wick homeowners can access Home Energy Scotland rural uplift pathways up to £${WICK_GRANT_GBP.toLocaleString('en-GB')} versus the UK Boiler Upgrade Scheme ceiling of £${busGrant.toLocaleString('en-GB')} in 2026.\n\nApril 2026 reference rates: ${elec}p/kWh electricity and ${gas}p/kWh gas. Delta versus the £${APRIL_2026_ENERGY_CAP_GBP} typical cap headline is £${structuralSave} with North Scotland grid at ${grid}g/kWh.`,
-            source: 'Home Energy Scotland / GOV.UK BUS April 2026',
-            sourceUrl: SCOTTISH_HES_URL,
-            verifiedDate: SENTINEL_VERIFIED_DATE,
-            ctaUrl: SCOTTISH_HES_URL,
-            saveGbp: structuralSave,
-            carbonKg: Math.max(
-              0,
-              Math.round((structuralSave / 10) * (grid / UK_AVERAGE_GRID_INTENSITY_G_PER_KWH))
-            ),
-            category: 'structural',
-          },
-          child: {
-            question: HOME_CHILD_QUESTION,
-            options: ['Gas', 'Electric', 'HeatPump', 'Off-Grid'],
-          },
-        }
-      : null
-
-  const flowSlide = buildBehavioralSlide(getFlowTempSoftSave(), g.occupancyCount, grid)
-  const draughtSlide = buildBehavioralSlide(getDraughtProofingSoftSave(), g.occupancyCount, grid)
-  const standbySlide = buildBehavioralSlide(getPhantomStandbySoftSave(), g.occupancyCount, grid)
-
-  const busSlideUk: MotherChildSlide = {
+  const baselineCopy = buildAuditBaselineMotherCopy({
+    locality,
+    postcode: params.postcode,
+    gridTier,
+    gridGPerKwh: grid,
+    elecPence: elec,
+    gasPence: gas,
+    capGbp: APRIL_2026_ENERGY_CAP_GBP,
+    groundedNarrative: grounded.narrative,
+    offerLabel: homeOffer.label,
+    offerAmountGbp: homeOffer.amountGbp,
+    sourceLabel: homeOffer.sourceLabel,
+  })
+  const baselineSlide: MotherChildSlide = {
     mother: {
-      heading: 'BOILER UPGRADE SCHEME 2026',
-      description: `April 2026 Boiler Upgrade Scheme: up to £${busGrant.toLocaleString('en-GB')} toward a heat pump for eligible owner-occupied homes (England & Wales). Reference rates: ${elec}p/kWh electricity, ${gas}p/kWh gas; typical cap £${APRIL_2026_ENERGY_CAP_GBP}. Grid modelling intensity ${grid}g CO₂/kWh (UK average fallback 140g when API silent).`,
-      source: 'GOV.UK',
-      sourceUrl: GOV_UK_BUS_URL,
+      heading: baselineCopy.heading,
+      description: baselineCopy.description,
+      source: `Live Data: ${homeOffer.sourceLabel} | Grounded: April 27, 2026.`,
+      sourceUrl: homeOffer.sourceUrl,
       verifiedDate: SENTINEL_VERIFIED_DATE,
-      ctaUrl: GOV_UK_BUS_URL,
-      saveGbp: busGrant,
-      carbonKg: Math.max(0, Math.round((busGrant / 15) * (grid / UK_AVERAGE_GRID_INTENSITY_G_PER_KWH))),
-      category: 'structural',
+      ctaUrl: affiliateLink,
+      saveGbp: Math.max(0, Math.round(grounded.save_gbp)),
+      carbonKg: grantCarbonKg,
+      category: 'behavioral',
     },
     child: {
       question: HOME_CHILD_QUESTION,
@@ -367,16 +368,45 @@ function buildHomeMotherChildState(params: {
     },
   }
 
-  const slides: MotherChildSlide[] = (() => {
-    if (wick) {
-      if (grantSlide) return [grantSlide, flowSlide, standbySlide]
-      return [flowSlide, draughtSlide, standbySlide]
-    }
-    if (allowStructural) {
-      return [busSlideUk, flowSlide, standbySlide]
-    }
-    return [flowSlide, draughtSlide, standbySlide]
-  })()
+  const flowSlide = buildBehavioralSlide(getFlowTempSoftSave(), g.occupancyCount, grid)
+  const foodWasteSlide = buildBehavioralSlide(getFoodWasteSoftSave(), g.occupancyCount, grid)
+  const standbySlide = buildBehavioralSlide(getPhantomStandbySoftSave(), g.occupancyCount, grid)
+
+  const refinedLeakSlide: MotherChildSlide = {
+    ...flowSlide,
+    mother: {
+      ...flowSlide.mother,
+      heading: `Audit: heating flow @ £${flowSlide.mother.saveGbp} drift`,
+      description: `${flowSlide.mother.description}\n\nRefined gap: heating flow temperature sits above an efficient band.\n\nVerified for ${params.postcode} as of April 27, 2026. Source: Nesta.\n\nLive Data: Nesta | Grounded: April 27, 2026.`,
+      source: 'Live Data: Nesta | Grounded: April 27, 2026.',
+      ctaUrl: affiliateLink,
+    },
+  }
+  const verifiedSolutionSlide: MotherChildSlide = {
+    ...foodWasteSlide,
+    mother: {
+      ...foodWasteSlide.mother,
+      heading: 'Audit: verified 2026 stack',
+      description: `${foodWasteSlide.mother.description}\n\nVerified solution stack: flow temperature tuning, food waste reduction, standby control.\n\nVerified for ${params.postcode} as of April 27, 2026. Source: WRAP.\n\nLive Data: WRAP | Grounded: April 27, 2026.`,
+      source: 'Live Data: WRAP | Grounded: April 27, 2026.',
+      ctaUrl: affiliateLink,
+    },
+  }
+  const renterPrioritySlide: MotherChildSlide = {
+    ...standbySlide,
+    mother: {
+      ...standbySlide.mother,
+      heading: 'Audit: renter behavioural priority',
+      description: `${standbySlide.mother.description}\n\nTenure is rent, so structural funding routes are excluded; behavioural audits are prioritised.\n\n${EST_SOURCE_FOOTER}`,
+      source: EST_SOURCE_FOOTER,
+      ctaUrl: affiliateLink,
+    },
+  }
+
+  const slides: MotherChildSlide[] =
+    g.tenureType === 'rent'
+      ? [baselineSlide, renterPrioritySlide, verifiedSolutionSlide]
+      : [baselineSlide, refinedLeakSlide, verifiedSolutionSlide]
 
   return {
     journeyKey: 'home',
@@ -436,7 +466,7 @@ export async function syncUserZone(input: SyncUserZoneInput): Promise<SyncUserZo
     ? await fetchLocalIntelligenceViaApi(input.appOrigin, postcode)
     : null
   const localIntelligence = localFromApi ?? (await getLocalData(postcode))
-  const homeState = buildHomeMotherChildState({
+  const homeState = await buildHomeMotherChildState({
     postcode,
     genome: profileGenome,
     local: localIntelligence,

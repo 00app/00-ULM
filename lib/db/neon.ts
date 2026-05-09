@@ -202,11 +202,13 @@ export async function insertResearchInvokeSnapshot(params: {
       `INSERT INTO research_results (
          postcode, profile_snapshot, markdown, citations,
          elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
+         deep_link, verified_saving, locality_context,
          provider_name, agent_headline, openclaw_raw_json, created_at
        )
        VALUES (
          $1, $2::jsonb, $3, $4::jsonb,
          NULL, NULL, $5,
+         $5, NULL, NULL,
          $6, $7, $8::jsonb, NOW()
        )`,
       [
@@ -317,6 +319,60 @@ export async function upsertUserAnswers(
     }
   }
   return { updated }
+}
+
+/**
+ * Mirror a Child-card answer into users.user_genome for fast recursive personalization.
+ * Stores both nested journey answer and selected top-level derived fields.
+ */
+export async function upsertUserGenomeFromAnswer(
+  userId: string,
+  journeyId: string,
+  questionKey: string,
+  answerValue: string
+): Promise<void> {
+  const pool = getDbPool()
+  const uid = userId?.trim()
+  if (!uid) return
+  const journey = String(journeyId || '').trim()
+  const q = String(questionKey || '').trim()
+  const value = String(answerValue ?? '').trim().slice(0, MAX_ANSWER_LENGTH)
+  if (!journey || !q || !value) return
+
+  const derivedPatch: Record<string, unknown> = {}
+  const qUpper = q.toUpperCase()
+  if (qUpper === 'TENURE' || qUpper === 'HOUSING_TENURE' || qUpper === 'TENURE_TYPE') {
+    derivedPatch.tenure = value
+    derivedPatch.tenure_type = value
+  }
+  if (qUpper === 'HOME_TYPE') derivedPatch.home_type = value
+  if (qUpper === 'HOUSEHOLD_SIZE') {
+    const n = Number(value)
+    if (Number.isFinite(n) && n > 0) derivedPatch.household_size = Math.round(n)
+  }
+  if (qUpper === 'COMMUTE_TYPE' || qUpper === 'TRANSPORT_BASELINE') {
+    derivedPatch.transport_baseline = value
+  }
+  if (qUpper === 'FUEL_TYPE') derivedPatch.fuel_type = value
+  if (qUpper === 'PHONE_CYCLE' || qUpper === 'DEVICE_CYCLE') derivedPatch.phone_cycle = value
+  if (qUpper === 'ENERGY_TYPE') derivedPatch.energy_type = value
+
+  try {
+    await pool.query(
+      `UPDATE users
+       SET user_genome =
+         jsonb_set(
+           COALESCE(user_genome, '{}'::jsonb) || $2::jsonb,
+           ARRAY['journey_answers', $3::text, $4::text],
+           to_jsonb($5::text),
+           true
+         )
+       WHERE id = $1`,
+      [uid, JSON.stringify(derivedPatch), journey, q, value]
+    )
+  } catch {
+    // keep answer flow non-blocking if genome write fails
+  }
 }
 
 /** Pulse / ZeroHunter: users with fewest stored answers (infinite loop “unspent”). */

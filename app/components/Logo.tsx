@@ -13,7 +13,6 @@ export function Logo({ width = 51, className = '', style }: LogoProps) {
   return (
     <svg
       width={width}
-      height="auto"
       viewBox="0 0 126 200"
       fill="none"
       className={className}

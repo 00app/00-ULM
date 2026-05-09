@@ -1,4 +1,4 @@
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 import {
   getFlowTempSoftSave,
   getPhantomStandbySoftSave,
@@ -37,8 +37,8 @@ function softSaveToZoneTip(card: ReturnType<typeof getFlowTempSoftSave>, id: str
   }
 }
 
-/** P2/P3 behavioral Mother/Child sources for KW — opens in SoloFocusOverlay like other tips. */
-export function buildWickBehavioralZoneTips(): ZoneTipCard[] {
+/** Behavioural Mother/Child sources for remote north outward codes — opens like other tips. */
+export function buildRemoteBehavioralZoneTips(): ZoneTipCard[] {
   return [
     softSaveToZoneTip(getFlowTempSoftSave(), 'sentinel-behavioral-flow-temp', 'sentinel_soft_flow'),
     softSaveToZoneTip(getPhantomStandbySoftSave(), 'sentinel-behavioral-standby', 'sentinel_soft_standby'),

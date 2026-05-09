@@ -18,7 +18,7 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
   return (
     <PulseExpandedDiagnosticsProvider>
       <SessionStateRehydrate />
-      <div style={{ position: 'relative', width: '100%', minHeight: '100vh' }}>
+      <div className="zz-main-perspective-shell" style={{ position: 'relative', width: '100%', minHeight: '100vh' }}>
         {children}
       </div>
       {!hidePulse ? <PulseWidget /> : null}

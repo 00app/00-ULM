@@ -1,26 +1,22 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useCallback, useEffect, useLayoutEffect, useMemo, type CSSProperties } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { useState, useCallback, useEffect, useLayoutEffect, type CSSProperties } from 'react'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
+import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
+import {
+  SHIMMER_FOCUS,
+  SHIMMER_FOCUS_EXIT,
+  SHIMMER_FOCUS_EXIT_TRANSITION,
+} from '@/lib/animations'
 import InputField from '@/app/components/InputField'
-import IntroWordCycle from '@/app/components/IntroWordCycle'
 import { createUser } from '@/lib/api'
 import { ROUTES } from '@/lib/routes'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import type { ProfileAge } from '@/app/context/AppContext'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
-import { PROFILE_KINETIC_DWELL_MS, SLAM_SPRING } from '@/lib/animations'
-
-/** Tap feedback on profile option / continue controls */
-const PROFILE_BUTTON_TAP = { scale: 0.94 }
-
-function profileHeadlineTokens(label: string): string[] {
-  const t = label.trim().split(/\s+/).filter(Boolean)
-  return t.length ? t : [label.trim() || '—']
-}
 
 const PROFILE_QUESTIONS = [
   { id: 'name', label: 'name', type: 'input' as const, placeholder: 'alex' },
@@ -93,6 +89,7 @@ const STORAGE_KEYS: Record<string, string> = {
 }
 
 export default function ProfilePageClient() {
+  const reduceMotion = useReducedMotion()
   const router = useRouter()
   const searchParams = useSearchParams()
   const qParam = searchParams?.get('q')
@@ -136,24 +133,6 @@ export default function ProfilePageClient() {
 
   const current = PROFILE_QUESTIONS[step]
   const currentVal = values[current?.id] ?? ''
-
-  const prefersReducedMotion = useReducedMotion()
-  /** Strobe headline only when reduced motion is explicitly off (null = unknown → static + controls). */
-  const headlineStrobe = prefersReducedMotion === false
-  const headlineWords = useMemo(
-    () => [...profileHeadlineTokens(current?.label ?? '')],
-    [current?.label]
-  )
-  const headlineWordDwells = useMemo(
-    () => headlineWords.map(() => PROFILE_KINETIC_DWELL_MS),
-    [headlineWords]
-  )
-  const [headlineDone, setHeadlineDone] = useState(false)
-
-  useLayoutEffect(() => {
-    if (headlineStrobe) setHeadlineDone(false)
-    else setHeadlineDone(true)
-  }, [step, current?.id, headlineStrobe])
 
   useEffect(() => {
     const pc = (values.postcode ?? '').replace(/\s+/g, '').trim()
@@ -281,6 +260,17 @@ export default function ProfilePageClient() {
     }
   }
 
+  const stepBlockInitial = reduceMotion ? { opacity: 0 } : { ...SHIMMER_FOCUS.initial }
+  const stepBlockAnimate = reduceMotion
+    ? { opacity: 1, filter: 'none' as const, scale: 1 }
+    : { ...SHIMMER_FOCUS.animate }
+  const stepBlockTransition = reduceMotion
+    ? { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const }
+    : SHIMMER_FOCUS.transition
+  const stepBlockExit = reduceMotion
+    ? { opacity: 0, transition: { duration: 0.14, ease: [0.22, 1, 0.36, 1] as const } }
+    : { ...SHIMMER_FOCUS_EXIT, transition: SHIMMER_FOCUS_EXIT_TRANSITION }
+
   return (
     <main
       className="zz-profile-page"
@@ -297,44 +287,22 @@ export default function ProfilePageClient() {
         gap: 40,
       }}
     >
-      <div key={step} className="profile-step-slam w-full flex flex-col items-center" style={{ gap: 40, maxWidth: 520 }}>
-        {headlineStrobe ? (
-          <div
-            className="relative w-full flex justify-center"
-            style={{ minHeight: 'clamp(92px, 12vh, 140px)' }}
-            aria-live="polite"
-          >
-            <IntroWordCycle
-              key={`${step}-${current.id}`}
-              words={headlineWords}
-              wordDurations={headlineWordDwells}
-              preserveCase
-              trailingPeriod={false}
-              gapMs={0}
-              onComplete={() => setHeadlineDone(true)}
-            />
-          </div>
-        ) : (
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          className="profile-step-slam w-full flex flex-col items-center zz-shimmer-focus"
+          style={{ gap: 40, maxWidth: 520 }}
+          initial={stepBlockInitial}
+          animate={stepBlockAnimate}
+          exit={stepBlockExit}
+          transition={stepBlockTransition}
+        >
           <h2
             className="text-marvin profile-question-headline"
             style={{ marginBottom: 0, marginLeft: 'auto', marginRight: 'auto' }}
           >
             {current.label}
           </h2>
-        )}
-        <motion.div
-          key={`profile-controls-${step}`}
-          className="w-full flex flex-col items-center"
-          initial={headlineStrobe ? { opacity: 0, scale: 0.97 } : false}
-          animate={headlineDone ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.97 }}
-          transition={SLAM_SPRING}
-          style={{
-            pointerEvents: headlineDone ? 'auto' : 'none',
-            gap: current.type === 'input' ? 20 : 0,
-            maxWidth: current.type === 'input' ? 360 : undefined,
-            width: '100%',
-          }}
-        >
           {current.type === 'input' ? (
             <div
               style={{
@@ -353,21 +321,22 @@ export default function ProfilePageClient() {
                 placeholder={
                   (current as { label: string; placeholder?: string }).placeholder ?? current.label
                 }
-                autoFocus={headlineDone}
+                autoFocus
               />
-              <motion.button
-                type="button"
-                className="profile-answer-btn"
+              <ProfileAnswerBtn
+                reduceMotion={reduceMotion}
+                optionIndex={0}
+                delaySeconds={0.1}
+                className=""
                 disabled={!currentVal.trim()}
                 onClick={() => {
                   if (!currentVal.trim()) return
                   handleNext()
                 }}
-                whileTap={PROFILE_BUTTON_TAP}
                 aria-label="Continue"
               >
                 <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
-              </motion.button>
+              </ProfileAnswerBtn>
             </div>
           ) : (
             <div
@@ -377,11 +346,9 @@ export default function ProfilePageClient() {
                 gap: 16,
                 justifyContent: 'center',
                 maxWidth: 360,
-                marginLeft: 'auto',
-                marginRight: 'auto',
               }}
             >
-              {(current.options ?? []).map((opt: any) => {
+              {(current.options ?? []).map((opt: any, optionIndex: number) => {
                 const isObj = typeof opt === 'object' && opt !== null
                 const optLabel = isObj ? opt.label : opt
                 const optValue = isObj ? opt.value : opt
@@ -392,27 +359,25 @@ export default function ProfilePageClient() {
                     : String(optLabel).replace(/_/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
 
                 return (
-                  <motion.button
+                  <ProfileAnswerBtn
                     key={optValue}
-                    type="button"
-                    aria-label={optAria}
-                    className={`profile-answer-btn ${currentVal === optValue ? 'selected' : ''}`}
-                    style={
-                      optTheme ? ({ '--local-theme': optTheme } as CSSProperties & { '--local-theme'?: string }) : undefined
-                    }
+                    reduceMotion={reduceMotion}
+                    optionIndex={optionIndex}
+                    className={currentVal === optValue ? 'selected' : ''}
+                    style={optTheme ? ({ '--local-theme': optTheme } as CSSProperties & { '--local-theme'?: string }) : undefined}
                     onClick={() => handleOptionClick(opt)}
-                    whileTap={PROFILE_BUTTON_TAP}
+                    aria-label={optAria}
                   >
                     <span className="profile-answer-btn__text zz-h4">
                       {typeof optLabel === 'string' ? optLabel.replace(/_/g, '\n') : optLabel}
                     </span>
-                  </motion.button>
+                  </ProfileAnswerBtn>
                 )
               })}
             </div>
           )}
         </motion.div>
-      </div>
+      </AnimatePresence>
     </main>
   )
 }

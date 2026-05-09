@@ -6,6 +6,8 @@ async function resetSchema() {
     
     // Drop tables in reverse dependency order
     await pool.query('DROP TABLE IF EXISTS analytics_events CASCADE')
+    await pool.query('DROP TABLE IF EXISTS scraped_summary CASCADE')
+    await pool.query('DROP TABLE IF EXISTS research_results CASCADE')
     await pool.query('DROP TABLE IF EXISTS likes CASCADE')
     await pool.query('DROP TABLE IF EXISTS journey_answers CASCADE')
     await pool.query('DROP TABLE IF EXISTS journeys CASCADE')

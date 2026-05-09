@@ -2,10 +2,8 @@
 
 import React, { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
 import type { RockHabit } from '@/lib/rock/types'
 import { ROCK_HABITS, habitToTipCard } from '@/lib/rock/habitsCatalog'
-import { SPRING_BLOOM, SPRING_TAP } from '@/lib/animations'
 import InputField from '@/app/components/InputField'
 import { useApp } from '@/app/context/AppContext'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
@@ -132,11 +130,9 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
           const kg = parseCarbonKgFromDisplay(String(tip.data.carbon ?? '0'))
 
           return (
-            <motion.button
+            <button
               key={tip.id}
               type="button"
-              layout
-              transition={SPRING_BLOOM}
               onClick={() => onOpenTip(tip.id)}
               className="bento-card-groovy rock-bento-tile groovy-cell-radius flex flex-col justify-between w-full h-full min-h-0 cursor-pointer border-0 text-left"
               style={{
@@ -146,7 +142,6 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
                 borderRadius: 60,
                 boxShadow: 'none',
               }}
-              whileTap={{ scale: 0.96 }}
             >
               <div className="flex items-center justify-between w-full shrink-0 gap-2">
                 <span className="card-top-label" style={{ color: ROCK_CARD_TEXT }}>
@@ -203,14 +198,14 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
                   </span>
                 </div>
               </div>
-            </motion.button>
+            </button>
           )
         })}
       </div>
 
       <div className="w-full max-w-[min(1400px,100%)] mx-auto mt-8 px-[20px] lg:px-[40px] box-border">
         <div
-          className="rock-email-signup-card bento-card-groovy rock-bento-tile w-full flex flex-col border-0 text-left box-border"
+          className="rock-email-signup-card bento-card-groovy rock-bento-tile w-full flex flex-col border-0 text-left box-border px-[20px]"
           style={{
             backgroundColor: ROCK_CARD_BG,
             color: ROCK_CARD_TEXT,
@@ -235,17 +230,15 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
             className="rock-email-zz-input"
             width="100%"
           />
-          <motion.button
+          <button
             type="button"
             className="rock-email-go-btn"
             disabled={!email.trim() || signupBusy}
             onClick={() => void submitEmail()}
-            whileTap={email.trim() && !signupBusy ? { scale: 0.94 } : undefined}
-            transition={SPRING_TAP}
             aria-label="Submit email signup"
           >
             Go
-          </motion.button>
+          </button>
         </div>
         {signupMsg ? (
           <p className="zz-body-bold m-0 mt-3" style={{ color: ROCK_CARD_TEXT }}>
@@ -254,26 +247,22 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
         ) : null}
 
         <div className="rock-social-row">
-          <motion.a
+          <a
             href={INSTAGRAM_HREF}
             target="_blank"
             rel="noopener noreferrer"
             className="rock-ig-link"
             aria-label="Zero Zero on Instagram"
-            whileTap={{ scale: 0.94 }}
-            transition={SPRING_TAP}
           >
             <InstagramGlyph />
-          </motion.a>
-          <motion.button
+          </a>
+          <button
             type="button"
             className="rock-logout-btn"
             onClick={() => void handleLogout()}
-            whileTap={{ scale: 0.94 }}
-            transition={SPRING_TAP}
           >
             Log out
-          </motion.button>
+          </button>
         </div>
         </div>
       </div>

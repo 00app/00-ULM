@@ -10,8 +10,14 @@ import pool from '@/lib/db'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { UK_2026_MONEY_LEAD } from '@/lib/scraper/uk2026Defaults'
 import { runZeroResearchWithProfile, type ResearchProfileData } from '@/lib/agents/researchAgent'
+import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
+import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
+import { getLatestResearchUnitRates } from '@/lib/db/neon'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+export const maxDuration = 60
+const SCRAPE_SYNC_MAX_PER_MINUTE = 24
 
 interface ScrapedPayloadItem {
   journey_key: JourneyId
@@ -23,8 +29,32 @@ interface ScrapedPayloadItem {
 
 /** GET — Return scraped data for dashboard (buildUserImpact options.scraped). Optional ?postcode= polls OpenClaw for fresh regional data. */
 export async function GET(request: NextRequest) {
+  const id = getClientIdentifier(request)
+  const { ok, retryAfter } = checkRateLimit(`scrape-sync:${id}`, SCRAPE_SYNC_MAX_PER_MINUTE)
+  if (!ok) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined }
+    )
+  }
+  const fallbackDefaults = () =>
+    JOURNEY_ORDER.map((key) => {
+      const d = UK_2026_MONEY_LEAD[key]
+      return {
+        journey_key: key,
+        scraped_at: new Date().toISOString(),
+        carbon_value: d.carbon_value,
+        money_value: d.money_value,
+        deep_content_tip: d.crawler_tip ?? null,
+        high_saving: false,
+      }
+    })
   try {
-    const postcode = request.nextUrl.searchParams.get('postcode')?.trim() || null
+    const postcodeRaw = request.nextUrl.searchParams.get('postcode')?.trim() || null
+    const postcode = postcodeRaw ? postcodeRaw.replace(/\s+/g, '').toUpperCase() : null
+    if (postcode && postcode.length > 12) {
+      return NextResponse.json({ error: 'postcode too long' }, { status: 400 })
+    }
     let research: { markdown: string; citations: Array<{ source_name: string; url: string; snippet?: string }> } | undefined
 
     if (postcode) {
@@ -52,6 +82,45 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    let researchMeta: {
+      deep_link: string | null
+      verified_saving: number | null
+      locality_context: string | null
+    } | null = null
+    if (postcode) {
+      const researchMetaResult = await pool.query(
+        `SELECT deep_link, verified_saving, locality_context
+         FROM research_results
+         WHERE postcode = $1
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [postcode]
+      )
+      const researchMetaRow = researchMetaResult.rows?.[0] as
+        | { deep_link?: string | null; verified_saving?: number | null; locality_context?: string | null }
+        | undefined
+      researchMeta = researchMetaRow
+        ? {
+            deep_link: researchMetaRow.deep_link ?? null,
+            verified_saving:
+              typeof researchMetaRow.verified_saving === 'number'
+                ? Number(researchMetaRow.verified_saving)
+                : null,
+            locality_context: researchMetaRow.locality_context ?? null,
+          }
+        : null
+    }
+
+    let ratesExtra: Record<string, unknown> = {}
+    if (postcode) {
+      const homeUnitRates = await resolveLiveUnitRatesForPostcode(postcode)
+      const ratesRow = await getLatestResearchUnitRates(postcode)
+      ratesExtra = {
+        home_unit_rates: homeUnitRates,
+        rates_source_url: ratesRow?.source_url ?? null,
+      }
+    }
+
     const result = await pool.query(
       `SELECT journey_key, carbon_value, money_value, deep_content_tip, high_saving, scraped_at
        FROM scraped_summary
@@ -61,19 +130,11 @@ export async function GET(request: NextRequest) {
 
     if (rows.length === 0) {
       // Fallback: UK 2026 money-lead defaults so dashboard still has hero values
-      const defaults = JOURNEY_ORDER.map((key) => {
-        const d = UK_2026_MONEY_LEAD[key]
-        return {
-          journey_key: key,
-          scraped_at: new Date().toISOString(),
-          carbon_value: d.carbon_value,
-          money_value: d.money_value,
-          deep_content_tip: d.crawler_tip ?? null,
-          high_saving: false,
-        }
-      })
+      const defaults = fallbackDefaults()
       return NextResponse.json(
-        research ? { scraped: defaults, source: 'defaults', research } : { scraped: defaults, source: 'defaults' }
+        research
+          ? { scraped: defaults, source: 'defaults', research, researchMeta, ...ratesExtra }
+          : { scraped: defaults, source: 'defaults', researchMeta, ...ratesExtra }
       )
     }
 
@@ -86,11 +147,17 @@ export async function GET(request: NextRequest) {
       high_saving: Boolean(r.high_saving),
     }))
     return NextResponse.json(
-      research ? { scraped, source: 'database', research } : { scraped, source: 'database' }
+      research
+        ? { scraped, source: 'database', research, researchMeta, ...ratesExtra }
+        : { scraped, source: 'database', researchMeta, ...ratesExtra }
     )
   } catch (e) {
     console.error('[scrape-sync] GET error:', e)
-    return NextResponse.json({ error: 'Failed to load scraped data' }, { status: 500 })
+    const defaults = fallbackDefaults()
+    return NextResponse.json(
+      { scraped: defaults, source: 'defaults', degraded: true, error: 'Failed to load scraped data' },
+      { status: 200 }
+    )
   }
 }
 
@@ -103,6 +170,14 @@ const MIN_SCRAPER_SECRET_LENGTH = 16
  */
 export async function POST(request: NextRequest) {
   try {
+    const id = getClientIdentifier(request)
+    const { ok, retryAfter } = checkRateLimit(`scrape-sync:${id}`, SCRAPE_SYNC_MAX_PER_MINUTE)
+    if (!ok) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined }
+      )
+    }
     const secret = process.env.SCRAPER_SECRET?.trim()
     const isProduction = process.env.NODE_ENV === 'production'
 

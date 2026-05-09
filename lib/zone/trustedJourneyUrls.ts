@@ -6,14 +6,14 @@ import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_IDS } from '@/lib/journeys'
 
 export const TRUSTED_JOURNEY_URLS: Record<JourneyId, string> = {
-  home: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
+  home: 'https://www.gov.uk/government/publications/warm-homes-plan',
   travel: 'https://www.gov.uk/ev-chargepoint-grants',
   food: 'https://www.lovefoodhatewaste.com',
   shopping: 'https://ellenmacarthurfoundation.org',
-  money: 'https://www.makemymoneymatter.co.uk',
+  money: 'https://www.gov.uk/apply-warm-home-discount-scheme',
   carbon: 'https://www.ofgem.gov.uk',
   tech: 'https://www.backmarket.co.uk',
-  waste: 'https://www.gov.uk/recycling',
+  waste: 'https://www.gov.uk/recycling-collections',
   holidays: 'https://www.eurostar.com',
 }
 

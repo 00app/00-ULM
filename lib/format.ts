@@ -26,36 +26,56 @@ function roundCarbonKg(value: number | string): number {
   return Math.round(Math.max(0, parseCarbonKgFromDisplay(String(value))))
 }
 
+function trimTrailingDecimal(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '')
+}
+
 /**
- * Money figure only (no £). &lt;1000 → integer string; ≥1000 → one decimal + K (e.g. 1200 → 1.2K).
+ * Universal compact audit formatter.
+ * - money: 12480 -> 12.5k, 12000 -> 12k
+ * - carbon: 1200 -> 1.2t, 1000 -> 1t
  */
+export function compactAuditValue(
+  value: number | string,
+  kind: 'money' | 'carbon'
+): { figure: string; suffix: string | null } {
+  if (kind === 'money') {
+    const n = roundMoneyGbp(value)
+    if (n < 1000) return { figure: String(n), suffix: null }
+    return { figure: trimTrailingDecimal(n / 1000), suffix: 'k' }
+  }
+  const n = roundCarbonKg(value)
+  if (n < 100) return { figure: String(n), suffix: 'kg' }
+  return { figure: trimTrailingDecimal(n / 1000), suffix: 't' }
+}
+
+/** Money figure only (no £). */
 export function formatMoneyValue(value: number | string): string {
-  const n = roundMoneyGbp(value)
-  if (n < 1000) return String(n)
-  return `${(n / 1000).toFixed(1)}K`
+  const compact = compactAuditValue(value, 'money')
+  return `${compact.figure}${compact.suffix ?? ''}`
 }
 
 /**
  * Carbon mass stamp only (no CO₂). &lt;1000 kg → NKG; ≥1000 kg → one decimal + T.
  */
 export function formatCarbonValue(value: number | string): string {
-  const n = roundCarbonKg(value)
-  if (n < 1000) return `${n}KG`
-  return `${(n / 1000).toFixed(1)}T`
+  const compact = compactAuditValue(value, 'carbon')
+  return `${compact.figure}${compact.suffix ?? ''}`
 }
 
 /** Parts for stamped SAVE rows (figures + optional K; £ span follows digits in `StampedMoneyGbp`). */
 export function getMoneyStampParts(gbp: number): { digits: string; scaleSuffix: string | null } {
-  const n = Math.round(Math.max(0, Number.isFinite(gbp) ? gbp : 0))
-  if (n < 1000) return { digits: String(n), scaleSuffix: null }
-  return { digits: (n / 1000).toFixed(1), scaleSuffix: 'K' }
+  const compact = compactAuditValue(gbp, 'money')
+  return { digits: compact.figure, scaleSuffix: compact.suffix }
 }
 
 /** Parts for stamped CARBON rows (caller adds CO₂ span). */
-export function getCarbonStampParts(kg: number): { digits: string; massUnit: 'KG' | 'T' } {
-  const n = Math.round(Math.max(0, Number.isFinite(kg) ? kg : 0))
-  if (n < 1000) return { digits: String(n), massUnit: 'KG' }
-  return { digits: (n / 1000).toFixed(1), massUnit: 'T' }
+export function getCarbonStampParts(kg: number): { digits: string; massUnit: 'kg' | 't' } {
+  const compact = compactAuditValue(kg, 'carbon')
+  return {
+    digits: compact.figure,
+    massUnit: compact.suffix === 't' ? 't' : 'kg',
+  }
 }
 
 /** Parse £ display including K shorthand → GBP number. */
@@ -115,9 +135,8 @@ export function formatHeroCarbonParts(n: number): { figure: string; unit: string
  * Format carbon value for display (kg CO₂e). ≥1000 kg → XT CO₂; else N KG CO₂.
  */
 export function formatCarbon(kg: number | string): string {
-  const n = roundCarbonKg(kg)
-  if (n < 1000) return `${n}KG CO₂`
-  return `${(n / 1000).toFixed(1)}T CO₂`
+  const compact = compactAuditValue(kg, 'carbon')
+  return `${compact.figure}${compact.suffix ?? ''} CO₂`
 }
 
 /**
@@ -132,9 +151,8 @@ export function formatMoneyImpact(value: number | string): string {
  * Impact display: carbon — prose split (value + unit). Use stamped UI via {@link getCarbonStampParts} + CO₂ spans.
  */
 export function formatCarbonImpact(kg: number | string): { value: string; unit: string } {
-  const n = roundCarbonKg(kg)
-  if (n >= 1000) return { value: (n / 1000).toFixed(1), unit: 'T CO₂' }
-  return { value: String(n), unit: 'KG CO₂' }
+  const compact = compactAuditValue(kg, 'carbon')
+  return { value: compact.figure, unit: `${compact.suffix ?? ''} CO₂`.trim() }
 }
 
 /**

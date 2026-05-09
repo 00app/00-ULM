@@ -4,7 +4,7 @@
 
 import { zeroResearchInvokeExtras } from '@/lib/agents/config'
 import type { JourneyId } from '@/lib/journeys'
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 import { regionalHeatPumpGrantGbp } from '@/lib/zone/regionalGrants'
 import { enforceTrueWinRails, passesBoundaryGuard } from '@/lib/zone/trueWinRails'
 import { ensureInjectionCardUrls } from '@/lib/zone/injections'
@@ -50,7 +50,7 @@ export async function researchNextWinAfterAnswer(params: {
   postcode: string | null
   profileData: Record<string, unknown> | null
 }): Promise<ZoneTipCard[]> {
-  const token = process.env.OPENCLAW_GATEWAY_TOKEN?.trim()
+  const token = process.env.OPENCLAW_API_KEY?.trim() || process.env.OPENCLAW_GATEWAY_TOKEN?.trim()
   if (!token) return []
 
   const employment =

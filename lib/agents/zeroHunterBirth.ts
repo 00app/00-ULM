@@ -10,7 +10,7 @@ import { buildDiscoveryInjectionId } from '@/lib/zone/discoveryCard'
 import { researchLocalGrantsToDiscovery } from '@/lib/agents/skills/researchLocalGrants'
 import type { DiscoveryCard } from '@/lib/types/discovery'
 import { discoveryCardFromZoneTip } from '@/lib/types/discovery'
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 
 export async function runZeroHunterBirthAfterAnswer(params: {
   journeyId: JourneyId

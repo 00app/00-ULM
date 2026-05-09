@@ -3,7 +3,7 @@
  */
 
 import type { JourneyId } from '@/lib/journeys'
-import type { ZoneTipCard } from '@/lib/zone/buildZoneViewModel'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 
 /** Lightweight payload returned from POST /api/answers (alongside full `discovery.new_card_data`). */
 export interface DiscoveryCard {

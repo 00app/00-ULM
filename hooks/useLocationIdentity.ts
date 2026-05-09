@@ -6,7 +6,7 @@ import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import { useApp } from '@/app/context/AppContext'
 
 /**
- * Client hook: resolve postcode → LocalIntelligence + short display name (e.g. “Wick”).
+ * Client hook: resolve postcode → LocalIntelligence + short display name.
  * Uses POST /api/local-intelligence (rate-limited server proxy to Postcodes.io).
  */
 export function useLocationIdentity(postcode: string | null | undefined) {

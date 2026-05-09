@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
+import { BASELINE_2026_CAP_GBP } from '@/lib/brains/calculations'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import type { Persona } from '@/lib/brains/types'
 import {
@@ -17,12 +18,18 @@ import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
 import IntroWordCycle from '@/app/components/IntroWordCycle'
 import { syncSessionState } from '@/lib/sessionStateSync'
-import { KINETIC_WORD_DWELL_MS, SLAM_SPRING } from '@/lib/animations'
+import {
+  INTRO_SHIMMER_WORD_DWELL_MS,
+  INTRO_SHIMMER_WORD_GAP_MS,
+  SLAM_SPRING,
+  ELASTIC_PING,
+  SHIMMER_FOCUS,
+  soloFocusSlamMotionProps,
+} from '@/lib/animations'
 
 const REDIRECT_NO_PROFILE_MS = 1800
 const WASTE_FACTOR = 0.22
-const BASELINE_2026_CAP_GBP = 1641
-const SUMMARY_WORD_PULSE_MS = KINETIC_WORD_DWELL_MS
+const SUMMARY_WORD_SHIMMER_MS = INTRO_SHIMMER_WORD_DWELL_MS
 const PAGE_EXIT_NAV_MS = 800
 const SESSION_ZONE_HANDOFF = 'zz_summary_to_zone'
 
@@ -130,24 +137,6 @@ export default function ProfileSummaryPage() {
     const locationFromContext = state.locationState?.locationName?.trim() ?? ''
     const councilImmediate = locationFromContext || 'the UK'
 
-    const syncNarrative: ProfileSummaryNarrativeInput = {
-      employment_status: profile.employment_status,
-      councilLabel: councilImmediate,
-      postcodeDisplay,
-      local: null,
-      totalsMoney: impact.totals.totalMoney,
-      totalsCarbon: impact.totals.totalCarbon,
-      annualWasteCash,
-      annualWasteCarbon,
-    }
-
-    if (!cancelled) {
-      setSummaryPack({ waste: wastePack, narrative: syncNarrative })
-      if (councilImmediate.trim() && councilImmediate !== 'the UK') {
-        setLocationState({ locationName: councilImmediate.trim(), local: null })
-      }
-    }
-
     ;(async () => {
       let local: SummaryLocalContext | null = null
       if (postcode.length >= 4) {
@@ -183,21 +172,6 @@ export default function ProfileSummaryPage() {
 
       if (cancelled) return
 
-      const narrative: ProfileSummaryNarrativeInput = {
-        employment_status: profile.employment_status,
-        councilLabel: (local?.council || '').trim() || councilImmediate,
-        postcodeDisplay,
-        local,
-        totalsMoney: impact.totals.totalMoney,
-        totalsCarbon: impact.totals.totalCarbon,
-        annualWasteCash,
-        annualWasteCarbon,
-      }
-
-      setSummaryPack({
-        waste: wastePack,
-        narrative,
-      })
       const locationName = formatLocationDisplayName(
         local
           ? {
@@ -214,6 +188,22 @@ export default function ProfileSummaryPage() {
       )
       const resolvedLocationName =
         locationName.trim() || state.locationState?.locationName?.trim() || councilImmediate
+
+      const narrative: ProfileSummaryNarrativeInput = {
+        employment_status: profile.employment_status,
+        councilLabel: resolvedLocationName,
+        postcodeDisplay,
+        local,
+        totalsMoney: impact.totals.totalMoney,
+        totalsCarbon: impact.totals.totalCarbon,
+        annualWasteCash,
+        annualWasteCarbon,
+      }
+
+      setSummaryPack({
+        waste: wastePack,
+        narrative,
+      })
       if (resolvedLocationName && resolvedLocationName !== 'the UK') {
         setLocationState({
           locationName: resolvedLocationName,
@@ -325,7 +315,7 @@ export default function ProfileSummaryPage() {
   }
 
   const summaryWordDurations = useMemo(
-    () => kineticWords.map(() => SUMMARY_WORD_PULSE_MS),
+    () => kineticWords.map(() => SUMMARY_WORD_SHIMMER_MS),
     [kineticWords]
   )
   if (!summaryPack) {
@@ -373,7 +363,7 @@ export default function ProfileSummaryPage() {
       <motion.button
         initial={{ scale: 0, rotate: -90 }}
         animate={{ scale: 1, rotate: 0 }}
-        transition={SLAM_SPRING}
+        transition={ELASTIC_PING.transition}
         onClick={() => setPhase('exit')}
         style={{
           position: 'absolute',
@@ -415,6 +405,7 @@ export default function ProfileSummaryPage() {
           {(phase === 'cycle' || phase === 'settle') && (
             <motion.div
               key="summary-cycle"
+              {...soloFocusSlamMotionProps(false, false)}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -426,7 +417,12 @@ export default function ProfileSummaryPage() {
                 justifyContent: 'center',
                 textAlign: 'center',
                 gap: 40,
+                background: 'transparent',
               }}
+              className="zz-shimmer-focus"
+              initial={phase === 'cycle' ? SHIMMER_FOCUS.initial : false}
+              animate={phase === 'cycle' ? SHIMMER_FOCUS.animate : { opacity: 1, filter: 'none', scale: 1 }}
+              transition={SHIMMER_FOCUS.transition}
               exit={{
                 opacity: 0,
                 scale: 0.96,
@@ -439,7 +435,9 @@ export default function ProfileSummaryPage() {
                   words={kineticWords}
                   preserveCase
                   trailingPeriod={false}
-                  gapMs={0}
+                  lensFocusShimmer
+                  fitToViewportPaddingPx={40}
+                  gapMs={INTRO_SHIMMER_WORD_GAP_MS}
                   wordDurations={summaryWordDurations}
                   onComplete={handleCycleComplete}
                 />

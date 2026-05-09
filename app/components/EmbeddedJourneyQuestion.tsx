@@ -1,22 +1,34 @@
 'use client'
 
 /**
- * Embedded question chamber for Solo Focus (journey card + tip/filler overlay).
+ * Embedded question chamber for Solo Focus (journey card + zip-shut overlay).
  * Split from JourneyBentoCard so SoloFocusOverlay does not import the whole card module
  * (avoids heavy coupling / init-order issues in production bundles).
  */
 import React, { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { JOURNEYS, FUNKY_QUESTION_LABEL, getOptionFullLabel, type JourneyId, type JourneyQuestion } from '@/lib/journeys'
 import { getNextQuestion } from '@/lib/zone/questionHandler'
 import { useApp } from '@/app/context/AppContext'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { syncSessionState } from '@/lib/sessionStateSync'
-import { SLAM_SPRING, SPRING_BLOOM, SPRING_TAP } from '@/lib/animations'
+import {
+  ELASTIC_PING,
+  SPRING_BLOOM,
+  SPRING_TAP,
+  SHIMMER_FOCUS,
+  INTRO_DECISION_CTA_TRANSITION,
+  SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION,
+} from '@/lib/animations'
 import { injectNewDiscoveryCard } from '@/lib/discoveryInject'
-import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
-import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
 import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
+
+const ANSWER_COMMITTED_EVENT = 'zz_answer_committed'
+
+/** Outside component so react-hooks/purity does not treat timestamp reads as render-phase impurity. */
+function answerCommitTimestampMs(): number {
+  return Date.now()
+}
 
 /** Merge API + generate-next morph lists without duplicate ids. */
 function mergeMorphCardLists(server: unknown[] | undefined, client: unknown[] | undefined): any[] {
@@ -37,47 +49,19 @@ function mergeMorphCardLists(server: unknown[] | undefined, client: unknown[] | 
   return out
 }
 
-/** When discovery returns no ZoneTip morph rows, still append one deck page so Solo Focus can pager + zip-rebirth. */
-function buildSyntheticMorphCardForSoloFocus(
-  journeyId: JourneyId,
-  questionId: string,
-  data: Record<string, any> | null | undefined,
-  profile: {
-    postcode?: string
-    homeType?: string
-    transport?: string
-    fuelType?: string
-  }
-): any {
-  const highValueFallback = getNextMorphCard(journeyId, profile)
-  if (highValueFallback) return highValueFallback
-  const ndc = data?.new_discovery_card as { title?: string } | undefined
-  const win = typeof data?.discovery_win === 'string' ? data.discovery_win.trim() : ''
-  const disc = data?.discovery as { recommendation_copy?: string } | undefined
-  const rec = typeof disc?.recommendation_copy === 'string' ? disc.recommendation_copy.trim() : ''
-  const title =
-    (ndc?.title && String(ndc.title).trim()) ||
-    (win ? win.slice(0, 80) : '') ||
-    (rec ? rec.slice(0, 80) : '') ||
-    'Your personalised win'
+function soloFocusQuestionCountStorageKey(sessionLaneKey: string | undefined, journeyId: JourneyId) {
+  return `zz_sf_q_${sessionLaneKey ?? journeyId}`
+}
 
-  const desc = win || rec || ''
-  const totals = data?.newTotals as { totalMoney?: number; totalCarbon?: number } | undefined
-  const money =
-    totals && typeof totals.totalMoney === 'number' ? formatZoneCardMoney(totals.totalMoney) : '—'
-  const carbon =
-    totals && typeof totals.totalCarbon === 'number' ? formatCarbon(totals.totalCarbon) : '—'
-
-  return {
-    id: `synthetic-morph-${journeyId}-${questionId}-${Date.now()}`,
-    variant: 'card-compact',
-    title,
-    heading: title,
-    journey_key: journeyId,
-    category: journeyId,
-    data: { money, carbon },
-    explanation: desc ? [desc] : undefined,
-    description: desc,
+function readSoloFocusAnswerCountForSession(key: string): number {
+  if (typeof window === 'undefined') return 0
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (raw == null || raw === '') return 0
+    const n = Number.parseInt(raw, 10)
+    return Number.isFinite(n) && n >= 0 ? n : 0
+  } catch {
+    return 0
   }
 }
 
@@ -303,6 +287,7 @@ export function EmbeddedJourneyQuestion({
    */
   sessionLaneKey?: string
 }) {
+  const reduceMotion = useReducedMotion()
   const { setHeroTotals, state, refreshProfile } = useApp()
   const profile = state.profile
   const def = JOURNEYS[journeyId]
@@ -367,9 +352,38 @@ export function EmbeddedJourneyQuestion({
         /* ignore */
       }
     }
+    const qCountKey = soloFocusQuestionCountStorageKey(sessionLaneKey, journeyId)
+    if (soloFocusZipShut && typeof window !== 'undefined') {
+      if (readSoloFocusAnswerCountForSession(qCountKey) >= SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION) {
+        return
+      }
+    }
     const obj = { ...answers, [firstUnanswered.id]: trimmed }
 
     const questionIdSnapshot = firstUnanswered.id
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(obj))
+      } catch {
+        // ignore storage failures
+      }
+      try {
+        persistUnifiedUserProfileMemory()
+      } catch {
+        // ignore
+      }
+      refreshProfile()
+      window.dispatchEvent(
+        new CustomEvent(ANSWER_COMMITTED_EVENT, {
+          detail: {
+            journeyId,
+            questionId: questionIdSnapshot,
+            answerValue: trimmed,
+            committedAt: answerCommitTimestampMs(),
+          },
+        })
+      )
+    }
 
     let allAnswers = {}
     if (typeof window !== 'undefined') {
@@ -439,19 +453,7 @@ export function EmbeddedJourneyQuestion({
         }
       }
 
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(obj))
-        } catch {
-          // ignore storage failures
-        }
-        try {
-          persistUnifiedUserProfileMemory()
-        } catch {
-          // ignore
-        }
-        refreshProfile()
-      }
+      // storage/profile already committed optimistically before network post
       if (data?.newTotals && typeof data.newTotals.totalMoney === 'number' && typeof data.newTotals.totalCarbon === 'number') {
         setHeroTotals({ totalMoney: data.newTotals.totalMoney, totalCarbon: data.newTotals.totalCarbon })
       }
@@ -510,6 +512,18 @@ export function EmbeddedJourneyQuestion({
       syncSessionState()
       triggerHaptic('medium')
       const nextQ = getNextQuestion(journeyId, obj)
+      const prevQCount = soloFocusZipShut ? readSoloFocusAnswerCountForSession(qCountKey) : 0
+      const nextQCount = soloFocusZipShut ? prevQCount + 1 : 0
+      if (soloFocusZipShut && typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem(qCountKey, String(nextQCount))
+        } catch {
+          /* ignore */
+        }
+      }
+      const allowNextQuestion =
+        Boolean(nextQ) &&
+        (!soloFocusZipShut || nextQCount < SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION)
       if (soloFocusZipShut) {
         if (!deferJourneyAnsweredForZipRebirth) {
           onJourneyAnswered?.()
@@ -518,22 +532,7 @@ export function EmbeddedJourneyQuestion({
         if (onSoloFocusPostSuccess) {
           const serverMorph = data?.morphCards
           const genMorph = nextData?.cards
-          let morphMerged = mergeMorphCardLists(serverMorph, genMorph)
-          if (morphMerged.length === 0) {
-            morphMerged = [
-              buildSyntheticMorphCardForSoloFocus(journeyId, questionIdSnapshot, data, {
-                postcode: profile?.postcode,
-                homeType: profile?.homeType,
-                transport: profile?.transport,
-                fuelType:
-                  journeyId === 'travel'
-                    ? obj.fuel_type
-                    : journeyId === 'home'
-                      ? obj.energy_type
-                      : undefined,
-              }),
-            ]
-          }
+          const morphMerged = mergeMorphCardLists(serverMorph, genMorph)
           const ndc = data?.new_discovery_card as
             | {
                 id?: string
@@ -574,7 +573,7 @@ export function EmbeddedJourneyQuestion({
             userContext: userContext,
             researchAttribution: researchAttribution ?? undefined,
             sourceCitation: sourceCitationForSnap,
-            hasNextQuestion: Boolean(nextQ),
+            hasNextQuestion: allowNextQuestion,
             newTotals:
               data?.newTotals &&
               typeof data.newTotals.totalMoney === 'number' &&
@@ -596,22 +595,7 @@ export function EmbeddedJourneyQuestion({
       if (!nextQ) {
         if (onSoloFocusPostSuccess) {
            setSubmitted(true)
-           let merged = mergeMorphCardLists(data?.morphCards, nextData?.cards)
-           if (merged.length === 0) {
-             merged = [
-               buildSyntheticMorphCardForSoloFocus(journeyId, questionIdSnapshot, data, {
-                 postcode: profile?.postcode,
-                 homeType: profile?.homeType,
-                 transport: profile?.transport,
-                 fuelType:
-                   journeyId === 'travel'
-                     ? obj.fuel_type
-                     : journeyId === 'home'
-                       ? obj.energy_type
-                       : undefined,
-               }),
-             ]
-           }
+           const merged = mergeMorphCardLists(data?.morphCards, nextData?.cards)
            const researchAttribution = data?.researchAttribution as
              | { headline?: string | null; supplied_by?: string | null }
              | undefined
@@ -721,18 +705,25 @@ export function EmbeddedJourneyQuestion({
         transition: ZIP_SHUTTER_SPRING,
       }}
     >
-      <h4
-        className={`solo-focus-question-label solo-focus-copy-width text-marvin uppercase ${railAlign ? 'text-left' : 'text-center'}`}
-        style={{
-          margin: 0,
-          fontFamily: 'var(--font-marvin)',
-          fontWeight: 700,
-          fontSize: '30px',
-          color: textColor ?? 'var(--color-purple)',
-        }}
-      >
-        {questionLabel}
-      </h4>
+      <AnimatePresence mode="wait">
+        <motion.h3
+          key={questionLabel}
+          className={`solo-focus-question-label solo-focus-copy-width text-marvin uppercase zz-h3 zz-shimmer-focus ${railAlign ? 'text-left' : 'text-center'}`}
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-marvin)',
+            fontWeight: 700,
+            color: textColor ?? 'var(--color-purple)',
+            willChange: 'filter, transform',
+          }}
+          initial={reduceMotion ? false : SHIMMER_FOCUS.initial}
+          animate={reduceMotion ? { opacity: 1, filter: 'none', scale: 1 } : SHIMMER_FOCUS.animate}
+          exit={reduceMotion ? { opacity: 0 } : { ...SHIMMER_FOCUS.initial, transition: { duration: 0.12 } }}
+          transition={SHIMMER_FOCUS.transition}
+        >
+          {questionLabel}
+        </motion.h3>
+      </AnimatePresence>
 
       {isNumberQuestion ? (
         soloFocusZipShut ? (
@@ -746,26 +737,32 @@ export function EmbeddedJourneyQuestion({
               maxWidth: railAlign ? '100%' : 302,
             }}
           >
-            {getSoloFocusNumberPresets(firstUnanswered.id).map(({ label, value }) => {
+            {getSoloFocusNumberPresets(firstUnanswered.id).map(({ label, value }, idx) => {
               const isThisSwishing = swishingOption === value
               return (
                 <motion.button
                   key={value}
                   type="button"
                   aria-label={label}
-                  className="solo-focus-answer-option answer-circle-100"
+                  className="solo-focus-answer-option answer-circle-100 zz-shimmer-focus"
                   onClick={() => handleEmbedSubmit(value)}
                   style={{
                     ...ANSWER_CIRCLE_STYLE,
                     background: restBg,
                     color: restText,
+                    willChange: 'filter, transform',
                   }}
+                  initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
                   animate={{
                     scale: isThisSwishing ? 0.5 : 1,
-                    transition: SLAM_SPRING,
+                    opacity: 1,
+                    transition: ELASTIC_PING.transition,
                   }}
                   whileTap={!isSwishing ? { scale: 0.96 } : {}}
-                  transition={SPRING_TAP}
+                  transition={{
+                    ...INTRO_DECISION_CTA_TRANSITION,
+                    delay: reduceMotion ? 0 : (idx + 1) * 0.1,
+                  }}
                 >
                   {label.replace(/\s+/g, '').toUpperCase()}
                 </motion.button>
@@ -795,30 +792,51 @@ export function EmbeddedJourneyQuestion({
             maxWidth: railAlign ? '100%' : 302,
           }}
         >
-          {firstUnanswered.options!.map((opt) => {
+          {firstUnanswered.options!.map((opt, idx) => {
             const isSelected = selectedOption === opt
             const isThisSwishing = swishingOption === opt
             const isDense = firstUnanswered.options!.length > 6
             const circleClass = isDense ? 'answer-circle-80' : 'answer-circle-100'
-            const circleStyle = isDense ? { width: 80, height: 80, fontSize: 16 } : ANSWER_CIRCLE_STYLE
+            const circleStyle = isDense
+              ? {
+                  width: 80,
+                  height: 80,
+                  fontSize: 'var(--zz-h4-mobile)',
+                  fontFamily: 'var(--font-marvin)',
+                  fontWeight: 700,
+                  lineHeight: 'var(--zz-lh-heading)',
+                }
+              : {
+                  ...ANSWER_CIRCLE_STYLE,
+                  fontSize: 'var(--zz-h4-mobile)',
+                  fontFamily: 'var(--font-marvin)',
+                  fontWeight: 700,
+                  lineHeight: 'var(--zz-lh-heading)',
+                }
             return (
               <motion.button
                 key={opt}
                 type="button"
                 aria-label={opt}
-                className={`solo-focus-answer-option ${circleClass}`}
+                className={`solo-focus-answer-option zz-shimmer-focus ${circleClass}`}
                 onClick={() => handleEmbedSubmit(opt)}
                 style={{
                   ...circleStyle,
                   background: isSelected ? activeBg : restBg,
                   color: isSelected ? activeText : restText,
+                  willChange: 'filter, transform',
                 }}
+                initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
                 animate={{
                   scale: isThisSwishing ? 0.5 : 1,
-                  transition: SLAM_SPRING,
+                  opacity: 1,
+                  transition: ELASTIC_PING.transition,
                 }}
                 whileTap={!isSwishing ? { scale: 0.96 } : {}}
-                transition={SPRING_TAP}
+                transition={{
+                  ...INTRO_DECISION_CTA_TRANSITION,
+                  delay: reduceMotion ? 0 : (idx + 1) * 0.1,
+                }}
               >
                 {toChipLabel(opt)}
               </motion.button>
