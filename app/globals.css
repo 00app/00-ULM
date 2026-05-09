@@ -11,6 +11,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Single vertical scroll: kill accidental horizontal scroll from 100vw / transforms */
+html {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Intro/home: global `body { padding }` stacks under min-height and creates a vertical scrollbar — strip scroll + padding */
+html.zz-intro-document-lock,
+html.zz-intro-document-lock body {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+html.zz-intro-document-lock body {
+  padding: 0 !important;
+}
+
+.zz-main-perspective-shell.zz-intro-stage-lock {
+  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1024px) {
+  /* Settings: hero £ / tCO₂ grid aligns to 30px mechanical inset (not body 40px gutter). */
+  body:has(.settings-page) {
+    padding-left: 30px !important;
+    padding-right: 30px !important;
+  }
+}
+
+/* Zone is the only long page we intentionally scroll — thin yellow thumb (not default grey). */
+html.zz-zone-document {
+  scrollbar-color: color-mix(in srgb, var(--color-yellow) 45%, transparent) color-mix(in srgb, var(--color-purple) 12%, transparent);
+  scrollbar-width: thin;
+}
+html.zz-zone-document::-webkit-scrollbar {
+  width: 8px;
+}
+html.zz-zone-document::-webkit-scrollbar-track {
+  background: transparent;
+}
+html.zz-zone-document::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-yellow) 38%, transparent);
+  border-radius: 999px;
+}
+
 *,
 *::before,
 *::after {
@@ -860,16 +914,17 @@ input[type='number'] {
   }
 }
 
-/** Bento card types: 1x1 square, 2x1 long, 1x2 tall. On mobile all become square. */
+/** Bento card types: 1x1 square, 2x1 long; tall persona no longer spans rows (removed dead vertical band). */
 .span-wide { grid-column: span 2; }
-.span-tall { grid-row: span 2; }
+.span-tall { grid-row: span 1; }
 .zone-grid-full-row { grid-column: 1 / -1; }
 .groovy-cell-radius {
   border-radius: 60px;
   container-type: inline-size;
   container-name: zone-card;
   transition: border-radius 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
-  height: 100%;
+  height: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -893,7 +948,8 @@ input[type='number'] {
   width: 100%;
   max-width: min(1400px, 100%);
   box-sizing: border-box;
-  align-items: stretch;
+  /* Start-aligned: avoids tall journey cells (e.g. money) stretching with dead vertical fill */
+  align-items: start;
   transition:
     grid-template-columns 0.4s cubic-bezier(0.22, 1, 0.36, 1),
     row-gap 0.4s cubic-bezier(0.22, 1, 0.36, 1),
@@ -908,6 +964,8 @@ input[type='number'] {
   max-width: 100%;
   display: flex;
   box-sizing: border-box;
+  height: auto;
+  align-self: start;
 }
 
 /* Mobile: one column only. Every card square (1x1). Minimum card size; no overflow. */
@@ -956,10 +1014,6 @@ input[type='number'] {
     padding: 20px;
     padding-bottom: 0;
   }
-  /* Desktop lock: all cards share same row height. */
-  .groovy-zone-grid .span-tall {
-    grid-row: span 1;
-  }
 }
 
 /* Extra large desktop: stay at two columns for visual stability. */
@@ -972,9 +1026,6 @@ input[type='number'] {
     column-gap: 20px;
     padding: 20px;
     padding-bottom: 0;
-  }
-  .groovy-zone-grid .span-tall {
-    grid-row: span 1;
   }
 }
 
@@ -1062,12 +1113,12 @@ body, p, span, input, button, textarea, select,
   padding: 30px !important;
 }
 
-/* Zone grid height lock: all cards in a row share tallest-card height. */
+/* Zone cards hug content — avoid grey/yellow dead bands inside rounded shells */
 @media (min-width: 1024px) {
   .groovy-zone-grid .bento-card-groovy,
   .groovy-zone-grid .zone-hero-card {
-    height: 100% !important;
-    min-height: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
   }
 }
 
@@ -1098,6 +1149,11 @@ body, p, span, input, button, textarea, select,
   min-width: 0 !important;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
   column-gap: clamp(0.45rem, 3.5cqw, 1.25rem) !important;
+}
+
+/* Hero /settings tile: pull Potential + Carbon to the bottom when the row is taller than copy */
+.groovy-zone-grid .zone-hero-card > .card-impact-grid {
+  margin-top: auto !important;
 }
 
 .groovy-zone-grid .card-impact-grid .data-stack,
@@ -3642,6 +3698,15 @@ body, p, span, input, button, textarea, select,
 }
 .settings-hero-card.settings-bento-card.bento-card-groovy {
   min-height: 0 !important;
+  padding: 30px !important;
+  overflow: hidden;
+}
+.settings-page .settings-overview-impact-grid {
+  width: 100%;
+  max-width: 100%;
+}
+.settings-page .settings-overview-impact-grid > * {
+  min-width: 0;
 }
 
 /* Rock tiles: match Zone card shell */
@@ -3653,46 +3718,61 @@ body, p, span, input, button, textarea, select,
 
 /* Rock saving tips grid uses `.groovy-zone-grid` (same as Zone wall). */
 
-/* Rock footer: profile-style zz-input + Go; Instagram; log out */
-.rock-saving-tips-section .rock-email-signup-card.bento-card-groovy {
+/* Rock footer: profile-style zz-input + Go; Instagram */
+.rock-saving-tips-section .rock-mobile-signup-card.bento-card-groovy {
   min-height: unset !important;
 }
-.rock-saving-tips-section .rock-email-row {
+.rock-saving-tips-section .rock-mobile-row {
   display: flex;
   align-items: stretch;
   gap: 12px;
   width: 100%;
   margin-top: 8px;
 }
-.rock-saving-tips-section .rock-email-row .rock-email-zz-input.zz-input {
+.rock-saving-tips-section .rock-mobile-row .rock-mobile-zz-input.zz-input {
   flex: 1;
   min-width: 0;
   max-width: none !important;
   height: 54px;
   box-sizing: border-box;
 }
-.rock-saving-tips-section .rock-email-go-btn {
+.rock-saving-tips-section .rock-mobile-go-btn {
   flex-shrink: 0;
   width: 56px;
   min-width: 56px;
   height: 54px;
   border-radius: 9999px;
   border: none;
+  -webkit-appearance: none;
+  appearance: none;
   font-family: var(--font-marvin) !important;
   font-weight: 700 !important;
   font-size: var(--zz-h4-mobile) !important;
   line-height: 0.8 !important;
   letter-spacing: var(--zz-track-marvin) !important;
   text-transform: uppercase;
+  /* Flat fill — no UA gloss/gradient/tint (esp. Safari) */
   background-color: var(--color-purple);
   color: var(--color-yellow);
+  box-shadow: none;
+  filter: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
-.rock-saving-tips-section .rock-email-go-btn:disabled {
+.rock-saving-tips-section .rock-mobile-go-btn:hover:not(:disabled),
+.rock-saving-tips-section .rock-mobile-go-btn:active:not(:disabled) {
+  background-color: var(--color-purple);
+  color: var(--color-yellow);
+  filter: none;
+}
+.rock-saving-tips-section .rock-mobile-go-btn:focus-visible {
+  outline: 2px solid var(--color-purple);
+  outline-offset: 2px;
+}
+.rock-saving-tips-section .rock-mobile-go-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -3718,20 +3798,6 @@ body, p, span, input, button, textarea, select,
 .rock-saving-tips-section .rock-ig-link svg {
   width: 28px;
   height: 28px;
-}
-.rock-saving-tips-section .rock-logout-btn {
-  font-family: var(--font-marvin) !important;
-  font-weight: 700 !important;
-  font-size: var(--zz-h4-mobile) !important;
-  line-height: 0.8 !important;
-  letter-spacing: var(--zz-track-marvin) !important;
-  text-transform: uppercase;
-  padding: 14px 22px;
-  border-radius: 9999px;
-  border: 2px solid var(--color-purple);
-  background: transparent;
-  color: var(--color-purple);
-  cursor: pointer;
 }
 
 .settings-overview-label {
@@ -5872,7 +5938,9 @@ select,
   position: absolute;
   inset: 0;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
 }
 .glitch-layer.base {
   z-index: 2;
@@ -5944,9 +6012,12 @@ select,
   flex-direction: column;
   align-items: center;
   width: 100%;
+  max-width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   padding-bottom: 0;
   box-sizing: border-box;
+  overflow-x: clip;
 }
 /* Three-colour lock: solid text only (no tints) */
 .zone,
@@ -6135,6 +6206,17 @@ select,
   gap: 1rem;
 }
 
+/* Zone grid: profile card matches row height (neighbour tile sets row track; grid uses align-items:start elsewhere). */
+.groovy-zone-grid > .zone-hero-cell {
+  align-self: stretch;
+}
+
+.groovy-zone-grid > .zone-hero-cell > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  align-self: stretch;
+}
+
 /* Zone grid: profile card same size as other cards, uses data-value (small numbers) */
 .zone-hero-card {
   background-color: var(--color-pink);
@@ -6177,10 +6259,11 @@ select,
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
+  max-width: 100%;
+  overflow-x: clip;
   padding-left: 0;
   padding-right: 0;
+  box-sizing: border-box;
 }
 
 .groovy-zone-grid {
@@ -6848,7 +6931,7 @@ h1, h2, h3, h4, h5, h6,
 .groovy-zone-grid .bento-card-groovy {
   min-width: 0;
   min-height: 0;
-  height: 100%;
+  height: auto;
 }
 
 .groovy-zone-grid .bento-card-groovy {

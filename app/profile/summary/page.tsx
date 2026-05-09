@@ -22,7 +22,6 @@ import {
   INTRO_SHIMMER_WORD_DWELL_MS,
   INTRO_SHIMMER_WORD_GAP_MS,
   SLAM_SPRING,
-  ELASTIC_PING,
   SHIMMER_FOCUS,
   soloFocusSlamMotionProps,
 } from '@/lib/animations'
@@ -323,7 +322,10 @@ export default function ProfileSummaryPage() {
       <div
         className="zz-profile-page summary-page--minimal mode-ui"
         style={{
-          minHeight: '100vh',
+          height: '100dvh',
+          maxHeight: '100dvh',
+          overflow: 'hidden',
+          boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -340,7 +342,9 @@ export default function ProfileSummaryPage() {
     <motion.div
       className="zz-profile-page summary-page--minimal mode-ui"
       style={{
-        minHeight: '100vh',
+        height: '100dvh',
+        maxHeight: '100dvh',
+        minHeight: 0,
         color: 'var(--color-yellow)',
         display: 'flex',
         flexDirection: 'column',
@@ -350,6 +354,7 @@ export default function ProfileSummaryPage() {
         padding: 24,
         position: 'relative',
         overflow: 'hidden',
+        boxSizing: 'border-box',
         transformOrigin: 'center center',
       }}
       initial={false}
@@ -360,36 +365,6 @@ export default function ProfileSummaryPage() {
       }
       transition={phase === 'exit' ? SLAM_SPRING : { duration: 0.2 }}
     >
-      <motion.button
-        initial={{ scale: 0, rotate: -90 }}
-        animate={{ scale: 1, rotate: 0 }}
-        transition={ELASTIC_PING.transition}
-        onClick={() => setPhase('exit')}
-        style={{
-          position: 'absolute',
-          top: 24,
-          right: 24,
-          width: 40,
-          height: 40,
-          borderRadius: '50%',
-          border: 'none',
-          background: 'var(--color-pink)',
-          color: 'var(--color-yellow)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10,
-          padding: 0,
-        }}
-        aria-label="Skip to Zone"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </motion.button>
-
       <div
         style={{
           flex: 1,

@@ -22,17 +22,20 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
     pathname?.startsWith(`${ROUTES.PROFILE_SUMMARY}/`) ||
     pathname?.startsWith('/admin')
 
-  const introStage =
-    pathname === ROUTES.HOME || pathname === ROUTES.INTRO
+  /** Intro, onboarding, summary — single viewport, no page scroll (same shell lock as intro). */
+  const fixedViewportStage =
+    pathname === ROUTES.HOME ||
+    pathname === ROUTES.INTRO ||
+    pathname === ROUTES.PROFILE ||
+    pathname === ROUTES.PROFILE_SUMMARY
 
   /** Intro is a fixed-stage sequence — lock viewport (global body padding otherwise exceeds 100vh). Zone is the long wall. */
   useEffect(() => {
     const html = document.documentElement
     const body = document.body
-    const onIntro = pathname === ROUTES.HOME || pathname === ROUTES.INTRO
     const onZone = pathname === ROUTES.ZONE || pathname?.startsWith(`${ROUTES.ZONE}/`)
 
-    if (onIntro) {
+    if (fixedViewportStage) {
       html.classList.add('zz-intro-document-lock')
       html.style.overflowY = 'hidden'
       body.style.overflowY = 'hidden'
@@ -60,8 +63,12 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
     <PulseExpandedDiagnosticsProvider>
       <SessionStateRehydrate />
       <div
-        className={`zz-main-perspective-shell${introStage ? ' zz-intro-stage-lock' : ''}`}
-        style={{ position: 'relative', width: '100%', minHeight: introStage ? undefined : '100vh' }}
+        className={`zz-main-perspective-shell${fixedViewportStage ? ' zz-intro-stage-lock' : ''}`}
+        style={{
+          position: 'relative',
+          width: '100%',
+          minHeight: fixedViewportStage ? '100dvh' : '100vh',
+        }}
       >
         {children}
       </div>

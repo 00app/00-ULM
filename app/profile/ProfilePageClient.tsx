@@ -275,7 +275,11 @@ export default function ProfilePageClient() {
     <main
       className="zz-profile-page"
       style={{
-        minHeight: '100vh',
+        height: '100dvh',
+        maxHeight: '100dvh',
+        minHeight: 0,
+        overflow: 'hidden',
+        boxSizing: 'border-box',
         padding: 'clamp(20px, 3vw, 40px)',
         paddingTop: 'clamp(20px, 3vw, 40px)',
         paddingBottom: 24,

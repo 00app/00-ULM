@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import Link from 'next/link'
@@ -250,8 +250,6 @@ export default function ZonePage() {
   const [sentinelPulseLabel, setSentinelPulseLabel] = useState<string | null>(null)
   const [dbConnected, setDbConnected] = useState(true)
   const [vmResolved, setVmResolved] = useState(false)
-  const [zoneRevealCount, setZoneRevealCount] = useState(0)
-  const hadResolvedOnceRef = useRef(false)
   const [marketContext, setMarketContext] = useState<{
     liveProfilePostcode?: string
     april2026PriceCapGbp?: number
@@ -453,10 +451,11 @@ export default function ZonePage() {
       setVmSyncStamp(Date.now())
       setRefreshKey((k) => k + 1)
     }
+    /** Rare poll only — same-tab updates use UNIFIED_PROFILE_MEMORY_EVENT (180ms caused main-thread churn). */
     const interval = window.setInterval(() => {
       const next = localStorage.getItem('profile_postcode') ?? ''
       bumpIfChanged(next)
-    }, 180)
+    }, 2500)
     const onStorage = (e: StorageEvent) => {
       if (e.key !== 'profile_postcode') return
       bumpIfChanged(e.newValue ?? '')
@@ -770,6 +769,8 @@ export default function ZonePage() {
     // Keep the existing wall visible while refreshing to avoid loading shutter flicker/reload feel.
     setViewModel(vm)
     setVmSyncStamp(Date.now())
+    /** Show the wall as soon as we have a sync VM — do not wait on async pulse / strict “9 journeys + locality”. */
+    setVmResolved(true)
     let cancelled = false
     const postcode = (
       liveProfilePostcode ||
@@ -864,9 +865,7 @@ export default function ZonePage() {
               },
             }
       )
-      const hasJourneys = Array.isArray(vmLive.journeys) && vmLive.journeys.filter((j) => j.id.startsWith('journey-')).length === 9
-      const hasLocationSpecificData = postcode ? Boolean(nextMarketContext.localityContext) : true
-      setVmResolved(hasJourneys && hasLocationSpecificData)
+      setVmResolved(true)
       setVmSyncStamp(Date.now())
     })()
 
@@ -1077,31 +1076,8 @@ export default function ZonePage() {
   const groovyItems = getGroovyGridItems(viewModel)
   const displayItems: GroovyItem[] = useMemo(() => [...groovyItems], [groovyItems])
   const isDev = process.env.NODE_ENV !== 'production'
-
-  useEffect(() => {
-    if (!vmResolved) {
-      setZoneRevealCount(0)
-      hadResolvedOnceRef.current = false
-      return
-    }
-    // After the first resolved load, keep subsequent refreshes instant (no repeated repop animation).
-    if (hadResolvedOnceRef.current || reduceMotion) {
-      setZoneRevealCount(displayItems.length)
-      return
-    }
-    hadResolvedOnceRef.current = true
-    setZoneRevealCount(1)
-    const id = window.setInterval(() => {
-      setZoneRevealCount((n) => {
-        if (n >= displayItems.length) {
-          window.clearInterval(id)
-          return n
-        }
-        return n + 1
-      })
-    }, 85)
-    return () => window.clearInterval(id)
-  }, [vmResolved, displayItems.length, reduceMotion])
+  /** Derive synchronously — avoids a painted frame where vmResolved is true but count is still 0 (blank grid). */
+  const zoneRevealCount = vmResolved ? displayItems.length : 0
 
   const openNextJourneyFromExpanded = useCallback(
     (jid: JourneyId) => {
@@ -1261,14 +1237,13 @@ export default function ZonePage() {
             <ZeroGateShutter />
           ) : (
           <motion.div
-            layout
             data-testid="zone-grid-mounted"
             data-profile-postcode={profilePostcode ?? ''}
             data-vm-sync={String(vmSyncStamp)}
             className={`groovy-zone-grid mx-auto ${localJustLoaded ? 'zone-grid-local-shiver' : ''}`}
             variants={{
               initial: {},
-              animate: { transition: { staggerChildren: 0.08 } }
+              animate: { transition: { staggerChildren: 0.06 } }
             }}
             initial="initial"
             animate="animate"
@@ -1309,7 +1284,7 @@ export default function ZonePage() {
                       : ZIP_OPEN_Z_ANIMATE,
                   }}
                   exit={ZIP_SHUT_Z_EXIT}
-                  className={`${spanClass} groovy-cell-radius`.trim() || 'groovy-cell-radius'}
+                  className={`${spanClass} groovy-cell-radius${cell.type === 'hero' ? ' zone-hero-cell' : ''}`.trim() || 'groovy-cell-radius'}
                   style={{
                     willChange: 'transform',
                     pointerEvents: isHidden ? 'none' : 'auto',
@@ -1319,7 +1294,7 @@ export default function ZonePage() {
                   {cell.type === 'hero' && (
                     <motion.div
                       layout
-                      className="zone-hero-transparent relative flex flex-col justify-center items-stretch w-full h-full min-h-0 text-left"
+                      className="zone-hero-transparent relative flex flex-col items-stretch w-full flex-1 min-h-0 h-full text-left"
                       style={{ transformOrigin: 'center center' }}
                       {...(heroFromSummaryHandoff
                         ? {
@@ -1330,26 +1305,28 @@ export default function ZonePage() {
                           }
                         : {})}
                     >
-                      <div className="w-full h-full flex flex-col">
+                      <div className="w-full flex-1 min-h-0 flex flex-col">
                         <Link
                           href={ROUTES.SETTINGS}
                           data-testid="zone-hero-card"
                           data-source={heroDataSource}
-                          className={`zone-hero-card bento-card-groovy block flex flex-col w-full h-full min-h-full cursor-pointer no-underline text-inherit${sentinelHeroPing ? ' sentinel-hero-ping' : ''}`}
+                          className={`zone-hero-card bento-card-groovy flex flex-col flex-1 min-h-0 h-full w-full justify-between cursor-pointer no-underline text-inherit${sentinelHeroPing ? ' sentinel-hero-ping' : ''}`}
                           style={{
                             color: 'var(--color-yellow)',
                             ['--color-ink' as string]: 'var(--color-yellow)',
                           }}
                         >
-                          <div className="flex items-center justify-between w-full shrink-0">
-                            <span className="card-top-label" style={{ color: 'var(--color-yellow)' }}>YOUR PROFILE</span>
-                            <span className="card-top-arrow card-top-arrow--hint flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42, color: 'currentColor', background: 'transparent' }} aria-hidden>
-                              <svg width={42} height={42} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M7 17L17 7M17 7H7M17 7v10" />
-                              </svg>
-                            </span>
+                          <div className="flex flex-col shrink-0 gap-[clamp(10px,2.5cqw,16px)]">
+                            <div className="flex items-center justify-between w-full shrink-0">
+                              <span className="card-top-label" style={{ color: 'var(--color-yellow)' }}>YOUR PROFILE</span>
+                              <span className="card-top-arrow card-top-arrow--hint flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42, color: 'currentColor', background: 'transparent' }} aria-hidden>
+                                <svg width={42} height={42} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M7 17L17 7M17 7H7M17 7v10" />
+                                </svg>
+                              </span>
+                            </div>
+                            <h2 className="card-headline m-0 min-w-0" lang="en" style={{ color: 'var(--color-yellow)' }}>Check out your stats</h2>
                           </div>
-                          <h2 className="card-headline m-0 min-w-0" lang="en" style={{ color: 'var(--color-yellow)' }}>Check out your stats</h2>
                           <motion.div
                             key={`zone-hero-metrics-${Math.round(heroMoney)}-${Math.round(heroCarbon)}`}
                             className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 flex-shrink-0 zz-shimmer-focus"
