@@ -10,6 +10,8 @@ export const ROUTES = {
   ZAI: '/zai',
   LIKES: '/likes',
   SETTINGS: '/settings',
+  /** Ops: dependency heartbeat (session or gateway bearer). */
+  ADMIN_PULSE: '/admin/pulse',
 } as const
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES] | string
