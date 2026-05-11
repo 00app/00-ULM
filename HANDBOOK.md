@@ -35,7 +35,7 @@ UK-first web app: **postcode** and **profile** drive local context; **Zone** sho
 |------|--------|--------|
 | Intro | `/`, `/intro` | Glitch logo → `IntroWordCycle` (SAVE → MONEY → …) → **CREATE** (`/profile`) or **SKIP** (`/zone`). `?skip=1` / `?step=message` skips logo. |
 | Profile | `/profile` | Stepped onboarding (`ProfilePageClient`); postcode → `POST /api/local-intelligence`. |
-| Summary | `/profile/summary` | Kinetic handoff → Zone. |
+| Summary | `/profile/summary` | **`IntroWordCycle`** kinetic: **HELLO** → **first name** (`profile.name`) → **locality** (split long tokens / wrap) → optional **grid g/kWh** when local intelligence returns `localCarbonG` → **~£** / **kg CO₂e** slack from **`buildUserImpact`** × waste factor — then navigate to Zone. Copy in **`lib/brains/summaryLogic.ts`** (`buildSummaryKineticWords`, `formatSummaryLocalityKineticToken`). Data: **`POST /api/local-intelligence`** + stored journeys (**`buildUserImpact`**). |
 | Zone | `/zone` | Main dashboard; grid from profile + answers + local/research/discovery. |
 | Solo Focus | (overlay) | `JourneyBentoCard` / `SoloFocusOverlay` + `EmbeddedJourneyQuestion`. |
 | Other | `/zai`, `/likes`, `/settings` | Chat, saved cards, reset/session. |
@@ -59,6 +59,38 @@ No `/journeys` or `/expand/*` product routes — journeys live on Zone.
 Zone VM blends: **AppContext** + **localStorage** mirror, **journey answers**, **scraped_summary**, **`/api/local-intelligence`**, pulse snapshot, zone injections, content-architect prose. Cards use **`LIVE_AUDIT`** vs **`ESTIMATED_AUDIT`** when genome inputs are incomplete vs research-backed (`lib/zone/buildZoneViewModel.ts`).
 
 **Postcode:** Source of truth includes `profile_postcode` in localStorage; Zone refreshes on change (polling, `storage` events, unified profile memory).
+
+---
+
+## Wiring map (connections)
+
+Read this when tracing **profile summary**, **expanded Solo Focus**, or **research rows**.
+
+### Profile summary (`/profile/summary`)
+
+| Piece | Location |
+|-------|-----------|
+| Impact + waste slack | **`lib/brains/buildUserImpact.ts`** (journeys from localStorage) |
+| Narrative input | **`lib/brains/summaryLogic.ts`** — `ProfileSummaryNarrativeInput` includes **`displayName`**, **`annualWasteCash` / `annualWasteCarbon`**, **`local`** from intelligence |
+| Kinetic sequence | **`buildSummaryKineticWords`** — not generic “based on your profile”; uses **name**, **area token**, optional **`{g}g` + `grid`**, then **£ / kg CO₂e / yr** |
+| Locality overflow | **`formatSummaryLocalityKineticToken`** splits long **single-word** placenames; **`app/components/IntroWordCycle.tsx`** — balanced wrap, **`overflow-wrap`**, viewport fit scale with **`fitToViewportPaddingPx`** |
+| Local API | **`POST /api/local-intelligence`** — council, ward, **`localCarbonG`**, etc. |
+
+### Solo Focus expanded (True Tip prose)
+
+| Piece | Location |
+|-------|-----------|
+| Title cleanup | **`stripExpandedCardTitleNoise`** — strips trailing **(Updated …)** so the H1 does not repeat body dates — **`lib/soloFocusCopy.ts`**; used in **`JourneyBentoCard`**, **`SoloFocusOverlay`** before **`headlineFromTitle`** |
+| Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`** (scraped morph lines + auditor fallback) |
+| Layout | **Three `<motion.p>` blocks only** — section labels (**What / Why / How**) removed from UI; optional legacy labels remain exported as **`TRUE_TIP_SECTION_LABELS`** for docs only |
+| Dedupe | **`polishTrueTipParagraphsForHeadline`** / **`dedupeTrueTipOpeningParagraph`** — if paragraph 1 duplicates the headline, swap for additive copy |
+| Links | **`offer_url`** / **`verifiedAuditSourceUrl`** / **`pickPrimaryHttpUrl`** — CTAs and citations resolve to **real HTTPS** targets where configured |
+
+### Intelligence Loop cross-links
+
+- **`POST /api/research/question-card`** → discovery birth → **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`** (3) — see **`lib/intelligence/manifest.ts`** / zone injections.
+- **`persistResearchResult`** → **`research_results`** rows consumed when building Zone cards and **`architect_prose`** for Solo Focus.
+- **Hermes** cron → **`GET /api/cron/zone-research`** — refreshes queued research; same DB feeds expanded copy.
 
 ---
 
@@ -105,9 +137,11 @@ Hermes on the Oracle VPS is the **trigger** for a multi-step pipeline, not an is
 
 Apply in Neon (or your pipeline) as needed:
 
+- `db/migrations/20260512_research_results_architect_prose_numeric.sql` — architect prose / numeric alignment
 - `db/migrations/20260511_research_results_user_id.sql` — `research_results.user_id`
 - `db/migrations/20260511_init_auditor_schema.sql` — auditor-related columns if not already present
 - `db/migrations/20260508_research_results_category.sql` — `research_results.category`
+- `db/migrations/20260506_research_intelligence_alignment.sql` — research ↔ intelligence alignment
 - Older numbered SQL under `db/migrations/` — schema history
 
 **Verify DB connectivity:** `npm run db:test` (Neon HTTP ping + table list). **Research columns:** `npm run db:columns`.
@@ -143,6 +177,8 @@ Zai = UK energy / savings copilot: direct, lowercase where natural, value-first 
 | Path | Role |
 |------|------|
 | `app/api/*` | Route handlers (answers, zone, zai, sentinel, scrape-sync, cron, …) |
+| `lib/brains/summaryLogic.ts` | Profile summary kinetic + reveal copy |
+| `lib/soloFocusCopy.ts` | Solo Focus headlines, True Tip paragraphs, title strip / polish |
 | `lib/agents/*` | Research, discovery, auditor, sentinel |
 | `lib/db/neon.ts` | Neon queries + invoke snapshots |
 | `lib/schema.sql` | Reference schema (init-db) |

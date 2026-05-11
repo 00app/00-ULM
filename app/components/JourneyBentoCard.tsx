@@ -54,8 +54,9 @@ import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
 import {
   headlineFromTitle,
+  polishTrueTipParagraphsForHeadline,
   resolveExpandedTrueTipInsight,
-  TRUE_TIP_SECTION_LABELS,
+  stripExpandedCardTitleNoise,
   toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
 } from '@/lib/soloFocusCopy'
@@ -446,31 +447,13 @@ export function JourneyBentoCard({
   const journeyCtaLabel = resolveRevenueCtaLabel(revenueKind, motherMoneyTargetGbp)
 
   const recommendationTitle = headlineFromTitle(
-    (displayTitle || String(displayJourneyId)).trim() || String(displayJourneyId),
+    stripExpandedCardTitleNoise((displayTitle || String(displayJourneyId)).trim() || String(displayJourneyId)),
     12
   ).toUpperCase()
   let sourceName = 'our partners'
   if (resolvedOfferUrl) {
     try { sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '') } catch {}
   }
-  const profileTransport =
-    state.profile?.transport ??
-    (typeof window !== 'undefined' ? localStorage.getItem('profile_transport') : null)
-  const travelFuel = state.journeyAnswers?.travel?.fuel_type ?? null
-  const insightDisplay = resolveExpandedTrueTipInsight({
-    architectProse: verifiedArchitectProse,
-    verifiedAuditMatchesJourney,
-    morphParts: [currentMorphData?.description, insightLabel, crawlerTip, localContextBar, offerOneLine],
-    journeyId: String(displayJourneyId || journeyId),
-    headline: recommendationTitle,
-    moneyGbp: motherMoneyTargetGbp,
-    carbonKg: carbonTargetKg,
-    transportBaseline: profileTransport,
-    travelFuelType: travelFuel,
-    userPostcode: profilePostcode ?? undefined,
-    sourceDisplayName: verifiedSourceName ?? undefined,
-    auditHeaderLocality: state.locationState?.locationName ?? undefined,
-  })
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -760,7 +743,7 @@ export function JourneyBentoCard({
           : researchAttribution?.headline?.trim() ||
             String(displayTitle || title || journeyId).trim() ||
             journeyId
-    const recommendationTitle = headlineFromTitle(effectiveTitleRaw, 12).toUpperCase()
+    const recommendationTitle = headlineFromTitle(stripExpandedCardTitleNoise(String(effectiveTitleRaw)), 12).toUpperCase()
     const localityLabel = (state.locationState?.locationName ?? '').trim().toUpperCase()
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =
@@ -797,31 +780,23 @@ export function JourneyBentoCard({
       sourceDisplayName: verifiedSourceName ?? undefined,
       auditHeaderLocality: state.locationState?.locationName ?? undefined,
     })
-    const trueTipParagraphs = toThreeTrueTipParagraphs(insightDisplay)
+    const trueTipParagraphs = polishTrueTipParagraphsForHeadline(
+      recommendationTitle,
+      toThreeTrueTipParagraphs(insightDisplay)
+    )
     const trueTipSectionsEl =
       trueTipParagraphs.some((p) => p.trim().length > 0) ? (
-        <div className="solo-focus-true-tip-sections flex flex-col gap-5 w-full min-w-0 mt-1">
-          {TRUE_TIP_SECTION_LABELS.map((label, i) =>
-            trueTipParagraphs[i]?.trim() ? (
-              <div key={`${label}-${i}`} className="min-w-0">
-                <p
-                  className="zz-label m-0 mb-1 text-left uppercase tracking-wide opacity-90"
-                  style={{
-                    color: 'var(--journey-text)',
-                    fontSize: 'clamp(11px, 2.8vw, 13px)',
-                    fontFamily: 'var(--font-label)',
-                  }}
-                >
-                  {label}
-                </p>
-                <motion.p
-                  className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left m-0"
-                  style={{ color: 'var(--journey-text)' }}
-                  variants={FADE_VARIANTS}
-                >
-                  {trueTipParagraphs[i]}
-                </motion.p>
-              </div>
+        <div className="solo-focus-true-tip-sections flex flex-col gap-4 w-full min-w-0 mt-1">
+          {trueTipParagraphs.map((para, i) =>
+            para.trim() ? (
+              <motion.p
+                key={`true-tip-${i}`}
+                className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left m-0"
+                style={{ color: 'var(--journey-text)' }}
+                variants={FADE_VARIANTS}
+              >
+                {para}
+              </motion.p>
             ) : null
           )}
         </div>

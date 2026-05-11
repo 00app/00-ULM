@@ -190,6 +190,7 @@ export default function ProfileSummaryPage() {
 
       const narrative: ProfileSummaryNarrativeInput = {
         employment_status: profile.employment_status,
+        displayName: (profile.name ?? '').trim() || undefined,
         councilLabel: resolvedLocationName,
         postcodeDisplay,
         local,

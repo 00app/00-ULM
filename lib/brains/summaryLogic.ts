@@ -35,6 +35,8 @@ export interface SummaryLocalContext {
 
 export interface ProfileSummaryNarrativeInput {
   employment_status?: EmploymentStatus
+  /** First name (or preferred given name) for the kinetic “HELLO …” beat. */
+  displayName?: string
   /** Fallback when Postcodes.io has no settlement (often same as council). */
   councilLabel: string
   /** Raw postcode for display, e.g. "SW1A 1AA" */
@@ -142,37 +144,40 @@ export function formatSummaryLocalityKineticToken(areaLabel: string): string {
     const mid = Math.ceil(words.length / 2)
     return `${words.slice(0, mid).join(' ')}\n${words.slice(mid).join(' ')}`
   }
+  /** Very long single token (e.g. “Littlehampton”): split so Marvin can wrap without clipping. */
+  if (t.length > 10) {
+    const mid = Math.round(t.length / 2)
+    return `${t.slice(0, mid)}\n${t.slice(mid)}`
+  }
   return t
 }
 
 /**
- * Profile summary — one word at a time only (no paragraphs; 450ms + AnimatePresence).
- * Exact sequence: based, on, your, profile, people, in, [Area], waste, around, £[Value], and, [Value]kg, carbon, per, year
+ * Profile summary — one beat at a time (AnimatePresence). Uses live waste slack from impact math,
+ * then locality (wrapped when long). Same numbers underpin the reveal block below.
  */
 export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): string[] {
   const area = purgeYourAreaCopy(resolveSummaryAreaLabel(input))
   const localityWord = formatSummaryLocalityKineticToken(area || 'the UK')
   const wasteCash = Math.max(0, Math.round(input.annualWasteCash))
   const wasteKg = Math.max(0, Math.round(input.annualWasteCarbon))
+  const rawName = (input.displayName ?? '').trim().split(/\s+/)[0] ?? ''
+  const greetName = rawName || 'there'
 
-  return [
-    'HELLO',
-    'based',
-    'on',
-    'your',
-    'profile',
-    'people',
-    'in',
-    localityWord,
-    'waste',
-    'around',
-    `£${wasteCash.toLocaleString('en-GB')}`,
+  const beats: string[] = ['HELLO', greetName, localityWord]
+  const g = input.local?.localCarbonG
+  if (g != null && Number.isFinite(g)) {
+    beats.push(`${Math.round(g)}g`, 'grid')
+  }
+  beats.push(
+    `~£${wasteCash.toLocaleString('en-GB')}`,
     'and',
     `${wasteKg}kg`,
-    'carbon',
+    'CO₂e',
     'per',
-    'year',
-  ]
+    'year'
+  )
+  return beats
 }
 
 /** Final reveal block after Zip-Shutter (headline = Marvin, body = Roboto). */

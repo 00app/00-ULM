@@ -12,6 +12,41 @@ function coerceJourneyId(id: string): JourneyId {
   return (JOURNEY_ORDER.includes(id as JourneyId) ? id : 'home') as JourneyId
 }
 
+/** Strip trailing “(Updated …)” / version noise so the card title does not repeat body dates. */
+export function stripExpandedCardTitleNoise(raw: string): string {
+  let t = raw.trim()
+  t = t.replace(/\s*\([^)]*(?:updated|as at|revised)[^)]*\)\s*$/i, '').trim()
+  t = t.replace(/\s*\(\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{1,2},?\s*\d{4}\s*\)\s*$/i, '').trim()
+  return t
+}
+
+function compactAlnumKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '')
+}
+
+/**
+ * When paragraph 1 only repeats the headline (common with architect_prose), swap in additive copy.
+ */
+export function dedupeTrueTipOpeningParagraph(headline: string, firstParagraph: string): string {
+  const h = compactAlnumKey(stripExpandedCardTitleNoise(headline))
+  const firstSentence = firstParagraph.split(/(?<=[.!?])\s+/)[0] ?? firstParagraph
+  const f = compactAlnumKey(firstSentence)
+  if (h.length < 14 || f.length < 14) return firstParagraph
+  const prefixLen = Math.min(28, h.length, f.length)
+  if (h.slice(0, prefixLen) === f.slice(0, prefixLen)) {
+    return `Behind this headline sits a live scheme from your audit trail — the £ and CO₂e figures are pathway estimates tied to your postcode and eligibility signals, not boilerplate.`
+  }
+  return firstParagraph
+}
+
+export function polishTrueTipParagraphsForHeadline(
+  headline: string,
+  paras: [string, string, string]
+): [string, string, string] {
+  const [a, b, c] = paras
+  return [dedupeTrueTipOpeningParagraph(headline, a), b, c]
+}
+
 /** Headline = max N words (defaults to 8 for Zone cards) with ellipsis when clipped. */
 export function headlineFromTitle(title: string, maxWords = 8): string {
   const words = title
@@ -228,7 +263,7 @@ export function buildResearchResultsTrueTipBody(params: {
     .filter(Boolean)
   const m = Math.max(0, Math.round(params.verifiedSavingGbp))
   const c = Math.max(0, Math.round(params.carbonKg))
-  const whyLine = `Verified saving on this pathway is about £${formatMoneyValue(m)} per year with roughly ${formatCarbonValue(c)} CO₂e — tied to your latest research snapshot and eligibility signals.`
+  const whyLine = `At today’s pathway numbers you are looking at about £${formatMoneyValue(m)} a year back in the pocket and roughly ${formatCarbonValue(c)} CO₂e — grounded in your stored audit and research row, not a filler estimate.`
   if (blocks.length >= 3) {
     return blocks.slice(0, 3).join('\n\n')
   }

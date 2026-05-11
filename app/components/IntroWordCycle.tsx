@@ -153,7 +153,7 @@ export default function IntroWordCycle({
     displayText.replace(/\s/g, '').length > 7
 
   useEffect(() => {
-    if (fitToViewportPaddingPx <= 0 || useBalancedWrap) {
+    if (fitToViewportPaddingPx <= 0) {
       setFitScale(1)
       return
     }
@@ -216,12 +216,13 @@ export default function IntroWordCycle({
               textAlign: 'center',
               whiteSpace: isMultiline ? 'pre-line' : useBalancedWrap ? 'normal' : 'nowrap',
               textWrap: useBalancedWrap ? ('balance' as React.CSSProperties['textWrap']) : undefined,
+              overflowWrap: useBalancedWrap || wrapLongPreservedWords ? ('anywhere' as const) : undefined,
+              wordBreak: useBalancedWrap ? ('break-word' as const) : undefined,
               textTransform: preserveCase ? 'none' : 'uppercase',
               fontFamily: 'var(--font-marvin), var(--font-label), sans-serif',
               ...(useBalancedWrap
                 ? {
-                    fontSize:
-                      'clamp(1.35rem, min(9.5vw, 11vmin), var(--zz-h2-desktop, 3.25rem))',
+                    fontSize: 'clamp(0.92rem, min(7vw, 8.5vmin), 2.45rem)',
                   }
                 : {}),
               transform: `scale(${fitScale})`,
@@ -233,7 +234,12 @@ export default function IntroWordCycle({
                   <span
                     key={`${i}-${line}`}
                     data-fit-line
-                    style={{ display: 'block', whiteSpace: 'nowrap', maxWidth: '100%' }}
+                    style={{
+                      display: 'block',
+                      whiteSpace: wrapLongPreservedWords ? 'normal' : 'nowrap',
+                      maxWidth: '100%',
+                      overflowWrap: wrapLongPreservedWords ? ('anywhere' as const) : undefined,
+                    }}
                   >
                     {line}
                   </span>
