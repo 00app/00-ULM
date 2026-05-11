@@ -14,7 +14,7 @@ description: >-
 
 When editing `app/**`, `lib/**`, or user-facing copy, **read** (Read tool):
 
-- `HANDBOOK.md` (single project reference: flow, APIs, env, migrations)
+- `HANDBOOK.md` (single project reference: flow, APIs, env, migrations — includes **Intelligence Loop**, Hermes trigger → Firecrawl/Gemini → Zone → user-triggered injections)
 - `.cursor/rules/mechanical-pulse.mdc`
 - `lib/logic/engine.ts` (economic truth, regional grid tiers, audit placeholders)
 

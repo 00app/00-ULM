@@ -213,6 +213,8 @@ export function SoloFocusOverlay({
   const [isGlitchingMoney, setIsGlitchingMoney] = useState(false)
   const [glitchDisplayGbp, setGlitchDisplayGbp] = useState(0)
   const [questionCount, setQuestionCount] = useState(0)
+  /** Discovery trap: Firecrawl/Gemini birth in flight after answer tap. */
+  const [discoveryBirthPending, setDiscoveryBirthPending] = useState(false)
 
   useEffect(() => {
     const core = cardId ?? journeyId ?? 'solo-overlay'
@@ -841,6 +843,18 @@ export function SoloFocusOverlay({
               >
                 {discoveryFollowUp.question}
               </h4>
+              {discoveryBirthPending ? (
+                <p
+                  className="zz-label m-0 text-left w-full uppercase tracking-wide animate-pulse"
+                  style={{
+                    color: 'var(--sf-prose-contrast)',
+                    fontSize: 'clamp(12px, 3vw, 14px)',
+                    fontFamily: 'var(--font-label)',
+                  }}
+                >
+                  Targeted scrape running — building your card…
+                </p>
+              ) : null}
                 <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 16, rowGap: 16, justifyContent: 'flex-start', maxWidth: '100%' }}>
                   {discoveryFollowUp.options.map((opt) => {
                     const isDense = discoveryFollowUp.options.length > 6
@@ -864,6 +878,7 @@ export function SoloFocusOverlay({
                     <motion.button
                       key={opt}
                       type="button"
+                      disabled={discoveryBirthPending}
                       className={`solo-focus-answer-option ${circleClass} circle-btn`}
                       onClick={() => {
                       triggerHaptic('medium')
@@ -883,6 +898,7 @@ export function SoloFocusOverlay({
                       }
                       setLoopZipCollapsing(true)
                       void (async () => {
+                        setDiscoveryBirthPending(true)
                         try {
                           const res = await fetch('/api/answers', {
                             method: 'POST',
@@ -896,24 +912,22 @@ export function SoloFocusOverlay({
                           })
                           const data = res.ok ? await res.json().catch(() => null) : null
 
-                          // 3. Gemini "Birth" Logic
-                          fetch('/api/zone/injections', {
+                          const injectRes = await fetch('/api/zone/injections', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
                             body: JSON.stringify({
                               journey_key: j,
                               question_key: discoveryFollowUp.targetField,
                               answer_value: opt,
+                              postcode: profilePostcode ?? undefined,
                             }),
                           })
-                            .then(r => r.json())
-                            .then(injectData => {
-                              const zoneCard = injectData?.discovery?.new_card_data
-                              if (zoneCard && typeof zoneCard === 'object' && 'id' in zoneCard) {
-                                injectNewDiscoveryCard(zoneCard)
-                              }
-                            })
-                            .catch(() => {})
+                          const injectData = injectRes.ok ? await injectRes.json().catch(() => null) : null
+                          const zoneCard = injectData?.discovery?.new_card_data
+                          if (zoneCard && typeof zoneCard === 'object' && zoneCard !== null && 'id' in zoneCard) {
+                            injectNewDiscoveryCard(zoneCard)
+                          }
 
                           if (
                             data?.newTotals &&
@@ -955,6 +969,8 @@ export function SoloFocusOverlay({
                           }
                         } catch {
                           /* ignore network errors */
+                        } finally {
+                          setDiscoveryBirthPending(false)
                         }
                         syncSessionState()
                         setTrapComplete(true)

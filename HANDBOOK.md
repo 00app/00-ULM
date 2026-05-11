@@ -86,6 +86,19 @@ Zone VM blends: **AppContext** + **localStorage** mirror, **journey answers**, *
 - **Injection cap:** `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` (**3**) — enforced in `discovery_injections` per user per `journey_key` for both `POST /api/zone/injections` (answer loop → alternate journey) and `POST /api/research/question-card` (free question → same journey).
 - **Locality scrape hints:** `runZeroResearch` prepends extra Firecrawl seeds when user context mentions **Littlehampton** / **Arun** or **Les Azerables** / **Creuse** (`lib/agents/researchAgent.ts`).
 
+### Four-step loop (Hermes as orchestrator, not “just a timer”)
+
+Hermes on the Oracle VPS is the **trigger** for a multi-step pipeline, not an isolated cron ping:
+
+1. **Trigger (Hermes):** Scheduled job (e.g. 05:00) calls **`GET /api/cron/zone-research`** on Vercel with **`CRON_SECRET`** → kicks research refresh for queued users/postcodes.
+2. **Extraction:** **Firecrawl** deep-scrapes locality/trust seeds; **Gemini** maps findings into the **nine journey categories**, producing persistable GBP, prose, `offer_url`, and citations (`lib/agents/researchAgent.ts`, `persistResearchResult`).
+3. **Consumption (Zone):** Dashboard cards surface totals and tips; **Solo Focus** expanded view shows **three paragraphs** (`TRUE_TIP_SECTION_LABELS` + `architect_prose` when audit matches) and a **handoff CTA** (`IndustrialHandoffButton`).
+4. **Expansion (user):** Answering a **discovery follow-up** runs **`POST /api/zone/injections`** (awaited in UI) → targeted scrape/birth → **`injectNewDiscoveryCard`**. Optional **`POST /api/research/question-card`** for free-form questions. Cap: **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`**.
+
+**UX:** While injections run after a trap answer, Solo Focus shows **“Targeted scrape running…”** and disables duplicate taps. **£ column** shows a **✓ True data** pill when **`verifiedDataBadge`** (Neon-aligned audit).
+
+**Optional:** A 05:00 **email digest** of new cards is product ops only — not implemented in-repo; could use Vercel Cron + Resend etc. later.
+
 ---
 
 ## Neon migrations (recent / research)

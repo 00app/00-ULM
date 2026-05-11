@@ -73,27 +73,30 @@ export function MotherCardRenderer({
           {actionLine.trim()}
         </p>
       ) : null}
-      {verifiedDataBadge ? (
-        <div className="w-full min-w-0 mb-3 -mt-1">
-          <span
-            className="inline-flex items-center rounded-full px-3 py-1 zz-body-bold uppercase tracking-wide"
-            style={{
-              fontSize: 'clamp(10px, 2.6vw, 12px)',
-              fontFamily: 'var(--font-label)',
-              background: 'color-mix(in srgb, var(--color-ink) 12%, transparent)',
-              color: 'var(--color-ink)',
-            }}
-          >
-            Verified data · Neon research_results
-          </span>
-        </div>
-      ) : null}
       <div
         className={`solo-focus-impact-hero insight-to-impact card-impact-grid solo-focus-impact-grid grid grid-cols-2 gap-x-10 gap-y-0 w-full min-w-0${impactPulse ? ' solo-focus-impact-answer-pulse' : ''}`}
       >
         <div className="solo-focus-data-stack data-stack data-stack--tight">
-          <span className="data-label" style={{ color: 'var(--color-ink)' }}>
+          <span
+            className="data-label inline-flex items-center gap-2 flex-wrap"
+            style={{ color: 'var(--color-ink)' }}
+          >
             Potential Saving (£)
+            {verifiedDataBadge ? (
+              <span
+                className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 zz-body-bold uppercase tracking-wide"
+                style={{
+                  fontSize: 'clamp(9px, 2.2vw, 11px)',
+                  fontFamily: 'var(--font-label)',
+                  background: 'color-mix(in srgb, var(--color-yellow) 38%, transparent)',
+                  color: 'var(--color-ink)',
+                  border: '1px solid color-mix(in srgb, var(--color-ink) 18%, transparent)',
+                }}
+                aria-label="Verified true data — grounded in Neon research, not a generic estimate"
+              >
+                ✓ True data
+              </span>
+            ) : null}
           </span>
           <span className="data-value solo-focus-data-value data-stamp-metric" style={{ color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums' }}>
             <StampedMoneyGbp gbp={moneyGbp} />
