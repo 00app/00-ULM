@@ -693,7 +693,7 @@ export function SoloFocusOverlay({
                   moneyGbp={isGlitchingMoney ? glitchDisplayGbp : animatedMoneyGbp}
                   carbonKg={animatedCarbonKg}
                   impactPulse={impactAnswerPulse}
-                  ctaUrl={resolvedOpenUrl.trim() || null}
+                  ctaUrl={resolvedOpenUrl.trim() || buildZaiAuditUrl()}
                   ctaJourneyId={journeyId}
                   ctaLabel={effectiveHandoffLabel}
                 />

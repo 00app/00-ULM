@@ -481,3 +481,26 @@ export async function persistDiscoveryInjection(
     /* table missing or constraint */
   }
 }
+
+/** Cards birthed per user per `journey_key` (manifest cap: 3 additional injections per category). */
+export async function countDiscoveryInjectionsForUserJourney(
+  userId: string,
+  journeyKey: string
+): Promise<number> {
+  const pool = getDbPool()
+  const jk = String(journeyKey || '').trim().toLowerCase()
+  if (!userId || !jk) return 0
+  try {
+    const res = await pool.query<{ c: string }>(
+      `SELECT COUNT(*)::text AS c
+       FROM discovery_injections
+       WHERE user_id = $1::uuid
+         AND LOWER(COALESCE(payload->>'journey_key', '')) = $2`,
+      [userId, jk]
+    )
+    const n = Number.parseInt(res.rows[0]?.c ?? '0', 10)
+    return Number.isFinite(n) ? n : 0
+  } catch {
+    return 0
+  }
+}

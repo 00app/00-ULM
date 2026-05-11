@@ -5,18 +5,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { getSessionFromRequest } from '@/lib/auth'
-import {
-  appendStoredInjections,
-  getStoredInjections,
-} from '@/lib/zone/injectionStore'
+import { appendStoredInjections, getStoredInjections } from '@/lib/zone/injectionStore'
 import { POST as refreshZoneTips } from '@/app/api/zone/tips-refresh/route'
-import { raceDiscoveryBirth } from '@/lib/agents/discoveryBirthRace'
-import { runDiscoveryStructuredPipeline } from '@/lib/agents/discoveryStructured'
-import { runZeroHunterBirthAfterAnswer } from '@/lib/agents/zeroHunterBirth'
+import type { ResearchProfileData } from '@/lib/agents/researchAgent'
 import { enforceTrueWinRails, passesBoundaryGuard } from '@/lib/zone/trueWinRails'
 import { persistZoneTipInjectBody } from '@/lib/zone/persistZoneTipInject'
-import { persistDiscoveryInjection } from '@/lib/db/neon'
+import {
+  countDiscoveryInjectionsForUserJourney,
+  persistDiscoveryInjection,
+} from '@/lib/db/neon'
 import { discoveryCardFromZoneTip } from '@/lib/types/discovery'
+import { resolveDiscoveryBirthPayload } from '@/lib/zone/discoveryBirthResolve'
+import { MAX_DISCOVERY_INJECTIONS_PER_JOURNEY } from '@/lib/intelligence/manifest'
 
 export const dynamic = 'force-dynamic'
 
@@ -92,72 +92,39 @@ export async function POST(request: NextRequest) {
 
     const postcode =
       normalizeString(body.postcode ?? body.profileData?.postcode) || null
-    const profileData = body.profileData ?? null
+    const profileData = (body.profileData ?? null) as ResearchProfileData | null
     const session = await getSessionFromRequest().catch(() => null)
+
+    if (session?.userId) {
+      const prior = await countDiscoveryInjectionsForUserJourney(session.userId, birthedJourney)
+      if (prior >= MAX_DISCOVERY_INJECTIONS_PER_JOURNEY) {
+        return NextResponse.json(
+          {
+            ok: false,
+            birthed: false,
+            reason: 'max-injections-per-journey',
+            limit: MAX_DISCOVERY_INJECTIONS_PER_JOURNEY,
+          },
+          { status: 429 }
+        )
+      }
+    }
 
     // Step 1: Refresh tips deck so the loop always has fresh rails-backed cards.
     await refreshZoneTips()
 
-    // Step 2: Birth race targeting a different journey from the one just answered.
-    let discoveryPayload = await raceDiscoveryBirth({
-      structured: async () => {
-        const s = await runDiscoveryStructuredPipeline({
-          journeyId: birthedJourney,
-          questionId,
-          answerValue,
-          postcode,
-          profileData,
-          userId: session?.userId ?? null,
-        })
-        if (!s?.new_card_data) return null
-        return {
-          recommendation_copy: s.recommendation_copy,
-          source_url: s.source_url,
-          new_card_data: s.new_card_data,
-        }
-      },
-      zeroHunter: async () => {
-        const z = await runZeroHunterBirthAfterAnswer({
-          journeyId: birthedJourney,
-          questionId,
-          answerValue,
-          postcode,
-        })
-        if (!z?.zoneCard) return null
-        return {
-          recommendation_copy:
-            z.zoneCard.explanation?.[0] ??
-            `${z.discoveryCard.value} — ${z.discoveryCard.title}`.toLowerCase(),
-          source_url: z.discoveryCard.source_url,
-          new_card_data: z.zoneCard,
-        }
-      },
-      timeoutMs: 8000,
+    // Step 2–3: Firecrawl/Gemini race + injection fallback (different journey than the one answered).
+    const discoveryPayload = await resolveDiscoveryBirthPayload({
+      targetJourney: birthedJourney,
+      questionId,
+      answerValue,
+      postcode,
+      profileData,
+      userId: session?.userId ?? null,
+      currentJourneyForAlternate: currentJourney,
+      askedQuestionIds,
+      fallbackMode: 'alternate-journey',
     })
-
-    // Step 3: Fallback to stored injection cards if race yielded nothing.
-    if (!discoveryPayload?.new_card_data) {
-      const cards = getStoredInjections()
-      const picked =
-        cards.find(
-          (card) =>
-            card.journey_key !== currentJourney &&
-            !(
-              card.followUp?.targetField &&
-              askedQuestionIds.includes(card.followUp.targetField)
-            )
-        ) ??
-        cards.find((card) => card.journey_key !== currentJourney) ??
-        cards[0]
-      if (picked) {
-        discoveryPayload = {
-          recommendation_copy:
-            picked.explanation?.[0] ?? 'new discovery card birthed from your latest answer.',
-          source_url: picked.cta?.url ?? picked.actions?.learnUrl ?? picked.source ?? '',
-          new_card_data: picked,
-        }
-      }
-    }
 
     if (!discoveryPayload?.new_card_data) {
       return NextResponse.json(

@@ -145,6 +145,14 @@ export async function runZeroResearch(params: {
   const sections: string[] = []
 
   const seedUrls = [...UK_2026_SEED_URLS]
+  const ucLow = (userContext ?? '').toLowerCase()
+  /** Manifest targets — extra locality anchors for Littlehampton (UK) / Les Azerables (FR). */
+  if (ucLow.includes('littlehampton') || ucLow.includes('bn17') || ucLow.includes('arun')) {
+    seedUrls.unshift('https://www.arun.gov.uk/')
+  }
+  if (ucLow.includes('azerables') || ucLow.includes('creuse') || ucLow.includes('nouvelle-aquitaine')) {
+    seedUrls.push('https://www.ecologie.gouv.fr/')
+  }
   if (postcode) {
     sections.push(`## Location\nPostcode: ${postcode}\n`)
   }

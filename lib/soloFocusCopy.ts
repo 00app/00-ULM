@@ -203,8 +203,12 @@ function pruneDuplicateLocalityInsight(
   return out.join('\n\n')
 }
 
-/** Expanded True Tip / Solo Focus — three sections (maps to auditor detection / proof / bridge). */
-export const TRUE_TIP_SECTION_LABELS = ['The What', 'The Why', 'The How'] as const
+/** Expanded True Tip / Solo Focus — manifest §3 (What / Why / How + discovery + CTA). */
+export const TRUE_TIP_SECTION_LABELS = [
+  'The What (The Discovery)',
+  'The Why (Money & Carbon)',
+  'The How (Action — use CTA below)',
+] as const
 
 /**
  * Three paragraphs from Neon `research_results.architect_prose` + verified £/CO₂e figures.

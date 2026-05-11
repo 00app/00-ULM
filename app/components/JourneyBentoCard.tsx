@@ -1031,7 +1031,7 @@ export function JourneyBentoCard({
               carbonKg={animatedCarbonKg}
               verifiedDataBadge={verifiedAuditMatchesJourney}
               impactPulse={impactAnswerPulse}
-              ctaUrl={resolvedOfferUrl || null}
+              ctaUrl={resolvedOfferUrl?.trim() || buildZaiAuditUrl()}
               ctaJourneyId={displayJourneyId as string}
               ctaLabel={journeyCtaLabel}
             />

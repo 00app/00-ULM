@@ -72,10 +72,19 @@ Zone VM blends: **AppContext** + **localStorage** mirror, **journey answers**, *
 | **Research** | `persistResearchResult` in `lib/agents/researchAgent.ts` → `research_results` (`user_id`, `category`, `offer_url`, `saving_amount_gbp`, rates, markdown, …). Optional Gemini triplet extraction when params do not already supply all three. |
 | **Personal audit** | `runPersonalAudit(userId)` in `lib/agents/auditor.ts` — Firecrawl seeds + Gemini JSON `{ prose, category, saving_amount_gbp, offer_url }` → persist (requires `GEMINI_API_KEY`, `FIRECRAWL_API_KEY`). |
 | **Cron** | `GET /api/cron/zone-research` — requires `CRON_SECRET` (min 16 chars) in `Authorization: Bearer …` or `x-cron-secret`. |
+| **Question → card** | `POST /api/research/question-card` (auth) — `{ journey_key, question }` triggers Firecrawl/Gemini discovery for that category; capped per user/journey (see Intelligence Loop). |
 
 **Required for full live behaviour:** `DATABASE_URL`, `GEMINI_API_KEY`, `FIRECRAWL_API_KEY` (or OpenClaw gateway vars). **Cron / admin gates:** `CRON_SECRET`. **Client URL hints:** `NEXT_PUBLIC_APP_URL`. See `.env.example`.
 
-There is **no** in-repo service named Hermes or Oracle — use **curl + Vercel URL + `CRON_SECRET`** from a VPS or Vercel Cron for scheduled jobs.
+---
+
+## Intelligence Loop (manifest)
+
+- **Neon (London):** Canonical pooler host token is `MANIFEST_NEON_POOLER_HOST` in `lib/intelligence/manifest.ts` — it must match the hostname inside `DATABASE_URL` (set password only via Neon Console / Vercel env; never commit secrets).
+- **Hermes / Oracle VPS:** Run a daily cron (e.g. **05:00**) that calls `GET https://<deployment>/api/cron/zone-research?limit=20` with header `Authorization: Bearer <CRON_SECRET>` (same secret as Vercel).
+- **Nine categories:** Journey keys in `lib/journeys.ts` (`JOURNEY_ORDER`). Research persistence (`research_results`) requires **`saving_amount_gbp`**, **`offer_url`**, category, and prose fields as implemented in `lib/agents/researchAgent.ts` / `persistResearchResult`. **Carbon (kg)** on cards comes from Zone impact + scraped overlays; align Gemini prompts with GBP + HTTPS offer links.
+- **Injection cap:** `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` (**3**) — enforced in `discovery_injections` per user per `journey_key` for both `POST /api/zone/injections` (answer loop → alternate journey) and `POST /api/research/question-card` (free question → same journey).
+- **Locality scrape hints:** `runZeroResearch` prepends extra Firecrawl seeds when user context mentions **Littlehampton** / **Arun** or **Les Azerables** / **Creuse** (`lib/agents/researchAgent.ts`).
 
 ---
 
@@ -125,6 +134,7 @@ Zai = UK energy / savings copilot: direct, lowercase where natural, value-first 
 | `lib/db/neon.ts` | Neon queries + invoke snapshots |
 | `lib/schema.sql` | Reference schema (init-db) |
 | `lib/logic/engine.ts` | Economic / grid truth helpers |
+| `lib/intelligence/manifest.ts` | Neon host token + injection caps (no secrets) |
 | `e2e/` | Playwright specs |
 
 ---
@@ -141,4 +151,4 @@ Zai = UK energy / savings copilot: direct, lowercase where natural, value-first 
 
 - After substantive TS changes: **`npm run check`**.
 - Cursor project skill: `.cursor/skills/zero-zero-focus/SKILL.md`.
-- **Hermes / outbound messaging:** not wired as a named product; no Telegram batch in this repo unless you add it.
+- **Hermes:** operational name for the VPS cron that hits `/api/cron/zone-research` — not a separate codebase artifact.
