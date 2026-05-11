@@ -26,7 +26,7 @@ function hasGatewayAuth(request: NextRequest): boolean {
 
 /**
  * Live dependency probe: Neon SQL, Gemini completion, Firecrawl scrape.
- * Auth: Basic (same as middleware), signed-in session (cookie), or bearer tokens like `/api/health/diagnostics`.
+ * Auth: Basic (same as root `proxy`), signed-in session (cookie), or bearer tokens like `/api/health/diagnostics`.
  */
 export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest().catch(() => null)

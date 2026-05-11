@@ -127,6 +127,14 @@ Zai = UK energy / savings copilot: direct, lowercase where natural, value-first 
 
 ---
 
+## Vercel / Next.js maintenance
+
+- **Admin API gate:** Root **`proxy.ts`** (Next.js 16+) runs on `/api/admin/*` — same behaviour as the old `middleware.ts`; do not duplicate auth in two files.
+- **Node version:** `package.json` **`engines.node`** is pinned to **`20.x`** so Vercel does not float onto a new major during redeploys. Bump intentionally when you upgrade the runtime.
+- **npm transitive warnings** (e.g. `node-domexception`): usually clear when upstream packages update; run **`npm update`** on a branch when convenient.
+
+---
+
 ## Contributing / agents
 
 - After substantive TS changes: **`npm run check`**.
