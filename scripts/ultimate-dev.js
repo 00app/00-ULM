@@ -34,7 +34,7 @@ function openBrowser(url) {
   require('child_process').spawn(start, [url], { stdio: 'ignore', detached: true }).unref()
 }
 
-const child = spawn('npx', ['next', 'dev', '-p', String(PORT)], {
+const child = spawn('npx', ['next', 'dev', '--webpack', '-p', String(PORT)], {
   cwd: ROOT,
   stdio: 'inherit',
   shell: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
+import { adminBasicAuthMatches } from '@/lib/adminBasicAuth'
 import type { PulseMetric } from '@/lib/adminPulse'
 
 export const dynamic = 'force-dynamic'
@@ -25,11 +26,11 @@ function hasGatewayAuth(request: NextRequest): boolean {
 
 /**
  * Live dependency probe: Neon SQL, Gemini completion, Firecrawl scrape.
- * Auth: signed-in session (cookie) or same bearer tokens as `/api/health/diagnostics`.
+ * Auth: Basic (same as middleware), signed-in session (cookie), or bearer tokens like `/api/health/diagnostics`.
  */
 export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest().catch(() => null)
-  if (!session && !hasGatewayAuth(request)) {
+  if (!session && !hasGatewayAuth(request) && !adminBasicAuthMatches(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

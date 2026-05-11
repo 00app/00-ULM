@@ -130,12 +130,28 @@ export function employmentWinFocus(
 }
 
 /**
+ * Long council / ward strings: one kinetic beat, two balanced lines (newline); IntroWordCycle scales each line.
+ * Short labels (≤6 chars) stay one line; a single long token stays one line and scales down only.
+ */
+export function formatSummaryLocalityKineticToken(areaLabel: string): string {
+  const t = purgeYourAreaCopy(areaLabel || 'the UK').trim()
+  if (!t || t === 'the UK') return 'the UK'
+  if (t.length <= 6) return t
+  const words = t.split(/\s+/).filter(Boolean)
+  if (words.length >= 2) {
+    const mid = Math.ceil(words.length / 2)
+    return `${words.slice(0, mid).join(' ')}\n${words.slice(mid).join(' ')}`
+  }
+  return t
+}
+
+/**
  * Profile summary — one word at a time only (no paragraphs; 450ms + AnimatePresence).
  * Exact sequence: based, on, your, profile, people, in, [Area], waste, around, £[Value], and, [Value]kg, carbon, per, year
  */
 export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): string[] {
   const area = purgeYourAreaCopy(resolveSummaryAreaLabel(input))
-  const localityWord = purgeYourAreaCopy(area || 'the UK')
+  const localityWord = formatSummaryLocalityKineticToken(area || 'the UK')
   const wasteCash = Math.max(0, Math.round(input.annualWasteCash))
   const wasteKg = Math.max(0, Math.round(input.annualWasteCarbon))
 

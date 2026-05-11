@@ -4,36 +4,47 @@
  * Single shell for every route: session → page transition wrapper → pulse widget.
  * Registry below maps each App Router `page.tsx` (audit / spec sync — no page imports).
  */
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import SessionStateRehydrate from '@/app/components/SessionStateRehydrate'
 import PulseWidget from '@/app/components/debug/PulseWidget'
 import { PulseExpandedDiagnosticsProvider } from '@/app/context/PulseExpandedDiagnosticsContext'
 import { ROUTES } from '@/lib/routes'
 import { usePathname } from 'next/navigation'
 
+function normalizeAppPath(p: string | null): string {
+  const raw = (p ?? '').trim()
+  if (!raw || raw === '/') return '/'
+  return raw.replace(/\/+$/, '') || '/'
+}
+
 export function GlobalAppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const path = normalizeAppPath(pathname)
+
   const hidePulse =
-    pathname === ROUTES.SETTINGS ||
-    pathname?.startsWith(`${ROUTES.SETTINGS}/`) ||
-    pathname === ROUTES.HOME ||
-    pathname === ROUTES.INTRO ||
-    pathname === ROUTES.PROFILE_SUMMARY ||
-    pathname?.startsWith(`${ROUTES.PROFILE_SUMMARY}/`) ||
-    pathname?.startsWith('/admin')
+    path === ROUTES.SETTINGS ||
+    path.startsWith(`${ROUTES.SETTINGS}/`) ||
+    path === ROUTES.HOME ||
+    path === ROUTES.INTRO ||
+    path === ROUTES.PROFILE_SUMMARY ||
+    path.startsWith(`${ROUTES.PROFILE_SUMMARY}/`) ||
+    path.startsWith('/admin')
 
   /** Intro, onboarding, summary — single viewport, no page scroll (same shell lock as intro). */
-  const fixedViewportStage =
-    pathname === ROUTES.HOME ||
-    pathname === ROUTES.INTRO ||
-    pathname === ROUTES.PROFILE ||
-    pathname === ROUTES.PROFILE_SUMMARY
+  const fixedViewportStage = useMemo(
+    () =>
+      path === ROUTES.HOME ||
+      path === ROUTES.INTRO ||
+      path === ROUTES.PROFILE ||
+      path === ROUTES.PROFILE_SUMMARY,
+    [path]
+  )
 
   /** Intro is a fixed-stage sequence — lock viewport (global body padding otherwise exceeds 100vh). Zone is the long wall. */
   useEffect(() => {
     const html = document.documentElement
     const body = document.body
-    const onZone = pathname === ROUTES.ZONE || pathname?.startsWith(`${ROUTES.ZONE}/`)
+    const onZone = path === ROUTES.ZONE || path.startsWith(`${ROUTES.ZONE}/`)
 
     if (fixedViewportStage) {
       html.classList.add('zz-intro-document-lock')
@@ -57,7 +68,7 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
       body.style.overflowY = ''
       html.classList.remove('zz-zone-document')
     }
-  }, [pathname])
+  }, [path, fixedViewportStage])
 
   return (
     <PulseExpandedDiagnosticsProvider>

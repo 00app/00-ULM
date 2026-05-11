@@ -7,7 +7,7 @@ interface InputFieldProps {
   placeholder?: string
   onChange?: (value: string) => void
   onAdvance?: () => void
-  type?: 'text' | 'number' | 'email' | 'password'
+  type?: 'text' | 'number' | 'email' | 'password' | 'tel'
   width?: string | number
   className?: string
   /** Focus this input when mounted (e.g. first field in a form) */
@@ -34,7 +34,19 @@ export default function InputField({
 
   return (
     <input
-      type={type === 'number' ? 'text' : type === 'email' ? 'email' : type === 'password' ? 'password' : 'text'}
+      type={
+        type === 'number'
+          ? 'text'
+          : type === 'email'
+            ? 'email'
+            : type === 'password'
+              ? 'password'
+              : type === 'tel'
+                ? 'tel'
+                : 'text'
+      }
+      inputMode={type === 'tel' ? 'tel' : undefined}
+      autoComplete={type === 'tel' ? 'tel-national' : undefined}
       value={value}
       onChange={(e) => onChange?.(e.target.value)}
       onKeyDown={handleKeyDown}

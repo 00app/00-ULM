@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev -H 127.0.0.1",
-    "dev:3000": "WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev -p 3000 -H 127.0.0.1",
-    "dev:clean": "rm -rf .next && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev",
-    "dev:alt": "WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev -p 3001 -H 127.0.0.1",
-    "dev:open": "WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev -p 3030 -H 0.0.0.0",
-    "run": "rm -rf .next node_modules/.cache && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev -p 3030 -H 0.0.0.0",
+    "dev": "WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev --webpack -H 127.0.0.1",
+    "dev:3000": "WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev --webpack -p 3000 -H 127.0.0.1",
+    "dev:clean": "rm -rf .next && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev --webpack",
+    "dev:alt": "WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev --webpack -p 3001 -H 127.0.0.1",
+    "dev:open": "WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev --webpack -p 3030 -H 0.0.0.0",
+    "run": "rm -rf .next node_modules/.cache && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev --webpack -p 3030 -H 0.0.0.0",
     "ultimate": "node scripts/npm-sandbox-clean.cjs install && node scripts/ensure-dev-manifests.js && node scripts/build-with-manifest-fix.js",
     "ultimate:dev": "node scripts/ultimate-dev.js",
     "build": "node scripts/build-with-manifest-fix.js",
@@ -36,7 +36,9 @@
     "deploy": "vercel --prod --yes",
     "ship": "node scripts/build-with-manifest-fix.js && vercel --prod --yes",
     "init-db": "tsx scripts/init-db.ts",
-    "reset-db": "tsx scripts/reset-schema.ts"
+    "reset-db": "tsx scripts/reset-schema.ts",
+    "clean:cache": "rm -rf .next node_modules/.cache",
+    "db:columns": "tsx scripts/list-research-results-columns.ts"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",

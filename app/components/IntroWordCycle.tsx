@@ -139,6 +139,8 @@ export default function IntroWordCycle({
     return () => clearTimeout(safety)
   }, [words.length, wordDurations, gapMs])
 
+  const isMultiline = displayText.includes('\n')
+
   useEffect(() => {
     if (fitToViewportPaddingPx <= 0) {
       setFitScale(1)
@@ -149,18 +151,26 @@ export default function IntroWordCycle({
       const el = wordRef.current
       if (!el) return
       const available = Math.max(120, window.innerWidth - fitToViewportPaddingPx * 2)
-      const needed = Math.ceil(el.scrollWidth)
+      const lineEls = el.querySelectorAll<HTMLElement>('[data-fit-line]')
+      const needed =
+        lineEls.length > 0
+          ? Math.max(1, ...Array.from(lineEls).map((n) => Math.ceil(n.scrollWidth)))
+          : Math.ceil(el.scrollWidth)
       if (needed <= 0) {
         setFitScale(1)
         return
       }
-      const next = Math.min(1, available / needed)
+      let next = Math.min(1, available / needed)
+      /** Single long token (>6 chars): extra squeeze so Marvin never kisses the viewport edge */
+      if (!isMultiline && displayText.replace(/\s/g, '').length > 6) {
+        next *= 0.94
+      }
       setFitScale(next)
     }
     updateScale()
     window.addEventListener('resize', updateScale)
     return () => window.removeEventListener('resize', updateScale)
-  }, [currentWord, displayText, fitToViewportPaddingPx])
+  }, [currentWord, displayText, fitToViewportPaddingPx, isMultiline])
 
   return (
     <div
@@ -193,14 +203,24 @@ export default function IntroWordCycle({
               width: 'auto',
               maxWidth: fitToViewportPaddingPx > 0 ? `calc(100vw - ${fitToViewportPaddingPx * 2}px)` : 'min(96vw, 28ch)',
               textAlign: 'center',
-              whiteSpace: 'nowrap',
+              whiteSpace: isMultiline ? 'pre-line' : 'nowrap',
               textTransform: preserveCase ? 'none' : 'uppercase',
               fontFamily: 'var(--font-marvin), var(--font-label), sans-serif',
               transform: `scale(${fitScale})`,
               transformOrigin: 'center center',
             }}
           >
-            {displayText}
+            {isMultiline
+              ? displayText.split('\n').map((line, i) => (
+                  <span
+                    key={`${i}-${line}`}
+                    data-fit-line
+                    style={{ display: 'block', whiteSpace: 'nowrap', maxWidth: '100%' }}
+                  >
+                    {line}
+                  </span>
+                ))
+              : displayText}
           </motion.h1>
         )}
       </AnimatePresence>

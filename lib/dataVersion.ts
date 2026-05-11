@@ -2,7 +2,7 @@
  * Data version for Zero Zero — when this changes in production, local data is reset
  * and returning users load from session/IP-based storage.
  */
-export const DATA_VERSION = process.env.NEXT_PUBLIC_DATA_VERSION ?? '2026-1'
+export const DATA_VERSION = process.env.NEXT_PUBLIC_DATA_VERSION ?? '2026-2'
 
 export const LOCAL_STORAGE_KEYS = {
   VERSION: 'zz_data_version',

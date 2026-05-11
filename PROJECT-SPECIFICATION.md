@@ -1,15 +1,32 @@
-# Zero Zero — Project Specification (v42.0 Current Baseline)
+# Zero Zero — Project Specification (v42.5 Current Baseline)
 
 **v42.0:** Added *Full Site Audit & Implementation Spec* covering profile/journey Q&A, question loop contracts, expanded-card behavior, API surface, environment keys, data provenance, CTA/link resolution, and design system tokens/effects.
 
-**v42.1-v42.2 UI/UX lock refinements (latest):**
+**v42.5 — Routing hygiene, segment loading, Neon column check script (latest):**
+- **`app/global-layout.tsx`:** Normalize pathname with **`normalizeAppPath`** (trailing slash) so `/profile/` matches **`/profile`** for viewport lock / pulse hide — avoids “stuck” shell classes when the router emits a trailing slash.
+- **`app/loading.tsx`:** Renders a **transparent full-screen placeholder** (not `null`) so App Router streaming does not occasionally stall on an empty suspense boundary; still **no purple** flash.
+- **CLI:** `npx tsx scripts/list-research-results-columns.ts` (requires **`DATABASE_URL`**) lists **`research_results`** columns — same pool as the app for quick Neon verification without MCP.
+
+**v42.4 — Profile/summary viewport lock, route loading, Zone resolve, ops pulse:**
+- **`/profile` onboarding + `/profile/summary`:** Use the same **fixed viewport** contract as intro/home (`fixedViewportStage` in `app/global-layout.tsx`): `html.zz-intro-document-lock`, app shell `zz-intro-stage-lock` (`100dvh`, overflow hidden). Onboarding `<main>` is **`100dvh`** with **`overflow: hidden`** (no page scroll). Summary: **no skip/close control**; layout **`100dvh`** + overflow hidden.
+- **Route transitions:** Root **`app/loading.tsx`** is **transparent** (no full-screen purple “Zero Zero” interstitial). **`app/profile/page.tsx`** Suspense fallback is **`null`** (no purple flash while streaming).
+- **Zone `/zone`:** **`vmResolved`** flips **`true`** as soon as the **sync** `buildZoneViewModel` runs (wall visible immediately). **`zoneRevealCount`** is **derived** from `vmResolved` × `displayItems.length` (no effect-delay blank grid). Async pulse refresh no longer gates resolve on “exactly 9 journeys + locality”.
+- **Ops:** **`/admin/pulse`** (session or gateway bearer) + **`GET /api/admin/pulse`** — Neon SQL ping, Gemini ping, Firecrawl scrape ping + latency JSON.
+
+**v42.3 — Intro viewport, Zone wall, Settings hero, integration map:**
+- **Intro `/` + `/intro`:** Document scroll is locked to the viewport: global `body` padding (20px / 40px desktop in `globals.css`) stack above `min-height: 100vh` and produced a vertical scrollbar. Intro routes add `html.zz-intro-document-lock` (overflow hidden, body padding 0) and `zz-intro-stage-lock` on the app shell (`height: 100dvh`, overflow hidden).
+- **Zone `/zone`:** Card stagger/reveal (“one by one”) was removed — when `vmResolved`, all grid cells render immediately (`zoneRevealCount === displayItems.length`). Shell scrollbar styling remains via `html.zz-zone-document`.
+- **Settings hero (`TOTAL ANNUAL` / £ + tCO₂):** Overview hero card uses **30px** inset (`padding-bento` lock); desktop horizontal gutter uses **30px** body padding when `.settings-page` is present (`body:has(.settings-page)`). Impact grid columns use `min-width: 0` to stop metric overflow.
+- **Hermes / Oracle:** There are **no** separate services named Hermes or Oracle in this repository. External intelligence is routed through the integrations below (Gemini → generation/architect; Neon → Postgres/SQL; Firecrawl → scrape; Postcodes.io-style resolution via `/api/local-intelligence`).
+
+**v42.1-v42.2 UI/UX lock refinements:**
 - Expanded Solo Focus wrappers are hard-locked transparent (no secondary translucent panel/tint behind content or masthead text).
 - Loading gate (`.zz-route-gate-shutter`) no longer applies blur/tinted fill; Zone background remains visible during load.
 - Expanded offer label placement is standardized to render directly under the main heading, with a strict 4px rhythm to body copy.
 - Expanded headings use a fuller cap (12 words), while Zone teaser headings remain compact (8-word clipping/ellipsis behavior in the view-model path).
 - Solo Focus CTA labels are simplified to one-word actions (`Claim`, `Buy`, `Compare`) for button legibility.
 - Solo Focus circle buttons (close/CTA/utility) now use invert-on-hover + focus-visible contrast rings to guarantee rollover readability on yellow and pink surfaces.
-- Zone loading behavior is refined to avoid repeated shutter flicker: once resolved, refreshes keep the wall visible and card reveal runs one-by-one on first ready load.
+- Zone loading behavior avoids repeated shutter flicker once resolved; the grid renders fully when the view model is ready (no sequential card reveal).
 
 ## Product Intent
 
@@ -120,6 +137,20 @@
 - `soloFocusSlamMotionProps`: shutter-style slam on question/result transitions.
 - Zone grid: equal-height rows (tablet+), 20px rhythm, 60px radius.
 - Solo Focus expanded shells remain transparent containers with journey slab colors inside.
+
+## Connection Points — APIs and External Services
+
+| Role | Surface / library | Purpose |
+|------|-------------------|---------|
+| **App Router APIs** | `app/api/**` | Browser-facing JSON routes (health, answers, zone, sentinel, scrape-sync, session-state, summary, zai, geocode, likes, etc.). |
+| **Postgres (Neon)** | `@neondatabase/serverless`, `pg`, `DATABASE_URL` | Persistent users, sessions, scraped summaries, research rows, journey answers sync — see `lib/db.ts`, `lib/db/neon.ts`. |
+| **Google Gemini** | `@google/genai`, `@google/generative-ai`, `GEMINI_API_KEY` | Content architect, discovery, Zai prompts — agents under `lib/agents/`. |
+| **Firecrawl** | `@mendable/firecrawl-js`, `FIRECRAWL_API_KEY` | Crawled grants/offers for sentinel and zone enrichment. |
+| **Local intelligence** | `GET/POST /api/local-intelligence`, `lib/local/getLocalData.ts` | Council/region/grid context from postcode (UK). |
+| **Vercel** | Deployment (Fluid Compute), env via dashboard/`vercel env` | Hosting; `NEXT_PUBLIC_*` for client hints. |
+| **Auth/session** | `lib/auth.ts`, `POST /api/auth/*`, session cookie | Cookie-backed sessions; `/api/answers` and likes require session where enforced. |
+
+There is **no** dedicated “Hermes” or “Oracle” package — if those names appear in planning docs, map them to **Gemini** (LLM) and **Neon** (database) respectively unless a new adapter is added.
 
 ## API Runtime Status Notes (Current)
 
@@ -411,7 +442,8 @@ Local intelligence and location:
 Research/health/ops:
 - `/api/scrape-sync` (GET/POST): scrape ingest/research sync
 - `/api/health` (GET): runtime/db health
-- `/api/health/diagnostics` (GET): dependency/diagnostic flags
+- `/api/health/diagnostics` (GET): dependency/diagnostic flags (session or gateway bearer)
+- `/api/admin/pulse` (GET): live Neon + Gemini + Firecrawl probes + latency (session or same bearer tokens as diagnostics)
 - `/api/memory/flush` (POST): memory bridge flush
 
 Engagement/analytics:
@@ -419,7 +451,7 @@ Engagement/analytics:
 - `/api/likes` (GET/POST): liked cards
 - `/api/actioned` (GET/POST): actioned cards
 - `/api/analytics` (POST) and `/api/analytics/click` (POST): event tracking
-- `/api/marketing-email` (POST): signup capture
+- `/api/profile/mobile` (POST): UK/international mobile on `users.mobile` (Rock strip; guests OK — localStorage `zz_profile_mobile`; outbound Telegram/Hermes not wired in-repo)
 
 Activity visibility controls:
 - `/api/sso/activity/[activityId]/visibility/archive` (POST)
@@ -495,4 +527,11 @@ sessionStorage (core examples):
 - Expanded loop: `zz_sf_view_*`, `zz_sf_lane_*`, `zz_sf_q_*`
 - Ask context: `zz_ask_zai_context`
 - Expansion context: `zz_expand_card`, `zz_expand_from`
+
+### Infrastructure verification (Neon, keys, optional MCP)
+
+- **Neon / `research_results`:** Load **`DATABASE_URL`** from **`.env.local`**, then run **`npm run db:columns`** (wraps `tsx scripts/list-research-results-columns.ts`). Confirms the pool matches production column layout without opening the Neon console.
+- **App keys:** **`GEMINI_API_KEY`** and **`FIRECRAWL_API_KEY`** remain env-driven for agents and `/api` routes; pulse/admin diagnostics read the same vars where configured.
+- **Cursor MCP:** Enable the Neon Postgres MCP in Cursor settings if you want SQL from chat (workspace ships **`plugin-neon-postgres-neon`** descriptors). Firecrawl and Gemini are **not** guaranteed to be bundled as MCP servers — keep using env vars and HTTP APIs unless you add third-party MCP plugins.
+- **Oracle Cloud monitoring (`zerozero-auditor`, London):** Install client tooling locally (e.g. **`npx -y @oracle/mcp`**) and register an MCP server in Cursor that points at **`~/.oci/config`**. That wiring is **host-specific** and cannot be committed from the repo alone.
 
