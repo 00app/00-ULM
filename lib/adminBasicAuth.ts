@@ -1,14 +1,12 @@
 import type { NextRequest } from 'next/server'
-import { DEFAULT_ADMIN_BASIC_AUTH_HEADER } from '@/lib/adminBasicAuth.shared'
-
-export { DEFAULT_ADMIN_BASIC_AUTH_HEADER }
+import { getAdminAuthHeader } from '@/lib/adminBasicAuth.shared'
 
 /**
  * Basic auth for `/api/admin/*`. Set `ADMIN_BASIC_AUTH` to the full header value, e.g.
- * `Basic <base64(user:pass)>`.
+ * `Basic <base64(user:pass)>`. Falls back to `ADMIN_AUTH_HEADER` if unset.
  */
 export function getExpectedAdminBasicAuth(): string {
-  return process.env.ADMIN_BASIC_AUTH?.trim() || DEFAULT_ADMIN_BASIC_AUTH_HEADER
+  return process.env.ADMIN_BASIC_AUTH?.trim() || getAdminAuthHeader()
 }
 
 export function adminBasicAuthMatches(request: NextRequest): boolean {

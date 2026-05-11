@@ -4,8 +4,6 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ROUTES } from '@/lib/routes'
 import type { PulseMetric } from '@/lib/adminPulse'
-import { DEFAULT_ADMIN_BASIC_AUTH_HEADER } from '@/lib/adminBasicAuth.shared'
-
 type PulsePayload = {
   timestamp?: string
   neon?: PulseMetric
@@ -74,9 +72,7 @@ export default function AdminPulsePage() {
 
   const fetchPulse = useCallback(() => {
     const headers: HeadersInit = {}
-    const basic =
-      process.env.NEXT_PUBLIC_ADMIN_BASIC_AUTH?.trim() ??
-      (process.env.NODE_ENV === 'development' ? DEFAULT_ADMIN_BASIC_AUTH_HEADER : '')
+    const basic = process.env.NEXT_PUBLIC_ADMIN_BASIC_AUTH?.trim() ?? ''
     if (basic) {
       headers.Authorization = basic
     }
