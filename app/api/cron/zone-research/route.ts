@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
       [limit]
     )
 
+    console.log('[cron/zone-research] Successfully connected to London DB')
+
     const results: Array<{ userId: string; postcode: string; ok: boolean }> = []
     for (const row of res.rows ?? []) {
       const pc = row.postcode?.replace(/\s+/g, '').toUpperCase() ?? ''

@@ -37,6 +37,9 @@ import { syncSessionState } from '@/lib/sessionStateSync'
 import {
   headlineFromTitle,
   composeScrapedInsightDescription,
+  buildResearchResultsTrueTipBody,
+  TRUE_TIP_SECTION_LABELS,
+  toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
 } from '@/lib/soloFocusCopy'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
@@ -108,6 +111,11 @@ export interface SoloFocusOverlayProps {
   isPriorityHome?: boolean
   /** v42.8 — when LIVE, header shows VERIFIED with locality even if title lacks prefix. */
   auditState?: 'LIVE_AUDIT' | 'ESTIMATED_AUDIT' | null
+  /** Latest `research_results` row when category matches `journeyId` — £ + primary URL from Neon. */
+  verifiedAuditMoneyGbp?: number | null
+  verifiedAuditSourceUrl?: string | null
+  verifiedAuditCategory?: string | null
+  verifiedArchitectProse?: string | null
 }
 
 function triggerHaptic(p: 'light' | 'medium' | 'heavy') {
@@ -156,6 +164,10 @@ export function SoloFocusOverlay({
   tipNeedsSwitching = false,
   isPriorityHome = false,
   auditState = null,
+  verifiedAuditMoneyGbp = null,
+  verifiedAuditSourceUrl = null,
+  verifiedAuditCategory = null,
+  verifiedArchitectProse = null,
 }: SoloFocusOverlayProps) {
   const { setHeroTotals, state, toggleLike } = useApp()
   const profilePostcode = state.profile?.postcode ?? null
@@ -263,7 +275,13 @@ export function SoloFocusOverlay({
 
   const moneyTargetGbp = parseMoneyGbpFromImpactDisplay(displayMoneyValue)
   const carbonTargetKg = parseCarbonKgFromImpactDisplay(displayCarbonValue)
-  const animatedMoneyGbp = useCountUp(moneyTargetGbp, { duration: 520 })
+  const verifiedAuditMatchesJourney =
+    verifiedAuditMoneyGbp != null &&
+    Number.isFinite(verifiedAuditMoneyGbp) &&
+    Boolean(journeyId) &&
+    (verifiedAuditCategory ?? '').trim().toLowerCase() === String(journeyId).toLowerCase()
+  const motherMoneyTargetGbp = verifiedAuditMatchesJourney ? verifiedAuditMoneyGbp : moneyTargetGbp
+  const animatedMoneyGbp = useCountUp(motherMoneyTargetGbp, { duration: 520 })
   const animatedCarbonKg = useCountUp(carbonTargetKg, { duration: 520 })
 
   const morphLearnUrl =
@@ -296,20 +314,6 @@ export function SoloFocusOverlay({
       return false
     }
   }
-  const buildZaiAuditUrl = (): string => {
-    const journeyKey = String(displayJourneyId || journeyId || 'home')
-    const context = `reclaim_${journeyKey}`
-    const params = new URLSearchParams({
-      context,
-      journey: journeyKey,
-      title: String(displayTitle || title || displayRecommendation || ''),
-      money: String(Math.round(moneyTargetGbp)),
-      carbon: String(Math.round(carbonTargetKg)),
-      source: String(sourceLabel || ''),
-    })
-    return `/zai?${params.toString()}`
-  }
-
   const partnerHttp = pickFirstHttpUrl(partnerLink ?? undefined)
   const liveDiscoveryUrl =
     [
@@ -324,7 +328,23 @@ export function SoloFocusOverlay({
         (u) => typeof u === 'string' && u.trim().length > 0 && !isGenericHomepageUrl(u.trim())
       )
       ?.trim()
-  const resolvedOpenUrl = liveDiscoveryUrl || partnerHttp || buildZaiAuditUrl()
+  const buildZaiAuditUrl = (): string => {
+    const journeyKey = String(displayJourneyId || journeyId || 'home')
+    const context = `reclaim_${journeyKey}`
+    const params = new URLSearchParams({
+      context,
+      journey: journeyKey,
+      title: String(displayTitle || title || displayRecommendation || ''),
+      money: String(Math.round(motherMoneyTargetGbp)),
+      carbon: String(Math.round(carbonTargetKg)),
+      source: String(sourceLabel || ''),
+    })
+    return `/zai?${params.toString()}`
+  }
+  const resolvedOpenUrl =
+    verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+      ? verifiedAuditSourceUrl.trim()
+      : liveDiscoveryUrl || partnerHttp || buildZaiAuditUrl()
 
   const effectiveTitleRaw = currentMorphData
     ? String(displayTitle || displayRecommendation).trim() || displayRecommendation
@@ -343,10 +363,24 @@ export function SoloFocusOverlay({
     architectSuppliedBy,
     sourceLabel,
     sourceName,
-    liveScrapeSourceUrl: pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) ?? undefined,
+    liveScrapeSourceUrl:
+      verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+        ? verifiedAuditSourceUrl.trim()
+        : pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) ?? undefined,
   })
   const diagnosticUrl =
-    pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) || buildZaiAuditUrl()
+    verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+      ? verifiedAuditSourceUrl.trim()
+      : pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) || buildZaiAuditUrl()
+  const researchBackedTrueTip =
+    verifiedAuditMatchesJourney && verifiedArchitectProse?.trim()
+      ? buildResearchResultsTrueTipBody({
+          architectProse: verifiedArchitectProse.trim(),
+          verifiedSavingGbp: motherMoneyTargetGbp,
+          carbonKg: carbonTargetKg,
+          journeyId: String(displayJourneyId ?? journeyId ?? 'home'),
+        })
+      : null
   const rawInsight = (displayInsight ?? insight ?? '').trim()
   const preSplitAuditor =
     rawInsight.includes('\n\n')
@@ -367,44 +401,40 @@ export function SoloFocusOverlay({
       : resolvedOpenUrl.trim() && sourceName
         ? `${sourceName} carries the tariff notes, eligibility copy, and programme detail behind this headline. Use the link to read the authoritative wording on site before acting.`
         : scrapedOverlay
-  const insightNarrative = ((): string => {
-    if (preSplitAuditor.length >= 3) {
-      return preSplitAuditor
-        .map((p: string) => trimToWords(p, 34))
-        .filter((p: string, idx: number, arr: string[]) => arr.findIndex((candidate: string) => candidate.toLowerCase() === p.toLowerCase()) === idx)
-        .join(' ')
-    }
-    const base = (insightDisplay || '').trim()
-    if (!base) return ''
-    const paragraphChunks = base
-      .split(/\n\s*\n/)
-      .map((part: string) => part.trim())
-      .filter(Boolean)
-    if (paragraphChunks.length >= 3) {
-      return paragraphChunks
-        .slice(0, 3)
-        .map((p: string) => trimToWords(p, 34))
-        .filter((p: string, idx: number, arr: string[]) => arr.findIndex((candidate: string) => candidate.toLowerCase() === p.toLowerCase()) === idx)
-        .join(' ')
-    }
-    const chunks = base
-      .split(/(?<=[.!?])\s+/)
-      .map((part: string) => part.trim())
-      .filter(Boolean)
-    if (chunks.length <= 3) {
-      return chunks
-        .map((chunk: string) => trimToWords(chunk, 24))
-        .filter((p: string, idx: number, arr: string[]) => arr.findIndex((candidate: string) => candidate.toLowerCase() === p.toLowerCase()) === idx)
-        .join(' ')
-    }
-    return [
-      trimToWords(chunks.slice(0, Math.ceil(chunks.length / 3)).join(' '), 24),
-      trimToWords(chunks.slice(Math.ceil(chunks.length / 3), Math.ceil((2 * chunks.length) / 3)).join(' '), 24),
-      trimToWords(chunks.slice(Math.ceil((2 * chunks.length) / 3)).join(' '), 24),
-    ]
-      .filter((p: string, idx: number, arr: string[]) => arr.findIndex((candidate: string) => candidate.toLowerCase() === p.toLowerCase()) === idx)
-      .join(' ')
-  })()
+  const insightParaSource =
+    researchBackedTrueTip?.trim() ??
+    (preSplitAuditor.length >= 3
+      ? preSplitAuditor.slice(0, 3).join('\n\n')
+      : (insightDisplay || '').trim() || rawInsight)
+  const trueTipParagraphs = toThreeTrueTipParagraphs(insightParaSource)
+  const trueTipSectionsEl =
+    trueTipParagraphs.some((p) => p.trim().length > 0) ? (
+      <div className="solo-focus-true-tip-sections flex flex-col gap-5 w-full min-w-0 mt-1">
+        {TRUE_TIP_SECTION_LABELS.map((label, i) =>
+          trueTipParagraphs[i]?.trim() ? (
+            <div key={`${label}-${i}`} className="min-w-0">
+              <p
+                className="zz-label m-0 mb-1 text-left uppercase tracking-wide opacity-90"
+                style={{
+                  color: 'var(--journey-text)',
+                  fontSize: 'clamp(11px, 2.8vw, 13px)',
+                  fontFamily: 'var(--font-label)',
+                }}
+              >
+                {label}
+              </p>
+              <motion.p
+                className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left m-0"
+                style={{ color: 'var(--journey-text)' }}
+                variants={FADE_VARIANTS}
+              >
+                {trueTipParagraphs[i]}
+              </motion.p>
+            </div>
+          ) : null
+        )}
+      </div>
+    ) : null
   const sourceFooter = partnerHttp
     ? ''
     : 'Fresh Audit: live partner offer unavailable, running verified fallback.'
@@ -416,7 +446,7 @@ export function SoloFocusOverlay({
     needsSwitching: tipNeedsSwitching,
     isPriorityHome: Boolean(isPriorityHome),
   })
-  const effectiveHandoffLabel = ctaLabel ?? resolveRevenueCtaLabel(overlayCtaKind, moneyTargetGbp)
+  const effectiveHandoffLabel = ctaLabel ?? resolveRevenueCtaLabel(overlayCtaKind, motherMoneyTargetGbp)
   const verifiedOverlayCitation = formatVerifiedCitation(
     (verifiedSourceName ?? diagnosticProvider).trim(),
     (verifiedSourceDate ?? VERIFIED_SOURCE_DATE).trim()
@@ -620,19 +650,7 @@ export function SoloFocusOverlay({
                     >
                       {auditHeaderLabel}
                     </motion.h5>
-                    {insightNarrative ? (
-                      <motion.p
-                        key="insight-a-single"
-                        className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left"
-                        style={{
-                          color: 'var(--journey-text)',
-                          margin: 0,
-                        }}
-                        variants={FADE_VARIANTS}
-                      >
-                        {insightNarrative}
-                      </motion.p>
-                    ) : null}
+                    {trueTipSectionsEl}
                   </motion.a>
                 ) : (
                   <>
@@ -661,16 +679,7 @@ export function SoloFocusOverlay({
                     >
                       {auditHeaderLabel}
                     </motion.h5>
-                    {insightNarrative ? (
-                      <motion.p
-                        key="insight-b-single"
-                        className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left"
-                        style={{ color: 'var(--journey-text)', margin: 0 }}
-                        variants={FADE_VARIANTS}
-                      >
-                        {insightNarrative}
-                      </motion.p>
-                    ) : null}
+                    {trueTipSectionsEl}
                   </>
                 )}
 
@@ -680,6 +689,7 @@ export function SoloFocusOverlay({
                   narrative={null}
                   sourceFooter={sourceFooter}
                   verifiedSourceCitation={verifiedOverlayCitation}
+                  verifiedDataBadge={verifiedAuditMatchesJourney}
                   moneyGbp={isGlitchingMoney ? glitchDisplayGbp : animatedMoneyGbp}
                   carbonKg={animatedCarbonKg}
                   impactPulse={impactAnswerPulse}

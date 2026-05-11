@@ -163,13 +163,14 @@ CREATE TABLE IF NOT EXISTS research_results (
   profile_snapshot JSONB DEFAULT '{}',
   markdown TEXT,
   citations JSONB DEFAULT '[]',
+  architect_prose TEXT,
   elec_unit_rate_gbp_per_kwh DOUBLE PRECISION,
   gas_unit_rate_gbp_per_kwh DOUBLE PRECISION,
   deep_link TEXT,
   verified_saving DOUBLE PRECISION,
   category TEXT,
   offer_url TEXT,
-  saving_amount_gbp DOUBLE PRECISION,
+  saving_amount_gbp NUMERIC(10,2),
   locality_context TEXT,
   source_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -188,9 +189,10 @@ ALTER TABLE research_results ADD COLUMN IF NOT EXISTS deep_link TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS verified_saving DOUBLE PRECISION;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS locality_context TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS source_url TEXT;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS architect_prose TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS category TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS offer_url TEXT;
-ALTER TABLE research_results ADD COLUMN IF NOT EXISTS saving_amount_gbp DOUBLE PRECISION;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS saving_amount_gbp NUMERIC(10,2);
 
 -- Optional question bank — query with WHERE journey_key = $1 only (no cross-category leak).
 CREATE TABLE IF NOT EXISTS journey_questions (

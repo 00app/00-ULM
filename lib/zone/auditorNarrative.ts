@@ -1,5 +1,6 @@
 /**
- * v35.0 — Performance Auditor 3-paragraph narrative (Detection / Proof / Bridge).
+ * True Tip narrative — three paragraphs aligned with expanded Solo Focus sections:
+ * Detection → **The What**, Proof → **The Why**, Bridge → **The How**.
  */
 
 import type { JourneyId } from '@/lib/journeys'
@@ -39,7 +40,7 @@ function proofSentence(journey: JourneyId, sourceName: string, postcode?: string
   return `According to ${sourceName}, policy and tariff pressure in April 2026 keeps this category expensive without a verified move.`
 }
 
-function bridgeSentence(journey: JourneyId): string {
+export function bridgeSentence(journey: JourneyId): string {
   if (journey === 'tech') {
     return `Use the link below to swap to a verified standby cut-down and reclaim this cash today.`
   }

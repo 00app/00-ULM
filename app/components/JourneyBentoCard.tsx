@@ -54,7 +54,9 @@ import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
 import {
   headlineFromTitle,
-  resolveSoloFocusInsightDisplay,
+  resolveExpandedTrueTipInsight,
+  TRUE_TIP_SECTION_LABELS,
+  toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
 } from '@/lib/soloFocusCopy'
 import { useApp } from '@/app/context/AppContext'
@@ -188,6 +190,12 @@ export interface JourneyBentoCardProps {
   partnerLink?: string | null
   /** v42.8 — Zone VM audit gate; when LIVE, expanded header stays VERIFIED with locality. */
   auditState?: 'LIVE_AUDIT' | 'ESTIMATED_AUDIT' | null
+  /** When `category` matches this card’s journey, £ and primary link mirror `research_results` (London DB). */
+  verifiedAuditMoneyGbp?: number | null
+  verifiedAuditSourceUrl?: string | null
+  verifiedAuditCategory?: string | null
+  /** When audit category matches: Neon `research_results.architect_prose` shapes expanded True Tip What/Why/How. */
+  verifiedArchitectProse?: string | null
 }
 
 /** Card text follows industrial surface lock (journeyColors). */
@@ -255,6 +263,10 @@ export function JourneyBentoCard({
   partnerLink,
   learnActionType,
   auditState = null,
+  verifiedAuditMoneyGbp = null,
+  verifiedAuditSourceUrl = null,
+  verifiedAuditCategory = null,
+  verifiedArchitectProse = null,
 }: JourneyBentoCardProps) {
   const { state } = useApp()
   const profilePostcode = state.profile?.postcode ?? null
@@ -352,7 +364,12 @@ export function JourneyBentoCard({
 
   const moneyTargetGbp = parseMoneyGbpFromImpactDisplay(displayMoneyValue)
   const carbonTargetKg = parseCarbonKgFromImpactDisplay(displayCarbonValue)
-  const animatedMoneyGbp = useCountUp(moneyTargetGbp, { duration: 520 })
+  const verifiedAuditMatchesJourney =
+    verifiedAuditMoneyGbp != null &&
+    Number.isFinite(verifiedAuditMoneyGbp) &&
+    (verifiedAuditCategory ?? '').trim().toLowerCase() === journeyId
+  const motherMoneyTargetGbp = verifiedAuditMatchesJourney ? verifiedAuditMoneyGbp : moneyTargetGbp
+  const animatedMoneyGbp = useCountUp(motherMoneyTargetGbp, { duration: 520 })
   const animatedCarbonKg = useCountUp(carbonTargetKg, { duration: 520 })
 
   const morphLearnUrl =
@@ -385,20 +402,6 @@ export function JourneyBentoCard({
       return false
     }
   }
-  const buildZaiAuditUrl = (): string => {
-    const journeyKey = String(displayJourneyId || journeyId)
-    const context = `reclaim_${journeyKey}`
-    const params = new URLSearchParams({
-      context,
-      journey: journeyKey,
-      title: String(displayTitle || title || ''),
-      money: String(Math.round(moneyTargetGbp)),
-      carbon: String(Math.round(carbonTargetKg)),
-      source: String(attributionSourceLabel || ''),
-    })
-    return `/zai?${params.toString()}`
-  }
-
   const partnerHttp = pickFirstHttpUrl(partnerLink ?? undefined)
   const liveDiscoveryUrl = [
     liveClaimUrl,
@@ -411,7 +414,23 @@ export function JourneyBentoCard({
   ].find(
     (u) => typeof u === 'string' && u.trim().length > 0 && !isGenericHomepageUrl(u.trim())
   )?.trim()
-  const resolvedOfferUrl = liveDiscoveryUrl || partnerHttp || buildZaiAuditUrl()
+  const buildZaiAuditUrl = (): string => {
+    const journeyKey = String(displayJourneyId || journeyId)
+    const context = `reclaim_${journeyKey}`
+    const params = new URLSearchParams({
+      context,
+      journey: journeyKey,
+      title: String(displayTitle || title || ''),
+      money: String(Math.round(motherMoneyTargetGbp)),
+      carbon: String(Math.round(carbonTargetKg)),
+      source: String(attributionSourceLabel || ''),
+    })
+    return `/zai?${params.toString()}`
+  }
+  const resolvedOfferUrl =
+    verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+      ? verifiedAuditSourceUrl.trim()
+      : liveDiscoveryUrl || partnerHttp || buildZaiAuditUrl()
 
   const physicalSoloHref = pickPrimaryHttpUrl(resolvedOfferUrl)
   const ctaActionTypeRaw =
@@ -424,7 +443,7 @@ export function JourneyBentoCard({
     needsSwitching: ctaActionTypeRaw === 'switch',
     isPriorityHome: Boolean(isPriorityAlert && ctaActionTypeRaw !== 'switch'),
   })
-  const journeyCtaLabel = resolveRevenueCtaLabel(revenueKind, moneyTargetGbp)
+  const journeyCtaLabel = resolveRevenueCtaLabel(revenueKind, motherMoneyTargetGbp)
 
   const recommendationTitle = headlineFromTitle(
     (displayTitle || String(displayJourneyId)).trim() || String(displayJourneyId),
@@ -438,11 +457,13 @@ export function JourneyBentoCard({
     state.profile?.transport ??
     (typeof window !== 'undefined' ? localStorage.getItem('profile_transport') : null)
   const travelFuel = state.journeyAnswers?.travel?.fuel_type ?? null
-  const insightDisplay = resolveSoloFocusInsightDisplay({
+  const insightDisplay = resolveExpandedTrueTipInsight({
+    architectProse: verifiedArchitectProse,
+    verifiedAuditMatchesJourney,
     morphParts: [currentMorphData?.description, insightLabel, crawlerTip, localContextBar, offerOneLine],
     journeyId: String(displayJourneyId || journeyId),
     headline: recommendationTitle,
-    moneyGbp: moneyTargetGbp,
+    moneyGbp: motherMoneyTargetGbp,
     carbonKg: carbonTargetKg,
     transportBaseline: profileTransport,
     travelFuelType: travelFuel,
@@ -755,7 +776,9 @@ export function JourneyBentoCard({
       state.profile?.transport ??
       (typeof window !== 'undefined' ? localStorage.getItem('profile_transport') : null)
     const travelFuel = state.journeyAnswers?.travel?.fuel_type ?? null
-    const insightDisplay = resolveSoloFocusInsightDisplay({
+    const insightDisplay = resolveExpandedTrueTipInsight({
+      architectProse: verifiedArchitectProse,
+      verifiedAuditMatchesJourney,
       morphParts: [
         journeyId === 'home' && homeSentinelRecard && !currentMorphData ? homeSentinelRecard.description : undefined,
         currentMorphData?.description,
@@ -766,7 +789,7 @@ export function JourneyBentoCard({
       ],
       journeyId: String(displayJourneyId || journeyId),
       headline: recommendationTitle,
-      moneyGbp: moneyTargetGbp,
+      moneyGbp: motherMoneyTargetGbp,
       carbonKg: carbonTargetKg,
       transportBaseline: profileTransport,
       travelFuelType: travelFuel,
@@ -774,20 +797,45 @@ export function JourneyBentoCard({
       sourceDisplayName: verifiedSourceName ?? undefined,
       auditHeaderLocality: state.locationState?.locationName ?? undefined,
     })
-    const insightNarrative = insightDisplay
-      .split(/\n\s*\n/)
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .slice(0, 3)
-      .filter((p, idx, arr) => arr.findIndex((candidate) => candidate.toLowerCase() === p.toLowerCase()) === idx)
-      .join(' ')
+    const trueTipParagraphs = toThreeTrueTipParagraphs(insightDisplay)
+    const trueTipSectionsEl =
+      trueTipParagraphs.some((p) => p.trim().length > 0) ? (
+        <div className="solo-focus-true-tip-sections flex flex-col gap-5 w-full min-w-0 mt-1">
+          {TRUE_TIP_SECTION_LABELS.map((label, i) =>
+            trueTipParagraphs[i]?.trim() ? (
+              <div key={`${label}-${i}`} className="min-w-0">
+                <p
+                  className="zz-label m-0 mb-1 text-left uppercase tracking-wide opacity-90"
+                  style={{
+                    color: 'var(--journey-text)',
+                    fontSize: 'clamp(11px, 2.8vw, 13px)',
+                    fontFamily: 'var(--font-label)',
+                  }}
+                >
+                  {label}
+                </p>
+                <motion.p
+                  className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left m-0"
+                  style={{ color: 'var(--journey-text)' }}
+                  variants={FADE_VARIANTS}
+                >
+                  {trueTipParagraphs[i]}
+                </motion.p>
+              </div>
+            ) : null
+          )}
+        </div>
+      ) : null
 
     const diagnosticProviderJourney = resolveSuppliedByDisplayName({
       researchSuppliedBy: researchAttribution?.supplied_by,
       architectSuppliedBy,
       sourceLabel: attributionSourceLabel ?? undefined,
       sourceName,
-      liveScrapeSourceUrl: pickPrimaryHttpUrl(resolvedOfferUrl) ?? undefined,
+      liveScrapeSourceUrl:
+        verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+          ? verifiedAuditSourceUrl.trim()
+          : pickPrimaryHttpUrl(resolvedOfferUrl) ?? undefined,
     })
     const sourceFooter = partnerHttp
       ? ''
@@ -797,7 +845,9 @@ export function JourneyBentoCard({
       (verifiedSourceDate ?? VERIFIED_SOURCE_DATE).trim()
     )
     const diagnosticUrlJourney =
-      pickPrimaryHttpUrl(resolvedOfferUrl) || buildZaiAuditUrl()
+      verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+        ? verifiedAuditSourceUrl.trim()
+        : pickPrimaryHttpUrl(resolvedOfferUrl) || buildZaiAuditUrl()
 
     const discovery =
       discoverySnap != null
@@ -938,19 +988,7 @@ export function JourneyBentoCard({
                 >
                   {auditHeaderLabel}
                 </h5>
-                {insightNarrative ? (
-                  <motion.p
-                    key="insight-link-single"
-                    className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left"
-                    style={{
-                      color: 'var(--journey-text)',
-                      margin: 0,
-                    }}
-                    variants={FADE_VARIANTS}
-                  >
-                    {insightNarrative}
-                  </motion.p>
-                ) : null}
+                {trueTipSectionsEl}
               </motion.a>
             ) : (
               <>
@@ -978,16 +1016,7 @@ export function JourneyBentoCard({
                 >
                   {auditHeaderLabel}
                 </h5>
-                {insightNarrative ? (
-                  <motion.p
-                    key="insight-single"
-                    className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left"
-                    style={{ color: 'var(--journey-text)', margin: 0 }}
-                    variants={FADE_VARIANTS}
-                  >
-                    {insightNarrative}
-                  </motion.p>
-                ) : null}
+                {trueTipSectionsEl}
               </>
             )}
 
@@ -1000,6 +1029,7 @@ export function JourneyBentoCard({
               actionLine={architectActionLine}
               moneyGbp={animatedMoneyGbp}
               carbonKg={animatedCarbonKg}
+              verifiedDataBadge={verifiedAuditMatchesJourney}
               impactPulse={impactAnswerPulse}
               ctaUrl={resolvedOfferUrl || null}
               ctaJourneyId={displayJourneyId as string}

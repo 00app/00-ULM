@@ -5,7 +5,7 @@
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { sanitizeAgentMarkdown } from '@/lib/agents/zeroHunterMarkdown'
-import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
+import { bridgeSentence, buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 
 function coerceJourneyId(id: string): JourneyId {
@@ -201,4 +201,121 @@ function pruneDuplicateLocalityInsight(
     return true
   })
   return out.join('\n\n')
+}
+
+/** Expanded True Tip / Solo Focus — three sections (maps to auditor detection / proof / bridge). */
+export const TRUE_TIP_SECTION_LABELS = ['The What', 'The Why', 'The How'] as const
+
+/**
+ * Three paragraphs from Neon `research_results.architect_prose` + verified £/CO₂e figures.
+ * Prefer `\n\n`-split blocks when the DB row already carries What/Why/How shape.
+ */
+export function buildResearchResultsTrueTipBody(params: {
+  architectProse: string
+  verifiedSavingGbp: number
+  carbonKg: number
+  journeyId: string
+}): string {
+  const j = coerceJourneyId(params.journeyId)
+  const raw = params.architectProse.trim()
+  const blocks = raw
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+  const m = Math.max(0, Math.round(params.verifiedSavingGbp))
+  const c = Math.max(0, Math.round(params.carbonKg))
+  const whyLine = `Verified saving on this pathway is about £${formatMoneyValue(m)} per year with roughly ${formatCarbonValue(c)} CO₂e — tied to your latest research snapshot and eligibility signals.`
+  if (blocks.length >= 3) {
+    return blocks.slice(0, 3).join('\n\n')
+  }
+  if (blocks.length === 2) {
+    return [blocks[0]!, blocks[1]!, bridgeSentence(j)].join('\n\n')
+  }
+  const what = blocks[0] ?? raw
+  return [what, whyLine, bridgeSentence(j)].join('\n\n')
+}
+
+/** Unified resolver: DB-backed True Tip when audit category matches, else scraped + auditor fallback. */
+export function resolveExpandedTrueTipInsight(args: {
+  architectProse?: string | null
+  verifiedAuditMatchesJourney: boolean
+  morphParts: Array<string | null | undefined>
+  journeyId: string
+  headline: string
+  moneyGbp: number
+  carbonKg: number
+  transportBaseline?: string | null
+  travelFuelType?: string | null
+  userPostcode?: string | null
+  sourceDisplayName?: string | null
+  auditHeaderLocality?: string | null
+}): string {
+  const ap = (args.architectProse ?? '').trim()
+  if (args.verifiedAuditMatchesJourney && ap.length > 0) {
+    return buildResearchResultsTrueTipBody({
+      architectProse: ap,
+      verifiedSavingGbp: args.moneyGbp,
+      carbonKg: args.carbonKg,
+      journeyId: args.journeyId,
+    })
+  }
+  return resolveSoloFocusInsightDisplay({
+    morphParts: args.morphParts,
+    journeyId: args.journeyId,
+    headline: args.headline,
+    moneyGbp: args.moneyGbp,
+    carbonKg: args.carbonKg,
+    transportBaseline: args.transportBaseline,
+    travelFuelType: args.travelFuelType,
+    userPostcode: args.userPostcode,
+    sourceDisplayName: args.sourceDisplayName,
+    auditHeaderLocality: args.auditHeaderLocality,
+  })
+}
+
+/**
+ * Normalise any insight string into exactly three paragraphs for the True Tip layout.
+ * Prefers existing `\n\n` blocks; otherwise groups sentences.
+ */
+export function toThreeTrueTipParagraphs(text: string): [string, string, string] {
+  const t = text.trim()
+  if (!t) {
+    return ['', '', '']
+  }
+  let parts = t
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+  if (parts.length >= 3) {
+    return [parts[0]!, parts[1]!, parts[2]!]
+  }
+  const sentences = t
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (sentences.length >= 3) {
+    const n = sentences.length
+    const a = Math.max(1, Math.ceil(n / 3))
+    const b = Math.max(a + 1, Math.ceil((2 * n) / 3))
+    return [
+      sentences.slice(0, a).join(' '),
+      sentences.slice(a, b).join(' '),
+      sentences.slice(b).join(' '),
+    ]
+  }
+  if (sentences.length === 2) {
+    return [
+      sentences[0]!,
+      sentences[1]!,
+      'Open the verified source link below to complete this action and lock in the saving.',
+    ]
+  }
+  if (sentences.length === 1) {
+    return [
+      sentences[0]!,
+      `This maps to the £ and kg figures shown — wallet and footprint move together when you act.`,
+      `Use the primary action below to claim the saving or change the behaviour; the source line confirms the live audit trail.`,
+    ]
+  }
+  return [t, t, t]
 }

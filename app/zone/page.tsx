@@ -270,7 +270,11 @@ export default function ZonePage() {
   const [researchMeta, setResearchMeta] = useState<{
     deepLink?: string
     verifiedSaving?: number
+    savingAmountGbp?: number
     localityContext?: string
+    auditSourceUrl?: string
+    category?: string | null
+    architectProse?: string
   } | null>(null)
   const [liveProfilePostcode, setLiveProfilePostcode] = useState<string>(() => {
     if (typeof window === 'undefined') return ''
@@ -561,16 +565,47 @@ export default function ZonePage() {
           typeof data?.researchMeta?.verified_saving === 'number' && Number.isFinite(data.researchMeta.verified_saving)
             ? Number(data.researchMeta.verified_saving)
             : undefined
+        const savingAmountGbp =
+          typeof data?.researchMeta?.saving_amount_gbp === 'number' &&
+          Number.isFinite(data.researchMeta.saving_amount_gbp)
+            ? Number(data.researchMeta.saving_amount_gbp)
+            : undefined
         const localityContext =
           typeof data?.researchMeta?.locality_context === 'string' && data.researchMeta.locality_context.trim().length > 0
             ? data.researchMeta.locality_context.trim()
             : undefined
+        const auditSourceUrl =
+          typeof data?.researchMeta?.audit_source_url === 'string' && data.researchMeta.audit_source_url.trim().startsWith('http')
+            ? data.researchMeta.audit_source_url.trim()
+            : undefined
+        const category =
+          typeof data?.researchMeta?.category === 'string' ? data.researchMeta.category.trim().toLowerCase() : null
+        const architectProse =
+          typeof data?.researchMeta?.architect_prose === 'string' && data.researchMeta.architect_prose.trim().length > 0
+            ? data.researchMeta.architect_prose.trim()
+            : undefined
         setResearchMeta(
-          deepLink || verifiedSaving || localityContext
-            ? { deepLink, verifiedSaving, localityContext }
+          deepLink ||
+            verifiedSaving != null ||
+            savingAmountGbp != null ||
+            localityContext ||
+            auditSourceUrl ||
+            category ||
+            architectProse
+            ? {
+                deepLink,
+                verifiedSaving,
+                savingAmountGbp,
+                localityContext,
+                auditSourceUrl,
+                category,
+                architectProse,
+              }
             : null
         )
-        setLiveResearchData(Boolean(data?.source === 'database' || verifiedSaving || deepLink))
+        setLiveResearchData(
+          Boolean(data?.source === 'database' || verifiedSaving != null || savingAmountGbp != null || deepLink)
+        )
         const rawRates = data?.home_unit_rates as { elecGbpPerKwh?: unknown; gasGbpPerKwh?: unknown } | undefined
         if (rawRates && typeof rawRates === 'object') {
           const e = Number(rawRates.elecGbpPerKwh)
@@ -1615,6 +1650,19 @@ export default function ZonePage() {
                       verifiedSourceName={cell.item.source_name}
                       verifiedSourceDate={cell.item.source_date}
                       partnerLink={cell.item.partner_link}
+                      verifiedAuditMoneyGbp={
+                        liveResearchData &&
+                        researchMeta?.category === cell.item.journey_key
+                          ? researchMeta.savingAmountGbp ?? researchMeta.verifiedSaving ?? null
+                          : null
+                      }
+                      verifiedArchitectProse={
+                        liveResearchData && researchMeta?.category === cell.item.journey_key
+                          ? researchMeta.architectProse ?? null
+                          : null
+                      }
+                      verifiedAuditSourceUrl={researchMeta?.auditSourceUrl ?? null}
+                      verifiedAuditCategory={researchMeta?.category ?? null}
                       groovy
                       kineticGrid
                       isExpanded={expandedCardId === cell.item.id}
@@ -1749,6 +1797,12 @@ export default function ZonePage() {
           const tipCtaLabel = isBehavioralTip
             ? `RECLAIM £${Math.max(0, Math.round(tipMoneyGbp)).toLocaleString('en-GB')} NOW`
             : resolveRevenueCtaLabel(tipCtaKind, tipMoneyGbp)
+          const tipAuditMatches =
+            Boolean(liveResearchData && researchMeta?.category === tip.journey_key)
+          const tipAuditMoney =
+            tipAuditMatches
+              ? researchMeta?.savingAmountGbp ?? researchMeta?.verifiedSaving ?? null
+              : null
           return (
             <AnimatePresence mode="wait">
               <SoloFocusOverlay
@@ -1762,7 +1816,11 @@ export default function ZonePage() {
                 moneyValue={tip.data.money || '£0'}
                 carbonValue={tip.data.carbon || '0 KG CO₂'}
                 offerUrl={offerUrl}
-                sourceUrl={tip.source || tip.actions?.learnUrl}
+                sourceUrl={
+                  tipAuditMatches && researchMeta?.auditSourceUrl
+                    ? researchMeta.auditSourceUrl
+                    : tip.source || tip.actions?.learnUrl
+                }
                 sourceLabel={tip.sourceLabel}
                 architectSuppliedBy={tip.architectSuppliedBy}
                 onClose={closeAnySoloFocus}
@@ -1805,6 +1863,10 @@ export default function ZonePage() {
                 verifiedSourceDate={tip.source_date}
                 tipNeedsSwitching={tipNeedsSwitching}
                 isPriorityHome={tip.journey_key === 'home' && !!localData?.council}
+                verifiedAuditMoneyGbp={tipAuditMoney}
+                verifiedArchitectProse={tipAuditMatches ? researchMeta?.architectProse ?? null : null}
+                verifiedAuditSourceUrl={researchMeta?.auditSourceUrl ?? null}
+                verifiedAuditCategory={researchMeta?.category ?? null}
               />
             </AnimatePresence>
           )

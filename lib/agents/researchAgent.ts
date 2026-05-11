@@ -188,16 +188,18 @@ function normalizeResearchCategory(raw: string | null | undefined): string | nul
   return 'general'
 }
 
+/** GBP amount aligned with DB `numeric(10,2)` — always two decimal places max. */
 function normalizeSavingAmountGbp(n: unknown): number | null {
   const v = typeof n === 'number' ? n : Number(n)
   if (!Number.isFinite(v) || v < 0) return null
-  return Math.round(v)
+  return Math.round(v * 100) / 100
 }
 
 function parseResearchTripletJson(raw: string): {
   category: string
   saving_amount_gbp: number
   offer_url: string
+  architect_prose?: string
 } | null {
   let t = raw.trim()
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i)
@@ -214,7 +216,11 @@ function parseResearchTripletJson(raw: string): {
         ? j.offer_url.trim().slice(0, 2048)
         : ''
     if (!category || saving_amount_gbp == null || !offer_url) return null
-    return { category, saving_amount_gbp, offer_url }
+    const ap =
+      typeof j.architect_prose === 'string' && j.architect_prose.trim()
+        ? j.architect_prose.trim().slice(0, 4000)
+        : undefined
+    return { category, saving_amount_gbp, offer_url, architect_prose: ap }
   } catch {
     return null
   }
@@ -223,15 +229,16 @@ function parseResearchTripletJson(raw: string): {
 async function extractResearchTripletWithGemini(
   markdown: string,
   postcode: string | null | undefined
-): Promise<{ category: string; saving_amount_gbp: number; offer_url: string } | null> {
+): Promise<{ category: string; saving_amount_gbp: number; offer_url: string; architect_prose?: string } | null> {
   const key = process.env.GEMINI_API_KEY?.trim()
   if (!key || markdown.length < 80) return null
   const journeyList = [...JOURNEY_IDS, 'general'].join(', ')
   const pc = postcode?.trim() ? `Postcode context: ${postcode.trim()}\n\n` : ''
   const prompt = `${pc}From the UK household research markdown below, return ONLY valid JSON (no markdown code fence) with exactly these keys:
 - "category": one of: ${journeyList} — the single best thematic fit for the main opportunity in the text.
-- "saving_amount_gbp": non-negative integer — plausible estimated annual GBP saving for a typical UK household implied by the text (use 0 if none inferable).
+- "saving_amount_gbp": non-negative number with up to two decimal places — plausible estimated annual GBP saving (use 0 if none inferable).
 - "offer_url": one https URL copied verbatim from the markdown if any appear; otherwise use "${PRICE_CAP_SOURCE_URL}".
+- "architect_prose": one short UK English sentence — the clearest money-saving tip implied by the text (max ~240 characters).
 
 Markdown:
 ---
@@ -244,7 +251,8 @@ ${markdown.slice(0, 28_000)}`
     })
     const out = await model.generateContent(prompt)
     const text = out.response.text() ?? ''
-    return parseResearchTripletJson(text)
+    const parsed = parseResearchTripletJson(text)
+    return parsed
   } catch {
     return null
   }
@@ -290,6 +298,8 @@ export async function persistResearchResult(params: {
   localityContext?: string | null
   providerName?: string | null
   agentHeadline?: string | null
+  /** Short AI tip for Zone cards; maps to `research_results.architect_prose`. */
+  architectProse?: string | null
   /** Stored in research_results.openclaw_raw_json (legacy column name). */
   invokePayload?: unknown
   /** When true, skips the Gemini JSON triplet extraction inside persist. */
@@ -311,7 +321,8 @@ export async function persistResearchResult(params: {
        ADD COLUMN IF NOT EXISTS openclaw_raw_json JSONB,
        ADD COLUMN IF NOT EXISTS category TEXT,
        ADD COLUMN IF NOT EXISTS offer_url TEXT,
-       ADD COLUMN IF NOT EXISTS saving_amount_gbp DOUBLE PRECISION`
+       ADD COLUMN IF NOT EXISTS saving_amount_gbp NUMERIC(10,2),
+       ADD COLUMN IF NOT EXISTS architect_prose TEXT`
     )
     const providerName =
       params.providerName?.trim() ||
@@ -319,7 +330,12 @@ export async function persistResearchResult(params: {
     const deepResolved = params.deepLink ?? params.sourceUrl ?? null
 
     const explicitTriplet = researchTripletExplicitFromParams(params)
-    let geminiTriplet: { category: string; saving_amount_gbp: number; offer_url: string } | null = null
+    let geminiTriplet: {
+      category: string
+      saving_amount_gbp: number
+      offer_url: string
+      architect_prose?: string
+    } | null = null
     const skipGemini =
       params.skipResearchGeminiExtraction === true || explicitTriplet != null
     if (!skipGemini) {
@@ -336,8 +352,10 @@ export async function persistResearchResult(params: {
       geminiTriplet?.saving_amount_gbp ??
       explicitTriplet?.saving_amount_gbp ??
       null
-    const firstHttpCitation = params.citations.find((c) => typeof c.url === 'string' && c.url.trim().startsWith('http'))
-      const citationFallback = firstHttpCitation?.url?.trim().slice(0, 2048) || null
+    const firstHttpCitation = params.citations.find(
+      (c) => typeof c.url === 'string' && c.url.trim().startsWith('http')
+    )
+    const citationFallback = firstHttpCitation?.url?.trim().slice(0, 2048) || null
     const mergedOfferRaw =
       (params.offerUrl?.trim() && params.offerUrl.trim().startsWith('http')
         ? params.offerUrl.trim()
@@ -352,14 +370,20 @@ export async function persistResearchResult(params: {
     const savingForDb = mergedSaving ?? null
     const verifiedForDb = savingForDb
 
+    const mergedArchitectProse =
+      params.architectProse?.trim() ||
+      geminiTriplet?.architect_prose?.trim() ||
+      params.agentHeadline?.trim() ||
+      null
+
     await pool.query(
       `INSERT INTO research_results (
          user_id, postcode, profile_snapshot, markdown, citations,
          elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
          deep_link, verified_saving, category, offer_url, saving_amount_gbp, locality_context,
-         provider_name, agent_headline, openclaw_raw_json, created_at
+         provider_name, agent_headline, architect_prose, openclaw_raw_json, created_at
        )
-       VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb, NOW())`,
+       VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13::numeric, $14, $15, $16, $17, $18::jsonb, NOW())`,
       [
         params.userId?.trim() || null,
         params.postcode ?? null,
@@ -377,6 +401,7 @@ export async function persistResearchResult(params: {
         params.localityContext ?? null,
         providerName,
         params.agentHeadline?.trim() ?? null,
+        mergedArchitectProse,
         params.invokePayload !== undefined ? JSON.stringify(params.invokePayload) : null,
       ]
     )

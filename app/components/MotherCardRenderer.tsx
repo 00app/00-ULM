@@ -11,6 +11,8 @@ interface MotherCardRendererProps {
   sourceFooter: string
   /** v35.0 — bottom citation after CTA: "Source: … — Verified …" */
   verifiedSourceCitation?: string | null
+  /** When true, shows a “Verified data” chip above £ / kg (London DB-aligned figures). */
+  verifiedDataBadge?: boolean
   actionLine?: string | null
   moneyGbp: number
   carbonKg: number
@@ -26,6 +28,7 @@ export function MotherCardRenderer({
   narrative,
   sourceFooter,
   verifiedSourceCitation = null,
+  verifiedDataBadge = false,
   actionLine,
   moneyGbp,
   carbonKg,
@@ -69,6 +72,21 @@ export function MotherCardRenderer({
         >
           {actionLine.trim()}
         </p>
+      ) : null}
+      {verifiedDataBadge ? (
+        <div className="w-full min-w-0 mb-3 -mt-1">
+          <span
+            className="inline-flex items-center rounded-full px-3 py-1 zz-body-bold uppercase tracking-wide"
+            style={{
+              fontSize: 'clamp(10px, 2.6vw, 12px)',
+              fontFamily: 'var(--font-label)',
+              background: 'color-mix(in srgb, var(--color-ink) 12%, transparent)',
+              color: 'var(--color-ink)',
+            }}
+          >
+            Verified data · Neon research_results
+          </span>
+        </div>
       ) : null}
       <div
         className={`solo-focus-impact-hero insight-to-impact card-impact-grid solo-focus-impact-grid grid grid-cols-2 gap-x-10 gap-y-0 w-full min-w-0${impactPulse ? ' solo-focus-impact-answer-pulse' : ''}`}

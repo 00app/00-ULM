@@ -9,9 +9,11 @@ Single reference for product intent, user flow, architecture, integrations, moti
 ```bash
 npm install
 cp .env.example .env.local   # DATABASE_URL, GEMINI_API_KEY, etc. — never commit .env.local
-npm run init-db
+npm run init-db              # applies lib/schema.sql via TCP (loads .env.local automatically)
 npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030 / :3001 variants)
 ```
+
+**Neon empty branch / “No roles available”:** In [Neon Console](https://console.neon.tech) → your project → ensure **Roles** exist (create `neondb_owner` or reset password). Paste the **pooler** connection string into `DATABASE_URL`, then run `npm run init-db` again. If auth fails, paste a **fresh** URI from **Connection details** (passwords rotate when reset).
 
 **Build:** `npm run build` · **Deploy:** `npm run deploy` or `npm run ship` (build + Vercel prod).
 
@@ -86,7 +88,7 @@ Apply in Neon (or your pipeline) as needed:
 - `db/migrations/20260508_research_results_category.sql` — `research_results.category`
 - Older numbered SQL under `db/migrations/` — schema history
 
-**Verify columns:** `npm run db:columns` (requires `DATABASE_URL`).
+**Verify DB connectivity:** `npm run db:test` (Neon HTTP ping + table list). **Research columns:** `npm run db:columns`.
 
 ---
 

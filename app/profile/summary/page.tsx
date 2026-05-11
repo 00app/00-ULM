@@ -412,6 +412,7 @@ export default function ProfileSummaryPage() {
                   trailingPeriod={false}
                   lensFocusShimmer
                   fitToViewportPaddingPx={40}
+                  wrapLongPreservedWords
                   gapMs={INTRO_SHIMMER_WORD_GAP_MS}
                   wordDurations={summaryWordDurations}
                   onComplete={handleCycleComplete}

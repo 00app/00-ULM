@@ -253,6 +253,7 @@ export async function runPersonalAudit(userId: string): Promise<PersonalAuditRes
       localityContext: `${postcode} · ${goal}`,
       providerName: 'Zero Zero auditor',
       agentHeadline: parsed.prose.slice(0, 120).replace(/\s+/g, ' ').trim(),
+      architectProse: parsed.prose.slice(0, 4000),
       skipResearchGeminiExtraction: true,
       invokePayload: {
         kind: 'personal_audit',

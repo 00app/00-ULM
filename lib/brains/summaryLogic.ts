@@ -136,7 +136,7 @@ export function employmentWinFocus(
 export function formatSummaryLocalityKineticToken(areaLabel: string): string {
   const t = purgeYourAreaCopy(areaLabel || 'the UK').trim()
   if (!t || t === 'the UK') return 'the UK'
-  if (t.length <= 6) return t
+  if (t.length <= 7) return t
   const words = t.split(/\s+/).filter(Boolean)
   if (words.length >= 2) {
     const mid = Math.ceil(words.length / 2)
@@ -156,6 +156,7 @@ export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): s
   const wasteKg = Math.max(0, Math.round(input.annualWasteCarbon))
 
   return [
+    'HELLO',
     'based',
     'on',
     'your',

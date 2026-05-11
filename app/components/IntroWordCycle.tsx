@@ -30,6 +30,10 @@ interface IntroWordCycleProps {
   lensFocusShimmer?: boolean
   /** Optional viewport padding budget for auto-fit (e.g. 40 => 40px left + right). */
   fitToViewportPaddingPx?: number
+  /**
+   * Summary / locality: allow wrapping + balanced lines for long tokens (>7 chars) instead of nowrap shrink-only.
+   */
+  wrapLongPreservedWords?: boolean
 }
 
 const DEFAULT_GAP_MS = 90
@@ -45,6 +49,7 @@ export default function IntroWordCycle({
   gapMs = DEFAULT_GAP_MS,
   lensFocusShimmer = false,
   fitToViewportPaddingPx = 0,
+  wrapLongPreservedWords = false,
 }: IntroWordCycleProps) {
   const reduceMotion = useReducedMotion()
   const [index, setIndex] = useState(0)
@@ -141,8 +146,14 @@ export default function IntroWordCycle({
 
   const isMultiline = displayText.includes('\n')
 
+  const useBalancedWrap =
+    wrapLongPreservedWords &&
+    preserveCase &&
+    !isMultiline &&
+    displayText.replace(/\s/g, '').length > 7
+
   useEffect(() => {
-    if (fitToViewportPaddingPx <= 0) {
+    if (fitToViewportPaddingPx <= 0 || useBalancedWrap) {
       setFitScale(1)
       return
     }
@@ -161,8 +172,8 @@ export default function IntroWordCycle({
         return
       }
       let next = Math.min(1, available / needed)
-      /** Single long token (>6 chars): extra squeeze so Marvin never kisses the viewport edge */
-      if (!isMultiline && displayText.replace(/\s/g, '').length > 6) {
+      /** Single long token (>7 chars): extra squeeze so Marvin never kisses the viewport edge */
+      if (!isMultiline && displayText.replace(/\s/g, '').length > 7) {
         next *= 0.94
       }
       setFitScale(next)
@@ -170,7 +181,7 @@ export default function IntroWordCycle({
     updateScale()
     window.addEventListener('resize', updateScale)
     return () => window.removeEventListener('resize', updateScale)
-  }, [currentWord, displayText, fitToViewportPaddingPx, isMultiline])
+  }, [currentWord, displayText, fitToViewportPaddingPx, isMultiline, useBalancedWrap])
 
   return (
     <div
@@ -203,9 +214,16 @@ export default function IntroWordCycle({
               width: 'auto',
               maxWidth: fitToViewportPaddingPx > 0 ? `calc(100vw - ${fitToViewportPaddingPx * 2}px)` : 'min(96vw, 28ch)',
               textAlign: 'center',
-              whiteSpace: isMultiline ? 'pre-line' : 'nowrap',
+              whiteSpace: isMultiline ? 'pre-line' : useBalancedWrap ? 'normal' : 'nowrap',
+              textWrap: useBalancedWrap ? ('balance' as React.CSSProperties['textWrap']) : undefined,
               textTransform: preserveCase ? 'none' : 'uppercase',
               fontFamily: 'var(--font-marvin), var(--font-label), sans-serif',
+              ...(useBalancedWrap
+                ? {
+                    fontSize:
+                      'clamp(1.35rem, min(9.5vw, 11vmin), var(--zz-h2-desktop, 3.25rem))',
+                  }
+                : {}),
               transform: `scale(${fitScale})`,
               transformOrigin: 'center center',
             }}

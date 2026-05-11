@@ -241,29 +241,33 @@ export async function insertResearchInvokeSnapshot(params: {
   sourceUrl?: string | null
   providerName?: string | null
   agentHeadline?: string | null
+  /** Defaults to `agentHeadline` when omitted; maps to `architect_prose`. */
+  architectProse?: string | null
   invokePayload: unknown
 }): Promise<void> {
   const pool = getDbPool()
+  const prose = (params.architectProse ?? params.agentHeadline)?.trim() || null
   try {
     await pool.query(
       `ALTER TABLE research_results
        ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL,
        ADD COLUMN IF NOT EXISTS category TEXT,
        ADD COLUMN IF NOT EXISTS offer_url TEXT,
-       ADD COLUMN IF NOT EXISTS saving_amount_gbp DOUBLE PRECISION`
+       ADD COLUMN IF NOT EXISTS saving_amount_gbp NUMERIC(10,2),
+       ADD COLUMN IF NOT EXISTS architect_prose TEXT`
     )
     await pool.query(
       `INSERT INTO research_results (
          user_id, postcode, profile_snapshot, markdown, citations,
          elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
          deep_link, verified_saving, category, offer_url, saving_amount_gbp, locality_context,
-         provider_name, agent_headline, openclaw_raw_json, created_at
+         provider_name, agent_headline, architect_prose, openclaw_raw_json, created_at
        )
        VALUES (
          $1, $2, $3::jsonb, $4, $5::jsonb,
          NULL, NULL, $6,
-         $6, NULL, NULL, $6, NULL, NULL,
-         $7, $8, $9::jsonb, NOW()
+         $6, NULL, NULL, $6, NULL::numeric, NULL,
+         $7, $8, $9, $10::jsonb, NOW()
        )`,
       [
         params.userId?.trim() || null,
@@ -274,6 +278,7 @@ export async function insertResearchInvokeSnapshot(params: {
         params.sourceUrl ?? null,
         params.providerName?.trim() ?? null,
         params.agentHeadline?.trim() ?? null,
+        prose,
         JSON.stringify(params.invokePayload ?? {}),
       ]
     )

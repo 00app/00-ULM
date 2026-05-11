@@ -52,6 +52,9 @@ export async function GET(request: NextRequest) {
       }
     })
   try {
+    const session = await getSessionFromRequest().catch(() => null)
+    const sessionUserId = session?.userId ?? null
+
     const postcodeRaw = request.nextUrl.searchParams.get('postcode')?.trim() || null
     const postcode = postcodeRaw ? postcodeRaw.replace(/\s+/g, '').toUpperCase() : null
     if (postcode && postcode.length > 12) {
@@ -69,8 +72,7 @@ export async function GET(request: NextRequest) {
       if (household) profileData.household = household
       profileData.postcode = postcode
 
-      const session = await getSessionFromRequest().catch(() => null)
-      const userId = session?.userId ?? null
+      const userId = sessionUserId
       let loopGenomeSummary: string | undefined
       if (userId) {
         try {
@@ -111,28 +113,81 @@ export async function GET(request: NextRequest) {
     let researchMeta: {
       deep_link: string | null
       verified_saving: number | null
+      saving_amount_gbp: number | null
       locality_context: string | null
+      offer_url: string | null
+      source_url: string | null
+      /** COALESCE(offer_url, source_url) — use for “Source” / auditor handoff. */
+      audit_source_url: string | null
+      category: string | null
+      architect_prose: string | null
     } | null = null
     if (postcode) {
-      const researchMetaResult = await pool.query(
-        `SELECT deep_link, verified_saving, locality_context
-         FROM research_results
-         WHERE postcode = $1
-         ORDER BY created_at DESC
-         LIMIT 1`,
-        [postcode]
-      )
-      const researchMetaRow = researchMetaResult.rows?.[0] as
-        | { deep_link?: string | null; verified_saving?: number | null; locality_context?: string | null }
-        | undefined
+      const toNum = (v: unknown): number | null => {
+        if (v == null) return null
+        if (typeof v === 'number' && Number.isFinite(v)) return v
+        const n = Number(v)
+        return Number.isFinite(n) ? n : null
+      }
+      const selectCols = `deep_link, verified_saving, saving_amount_gbp, locality_context, offer_url, source_url, category, architect_prose`
+      type ResearchMetaDbRow = {
+        deep_link?: string | null
+        verified_saving?: unknown
+        saving_amount_gbp?: unknown
+        locality_context?: string | null
+        offer_url?: string | null
+        source_url?: string | null
+        category?: string | null
+        architect_prose?: string | null
+      }
+      let researchMetaRow: ResearchMetaDbRow | undefined
+      if (sessionUserId) {
+        const byUser = await pool.query(
+          `SELECT ${selectCols}
+           FROM research_results
+           WHERE user_id = $1::uuid
+           ORDER BY created_at DESC NULLS LAST
+           LIMIT 1`,
+          [sessionUserId]
+        )
+        researchMetaRow = byUser.rows?.[0]
+      }
+      if (!researchMetaRow) {
+        const byPc = await pool.query(
+          `SELECT ${selectCols}
+           FROM research_results
+           WHERE REPLACE(COALESCE(postcode, ''), ' ', '') = $1
+           ORDER BY created_at DESC NULLS LAST
+           LIMIT 1`,
+          [postcode]
+        )
+        researchMetaRow = byPc.rows?.[0]
+      }
+      const offerTrim = (researchMetaRow?.offer_url ?? '').trim()
+      const sourceTrim = (researchMetaRow?.source_url ?? '').trim()
+      const auditSource =
+        offerTrim.length > 0
+          ? offerTrim
+          : sourceTrim.length > 0
+            ? sourceTrim
+            : null
+      const sav = toNum(researchMetaRow?.saving_amount_gbp)
+      const ver = toNum(researchMetaRow?.verified_saving)
+      const archProse =
+        typeof researchMetaRow?.architect_prose === 'string' && researchMetaRow.architect_prose.trim().length > 0
+          ? researchMetaRow.architect_prose.trim().slice(0, 4000)
+          : null
       researchMeta = researchMetaRow
         ? {
             deep_link: researchMetaRow.deep_link ?? null,
-            verified_saving:
-              typeof researchMetaRow.verified_saving === 'number'
-                ? Number(researchMetaRow.verified_saving)
-                : null,
+            verified_saving: ver,
+            saving_amount_gbp: sav,
             locality_context: researchMetaRow.locality_context ?? null,
+            offer_url: offerTrim.length > 0 ? offerTrim : null,
+            source_url: sourceTrim.length > 0 ? sourceTrim : null,
+            audit_source_url: auditSource,
+            category: researchMetaRow.category?.trim() ?? null,
+            architect_prose: archProse,
           }
         : null
     }

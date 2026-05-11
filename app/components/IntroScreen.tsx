@@ -30,6 +30,7 @@ const WORD_EXIT_MS = 150
  * v6 — dwell tuned for lens snap + stagger gap between words.
  */
 const INTRO_KINETIC_WORDS = [
+  'HELLO',
   'SAVE',
   'MONEY',
   'CUT',

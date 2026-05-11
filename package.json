@@ -36,6 +36,7 @@
     "deploy": "vercel --prod --yes",
     "ship": "node scripts/build-with-manifest-fix.js && vercel --prod --yes",
     "init-db": "tsx scripts/init-db.ts",
+    "db:test": "tsx scripts/db-test.ts",
     "reset-db": "tsx scripts/reset-schema.ts",
     "clean:cache": "rm -rf .next node_modules/.cache",
     "db:columns": "tsx scripts/list-research-results-columns.ts"
