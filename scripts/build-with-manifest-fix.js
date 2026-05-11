@@ -16,6 +16,17 @@ const path = require('path')
 
 const cwd = process.cwd()
 
+// Fail fast if package.json is not valid JSON (e.g. leftover `<<<<<<<` merge markers).
+// npm install would also fail, but this gives a clearer message when the build script runs.
+try {
+  const pkgPath = path.join(cwd, 'package.json')
+  JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+} catch (e) {
+  console.error('Invalid package.json — fix JSON syntax and remove any git conflict markers before building.')
+  console.error(String(e && e.message ? e.message : e))
+  process.exit(1)
+}
+
 // Warn when project is in iCloud Drive (causes ETIMEDOUT on file reads during build)
 if (!process.env.BUILD_SKIP_ICLOUD_CHECK) {
   const normalized = cwd.replace(/\\/g, '/')
