@@ -12,6 +12,7 @@ import { getFirecrawlClient } from '@/lib/sentinel/api-config'
 import { getJourneyAnswersForUser } from '@/lib/db/neon'
 import { UK_2026_SEED_URLS, persistResearchResult } from '@/lib/agents/researchAgent'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
+import { JOURNEY_IDS } from '@/lib/journeys'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -49,7 +50,14 @@ function profileGoalFromGenome(genome: Record<string, unknown> | null | undefine
   return 'balanced'
 }
 
-function parseAuditorJson(raw: string): { prose: string; saving: number; url: string } | null {
+const AUDITOR_CATEGORY_WHITELIST = new Set<string>([...JOURNEY_IDS, 'general'])
+
+function parseAuditorJson(raw: string): {
+  prose: string
+  category: string
+  saving_amount_gbp: number
+  offer_url: string
+} | null {
   let t = raw.trim()
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i)
   if (fence?.[1]) t = fence[1].trim()
@@ -59,10 +67,20 @@ function parseAuditorJson(raw: string): { prose: string; saving: number; url: st
   try {
     const j = JSON.parse(t.slice(start, end + 1)) as Record<string, unknown>
     const prose = typeof j.prose === 'string' ? j.prose.trim() : ''
-    const saving = typeof j.saving === 'number' ? j.saving : Number(j.saving)
-    const url = typeof j.url === 'string' ? j.url.trim() : ''
-    if (!prose || !Number.isFinite(saving) || saving < 0 || !url.startsWith('http')) return null
-    return { prose, saving: Math.round(saving), url }
+    const catRaw = typeof j.category === 'string' ? j.category.trim().toLowerCase() : ''
+    const category = AUDITOR_CATEGORY_WHITELIST.has(catRaw) ? catRaw : 'general'
+    const sav =
+      typeof j.saving_amount_gbp === 'number'
+        ? j.saving_amount_gbp
+        : Number(j.saving_amount_gbp ?? j.saving)
+    const offer_url =
+      typeof j.offer_url === 'string'
+        ? j.offer_url.trim()
+        : typeof j.url === 'string'
+          ? j.url.trim()
+          : ''
+    if (!prose || !Number.isFinite(sav) || sav < 0 || !offer_url.startsWith('http')) return null
+    return { prose, category, saving_amount_gbp: Math.round(sav), offer_url }
   } catch {
     return null
   }
@@ -135,11 +153,12 @@ ${params.scrapedMarkdown.slice(0, 24_000)}
 
 Task:
 1. Infer ONE concrete action (switch tariff, grant application, insulation tip, or transport habit) that fits the user and sources.
-2. Estimate a plausible annual GBP saving vs their baseline (integer £, conservative if uncertain).
-3. Pick ONE https URL from the scraped content that best supports the action (must appear verbatim in the markdown above).
+2. Choose "category" as exactly one of: home, travel, food, shopping, money, carbon, tech, waste, holidays, general — best thematic fit for that action.
+3. Estimate plausible annual GBP saving vs their baseline as integer "saving_amount_gbp" (conservative if uncertain).
+4. Set "offer_url" to ONE https URL from the scraped markdown above that best supports the action (must appear verbatim in the markdown).
 
 Return ONLY valid JSON, no markdown wrapper:
-{"prose":"one short imperative paragraph, UK English","saving":123,"url":"https://..."}`
+{"prose":"one short imperative paragraph, UK English","category":"money","saving_amount_gbp":123,"offer_url":"https://..."}`
 }
 
 /**
@@ -207,7 +226,7 @@ export async function runPersonalAudit(userId: string): Promise<PersonalAuditRes
     return { ok: false, userId, error: 'gemini did not return valid JSON' }
   }
 
-  const citation = [{ source_name: 'Personal audit', url: parsed.url, snippet: parsed.prose.slice(0, 240) }]
+  const citation = [{ source_name: 'Personal audit', url: parsed.offer_url, snippet: parsed.prose.slice(0, 240) }]
 
   try {
     await persistResearchResult({
@@ -225,17 +244,22 @@ export async function runPersonalAudit(userId: string): Promise<PersonalAuditRes
       citations: citation,
       elecUnitRateGbpPerKwh: baselineElec,
       gasUnitRateGbpPerKwh: ratesRow?.gas_unit_rate_gbp_per_kwh ?? null,
-      sourceUrl: parsed.url,
-      deepLink: parsed.url,
-      verifiedSaving: parsed.saving,
+      sourceUrl: parsed.offer_url,
+      deepLink: parsed.offer_url,
+      category: parsed.category,
+      offerUrl: parsed.offer_url,
+      savingAmountGbp: parsed.saving_amount_gbp,
+      verifiedSaving: parsed.saving_amount_gbp,
       localityContext: `${postcode} · ${goal}`,
       providerName: 'Zero Zero auditor',
       agentHeadline: parsed.prose.slice(0, 120).replace(/\s+/g, ' ').trim(),
+      skipResearchGeminiExtraction: true,
       invokePayload: {
         kind: 'personal_audit',
         model: AUDIT_MODEL,
-        saving_gbp: parsed.saving,
-        offer_url: parsed.url,
+        category: parsed.category,
+        saving_amount_gbp: parsed.saving_amount_gbp,
+        offer_url: parsed.offer_url,
       },
     })
   } catch (e) {
@@ -245,8 +269,8 @@ export async function runPersonalAudit(userId: string): Promise<PersonalAuditRes
   return {
     ok: true,
     userId,
-    savingGbp: parsed.saving,
-    offerUrl: parsed.url,
+    savingGbp: parsed.saving_amount_gbp,
+    offerUrl: parsed.offer_url,
     prose: parsed.prose,
   }
 }

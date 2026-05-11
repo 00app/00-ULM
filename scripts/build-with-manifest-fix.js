@@ -94,7 +94,7 @@ function ensureManifests() {
   } catch (_) {}
 }
 
-// Fresh .next before every build unless BUILD_SKIP_PRE_CLEAN=1 (BUILD_CLEAN=1 is redundant but documented in BOOT.md).
+// Fresh .next before every build unless BUILD_SKIP_PRE_CLEAN=1 (BUILD_CLEAN=1 is redundant; see HANDBOOK.md / package.json).
 preCleanNextOutput()
 
 // Do not pre-create .next — let Next create it so .next/types etc. are correct.

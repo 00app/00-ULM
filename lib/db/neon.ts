@@ -248,6 +248,7 @@ export async function insertResearchInvokeSnapshot(params: {
     await pool.query(
       `ALTER TABLE research_results
        ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+       ADD COLUMN IF NOT EXISTS category TEXT,
        ADD COLUMN IF NOT EXISTS offer_url TEXT,
        ADD COLUMN IF NOT EXISTS saving_amount_gbp DOUBLE PRECISION`
     )
@@ -255,13 +256,13 @@ export async function insertResearchInvokeSnapshot(params: {
       `INSERT INTO research_results (
          user_id, postcode, profile_snapshot, markdown, citations,
          elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
-         deep_link, verified_saving, offer_url, saving_amount_gbp, locality_context,
+         deep_link, verified_saving, category, offer_url, saving_amount_gbp, locality_context,
          provider_name, agent_headline, openclaw_raw_json, created_at
        )
        VALUES (
          $1, $2, $3::jsonb, $4, $5::jsonb,
          NULL, NULL, $6,
-         $6, NULL, $6, NULL, NULL,
+         $6, NULL, NULL, $6, NULL, NULL,
          $7, $8, $9::jsonb, NOW()
        )`,
       [

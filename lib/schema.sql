@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS research_results (
   gas_unit_rate_gbp_per_kwh DOUBLE PRECISION,
   deep_link TEXT,
   verified_saving DOUBLE PRECISION,
+  category TEXT,
   offer_url TEXT,
   saving_amount_gbp DOUBLE PRECISION,
   locality_context TEXT,
@@ -187,6 +188,7 @@ ALTER TABLE research_results ADD COLUMN IF NOT EXISTS deep_link TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS verified_saving DOUBLE PRECISION;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS locality_context TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS source_url TEXT;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS category TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS offer_url TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS saving_amount_gbp DOUBLE PRECISION;
 

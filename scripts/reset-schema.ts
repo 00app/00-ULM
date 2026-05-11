@@ -1,4 +1,4 @@
-import pool from '../lib/db'
+import pool, { shutdownDbPool } from '../lib/db'
 
 async function resetSchema() {
   try {
@@ -43,11 +43,11 @@ async function resetSchema() {
     }
     
     console.log('✅ Schema reset successfully')
-    await pool.end()
+    await shutdownDbPool()
     process.exit(0)
   } catch (error) {
     console.error('❌ Error resetting schema:', error)
-    await pool.end()
+    await shutdownDbPool()
     process.exit(1)
   }
 }

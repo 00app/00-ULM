@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import pool from '@/lib/db'
+import { getDbPool, shutdownDbPool } from '@/lib/db'
 import { runZeroResearchWithProfile } from '@/lib/agents/researchAgent'
 
 export const runtime = 'nodejs'
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(50, Math.max(1, parseInt(raw, 10) || 20))
 
   try {
-    const res = await pool.query<{
+    const res = await getDbPool().query<{
       id: string
       postcode: string | null
       home_type: string | null
@@ -77,5 +77,7 @@ export async function GET(request: NextRequest) {
   } catch (e) {
     const message = e instanceof Error ? e.message : 'cron failed'
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
+  } finally {
+    await shutdownDbPool()
   }
 }

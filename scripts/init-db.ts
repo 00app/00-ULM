@@ -1,4 +1,4 @@
-import pool from '../lib/db'
+import pool, { shutdownDbPool } from '../lib/db'
 import fs from 'fs'
 import path from 'path'
 
@@ -35,12 +35,12 @@ async function initDatabase() {
     }
 
     console.log('✅ Database schema initialized. Tables: users, sessions, journey_answers, journey_answers_jsonb, guest_sessions, research_results, likes, etc.')
-    await pool.end()
+    await shutdownDbPool()
     process.exit(0)
   } catch (error) {
     console.error('❌ Error initializing database:', error)
     try {
-      await pool.end()
+      await shutdownDbPool()
     } catch {
       //
     }

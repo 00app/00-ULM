@@ -6,8 +6,7 @@ import {
   ENGINE_PRICE_CAP_TYPICAL_GBP,
   getCarbonIntensity,
 } from '@/lib/logic/engine'
-import { getDbPool } from '@/lib/db'
-import type { Pool } from 'pg'
+import { getDbPool, type DbPool } from '@/lib/db'
 import { getLocalData, type LocalIntelligence } from '@/lib/local/getLocalData'
 import { runLiveGrounding } from '@/lib/sentinel/liveGrounding'
 import type { SoftSaveCard } from '@/lib/sentinel/scraper'
@@ -143,7 +142,7 @@ function buildResultMotherRecard(slides: MotherChildSlide[]): SentinelMotherReca
  * persist `journey_state`, and return Mother recard fields for the client.
  */
 export async function advanceHomeJourneySentinelAfterAnswer(
-  pool: Pool,
+  pool: DbPool,
   userId: string
 ): Promise<SentinelMotherRecardPayload | null> {
   let row: { rows: { state: unknown }[] }

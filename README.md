@@ -1,6 +1,6 @@
 # Zero Zero
 
-Mobile-first web app for understanding and reducing everyday impact on money, energy, carbon, and home life.
+Mobile-first web app for understanding and reducing everyday impact on money, energy, carbon, and home life (UK-first, postcode-driven).
 
 ---
 
@@ -8,36 +8,29 @@ Mobile-first web app for understanding and reducing everyday impact on money, en
 
 ```bash
 npm install
-cp .env.example .env.local   # set DATABASE_URL, GEMINI_API_KEY — never commit .env.local (it's in .gitignore)
+cp .env.example .env.local   # DATABASE_URL, GEMINI_API_KEY, etc. — never commit .env.local
 npm run init-db
-npm run dev
+npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030 / :3001 variants)
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000) when using default `npm run dev`.
 
-- **Build:** `npm run build`
-- **Deploy:** `npm run deploy` or `vercel --prod --yes`
-- **One-shot:** `npm run ship` (build + deploy)
+**Build:** `npm run build` · **Deploy:** `npm run deploy` or `npm run ship` (build + Vercel prod).
 
----
+**Typecheck:** `npm run check` · **Vulnerabilities:** `npm run audit` · **E2E:** `npm run test:e2e`
 
-## Documentation
-
-- **Single source of truth:** [PROJECT-SPECIFICATION.md](PROJECT-SPECIFICATION.md) — product, routes, design system, APIs, v1.8 production lock, and setup.
-- **`docs/README.md`** — pointer only; do not add more markdown here.
+Full write-up: **[HANDBOOK.md](HANDBOOK.md)**
 
 ---
 
 ## Connections
 
-- **Neon** ↔ local/Vercel via `DATABASE_URL`
-- **Gemini (Zai)** ↔ Vercel via `GEMINI_API_KEY`
-- **GitHub** ↔ Vercel: push `main` to deploy (repo `00app/00-ULM`)
+- **Neon** ↔ `DATABASE_URL`
+- **Gemini** ↔ `GEMINI_API_KEY`
+- **GitHub** ↔ Vercel (push to deploy)
 
 ---
 
 ## Security
 
-- **Never commit** `.env.local`; it is gitignored. If any secret was committed or exposed, rotate it (new DB password, new API key) and remove it from history.
-- Run **`npm run audit`** and fix reported vulnerabilities.
-- See **[SECURITY.md](SECURITY.md)** for secrets handling, auth, and dependency security.
+Never commit `.env.local`. Run **`npm run audit`**. Details: **[HANDBOOK.md](HANDBOOK.md)** → Security.

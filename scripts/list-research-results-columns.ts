@@ -3,7 +3,7 @@
  * Usage from repo root (loads `.env.local` if you `export $(grep -v '^#' .env.local | xargs)` or pass DATABASE_URL):
  *   `npx tsx scripts/list-research-results-columns.ts`
  */
-import { getDbPool } from '../lib/db'
+import { getDbPool, shutdownDbPool } from '../lib/db'
 
 async function main() {
   const pool = getDbPool()
@@ -21,7 +21,7 @@ async function main() {
   for (const row of r.rows) {
     console.log(`  - ${row.column_name} (${row.data_type})`)
   }
-  await pool.end()
+  await shutdownDbPool()
   process.exit(0)
 }
 

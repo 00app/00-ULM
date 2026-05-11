@@ -3,11 +3,13 @@
  * Optional gateway at OPENCLAW_GATEWAY_URL when OPENCLAW_GATEWAY_TOKEN is set; else Firecrawl seeds.
  */
 
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { getDbPool } from '@/lib/db'
 import { OFGEM_LIVE_PRICE_CAP_URL } from '@/lib/agents/scraper'
 import { parseApril2026UnitRatesFromMarkdown, triggerSupplementalResearch } from '@/lib/agents/researcher'
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
 import { APRIL_2026_TRUTH_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
+import { JOURNEY_IDS } from '@/lib/journeys'
 
 export interface ResearchCitation {
   source_name: string
@@ -176,6 +178,93 @@ export async function runZeroResearch(params: {
   return { markdown, citations }
 }
 
+const RESEARCH_TRIPLET_MODEL = 'gemini-2.5-flash-lite'
+const ALLOWED_RESEARCH_CATEGORY = new Set<string>([...JOURNEY_IDS, 'general'])
+
+function normalizeResearchCategory(raw: string | null | undefined): string | null {
+  const s = raw?.trim().toLowerCase()
+  if (!s) return null
+  if (ALLOWED_RESEARCH_CATEGORY.has(s)) return s
+  return 'general'
+}
+
+function normalizeSavingAmountGbp(n: unknown): number | null {
+  const v = typeof n === 'number' ? n : Number(n)
+  if (!Number.isFinite(v) || v < 0) return null
+  return Math.round(v)
+}
+
+function parseResearchTripletJson(raw: string): {
+  category: string
+  saving_amount_gbp: number
+  offer_url: string
+} | null {
+  let t = raw.trim()
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fence?.[1]) t = fence[1].trim()
+  const start = t.indexOf('{')
+  const end = t.lastIndexOf('}')
+  if (start === -1 || end <= start) return null
+  try {
+    const j = JSON.parse(t.slice(start, end + 1)) as Record<string, unknown>
+    const category = normalizeResearchCategory(typeof j.category === 'string' ? j.category : '')
+    const saving_amount_gbp = normalizeSavingAmountGbp(j.saving_amount_gbp)
+    const offer_url =
+      typeof j.offer_url === 'string' && j.offer_url.trim().startsWith('http')
+        ? j.offer_url.trim().slice(0, 2048)
+        : ''
+    if (!category || saving_amount_gbp == null || !offer_url) return null
+    return { category, saving_amount_gbp, offer_url }
+  } catch {
+    return null
+  }
+}
+
+async function extractResearchTripletWithGemini(
+  markdown: string,
+  postcode: string | null | undefined
+): Promise<{ category: string; saving_amount_gbp: number; offer_url: string } | null> {
+  const key = process.env.GEMINI_API_KEY?.trim()
+  if (!key || markdown.length < 80) return null
+  const journeyList = [...JOURNEY_IDS, 'general'].join(', ')
+  const pc = postcode?.trim() ? `Postcode context: ${postcode.trim()}\n\n` : ''
+  const prompt = `${pc}From the UK household research markdown below, return ONLY valid JSON (no markdown code fence) with exactly these keys:
+- "category": one of: ${journeyList} — the single best thematic fit for the main opportunity in the text.
+- "saving_amount_gbp": non-negative integer — plausible estimated annual GBP saving for a typical UK household implied by the text (use 0 if none inferable).
+- "offer_url": one https URL copied verbatim from the markdown if any appear; otherwise use "${PRICE_CAP_SOURCE_URL}".
+
+Markdown:
+---
+${markdown.slice(0, 28_000)}`
+  try {
+    const genAI = new GoogleGenerativeAI(key)
+    const model = genAI.getGenerativeModel({
+      model: RESEARCH_TRIPLET_MODEL,
+      generationConfig: { maxOutputTokens: 512, temperature: 0.2 },
+    })
+    const out = await model.generateContent(prompt)
+    const text = out.response.text() ?? ''
+    return parseResearchTripletJson(text)
+  } catch {
+    return null
+  }
+}
+
+function researchTripletExplicitFromParams(p: {
+  category?: string | null
+  offerUrl?: string | null
+  deepLink?: string | null
+  sourceUrl?: string | null
+  savingAmountGbp?: number | null
+  verifiedSaving?: number | null
+}): { category: string; saving_amount_gbp: number; offer_url: string } | null {
+  const cat = normalizeResearchCategory(p.category)
+  const url = (p.offerUrl?.trim() || p.deepLink?.trim() || p.sourceUrl?.trim() || '').slice(0, 2048)
+  const sav = normalizeSavingAmountGbp(p.savingAmountGbp ?? p.verifiedSaving)
+  if (!cat || !url.startsWith('http') || sav == null) return null
+  return { category: cat, saving_amount_gbp: sav, offer_url: url }
+}
+
 /**
  * Persist research result to Neon (research_results table).
  * Call after runZeroResearch or triggerSupplementalResearch to store for returning users.
@@ -192,11 +281,19 @@ export async function persistResearchResult(params: {
   sourceUrl?: string | null
   deepLink?: string | null
   verifiedSaving?: number | null
+  /** Maps to `research_results.category` (journey id or `general`). */
+  category?: string | null
+  /** Maps to `research_results.saving_amount_gbp` when set (overrides inference). */
+  savingAmountGbp?: number | null
+  /** Maps to `research_results.offer_url` when set. */
+  offerUrl?: string | null
   localityContext?: string | null
   providerName?: string | null
   agentHeadline?: string | null
   /** Stored in research_results.openclaw_raw_json (legacy column name). */
   invokePayload?: unknown
+  /** When true, skips the Gemini JSON triplet extraction inside persist. */
+  skipResearchGeminiExtraction?: boolean
 }): Promise<void> {
   try {
     const pool = getDbPool()
@@ -212,6 +309,7 @@ export async function persistResearchResult(params: {
        ADD COLUMN IF NOT EXISTS provider_name TEXT,
        ADD COLUMN IF NOT EXISTS agent_headline TEXT,
        ADD COLUMN IF NOT EXISTS openclaw_raw_json JSONB,
+       ADD COLUMN IF NOT EXISTS category TEXT,
        ADD COLUMN IF NOT EXISTS offer_url TEXT,
        ADD COLUMN IF NOT EXISTS saving_amount_gbp DOUBLE PRECISION`
     )
@@ -219,16 +317,49 @@ export async function persistResearchResult(params: {
       params.providerName?.trim() ||
       (params.citations[0]?.source_name ? String(params.citations[0].source_name).trim() : null)
     const deepResolved = params.deepLink ?? params.sourceUrl ?? null
-    const offerResolved = deepResolved
-    const savingResolved = params.verifiedSaving ?? null
+
+    const explicitTriplet = researchTripletExplicitFromParams(params)
+    let geminiTriplet: { category: string; saving_amount_gbp: number; offer_url: string } | null = null
+    const skipGemini =
+      params.skipResearchGeminiExtraction === true || explicitTriplet != null
+    if (!skipGemini) {
+      geminiTriplet = await extractResearchTripletWithGemini(params.markdown, params.postcode ?? null)
+    }
+    const mergedCategory =
+      normalizeResearchCategory(params.category) ??
+      geminiTriplet?.category ??
+      explicitTriplet?.category ??
+      null
+    const mergedSaving =
+      normalizeSavingAmountGbp(params.savingAmountGbp) ??
+      normalizeSavingAmountGbp(params.verifiedSaving) ??
+      geminiTriplet?.saving_amount_gbp ??
+      explicitTriplet?.saving_amount_gbp ??
+      null
+    const firstHttpCitation = params.citations.find((c) => typeof c.url === 'string' && c.url.trim().startsWith('http'))
+      const citationFallback = firstHttpCitation?.url?.trim().slice(0, 2048) || null
+    const mergedOfferRaw =
+      (params.offerUrl?.trim() && params.offerUrl.trim().startsWith('http')
+        ? params.offerUrl.trim()
+        : null) ??
+      geminiTriplet?.offer_url ??
+      explicitTriplet?.offer_url ??
+      (deepResolved?.startsWith('http') ? deepResolved : null) ??
+      citationFallback ??
+      PRICE_CAP_SOURCE_URL
+    const mergedOffer = mergedOfferRaw.slice(0, 2048)
+
+    const savingForDb = mergedSaving ?? null
+    const verifiedForDb = savingForDb
+
     await pool.query(
       `INSERT INTO research_results (
          user_id, postcode, profile_snapshot, markdown, citations,
          elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
-         deep_link, verified_saving, offer_url, saving_amount_gbp, locality_context,
+         deep_link, verified_saving, category, offer_url, saving_amount_gbp, locality_context,
          provider_name, agent_headline, openclaw_raw_json, created_at
        )
-       VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, NOW())`,
+       VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb, NOW())`,
       [
         params.userId?.trim() || null,
         params.postcode ?? null,
@@ -239,9 +370,10 @@ export async function persistResearchResult(params: {
         params.gasUnitRateGbpPerKwh ?? null,
         params.sourceUrl ?? null,
         deepResolved,
-        params.verifiedSaving ?? null,
-        offerResolved,
-        savingResolved,
+        verifiedForDb,
+        mergedCategory,
+        mergedOffer,
+        savingForDb,
         params.localityContext ?? null,
         providerName,
         params.agentHeadline?.trim() ?? null,
