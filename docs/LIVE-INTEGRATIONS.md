@@ -16,6 +16,7 @@ This doc tells you **what runs in the repo** vs **what you configure outside** (
 After changing Neon schema, run migrations in Neon SQL Editor or your pipeline:
 
 - `db/migrations/20260511_research_results_user_id.sql` — adds `research_results.user_id` so research rows are **per user**, not only postcode.
+- `db/migrations/20260511_init_auditor_schema.sql` — adds **`offer_url`** and **`saving_amount_gbp`** on `research_results` (auditor-friendly aliases; backfilled from `deep_link` / `source_url` and `verified_saving`). Does **not** duplicate `users` or `journey_answers` tables — those already exist.
 
 ## What was wired in code (database-first loop)
 

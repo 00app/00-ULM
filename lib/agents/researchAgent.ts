@@ -211,19 +211,24 @@ export async function persistResearchResult(params: {
        ADD COLUMN IF NOT EXISTS locality_context TEXT,
        ADD COLUMN IF NOT EXISTS provider_name TEXT,
        ADD COLUMN IF NOT EXISTS agent_headline TEXT,
-       ADD COLUMN IF NOT EXISTS openclaw_raw_json JSONB`
+       ADD COLUMN IF NOT EXISTS openclaw_raw_json JSONB,
+       ADD COLUMN IF NOT EXISTS offer_url TEXT,
+       ADD COLUMN IF NOT EXISTS saving_amount_gbp DOUBLE PRECISION`
     )
     const providerName =
       params.providerName?.trim() ||
       (params.citations[0]?.source_name ? String(params.citations[0].source_name).trim() : null)
+    const deepResolved = params.deepLink ?? params.sourceUrl ?? null
+    const offerResolved = deepResolved
+    const savingResolved = params.verifiedSaving ?? null
     await pool.query(
       `INSERT INTO research_results (
          user_id, postcode, profile_snapshot, markdown, citations,
          elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
-         deep_link, verified_saving, locality_context,
+         deep_link, verified_saving, offer_url, saving_amount_gbp, locality_context,
          provider_name, agent_headline, openclaw_raw_json, created_at
        )
-       VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, NOW())`,
+       VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, NOW())`,
       [
         params.userId?.trim() || null,
         params.postcode ?? null,
@@ -233,8 +238,10 @@ export async function persistResearchResult(params: {
         params.elecUnitRateGbpPerKwh ?? null,
         params.gasUnitRateGbpPerKwh ?? null,
         params.sourceUrl ?? null,
-        params.deepLink ?? params.sourceUrl ?? null,
+        deepResolved,
         params.verifiedSaving ?? null,
+        offerResolved,
+        savingResolved,
         params.localityContext ?? null,
         providerName,
         params.agentHeadline?.trim() ?? null,
