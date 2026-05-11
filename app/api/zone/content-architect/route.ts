@@ -1,4 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { getSessionFromRequest } from '@/lib/auth'
+import { getJourneyAnswersForUser } from '@/lib/db/neon'
 import { generateCardContextsBatch, type ContentArchitectCardInput } from '@/lib/agents/contentArchitect'
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
@@ -135,7 +137,7 @@ function sanitiseCard(raw: unknown): ContentArchitectCardInput | null {
 /**
  * POST { cards: ContentArchitectCardInput[] } → { byJourney: Partial<Record<JourneyId, …>> }
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   let body: unknown
   try {
     body = await req.json()
@@ -159,12 +161,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ byJourney: {} })
   }
 
+  const session = await getSessionFromRequest().catch(() => null)
+  const serverAnswers = session ? await getJourneyAnswersForUser(session.userId) : null
+  if (serverAnswers) {
+    for (let i = 0; i < cards.length; i++) {
+      const c = cards[i]
+      const mergedJourney = serverAnswers[c.journey_key] ?? {}
+      const fromClient = c.journey_answers ?? {}
+      cards[i] = {
+        ...c,
+        journey_answers: { ...mergedJourney, ...fromClient },
+      }
+    }
+  }
+
   const cardsWithLiveSource = await Promise.all(
     cards.map(async (c) => {
       if (c.journey_key === 'home') {
         const pc = c.postcode?.replace(/\s+/g, '').trim()
         if (pc && (!c.live_elec_gbp_per_kwh || !c.live_gas_gbp_per_kwh)) {
-          const row = await getLatestResearchUnitRates(pc)
+          const row = await getLatestResearchUnitRates(pc, session?.userId)
           if (row?.elec_unit_rate_gbp_per_kwh && row?.gas_unit_rate_gbp_per_kwh) {
             c = {
               ...c,

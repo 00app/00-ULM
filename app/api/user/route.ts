@@ -41,10 +41,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const genome =
-      raw.employment_status != null
-        ? JSON.stringify({ employment_status: raw.employment_status })
-        : '{}'
+    const goalRaw =
+      typeof body?.goal === 'string' ? body.goal.trim().toLowerCase().slice(0, 32) : ''
+    const profile_goal =
+      goalRaw === 'money' || goalRaw === 'carbon' || goalRaw === 'balanced' ? goalRaw : null
+    const genomeObj: Record<string, unknown> = {}
+    if (raw.employment_status != null) genomeObj.employment_status = raw.employment_status
+    if (profile_goal) genomeObj.profile_goal = profile_goal
+    const genome = JSON.stringify(genomeObj)
 
     const [result, local] = await Promise.all([
       pool.query(

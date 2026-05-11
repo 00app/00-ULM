@@ -49,14 +49,16 @@ export async function runDiscoveryStructuredPipeline(params: {
   answerValue: string
   postcode: string | null
   profileData: ResearchProfileData | null
+  userId?: string | null
 }): Promise<DiscoveryStructuredResponse | null> {
-  const { journeyId, questionId, answerValue, postcode, profileData } = params
+  const { journeyId, questionId, answerValue, postcode, profileData, userId } = params
 
   const researchBlock = await Promise.race([
     triggerSupplementalResearch({
       postcode: postcode ?? undefined,
       profileData: profileData ?? undefined,
       persistToNeon: true,
+      userId,
     }),
     new Promise<null>((r) => setTimeout(() => r(null), 4500)),
   ])

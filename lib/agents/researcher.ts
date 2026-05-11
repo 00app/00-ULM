@@ -308,6 +308,8 @@ export async function triggerSupplementalResearch(params: {
   region?: string | null
   profileData?: ResearchProfileData | null
   persistToNeon?: boolean
+  /** When set, persists `research_results.user_id` for user-scoped Zone / cron. */
+  userId?: string | null
 }): Promise<ZeroResearchResult | null> {
   const body = buildInvokePayload(params) as Record<string, unknown>
 
@@ -387,6 +389,7 @@ export async function triggerSupplementalResearch(params: {
     const persistedGas = parsed.gasGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.GAS_PER_KWH / 100
     const { persistResearchResult } = await import('@/lib/agents/researchAgent')
     await persistResearchResult({
+      userId: params.userId,
       postcode: params.postcode,
       profileData: params.profileData,
       markdown,

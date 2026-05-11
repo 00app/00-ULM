@@ -61,15 +61,39 @@ export interface ResearchUnitRatesRow {
   source_url: string | null
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function isUuid(s: string): boolean {
+  return UUID_RE.test(s.trim())
+}
+
 /**
- * Latest stored unit rates + canonical source link for a postcode (or global fallback).
+ * Latest stored unit rates + canonical source link.
+ * When `userId` is a valid UUID, prefers the latest row for that user (`research_results.user_id`).
  */
 export async function getLatestResearchUnitRates(
-  postcode: string | null | undefined
+  postcode: string | null | undefined,
+  userId?: string | null
 ): Promise<ResearchUnitRatesRow | null> {
   const pool = getDbPool()
   const pc = postcode?.replace(/\s+/g, '').trim() || ''
+  const uid = userId?.trim() ?? ''
   try {
+    if (uid && isUuid(uid)) {
+      const ru = await pool.query<ResearchUnitRatesRow>(
+        `SELECT elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url FROM research_results
+         WHERE user_id = $1::uuid
+         ORDER BY created_at DESC NULLS LAST
+         LIMIT 1`,
+        [uid]
+      )
+      if (
+        ru.rows[0] &&
+        (ru.rows[0].elec_unit_rate_gbp_per_kwh != null || ru.rows[0].gas_unit_rate_gbp_per_kwh != null)
+      ) {
+        return ru.rows[0]
+      }
+    }
     if (pc.length >= 4) {
       const r1 = await pool.query<ResearchUnitRatesRow>(
         `SELECT elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url FROM research_results
@@ -92,21 +116,35 @@ export async function getLatestResearchUnitRates(
 }
 
 /**
- * Latest `research_results` row for citation footer (prefers matching postcode).
+ * Latest `research_results` row for citation footer (prefers `user_id`, then postcode).
  */
 export async function getLatestResearchCitation(
-  postcode: string | null | undefined
+  postcode: string | null | undefined,
+  userId?: string | null
 ): Promise<ResearchSourceCitation | null> {
   const pool = getDbPool()
   const pc = postcode?.replace(/\s+/g, '').trim() || ''
+  const uid = userId?.trim() ?? ''
+  type Row = {
+    citations: unknown
+    markdown: string | null
+    source_url: string | null
+    created_at: Date | string | null
+  }
   try {
+    if (uid && isUuid(uid)) {
+      const ru = await pool.query<Row>(
+        `SELECT citations, markdown, source_url, created_at FROM research_results
+         WHERE user_id = $1::uuid
+         ORDER BY created_at DESC NULLS LAST
+         LIMIT 1`,
+        [uid]
+      )
+      const citeU = firstCitationFromRow(ru.rows[0])
+      if (citeU) return citeU
+    }
     if (pc.length >= 4) {
-      const r1 = await pool.query<{
-        citations: unknown
-        markdown: string | null
-        source_url: string | null
-        created_at: Date | string | null
-      }>(
+      const r1 = await pool.query<Row>(
         `SELECT citations, markdown, source_url, created_at FROM research_results
          WHERE REPLACE(COALESCE(postcode, ''), ' ', '') = $1
          ORDER BY created_at DESC
@@ -116,12 +154,7 @@ export async function getLatestResearchCitation(
       const cite = firstCitationFromRow(r1.rows[0])
       if (cite) return cite
     }
-    const r2 = await pool.query<{
-      citations: unknown
-      markdown: string | null
-      source_url: string | null
-      created_at: Date | string | null
-    }>(
+    const r2 = await pool.query<Row>(
       `SELECT citations, markdown, source_url, created_at FROM research_results
        ORDER BY created_at DESC
        LIMIT 1`
@@ -145,13 +178,15 @@ export interface ResearchAttribution {
 }
 
 /**
- * Latest headline + Supplied-by for Solo Focus / Zone (prefers matching postcode).
+ * Latest headline + Supplied-by for Solo Focus / Zone (prefers `user_id`, then postcode).
  */
 export async function getLatestResearchAttribution(
-  postcode: string | null | undefined
+  postcode: string | null | undefined,
+  userId?: string | null
 ): Promise<ResearchAttribution | null> {
   const pool = getDbPool()
   const pc = postcode?.replace(/\s+/g, '').trim() || ''
+  const uid = userId?.trim() ?? ''
   type Row = { agent_headline: string | null; provider_name: string | null }
   const map = (row: Row | undefined): ResearchAttribution | null => {
     if (!row) return null
@@ -161,6 +196,17 @@ export async function getLatestResearchAttribution(
     return { headline, supplied_by }
   }
   try {
+    if (uid && isUuid(uid)) {
+      const ru = await pool.query<Row>(
+        `SELECT agent_headline, provider_name FROM research_results
+         WHERE user_id = $1::uuid
+         ORDER BY created_at DESC NULLS LAST
+         LIMIT 1`,
+        [uid]
+      )
+      const au = map(ru.rows[0])
+      if (au) return au
+    }
     if (pc.length >= 4) {
       const r1 = await pool.query<Row>(
         `SELECT agent_headline, provider_name FROM research_results
@@ -187,6 +233,7 @@ export async function getLatestResearchAttribution(
  * Persist NextWin (or similar) gateway invoke snapshot for morph + diagnostics.
  */
 export async function insertResearchInvokeSnapshot(params: {
+  userId?: string | null
   postcode?: string | null
   profileSnapshot?: Record<string, unknown> | null
   markdown: string
@@ -199,19 +246,23 @@ export async function insertResearchInvokeSnapshot(params: {
   const pool = getDbPool()
   try {
     await pool.query(
+      `ALTER TABLE research_results ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL`
+    )
+    await pool.query(
       `INSERT INTO research_results (
-         postcode, profile_snapshot, markdown, citations,
+         user_id, postcode, profile_snapshot, markdown, citations,
          elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
          deep_link, verified_saving, locality_context,
          provider_name, agent_headline, openclaw_raw_json, created_at
        )
        VALUES (
-         $1, $2::jsonb, $3, $4::jsonb,
-         NULL, NULL, $5,
-         $5, NULL, NULL,
-         $6, $7, $8::jsonb, NOW()
+         $1, $2, $3::jsonb, $4, $5::jsonb,
+         NULL, NULL, $6,
+         $6, NULL, NULL,
+         $7, $8, $9::jsonb, NOW()
        )`,
       [
+        params.userId?.trim() || null,
         params.postcode ?? null,
         JSON.stringify(params.profileSnapshot ?? {}),
         params.markdown,

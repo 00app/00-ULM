@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       : null
     const upsertPromise = upsertJourneyAnswerJsonb(user_id, jKey, qKey, String(value))
     const genomeUpsertPromise = upsertUserGenomeFromAnswer(user_id, jKey, qKey, String(value))
-    const sourceCitationPromise = getLatestResearchCitation(postcodeNorm)
+    const sourceCitationPromise = getLatestResearchCitation(postcodeNorm, user_id)
     const hybridLiveZoneTipPromise =
       jKey === 'home' &&
       qKey === 'energy_type' &&
@@ -160,6 +160,7 @@ export async function POST(request: NextRequest) {
               answerValue: String(value),
               postcode: postcodeNorm,
               profileData,
+              userId: user_id,
             })
             if (!s?.new_card_data) return null
             return {
@@ -231,6 +232,7 @@ export async function POST(request: NextRequest) {
         postcode: profileRow?.postcode ?? null,
         profileData: profileData as ResearchProfileData | null,
         persistToNeon: true as const,
+        userId: user_id,
       }
       if (homeJustFinished) {
         await triggerSupplementalResearch(researchPayload)
@@ -343,7 +345,7 @@ export async function POST(request: NextRequest) {
       ? discoveryCardFromZoneTip(discoveryPayloadFinal.new_card_data)
       : undefined
 
-    const baseResearchAttribution = await getLatestResearchAttribution(postcodeNorm)
+    const baseResearchAttribution = await getLatestResearchAttribution(postcodeNorm, user_id)
     const researchAttribution =
       hybridLive?.researchAttribution != null
         ? {

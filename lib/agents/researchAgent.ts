@@ -181,6 +181,8 @@ export async function runZeroResearch(params: {
  * Call after runZeroResearch or triggerSupplementalResearch to store for returning users.
  */
 export async function persistResearchResult(params: {
+  /** When set, ties this research row to the logged-in user (Zone / cron / Hermes). */
+  userId?: string | null
   postcode?: string | null
   profileData?: ResearchProfileData | null
   markdown: string
@@ -200,6 +202,7 @@ export async function persistResearchResult(params: {
     const pool = getDbPool()
     await pool.query(
       `ALTER TABLE research_results
+       ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL,
        ADD COLUMN IF NOT EXISTS elec_unit_rate_gbp_per_kwh DOUBLE PRECISION,
        ADD COLUMN IF NOT EXISTS gas_unit_rate_gbp_per_kwh DOUBLE PRECISION,
        ADD COLUMN IF NOT EXISTS source_url TEXT,
@@ -215,13 +218,14 @@ export async function persistResearchResult(params: {
       (params.citations[0]?.source_name ? String(params.citations[0].source_name).trim() : null)
     await pool.query(
       `INSERT INTO research_results (
-         postcode, profile_snapshot, markdown, citations,
+         user_id, postcode, profile_snapshot, markdown, citations,
          elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
          deep_link, verified_saving, locality_context,
          provider_name, agent_headline, openclaw_raw_json, created_at
        )
-       VALUES ($1, $2::jsonb, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, NOW())`,
+       VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, NOW())`,
       [
+        params.userId?.trim() || null,
         params.postcode ?? null,
         JSON.stringify(params.profileData ?? {}),
         params.markdown,
@@ -254,12 +258,14 @@ export async function runZeroResearchWithProfile(params: {
   profileData?: ResearchProfileData | null
   userContext?: string
   persistToNeon?: boolean
+  userId?: string | null
 }): Promise<ZeroResearchResult> {
   const gatewayResult = await triggerSupplementalResearch({
     postcode: params.postcode,
     region: params.region,
     profileData: params.profileData,
     persistToNeon: params.persistToNeon,
+    userId: params.userId,
   })
   if (gatewayResult) return gatewayResult
 
@@ -275,6 +281,7 @@ export async function runZeroResearchWithProfile(params: {
     const parsed = await parseApril2026UnitRatesFromMarkdown(result.markdown)
     const degraded = parsed.electricityGbpPerKwh == null || parsed.gasGbpPerKwh == null
     await persistResearchResult({
+      userId: params.userId,
       postcode: params.postcode,
       profileData: params.profileData,
       markdown: result.markdown,

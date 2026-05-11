@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
           answerValue,
           postcode,
           profileData,
+          userId: session?.userId ?? null,
         })
         if (!s?.new_card_data) return null
         return {

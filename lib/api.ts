@@ -8,6 +8,8 @@ export async function createUser(profile: {
   transport: string
   age_group?: string
   employment_status?: string
+  /** `money` | `carbon` | `balanced` — stored in `users.user_genome.profile_goal`. */
+  goal?: string
 }) {
   const response = await fetch('/api/user', {
     method: 'POST',
@@ -15,6 +17,7 @@ export async function createUser(profile: {
     body: JSON.stringify({
       ...profile,
       age_group: profile.age_group ?? null,
+      goal: profile.goal ?? undefined,
     }),
   })
   if (!response.ok) {

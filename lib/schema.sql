@@ -35,6 +35,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS employment_status TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS user_genome JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile TEXT;
 
 -- =========================
 -- SESSIONS (auth: login/signup and profile-only session cookie)
@@ -157,6 +158,7 @@ CREATE INDEX IF NOT EXISTS idx_guest_sessions_updated_at ON guest_sessions(updat
 -- =========================
 CREATE TABLE IF NOT EXISTS research_results (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   postcode TEXT,
   profile_snapshot JSONB DEFAULT '{}',
   markdown TEXT,
@@ -171,7 +173,9 @@ CREATE TABLE IF NOT EXISTS research_results (
 );
 CREATE INDEX IF NOT EXISTS idx_research_results_postcode ON research_results(postcode);
 CREATE INDEX IF NOT EXISTS idx_research_results_created_at ON research_results(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_research_results_user_created ON research_results (user_id, created_at DESC NULLS LAST) WHERE user_id IS NOT NULL;
 
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS provider_name TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS agent_headline TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS openclaw_raw_json JSONB;

@@ -26,6 +26,9 @@ export interface HeroTotals {
   totalCarbon: number
 }
 
+const SESSION_USER_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 const HERO_TOTALS_KEY = 'heroTotals'
 const LOCATION_STATE_KEY = 'zz_location_state_v1'
 const V23_FIRST_LOAD_KEY = 'zz_v23_first_load_done'
@@ -175,6 +178,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (cachedLocation) setLocationStateState(cachedLocation)
     }
   }, [refreshProfile])
+
+  /** Database-first: merge Neon `journey_answers_jsonb` into client state + localStorage for Zone. */
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const rawId = localStorage.getItem('userId') ?? localStorage.getItem('user_id') ?? ''
+    if (!rawId || rawId.startsWith('guest-') || !SESSION_USER_UUID_RE.test(rawId)) return
+    let cancelled = false
+    fetch('/api/answers', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.answers || typeof data.answers !== 'object') return
+        const serverMap = data.answers as Record<string, Record<string, string>>
+        const merged: Record<JourneyId, Record<string, string>> = {
+          ...readJourneyAnswersFromStorage(),
+        }
+        for (const jid of JOURNEY_ORDER) {
+          const srv = serverMap[jid]
+          if (!srv || typeof srv !== 'object') continue
+          merged[jid] = { ...(merged[jid] ?? {}), ...srv }
+          try {
+            localStorage.setItem(`journey_${jid}_answers`, JSON.stringify(merged[jid]))
+          } catch {
+            // ignore quota
+          }
+        }
+        setJourneyAnswers(merged)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return

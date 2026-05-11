@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import { getSessionFromRequest } from '@/lib/auth'
+import { getJourneyAnswersForUser } from '@/lib/db/neon'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { UK_2026_MONEY_LEAD } from '@/lib/scraper/uk2026Defaults'
 import { runZeroResearchWithProfile, type ResearchProfileData } from '@/lib/agents/researchAgent'
@@ -67,10 +69,34 @@ export async function GET(request: NextRequest) {
       if (household) profileData.household = household
       profileData.postcode = postcode
 
+      const session = await getSessionFromRequest().catch(() => null)
+      const userId = session?.userId ?? null
+      let loopGenomeSummary: string | undefined
+      if (userId) {
+        try {
+          const genome = await getJourneyAnswersForUser(userId)
+          const json = JSON.stringify(genome)
+          if (json.length > 4) {
+            loopGenomeSummary = json.slice(0, 6000)
+            profileData.loop_genome_summary = loopGenomeSummary
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const baseCtx = `postcode: ${postcode}, home_type: ${profileData.home_type ?? '—'}, transport: ${profileData.transport_baseline ?? '—'}, household: ${profileData.household ?? '—'}`
+      const userContext =
+        loopGenomeSummary != null && loopGenomeSummary.length > 0
+          ? `${baseCtx}\n\nUser journey answers (JSON from Neon, truncated): ${loopGenomeSummary}`
+          : baseCtx
+
       const localResult = await runZeroResearchWithProfile({
         postcode,
         profileData: Object.keys(profileData).length > 0 ? profileData : undefined,
         persistToNeon: true,
+        userId,
+        userContext,
       })
       research = {
         markdown: localResult.markdown,

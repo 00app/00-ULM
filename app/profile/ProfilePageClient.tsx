@@ -175,6 +175,7 @@ export default function ProfilePageClient() {
         transport: finalValues.transport ?? '',
         age_group: (finalValues.age as ProfileAge) ?? undefined,
         employment_status: finalValues.employmentStatus ?? undefined,
+        goal: finalValues.goal ?? undefined,
       }
       createUser(payload)
         .then((res) => {
