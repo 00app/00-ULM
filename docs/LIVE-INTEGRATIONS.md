@@ -51,6 +51,10 @@ curl -sS -H "x-cron-secret: YOUR_CRON_SECRET" \
 - **Runtime:** Oracle does **not** receive pushes from this repo automatically. Use **curl** (above) from the VPS, or Oracle **Events** + **Functions** to hit your Vercel URL.
 - **Cursor MCP:** `@oracle/mcp` + `~/.oci/config` is for **your IDE** (monitoring), not for end-user Zone data.
 
+## Personal auditor (`lib/agents/auditor.ts`)
+
+Server utility **`runPersonalAudit(userId)`**: loads **`users`** + **`user_genome.profile_goal`** + **`journey_answers_jsonb`**, scrapes trusted **`UK_2026_SEED_URLS`** via **`@mendable/firecrawl-js`**, asks **Gemini** for JSON `{ prose, saving, url }`, then **`persistResearchResult`** → **`research_results`** (including **`offer_url`** / **`saving_amount_gbp`**). Requires **`GEMINI_API_KEY`** and **`FIRECRAWL_API_KEY`**. Intended to be called from a secured cron or internal route (not exposed publicly without auth).
+
 ## Firecrawl + Gemini “is it live?”
 
 - **Firecrawl:** Works when `FIRECRAWL_API_KEY` is set; verify with **`GET /api/admin/pulse`** (Basic or gateway auth) or **`GET /api/scrape-sync?postcode=SW1A1AA`** (rate-limited).
