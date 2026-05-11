@@ -39,6 +39,7 @@ import {
   ZIP_OPEN_Z_TRANSITION,
 } from '@/lib/animations'
 
+import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
 import { ZeroGateShutter } from '@/app/components/background/ZeroGateShutter'
 import { setExpandCard } from '@/lib/expandStorage'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
@@ -257,6 +258,7 @@ export default function ZonePage() {
     liveResearchData?: boolean
     deepLink?: string
     verifiedSaving?: number
+    savingAmountGbp?: number
     localityContext?: string
     homeUnitRates?: { elecGbpPerKwh: number; gasGbpPerKwh: number }
   } | null>(null)
@@ -772,6 +774,9 @@ export default function ZonePage() {
     const effectiveMarket = {
       ...(marketContext ?? {}),
       ...(homeUnitRates ? { homeUnitRates } : {}),
+      ...(researchMeta?.verifiedSaving != null ? { verifiedSaving: researchMeta.verifiedSaving } : {}),
+      ...(researchMeta?.savingAmountGbp != null ? { savingAmountGbp: researchMeta.savingAmountGbp } : {}),
+      ...(liveResearchData ? { liveResearchData: true as const } : {}),
     }
     const vm = buildZoneViewModel({
       profile: {
@@ -827,6 +832,7 @@ export default function ZonePage() {
         liveResearchData,
         deepLink: researchMeta?.deepLink,
         verifiedSaving: researchMeta?.verifiedSaving,
+        savingAmountGbp: researchMeta?.savingAmountGbp,
         localityContext: researchMeta?.localityContext ?? localData?.locality ?? localData?.council,
         ...(homeUnitRates ? { homeUnitRates } : {}),
       }
@@ -965,6 +971,9 @@ export default function ZonePage() {
     const effectiveMarketArchitect = {
       ...(marketContext ?? {}),
       ...(homeUnitRates ? { homeUnitRates } : {}),
+      ...(researchMeta?.verifiedSaving != null ? { verifiedSaving: researchMeta.verifiedSaving } : {}),
+      ...(researchMeta?.savingAmountGbp != null ? { savingAmountGbp: researchMeta.savingAmountGbp } : {}),
+      ...(liveResearchData ? { liveResearchData: true as const } : {}),
     }
     const vm = buildZoneViewModel({
       profile: {
@@ -1106,6 +1115,8 @@ export default function ZonePage() {
     marketContext,
     homeUnitRates,
     ratesSourceUrl,
+    researchMeta,
+    liveResearchData,
   ])
 
   const groovyItems = getGroovyGridItems(viewModel)
@@ -1884,13 +1895,36 @@ export default function ZonePage() {
             hasNewTipForZai={!!scraped && Object.keys(scraped).length > 0}
           />
         )}
-        <div
-          className="sentinel-brain-label"
-          aria-live="polite"
-          style={{ color: sentinel.pulseColor ?? 'var(--color-yellow)' }}
-        >
-          Sentinel Brain: Active | Skill: Live-Impact v1.0
-        </div>
+        <ZoneIntelligenceStrip
+          variant="zone"
+          dbConnected={dbConnected}
+          neonVerifiedMoney={
+            (researchMeta?.verifiedSaving != null && researchMeta.verifiedSaving > 0) ||
+            (researchMeta?.savingAmountGbp != null && researchMeta.savingAmountGbp > 0)
+          }
+          verifiedSaving={researchMeta?.verifiedSaving}
+          savingAmountGbp={researchMeta?.savingAmountGbp}
+          localityLabel={displayLocationName.trim() || localData?.council || undefined}
+          gridGPerKwh={
+            typeof localData?.localCarbonG === 'number' ? localData.localCarbonG : undefined
+          }
+          rightAside={
+            <span
+              aria-live="polite"
+              style={{
+                fontFamily: 'var(--font-marvin)',
+                fontSize: 11,
+                lineHeight: 1.1,
+                textTransform: 'uppercase',
+                letterSpacing: '0.01em',
+                opacity: 0.9,
+                color: sentinel.pulseColor ?? 'var(--color-yellow)',
+              }}
+            >
+              Sentinel Brain: Active | Skill: Live-Impact v1.0
+            </span>
+          }
+        />
       </motion.main>
     </LayoutGroup>
   )

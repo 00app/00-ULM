@@ -13,6 +13,7 @@ import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { motion } from 'framer-motion'
 import { KINETIC_ZIP_PULSE } from '@/lib/animations'
+import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
 
 const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
 
@@ -102,7 +103,7 @@ export default function LikesPage() {
   return (
     <motion.div
       className="zz-page likes-page mode-carbon"
-      style={{ background: 'unset', color: 'var(--color-yellow)', minHeight: '100vh', paddingBottom: 48 }}
+      style={{ background: 'unset', color: 'var(--color-yellow)', minHeight: '100vh', paddingBottom: 96 }}
       {...KINETIC_ZIP_PULSE}
     >
       <ZoneBackToZoneLink />
@@ -242,6 +243,7 @@ export default function LikesPage() {
           })}
         </div>
       )}
+      <ZoneIntelligenceStrip variant="likes" />
     </motion.div>
   )
 }

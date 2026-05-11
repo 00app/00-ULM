@@ -395,6 +395,8 @@ type MarketContext = {
   liveResearchData?: boolean
   deepLink?: string
   verifiedSaving?: number
+  /** From `research_results.saving_amount_gbp` (scrape-sync). */
+  savingAmountGbp?: number
   localityContext?: string
   /** Neon-backed £/kWh (or April 2026 constants fallback) — same source as `/api/summary`. */
   homeUnitRates?: { elecGbpPerKwh: number; gasGbpPerKwh: number }
@@ -564,8 +566,13 @@ export function buildZoneViewModel({
   const hasLiveResearchData = Boolean(marketContext?.liveResearchData)
   const strictLiveFigureGuard = process.env.NODE_ENV === 'production'
   const hasVerifiedSaving = Number.isFinite(marketContext?.verifiedSaving) && Number(marketContext?.verifiedSaving) > 0
-  const vmAuditLive = (genomeEstimated: boolean): 'LIVE_AUDIT' | 'ESTIMATED_AUDIT' =>
-    hasLiveResearchData || !genomeEstimated ? 'LIVE_AUDIT' : 'ESTIMATED_AUDIT'
+  const savingAmt = marketContext?.savingAmountGbp
+  const hasVerifiedNeonMoney =
+    hasVerifiedSaving ||
+    (typeof savingAmt === 'number' && Number.isFinite(savingAmt) && savingAmt > 0)
+  /** LIVE badge only when Neon `research_results` money signals exist AND journey genome is complete enough. */
+  const vmAuditLive = (genomeIncomplete: boolean): 'LIVE_AUDIT' | 'ESTIMATED_AUDIT' =>
+    hasVerifiedNeonMoney && !genomeIncomplete ? 'LIVE_AUDIT' : 'ESTIMATED_AUDIT'
   const marketDeepLink = marketContext?.deepLink?.trim()
   const dynamicJourneyValues = JOURNEY_ORDER.reduce(
     (acc, journeyKey) => {
@@ -732,12 +739,8 @@ export function buildZoneViewModel({
     const insightLabel = impact.insightLabel ?? impact.insight ?? undefined
     const moneyGbp = dynamicJourneyValues[journeyKey].moneyGbp
     const carbonKg = dynamicJourneyValues[journeyKey].carbonKg
-    // v42.8 — Neon/research pipeline connected → all journey tiles use VERIFIED (2026 market truth), not genome-only estimate.
-    const estimatedAudit = hasLiveResearchData
-      ? false
-      : livePostcode && hasVerifiedSaving
-        ? false
-        : dynamicJourneyValues[journeyKey].estimatedAudit || !hasVerifiedSaving
+    const genomeIncomplete = dynamicJourneyValues[journeyKey].estimatedAudit
+    const estimatedAudit = !hasVerifiedNeonMoney || genomeIncomplete
 
     const sourceLabel = formatSourceLabel(source)
     if (isGenericHomepageUrl(claimOfferUrl)) claimOfferUrl = undefined
@@ -885,6 +888,7 @@ export function buildZoneViewModel({
         sourceLabel: generalHomeLabel,
         sourceUrl: homeSource.url,
       }),
+      auditState: vmAuditLive(false),
     },
     {
       id: 'general-transport',
@@ -922,7 +926,7 @@ export function buildZoneViewModel({
         sourceLabel: generalTravelLabel,
         sourceUrl: travelSource.url,
       }),
-      auditState: hasLiveResearchData ? 'LIVE_AUDIT' : 'ESTIMATED_AUDIT',
+      auditState: vmAuditLive(false),
     },
     {
       id: 'general-home-extra',
@@ -960,7 +964,7 @@ export function buildZoneViewModel({
         sourceLabel: generalHome2Label,
         sourceUrl: homeSource2.url,
       }),
-      auditState: hasLiveResearchData ? 'LIVE_AUDIT' : 'ESTIMATED_AUDIT',
+      auditState: vmAuditLive(false),
     },
   ]
 
