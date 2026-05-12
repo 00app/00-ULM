@@ -20,6 +20,22 @@ const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holid
 export default function LikesPage() {
   const { state, toggleLike } = useApp()
   const [actionedIds, setActionedIds] = useState<Set<string>>(new Set())
+  const [dbConnected, setDbConnected] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/health/diagnostics')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled) setDbConnected(Boolean(d?.neon))
+      })
+      .catch(() => {
+        if (!cancelled) setDbConnected(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const viewModel = useMemo(() => {
     const journeyAnswers = {} as Record<JourneyId, Record<string, string>>
@@ -62,7 +78,7 @@ export default function LikesPage() {
     const likedIds = state.likedCards ?? []
     if (!viewModel || likedIds.length === 0) return []
     const notActioned = (id: string) => !actionedIds.has(id)
-                    const journeyCards = viewModel.journeys.filter((c) => likedIds.includes(c.id) && notActioned(c.id))
+    const journeyCards = viewModel.journeys.filter((c) => likedIds.includes(c.id) && notActioned(c.id))
     const tipCards = viewModel.tips.filter((c) => likedIds.includes(c.id) && notActioned(c.id))
     return [...journeyCards, ...tipCards] as any[]
   }, [viewModel, state.likedCards, actionedIds])
@@ -103,7 +119,12 @@ export default function LikesPage() {
   return (
     <motion.div
       className="zz-page likes-page mode-carbon"
-      style={{ background: 'unset', color: 'var(--color-yellow)', minHeight: '100vh', paddingBottom: 96 }}
+      style={{
+        background: 'unset',
+        color: 'var(--color-yellow)',
+        minHeight: '100vh',
+        paddingBottom: 'calc(9.5rem + env(safe-area-inset-bottom, 0px))',
+      }}
       {...KINETIC_ZIP_PULSE}
     >
       <ZoneBackToZoneLink />
@@ -243,7 +264,7 @@ export default function LikesPage() {
           })}
         </div>
       )}
-      <ZoneIntelligenceStrip variant="likes" />
+      <ZoneIntelligenceStrip variant="likes" dbConnected={dbConnected} />
     </motion.div>
   )
 }

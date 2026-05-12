@@ -271,6 +271,7 @@ export default function ZonePage() {
   const [liveResearchData, setLiveResearchData] = useState(false)
   const [researchMeta, setResearchMeta] = useState<{
     deepLink?: string
+    offerUrl?: string
     verifiedSaving?: number
     savingAmountGbp?: number
     localityContext?: string
@@ -582,12 +583,17 @@ export default function ZonePage() {
             : undefined
         const category =
           typeof data?.researchMeta?.category === 'string' ? data.researchMeta.category.trim().toLowerCase() : null
+        const offerUrlRaw =
+          typeof data?.researchMeta?.offer_url === 'string' && data.researchMeta.offer_url.trim().startsWith('http')
+            ? data.researchMeta.offer_url.trim()
+            : undefined
         const architectProse =
           typeof data?.researchMeta?.architect_prose === 'string' && data.researchMeta.architect_prose.trim().length > 0
             ? data.researchMeta.architect_prose.trim()
             : undefined
         setResearchMeta(
           deepLink ||
+            offerUrlRaw ||
             verifiedSaving != null ||
             savingAmountGbp != null ||
             localityContext ||
@@ -596,6 +602,7 @@ export default function ZonePage() {
             architectProse
             ? {
                 deepLink,
+                offerUrl: offerUrlRaw,
                 verifiedSaving,
                 savingAmountGbp,
                 localityContext,
@@ -1180,6 +1187,12 @@ export default function ZonePage() {
     () => (viewModel ? sumJourneyGridTotals(viewModel) : { totalMoney: 0, totalCarbon: 0 }),
     [viewModel]
   )
+  const neonVerifiedMoney = useMemo(
+    () =>
+      (researchMeta?.verifiedSaving != null && researchMeta.verifiedSaving > 0) ||
+      (researchMeta?.savingAmountGbp != null && researchMeta.savingAmountGbp > 0),
+    [researchMeta?.verifiedSaving, researchMeta?.savingAmountGbp]
+  )
   const heroMoneyNum = vmJourneyTotals.totalMoney
   const heroCarbonNum = vmJourneyTotals.totalCarbon
   const rockLikedImpact = sumRockLikedImpact(state.likedCards)
@@ -1187,12 +1200,12 @@ export default function ZonePage() {
   const heroCarbon = (dbConnected ? (state.heroTotals?.totalCarbon ?? heroCarbonNum) : 0) + rockLikedImpact.carbon
   const displayMoney = useCountUp(heroMoney, { duration: 920, spring: true })
   const displayCarbon = useCountUp(heroCarbon, { duration: 920, spring: true })
-  const heroDataSource = dbConnected && liveResearchData ? 'VERIFIED AUDIT' : 'ESTIMATED AUDIT'
+  const heroDataSource = dbConnected && neonVerifiedMoney ? 'VERIFIED AUDIT' : 'ESTIMATED AUDIT'
 
   return (
     <LayoutGroup>
       <motion.main
-        className="zone relative min-h-screen overflow-x-hidden"
+        className="zone relative min-h-screen overflow-x-hidden pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))]"
         style={{
           background: 'transparent',
           color: 'var(--color-yellow)',
@@ -1818,9 +1831,7 @@ export default function ZonePage() {
             <AnimatePresence mode="wait">
               <SoloFocusOverlay
                 key={tip.id}
-                auditState={
-                  liveResearchData || tip.auditState === 'LIVE_AUDIT' ? 'LIVE_AUDIT' : tip.auditState ?? null
-                }
+                auditState={tip.auditState ?? null}
                 category={(tip.journey_key || 'TIP').replace(/-/g, ' ')}
                 recommendation={tip.title}
                 insight={tipNarrative || undefined}
@@ -1898,16 +1909,16 @@ export default function ZonePage() {
         <ZoneIntelligenceStrip
           variant="zone"
           dbConnected={dbConnected}
-          neonVerifiedMoney={
-            (researchMeta?.verifiedSaving != null && researchMeta.verifiedSaving > 0) ||
-            (researchMeta?.savingAmountGbp != null && researchMeta.savingAmountGbp > 0)
-          }
+          neonVerifiedMoney={neonVerifiedMoney}
           verifiedSaving={researchMeta?.verifiedSaving}
           savingAmountGbp={researchMeta?.savingAmountGbp}
           localityLabel={displayLocationName.trim() || localData?.council || undefined}
           gridGPerKwh={
             typeof localData?.localCarbonG === 'number' ? localData.localCarbonG : undefined
           }
+          researchCategory={researchMeta?.category ?? null}
+          hasArchitectProse={Boolean(researchMeta?.architectProse?.trim())}
+          hasOfferUrl={Boolean(researchMeta?.offerUrl?.trim())}
           rightAside={
             <span
               aria-live="polite"

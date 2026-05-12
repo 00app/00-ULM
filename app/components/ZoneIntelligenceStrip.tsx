@@ -16,6 +16,10 @@ export type ZoneIntelligenceStripProps = {
   savingAmountGbp?: number
   localityLabel?: string
   gridGPerKwh?: number
+  /** Latest row category from Neon (scrape-sync). */
+  researchCategory?: string | null
+  hasArchitectProse?: boolean
+  hasOfferUrl?: boolean
   /** Right column — e.g. Sentinel line (same row as manifest HUD). */
   rightAside?: ReactNode
 }
@@ -28,8 +32,14 @@ export function ZoneIntelligenceStrip({
   savingAmountGbp,
   localityLabel,
   gridGPerKwh,
+  researchCategory,
+  hasArchitectProse = false,
+  hasOfferUrl = false,
   rightAside,
 }: ZoneIntelligenceStripProps) {
+  const pipelineLine =
+    'Hermes → GET /api/cron/zone-research (Neon). This app → GET /api/scrape-sync + POST /api/local-intelligence + GET /api/answers → buildUserImpact → buildZoneViewModel. LIVE tile badge = Neon £ (verified_saving or saving_amount_gbp) + complete journey genome. Solo Focus = architect_prose + offer_url when category matches.'
+
   if (variant === 'likes') {
     return (
       <div
@@ -59,8 +69,25 @@ export function ZoneIntelligenceStrip({
           }}
         >
           <strong style={{ fontFamily: 'var(--font-marvin)', letterSpacing: '0.02em' }}>LIKES · </strong>
-          Saved card snapshots from your last Zone model. Open Zone for live Neon sync, scrape-sync, and{' '}
-          <code style={{ fontSize: '0.95em', opacity: 0.85 }}>research_results</code> £ signals.
+          Saved tiles mirror your last Zone build.{' '}
+          <span style={{ opacity: 0.85 }}>DB · </span>
+          {dbConnected ? 'Neon reachable' : 'Neon check failed (open Zone to refresh)'}
+          <span style={{ opacity: 0.85 }}> · </span>
+          Open <strong>Zone</strong> for scrape-sync → <code style={{ fontSize: '0.95em', opacity: 0.85 }}>research_results</code>,{' '}
+          architect_prose, and LIVE £ badges.
+        </p>
+        <p
+          className="m-0 mt-1"
+          style={{
+            fontSize: 'clamp(8px, 2.3vw, 10px)',
+            lineHeight: 1.4,
+            color: 'var(--color-yellow)',
+            fontFamily: 'var(--font-label)',
+            opacity: 0.78,
+            maxWidth: 'min(100%, 90ch)',
+          }}
+        >
+          {pipelineLine}
         </p>
       </div>
     )
@@ -76,6 +103,14 @@ export function ZoneIntelligenceStrip({
   const researchLine = neonVerifiedMoney
     ? `Neon row · ${moneyBits.join(' · ') || '£ fields present'}`
     : 'Neon research row · awaiting verified £ (GET /api/scrape-sync → research_results)'
+
+  const proseBits = [
+    researchCategory ? `category: ${researchCategory}` : null,
+    hasArchitectProse ? 'architect_prose ✓' : 'architect_prose —',
+    hasOfferUrl ? 'offer_url ✓' : 'offer_url —',
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   const localBits = [
     localityLabel ? `place: ${localityLabel}` : null,
@@ -126,6 +161,21 @@ export function ZoneIntelligenceStrip({
           {researchLine}
           <span style={{ opacity: 0.85 }}> · Local · </span>
           {localBits.length > 0 ? localBits.join(' · ') : 'POST /api/local-intelligence + Postcodes.io'}
+          <span style={{ opacity: 0.85 }}> · Row · </span>
+          {proseBits}
+        </p>
+        <p
+          className="m-0 mt-1"
+          style={{
+            fontSize: 'clamp(8px, 2.3vw, 10px)',
+            lineHeight: 1.4,
+            color: 'var(--color-yellow)',
+            fontFamily: 'var(--font-label)',
+            opacity: 0.78,
+            maxWidth: 'min(100%, 96ch)',
+          }}
+        >
+          {pipelineLine}
         </p>
       </div>
       {rightAside ? (
