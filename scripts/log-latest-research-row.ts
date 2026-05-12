@@ -16,9 +16,16 @@ async function main() {
   const sql = neon(url)
   try {
     const rows = await sql`
-      SELECT id, user_id, postcode, category, offer_url,
-             verified_saving, saving_amount_gbp,
-             agent_headline, architect_prose, created_at
+      SELECT id,
+             user_id,
+             locality_context,
+             category,
+             offer_url,
+             verified_saving,
+             saving_amount_gbp,
+             agent_headline,
+             architect_prose,
+             created_at
       FROM research_results
       ORDER BY created_at DESC NULLS LAST
       LIMIT 1
@@ -29,7 +36,12 @@ async function main() {
       process.exit(0)
       return
     }
-    console.log('Latest research_results row:')
+    const loc =
+      typeof row.locality_context === 'string' && row.locality_context.trim()
+        ? row.locality_context.trim()
+        : '(no locality_context)'
+    console.log('Latest research_results row')
+    console.log('Location (locality_context):', loc)
     console.log(JSON.stringify(row, null, 2))
     process.exit(0)
   } catch (e) {
