@@ -6,6 +6,7 @@ import { ROCK_HABITS, habitToTipCard } from '@/lib/rock/habitsCatalog'
 import InputField from '@/app/components/InputField'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
+import { headlineFromTitle, MAX_ZONE_CARD_HEADLINE_WORDS } from '@/lib/soloFocusCopy'
 
 /** Industrial lock: same shell as yellow Zone tiles — yellow field, purple type. */
 const ROCK_CARD_BG = 'var(--color-yellow)' as const
@@ -124,7 +125,7 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
           const tip = habitToTipCard(h)
           const liked = likedCardIds.includes(tip.id)
           const jid = h.journey_key
-          const tipHeadline = h.title.split(/\s+/).slice(0, 5).join(' ')
+          const tipHeadline = headlineFromTitle(h.title, MAX_ZONE_CARD_HEADLINE_WORDS)
           const gbp = parseMoneyGbpFromDisplay(String(tip.data.money ?? '0'))
           const kg = parseCarbonKgFromDisplay(String(tip.data.carbon ?? '0'))
 

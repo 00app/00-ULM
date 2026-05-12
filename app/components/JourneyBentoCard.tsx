@@ -50,6 +50,7 @@ import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
 import {
   headlineFromTitle,
+  MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   polishTrueTipParagraphsForHeadline,
   resolveExpandedTrueTipInsight,
   stripExpandedCardTitleNoise,
@@ -445,7 +446,7 @@ export function JourneyBentoCard({
 
   const recommendationTitle = headlineFromTitle(
     stripExpandedCardTitleNoise((displayTitle || String(displayJourneyId)).trim() || String(displayJourneyId)),
-    12
+    MAX_EXPANDED_VIEW_HEADLINE_WORDS
   ).toUpperCase()
   let sourceName = 'our partners'
   if (resolvedOfferUrl) {
@@ -740,7 +741,7 @@ export function JourneyBentoCard({
           : researchAttribution?.headline?.trim() ||
             String(displayTitle || title || journeyId).trim() ||
             journeyId
-    const recommendationTitle = headlineFromTitle(stripExpandedCardTitleNoise(String(effectiveTitleRaw)), 12).toUpperCase()
+    const recommendationTitle = headlineFromTitle(stripExpandedCardTitleNoise(String(effectiveTitleRaw)), MAX_EXPANDED_VIEW_HEADLINE_WORDS).toUpperCase()
     const localityLabel = (state.locationState?.locationName ?? '').trim().toUpperCase()
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =

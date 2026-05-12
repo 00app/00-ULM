@@ -34,10 +34,12 @@ interface IntroWordCycleProps {
    * Summary / locality: allow wrapping + balanced lines for long tokens (>7 chars) instead of nowrap shrink-only.
    */
   wrapLongPreservedWords?: boolean
+  /** Exit blur duration before next word; intro uses `INTRO_ROUTE_WORD_EXIT_MS` (~30% faster than default). */
+  wordExitMs?: number
 }
 
 const DEFAULT_GAP_MS = 90
-const WORD_EXIT_MS = 150
+const DEFAULT_WORD_EXIT_MS = 150
 
 export default function IntroWordCycle({
   words,
@@ -50,6 +52,7 @@ export default function IntroWordCycle({
   lensFocusShimmer = false,
   fitToViewportPaddingPx = 0,
   wrapLongPreservedWords = false,
+  wordExitMs = DEFAULT_WORD_EXIT_MS,
 }: IntroWordCycleProps) {
   const reduceMotion = useReducedMotion()
   const [index, setIndex] = useState(0)
@@ -68,7 +71,7 @@ export default function IntroWordCycle({
     if (preservePunctuation) {
       if (w.endsWith('.') || w.endsWith(',')) return w
       // Summary beats: money + carbon — no trailing full stop
-      if (w.startsWith('£') || /kg$/i.test(w)) return w
+      if (w.startsWith('£') || /kg$/i.test(w) || /\bco₂e\b/i.test(w) || /\bco2e\b/i.test(w)) return w
     }
     return w + '.'
   })()
@@ -118,7 +121,7 @@ export default function IntroWordCycle({
           completedRef.current = true
           onCompleteRef.current?.()
         }
-      }, WORD_EXIT_MS + gapMs)
+      }, wordExitMs + gapMs)
     }, dwellMs)
     return () => {
       clearTimeout(outerId)
@@ -127,13 +130,13 @@ export default function IntroWordCycle({
         innerTimeoutRef.current = null
       }
     }
-  }, [index, words.length, dwellMs, gapMs])
+  }, [index, words.length, dwellMs, gapMs, wordExitMs])
 
   // Last resort if word timers never finish (tab sleep, Strict Mode edge cases).
   // Must exceed real wall time: dwell + exit+gap per word.
   useEffect(() => {
     const maxDwell = Math.max(KINETIC_WORD_DWELL_MS, ...(wordDurations ?? []))
-    const perWordMs = maxDwell + WORD_EXIT_MS + gapMs + 300
+    const perWordMs = maxDwell + wordExitMs + gapMs + 300
     const maxMs = words.length * perWordMs + 6000
     const safety = setTimeout(() => {
       if (!completedRef.current) {
@@ -142,7 +145,7 @@ export default function IntroWordCycle({
       }
     }, maxMs)
     return () => clearTimeout(safety)
-  }, [words.length, wordDurations, gapMs])
+  }, [words.length, wordDurations, gapMs, wordExitMs])
 
   const isMultiline = displayText.includes('\n')
 

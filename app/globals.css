@@ -5937,12 +5937,12 @@ select,
   align-items: center;
   gap: 12px;
 }
-/* Wrapper duration — keep in sync with IntroScreen.tsx GLITCH_WRAPPER_DURATION_MS */
+/* Wrapper duration — keep in sync with `IntroScreen.tsx` GLITCH_ANIM_MS (469ms) */
 .zz-glitch {
   position: relative;
   width: 126px;
   height: 200px;
-  animation: glitchWrapperDone 670ms linear forwards;
+  animation: glitchWrapperDone 469ms linear forwards;
 }
 @keyframes glitchWrapperDone {
   0% { transform: translateZ(0); }
@@ -5963,12 +5963,12 @@ select,
 .glitch-layer.base {
   z-index: 2;
   filter: none;
-  animation: glitchBase 670ms linear forwards;
+  animation: glitchBase 469ms linear forwards;
 }
 .glitch-layer.purple {
   z-index: 1;
   filter: none;
-  animation: glitchPurple 670ms linear forwards;
+  animation: glitchPurple 469ms linear forwards;
 }
 @keyframes glitchPurple {
   0%   { opacity: 0; transform: translate(0,0); }

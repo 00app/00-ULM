@@ -19,11 +19,11 @@ import { ROUTES } from '@/lib/routes'
 import IntroWordCycle from '@/app/components/IntroWordCycle'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import {
-  INTRO_SHIMMER_WORD_DWELL_MS,
-  INTRO_SHIMMER_WORD_GAP_MS,
   SLAM_SPRING,
   SHIMMER_FOCUS,
   soloFocusSlamMotionProps,
+  SUMMARY_KINETIC_WORD_DWELL_MS,
+  SUMMARY_KINETIC_WORD_GAP_MS,
 } from '@/lib/animations'
 
 const REDIRECT_NO_PROFILE_MS = 1800
@@ -31,7 +31,7 @@ const REDIRECT_NO_PROFILE_MS = 1800
 const WASTE_FACTOR = 0.22
 /** 40px inset each side on the kinetic line — must match `IntroWordCycle` `fitToViewportPaddingPx`. */
 const SUMMARY_VIEWPORT_PADDING_PX = 40
-const SUMMARY_WORD_SHIMMER_MS = INTRO_SHIMMER_WORD_DWELL_MS
+const SUMMARY_WORD_SHIMMER_MS = SUMMARY_KINETIC_WORD_DWELL_MS
 const PAGE_EXIT_NAV_MS = 800
 const SESSION_ZONE_HANDOFF = 'zz_summary_to_zone'
 
@@ -417,7 +417,7 @@ export default function ProfileSummaryPage() {
                   lensFocusShimmer
                   fitToViewportPaddingPx={SUMMARY_VIEWPORT_PADDING_PX}
                   wrapLongPreservedWords
-                  gapMs={INTRO_SHIMMER_WORD_GAP_MS}
+                  gapMs={SUMMARY_KINETIC_WORD_GAP_MS}
                   wordDurations={summaryWordDurations}
                   onComplete={handleCycleComplete}
                 />

@@ -177,8 +177,8 @@ export const ZONE_ANCHOR_VARIANTS = {
   visible: { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)', transition: KINETIC_SPRING },
 }
 
-/** ~Profile Q&A cadence (0.15–0.2s) — stagger between Zone bento cells. */
-export const ZONE_GRID_STAGGER_CHILD_DELAY_SEC = 0.175
+/** Mechanical Snap cadence — stagger between Zone bento cells (card-by-card assembly). */
+export const ZONE_GRID_STAGGER_CHILD_DELAY_SEC = 0.15
 
 /**
  * Zone wall cell — one fussy snap per card (no separate inner text choreography).
@@ -277,11 +277,19 @@ export const SHIMMER_FOCUS_EXIT = {
 
 export const SHIMMER_FOCUS_EXIT_TRANSITION = KINETIC_SPRING
 
-/** Dwell while sharp after lens snap (intro kinetic line only) */
-export const INTRO_SHIMMER_WORD_DWELL_MS = 520
+/** Profile summary kinetic line — slower read (decoupled from `/` + `/intro` speed). */
+export const SUMMARY_KINETIC_WORD_DWELL_MS = 1040
+export const SUMMARY_KINETIC_WORD_GAP_MS = 120
 
-/** Gap after word exit before next word enters (stagger cadence) */
-export const INTRO_SHIMMER_WORD_GAP_MS = 120
+/** `/` + `/intro` kinetic word line — ~30% faster cadence than legacy 1040/120. */
+export const INTRO_SHIMMER_WORD_DWELL_MS = 728
+export const INTRO_SHIMMER_WORD_GAP_MS = 84
+
+/** Intro route: exit beat between words (summary keeps default 150 in `IntroWordCycle`). */
+export const INTRO_ROUTE_WORD_EXIT_MS = 105
+
+/** Intro safety timer tail after max word path (was 800ms). */
+export const INTRO_ROUTE_SAFETY_TAIL_MS = 560
 
 /** Solo Focus zip-shut: max answers per overlay open (lane-lock drill-down, sync with Sentinel runner). */
 export const SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION = 3

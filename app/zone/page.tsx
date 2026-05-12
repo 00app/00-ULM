@@ -47,6 +47,7 @@ import { setExpandCard } from '@/lib/expandStorage'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { getJourneyColorHex } from '@/lib/journeyColors'
 import { DISCOVERY_INJECT_EVENT } from '@/lib/discoveryInject'
+import { headlineFromTitle, MAX_ZONE_CARD_HEADLINE_WORDS } from '@/lib/soloFocusCopy'
 import { runDiscoveryPulse, readStoredEconomyFingerprint, writeStoredEconomyFingerprint } from '@/lib/agents/heartbeat'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
@@ -1436,7 +1437,7 @@ export default function ZonePage() {
                     const semanticWin = tip.dominant_win ?? 'money'
                     const tipLabelH = 14
                     const tipArrowSz = tipLabelH * 3
-                    const tipHeadline = tip.title.split(/\s+/).slice(0, 5).join(' ')
+                    const tipHeadline = headlineFromTitle(tip.title, MAX_ZONE_CARD_HEADLINE_WORDS)
                     const patch = tipDataPatches[tip.id]
                     const moneyDisp = (patch?.money ?? tip.data.money ?? '').replace(/^£\s*/, '').trim() || '0'
                     const carbonDisp = patch?.carbon ?? tip.data.carbon ?? '0'

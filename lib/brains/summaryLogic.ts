@@ -155,8 +155,9 @@ export function formatSummaryLocalityKineticToken(areaLabel: string): string {
 
 /**
  * Profile summary — one beat at a time (`IntroWordCycle` + 40px horizontal inset on the summary page).
- * On-screen sequence only: HELLO → first name → based … in → locality → waste → £… → and → …kg → CO₂e → per → year.
- * (Any parentheticals in specs are author notes, not words in this array.) £ / CO₂: see file header — `buildUserImpact` × `WASTE_FACTOR`.
+ * On-screen sequence: **HELLO → first name → locality** (long tokens scaled / wrapped — Littlehampton fix) →
+ * bridge phrase → waste → £… → and → …kg CO₂e (one beat) → per → year.
+ * £ / CO₂: see file header — `buildUserImpact` × `WASTE_FACTOR`.
  */
 export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): string[] {
   const area = purgeYourAreaCopy(resolveSummaryAreaLabel(input))
@@ -170,18 +171,12 @@ export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): s
   return [
     'HELLO',
     greetName,
-    'based',
-    'on',
-    'your',
-    'profile',
-    'people',
-    'in',
     localityWord,
+    'based on your profile',
     'waste',
     gbp,
     'and',
-    `${wasteKg}kg`,
-    'CO₂e',
+    `${wasteKg}kg CO₂e`,
     'per',
     'year',
   ]

@@ -4,6 +4,12 @@
  * Embedded question chamber for Solo Focus (journey card + zip-shut overlay).
  * Split from JourneyBentoCard so SoloFocusOverlay does not import the whole card module
  * (avoids heavy coupling / init-order issues in production bundles).
+ *
+ * **Intelligence loop (journey MC / numeric answers):** `runSubmit` → `POST /api/answers` (auth) runs the
+ * discovery race + Neon persistence server-side; JSON may include `discovery.new_card_data` and/or
+ * `grid_pulse_card`. Those objects are passed to `injectNewDiscoveryCard` after a double rAF so the Zone
+ * grid receives the birth event. **`POST /api/research/question-card`** is the separate free-form Ask path,
+ * not invoked here.
  */
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'

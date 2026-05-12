@@ -35,9 +35,9 @@ UK-first web app: **postcode** and **profile** drive local context; **Zone** sho
 |------|--------|--------|
 | Intro | `/`, `/intro` | Glitch logo → `IntroWordCycle` (SAVE → MONEY → …) → **CREATE** (`/profile`) or **SKIP** (`/zone`). `?skip=1` / `?step=message` skips logo. |
 | Profile | `/profile` | Stepped onboarding (`ProfilePageClient`); postcode → `POST /api/local-intelligence`. |
-| Summary | `/profile/summary` | **`IntroWordCycle`** kinetic: **HELLO** → **first name** → **based … in** → **locality** (long placenames scale; 40px gutters) → **waste** → **£** / **kg CO₂e** slack from **`buildUserImpact`** × waste factor → **per** / **year** — then Zone. **`lib/brains/summaryLogic.ts`**. |
+| Summary | `/profile/summary` | **`IntroWordCycle`** kinetic: **HELLO** → **first name** → **based … in** → **locality** (long placenames scale; 40px gutters) → **waste** → **£** slack → **…kg CO₂e** (single beat) from **`buildUserImpact`** × waste factor → **per** / **year** — then Zone. **`lib/brains/summaryLogic.ts`**. |
 | Zone | `/zone` | Main dashboard; grid from profile + answers + local/research/discovery. |
-| Solo Focus | (overlay) | `JourneyBentoCard` / `SoloFocusOverlay` + `EmbeddedJourneyQuestion`. |
+| Solo Focus | (overlay) | `JourneyBentoCard` / `SoloFocusOverlay` + `EmbeddedJourneyQuestion` — answers use **`POST /api/answers`** (discovery race → `injectNewDiscoveryCard`); not **`/api/research/question-card`** (free-form Ask only). |
 | Other | `/zai`, `/likes`, `/settings` | Chat, saved cards, reset/session. |
 
 No `/journeys` or `/expand/*` product routes — journeys live on Zone.
@@ -72,7 +72,7 @@ Read this when tracing **profile summary**, **expanded Solo Focus**, or **resear
 |-------|-----------|
 | Impact + waste slack | **`lib/brains/buildUserImpact.ts`** (journeys from localStorage) |
 | Narrative input | **`lib/brains/summaryLogic.ts`** — `ProfileSummaryNarrativeInput` includes **`displayName`**, **`annualWasteCash` / `annualWasteCarbon`**, **`local`** from intelligence |
-| Kinetic sequence | **`buildSummaryKineticWords`** — not generic “based on your profile”; uses **name**, **area token**, optional **`{g}g` + `grid`**, then **£ / kg CO₂e / yr** |
+| Kinetic sequence | **`buildSummaryKineticWords`** — **HELLO → first name → locality** (long-place squeeze in `IntroWordCycle`), then **“based on your profile”**, **waste**, **£** / **kg CO₂e** (one beat) / **per** / **year** |
 | Locality overflow | **`formatSummaryLocalityKineticToken`** splits long **single-word** placenames; **`app/components/IntroWordCycle.tsx`** — balanced wrap, **`overflow-wrap`**, viewport fit scale with **`fitToViewportPaddingPx`** |
 | Local API | **`POST /api/local-intelligence`** — council, ward, **`localCarbonG`**, etc. |
 
@@ -81,7 +81,7 @@ Read this when tracing **profile summary**, **expanded Solo Focus**, or **resear
 | Piece | Location |
 |-------|-----------|
 | Title cleanup | **`stripExpandedCardTitleNoise`** — strips trailing **(Updated …)** so the H1 does not repeat body dates — **`lib/soloFocusCopy.ts`**; used in **`JourneyBentoCard`**, **`SoloFocusOverlay`** before **`headlineFromTitle`** |
-| Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini triplet in **`lib/agents/researchAgent.ts`** asks for **auditor voice**: What / Why / How, direct mostly-lowercase prose, no filler openers. |
+| Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini triplet in **`lib/agents/researchAgent.ts`** locks **Zai** persona: exactly three paragraphs (What / Why / How), direct mostly-lowercase prose, no filler openers. |
 | Layout | **`TRUE_TIP_SECTION_LABELS`** — **The What (The Discovery)** / **The Why (Money & Carbon)** / **The How (Action)** labels above each paragraph in **`JourneyBentoCard`** + **`SoloFocusOverlay`**. |
 | Dedupe | **`stripExpandedCardTitleNoise`** (incl. fluff prefixes), **`stripAuditorFluffParagraph`**, **`polishTrueTipParagraphsForHeadline`** / **`dedupeTrueTipOpeningParagraph`** — headline vs first paragraph overlap |
 | Links | **`offer_url`** / **`verifiedAuditSourceUrl`** / **`pickPrimaryHttpUrl`** — **`IndustrialHandoffButton`** uses **Claim / Buy / Get** via **`resolveRevenueCtaLabel`** (`lib/zone/verifiedRevenue.ts`); always passes a URL ( **`offer_url`** or **`/zai`** fallback). |
@@ -152,7 +152,7 @@ Apply in Neon (or your pipeline) as needed:
 
 ## Motion & layout (pointers)
 
-- **Intro:** `IntroScreen`, `IntroWordCycle`; glitch **~670ms** CSS; v6 shimmer: `SHIMMER_FOCUS_*`, `INTRO_DECISION_CTA_*` in `lib/animations.ts`.
+- **Intro:** `IntroScreen`, `IntroWordCycle`; glitch **~469ms** CSS (Style A); v6 shimmer: `SHIMMER_FOCUS_*`, `INTRO_DECISION_CTA_*` in `lib/animations.ts`. Summary kinetic dwell uses **`SUMMARY_KINETIC_WORD_*`** (slower read than `/` + `/intro`).
 - **Zone grid:** 20px gap, 60px card radius, equal-height rows on tablet+ (`grid-auto-rows: 1fr`).
 - **Solo Focus:** Transparent expanded shell; zip-shut transitions; 40px close circle; journey slab colours.
 - **Colours:** Yellow `#FDFD00`, pink `#E80DAD`, purple `#7800ce` — `:root` in `app/globals.css`.

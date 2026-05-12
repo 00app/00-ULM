@@ -89,8 +89,13 @@ export function polishTrueTipParagraphsForHeadline(
   return [dedupeTrueTipOpeningParagraph(headline, a), b, c]
 }
 
-/** Headline = max N words (defaults to 8 for Zone cards) with ellipsis when clipped. */
-export function headlineFromTitle(title: string, maxWords = 8): string {
+/** Zone / bento card face — Marvin stamp stays one line. */
+export const MAX_ZONE_CARD_HEADLINE_WORDS = 7
+/** Solo Focus / expanded industrial H1 — more room before ellipsis. */
+export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 20
+
+/** Headline = max N words with ellipsis when clipped. */
+export function headlineFromTitle(title: string, maxWords: number = MAX_ZONE_CARD_HEADLINE_WORDS): string {
   const words = title
     .split(/\s+/)
     .filter(Boolean)

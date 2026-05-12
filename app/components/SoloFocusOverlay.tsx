@@ -36,6 +36,7 @@ import { useApp } from '@/app/context/AppContext'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import {
   headlineFromTitle,
+  MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   composeScrapedInsightDescription,
   buildResearchResultsTrueTipBody,
   polishTrueTipParagraphsForHeadline,
@@ -356,7 +357,7 @@ export function SoloFocusOverlay({
       String(displayTitle || displayRecommendation || title).trim() ||
       displayRecommendation
   const isZoneMotherChild = !startInQuestionMode
-  const recommendationTitle = headlineFromTitle(stripExpandedCardTitleNoise(String(effectiveTitleRaw)), 12).toUpperCase()
+  const recommendationTitle = headlineFromTitle(stripExpandedCardTitleNoise(String(effectiveTitleRaw)), MAX_EXPANDED_VIEW_HEADLINE_WORDS).toUpperCase()
   let sourceName = sourceLabel
   if (!sourceName && resolvedOpenUrl) {
     try { sourceName = new URL(resolvedOpenUrl).hostname.replace('www.', '') } catch {}

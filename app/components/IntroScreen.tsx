@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
 import IntroWordCycle from './IntroWordCycle'
 import { ROUTES } from '@/lib/routes'
@@ -9,6 +8,8 @@ import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import {
   KINETIC_WORD_DWELL_MS,
   INTRO_DECISION_CTA_TRANSITION,
+  INTRO_ROUTE_SAFETY_TAIL_MS,
+  INTRO_ROUTE_WORD_EXIT_MS,
   INTRO_SHIMMER_WORD_DWELL_MS,
   INTRO_SHIMMER_WORD_GAP_MS,
   SHIMMER_FOCUS,
@@ -16,14 +17,12 @@ import {
 
 type IntroScreenState = 'glitch' | 'value-message' | 'decision'
 
-/** Must match `.zz-glitch` / layer keyframe duration in `app/globals.css` */
-const GLITCH_ANIM_MS = 670
+/** Must match `.zz-glitch` / layer keyframe duration in `app/globals.css` (~30% faster than 670ms). */
+const GLITCH_ANIM_MS = 469
 /** Extra time on the final (settled) frame after layers finish — intro words never start mid-glitch */
-const GLITCH_SETTLE_HOLD_MS = 420
+const GLITCH_SETTLE_HOLD_MS = 294
 /** Reduced motion: static logo beat before words (CSS animations off via globals) */
-const GLITCH_REDUCE_MOTION_HOLD_MS = 380
-
-const WORD_EXIT_MS = 150
+const GLITCH_REDUCE_MOTION_HOLD_MS = 266
 
 /**
  * Mechanical sequence (SAVE MONEY CUT CARBON…):
@@ -48,9 +47,10 @@ function introWordsMinDurationMs(
   wordCount: number,
   gapMs: number,
   dwellMs: number = KINETIC_WORD_DWELL_MS,
+  exitMs: number = INTRO_ROUTE_WORD_EXIT_MS,
 ): number {
-  const perWord = dwellMs + WORD_EXIT_MS + gapMs
-  return wordCount * perWord + 800
+  const perWord = dwellMs + exitMs + gapMs
+  return wordCount * perWord + INTRO_ROUTE_SAFETY_TAIL_MS
 }
 
 const fullScreenStyle: React.CSSProperties = {
@@ -65,7 +65,8 @@ const fullScreenStyle: React.CSSProperties = {
   overflowX: 'hidden',
   padding: 'clamp(20px, 3vw, 40px)',
   boxSizing: 'border-box',
-  zIndex: 2,
+  /** Above `nextjs-portal` (z-index 100) so CREATE / SKIP receive clicks in dev + prod. */
+  zIndex: 120,
 }
 
 function getSkipFromUrl(): boolean {
@@ -198,6 +199,7 @@ export default function IntroScreen() {
           preserveCase
           trailingPeriod={false}
           gapMs={INTRO_SHIMMER_WORD_GAP_MS}
+          wordExitMs={INTRO_ROUTE_WORD_EXIT_MS}
           wordDurations={INTRO_WORD_SHIMMER_DURATIONS}
           lensFocusShimmer
           onComplete={() => setScreen((s) => (s === 'value-message' ? 'decision' : s))}
@@ -213,14 +215,15 @@ export default function IntroScreen() {
     ? { opacity: 1, scale: 1, filter: 'none' }
     : { ...SHIMMER_FOCUS.animate }
   const headlineTransition = reduceMotion
-    ? { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const }
-    : SHIMMER_FOCUS.transition
+    ? { duration: 0.196, ease: [0.16, 1, 0.3, 1] as const }
+    : { ...SHIMMER_FOCUS.transition, duration: 0.238 }
 
   /** CTA circles — same `KINETIC_SPRING` as profile answers (`INTRO_DECISION_CTA_TRANSITION`). */
-  const ctaInitial = reduceMotion ? { opacity: 0 } : { scale: 0, opacity: 1 }
+  /** `scale: 0` collapses hit-testing in some engines — keep a floor so CREATE / SKIP stay tappable while blooming. */
+  const ctaInitial = reduceMotion ? { opacity: 0 } : { scale: 0.88, opacity: 1 }
   const ctaAnimate = reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }
   const ctaTransitionBase = reduceMotion
-    ? { type: 'tween' as const, duration: 0.22, ease: [0.22, 1, 0.36, 1] as const }
+    ? { type: 'tween' as const, duration: 0.154, ease: [0.22, 1, 0.36, 1] as const }
     : INTRO_DECISION_CTA_TRANSITION
 
   return (
@@ -252,49 +255,39 @@ export default function IntroScreen() {
       <div
         style={{ display: 'flex', gap: 40, alignItems: 'center', justifyContent: 'center' }}
       >
-        {/* v6.1: staggered bloom; spring = shared kinetic token */}
-        <motion.div
-          className="zz-shimmer-cta"
+        {/* v6.1: staggered bloom — `motion.a` keeps hit-testing on the same node as the transform (Link-in-wrapper could miss taps). */}
+        <motion.a
+          href={ROUTES.PROFILE}
+          className="intro-cta-circle zz-h4 zz-shimmer-cta"
           initial={ctaInitial}
           animate={ctaAnimate}
-          transition={{ ...ctaTransitionBase, delay: 0.4 }}
-          style={{ display: 'flex' }}
+          transition={{ ...ctaTransitionBase, delay: 0.28 }}
+          style={{
+            ...ctaCircleStyle,
+            background: 'var(--color-pink)',
+            color: 'var(--color-yellow)',
+            textDecoration: 'none',
+          }}
+          aria-label="Create profile"
         >
-          <Link
-            href={ROUTES.PROFILE}
-            prefetch={false}
-            className="intro-cta-circle zz-h4"
-            style={{
-              ...ctaCircleStyle,
-              background: 'var(--color-pink)',
-              color: 'var(--color-yellow)',
-            }}
-            aria-label="Create profile"
-          >
-            CREATE
-          </Link>
-        </motion.div>
-        <motion.div
-          className="zz-shimmer-cta"
+          CREATE
+        </motion.a>
+        <motion.a
+          href={ROUTES.ZONE}
+          className="intro-cta-circle zz-h4 zz-shimmer-cta"
           initial={ctaInitial}
           animate={ctaAnimate}
-          transition={{ ...ctaTransitionBase, delay: 0.6 }}
-          style={{ display: 'flex' }}
+          transition={{ ...ctaTransitionBase, delay: 0.42 }}
+          style={{
+            ...ctaCircleStyle,
+            background: 'transparent',
+            color: 'var(--color-yellow)',
+            textDecoration: 'none',
+          }}
+          aria-label="Skip to Zone"
         >
-          <Link
-            href={ROUTES.ZONE}
-            prefetch={false}
-            className="intro-cta-circle zz-h4"
-            style={{
-              ...ctaCircleStyle,
-              background: 'transparent',
-              color: 'var(--color-yellow)',
-            }}
-            aria-label="Skip to Zone"
-          >
-            SKIP
-          </Link>
-        </motion.div>
+          SKIP
+        </motion.a>
       </div>
     </div>
   )
