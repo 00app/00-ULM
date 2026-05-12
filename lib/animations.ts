@@ -204,13 +204,17 @@ export const SHIMMER_FOCUS = {
     opacity: 1,
     scale: 1,
   },
-  transition: KINETIC_SPRING,
+  /** Lens snap: fixed-duration ease (not a third spring tuning). */
+  transition: {
+    duration: 0.34,
+    ease: [0.22, 1, 0.36, 1] as const,
+  },
 } as const
 
 export const SHIMMER_FOCUS_INITIAL = SHIMMER_FOCUS.initial
 export const SHIMMER_FOCUS_ANIMATE = SHIMMER_FOCUS.animate
-/** @alias KINETIC_SPRING */
-export const SHIMMER_FOCUS_SPRING = KINETIC_SPRING
+/** Legacy export — shimmer uses `SHIMMER_FOCUS.transition` (ease), not a spring. */
+export const SHIMMER_FOCUS_SPRING = SHIMMER_FOCUS.transition
 
 /** Profile / intro decision circles — same spring as all kinetic taps. */
 export const INTRO_DECISION_CTA_TRANSITION = KINETIC_SPRING
