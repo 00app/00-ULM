@@ -22,7 +22,7 @@ export interface StoredExpandCard {
   actions?: { actionType?: string; learnUrl?: string; actionUrl?: string }
   /** Dynamic CTA from True Card schema (e.g. "Get this Saving", "Check My Eligibility") */
   cta?: { label: string; url: string }
-  /** Card-to-question loop: when answered, update memory and trigger OpenClaw refresh */
+  /** Card-to-question loop: when answered, update memory and trigger research refresh */
   followUp?: { question: string; options: string[]; targetField: string }
 }
 

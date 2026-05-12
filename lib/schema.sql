@@ -154,7 +154,7 @@ CREATE INDEX IF NOT EXISTS idx_guest_sessions_ip_hash ON guest_sessions(ip_hash)
 CREATE INDEX IF NOT EXISTS idx_guest_sessions_updated_at ON guest_sessions(updated_at);
 
 -- =========================
--- RESEARCH RESULTS (ZeroResearch / OpenClaw scrape cache)
+-- RESEARCH RESULTS (ZeroResearch / scrape cache)
 -- =========================
 CREATE TABLE IF NOT EXISTS research_results (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -182,7 +182,7 @@ CREATE INDEX IF NOT EXISTS idx_research_results_user_created ON research_results
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS provider_name TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS agent_headline TEXT;
-ALTER TABLE research_results ADD COLUMN IF NOT EXISTS openclaw_raw_json JSONB;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS research_snapshot JSONB;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS elec_unit_rate_gbp_per_kwh DOUBLE PRECISION;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS gas_unit_rate_gbp_per_kwh DOUBLE PRECISION;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS deep_link TEXT;
@@ -193,6 +193,12 @@ ALTER TABLE research_results ADD COLUMN IF NOT EXISTS architect_prose TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS category TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS offer_url TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS saving_amount_gbp NUMERIC(10,2);
+ALTER TABLE research_results
+  ADD COLUMN IF NOT EXISTS verified BOOLEAN
+  GENERATED ALWAYS AS (
+    (COALESCE(verified_saving, 0::double precision) > 0)
+    OR (COALESCE(saving_amount_gbp, 0::numeric) > 0)
+  ) STORED;
 
 -- Optional question bank — query with WHERE journey_key = $1 only (no cross-category leak).
 CREATE TABLE IF NOT EXISTS journey_questions (

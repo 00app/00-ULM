@@ -86,7 +86,7 @@ async function geminiDiscoveryHeadline(context: string, fallback: string): Promi
 }
 
 /**
- * Build a single injection card (OpenClaw / zone grid). Returns null if invalid after validation.
+ * Build a single injection card (Zone grid). Returns null if invalid after validation.
  */
 export async function buildDiscoveryInjectionCardAsync(
   journeyId: JourneyId,

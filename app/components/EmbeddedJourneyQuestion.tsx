@@ -419,12 +419,12 @@ export function EmbeddedJourneyQuestion({
       },
     }
 
-    const nextPromise = fetch('/api/zone/generate-next', {
+    void fetch('/api/zone/generate-next', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userContext }),
-    })
+      body: JSON.stringify({ category: journeyId, userContext }),
+    }).catch(() => {})
 
     onZipShutStart?.()
     const postPromise = fetch('/api/answers', {
@@ -439,10 +439,9 @@ export function EmbeddedJourneyQuestion({
     })
     let postOk = false
     try {
-      const [res, nextRes] = await Promise.all([postPromise, nextPromise.catch(() => null)])
-      const nextData = nextRes?.ok ? await nextRes.json().catch(() => ({})) : null
+      const res = await postPromise
 
-      /** Logged-out Zone: `/api/answers` is 401 — still run Solo Focus zip + morph from generate-next + local answers. */
+      /** Logged-out Zone: `/api/answers` is 401 — still run Solo Focus zip + morph from `/api/answers` payload + local answers. */
       const guestSoloFocusOk =
         !res.ok &&
         res.status === 401 &&
@@ -547,8 +546,7 @@ export function EmbeddedJourneyQuestion({
         onSoloEmbedComplete?.()
         if (onSoloFocusPostSuccess) {
           const serverMorph = data?.morphCards
-          const genMorph = nextData?.cards
-          const morphMerged = mergeMorphCardLists(serverMorph, genMorph)
+          const morphMerged = mergeMorphCardLists(serverMorph, undefined)
           const ndc = data?.new_discovery_card as
             | {
                 id?: string
@@ -611,7 +609,7 @@ export function EmbeddedJourneyQuestion({
       if (!nextQ) {
         if (onSoloFocusPostSuccess) {
            setSubmitted(true)
-           const merged = mergeMorphCardLists(data?.morphCards, nextData?.cards)
+           const merged = mergeMorphCardLists(data?.morphCards, undefined)
            const researchAttribution = data?.researchAttribution as
              | { headline?: string | null; supplied_by?: string | null }
              | undefined

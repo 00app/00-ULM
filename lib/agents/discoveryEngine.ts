@@ -2,7 +2,7 @@ import type { ZoneTipCard } from '@/lib/logic/zone'
 import { researchNextWinAfterAnswer } from '@/lib/agents/nextWinInvoke'
 
 /**
- * Birth the next live tip after an answer — OpenClaw `/tools/invoke` NextWin + Firecrawl-backed agent.
+ * Birth the next live tip after an answer — Firecrawl-backed ZeroResearch + Gemini.
  */
 export async function fetchNextDiscoveryCards(
   _userId: string,

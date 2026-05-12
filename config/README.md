@@ -1,15 +1,13 @@
-# OpenClaw configuration (Zero Zero backend)
+# Zero Zero — internal agent config (optional)
 
-Copy `openclaw.json.example` to `~/.openclaw/openclaw.json` and set:
+The live product uses **Neon** (persistence), **Firecrawl** (scrapes), **Gemini** (structured prose / Zai), and **Vercel Cron** (`/api/cron/zone-research`) — not a separate research gateway.
 
-- **GEMINI_API_KEY** — Google AI Studio (Gemini 3 Flash).
-- **OPENCLAW_GATEWAY_TOKEN** — Token for Next.js ↔ gateway auth (`gateway.auth.mode: "token"`).
-- **FIRECRAWL_API_KEY** — Used by `lib/agents/researchAgent.ts` for UK grant scraping (optional; fallback when gateway is not running).
+## Environment (see root `.env.example`)
 
-Then run:
+- **`DATABASE_URL`** — Neon Postgres.
+- **`GEMINI_API_KEY`** — Gemini for research triplet + chat.
+- **`FIRECRAWL_API_KEY`** — UK grant / supplier page scrapes.
+- **`CRON_SECRET`** — Authorizes cron routes and some diagnostics (`Authorization: Bearer …`).
+- **`GATEWAY_TOKEN`** — Optional; authorizes internal POST routes such as `/api/zone/tips-inject` and `/api/agents/pulse`.
 
-```bash
-npm install -g openclaw@latest && openclaw onboard --install-daemon
-```
-
-Firecrawl is used by the ZeroResearch agent when scraping JS-heavy UK energy/grant sites; the gateway’s `tools.web.fetch` can be extended with a Firecrawl fallback via plugins or env. See `config/openclaw/agents/ZeroResearch/SOUL.md` for ZeroResearch personality and research rules.
+Legacy `config/openclaw/` paths may still exist on disk from older clones; they are **not** required for the Intelligence Loop in this repo.

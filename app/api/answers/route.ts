@@ -223,9 +223,7 @@ export async function POST(request: NextRequest) {
     const homeJustFinished = jKey === 'home' && homeNowComplete && !homeWasComplete
 
     const canLiveResearch = Boolean(
-      process.env.OPENCLAW_API_KEY?.trim() ||
-      process.env.OPENCLAW_GATEWAY_TOKEN?.trim() ||
-      process.env.FIRECRAWL_API_KEY?.trim()
+      process.env.DATABASE_URL?.trim() && (process.env.FIRECRAWL_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim())
     )
     if (canLiveResearch) {
       const researchPayload = {
@@ -300,7 +298,7 @@ export async function POST(request: NextRequest) {
     const morphFromDiscovery = discoveryPayloadFinal?.new_card_data ? [discoveryPayloadFinal.new_card_data] : []
     let morphCards = [...morphFromDiscovery, ...morphFromEngine]
 
-    /* NextWin/OpenClaw morph cards were only returned in JSON — not persisted. Persist so Zone
+    /* NextWin morph cards were only returned in JSON — not persisted. Persist so Zone
        injections + client refresh match Solo Focus morph deck when the discovery race is empty or slow. */
     for (const raw of morphFromEngine) {
       try {

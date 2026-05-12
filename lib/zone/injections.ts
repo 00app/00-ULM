@@ -1,5 +1,5 @@
 /**
- * OpenClaw injection pipeline — validate and merge external cards into the Zone grid.
+ * Zone tip injection pipeline — validate and merge external cards into the Zone grid.
  * Constraints: 1:1 square ratio (card-compact), monochrome SVGs, use .text-data for £ and kg in UI.
  */
 
@@ -52,7 +52,7 @@ export interface InjectionCardInput {
 }
 
 /**
- * Validate a single card from OpenClaw (legacy or True Card schema).
+ * Validate a single card from gateway / Gemini payloads (True Card schema).
  * True Card: headline -> title, data.cash -> data.money, cta, followUp, type, location.
  * Ensures h2/headline is cash-focused and .text-data used for values in UI.
  */
@@ -121,7 +121,7 @@ export function validateInjectionCard(raw: unknown): ZoneTipCard | null {
 }
 
 /**
- * Validate and filter an array of injection payloads (e.g. from OpenClaw/Gemini).
+ * Validate and filter an array of injection payloads (e.g. from Gemini or internal tools).
  */
 export function validateInjectionCards(raw: unknown): ZoneTipCard[] {
   if (!Array.isArray(raw)) return []

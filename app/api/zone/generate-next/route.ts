@@ -87,6 +87,8 @@ function normalizeGenerateNextCard(raw: Record<string, unknown>): Record<string,
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as {
+      /** Explicit journey category (e.g. from Solo Focus) — anchors Gemini output to that Zone lane. */
+      category?: string
       userContext?: {
         onboardingAnswers?: Record<string, unknown>
         expandedViewAnswers?: Record<string, string>
@@ -94,10 +96,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { userContext } = body
+    const { userContext, category: bodyCategory } = body
     if (!userContext) {
       return NextResponse.json({ error: 'Missing userContext' }, { status: 400 })
     }
+    const explicitCategory =
+      typeof bodyCategory === 'string' && bodyCategory.trim()
+        ? (normalizeCategoryToJourneyKey(bodyCategory.trim()) as JourneyId)
+        : null
 
     const apiKey = process.env.GEMINI_API_KEY?.trim()
     if (!apiKey) {
@@ -130,10 +136,16 @@ export async function POST(request: NextRequest) {
     const homeType = String(profile.homeType || profile.home_type || 'home')
 
     const last = userContext.lastExpandedAnswer
+    const anchor =
+      explicitCategory ??
+      (last?.journey_key ? (normalizeCategoryToJourneyKey(String(last.journey_key)) as JourneyId) : null)
     const focusLine =
       last?.journey_key && last?.question_id
         ? `The user JUST answered in expanded view: journey="${last.journey_key}", question="${last.question_id}", answer="${String(last.answer_value ?? '').slice(0, 120)}". All "next win" cards MUST logically follow from that answer (not generic).`
         : 'Use expandedViewAnswers to infer the latest user choices.'
+    const categoryAnchorLine = anchor
+      ? `PRIMARY category anchor (all 3 cards must fit this lane): "${anchor}".`
+      : ''
 
     const system = `You are a UK savings advisor. Output ONLY valid JSON (no markdown fences). Every card MUST include learnUrl: a real https:// link (prefer gov.uk, energysavingtrust.org.uk, ofgem.gov.uk). Never invent domains — if unsure use https://www.gov.uk/`
 
@@ -141,6 +153,7 @@ export async function POST(request: NextRequest) {
 
 User goal: ${goal}. Household: ${household}. Home type: ${homeType}.
 ${focusLine}
+${categoryAnchorLine}
 
 Full context (onboarding + all journey answers merged):
 ${JSON.stringify(userContext, null, 2)}

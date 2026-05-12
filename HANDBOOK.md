@@ -108,7 +108,7 @@ Full manifest (Hermes, Neon host token, caps): **`docs/INTELLIGENCE-LOOP-MANIFES
 | **Cron** | `GET /api/cron/zone-research` — requires `CRON_SECRET` (min 16 chars) in `Authorization: Bearer …` or `x-cron-secret`. |
 | **Question → card** | `POST /api/research/question-card` (auth) — `{ journey_key, question }` triggers Firecrawl/Gemini discovery for that category; capped per user/journey (see Intelligence Loop). |
 
-**Required for full live behaviour:** `DATABASE_URL`, `GEMINI_API_KEY`, `FIRECRAWL_API_KEY` (or OpenClaw gateway vars). **Cron / admin gates:** `CRON_SECRET`. **Client URL hints:** `NEXT_PUBLIC_APP_URL`. See `.env.example`.
+**Required for full live behaviour:** `DATABASE_URL`, `GEMINI_API_KEY`, `FIRECRAWL_API_KEY`. Optional: `GATEWAY_TOKEN` (internal inject/pulse webhooks). **Cron / admin gates:** `CRON_SECRET`. **Client URL hints:** `NEXT_PUBLIC_APP_URL`. See `.env.example`.
 
 ---
 

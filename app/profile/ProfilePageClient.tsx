@@ -6,9 +6,11 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import {
-  SHIMMER_FOCUS,
-  SHIMMER_FOCUS_EXIT,
-  SHIMMER_FOCUS_EXIT_TRANSITION,
+  STACCATO_CHILD_VARIANTS,
+  STACCATO_CONTAINER_VARIANTS,
+  STACCATO_DURATION_SEC,
+  STACCATO_STAGGER_SEC,
+  STACCATO_TWEEN,
 } from '@/lib/animations'
 import InputField from '@/app/components/InputField'
 import { createUser } from '@/lib/api'
@@ -76,6 +78,14 @@ const PROFILE_QUESTIONS = [
     ],
   },
 ]
+
+function splitProfileQuestionWords(label: string): string[] {
+  return label
+    .replace(/\n/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+}
 
 const STORAGE_KEYS: Record<string, string> = {
   name: 'profile_name',
@@ -261,16 +271,17 @@ export default function ProfilePageClient() {
     }
   }
 
-  const stepBlockInitial = reduceMotion ? { opacity: 0 } : { ...SHIMMER_FOCUS.initial }
-  const stepBlockAnimate = reduceMotion
-    ? { opacity: 1, filter: 'none' as const, scale: 1 }
-    : { ...SHIMMER_FOCUS.animate }
+  const questionWords = current ? splitProfileQuestionWords(current.label) : []
+  const controlsAfterQuestionSec = questionWords.length * STACCATO_STAGGER_SEC + STACCATO_DURATION_SEC
+
+  const stepBlockInitial = reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }
+  const stepBlockAnimate = reduceMotion ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }
   const stepBlockTransition = reduceMotion
-    ? { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const }
-    : SHIMMER_FOCUS.transition
+    ? { duration: 0.12, ease: [0, 0.55, 0.45, 1] as const }
+    : STACCATO_TWEEN
   const stepBlockExit = reduceMotion
-    ? { opacity: 0, transition: { duration: 0.14, ease: [0.22, 1, 0.36, 1] as const } }
-    : { ...SHIMMER_FOCUS_EXIT, transition: SHIMMER_FOCUS_EXIT_TRANSITION }
+    ? { opacity: 0, transition: { duration: 0.08, ease: [0, 0.55, 0.45, 1] as const } }
+    : { opacity: 0, y: 8, transition: STACCATO_TWEEN }
 
   return (
     <main
@@ -295,19 +306,38 @@ export default function ProfilePageClient() {
       <AnimatePresence mode="wait">
         <motion.div
           key={step}
-          className="profile-step-slam w-full flex flex-col items-center zz-shimmer-focus"
+          className="profile-step-slam w-full flex flex-col items-center"
           style={{ gap: 40, maxWidth: 520 }}
           initial={stepBlockInitial}
           animate={stepBlockAnimate}
           exit={stepBlockExit}
           transition={stepBlockTransition}
         >
-          <h2
+          <motion.div
             className="text-marvin profile-question-headline"
-            style={{ marginBottom: 0, marginLeft: 'auto', marginRight: 'auto' }}
+            style={{
+              marginBottom: 0,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '0.06em',
+            }}
+            variants={STACCATO_CONTAINER_VARIANTS}
+            initial="hidden"
+            animate="visible"
           >
-            {current.label}
-          </h2>
+            {questionWords.map((w, wi) => (
+              <motion.span
+                key={`${step}-q-${wi}-${w}`}
+                variants={STACCATO_CHILD_VARIANTS}
+                style={{ display: 'block' }}
+              >
+                {w}
+              </motion.span>
+            ))}
+          </motion.div>
           {current.type === 'input' ? (
             <div
               style={{
@@ -331,7 +361,7 @@ export default function ProfilePageClient() {
               <ProfileAnswerBtn
                 reduceMotion={reduceMotion}
                 optionIndex={0}
-                delaySeconds={0.1}
+                delaySeconds={controlsAfterQuestionSec + STACCATO_STAGGER_SEC}
                 className=""
                 disabled={!currentVal.trim()}
                 onClick={() => {
@@ -368,6 +398,7 @@ export default function ProfilePageClient() {
                     key={optValue}
                     reduceMotion={reduceMotion}
                     optionIndex={optionIndex}
+                    delaySeconds={controlsAfterQuestionSec + optionIndex * STACCATO_STAGGER_SEC}
                     className={currentVal === optValue ? 'selected' : ''}
                     style={optTheme ? ({ '--local-theme': optTheme } as CSSProperties & { '--local-theme'?: string }) : undefined}
                     onClick={() => handleOptionClick(opt)}

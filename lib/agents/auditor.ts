@@ -44,7 +44,7 @@ function isUuid(id: string): boolean {
   return UUID_RE.test(id.trim())
 }
 
-function profileGoalFromGenome(genome: Record<string, unknown> | null | undefined): string {
+export function profileGoalFromGenome(genome: Record<string, unknown> | null | undefined): string {
   const g = genome?.profile_goal
   if (g === 'money' || g === 'carbon' || g === 'balanced') return g
   return 'balanced'

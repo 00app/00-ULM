@@ -374,9 +374,10 @@ export function JourneyBentoCard({
     verifiedAuditMoneyGbp != null &&
     Number.isFinite(verifiedAuditMoneyGbp) &&
     (verifiedAuditCategory ?? '').trim().toLowerCase() === journeyId
-  /** ✓ True data only when a `research_results` row exists for this journey category (Neon). */
+  const journeyResearchCov = researchCategoryCoverage?.[journeyId]
+  /** ✓ True data — Neon coverage `verified` (derived from `verified_saving` / `saving_amount_gbp` on latest row). */
   const dbVerifiedFromResearchTable =
-    researchCategoryCoverage != null ? researchCategoryCoverage[journeyId] != null : null
+    researchCategoryCoverage != null ? journeyResearchCov?.verified === true : null
   const motherMoneyTargetGbp = verifiedAuditMatchesJourney ? verifiedAuditMoneyGbp : moneyTargetGbp
   const animatedMoneyGbp = useCountUp(motherMoneyTargetGbp, { duration: 520 })
   const animatedCarbonKg = useCountUp(carbonTargetKg, { duration: 520 })
@@ -436,7 +437,6 @@ export function JourneyBentoCard({
     })
     return `/zai?${params.toString()}`
   }
-  const journeyResearchCov = researchCategoryCoverage?.[journeyId]
   const covOfferHttp =
     journeyResearchCov?.latestOfferUrl?.trim().startsWith('http')
       ? journeyResearchCov.latestOfferUrl.trim()
@@ -451,8 +451,8 @@ export function JourneyBentoCard({
       ? true
       : journeyResearchCov == null
   const httpOfferResolved =
-    covOfferHttp ||
     covSourceHttp ||
+    covOfferHttp ||
     (verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
       ? verifiedAuditSourceUrl.trim()
       : liveDiscoveryUrl || partnerHttp || '')

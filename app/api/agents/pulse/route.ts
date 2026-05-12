@@ -2,7 +2,7 @@
  * ZeroHunter heartbeat — cron / internal agent pulse.
  * Top “unspent” users → run price-cap + grant scrape → inject Discovery Card if saving > £50.
  *
- * Auth: `Authorization: Bearer <GATEWAY_TOKEN>` or `OPENCLAW_GATEWAY_TOKEN` / `CRON_SECRET`.
+ * Auth: `Authorization: Bearer <GATEWAY_TOKEN>` or `CRON_SECRET`.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -17,7 +17,6 @@ export const dynamic = 'force-dynamic'
 function authorizePulse(req: NextRequest): boolean {
   const expected =
     process.env.GATEWAY_TOKEN?.trim() ||
-    process.env.OPENCLAW_GATEWAY_TOKEN?.trim() ||
     process.env.CRON_SECRET?.trim()
   if (!expected) return process.env.NODE_ENV !== 'production'
   const got =

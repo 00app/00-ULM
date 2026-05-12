@@ -1,6 +1,6 @@
 /**
  * In-memory store for the last flushed user context markdown.
- * Used by OpenClaw / memory bridge. Zai reads profile + journey answers from Neon directly.
+ * Used by the memory bridge. Zai reads profile + journey answers from Neon directly.
  */
 let lastUserContextMarkdown = ''
 

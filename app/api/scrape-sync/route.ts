@@ -1,7 +1,7 @@
 /**
- * S UPDATE — Scrape-sync API
+ * Scrape-sync API
  * GET: returns current scraped values for the dashboard (from DB or UK 2026 defaults).
- *    Optional ?postcode= triggers OpenClaw/ZeroResearch for fresh regional grant data; response includes research.citations when present.
+ *    Optional ?postcode= triggers ZeroResearch (Firecrawl / Gemini) for fresh regional grant data; response includes research.citations when present.
  * POST: accepts 001 Crawler payload and upserts into scraped_summary for hero totals.
  */
 
@@ -45,6 +45,7 @@ async function loadResearchCategoryCoverage(userId: string): Promise<Record<stri
       source_url: string | null
       saving_amount_gbp: unknown
       verified_saving: unknown
+      verified: unknown
     }>(
       `SELECT DISTINCT ON (lower(trim(rr.category)))
           lower(trim(rr.category)) AS cat,
@@ -52,7 +53,8 @@ async function loadResearchCategoryCoverage(userId: string): Promise<Record<stri
           rr.offer_url,
           rr.source_url,
           rr.saving_amount_gbp,
-          rr.verified_saving
+          rr.verified_saving,
+          rr.verified
        FROM research_results rr
        WHERE rr.user_id = $1::uuid AND rr.category IS NOT NULL AND btrim(rr.category) <> ''
        ORDER BY lower(trim(rr.category)), rr.created_at DESC NULLS LAST`,
@@ -66,14 +68,14 @@ async function loadResearchCategoryCoverage(userId: string): Promise<Record<stri
       const src = typeof row.source_url === 'string' ? row.source_url.trim() : ''
       const sav = toNum(row.saving_amount_gbp)
       const ver = toNum(row.verified_saving)
-      const hasMoney = (sav != null && sav > 0) || (ver != null && ver > 0)
       const insightReady = prose.length > 0
       const hasOffer = offer.startsWith('http')
       const hasSrc = src.startsWith('http')
+      const rowVerified = row.verified === true
       out[k] = {
         insightReady,
         hasOffer,
-        verified: insightReady || hasMoney,
+        verified: rowVerified,
         latestSavingGbp: sav,
         latestVerifiedGbp: ver,
         latestOfferUrl: hasOffer ? offer.slice(0, 2048) : null,
@@ -87,7 +89,7 @@ async function loadResearchCategoryCoverage(userId: string): Promise<Record<stri
   return out
 }
 
-/** GET — Return scraped data for dashboard (buildUserImpact options.scraped). Optional ?postcode= polls OpenClaw for fresh regional data. */
+/** GET — Return scraped data for dashboard (buildUserImpact options.scraped). Optional ?postcode= triggers fresh regional research. */
 export async function GET(request: NextRequest) {
   const id = getClientIdentifier(request)
   const { ok, retryAfter } = checkRateLimit(`scrape-sync:${id}`, SCRAPE_SYNC_MAX_PER_MINUTE)

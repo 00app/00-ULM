@@ -5,7 +5,7 @@ import { neon } from '@neondatabase/serverless'
 import { loadEnvLocal } from './load-env-local'
 
 async function main() {
-  loadEnvLocal()
+  loadEnvLocal({ preferLocal: true })
   const url = process.env.DATABASE_URL?.trim()
   if (!url) {
     console.error('❌ DATABASE_URL missing — set in .env.local')

@@ -8,4 +8,5 @@ export type {
   ZoneJourneyCard,
   ZoneTipCard,
   ZoneViewModel,
+  NeonJourneyResearchRow,
 } from '@/lib/zone/buildZoneViewModel'

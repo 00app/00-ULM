@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import type { CSSProperties, ReactNode } from 'react'
-import { INTRO_DECISION_CTA_TRANSITION } from '@/lib/animations'
+import { STACCATO_DROP_PX, STACCATO_DURATION_SEC, STACCATO_EASE } from '@/lib/animations'
 
 const PROFILE_BUTTON_TAP = { scale: 0.94 }
 
@@ -35,9 +35,9 @@ export default function ProfileAnswerBtn({
   'aria-label': ariaLabel,
   children,
 }: ProfileAnswerBtnProps) {
-  const delay = delaySeconds ?? (optionIndex + 1) * 0.1
-  const initial = reduceMotion ? { opacity: 0 } : { scale: 0, opacity: 1 }
-  const animate = reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }
+  const delay = delaySeconds ?? (optionIndex + 1) * STACCATO_DURATION_SEC
+  const initial = reduceMotion ? { opacity: 0 } : { opacity: 0, y: STACCATO_DROP_PX, scale: 1 }
+  const animate = reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }
   return (
     <motion.button
       type="button"
@@ -47,7 +47,11 @@ export default function ProfileAnswerBtn({
       disabled={disabled}
       initial={initial}
       animate={animate}
-      transition={{ ...INTRO_DECISION_CTA_TRANSITION, delay }}
+      transition={{
+        duration: STACCATO_DURATION_SEC,
+        delay,
+        ease: STACCATO_EASE,
+      }}
       onClick={onClick}
       whileTap={PROFILE_BUTTON_TAP}
     >

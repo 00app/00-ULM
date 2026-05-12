@@ -8,7 +8,7 @@ import { persistZoneTipInjectBody } from '@/lib/zone/persistZoneTipInject'
 export const dynamic = 'force-dynamic'
 
 function authorizeGatewayInject(request: NextRequest): boolean {
-  const expected = process.env.GATEWAY_TOKEN?.trim() || process.env.OPENCLAW_GATEWAY_TOKEN?.trim()
+  const expected = process.env.GATEWAY_TOKEN?.trim() || process.env.CRON_SECRET?.trim()
   if (!expected) return false
   const got =
     request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')?.trim() ??

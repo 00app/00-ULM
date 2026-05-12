@@ -1,6 +1,6 @@
 /**
  * Memory Bridge — builds user_context.md content from Profile + Journey Answers.
- * OpenClaw (and Zai) read this for personalised search and advice.
+ * Zai and server agents read this for personalised search and advice.
  * Flush after Profile completion and when contextual answers update.
  */
 
@@ -43,7 +43,7 @@ function journeySummary(
 
 /**
  * Build User Carbon Profile + Active Goals section as Markdown.
- * Used by OpenClaw to build "Search Seeds" and by Zai for personalised advice.
+ * Used to build "Search Seeds" and by Zai for personalised advice.
  */
 export function buildUserContextMarkdown(payload: MemoryFlushPayload): string {
   const { profile, journeyAnswers, activeGoals, contextUpdate } = payload

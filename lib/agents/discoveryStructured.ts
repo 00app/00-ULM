@@ -1,5 +1,5 @@
 /**
- * Discovery Loop — ZeroResearch (OpenClaw) + Gemini 2.0 Flash structured JSON for /api/answers.
+ * Discovery Loop — ZeroResearch (Firecrawl) + Gemini 2.0 Flash structured JSON for /api/answers.
  */
 
 import type { JourneyId } from '@/lib/journeys'
@@ -41,7 +41,7 @@ function parseJsonObject(text: string): Record<string, unknown> | null {
 
 /**
  * After DB commit: run ZeroResearch agent, then Gemini JSON (recommendation_copy, source_url, new_card_data).
- * Falls back to deterministic discovery card when Gemini or OpenClaw is unavailable.
+ * Falls back to deterministic discovery card when Gemini or Firecrawl is unavailable.
  */
 export async function runDiscoveryStructuredPipeline(params: {
   journeyId: JourneyId
@@ -99,7 +99,7 @@ export async function runDiscoveryStructuredPipeline(params: {
 
 User: journey="${journeyId}", question="${questionId}", answer="${answerValue}", postcode="${postcode ?? 'unknown'}".
 
-ZeroResearch / OpenClaw context (may be partial):
+ZeroResearch / profile context (may be partial):
 ---
 ${researchMd || '(no research block yet)'}
 ---

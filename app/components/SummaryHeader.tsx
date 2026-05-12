@@ -1,14 +1,12 @@
 'use client'
 
 /**
- * Profile summary — vertical staccato authority: one word per line, **opacity-only** snaps (no slide / no drift).
- * Sequence matches product copy: Hello → [Name] → Based … profile → people in … → waste → £… → and → 1t CO2 → per → year.
+ * Profile summary — vertical staccato: one word per line, **y: 10→0** + **opacity 0→1**,
+ * **0.1s stagger**, **circOut** (mechanical snap — no blur / no spring float).
  */
 import { useEffect, useRef } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-
-const STACCATO_DELAY_SEC = 0.1
-const OPACITY_DURATION_SEC = 0.12
+import { STACCATO_DURATION_SEC, STACCATO_EASE, STACCATO_STAGGER_SEC, STACCATO_DROP_PX } from '@/lib/animations'
 
 export type SummaryHeaderProps = {
   words: string[]
@@ -40,7 +38,8 @@ export default function SummaryHeader({ words, onComplete }: SummaryHeaderProps)
       return () => cancelAnimationFrame(id)
     }
     const lastIndex = words.length - 1
-    const settleMs = lastIndex * STACCATO_DELAY_SEC * 1000 + OPACITY_DURATION_SEC * 1000 + 60
+    const settleMs =
+      lastIndex * STACCATO_STAGGER_SEC * 1000 + STACCATO_DURATION_SEC * 1000 + 40
     const t = window.setTimeout(() => {
       if (!completedRef.current) {
         completedRef.current = true
@@ -80,17 +79,15 @@ export default function SummaryHeader({ words, onComplete }: SummaryHeaderProps)
             color: 'var(--color-yellow)',
             fontWeight: 700,
           }}
-          initial={reduceMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={reduceMotion ? false : { opacity: 0, y: STACCATO_DROP_PX }}
+          animate={{ opacity: 1, y: 0 }}
           transition={
             reduceMotion
               ? { duration: 0 }
               : {
-                  opacity: {
-                    duration: OPACITY_DURATION_SEC,
-                    delay: i * STACCATO_DELAY_SEC,
-                    ease: 'linear',
-                  },
+                  duration: STACCATO_DURATION_SEC,
+                  delay: i * STACCATO_STAGGER_SEC,
+                  ease: STACCATO_EASE,
                 }
           }
         >

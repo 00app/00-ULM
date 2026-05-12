@@ -39,7 +39,7 @@ function splitSqlStatements(sql: string): string[] {
 }
 
 async function initDatabase() {
-  loadEnvLocal()
+  loadEnvLocal({ preferLocal: true })
   /** Neon serverless driver uses WebSockets; `pg` TCP works reliably for one-off CLI applies. */
   process.env.DATABASE_USE_NEON_SERVERLESS = '0'
 

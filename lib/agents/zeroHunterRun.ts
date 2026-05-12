@@ -1,6 +1,6 @@
 /**
  * ZeroHunter — price-cap / grant pulse for cron (uses Firecrawl when configured + Gemini extraction).
- * Internal calls must pass GATEWAY_TOKEN / OPENCLAW_GATEWAY_TOKEN when hitting the app gateway.
+ * Internal calls must pass `GATEWAY_TOKEN` or `CRON_SECRET` when hitting the app gateway.
  */
 
 import { sanitizeAgentMarkdown } from '@/lib/agents/zeroHunterMarkdown'

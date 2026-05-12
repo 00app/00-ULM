@@ -230,7 +230,7 @@ export async function getLatestResearchAttribution(
 }
 
 /**
- * Persist NextWin (or similar) gateway invoke snapshot for morph + diagnostics.
+ * Persist gateway / Hermes invoke snapshot for morph + diagnostics (`research_results.research_snapshot`).
  */
 export async function insertResearchInvokeSnapshot(params: {
   userId?: string | null
@@ -254,14 +254,15 @@ export async function insertResearchInvokeSnapshot(params: {
        ADD COLUMN IF NOT EXISTS category TEXT,
        ADD COLUMN IF NOT EXISTS offer_url TEXT,
        ADD COLUMN IF NOT EXISTS saving_amount_gbp NUMERIC(10,2),
-       ADD COLUMN IF NOT EXISTS architect_prose TEXT`
+       ADD COLUMN IF NOT EXISTS architect_prose TEXT,
+       ADD COLUMN IF NOT EXISTS research_snapshot JSONB`
     )
     await pool.query(
       `INSERT INTO research_results (
          user_id, postcode, profile_snapshot, markdown, citations,
          elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
          deep_link, verified_saving, category, offer_url, saving_amount_gbp, locality_context,
-         provider_name, agent_headline, architect_prose, openclaw_raw_json, created_at
+         provider_name, agent_headline, architect_prose, research_snapshot, created_at
        )
        VALUES (
          $1, $2, $3::jsonb, $4, $5::jsonb,

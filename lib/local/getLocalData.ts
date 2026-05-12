@@ -1,7 +1,7 @@
 /**
  * Local Living — Postcodes.io + Carbon Intensity API (free, no auth).
  * Translates postcode into council, region, ward and regional gCO₂/kWh
- * for OpenClaw agents and the Zone dashboard.
+ * for ZeroResearch / Zai and the Zone dashboard.
  */
 
 /** April 2026 auditor lock — BUS vs Scottish HES; every field includes citation. */

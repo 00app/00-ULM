@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Flush user context from Profile + Journey Answers into the memory bridge.
- * OpenClaw and Zai read this for personalised search and advice.
+ * Zai reads this for personalised search and advice.
  * Call after Profile completion and when contextual answers update in Expanded View.
  */
 export async function POST(request: NextRequest) {

@@ -15,14 +15,7 @@ import {
   SHIMMER_FOCUS,
 } from '@/lib/animations'
 
-type IntroScreenState = 'glitch' | 'value-message' | 'decision'
-
-/** Must match `.zz-glitch` / layer keyframe duration in `app/globals.css` (~30% faster than 670ms). */
-const GLITCH_ANIM_MS = 469
-/** Extra time on the final (settled) frame after layers finish — intro words never start mid-glitch */
-const GLITCH_SETTLE_HOLD_MS = 294
-/** Reduced motion: static logo beat before words (CSS animations off via globals) */
-const GLITCH_REDUCE_MOTION_HOLD_MS = 266
+type IntroScreenState = 'value-message' | 'decision'
 
 /**
  * Mechanical sequence (SAVE MONEY CUT CARBON…):
@@ -94,7 +87,7 @@ const ctaCircleStyle = {
 
 export default function IntroScreen() {
   const reduceMotion = useReducedMotion()
-  const [screen, setScreen] = useState<IntroScreenState>('glitch')
+  const [screen, setScreen] = useState<IntroScreenState>('value-message')
   const urlHandledRef = useRef(false)
 
   useEffect(() => {
@@ -104,17 +97,6 @@ export default function IntroScreen() {
       setScreen('value-message')
     }
   }, [])
-
-  useEffect(() => {
-    if (screen !== 'glitch') return
-    const reduce =
-      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    const glitchMs = reduce ? GLITCH_REDUCE_MOTION_HOLD_MS : GLITCH_ANIM_MS + GLITCH_SETTLE_HOLD_MS
-    const id = window.setTimeout(() => {
-      setScreen((s) => (s === 'glitch' ? 'value-message' : s))
-    }, glitchMs)
-    return () => window.clearTimeout(id)
-  }, [screen])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -162,26 +144,6 @@ export default function IntroScreen() {
     }, safetyMs)
     return () => window.clearTimeout(tid)
   }, [screen])
-
-  if (screen === 'glitch') {
-    return (
-      <div
-        style={{
-          ...fullScreenStyle,
-          background: 'transparent',
-          gap: 24,
-        }}
-        aria-label="Zero Zero animated logo"
-      >
-        <div className="zz-glitch-wrap">
-          <div className="zz-glitch">
-            <img src="/assets/00%20brand%20mark%20yellow.svg" className="glitch-layer base" alt="" aria-hidden />
-            <img src="/assets/00%20brand%20mark%20pink.svg" className="glitch-layer purple" alt="Zero Zero" />
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   if (screen === 'value-message') {
     return (

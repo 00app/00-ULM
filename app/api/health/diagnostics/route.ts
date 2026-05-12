@@ -9,10 +9,7 @@ export const dynamic = 'force-dynamic'
  * Server-side nervous-system checks (no secret values exposed — booleans + timestamps only).
  */
 function hasGatewayAuth(request: NextRequest): boolean {
-  const expected =
-    process.env.GATEWAY_TOKEN?.trim() ||
-    process.env.OPENCLAW_GATEWAY_TOKEN?.trim() ||
-    process.env.CRON_SECRET?.trim()
+  const expected = process.env.GATEWAY_TOKEN?.trim() || process.env.CRON_SECRET?.trim()
   if (!expected) return false
   const got =
     request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')?.trim() ??
@@ -66,10 +63,10 @@ export async function GET(request: NextRequest) {
 
   let lastResearchInvokePayload: Record<string, unknown> | null = null
   try {
-    const pr = await pool.query<{ openclaw_raw_json: unknown }>(
-      `SELECT openclaw_raw_json FROM research_results ORDER BY created_at DESC NULLS LAST LIMIT 1`
+    const pr = await pool.query<{ research_snapshot: unknown }>(
+      `SELECT research_snapshot FROM research_results ORDER BY created_at DESC NULLS LAST LIMIT 1`
     )
-    const raw = pr.rows[0]?.openclaw_raw_json
+    const raw = pr.rows[0]?.research_snapshot
     if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
       lastResearchInvokePayload = raw as Record<string, unknown>
     }

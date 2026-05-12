@@ -1,6 +1,6 @@
 /**
  * Gemini free-tier quota tracking.
- * When the API returns 429/529 (resource exhausted), we set a flag so OpenClaw
+ * When the API returns 429/529 (resource exhausted), we set a flag so the app
  * stops using Gemini and falls back to scrape-only (UK defaults / scraped_summary).
  * Flag resets after 24 hours so we retry Gemini next day.
  */

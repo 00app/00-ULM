@@ -20,8 +20,9 @@ import {
   SPRING_BLOOM,
   SHIMMER_FOCUS,
   soloFocusSlamMotionProps,
-  ZIP_OPEN_Z_ANIMATE,
   SLAM_SPRING,
+  STACCATO_DURATION_SEC,
+  STACCATO_EASE,
 } from '@/lib/animations'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import {
@@ -217,9 +218,9 @@ export function SoloFocusOverlay({
   const [activeSiblingIndex, setActiveSiblingIndex] = useState(0)
   const [impactAnswerPulse, setImpactAnswerPulse] = useState(false)
   const [heroTotalsOverride, setHeroTotalsOverride] = useState<{ money: number; carbon: number } | null>(null)
-  const [isGlitchingMoney, setIsGlitchingMoney] = useState(false)
-  const [glitchDisplayGbp, setGlitchDisplayGbp] = useState(0)
   const [questionCount, setQuestionCount] = useState(0)
+  /** Brief blank beat between last answer zip and RESULT (kills ghosting). */
+  const [spawnHandoffBlank, setSpawnHandoffBlank] = useState(false)
   /** Discovery trap: Firecrawl/Gemini birth in flight after answer tap. */
   const [discoveryBirthPending, setDiscoveryBirthPending] = useState(false)
 
@@ -234,12 +235,6 @@ export function SoloFocusOverlay({
       /* ignore */
     }
   }, [cardId, journeyId])
-
-  useEffect(() => {
-    if (!isGlitchingMoney) return
-    const interval = setInterval(() => setGlitchDisplayGbp(Math.floor(Math.random() * 9999)), 50)
-    return () => clearInterval(interval)
-  }, [isGlitchingMoney])
 
   const [reducePagerMotion, setReducePagerMotion] = useState(false)
   const overlayViewStatePrev = useRef<OverlayViewState>(viewState)
@@ -339,8 +334,8 @@ export function SoloFocusOverlay({
       : ''
   const liveDiscoveryUrl =
     [
-      covOfferHttp,
       covSourceHttp,
+      covOfferHttp,
       liveClaimUrl,
       morphLearnResolved,
       resultCitation?.url,
@@ -376,10 +371,10 @@ export function SoloFocusOverlay({
       : liveDiscoveryUrl || partnerHttp || ''
   const resolvedOpenUrl = (httpOpen || (allowZaiFallback ? buildZaiAuditUrl() : '')).trim()
 
-  /** ✓ True data only when a `research_results` row exists for this category. */
+  /** ✓ True data — Neon `research_results.verified` (via scrape-sync coverage). */
   const dbVerifiedFromResearchTable =
     researchCategoryCoverage != null && covLookupKey
-      ? researchCategoryCoverage[covLookupKey] != null
+      ? journeyResearchCov?.verified === true
       : null
 
   const effectiveTitleRaw = currentMorphData
@@ -584,6 +579,7 @@ export function SoloFocusOverlay({
     setSoloEmbedQuestionLabel(null)
     setLoopZipCollapsing(false)
     setQuestionCount(0)
+    setSpawnHandoffBlank(false)
     if (typeof window !== 'undefined') {
       try {
         sessionStorage.removeItem(sfStorageKey)
@@ -651,7 +647,6 @@ export function SoloFocusOverlay({
               <motion.div
                 key={`overlay-hero-${activeSiblingIndex}-${String(activeCardId ?? 'base')}`}
                 {...soloFocusSlamMotionProps(reducePagerMotion, false)}
-                animate={{ ...ZIP_OPEN_Z_ANIMATE, scale: isGlitchingMoney ? 1.05 : 1 }}
                 style={{
                   transformOrigin: 'top center',
                   willChange: 'transform',
@@ -744,7 +739,7 @@ export function SoloFocusOverlay({
                   sourceFooter={sourceFooter}
                   verifiedSourceCitation={verifiedOverlayCitation}
                   verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
-                  moneyGbp={isGlitchingMoney ? glitchDisplayGbp : animatedMoneyGbp}
+                  moneyGbp={animatedMoneyGbp}
                   carbonKg={animatedCarbonKg}
                   impactPulse={impactAnswerPulse}
                   ctaUrl={resolvedOpenUrl.trim() || (allowZaiFallback ? buildZaiAuditUrl() : '')}
@@ -990,8 +985,6 @@ export function SoloFocusOverlay({
                               money: Math.max(0, Math.round(data.newTotals.totalMoney)),
                               carbon: Math.max(0, Math.round(data.newTotals.totalCarbon)),
                             })
-                            setIsGlitchingMoney(true)
-                            setTimeout(() => setIsGlitchingMoney(false), 500)
                             setHeroTotals({
                               totalMoney: data.newTotals.totalMoney,
                               totalCarbon: data.newTotals.totalCarbon,
@@ -1048,7 +1041,20 @@ export function SoloFocusOverlay({
               variants={FADE_VARIANTS}
             >
               <AnimatePresence mode="wait">
-                {viewState === 'RESULT' ? (
+                {spawnHandoffBlank ? (
+                  <motion.div
+                    key="solo-focus-spawn-blank"
+                    className="w-full min-h-[180px] rounded-[48px] flex items-center justify-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.45, backdropFilter: 'blur(12px)' }}
+                    exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                    transition={{ duration: STACCATO_DURATION_SEC, ease: STACCATO_EASE }}
+                    style={{
+                      backgroundColor: 'color-mix(in srgb, var(--color-purple) 35%, transparent)',
+                    }}
+                    aria-hidden
+                  />
+                ) : viewState === 'RESULT' ? (
                   <motion.div
                     key={`overlay-sf-result-${discoverySnap?.questionId ?? 'q'}-${String(discoverySnap?.answerValue ?? '').slice(0, 24)}-${currentMorphData?.id ?? activeCardId ?? 'base'}`}
                     {...soloFocusSlamMotionProps(reducePagerMotion, false)}
@@ -1219,6 +1225,7 @@ export function SoloFocusOverlay({
                     {...soloFocusSlamMotionProps(reducePagerMotion, false)}
                     style={{ transformOrigin: '50% 50%' }}
                   >
+                    {/* Answers POST + background `/api/zone/generate-next` are handled inside EmbeddedJourneyQuestion. */}
                     <EmbeddedJourneyQuestion
                       journeyId={journeyId}
                       sessionLaneKey={String(cardId ?? journeyId ?? 'solo-overlay')}
@@ -1261,8 +1268,6 @@ export function SoloFocusOverlay({
                           money: Math.max(0, Math.round(newTotals.totalMoney)),
                           carbon: Math.max(0, Math.round(newTotals.totalCarbon)),
                         })
-                        setIsGlitchingMoney(true)
-                        setTimeout(() => setIsGlitchingMoney(false), 500)
                       }
                       if (userContext) setUserContextSnap(userContext)
                       if (citeSnap && typeof citeSnap.label === 'string' && citeSnap.label.trim()) {
@@ -1336,14 +1341,20 @@ export function SoloFocusOverlay({
                       if (!isLoopComplete) {
                         persistViewState('QUESTION', { preserveResultContext: true })
                       } else {
-                        persistViewState('RESULT')
-                        onJourneyAnswered?.()
+                        setSpawnHandoffBlank(true)
+                        window.setTimeout(() => {
+                          persistViewState('RESULT')
+                          onJourneyAnswered?.()
+                          setLoopZipCollapsing(false)
+                          setSpawnHandoffBlank(false)
+                        }, Math.round(STACCATO_DURATION_SEC * 1000) + 40)
                       }
 
                       onEmbeddedAnswerSuccess?.({ cardId })
 
-                      // 3. Zip-open with the new card instantly
-                      setLoopZipCollapsing(false)
+                      if (!isLoopComplete) {
+                        setLoopZipCollapsing(false)
+                      }
                       if (journeyId) {
                         triggerScrapeSyncForCategory({
                           postcode: profilePostcode ?? state.profile?.postcode,

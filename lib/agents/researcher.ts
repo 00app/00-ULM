@@ -1,156 +1,15 @@
 /**
- * Supplemental ZeroResearch via gateway WebSocket (primary) + HTTP fallback.
- * Parses scraped markdown with Gemini → unit rates → Neon (`research_results`).
+ * Supplemental ZeroResearch — **Firecrawl + Gemini + Neon** only (no external research gateway).
+ * Parses scraped markdown with Gemini → unit rates → `research_results`.
  */
 
-import WebSocket from 'ws'
-import { zeroResearchInvokeExtras } from '@/lib/agents/config'
+import type { ResearchCitation, ResearchProfileData, ZeroResearchResult } from '@/lib/agents/researchAgent'
 import {
   fetchLiveEnergyData,
   fetchUkEconomicSeedMarkdown,
   OFGEM_LIVE_PRICE_CAP_URL,
 } from '@/lib/agents/scraper'
 import { APRIL_2026_TRUTH_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
-import type { ResearchCitation, ResearchProfileData, ZeroResearchResult } from '@/lib/agents/researchAgent'
-
-const GATEWAY_HTTP = (process.env.OPENCLAW_GATEWAY_URL ?? 'http://127.0.0.1:18789').replace(/\/$/, '')
-const GATEWAY_WS =
-  process.env.OPENCLAW_GATEWAY_WS_URL?.trim() ||
-  GATEWAY_HTTP.replace(/^https:\/\//i, 'wss://').replace(/^http:\/\//i, 'ws://')
-
-const WS_GATHER_MS = 90_000
-
-function buildInvokePayload(params: {
-  postcode?: string | null
-  region?: string | null
-  profileData?: ResearchProfileData | null
-}) {
-  const employment =
-    params.profileData?.employment_status != null
-      ? String(params.profileData.employment_status).trim()
-      : undefined
-  return {
-    agent: 'ZeroResearch',
-    trigger: 'Location',
-    params: {
-      postcode: params.postcode,
-      region: params.region,
-      employment_status: employment && employment.length > 0 ? employment : undefined,
-      profileData: params.profileData ?? undefined,
-      scrapeTargetUrl: OFGEM_LIVE_PRICE_CAP_URL,
-      instruction:
-        'Use the Firecrawl tool to scrape scrapeTargetUrl and return the page as markdown. Include any stated default tariff unit rates (electricity and gas) for the current price-cap period. For broader UK economic context (motor fuel, energy headlines), also consider BBC News UK energy coverage and PetrolPrices.com UK averages when reasoning for downstream Content Architect cards.',
-    },
-    ...zeroResearchInvokeExtras(),
-  }
-}
-
-function accumulateMarkdownFromMessage(buf: string, raw: string): string {
-  let out = buf
-  try {
-    const msg = JSON.parse(raw) as Record<string, unknown>
-    if (typeof msg.markdown === 'string') out += msg.markdown
-    if (msg.type === 'event' && typeof msg.payload === 'string') out += msg.payload
-    const data = msg.data as { markdown?: string } | undefined
-    if (data && typeof data.markdown === 'string') out += data.markdown
-    if (msg.type === 'result' && typeof msg.text === 'string') out += msg.text
-  } catch {
-    if (raw.trim().length > 0 && !raw.trim().startsWith('{')) out += raw
-  }
-  return out
-}
-
-/** Collect streamed markdown from the research gateway WebSocket. */
-export function gatherResearchMarkdownViaWebSocket(body: Record<string, unknown>): Promise<string> {
-  const token = process.env.OPENCLAW_API_KEY?.trim() || process.env.OPENCLAW_GATEWAY_TOKEN?.trim()
-  if (!token) return Promise.resolve('')
-
-  return new Promise((resolve) => {
-    let markdown = ''
-    let settled = false
-    const done = (final: string) => {
-      if (settled) return
-      settled = true
-      resolve(final.trim())
-    }
-
-    const ws = new WebSocket(GATEWAY_WS)
-    const authPayload = JSON.stringify({ type: 'auth', token })
-
-    const sendAuth = () => {
-      if (ws.readyState !== WebSocket.OPEN) return
-      try {
-        ws.send(authPayload)
-      } catch {
-        /* ignore */
-      }
-    }
-
-    const timer = setTimeout(() => {
-      try {
-        ws.close()
-      } catch {
-        /* ignore */
-      }
-      done(markdown)
-    }, WS_GATHER_MS)
-
-    ws.on('open', () => {
-      sendAuth()
-      queueMicrotask(sendAuth)
-      setTimeout(sendAuth, 120)
-      setTimeout(() => {
-        try {
-          ws.send(JSON.stringify({ type: 'invoke', ...body }))
-        } catch {
-          /* ignore */
-        }
-      }, 160)
-    })
-
-    ws.on('message', (data) => {
-      markdown = accumulateMarkdownFromMessage(markdown, data.toString())
-    })
-
-    ws.on('close', () => {
-      clearTimeout(timer)
-      done(markdown)
-    })
-
-    ws.on('error', () => {
-      clearTimeout(timer)
-      try {
-        ws.close()
-      } catch {
-        /* ignore */
-      }
-      done(markdown)
-    })
-  })
-}
-
-async function invokeGatewayHttp(body: Record<string, unknown>): Promise<ZeroResearchResult | null> {
-  const token = process.env.OPENCLAW_API_KEY?.trim() || process.env.OPENCLAW_GATEWAY_TOKEN?.trim()
-  if (!token) return null
-  try {
-    const res = await fetch(`${GATEWAY_HTTP}/tools/invoke`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-    })
-    if (!res.ok) return null
-    const data = (await res.json()) as { markdown?: string; citations?: ResearchCitation[] }
-    return {
-      markdown: data.markdown ?? '',
-      citations: Array.isArray(data.citations) ? data.citations : [],
-    }
-  } catch {
-    return null
-  }
-}
 
 function normalizeGbpPerKwh(n: unknown): number | null {
   if (typeof n !== 'number' || Number.isNaN(n)) return null
@@ -169,9 +28,7 @@ function parseUnitRatesFromRegex(markdown: string): {
     /electricity[^.\d]{0,40}(\d{1,2}(?:\.\d{1,3})?)\s*p\/?\s*kwh/i,
     /electric[^.\d]{0,40}(\d{1,2}(?:\.\d{1,3})?)\s*p\/?\s*kwh/i,
   ]
-  const gasCandidates = [
-    /gas[^.\d]{0,40}(\d{1,2}(?:\.\d{1,3})?)\s*p\/?\s*kwh/i,
-  ]
+  const gasCandidates = [/gas[^.\d]{0,40}(\d{1,2}(?:\.\d{1,3})?)\s*p\/?\s*kwh/i]
   const pick = (patterns: RegExp[]): number | null => {
     for (const re of patterns) {
       const m = text.match(re)
@@ -300,31 +157,18 @@ async function fetchDuckDuckGoFallbackMarkdown(query: string): Promise<{
 }
 
 /**
- * WebSocket to research gateway, then HTTP `/tools/invoke` if WS yields little text.
- * With `persistToNeon`, runs Gemini parse and writes `research_results` (unit rates + `source_url`).
+ * Gather UK energy markdown via Firecrawl-backed fetch + DuckDuckGo fallbacks, then persist to Neon when requested.
  */
 export async function triggerSupplementalResearch(params: {
   postcode?: string | null
   region?: string | null
   profileData?: ResearchProfileData | null
   persistToNeon?: boolean
-  /** When set, persists `research_results.category` for user-scoped Zone / cron. */
   userId?: string | null
-  /** Solo Focus / scrape-sync: pin triplet + row to this journey key when persisting. */
   category?: string | null
 }): Promise<ZeroResearchResult | null> {
-  const body = buildInvokePayload(params) as Record<string, unknown>
-
-  let markdown = await gatherResearchMarkdownViaWebSocket(body)
+  let markdown = ''
   let citations: ResearchCitation[] = []
-
-  if (markdown.length < 400) {
-    const httpResult = await invokeGatewayHttp(body)
-    if (httpResult && httpResult.markdown.length >= markdown.length) {
-      markdown = httpResult.markdown
-      citations = httpResult.citations
-    }
-  }
 
   if (markdown.length < 200 && process.env.FIRECRAWL_API_KEY?.trim()) {
     const fallbackMd = await fetchLiveEnergyData()
@@ -358,7 +202,7 @@ export async function triggerSupplementalResearch(params: {
   if (process.env.FIRECRAWL_API_KEY?.trim()) {
     const seeds = await fetchUkEconomicSeedMarkdown()
     if (seeds.length > 120) {
-      markdown = `${markdown.trim()}\n\n---\n\n## UK economic seeds (BBC Energy, PetrolPrices — v1.8.14)\n\n${seeds}`
+      markdown = `${markdown.trim()}\n\n---\n\n## UK economic seeds\n\n${seeds}`
     }
   }
 
@@ -386,7 +230,6 @@ export async function triggerSupplementalResearch(params: {
     }
     const degraded =
       parsed.electricityGbpPerKwh == null || parsed.gasGbpPerKwh == null || isWeakResearchMarkdown(markdown)
-    // Never persist null rates; lock to April 2026 truth when scrape quality is degraded.
     const persistedElec = parsed.electricityGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH / 100
     const persistedGas = parsed.gasGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.GAS_PER_KWH / 100
     const { persistResearchResult } = await import('@/lib/agents/researchAgent')

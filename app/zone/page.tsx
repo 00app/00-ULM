@@ -9,7 +9,7 @@ import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'framer-m
 import { useApp } from '../context/AppContext'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { buildZoneViewModel } from '@/lib/logic/zone'
-import type { ZoneViewModel, ZoneJourneyCard, ZoneTipCard } from '@/lib/logic/zone'
+import type { ZoneViewModel, ZoneJourneyCard, ZoneTipCard, NeonJourneyResearchRow } from '@/lib/logic/zone'
 import {
   applyArchitectEnrichment,
   architectCacheFingerprint,
@@ -26,19 +26,18 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { ROUTES } from '@/lib/routes'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import {
-  ZONE_ANCHOR_VARIANTS,
   ZONE_BENTO_CELL_VARIANTS,
   ZONE_GRID_STAGGER_CHILD_DELAY_SEC,
-  SPRING_BLOOM,
   SPRING_TAP,
   FADE_IN_UP,
   ZONE_HERO_FROM_SUMMARY,
-  ELASTIC_PING,
   ZIP_OPEN_Z_INITIAL,
   ZIP_OPEN_Z_ANIMATE,
   ZIP_SHUT_Z_EXIT,
   ZIP_OPEN_Z_TRANSITION,
-  MECHANICAL_SNAP_SPRING,
+  STACCATO_CONTAINER_VARIANTS,
+  STACCATO_CHILD_VARIANTS,
+  STACCATO_TWEEN,
 } from '@/lib/animations'
 
 import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
@@ -177,6 +176,28 @@ function getDefaultZoneViewModel(): ZoneViewModel {
   return buildZoneViewModel({ profile: {}, journeyAnswers: emptyAnswers })
 }
 
+function neonJourneyResearchFromCoverage(
+  cov: Record<string, ResearchCategoryCoverageRow> | null | undefined
+): Partial<Record<JourneyId, NeonJourneyResearchRow>> | undefined {
+  if (!cov) return undefined
+  const out: Partial<Record<JourneyId, NeonJourneyResearchRow>> = {}
+  for (const jid of JOURNEY_ORDER) {
+    const row = cov[jid]
+    if (!row) continue
+    const sav =
+      row.latestSavingGbp != null && row.latestSavingGbp > 0
+        ? row.latestSavingGbp
+        : row.latestVerifiedGbp != null && row.latestVerifiedGbp > 0
+          ? row.latestVerifiedGbp
+          : 0
+    const ap = row.architectProse?.trim() ?? null
+    if (sav > 0 || (ap != null && ap.length > 0)) {
+      out[jid] = { savingGbp: sav, architectProse: ap }
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 /** 6-word max greeting: Hello {name}. + how they're doing (groovy / cool / let's fix this) */
 function getZoneGreeting(
   name: string | undefined,
@@ -233,7 +254,7 @@ export default function ZonePage() {
     return Number.isFinite(n) ? 9 : 9
   })
   /** v1.7: index of the journey card that just popped in (for spring animation); cleared after animation. */
-  /** Discovery Engine: server-stored tip injections (same store as POST /api/openclaw/inject). */
+  /** Discovery Engine: server-stored tip injections (GET /api/zone/injections). */
   const [injectedTips, setInjectedTips] = useState<ZoneTipCard[]>([])
   /** Discovery Pulse: patch £/kg on inject cards when economy fingerprint changes. */
   const [tipDataPatches, setTipDataPatches] = useState<Record<string, { money?: string; carbon?: string }>>({})
@@ -758,7 +779,7 @@ export default function ZonePage() {
       setInjectedTips((prev) => [...prev.filter((c) => c.id !== detail.id), detail])
       setDiscoverySpringTipId(detail.id)
       window.setTimeout(() => setDiscoverySpringTipId((id) => (id === detail.id ? null : id)), 950)
-      /* After POST /api/answers discovery race (Gemini + OpenClaw-backed pipelines): refresh batch + open new tip Solo Focus */
+      /* After POST /api/answers discovery race (Gemini + Firecrawl): refresh batch + open new tip Solo Focus */
       void fetch('/api/zone/tips-refresh', { method: 'POST', credentials: 'include' }).catch(() => {})
       setRefreshKey((k) => k + 1)
       window.setTimeout(() => {
@@ -886,6 +907,7 @@ export default function ZonePage() {
         : undefined,
       injectedTips: effectiveInjectedTips,
       marketContext: Object.keys(effectiveMarket).length > 0 ? effectiveMarket : undefined,
+      neonJourneyResearch: neonJourneyResearchFromCoverage(researchCategoryCoverage),
     })
     // v41.0: sync card model immediately on postcode/profile mutation, then layer live pulse totals.
     // Keep the existing wall visible while refreshing to avoid loading shutter flicker/reload feel.
@@ -955,6 +977,7 @@ export default function ZonePage() {
           : undefined,
         injectedTips: effectiveInjectedTips,
         marketContext: nextMarketContext,
+        neonJourneyResearch: neonJourneyResearchFromCoverage(researchCategoryCoverage),
       })
 
       const gridTotals = sumJourneyGridTotals(vmLive)
@@ -1009,6 +1032,7 @@ export default function ZonePage() {
     dbConnected,
     researchMeta,
     homeUnitRates,
+    researchCategoryCoverage,
   ])
 
   /** Content Architect (Gemini): enrich nine category cards — cached per profile + answers + £/kg. */
@@ -1087,6 +1111,7 @@ export default function ZonePage() {
       injectedTips: effectiveInjectedTips,
       marketContext:
         Object.keys(effectiveMarketArchitect).length > 0 ? effectiveMarketArchitect : undefined,
+      neonJourneyResearch: neonJourneyResearchFromCoverage(researchCategoryCoverage),
     })
 
     const nine = vm.journeys.filter((j) => j.id.startsWith('journey-'))
@@ -1199,6 +1224,7 @@ export default function ZonePage() {
     ratesSourceUrl,
     researchMeta,
     liveResearchData,
+    researchCategoryCoverage,
   ])
 
   const groovyItems = getGroovyGridItems(viewModel)
@@ -1289,6 +1315,18 @@ export default function ZonePage() {
   const displayCarbon = useCountUp(heroCarbon, { duration: 920, spring: true })
   const heroDataSource = dbConnected && neonVerifiedMoney ? 'VERIFIED AUDIT' : 'ESTIMATED AUDIT'
 
+  const zoneGreetingWords = useMemo(() => {
+    const line = getZoneGreeting(
+      state?.profile?.name,
+      Array.isArray(completedJourneys) ? completedJourneys.length : 0,
+      heroMoney,
+      heroCarbon
+    )
+      .toUpperCase()
+      .trim()
+    return line.split(/\s+/).filter(Boolean)
+  }, [state?.profile?.name, completedJourneys, heroMoney, heroCarbon])
+
   return (
     <LayoutGroup>
       <motion.main
@@ -1306,48 +1344,67 @@ export default function ZonePage() {
         <motion.div
           className="zone-anchor flex flex-col items-center pt-0 pb-0"
           aria-hidden={false}
-          variants={ZONE_ANCHOR_VARIANTS}
+          variants={STACCATO_CONTAINER_VARIANTS}
           initial="hidden"
           animate="visible"
         >
-          <header className="zone-masthead flex items-start w-full px-4 flex-shrink-0">
-            <div className="flex-1 min-w-0" aria-hidden>
+          <header className="zone-masthead flex flex-col items-start w-full px-4 flex-shrink-0 gap-2">
+            <div className="flex flex-row items-start justify-between w-full gap-3">
+              <motion.div variants={STACCATO_CHILD_VARIANTS} className="flex-shrink-0">
+                <Logo width={66} className="zone-logo" style={{ color: 'var(--color-yellow)' }} />
+              </motion.div>
+              <div className="flex-1 min-w-0" aria-hidden />
+            </div>
+            <motion.div
+              variants={STACCATO_CHILD_VARIANTS}
+              className="flex flex-col items-start min-w-0"
+              aria-hidden
+            >
               <span className="zone-menu">
                 <span className="zone-menu-line">use less,</span>
                 <span className="zone-menu-line">more.</span>
               </span>
-            </div>
-            <div className="flex-shrink-0 flex justify-center">
-              <Logo width={66} className="zone-logo" style={{ color: 'var(--color-yellow)' }} />
-            </div>
-            <div className="flex-1 min-w-0" aria-hidden />
+            </motion.div>
           </header>
-          <h3 className="text-marvin text-center tracking-wide zz-anchor-greeting uppercase" style={{ color: 'var(--color-yellow)' }} aria-live="polite">
-            {getZoneGreeting(
-              state?.profile?.name,
-              Array.isArray(completedJourneys) ? completedJourneys.length : 0,
-              heroMoney,
-              heroCarbon
-            ).toUpperCase()}
-          </h3>
-          <div className="w-[90%] max-w-[400px] relative zone-ask-zai-wrap">
+          <motion.div
+            variants={STACCATO_CHILD_VARIANTS}
+            className="w-full flex flex-col items-center px-2"
+            aria-live="polite"
+          >
+            <motion.div
+              className="text-marvin text-center tracking-wide zz-anchor-greeting uppercase flex flex-col items-center gap-0.5"
+              style={{ color: 'var(--color-yellow)' }}
+              variants={STACCATO_CONTAINER_VARIANTS}
+              initial="hidden"
+              animate="visible"
+            >
+              {zoneGreetingWords.map((w, i) => (
+                <motion.span key={`${w}-${i}`} variants={STACCATO_CHILD_VARIANTS} className="block leading-tight">
+                  {w}
+                </motion.span>
+              ))}
+            </motion.div>
+          </motion.div>
+          <motion.div variants={STACCATO_CHILD_VARIANTS} className="w-[90%] max-w-[400px] relative zone-ask-zai-wrap">
             <input
               type="text"
               placeholder="ASK ZAI..."
               className="zone-ask-zai-pill w-full h-[54px] rounded-full border-none px-8 text-marvin focus:ring-2 focus:ring-[var(--color-yellow)] focus:ring-offset-2 focus:ring-offset-[var(--color-purple)] uppercase caret-[var(--color-purple)]"
-              onKeyDown={(e) => { if (e.key === 'Enter') router.push(ROUTES.ZAI) }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') router.push(ROUTES.ZAI)
+              }}
               onClick={() => router.push(ROUTES.ZAI)}
               aria-label="Ask Zai — tap or press Enter to open chat"
             />
-          </div>
+          </motion.div>
           {sentinelPulseLabel ? (
             <motion.p
               key={sentinelPulseLabel}
               className="zz-body-bold m-0 mt-2 uppercase"
-              initial={{ opacity: 1, scale: 0.94, y: -8, filter: 'blur(4px)' }}
-              animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-              exit={{ opacity: 1, scale: 0.96, y: -6, filter: 'blur(3px)' }}
-              transition={MECHANICAL_SNAP_SPRING}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={STACCATO_TWEEN}
               style={{ color: 'var(--color-yellow)' }}
             >
               {sentinelPulseLabel}
@@ -1372,7 +1429,7 @@ export default function ZonePage() {
               animate: {
                 transition: {
                   staggerChildren: ZONE_GRID_STAGGER_CHILD_DELAY_SEC,
-                  delayChildren: 0.05,
+                  delayChildren: ZONE_GRID_STAGGER_CHILD_DELAY_SEC,
                 },
               },
             }}

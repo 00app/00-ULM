@@ -24,6 +24,20 @@ import {
   formatVerifiedSourceNameFromLabel,
 } from '@/lib/zone/verifiedRevenue'
 
+/** Split Neon `architect_prose` into three Trinity blocks (What / Why / How). */
+function trinityExplanationFromArchitectProse(prose: string | null | undefined): string[] | null {
+  const t = prose?.trim()
+  if (!t) return null
+  const parts = t.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
+  if (parts.length >= 3) return parts.slice(0, 3)
+  return null
+}
+
+export type NeonJourneyResearchRow = {
+  savingGbp: number
+  architectProse: string | null
+}
+
 export interface ZoneHero {
   id: string
   variant: 'card-hero'
@@ -69,7 +83,7 @@ export interface ZoneJourneyCard {
   insightAlert?: boolean
   /** S UPDATE: when true, .text-data can use counting animation on first view */
   fromScraper?: boolean
-  /** Local Living: council-specific tip for OpenClaw (e.g. "Warm Homes Local Grant in [Council]") */
+  /** Local Living: council-specific tip (e.g. "Warm Homes Local Grant in [Council]") */
   localCouncilTip?: string
   /** v1.3: council + local grid intensity for expanded card (punchy Roboto text). */
   localContextBar?: string
@@ -77,7 +91,7 @@ export interface ZoneJourneyCard {
   claimOfferUrl?: string
   /** S Update: Warm Homes / priority eligible → pulsing gold border. */
   isPriorityAlert?: boolean
-  /** True Card: dynamic CTA and follow-up (when card comes from OpenClaw). */
+  /** True Card: dynamic CTA and follow-up (when card comes from discovery pipeline). */
   cta?: { label: string; url: string }
   followUp?: { question: string; options: string[]; targetField: string }
   /** Content Architect (Gemini): verified attribution short name, e.g. GOV.UK */
@@ -502,6 +516,7 @@ export function buildZoneViewModel({
   localData,
   injectedTips,
   marketContext,
+  neonJourneyResearch,
 }: {
   profile?: {
     name?: string
@@ -526,10 +541,12 @@ export function buildZoneViewModel({
       source_url?: string
     }
   }
-  /** OpenClaw / discovery injections — latest card surfaces first in the 3 tip slots. */
+  /** Discovery injections — latest card surfaces first in the 3 tip slots. */
   injectedTips?: ZoneTipCard[]
   /** v41.1 postcode-grounded market context for dynamic audit maths */
   marketContext?: MarketContext
+  /** Neon `research_results`: per-journey `saving_amount_gbp` + `architect_prose` (Trinity when 3 paragraphs). */
+  neonJourneyResearch?: Partial<Record<JourneyId, NeonJourneyResearchRow>>
 }): ZoneViewModel {
   const scrapedWithGrant = scraped
 
@@ -737,7 +754,11 @@ export function buildZoneViewModel({
 
     const baselineTitle = profileDrivenJourneyTitle(journeyKey, profile, journeyAnswers)
     const insightLabel = impact.insightLabel ?? impact.insight ?? undefined
-    const moneyGbp = dynamicJourneyValues[journeyKey].moneyGbp
+    const neon = neonJourneyResearch?.[journeyKey]
+    let moneyGbp = dynamicJourneyValues[journeyKey].moneyGbp
+    if (neon?.savingGbp != null && Number.isFinite(neon.savingGbp) && neon.savingGbp > 0) {
+      moneyGbp = Math.round(neon.savingGbp)
+    }
     const carbonKg = dynamicJourneyValues[journeyKey].carbonKg
     const genomeIncomplete = dynamicJourneyValues[journeyKey].estimatedAudit
     const estimatedAudit = !hasVerifiedNeonMoney || genomeIncomplete
@@ -798,14 +819,16 @@ export function buildZoneViewModel({
       source_name: sourceNameV35,
       source_date: VERIFIED_SOURCE_DATE,
       partner_link,
-      explanation: buildAuditorNarrativeParagraphs({
-            userPostcode: userPostcodeForAudit,
-            sourceName: sourceNameV35,
-            journey: journeyKey,
-            moneyGbp,
-            carbonKg,
-            locality,
-          }),
+      explanation:
+        trinityExplanationFromArchitectProse(neon?.architectProse ?? null) ??
+        buildAuditorNarrativeParagraphs({
+          userPostcode: userPostcodeForAudit,
+          sourceName: sourceNameV35,
+          journey: journeyKey,
+          moneyGbp,
+          carbonKg,
+          locality,
+        }),
       actions: {
         actionType: needsSwitching ? 'switch' : 'learn',
         learnUrl,

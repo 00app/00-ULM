@@ -5,7 +5,7 @@
  */
 const base = (process.argv[2] || process.env.AGENT_TEST_URL || 'http://127.0.0.1:3000').replace(/\/$/, '')
 const authToken =
-  process.env.GATEWAY_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || process.env.CRON_SECRET || ''
+  process.env.GATEWAY_TOKEN || process.env.CRON_SECRET || ''
 
 async function main() {
   const grid = await fetch('https://api.carbonintensity.org.uk/intensity', { signal: AbortSignal.timeout(8000) })

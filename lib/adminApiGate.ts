@@ -3,10 +3,7 @@ import { adminBasicAuthMatches } from '@/lib/adminBasicAuth'
 
 /** Same bearer/env gate as `app/api/admin/pulse/route.ts` — scripts cannot send Basic + Bearer in one header. */
 function gatewayTokenMatches(request: NextRequest): boolean {
-  const expected =
-    process.env.GATEWAY_TOKEN?.trim() ||
-    process.env.OPENCLAW_GATEWAY_TOKEN?.trim() ||
-    process.env.CRON_SECRET?.trim()
+  const expected = process.env.GATEWAY_TOKEN?.trim() || process.env.CRON_SECRET?.trim()
   if (!expected) return false
   const got =
     request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')?.trim() ??

@@ -1,6 +1,6 @@
 /**
- * In-memory store for OpenClaw-injected Zone tip cards.
- * GET /api/zone/injections reads from here; POST /api/openclaw/inject writes.
+ * In-memory store for server-injected Zone tip cards.
+ * GET /api/zone/injections reads from here; POST /api/zone/tips-inject (gateway) appends.
  * For production at scale, replace with DB (e.g. zone_injections table).
  */
 

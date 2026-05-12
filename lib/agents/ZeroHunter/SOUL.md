@@ -34,4 +34,4 @@ Use **`TRUTH_2026_MARCH`** in code: grid **129 g CO₂e/kWh**, April typical cap
 ## 6. Internal Ops
 
 - Sanitize scraped markdown before UI or storage.
-- Use **`GATEWAY_TOKEN`** / **`OPENCLAW_GATEWAY_TOKEN`** for authenticated internal API calls when required.
+- Use **`GATEWAY_TOKEN`** / **`CRON_SECRET`** for authenticated internal API calls when required.

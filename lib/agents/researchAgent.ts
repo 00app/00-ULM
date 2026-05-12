@@ -1,6 +1,5 @@
 /**
- * ZeroResearch agent — Location-triggered UK 2026 data research.
- * Optional gateway at OPENCLAW_GATEWAY_URL when OPENCLAW_GATEWAY_TOKEN is set; else Firecrawl seeds.
+ * ZeroResearch agent — Location-triggered UK 2026 data research (Firecrawl seeds + Gemini).
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
@@ -333,7 +332,7 @@ export async function persistResearchResult(params: {
   agentHeadline?: string | null
   /** Short AI tip for Zone cards; maps to `research_results.architect_prose`. */
   architectProse?: string | null
-  /** Stored in research_results.openclaw_raw_json (legacy column name). */
+  /** Stored in `research_results.research_snapshot` (Hermes / QA metadata JSON). */
   invokePayload?: unknown
   /** When true, skips the Gemini JSON triplet extraction inside persist. */
   skipResearchGeminiExtraction?: boolean
@@ -351,7 +350,7 @@ export async function persistResearchResult(params: {
        ADD COLUMN IF NOT EXISTS locality_context TEXT,
        ADD COLUMN IF NOT EXISTS provider_name TEXT,
        ADD COLUMN IF NOT EXISTS agent_headline TEXT,
-       ADD COLUMN IF NOT EXISTS openclaw_raw_json JSONB,
+       ADD COLUMN IF NOT EXISTS research_snapshot JSONB,
        ADD COLUMN IF NOT EXISTS category TEXT,
        ADD COLUMN IF NOT EXISTS offer_url TEXT,
        ADD COLUMN IF NOT EXISTS saving_amount_gbp NUMERIC(10,2),
@@ -400,6 +399,15 @@ export async function persistResearchResult(params: {
       PRICE_CAP_SOURCE_URL
     const mergedOffer = mergedOfferRaw.slice(0, 2048)
 
+    const explicitHttpSource =
+      typeof params.sourceUrl === 'string' && params.sourceUrl.trim().startsWith('http')
+        ? params.sourceUrl.trim().slice(0, 2048)
+        : null
+    const mergedSourceForDb =
+      explicitHttpSource ??
+      (citationFallback ? citationFallback.slice(0, 2048) : null) ??
+      (mergedOffer.startsWith('http') ? mergedOffer : null)
+
     const savingForDb = mergedSaving ?? null
     const verifiedForDb = savingForDb
 
@@ -414,7 +422,7 @@ export async function persistResearchResult(params: {
          user_id, postcode, profile_snapshot, markdown, citations,
          elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
          deep_link, verified_saving, category, offer_url, saving_amount_gbp, locality_context,
-         provider_name, agent_headline, architect_prose, openclaw_raw_json, created_at
+         provider_name, agent_headline, architect_prose, research_snapshot, created_at
        )
        VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13::numeric, $14, $15, $16, $17, $18::jsonb, NOW())`,
       [
@@ -425,7 +433,7 @@ export async function persistResearchResult(params: {
         JSON.stringify(params.citations),
         params.elecUnitRateGbpPerKwh ?? null,
         params.gasUnitRateGbpPerKwh ?? null,
-        params.sourceUrl ?? null,
+        mergedSourceForDb,
         deepResolved,
         verifiedForDb,
         mergedCategory,
@@ -445,9 +453,35 @@ export async function persistResearchResult(params: {
 
 export { triggerSupplementalResearch }
 
+export function buildWickResearchUserContext(params: {
+  postcode?: string | null
+  profileData?: ResearchProfileData | null
+}): string {
+  const lines: string[] = []
+  const pc = (params.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
+  if (pc) {
+    lines.push(`postcode: ${pc}`)
+    const sector = pc.match(/^[A-Z]{1,2}\d[A-Z\d]?\d?/i)?.[0]?.toUpperCase() ?? pc.slice(0, 4)
+    lines.push(`locality_context (outcode / BN-style seeds): ${sector}`)
+  }
+  const p = params.profileData
+  if (p) {
+    if (p.home_type) lines.push(`home_type: ${p.home_type}`)
+    if (p.household) lines.push(`household: ${p.household}`)
+    if (p.transport_baseline) lines.push(`transport_baseline: ${p.transport_baseline}`)
+    if (p.heating) lines.push(`heating: ${p.heating}`)
+    if (p.employment_status) lines.push(`employment_status: ${p.employment_status}`)
+    const age = typeof p.age_group === 'string' ? p.age_group : null
+    if (age) lines.push(`age_group: ${age}`)
+    const g = typeof p.goal === 'string' ? p.goal : null
+    if (g) lines.push(`goal: ${g}`)
+  }
+  return lines.join('\n')
+}
+
 /**
- * Run ZeroResearch for a location (postcode + optional profileData). Tries gateway first;
- * falls back to local Firecrawl. Persists to Neon when persistToNeon is true.
+ * Run ZeroResearch for a location (postcode + optional profileData). Uses Firecrawl-backed
+ * `runZeroResearch` when supplemental Firecrawl/Gemini persistence did not already run.
  */
 export async function runZeroResearchWithProfile(params: {
   postcode?: string | null
@@ -471,11 +505,12 @@ export async function runZeroResearchWithProfile(params: {
 
   const catNorm = normalizeResearchCategory(params.category)
   const catLine = catNorm ? `\n\nTarget journey category for this research pass: ${catNorm}` : ''
+  const wick = buildWickResearchUserContext({
+    postcode: params.postcode,
+    profileData: params.profileData ?? null,
+  })
   const userContext = [
-    params.userContext ??
-      (params.profileData
-        ? `postcode: ${params.postcode ?? '—'}, home_type: ${params.profileData.home_type ?? '—'}, transport: ${params.profileData.transport_baseline ?? '—'}`
-        : undefined),
+    params.userContext ?? (wick.trim() ? wick : undefined),
     catLine || undefined,
   ]
     .filter(Boolean)
