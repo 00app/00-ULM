@@ -31,6 +31,32 @@ export function stripAuditorFluffParagraph(raw: string): string {
     .trim()
 }
 
+/** Remove What/Why/How / Discovery headings Gemini often echoes in `architect_prose` (UI already shows section labels). */
+export function stripArchitectEmbeddedSectionTitles(block: string): string {
+  let t = stripAuditorFluffParagraph(block.trim())
+  const lines = t.split('\n')
+  while (lines.length > 0) {
+    const L = lines[0]!.trim()
+    if (
+      /^(?:#{1,6}\s*|\*\*\s*)?(?:the\s+)?(?:what|why|how)(?:\s*\([^)]*\))?\s*:?\s*$/i.test(L) ||
+      /^(?:#{1,6}\s*|\*\*\s*)?(?:discovery|the\s+discovery)\s*:?\s*$/i.test(L)
+    ) {
+      lines.shift()
+      continue
+    }
+    break
+  }
+  t = lines.join('\n').trim()
+  t = t
+    .replace(
+      /^(?:#{1,6}\s*|\*\*\s*)?(?:the\s+)?(?:what|why|how)(?:\s*\([^)]*\))?\s*:\s+/i,
+      ''
+    )
+    .trim()
+  t = t.replace(/^(?:discovery|the\s+discovery)\s*:\s+/i, '').trim()
+  return stripAuditorFluffParagraph(t)
+}
+
 function compactAlnumKey(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '')
 }
@@ -272,10 +298,10 @@ export function buildResearchResultsTrueTipBody(params: {
   journeyId: string
 }): string {
   const j = coerceJourneyId(params.journeyId)
-  const raw = params.architectProse.trim()
-  const blocks = raw
+  const rawClean = stripArchitectEmbeddedSectionTitles(params.architectProse.trim())
+  const blocks = rawClean
     .split(/\n\s*\n/)
-    .map((p) => stripAuditorFluffParagraph(p.trim()))
+    .map((p) => stripArchitectEmbeddedSectionTitles(p.trim()))
     .filter(Boolean)
   const m = Math.max(0, Math.round(params.verifiedSavingGbp))
   const c = Math.max(0, Math.round(params.carbonKg))
@@ -287,7 +313,7 @@ export function buildResearchResultsTrueTipBody(params: {
     return [blocks[0]!, blocks[1]!, bridgeSentence(j)].join('\n\n')
   }
   /** Legacy single blob without blank-line breaks: split sentences into three beats for What / Why / How. */
-  const sentences = raw
+  const sentences = rawClean
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
     .filter(Boolean)
@@ -299,7 +325,7 @@ export function buildResearchResultsTrueTipBody(params: {
       '\n\n'
     )
   }
-  const what = blocks[0] ?? raw
+  const what = blocks[0] ?? rawClean
   return [what, whyLine, bridgeSentence(j)].join('\n\n')
 }
 

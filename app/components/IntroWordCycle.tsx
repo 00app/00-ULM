@@ -152,7 +152,8 @@ export default function IntroWordCycle({
     !isMultiline &&
     displayText.replace(/\s/g, '').length > 7
 
-  /** Summary locality: long letter-only token (e.g. Littlehampton) — tighter Marvin clamp + extra fit squeeze. */
+  /** Summary locality: long letter-only token (e.g. Littlehampton) — tighter Marvin clamp + extra fit squeeze.
+   *  Kept independent of Zone bento stagger — `fitToViewportPaddingPx` on `/profile/summary` drives squeeze. */
   const looksLikeLongPlaceToken =
     wrapLongPreservedWords &&
     preserveCase &&

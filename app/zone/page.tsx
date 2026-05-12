@@ -27,12 +27,13 @@ import { ROUTES } from '@/lib/routes'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import {
   ZONE_ANCHOR_VARIANTS,
+  ZONE_BENTO_CELL_VARIANTS,
+  ZONE_GRID_STAGGER_CHILD_DELAY_SEC,
   SPRING_BLOOM,
   SPRING_TAP,
   FADE_IN_UP,
   ZONE_HERO_FROM_SUMMARY,
   ELASTIC_PING,
-  SHIMMER_FOCUS,
   ZIP_OPEN_Z_INITIAL,
   ZIP_OPEN_Z_ANIMATE,
   ZIP_SHUT_Z_EXIT,
@@ -230,7 +231,6 @@ export default function ZonePage() {
     return Number.isFinite(n) ? 9 : 9
   })
   /** v1.7: index of the journey card that just popped in (for spring animation); cleared after animation. */
-  const [popInIndex, setPopInIndex] = useState<number | null>(null)
   /** Discovery Engine: server-stored tip injections (same store as POST /api/openclaw/inject). */
   const [injectedTips, setInjectedTips] = useState<ZoneTipCard[]>([])
   /** Discovery Pulse: patch £/kg on inject cards when economy fingerprint changes. */
@@ -1303,7 +1303,12 @@ export default function ZonePage() {
             className={`groovy-zone-grid mx-auto ${localJustLoaded ? 'zone-grid-local-shiver' : ''}`}
             variants={{
               initial: {},
-              animate: { transition: { staggerChildren: 0.072 } },
+              animate: {
+                transition: {
+                  staggerChildren: ZONE_GRID_STAGGER_CHILD_DELAY_SEC,
+                  delayChildren: 0.05,
+                },
+              },
             }}
             initial="initial"
             animate="animate"
@@ -1336,19 +1341,22 @@ export default function ZonePage() {
                   key={cellKey}
                   layout
                   layoutId={`kinetic-cell-${cellKey}`}
-                  transition={isHidden ? { duration: 0.2 } : ZIP_OPEN_Z_TRANSITION}
-                  variants={{
-                    initial: ZIP_OPEN_Z_INITIAL,
-                    animate: isHidden
-                      ? { scale: 0.9, opacity: 0, z: -100, rotateX: -5 }
-                      : ZIP_OPEN_Z_ANIMATE,
-                  }}
+                  variants={ZONE_BENTO_CELL_VARIANTS}
+                  initial="hidden"
+                  animate={
+                    isHidden
+                      ? 'shrunk'
+                      : cell.type === 'journey' &&
+                          (sentinelPingJourneyKeys[cell.item.journey_key] ||
+                            (sentinel.gridLowPulse && cell.item.journey_key === 'carbon'))
+                        ? 'ping'
+                        : 'visible'
+                  }
                   exit={ZIP_SHUT_Z_EXIT}
                   className={`${spanClass} groovy-cell-radius h-full min-h-0${cell.type === 'hero' ? ' zone-hero-cell' : ''}`.trim() || 'groovy-cell-radius'}
                   style={{
                     willChange: 'transform',
                     pointerEvents: isHidden ? 'none' : 'auto',
-                    transformStyle: 'preserve-3d',
                   }}
                 >
                   {cell.type === 'hero' && (
@@ -1387,13 +1395,9 @@ export default function ZonePage() {
                             </div>
                             <h3 className="card-headline m-0 min-w-0" lang="en">Check out your stats</h3>
                           </div>
-                          <motion.div
+                          <div
                             key={`zone-hero-metrics-${Math.round(heroMoney)}-${Math.round(heroCarbon)}`}
-                            className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 flex-shrink-0 zz-shimmer-focus"
-                            style={{ willChange: 'filter, transform' }}
-                            initial={reduceMotion ? false : SHIMMER_FOCUS.initial}
-                            animate={reduceMotion ? { opacity: 1, filter: 'none', scale: 1 } : SHIMMER_FOCUS.animate}
-                            transition={SHIMMER_FOCUS.transition}
+                            className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 flex-shrink-0"
                           >
                             <div className="data-stack data-stack--tight">
                               <span className="data-label" style={{ color: 'var(--color-yellow)' }}>{ENGINE_UI_LABELS.potentialSavings}</span>
@@ -1419,7 +1423,7 @@ export default function ZonePage() {
                                 )}
                               </span>
                             </div>
-                          </motion.div>
+                          </div>
                         </Link>
                       </div>
                     </motion.div>
@@ -1560,27 +1564,7 @@ export default function ZonePage() {
                     )
                   })()}
                   {cell.type === 'journey' && (
-                    <motion.div
-                      layout
-                      initial={
-                        cell.index === popInIndex
-                          ? ZIP_OPEN_Z_INITIAL
-                          : { scale: 0, rotate: -5, opacity: 0, z: -80, rotateX: 5 }
-                      }
-                      animate={
-                        sentinelPingJourneyKeys[cell.item.journey_key] ||
-                        (sentinel.gridLowPulse && cell.item.journey_key === 'carbon')
-                          ? { opacity: [0, 1], x: [-10, 0], skewX: [10, 0], scale: 1, rotate: 0, z: 0, rotateX: 0 }
-                          : { ...ZIP_OPEN_Z_ANIMATE, rotate: 0, x: 0, skewX: 0 }
-                      }
-                      transition={
-                        cell.index === popInIndex
-                          ? ZIP_OPEN_Z_TRANSITION
-                          : sentinelPingJourneyKeys[cell.item.journey_key] ||
-                              (sentinel.gridLowPulse && cell.item.journey_key === 'carbon')
-                            ? { type: "spring", stiffness: 600, damping: 30 }
-                            : ZIP_OPEN_Z_TRANSITION
-                      }
+                    <div
                       className="w-full h-full min-h-0 flex flex-col"
                       id={`zone-journey-${cell.item.journey_key}`}
                     >
@@ -1732,13 +1716,8 @@ export default function ZonePage() {
                       onJourneyAnswered={() => {
                         setRefreshKey((k) => k + 1)
                         setUnlockedCount((prev) => Math.min(prev + 1, 9))
-                        setPopInIndex(cell.index)
-                        window.setTimeout(() => setPopInIndex(null), 850)
                       }}
                       onSoloEmbedComplete={(jid) => {
-                        const idx = WALL_JOURNEY_ORDER.indexOf(jid)
-                        const nextIdx = idx >= 0 && idx < WALL_JOURNEY_ORDER.length - 1 ? idx + 1 : null
-                        if (nextIdx !== null) setPopInIndex(nextIdx)
                         window.requestAnimationFrame(() => {
                           window.setTimeout(() => {
                             document.getElementById(`zone-journey-${jid}`)?.scrollIntoView({
@@ -1747,14 +1726,11 @@ export default function ZonePage() {
                             })
                           }, 450)
                         })
-                        if (nextIdx !== null) {
-                          window.setTimeout(() => setPopInIndex(null), 800)
-                        }
                       }}
                       onSwipeNextJourney={openNextJourneyFromExpanded}
                       onAdvanceToNextJourneyAfterAnswer={advanceToNextJourneyAfterAnswer}
                     />
-                    </motion.div>
+                    </div>
                   )}
                 </motion.div>
               )

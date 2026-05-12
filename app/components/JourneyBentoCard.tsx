@@ -30,19 +30,15 @@ import { EmbeddedJourneyQuestion } from '@/app/components/EmbeddedJourneyQuestio
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import {
-  SPRING_BLOOM,
   SPRING_TAP,
-  ELASTIC_PING,
-  INTRO_FADE_UP_NO_DELAY,
-  FADE_VARIANTS,
   SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION,
-  soloFocusSlamMotionProps,
   soloFocusShellZipMotionProps,
   ZIP_OPEN_Z_ANIMATE,
   ZIP_OPEN_Z_TRANSITION,
-  SLAM_INTRO_INITIAL,
-  SLAM_INTRO_ANIMATE,
-  SLAM_SPRING,
+  LAYOUT_SPRING,
+  SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC,
+  SOLO_FOCUS_CONTENT_SNAP_INITIAL,
+  SOLO_FOCUS_CONTENT_SNAP_ANIMATE,
   MECHANICAL_SNAP_SPRING,
 } from '@/lib/animations'
 import {
@@ -801,13 +797,12 @@ export function JourneyBentoCard({
                 >
                   {label}
                 </p>
-                <motion.p
+                <p
                   className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left m-0"
                   style={{ color: 'var(--journey-text)' }}
-                  variants={FADE_VARIANTS}
                 >
                   {trueTipParagraphs[i]}
-                </motion.p>
+                </p>
               </div>
             ) : null
           )}
@@ -886,7 +881,7 @@ export function JourneyBentoCard({
             layoutId={currentMorphData ? undefined : `card-${journeyId}`}
             data-journey={displayJourneyId}
             {...(isYellowSurface ? { 'data-sf-yellow-slab': 'true' } : {})}
-            className="expanded-solo-focus view-expanded solo-focus-mobile-expand zz-shimmer-focus"
+            className="expanded-solo-focus view-expanded solo-focus-mobile-expand"
             style={
               {
                 ['--journey-bg' as string]: expandedJourneyBg,
@@ -905,7 +900,7 @@ export function JourneyBentoCard({
                 ? { scale: 0.92, opacity: 1, z: -80, rotateX: -4 }
                 : ZIP_OPEN_Z_ANIMATE
             }
-            transition={isExiting ? MECHANICAL_SNAP_SPRING : ZIP_OPEN_Z_TRANSITION}
+            transition={isExiting ? LAYOUT_SPRING : ZIP_OPEN_Z_TRANSITION}
             onAnimationComplete={() => {
               if (isExiting) {
                 handleCloseComplete()
@@ -921,7 +916,15 @@ export function JourneyBentoCard({
 
         <motion.div ref={bodyScrollRef} className="solo-focus-body-scroll w-full min-w-0">
         <div className="solo-focus-rail w-full min-w-0">
-        <motion.div className="solo-focus-stack flex flex-col items-stretch justify-start w-full min-w-0">
+        <motion.div
+          className="solo-focus-stack flex flex-col items-stretch justify-start w-full min-w-0"
+          initial={reducePagerMotion ? false : SOLO_FOCUS_CONTENT_SNAP_INITIAL}
+          animate={SOLO_FOCUS_CONTENT_SNAP_ANIMATE}
+          transition={{
+            ...MECHANICAL_SNAP_SPRING,
+            delay: reducePagerMotion ? 0 : SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC,
+          }}
+        >
           {/* Hero + metrics + actions */}
             <motion.div
               key={`sf-hero-${morphDeckCursor}-${displayJourneyId}-${String(activeCardId ?? 'base')}`}
@@ -940,7 +943,8 @@ export function JourneyBentoCard({
               >
                 <motion.h3
                   layoutId={`headline-${journeyId}`}
-                  className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3 zz-shimmer-focus"
+                  layout={false}
+                  className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3"
                   style={{
                     fontFamily: 'var(--font-marvin)',
                     fontWeight: 700,
@@ -948,11 +952,7 @@ export function JourneyBentoCard({
                     color: 'var(--journey-text)',
                     margin: 0,
                     padding: 0,
-                    willChange: 'filter, transform',
                   }}
-                  initial={false}
-                  animate={{ opacity: 1, filter: 'none', scale: 1 }}
-                  transition={MECHANICAL_SNAP_SPRING}
                 >
                   {recommendationTitle}
                 </motion.h3>
@@ -968,7 +968,8 @@ export function JourneyBentoCard({
               <>
                 <motion.h3
                   layoutId={`headline-${journeyId}`}
-                  className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3 zz-shimmer-focus"
+                  layout={false}
+                  className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3"
                   style={{
                     fontFamily: 'var(--font-marvin)',
                     fontWeight: 700,
@@ -976,11 +977,7 @@ export function JourneyBentoCard({
                     color: 'var(--journey-text)',
                     margin: 0,
                     padding: 0,
-                    willChange: 'filter, transform',
                   }}
-                  initial={false}
-                  animate={{ opacity: 1, filter: 'none', scale: 1 }}
-                  transition={MECHANICAL_SNAP_SPRING}
                 >
                   {recommendationTitle}
                 </motion.h3>
@@ -1025,19 +1022,17 @@ export function JourneyBentoCard({
                     handleCloseStart()
                   }}
                   whileTap={{ scale: 0.96 }}
-                  initial={{ scale: 0, opacity: 0 }}
+                  initial={false}
                   animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0, opacity: 0 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  transition={SPRING_TAP}
                   style={{ transformOrigin: 'top right' }}
                 >
                   <BackArrowDownLeft size={24} />
                 </motion.button>
                 {(onLike && (activeCardId || cardId)) || onAskZai ? (
-                  <motion.div
+                  <div
                     className="solo-focus-utility-row flex flex-col items-end justify-start shrink-0"
                     style={{ gap: 20 }}
-                    variants={FADE_VARIANTS}
                   >
                     {onLike && (activeCardId || cardId) && (
                       <motion.button
@@ -1115,7 +1110,7 @@ export function JourneyBentoCard({
                         </span>
                       </motion.button>
                     )}
-                  </motion.div>
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -1124,90 +1119,73 @@ export function JourneyBentoCard({
           {/* Question / Result — below hero stack */}
           <motion.div
             className={`solo-focus-shell solo-focus-child solo-focus-loop trinity-to-question flex-shrink-0 w-full flex flex-col items-start view-expanded solo-focus-trap-block${loopZipCollapsing ? ' solo-focus-loop--posting' : ''}`}
-            variants={FADE_VARIANTS}
           >
             <AnimatePresence mode="wait">
               {viewState === 'RESULT' ? (
-                <motion.div
+                <div
                   key={`sf-result-${discoverySnap?.questionId ?? 'q'}-${String(discoverySnap?.answerValue ?? '').slice(0, 24)}-${currentMorphData?.id ?? activeCardId ?? 'base'}`}
-                  {...soloFocusSlamMotionProps(reducePagerMotion, false)}
                   className="flex flex-col items-start w-full gap-10"
                   style={{ gap: 40, transformOrigin: '50% 50%' }}
                 >
                   {journeyId === 'home' ? (
-                    <motion.p
+                    <p
                       className="zz-body-bold solo-focus-copy-width text-left m-0"
                       style={{
                         color: 'var(--journey-text)',
                         fontFamily: 'var(--font-roboto)',
                         fontWeight: 800,
                       }}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
                     >
                       Save £{PRICE_CAP_SAVING_APRIL_1} on 1 April — typical cap {formatZoneCardMoney(PRICE_CAP_MARCH_2026)}/yr →{' '}
                       {formatZoneCardMoney(PRICE_CAP_APRIL_2026)}/yr.
-                    </motion.p>
+                    </p>
                   ) : null}
                   {birthedZoneTitle ? (
-                    <motion.p
+                    <p
                       className="zz-body-bold solo-focus-copy-width text-left m-0"
                       style={{
                         color: 'var(--journey-text)',
                         fontFamily: 'var(--font-marvin)',
                         fontWeight: 700,
                       }}
-                      initial={SLAM_INTRO_INITIAL}
-                      animate={SLAM_INTRO_ANIMATE}
-                      transition={SLAM_SPRING}
                     >
                       {wrapResultSupportingAsterisks(`We found a new win! ${birthedZoneTitle} is now in your Zone.`)}
-                    </motion.p>
+                    </p>
                   ) : null}
                   {gridContext?.cleaner_vs_2025_pct != null ? (
-                    <motion.p
+                    <p
                       className="zz-body-bold solo-focus-copy-width text-left m-0"
                       style={{ color: 'var(--journey-text)', fontFamily: 'var(--font-roboto)', fontWeight: 800 }}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
                     >
                       {wrapResultSupportingAsterisks(
                         `Grid is ${gridContext.cleaner_vs_2025_pct}% cleaner than 2025. Your win just got bigger.`
                       )}
-                    </motion.p>
+                    </p>
                   ) : null}
                   {discovery ? (
                     <>
                       {discoveryWinLine ? (
-                        <motion.p
+                        <p
                           className="zz-body-bold solo-focus-copy-width text-left m-0"
                           style={{
                             color: 'var(--journey-text)',
                             fontFamily: 'var(--font-roboto)',
                             fontWeight: 800,
                           }}
-                          initial={INTRO_FADE_UP_NO_DELAY.initial}
-                          animate={INTRO_FADE_UP_NO_DELAY.animate}
-                          transition={INTRO_FADE_UP_NO_DELAY.transition}
                         >
                           {wrapResultSupportingAsterisks(discoveryWinLine)}
-                        </motion.p>
+                        </p>
                       ) : geminiRecommendationCopy ? (
-                        <motion.p
+                        <p
                           className="zz-body-bold solo-focus-copy-width text-left m-0"
                           style={{
                             color: 'var(--journey-text)',
                             fontFamily: 'var(--font-roboto)',
                             fontWeight: 800,
                           }}
-                          initial={INTRO_FADE_UP_NO_DELAY.initial}
-                          animate={INTRO_FADE_UP_NO_DELAY.animate}
-                          transition={INTRO_FADE_UP_NO_DELAY.transition}
                         >
                           {wrapResultSupportingAsterisks(geminiRecommendationCopy)}
-                        </motion.p>
+                        </p>
                       ) : null}
                       <p
                         className="zz-body-bold solo-focus-copy-width text-left m-0"
@@ -1306,12 +1284,11 @@ export function JourneyBentoCard({
                         {resultCitation.verifiedAt ? ` — ${resultCitation.verifiedAt}` : ''}
                       </p>
                     )}
-                  </motion.div>
+                  </div>
               ) : (
-                <motion.div
+                <div
                   key="solo-focus-question-wrap"
                   className="w-full flex flex-col items-start"
-                  {...soloFocusSlamMotionProps(reducePagerMotion, false)}
                   style={{ transformOrigin: '50% 50%' }}
                 >
                   <EmbeddedJourneyQuestion
@@ -1468,7 +1445,7 @@ export function JourneyBentoCard({
                     }}
                     onSourceCitation={(c) => setResultCitation(c)}
                   />
-                </motion.div>
+                </div>
               )}
             </AnimatePresence>
           </motion.div>
@@ -1529,7 +1506,7 @@ export function JourneyBentoCard({
           ...(isTall && { minHeight: '100%' }),
         }}
         whileTap={{ scale: 0.96, rotate: -0.5 }}
-        transition={{ type: "spring", stiffness: 550, damping: 32, mass: 1 }}
+        transition={LAYOUT_SPRING}
       >
       <div className="flex items-center justify-between w-full shrink-0">
         <span className="card-top-label" style={{ color: textColor }}>
@@ -1543,6 +1520,7 @@ export function JourneyBentoCard({
       </div>
       <motion.h3
         layoutId={`headline-${journeyId}`}
+        layout={false}
         className="card-headline m-0 min-w-0"
         lang="en"
       >

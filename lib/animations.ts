@@ -12,11 +12,12 @@
 // THE TWO SPRINGS (only tuning surfaces)
 // =============================================================================
 
+/** Slightly softer than v1 — closer to intro / profile “fussy” lens rhythm. */
 export const KINETIC_SPRING = {
   type: 'spring' as const,
-  stiffness: 720,
-  damping: 22,
-  mass: 0.78,
+  stiffness: 560,
+  damping: 23,
+  mass: 0.88,
 } as const
 
 export const LAYOUT_SPRING = {
@@ -175,6 +176,54 @@ export const ZONE_ANCHOR_VARIANTS = {
   hidden: { opacity: 1, scale: 0.92, y: 22, filter: 'blur(4px)' },
   visible: { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)', transition: KINETIC_SPRING },
 }
+
+/** ~Profile Q&A cadence (0.15–0.2s) — stagger between Zone bento cells. */
+export const ZONE_GRID_STAGGER_CHILD_DELAY_SEC = 0.175
+
+/**
+ * Zone wall cell — one fussy snap per card (no separate inner text choreography).
+ * `ping` — Sentinel / grid pulse on journey tiles only (caller selects variant).
+ */
+export const ZONE_BENTO_CELL_VARIANTS = {
+  hidden: {
+    opacity: 1,
+    scale: 0.93,
+    filter: 'blur(6px)',
+  },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    filter: 'blur(0px)',
+    transition: KINETIC_SPRING,
+  },
+  shrunk: {
+    opacity: 0,
+    scale: 0.9,
+    filter: 'blur(3px)',
+    transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const },
+  },
+  ping: {
+    opacity: [0, 1],
+    x: [-8, 0],
+    skewX: [8, 0],
+    scale: 1,
+    filter: ['blur(4px)', 'blur(0px)'],
+    transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] as const },
+  },
+}
+
+/** Solo Focus: one fussy content snap after shell zip (delay lets layout finish first). */
+export const SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC = 0.1
+export const SOLO_FOCUS_CONTENT_SNAP_INITIAL = {
+  opacity: 1,
+  scale: 0.985,
+  filter: 'blur(4px)',
+} as const
+export const SOLO_FOCUS_CONTENT_SNAP_ANIMATE = {
+  opacity: 1,
+  scale: 1,
+  filter: 'blur(0px)',
+} as const
 
 /** Solo Focus / bento copy blocks — snap, not opacity mush. */
 export const FADE_VARIANTS = {
