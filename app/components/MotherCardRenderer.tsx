@@ -92,7 +92,7 @@ export function MotherCardRenderer({
                   color: 'var(--color-ink)',
                   border: '1px solid color-mix(in srgb, var(--color-ink) 18%, transparent)',
                 }}
-                aria-label="Verified true data — grounded in Neon research, not a generic estimate"
+                aria-label="True data — a Neon research_results row exists for this category"
               >
                 ✓ True data
               </span>

@@ -25,6 +25,7 @@ import {
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
+import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { EmbeddedJourneyQuestion } from '@/app/components/EmbeddedJourneyQuestion'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
@@ -32,9 +33,6 @@ import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import {
   SPRING_TAP,
   SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION,
-  soloFocusShellZipMotionProps,
-  ZIP_OPEN_Z_ANIMATE,
-  ZIP_OPEN_Z_TRANSITION,
   LAYOUT_SPRING,
   SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC,
   SOLO_FOCUS_CONTENT_SNAP_INITIAL,
@@ -71,6 +69,10 @@ import {
   resolveRevenueCtaLabel,
 } from '@/lib/zone/verifiedRevenue'
 import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
+import {
+  triggerScrapeSyncForCategory,
+  type ResearchCategoryCoverageRow,
+} from '@/lib/researchSyncClient'
 import {
   SOLO_FOCUS_SNAPSHOT_V,
   soloFocusSnapStorageKeys,
@@ -193,8 +195,11 @@ export interface JourneyBentoCardProps {
   verifiedAuditMoneyGbp?: number | null
   verifiedAuditSourceUrl?: string | null
   verifiedAuditCategory?: string | null
-  /** When audit category matches: Neon `research_results.architect_prose` shapes expanded True Tip What/Why/How. */
+  /** Latest `research_results` row per journey category (GET /api/scrape-sync). */
   verifiedArchitectProse?: string | null
+  researchCategoryCoverage?: Record<string, ResearchCategoryCoverageRow> | null
+  /** Zone: optimistic “generating” after answer until refetch shows insight. */
+  insightGenerationPending?: boolean
 }
 
 /** Card text follows industrial surface lock (journeyColors). */
@@ -266,6 +271,8 @@ export function JourneyBentoCard({
   verifiedAuditSourceUrl = null,
   verifiedAuditCategory = null,
   verifiedArchitectProse = null,
+  researchCategoryCoverage = null,
+  insightGenerationPending = false,
 }: JourneyBentoCardProps) {
   const { state } = useApp()
   const profilePostcode = state.profile?.postcode ?? null
@@ -367,6 +374,9 @@ export function JourneyBentoCard({
     verifiedAuditMoneyGbp != null &&
     Number.isFinite(verifiedAuditMoneyGbp) &&
     (verifiedAuditCategory ?? '').trim().toLowerCase() === journeyId
+  /** ✓ True data only when a `research_results` row exists for this journey category (Neon). */
+  const dbVerifiedFromResearchTable =
+    researchCategoryCoverage != null ? researchCategoryCoverage[journeyId] != null : null
   const motherMoneyTargetGbp = verifiedAuditMatchesJourney ? verifiedAuditMoneyGbp : moneyTargetGbp
   const animatedMoneyGbp = useCountUp(motherMoneyTargetGbp, { duration: 520 })
   const animatedCarbonKg = useCountUp(carbonTargetKg, { duration: 520 })
@@ -426,10 +436,27 @@ export function JourneyBentoCard({
     })
     return `/zai?${params.toString()}`
   }
-  const resolvedOfferUrl =
-    verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+  const journeyResearchCov = researchCategoryCoverage?.[journeyId]
+  const covOfferHttp =
+    journeyResearchCov?.latestOfferUrl?.trim().startsWith('http')
+      ? journeyResearchCov.latestOfferUrl.trim()
+      : ''
+  const covSourceHttp =
+    journeyResearchCov?.latestSourceUrl?.trim().startsWith('http')
+      ? journeyResearchCov.latestSourceUrl.trim()
+      : ''
+  /** `/zai` only when `research_results` has no row for this category yet; otherwise wait for source / offer URL. */
+  const allowZaiFallback =
+    researchCategoryCoverage === undefined || researchCategoryCoverage === null
+      ? true
+      : journeyResearchCov == null
+  const httpOfferResolved =
+    covOfferHttp ||
+    covSourceHttp ||
+    (verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
       ? verifiedAuditSourceUrl.trim()
-      : liveDiscoveryUrl || partnerHttp || buildZaiAuditUrl()
+      : liveDiscoveryUrl || partnerHttp || '')
+  const resolvedOfferUrl = httpOfferResolved || (allowZaiFallback ? buildZaiAuditUrl() : '')
 
   const physicalSoloHref = pickPrimaryHttpUrl(resolvedOfferUrl)
   const ctaActionTypeRaw =
@@ -450,7 +477,13 @@ export function JourneyBentoCard({
   ).toUpperCase()
   let sourceName = 'our partners'
   if (resolvedOfferUrl) {
-    try { sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '') } catch {}
+    try {
+      if (resolvedOfferUrl.trim().startsWith('http')) {
+        sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '')
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   useEffect(() => {
@@ -830,7 +863,7 @@ export function JourneyBentoCard({
     const diagnosticUrlJourney =
       verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
         ? verifiedAuditSourceUrl.trim()
-        : pickPrimaryHttpUrl(resolvedOfferUrl) || buildZaiAuditUrl()
+        : pickPrimaryHttpUrl(resolvedOfferUrl) || (allowZaiFallback ? buildZaiAuditUrl() : '')
 
     const discovery =
       discoverySnap != null
@@ -877,8 +910,8 @@ export function JourneyBentoCard({
 
     const expandedOverlay = (
         kineticGrid && (effectiveOpen || isExiting) ? (
-          <motion.div key={`sf-grow-${journeyId}-${cardId ?? 'card'}`} className="solo-focus-grow-layer" initial={false}>
-            <motion.div
+            <motion.div key={`sf-grow-${journeyId}-${cardId ?? 'card'}`} className="solo-focus-grow-layer" initial={false}>
+            <ExpandedCardShell
             layoutId={currentMorphData ? undefined : `card-${journeyId}`}
             data-journey={displayJourneyId}
             {...(isYellowSurface ? { 'data-sf-yellow-slab': 'true' } : {})}
@@ -895,13 +928,8 @@ export function JourneyBentoCard({
                 transformOrigin: '50% 50%',
               } as React.CSSProperties
             }
-            {...soloFocusShellZipMotionProps(reducePagerMotion)}
-            animate={
-              isExiting
-                ? { scale: 0.92, opacity: 1, z: -80, rotateX: -4 }
-                : ZIP_OPEN_Z_ANIMATE
-            }
-            transition={isExiting ? LAYOUT_SPRING : ZIP_OPEN_Z_TRANSITION}
+            reduceMotion={reducePagerMotion}
+            isExiting={isExiting}
             onAnimationComplete={() => {
               if (isExiting) {
                 handleCloseComplete()
@@ -967,6 +995,14 @@ export function JourneyBentoCard({
               </a>
             ) : (
               <>
+                {!physicalSoloHref && researchCategoryCoverage != null && !journeyResearchCov?.insightReady ? (
+                  <p
+                    className="zz-label m-0 opacity-80"
+                    style={{ color: 'var(--journey-text)', letterSpacing: '0.04em' }}
+                  >
+                    Computing…
+                  </p>
+                ) : null}
                 <motion.h3
                   layoutId={`headline-${journeyId}`}
                   layout={false}
@@ -1001,9 +1037,9 @@ export function JourneyBentoCard({
               actionLine={architectActionLine}
               moneyGbp={animatedMoneyGbp}
               carbonKg={animatedCarbonKg}
-              verifiedDataBadge={verifiedAuditMatchesJourney}
+              verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
               impactPulse={impactAnswerPulse}
-              ctaUrl={resolvedOfferUrl?.trim() || buildZaiAuditUrl()}
+              ctaUrl={resolvedOfferUrl?.trim() || (allowZaiFallback ? buildZaiAuditUrl() : '')}
               ctaJourneyId={displayJourneyId as string}
               ctaLabel={journeyCtaLabel}
             />
@@ -1443,6 +1479,17 @@ export function JourneyBentoCard({
                           })
                         }, 220)
                       }
+                      triggerScrapeSyncForCategory({
+                        postcode: profilePostcode,
+                        category: journeyId,
+                        profileData: {
+                          postcode: profilePostcode ?? undefined,
+                          home_type: state.profile?.homeType ?? null,
+                          transport_baseline: state.profile?.transport ?? null,
+                          household: state.profile?.livingSituation ?? null,
+                          employment_status: state.profile?.employmentStatus ?? null,
+                        },
+                      })
                     }}
                     onSourceCitation={(c) => setResultCitation(c)}
                   />
@@ -1473,7 +1520,7 @@ export function JourneyBentoCard({
         </div>
 
         </motion.div>
-      </motion.div>
+      </ExpandedCardShell>
       </motion.div>
       ) : null
     )
@@ -1541,6 +1588,24 @@ export function JourneyBentoCard({
           </span>
         </div>
       </div>
+      {insightGenerationPending ||
+      (researchCategoryCoverage != null && !researchCategoryCoverage[journeyId]?.insightReady) ? (
+        <div className="mt-2 pt-2 shrink-0 border-t border-white/15" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+          <p className="m-0 text-[10px] leading-tight uppercase tracking-wide opacity-75" style={{ color: textColor }}>
+            Computing…
+          </p>
+          <div
+            className="mt-1 h-2 w-full rounded-full overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.12)' }}
+            aria-hidden
+          >
+            <div
+              className="h-full w-1/3 rounded-full animate-pulse"
+              style={{ background: 'rgba(255,255,255,0.35)' }}
+            />
+          </div>
+        </div>
+      ) : null}
     </motion.div>
   )
 }

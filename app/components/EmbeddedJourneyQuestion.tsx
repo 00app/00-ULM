@@ -25,6 +25,7 @@ import {
   SHIMMER_FOCUS,
   INTRO_DECISION_CTA_TRANSITION,
   SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION,
+  SOLO_FOCUS_ZIP_SHUT_SEC,
 } from '@/lib/animations'
 import { injectNewDiscoveryCard } from '@/lib/discoveryInject'
 import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
@@ -220,9 +221,9 @@ const ANSWER_CIRCLE_STYLE = {
 }
 
 const ZIP_SHUTTER_SPRING = {
-  type: 'spring' as const,
-  stiffness: 600,
-  damping: 35,
+  type: 'tween' as const,
+  duration: SOLO_FOCUS_ZIP_SHUT_SEC,
+  ease: [0.33, 1, 0.68, 1] as const,
 }
 
 export function EmbeddedJourneyQuestion({
@@ -420,6 +421,7 @@ export function EmbeddedJourneyQuestion({
 
     const nextPromise = fetch('/api/zone/generate-next', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userContext }),
     })

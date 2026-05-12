@@ -59,6 +59,7 @@ import { ROCK_BY_SLUG, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/
 import { replaceRockSlotAfterLike } from '@/lib/rock/rotation'
 import { useRockVisibleHabits } from '@/lib/rock/useRockVisibleHabits'
 import { useSentinel } from '@/app/hooks/useSentinel'
+import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 import {
   ClientOnly,
   FloatingNav,
@@ -242,6 +243,8 @@ export default function ZonePage() {
   const [rockRefreshKey, setRockRefreshKey] = useState(0)
   /** One-shot hero zoom after profile summary Zip-Shutter → Zone */
   const [heroFromSummaryHandoff, setHeroFromSummaryHandoff] = useState(false)
+  /** Bump so bento `staggerChildren` replays when landing from `/profile/summary` (last staccato word → grid drop). */
+  const [summaryGridStaggerKey, setSummaryGridStaggerKey] = useState(0)
   /** After answering the last question on a journey: contextual line for the next tile we open */
   const [answerHandoffOffer, setAnswerHandoffOffer] = useState<{
     journeyKey: JourneyId
@@ -282,6 +285,11 @@ export default function ZonePage() {
     category?: string | null
     architectProse?: string
   } | null>(null)
+  const [researchCategoryCoverage, setResearchCategoryCoverage] = useState<Record<
+    string,
+    ResearchCategoryCoverageRow
+  > | null>(null)
+  const [insightPendingKeys, setInsightPendingKeys] = useState<Set<string>>(() => new Set())
   const [liveProfilePostcode, setLiveProfilePostcode] = useState<string>(() => {
     if (typeof window === 'undefined') return ''
     return (localStorage.getItem('profile_postcode') ?? '').replace(/\s+/g, '').toUpperCase()
@@ -442,6 +450,7 @@ export default function ZonePage() {
       if (sessionStorage.getItem('zz_summary_to_zone') === '1') {
         sessionStorage.removeItem('zz_summary_to_zone')
         setHeroFromSummaryHandoff(true)
+        setSummaryGridStaggerKey((k) => k + 1)
       }
     } catch {
       //
@@ -635,6 +644,45 @@ export default function ZonePage() {
               }
             : null
         )
+        const rawCov = data?.research_category_coverage
+        if (rawCov && typeof rawCov === 'object' && !Array.isArray(rawCov)) {
+          const next: Record<string, ResearchCategoryCoverageRow> = {}
+          for (const [k, v] of Object.entries(rawCov as Record<string, unknown>)) {
+            const key = k.trim().toLowerCase()
+            if (!key || typeof v !== 'object' || !v) continue
+            const o = v as Record<string, unknown>
+            const ls =
+              typeof o.latestSavingGbp === 'number' && Number.isFinite(o.latestSavingGbp) ? o.latestSavingGbp : null
+            const lv =
+              typeof o.latestVerifiedGbp === 'number' && Number.isFinite(o.latestVerifiedGbp)
+                ? o.latestVerifiedGbp
+                : null
+            const ap =
+              typeof o.architectProse === 'string' && o.architectProse.trim().length > 0
+                ? o.architectProse.trim()
+                : null
+            next[key] = {
+              insightReady: Boolean(o.insightReady),
+              hasOffer: Boolean(o.hasOffer),
+              verified: Boolean(o.verified),
+              latestSavingGbp: ls,
+              latestVerifiedGbp: lv,
+              latestOfferUrl: typeof o.latestOfferUrl === 'string' ? o.latestOfferUrl : null,
+              latestSourceUrl: typeof o.latestSourceUrl === 'string' ? o.latestSourceUrl : null,
+              architectProse: ap,
+            }
+          }
+          setResearchCategoryCoverage(next)
+          setInsightPendingKeys((prev) => {
+            const n = new Set(prev)
+            for (const jid of prev) {
+              if (next[jid]?.insightReady) n.delete(jid)
+            }
+            return n
+          })
+        } else {
+          setResearchCategoryCoverage(null)
+        }
         setLiveResearchData(
           Boolean(data?.source === 'database' || verifiedSaving != null || savingAmountGbp != null || deepLink)
         )
@@ -676,6 +724,7 @@ export default function ZonePage() {
       .catch(() => {
         setLiveResearchData(false)
         setResearchMeta(null)
+        setResearchCategoryCoverage(null)
         setHomeUnitRates(null)
         setRatesSourceUrl(null)
       })
@@ -724,8 +773,11 @@ export default function ZonePage() {
   }, [closeAnySoloFocus, openSoloFocus])
 
   useEffect(() => {
-    const onAnswerCommitted = () => {
-      // Recursive genome loop: force a fast local VM refresh without waiting for full backend pipeline.
+    const onAnswerCommitted = (e: Event) => {
+      const d = (e as CustomEvent<{ journeyId?: string }>).detail
+      if (d?.journeyId) {
+        setInsightPendingKeys((s) => new Set(s).add(String(d.journeyId).toLowerCase()))
+      }
       setVmSyncStamp(Date.now())
       setRefreshKey((k) => k + 1)
     }
@@ -1210,12 +1262,24 @@ export default function ZonePage() {
     () => (viewModel ? sumJourneyGridTotals(viewModel) : { totalMoney: 0, totalCarbon: 0 }),
     [viewModel]
   )
-  const neonVerifiedMoney = useMemo(
-    () =>
+  const neonVerifiedMoney = useMemo(() => {
+    const fromCov =
+      researchCategoryCoverage &&
+      Object.values(researchCategoryCoverage).some(
+        (c) =>
+          (c.latestSavingGbp != null && c.latestSavingGbp > 0) ||
+          (c.latestVerifiedGbp != null && c.latestVerifiedGbp > 0)
+      )
+    return (
+      Boolean(fromCov) ||
       (researchMeta?.verifiedSaving != null && researchMeta.verifiedSaving > 0) ||
-      (researchMeta?.savingAmountGbp != null && researchMeta.savingAmountGbp > 0),
-    [researchMeta?.verifiedSaving, researchMeta?.savingAmountGbp]
-  )
+      (researchMeta?.savingAmountGbp != null && researchMeta.savingAmountGbp > 0)
+    )
+  }, [
+    researchCategoryCoverage,
+    researchMeta?.verifiedSaving,
+    researchMeta?.savingAmountGbp,
+  ])
   const heroMoneyNum = vmJourneyTotals.totalMoney
   const heroCarbonNum = vmJourneyTotals.totalCarbon
   const rockLikedImpact = sumRockLikedImpact(state.likedCards)
@@ -1298,6 +1362,7 @@ export default function ZonePage() {
             <ZeroGateShutter />
           ) : (
           <motion.div
+            key={summaryGridStaggerKey}
             data-testid="zone-grid-mounted"
             data-profile-postcode={profilePostcode ?? ''}
             data-vm-sync={String(vmSyncStamp)}
@@ -1660,21 +1725,44 @@ export default function ZonePage() {
                       verifiedSourceName={cell.item.source_name}
                       verifiedSourceDate={cell.item.source_date}
                       partnerLink={cell.item.partner_link}
-                      verifiedAuditMoneyGbp={
-                        liveResearchData &&
-                        researchMeta?.category === cell.item.journey_key
+                      verifiedAuditMoneyGbp={(() => {
+                        const cov = researchCategoryCoverage?.[cell.item.journey_key]
+                        const cm =
+                          cov?.latestSavingGbp != null && cov.latestSavingGbp > 0
+                            ? cov.latestSavingGbp
+                            : cov?.latestVerifiedGbp != null && cov.latestVerifiedGbp > 0
+                              ? cov.latestVerifiedGbp
+                              : null
+                        if (cm != null) return cm
+                        return liveResearchData && researchMeta?.category === cell.item.journey_key
                           ? researchMeta.savingAmountGbp ?? researchMeta.verifiedSaving ?? null
                           : null
-                      }
-                      verifiedArchitectProse={
-                        liveResearchData && researchMeta?.category === cell.item.journey_key
+                      })()}
+                      verifiedArchitectProse={(() => {
+                        const cov = researchCategoryCoverage?.[cell.item.journey_key]
+                        const p = cov?.architectProse?.trim()
+                        if (p) return p
+                        return liveResearchData && researchMeta?.category === cell.item.journey_key
                           ? researchMeta.architectProse ?? null
                           : null
+                      })()}
+                      verifiedAuditSourceUrl={(() => {
+                        const cov = researchCategoryCoverage?.[cell.item.journey_key]
+                        const offer = cov?.latestOfferUrl?.trim()
+                        if (offer?.startsWith('http')) return offer
+                        const src = cov?.latestSourceUrl?.trim()
+                        if (src?.startsWith('http')) return src
+                        return researchMeta?.auditSourceUrl ?? null
+                      })()}
+                      verifiedAuditCategory={
+                        researchCategoryCoverage?.[cell.item.journey_key]?.verified
+                          ? cell.item.journey_key
+                          : researchMeta?.category ?? null
                       }
-                      verifiedAuditSourceUrl={researchMeta?.auditSourceUrl ?? null}
-                      verifiedAuditCategory={researchMeta?.category ?? null}
                       groovy
                       kineticGrid
+                      researchCategoryCoverage={researchCategoryCoverage}
+                      insightGenerationPending={insightPendingKeys.has(cell.item.journey_key)}
                       isExpanded={expandedCardId === cell.item.id}
                       onExpand={() => {
                         if (!openSoloFocus(cell.item.id, 'journey')) return
@@ -1867,6 +1955,7 @@ export default function ZonePage() {
                 verifiedArchitectProse={tipAuditMatches ? researchMeta?.architectProse ?? null : null}
                 verifiedAuditSourceUrl={researchMeta?.auditSourceUrl ?? null}
                 verifiedAuditCategory={researchMeta?.category ?? null}
+                researchCategoryCoverage={researchCategoryCoverage}
               />
             </AnimatePresence>
           )
@@ -1904,6 +1993,7 @@ export default function ZonePage() {
           researchCategory={researchMeta?.category ?? null}
           hasArchitectProse={Boolean(researchMeta?.architectProse?.trim())}
           hasOfferUrl={Boolean(researchMeta?.offerUrl?.trim())}
+          categoryCoverage={researchCategoryCoverage}
           rightAside={
             <span
               aria-live="polite"

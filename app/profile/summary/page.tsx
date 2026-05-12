@@ -9,29 +9,20 @@ import { BASELINE_2026_CAP_GBP } from '@/lib/brains/calculations'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import type { Persona } from '@/lib/brains/types'
 import {
-  buildSummaryKineticWords,
+  buildSummaryStaccatoWords,
   type ProfileSummaryNarrativeInput,
   type SummaryLocalContext,
 } from '@/lib/brains/summaryLogic'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
-import IntroWordCycle from '@/app/components/IntroWordCycle'
+import SummaryHeader from '@/app/components/SummaryHeader'
 import { syncSessionState } from '@/lib/sessionStateSync'
-import {
-  SLAM_SPRING,
-  SHIMMER_FOCUS,
-  soloFocusSlamMotionProps,
-  SUMMARY_KINETIC_WORD_DWELL_MS,
-  SUMMARY_KINETIC_WORD_GAP_MS,
-} from '@/lib/animations'
+import { SLAM_SPRING, soloFocusSlamMotionProps } from '@/lib/animations'
 
 const REDIRECT_NO_PROFILE_MS = 1800
 /** Slack shown in kinetic + reveal: see `lib/brains/summaryLogic.ts` (same cord as Zone — `buildUserImpact`). */
 const WASTE_FACTOR = 0.22
-/** 40px inset each side on the kinetic line — must match `IntroWordCycle` `fitToViewportPaddingPx`. */
-const SUMMARY_VIEWPORT_PADDING_PX = 40
-const SUMMARY_WORD_SHIMMER_MS = SUMMARY_KINETIC_WORD_DWELL_MS
 const PAGE_EXIT_NAV_MS = 800
 const SESSION_ZONE_HANDOFF = 'zz_summary_to_zone'
 
@@ -276,8 +267,8 @@ export default function ProfileSummaryPage() {
     }
   }, [refreshProfile])
 
-  const kineticWords = useMemo(
-    () => (summaryPack ? buildSummaryKineticWords(summaryPack.narrative) : []),
+  const staccatoWords = useMemo(
+    () => (summaryPack ? buildSummaryStaccatoWords(summaryPack.narrative) : []),
     [summaryPack]
   )
 
@@ -317,10 +308,6 @@ export default function ProfileSummaryPage() {
     }, 1500)
   }
 
-  const summaryWordDurations = useMemo(
-    () => kineticWords.map(() => SUMMARY_WORD_SHIMMER_MS),
-    [kineticWords]
-  )
   if (!summaryPack) {
     return (
       <div
@@ -398,10 +385,9 @@ export default function ProfileSummaryPage() {
                 gap: 40,
                 background: 'transparent',
               }}
-              className="zz-shimmer-focus"
-              initial={phase === 'cycle' ? SHIMMER_FOCUS.initial : false}
-              animate={phase === 'cycle' ? SHIMMER_FOCUS.animate : { opacity: 1, filter: 'none', scale: 1 }}
-              transition={SHIMMER_FOCUS.transition}
+              initial={false}
+              animate={{ opacity: 1, filter: 'none', scale: 1 }}
+              transition={{ duration: 0.2 }}
               exit={{
                 opacity: 0,
                 scale: 0.96,
@@ -410,17 +396,7 @@ export default function ProfileSummaryPage() {
               }}
             >
               <div style={{ position: 'relative', width: '100%', minHeight: 120 }}>
-                <IntroWordCycle
-                  words={kineticWords}
-                  preserveCase
-                  trailingPeriod={false}
-                  lensFocusShimmer
-                  fitToViewportPaddingPx={SUMMARY_VIEWPORT_PADDING_PX}
-                  wrapLongPreservedWords
-                  gapMs={SUMMARY_KINETIC_WORD_GAP_MS}
-                  wordDurations={summaryWordDurations}
-                  onComplete={handleCycleComplete}
-                />
+                <SummaryHeader words={staccatoWords} onComplete={handleCycleComplete} />
               </div>
             </motion.div>
           )}

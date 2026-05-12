@@ -308,8 +308,10 @@ export async function triggerSupplementalResearch(params: {
   region?: string | null
   profileData?: ResearchProfileData | null
   persistToNeon?: boolean
-  /** When set, persists `research_results.user_id` for user-scoped Zone / cron. */
+  /** When set, persists `research_results.category` for user-scoped Zone / cron. */
   userId?: string | null
+  /** Solo Focus / scrape-sync: pin triplet + row to this journey key when persisting. */
+  category?: string | null
 }): Promise<ZeroResearchResult | null> {
   const body = buildInvokePayload(params) as Record<string, unknown>
 
@@ -394,6 +396,7 @@ export async function triggerSupplementalResearch(params: {
       profileData: params.profileData,
       markdown,
       citations,
+      category: params.category ?? null,
       elecUnitRateGbpPerKwh: persistedElec,
       gasUnitRateGbpPerKwh: persistedGas,
       sourceUrl: PRICE_CAP_SOURCE_URL,

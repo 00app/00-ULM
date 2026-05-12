@@ -15,6 +15,7 @@ import { runZeroResearchWithProfile, type ResearchProfileData } from '@/lib/agen
 import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
+import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -27,6 +28,63 @@ interface ScrapedPayloadItem {
   money_value: number
   deep_content_tip?: string
   high_saving?: boolean
+}
+
+async function loadResearchCategoryCoverage(userId: string): Promise<Record<string, ResearchCategoryCoverageRow>> {
+  const out: Record<string, ResearchCategoryCoverageRow> = {}
+  const toNum = (v: unknown): number | null => {
+    if (v == null) return null
+    const n = typeof v === 'number' ? v : Number(v)
+    return Number.isFinite(n) ? n : null
+  }
+  try {
+    const cov = await pool.query<{
+      cat: string
+      architect_prose: string | null
+      offer_url: string | null
+      source_url: string | null
+      saving_amount_gbp: unknown
+      verified_saving: unknown
+    }>(
+      `SELECT DISTINCT ON (lower(trim(rr.category)))
+          lower(trim(rr.category)) AS cat,
+          rr.architect_prose,
+          rr.offer_url,
+          rr.source_url,
+          rr.saving_amount_gbp,
+          rr.verified_saving
+       FROM research_results rr
+       WHERE rr.user_id = $1::uuid AND rr.category IS NOT NULL AND btrim(rr.category) <> ''
+       ORDER BY lower(trim(rr.category)), rr.created_at DESC NULLS LAST`,
+      [userId]
+    )
+    for (const row of cov.rows) {
+      const k = String(row.cat || '').trim().toLowerCase()
+      if (!k) continue
+      const prose = typeof row.architect_prose === 'string' ? row.architect_prose.trim() : ''
+      const offer = typeof row.offer_url === 'string' ? row.offer_url.trim() : ''
+      const src = typeof row.source_url === 'string' ? row.source_url.trim() : ''
+      const sav = toNum(row.saving_amount_gbp)
+      const ver = toNum(row.verified_saving)
+      const hasMoney = (sav != null && sav > 0) || (ver != null && ver > 0)
+      const insightReady = prose.length > 0
+      const hasOffer = offer.startsWith('http')
+      const hasSrc = src.startsWith('http')
+      out[k] = {
+        insightReady,
+        hasOffer,
+        verified: insightReady || hasMoney,
+        latestSavingGbp: sav,
+        latestVerifiedGbp: ver,
+        latestOfferUrl: hasOffer ? offer.slice(0, 2048) : null,
+        latestSourceUrl: hasSrc ? src.slice(0, 2048) : null,
+        architectProse: prose.length > 0 ? prose.slice(0, 4000) : null,
+      }
+    }
+  } catch (err) {
+    console.warn('[scrape-sync] research_category_coverage:', err)
+  }
+  return out
 }
 
 /** GET — Return scraped data for dashboard (buildUserImpact options.scraped). Optional ?postcode= polls OpenClaw for fresh regional data. */
@@ -54,6 +112,8 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getSessionFromRequest().catch(() => null)
     const sessionUserId = session?.userId ?? null
+    const researchCategoryCoverage =
+      sessionUserId != null ? await loadResearchCategoryCoverage(sessionUserId) : undefined
 
     const postcodeRaw = request.nextUrl.searchParams.get('postcode')?.trim() || null
     const postcode = postcodeRaw ? postcodeRaw.replace(/\s+/g, '').toUpperCase() : null
@@ -214,8 +274,25 @@ export async function GET(request: NextRequest) {
       const defaults = fallbackDefaults()
       return NextResponse.json(
         research
-          ? { scraped: defaults, source: 'defaults', research, researchMeta, ...ratesExtra }
-          : { scraped: defaults, source: 'defaults', researchMeta, ...ratesExtra }
+          ? {
+              scraped: defaults,
+              source: 'defaults',
+              research,
+              researchMeta,
+              ...(researchCategoryCoverage !== undefined
+                ? { research_category_coverage: researchCategoryCoverage }
+                : {}),
+              ...ratesExtra,
+            }
+          : {
+              scraped: defaults,
+              source: 'defaults',
+              researchMeta,
+              ...(researchCategoryCoverage !== undefined
+                ? { research_category_coverage: researchCategoryCoverage }
+                : {}),
+              ...ratesExtra,
+            }
       )
     }
 
@@ -229,8 +306,25 @@ export async function GET(request: NextRequest) {
     }))
     return NextResponse.json(
       research
-        ? { scraped, source: 'database', research, researchMeta, ...ratesExtra }
-        : { scraped, source: 'database', researchMeta, ...ratesExtra }
+        ? {
+            scraped,
+            source: 'database',
+            research,
+            researchMeta,
+            ...(researchCategoryCoverage !== undefined
+              ? { research_category_coverage: researchCategoryCoverage }
+              : {}),
+            ...ratesExtra,
+          }
+        : {
+            scraped,
+            source: 'database',
+            researchMeta,
+            ...(researchCategoryCoverage !== undefined
+              ? { research_category_coverage: researchCategoryCoverage }
+              : {}),
+            ...ratesExtra,
+          }
     )
   } catch (e) {
     console.error('[scrape-sync] GET error:', e)
@@ -281,15 +375,47 @@ export async function POST(request: NextRequest) {
 
     // Airlock handshake mode: trigger local research/scrape without requiring crawler payload.
     if (body?.trigger === true) {
-      const postcode = typeof body?.postcode === 'string' ? body.postcode.trim() : ''
+      const postcode = typeof body?.postcode === 'string'
+        ? body.postcode.replace(/\s+/g, '').trim().toUpperCase()
+        : ''
       if (postcode.length < 4) {
         return NextResponse.json({ error: 'postcode required for trigger' }, { status: 400 })
       }
-      const profileData = body?.profileData && typeof body.profileData === 'object' ? body.profileData : undefined
+      const profileData =
+        body?.profileData && typeof body.profileData === 'object' ? (body.profileData as ResearchProfileData) : undefined
+      const categoryRaw = typeof body?.category === 'string' ? body.category.trim().toLowerCase() : ''
+      const category = categoryRaw.length > 0 ? categoryRaw : null
+      const session = await getSessionFromRequest().catch(() => null)
+      const userId = session?.userId ?? null
+      const pd: ResearchProfileData = { ...(profileData ?? {}), postcode }
+      let loopGenomeSummary: string | undefined
+      if (userId) {
+        try {
+          const genome = await getJourneyAnswersForUser(userId)
+          const json = JSON.stringify(genome)
+          if (json.length > 4) {
+            loopGenomeSummary = json.slice(0, 6000)
+            pd.loop_genome_summary = loopGenomeSummary
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      const baseCtx = `postcode: ${postcode}, home_type: ${pd.home_type ?? '—'}, transport: ${pd.transport_baseline ?? '—'}, household: ${pd.household ?? '—'}`
+      let userContext =
+        loopGenomeSummary != null && loopGenomeSummary.length > 0
+          ? `${baseCtx}\n\nUser journey answers (JSON from Neon, truncated): ${loopGenomeSummary}`
+          : baseCtx
+      if (category) {
+        userContext = `${userContext}\n\nSolo Focus scrape-sync category: ${category}`
+      }
       const research = await runZeroResearchWithProfile({
         postcode,
-        profileData,
+        profileData: Object.keys(pd).length > 0 ? pd : undefined,
         persistToNeon: true,
+        userId,
+        userContext,
+        category,
       })
       return NextResponse.json({
         ok: true,

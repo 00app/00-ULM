@@ -233,6 +233,8 @@ export async function POST(request: NextRequest) {
         profileData: profileData as ResearchProfileData | null,
         persistToNeon: true as const,
         userId: user_id,
+        /** Pins `research_results.category` + Gemini What/Why/How triplet to this journey. */
+        category: jKey,
       }
       if (homeJustFinished) {
         await triggerSupplementalResearch(researchPayload)

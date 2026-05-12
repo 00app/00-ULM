@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 import { MECHANICAL_SNAP_SPRING } from '@/lib/animations'
+import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 
 const TICK = '✓'
 const CROSS = '✗'
@@ -73,6 +74,8 @@ export type ZoneIntelligenceStripProps = {
   researchCategory?: string | null
   hasArchitectProse?: boolean
   hasOfferUrl?: boolean
+  /** Logged-in Zone: per-journey `research_results` coverage (GET /api/scrape-sync). */
+  categoryCoverage?: Record<string, ResearchCategoryCoverageRow> | null
   rightAside?: ReactNode
 }
 
@@ -94,6 +97,7 @@ export function ZoneIntelligenceStrip({
   researchCategory,
   hasArchitectProse = false,
   hasOfferUrl = false,
+  categoryCoverage = null,
   rightAside,
 }: ZoneIntelligenceStripProps) {
   const [mounted, setMounted] = useState(false)
@@ -121,14 +125,21 @@ export function ZoneIntelligenceStrip({
   const localOk =
     Boolean((localityLabel ?? '').trim()) ||
     (typeof gridGPerKwh === 'number' && Number.isFinite(gridGPerKwh))
-  const rowOk = hasArchitectProse && hasOfferUrl
+  const covRows = categoryCoverage ? Object.values(categoryCoverage) : []
+  const covInsight = covRows.some((c) => c.insightReady)
+  const covOffer = covRows.some((c) => c.hasOffer)
+  const proseOk = covInsight || hasArchitectProse
+  const offerOk = covOffer || hasOfferUrl
+  const rowOk = proseOk && offerOk
 
   const moneyHint =
     typeof verifiedSaving === 'number' && verifiedSaving > 0
       ? `verified_saving ≈ £${Math.round(verifiedSaving).toLocaleString('en-GB')}`
       : typeof savingAmountGbp === 'number' && savingAmountGbp > 0
         ? `saving_amount_gbp £${Math.round(savingAmountGbp).toLocaleString('en-GB')}`
-        : null
+        : covRows.some((c) => (c.latestSavingGbp ?? 0) > 0 || (c.latestVerifiedGbp ?? 0) > 0)
+          ? 'per-category rows in research_results'
+          : null
 
   if (!mounted || typeof document === 'undefined') return null
   if (suppressOverlay) return null
@@ -154,7 +165,10 @@ export function ZoneIntelligenceStrip({
           detail={dbHealthHint ?? undefined}
         />
         <BulletRow
-          ok={neonVerifiedMoney}
+          ok={
+            neonVerifiedMoney ||
+            covRows.some((c) => (c.latestSavingGbp ?? 0) > 0 || (c.latestVerifiedGbp ?? 0) > 0)
+          }
           title="RESEARCH £ ROW"
           source={
             moneyHint
@@ -172,15 +186,17 @@ export function ZoneIntelligenceStrip({
           }
         />
         <BulletRow
-          ok={hasArchitectProse}
+          ok={proseOk}
           title="ARCHITECT PROSE"
           source={
-            researchCategory
-              ? `research_results.architect_prose · ${researchCategory}`
-              : 'research_results.architect_prose (Solo Focus copy)'
+            categoryCoverage && covInsight
+              ? `research_results.architect_prose · ${covRows.filter((c) => c.insightReady).length} categories`
+              : researchCategory
+                ? `research_results.architect_prose · ${researchCategory}`
+                : 'research_results.architect_prose (Solo Focus copy)'
           }
         />
-        <BulletRow ok={hasOfferUrl} title="OFFER URL" source="research_results.offer_url (CTA handoff)" />
+        <BulletRow ok={offerOk} title="OFFER URL" source="research_results.offer_url (CTA handoff)" />
         <BulletRow ok={rowOk} title="TRUE TIP ROW" source="Prose + link for matched category" />
         {rightAside ? (
           <div

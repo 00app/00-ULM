@@ -83,6 +83,29 @@ export const ZIP_SHUT_Z_EXIT = {
   transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] as const },
 } as const
 
+/** RAMS — expanded Solo Focus shell: zip shut is a quick snap (no spring hang). */
+export const EXPANDED_CARD_CLOSE_TRANSITION = {
+  duration: 0.1,
+  ease: [0.22, 1, 0.36, 1] as const,
+}
+
+/**
+ * RAMS — expanded shell open: intro-reveal cadence (~0.2s ease, no overshoot).
+ * Matches the fixed-duration intro lens (not LAYOUT_SPRING bounce).
+ */
+export const EXPANDED_CARD_OPEN_TRANSITION = {
+  duration: 0.2,
+  ease: [0.22, 1, 0.36, 1] as const,
+}
+
+/** Coordinates used when collapsing the expanded portal (matches prior bespoke exit pose). */
+export const EXPANDED_CARD_EXIT_COORDS = {
+  scale: 0.92,
+  opacity: 1,
+  z: -80,
+  rotateX: -4,
+} as const
+
 /** Props for `motion.div` (AnimatePresence) — Z-axis zip; respects reduced motion. */
 export function soloFocusSlamMotionProps(reduceMotion: boolean, skipInitialSlam: boolean) {
   if (reduceMotion) {
@@ -211,6 +234,9 @@ export const ZONE_BENTO_CELL_VARIANTS = {
     transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] as const },
   },
 }
+
+/** Solo Focus: zip-shut rail collapse — tight 0.1s mechanical snap (answer → result). */
+export const SOLO_FOCUS_ZIP_SHUT_SEC = 0.1
 
 /** Solo Focus: one fussy content snap after shell zip (delay lets layout finish first). */
 export const SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC = 0.1

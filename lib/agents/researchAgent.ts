@@ -215,6 +215,18 @@ function normalizeSavingAmountGbp(n: unknown): number | null {
   return Math.round(v * 100) / 100
 }
 
+/** Enforce What / Why / How as exactly three `\n\n`-separated blocks; reject mashed single-paragraph output. */
+function normalizeArchitectProseThreeParagraphs(ap: string | undefined): string | undefined {
+  if (!ap?.trim()) return undefined
+  const parts = ap
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+  if (parts.length === 3) return parts.join('\n\n')
+  if (parts.length > 3) return parts.slice(0, 3).join('\n\n')
+  return undefined
+}
+
 function parseResearchTripletJson(raw: string): {
   category: string
   saving_amount_gbp: number
@@ -236,11 +248,12 @@ function parseResearchTripletJson(raw: string): {
         ? j.offer_url.trim().slice(0, 2048)
         : ''
     if (!category || saving_amount_gbp == null || !offer_url) return null
-    const ap =
+    const apRaw =
       typeof j.architect_prose === 'string' && j.architect_prose.trim()
         ? j.architect_prose.trim().slice(0, 4000)
         : undefined
-    return { category, saving_amount_gbp, offer_url, architect_prose: ap }
+    const architect_prose = normalizeArchitectProseThreeParagraphs(apRaw)
+    return { category, saving_amount_gbp, offer_url, architect_prose }
   } catch {
     return null
   }
@@ -391,9 +404,9 @@ export async function persistResearchResult(params: {
     const verifiedForDb = savingForDb
 
     const mergedArchitectProse =
-      params.architectProse?.trim() ||
-      geminiTriplet?.architect_prose?.trim() ||
-      params.agentHeadline?.trim() ||
+      normalizeArchitectProseThreeParagraphs(params.architectProse?.trim()) ??
+      normalizeArchitectProseThreeParagraphs(geminiTriplet?.architect_prose?.trim()) ??
+      normalizeArchitectProseThreeParagraphs(params.agentHeadline?.trim()) ??
       null
 
     await pool.query(
@@ -443,6 +456,8 @@ export async function runZeroResearchWithProfile(params: {
   userContext?: string
   persistToNeon?: boolean
   userId?: string | null
+  /** When set, biases Gemini triplet + persist toward this `research_results.category`. */
+  category?: string | null
 }): Promise<ZeroResearchResult> {
   const gatewayResult = await triggerSupplementalResearch({
     postcode: params.postcode,
@@ -450,16 +465,25 @@ export async function runZeroResearchWithProfile(params: {
     profileData: params.profileData,
     persistToNeon: params.persistToNeon,
     userId: params.userId,
+    category: params.category ?? null,
   })
   if (gatewayResult) return gatewayResult
 
-  const userContext = params.userContext ?? (params.profileData
-    ? `postcode: ${params.postcode ?? '—'}, home_type: ${params.profileData.home_type ?? '—'}, transport: ${params.profileData.transport_baseline ?? '—'}`
-    : undefined)
+  const catNorm = normalizeResearchCategory(params.category)
+  const catLine = catNorm ? `\n\nTarget journey category for this research pass: ${catNorm}` : ''
+  const userContext = [
+    params.userContext ??
+      (params.profileData
+        ? `postcode: ${params.postcode ?? '—'}, home_type: ${params.profileData.home_type ?? '—'}, transport: ${params.profileData.transport_baseline ?? '—'}`
+        : undefined),
+    catLine || undefined,
+  ]
+    .filter(Boolean)
+    .join('')
   const result = await runZeroResearch({
     postcode: params.postcode,
     region: params.region,
-    userContext,
+    userContext: userContext.length > 0 ? userContext : undefined,
   })
   if (params.persistToNeon && (result.markdown || result.citations.length > 0)) {
     const parsed = await parseApril2026UnitRatesFromMarkdown(result.markdown)
@@ -470,6 +494,7 @@ export async function runZeroResearchWithProfile(params: {
       profileData: params.profileData,
       markdown: result.markdown,
       citations: result.citations,
+      category: params.category ?? null,
       elecUnitRateGbpPerKwh:
         parsed.electricityGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH / 100,
       gasUnitRateGbpPerKwh: parsed.gasGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.GAS_PER_KWH / 100,

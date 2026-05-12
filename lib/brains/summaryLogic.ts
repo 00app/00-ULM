@@ -182,6 +182,43 @@ export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): s
   ]
 }
 
+/**
+ * Profile summary — **vertical staccato** (`SummaryHeader`): one word per line, tight cadence.
+ * Sequence: Hello → first name → Based on your profile → people in [place…] → waste → £… → and → t CO₂ → per → year.
+ */
+export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): string[] {
+  const area = purgeYourAreaCopy(resolveSummaryAreaLabel(input)).trim()
+  const wasteCash = Math.max(0, Math.round(input.annualWasteCash))
+  const wasteKg = Math.max(0, Math.round(input.annualWasteCarbon))
+  const rawName = (input.displayName ?? '').trim().split(/\s+/)[0] ?? ''
+  const greetName = rawName ? `[${rawName}]` : 'there'
+
+  const out: string[] = ['Hello', greetName, 'Based', 'on', 'your', 'profile', 'people', 'in']
+
+  if (area && area !== 'the UK') {
+    out.push(...area.split(/\s+/).filter(Boolean))
+  } else {
+    out.push('the', 'UK')
+  }
+
+  out.push('waste')
+
+  const gbp =
+    wasteCash >= 1000
+      ? `£${Math.round(wasteCash / 1000)}k`
+      : `£${wasteCash.toLocaleString('en-GB')}`
+  out.push(gbp, 'and')
+
+  const tCo2 = wasteKg / 1000
+  const carbonStr =
+    tCo2 >= 1
+      ? `${tCo2 >= 10 ? Math.round(tCo2) : Number(tCo2.toFixed(1))}t CO2`
+      : `${wasteKg}kg CO2e`
+  out.push(carbonStr, 'per', 'year.')
+
+  return out
+}
+
 /** Final reveal block after Zip-Shutter (headline = Marvin, body = Roboto). */
 export function buildSummaryRevealCopy(input: ProfileSummaryNarrativeInput): {
   headline: string

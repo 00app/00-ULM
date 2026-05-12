@@ -3,7 +3,7 @@
 /**
  * Solo Focus expanded view — same content template as JourneyBentoCard expanded (kinetic grid).
  * Tips use this overlay; journey cards use JourneyBentoCard + shared layoutId where applicable.
- * §18.5: portaled to `document.body`; v1.8.3: QUESTION ↔ RESULT (140ms), source footer, insight/RESULT asterisk lock.
+ * v1.8.3: portaled to `document.body`; QUESTION ↔ RESULT (140ms), source footer, insight/RESULT asterisk lock.
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
@@ -20,7 +20,6 @@ import {
   SPRING_BLOOM,
   SHIMMER_FOCUS,
   soloFocusSlamMotionProps,
-  soloFocusShellZipMotionProps,
   ZIP_OPEN_Z_ANIMATE,
   SLAM_SPRING,
 } from '@/lib/animations'
@@ -65,6 +64,7 @@ import {
   getSystemCtaTextHex,
 } from '@/lib/journeyColors'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
+import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
@@ -78,6 +78,7 @@ import {
   pickFirstHttpUrl,
   resolveRevenueCtaLabel,
 } from '@/lib/zone/verifiedRevenue'
+import { triggerScrapeSyncForCategory, type ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 
 export interface SoloFocusOverlayProps {
   category: string
@@ -119,6 +120,8 @@ export interface SoloFocusOverlayProps {
   verifiedAuditSourceUrl?: string | null
   verifiedAuditCategory?: string | null
   verifiedArchitectProse?: string | null
+  /** Zone: per-journey `research_results` coverage from GET /api/scrape-sync. */
+  researchCategoryCoverage?: Record<string, ResearchCategoryCoverageRow> | null
 }
 
 function triggerHaptic(p: 'light' | 'medium' | 'heavy') {
@@ -171,6 +174,7 @@ export function SoloFocusOverlay({
   verifiedAuditSourceUrl = null,
   verifiedAuditCategory = null,
   verifiedArchitectProse = null,
+  researchCategoryCoverage = null,
 }: SoloFocusOverlayProps) {
   const { setHeroTotals, state, toggleLike } = useApp()
   const profilePostcode = state.profile?.postcode ?? null
@@ -320,8 +324,23 @@ export function SoloFocusOverlay({
     }
   }
   const partnerHttp = pickFirstHttpUrl(partnerLink ?? undefined)
+  const covLookupKey = String(displayJourneyId ?? journeyId ?? '')
+    .trim()
+    .toLowerCase()
+  const journeyResearchCov =
+    covLookupKey && researchCategoryCoverage ? researchCategoryCoverage[covLookupKey] : undefined
+  const covOfferHttp =
+    journeyResearchCov?.latestOfferUrl?.trim().startsWith('http')
+      ? journeyResearchCov.latestOfferUrl.trim()
+      : ''
+  const covSourceHttp =
+    journeyResearchCov?.latestSourceUrl?.trim().startsWith('http')
+      ? journeyResearchCov.latestSourceUrl.trim()
+      : ''
   const liveDiscoveryUrl =
     [
+      covOfferHttp,
+      covSourceHttp,
       liveClaimUrl,
       morphLearnResolved,
       resultCitation?.url,
@@ -346,10 +365,22 @@ export function SoloFocusOverlay({
     })
     return `/zai?${params.toString()}`
   }
-  const resolvedOpenUrl =
+  /** `/zai` only when there is no `research_results` row for this category; otherwise prefer HTTP source / offer. */
+  const allowZaiFallback =
+    researchCategoryCoverage === undefined || researchCategoryCoverage === null
+      ? true
+      : journeyResearchCov == null
+  const httpOpen =
     verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
       ? verifiedAuditSourceUrl.trim()
-      : liveDiscoveryUrl || partnerHttp || buildZaiAuditUrl()
+      : liveDiscoveryUrl || partnerHttp || ''
+  const resolvedOpenUrl = (httpOpen || (allowZaiFallback ? buildZaiAuditUrl() : '')).trim()
+
+  /** ✓ True data only when a `research_results` row exists for this category. */
+  const dbVerifiedFromResearchTable =
+    researchCategoryCoverage != null && covLookupKey
+      ? researchCategoryCoverage[covLookupKey] != null
+      : null
 
   const effectiveTitleRaw = currentMorphData
     ? String(displayTitle || displayRecommendation).trim() || displayRecommendation
@@ -360,7 +391,13 @@ export function SoloFocusOverlay({
   const recommendationTitle = headlineFromTitle(stripExpandedCardTitleNoise(String(effectiveTitleRaw)), MAX_EXPANDED_VIEW_HEADLINE_WORDS).toUpperCase()
   let sourceName = sourceLabel
   if (!sourceName && resolvedOpenUrl) {
-    try { sourceName = new URL(resolvedOpenUrl).hostname.replace('www.', '') } catch {}
+    try {
+      if (resolvedOpenUrl.startsWith('http')) {
+        sourceName = new URL(resolvedOpenUrl).hostname.replace('www.', '')
+      }
+    } catch {
+      /* ignore */
+    }
   }
   sourceName = sourceName || 'our partners'
   const diagnosticProvider = resolveSuppliedByDisplayName({
@@ -376,7 +413,7 @@ export function SoloFocusOverlay({
   const diagnosticUrl =
     verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
       ? verifiedAuditSourceUrl.trim()
-      : pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) || buildZaiAuditUrl()
+      : pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) || (allowZaiFallback ? buildZaiAuditUrl() : '')
   const researchBackedTrueTip =
     verifiedAuditMatchesJourney && verifiedArchitectProse?.trim()
       ? buildResearchResultsTrueTipBody({
@@ -584,7 +621,7 @@ export function SoloFocusOverlay({
   const overlay = (
     <AnimatePresence mode="wait">
       <motion.div key={activeCardId} className="solo-focus-grow-layer" initial={false}>
-      <motion.div
+      <ExpandedCardShell
         className="expanded-solo-focus view-expanded solo-focus-mobile-expand zz-shimmer-focus"
         data-journey={displayJourneyId ?? 'overlay'}
         {...(isZoneMotherChild && isYellowSurface ? { 'data-sf-yellow-slab': 'true' } : {})}
@@ -600,7 +637,8 @@ export function SoloFocusOverlay({
             transformOrigin: '50% 50%',
           } as React.CSSProperties
         }
-        {...soloFocusShellZipMotionProps(reducePagerMotion)}
+        reduceMotion={reducePagerMotion}
+        isExiting={false}
       >
       <PulseExpandedSync providerName={diagnosticProvider} sourceUrl={diagnosticUrl} />
       <motion.div className="solo-focus-body-scroll w-full min-w-0">
@@ -662,6 +700,14 @@ export function SoloFocusOverlay({
                   </motion.a>
                 ) : (
                   <>
+                    {!resolvedOpenUrl.trim() && researchCategoryCoverage != null && !journeyResearchCov?.insightReady ? (
+                      <p
+                        className="zz-label m-0 opacity-80"
+                        style={{ color: 'var(--journey-text)', letterSpacing: '0.04em' }}
+                      >
+                        Computing…
+                      </p>
+                    ) : null}
                     <motion.h3
                       className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3 zz-shimmer-focus"
                       style={{
@@ -697,11 +743,11 @@ export function SoloFocusOverlay({
                   narrative={null}
                   sourceFooter={sourceFooter}
                   verifiedSourceCitation={verifiedOverlayCitation}
-                  verifiedDataBadge={verifiedAuditMatchesJourney}
+                  verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
                   moneyGbp={isGlitchingMoney ? glitchDisplayGbp : animatedMoneyGbp}
                   carbonKg={animatedCarbonKg}
                   impactPulse={impactAnswerPulse}
-                  ctaUrl={resolvedOpenUrl.trim() || buildZaiAuditUrl()}
+                  ctaUrl={resolvedOpenUrl.trim() || (allowZaiFallback ? buildZaiAuditUrl() : '')}
                   ctaJourneyId={journeyId}
                   ctaLabel={effectiveHandoffLabel}
                 />
@@ -1298,6 +1344,19 @@ export function SoloFocusOverlay({
 
                       // 3. Zip-open with the new card instantly
                       setLoopZipCollapsing(false)
+                      if (journeyId) {
+                        triggerScrapeSyncForCategory({
+                          postcode: profilePostcode ?? state.profile?.postcode,
+                          category: journeyId,
+                          profileData: {
+                            postcode: profilePostcode ?? state.profile?.postcode ?? undefined,
+                            home_type: state.profile?.homeType ?? null,
+                            transport_baseline: state.profile?.transport ?? null,
+                            household: state.profile?.livingSituation ?? null,
+                            employment_status: state.profile?.employmentStatus ?? null,
+                          },
+                        })
+                      }
                     }}
                       onSourceCitation={(c) => setResultCitation(c)}
                     />
@@ -1306,6 +1365,7 @@ export function SoloFocusOverlay({
               </AnimatePresence>
             </motion.div>
           ) : null}
+          </motion.div>
           {deck.length > 1 && (
             <div className="solo-focus-pager-rail" aria-label="Card pager" aria-live="polite">
               {deck.map((_, idx) => (
@@ -1322,7 +1382,8 @@ export function SoloFocusOverlay({
             </div>
           )}
           </motion.div>
-        </motion.div>
+          </motion.div>
+        </ExpandedCardShell>
 
       </motion.div>
       {!isZoneMotherChild && (
@@ -1445,8 +1506,6 @@ export function SoloFocusOverlay({
         )}
       </div>
       )}
-      </motion.div>
-      </motion.div>
     </AnimatePresence>
   )
 
