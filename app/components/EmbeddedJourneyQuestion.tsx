@@ -25,6 +25,14 @@ import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
 
 const ANSWER_COMMITTED_EVENT = 'zz_answer_committed'
 
+/** Let the zip-shutter paint before the Zone grid receives the new card (mechanical handoff). */
+function flushLayoutThenInject(card: unknown): void {
+  if (typeof window === 'undefined') return
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => injectNewDiscoveryCard(card))
+  })
+}
+
 /** Outside component so react-hooks/purity does not treat timestamp reads as render-phase impurity. */
 function answerCommitTimestampMs(): number {
   return Date.now()
@@ -486,11 +494,11 @@ export function EmbeddedJourneyQuestion({
 
       const zoneCard = discovery?.new_card_data
       if (zoneCard && typeof zoneCard === 'object' && zoneCard !== null && 'id' in zoneCard && typeof (zoneCard as { id: unknown }).id === 'string') {
-        injectNewDiscoveryCard(zoneCard)
+        flushLayoutThenInject(zoneCard)
       }
       const pulse = data?.grid_pulse_card
       if (pulse && typeof pulse === 'object' && pulse !== null && 'id' in pulse && typeof (pulse as { id: unknown }).id === 'string') {
-        injectNewDiscoveryCard(pulse)
+        flushLayoutThenInject(pulse)
       }
 
       if (typeof window !== 'undefined') {
@@ -673,9 +681,9 @@ export function EmbeddedJourneyQuestion({
       <AnimatePresence mode="wait">
         <motion.div
           key="zip-result"
-          initial={{ height: 0, scaleY: 0, opacity: 0 }}
+          initial={{ height: 0, scaleY: 0, opacity: 1 }}
           animate={{ height: 'auto', scaleY: 1, opacity: 1 }}
-          exit={{ height: 0, scaleY: 0, opacity: 0 }}
+          exit={{ height: 0, scaleY: 0, opacity: 1 }}
           transition={ZIP_SHUTTER_SPRING}
           style={{ width: '100%', transformOrigin: railAlign ? 'left top' : 'center top', overflow: 'hidden' }}
         >
@@ -700,7 +708,7 @@ export function EmbeddedJourneyQuestion({
       initial={{ height: 'auto', scaleY: 1, opacity: 1 }}
       animate={{
         height: isSwishing ? 0 : 'auto',
-        opacity: isSwishing ? 0 : 1,
+        opacity: 1,
         scaleY: isSwishing ? 0 : 1,
         transition: ZIP_SHUTTER_SPRING,
       }}

@@ -40,6 +40,7 @@ import {
   buildResearchResultsTrueTipBody,
   polishTrueTipParagraphsForHeadline,
   stripExpandedCardTitleNoise,
+  TRUE_TIP_SECTION_LABELS,
   toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
 } from '@/lib/soloFocusCopy'
@@ -416,16 +417,27 @@ export function SoloFocusOverlay({
   const trueTipSectionsEl =
     trueTipParagraphs.some((p) => p.trim().length > 0) ? (
       <div className="solo-focus-true-tip-sections flex flex-col gap-4 w-full min-w-0 mt-1">
-        {trueTipParagraphs.map((para, i) =>
-          para.trim() ? (
-            <motion.p
-              key={`true-tip-${i}`}
-              className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left m-0"
-              style={{ color: 'var(--journey-text)' }}
-              variants={FADE_VARIANTS}
-            >
-              {para}
-            </motion.p>
+        {TRUE_TIP_SECTION_LABELS.map((label, i) =>
+          trueTipParagraphs[i]?.trim() ? (
+            <div key={`${label}-${i}`} className="min-w-0">
+              <p
+                className="zz-label m-0 mb-1 text-left uppercase tracking-wide opacity-90"
+                style={{
+                  color: 'var(--journey-text)',
+                  fontSize: 'clamp(10px, 2.6vw, 12px)',
+                  fontFamily: 'var(--font-label)',
+                }}
+              >
+                {label}
+              </p>
+              <motion.p
+                className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left m-0"
+                style={{ color: 'var(--journey-text)' }}
+                variants={FADE_VARIANTS}
+              >
+                {trueTipParagraphs[i]}
+              </motion.p>
+            </div>
           ) : null
         )}
       </div>

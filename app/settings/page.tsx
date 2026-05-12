@@ -9,7 +9,7 @@ import { motion } from 'framer-motion'
 import { JOURNEY_ORDER, JOURNEYS, getFunkyOptionDisplay, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
 import { ENGINE_UI_LABELS } from '@/lib/logic/engine'
-import { SPRING_TAP, SPRING_BLOOM, KINETIC_ZIP_PULSE } from '@/lib/animations'
+import { SPRING_TAP, SPRING_BLOOM, KINETIC_ZIP_PULSE, MECHANICAL_SNAP_SPRING } from '@/lib/animations'
 import { SoloFocusOverlay } from '@/app/components/SoloFocusOverlay'
 import { AnimatePresence } from 'framer-motion'
 import { buildZoneViewModel } from '@/lib/logic/zone'
@@ -328,9 +328,9 @@ export default function SettingsPage() {
           <motion.div
             layout
             className="settings-hero-inner"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
+            initial={{ opacity: 1, scale: 0.94, y: 12, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ ...MECHANICAL_SNAP_SPRING, delay: 0.08 }}
           >
             <SettingsBentoCard label="Overview" headline="TOTAL ANNUAL" isHero>
               <div
@@ -368,23 +368,26 @@ export default function SettingsPage() {
                 key={`profile-${i}`}
                 layout
                 className="settings-card-cell"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.06 }}
+                initial={{ opacity: 1, scale: 0.94, y: 10, filter: 'blur(4px)' }}
+                animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+                transition={{ ...MECHANICAL_SNAP_SPRING, delay: 0.05 + i * 0.04 }}
               >
                 <SettingsBentoCard label={row.question} headline={row.answer} editHref={ROUTES.PROFILE} />
               </motion.div>
             ))}
 
-            {journeyCardsData.map((card) => (
+            {journeyCardsData.map((card, j) => (
               <motion.div
                 key={`journey-${card.journey}`}
                 layout
                 className="settings-card-cell cursor-pointer"
                 onClick={() => setActiveJourneyEdit({ id: card.journey, title: card.title })}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.06 }}
+                initial={{ opacity: 1, scale: 0.94, y: 10, filter: 'blur(4px)' }}
+                animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+                transition={{
+                  ...MECHANICAL_SNAP_SPRING,
+                  delay: 0.05 + (profileRows.length + j) * 0.04,
+                }}
                 whileTap={{ scale: 0.98 }}
               >
                 <div

@@ -112,16 +112,14 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
   return (
     <section className="rock-saving-tips-section w-full text-left pb-16 pt-2 box-border" aria-label="Saving tips">
       <h2
-        className="card-headline zz-h3 m-0 mb-[20px] uppercase tracking-wide text-center w-full px-[20px] lg:px-[40px] box-border"
+        className="zz-anchor-greeting m-0 mb-[20px] text-center w-full px-[20px] lg:px-[40px] box-border tracking-wide"
         style={{
           color: 'var(--color-yellow)',
-          fontFamily: 'var(--font-marvin)',
-          fontWeight: 700,
         }}
       >
         Saving Tips
       </h2>
-      <div className="groovy-zone-grid mx-auto items-start w-full rock-saving-tips-grid">
+      <div className="groovy-zone-grid mx-auto w-full rock-saving-tips-grid">
         {six.map((h) => {
           const tip = habitToTipCard(h)
           const liked = likedCardIds.includes(tip.id)
@@ -172,9 +170,9 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
                   </svg>
                 </span>
               </div>
-              <h2 className="card-headline m-0" lang="en" style={{ color: ROCK_CARD_TEXT }}>
+              <h3 className="card-headline m-0 min-w-0" lang="en">
                 {tipHeadline}
-              </h2>
+              </h3>
               <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0">
                 <div className="data-stack data-stack--tight">
                   <span className="data-label" style={{ color: ROCK_CARD_TEXT }}>
@@ -214,9 +212,9 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
           }}
         >
           <h3
-            className="card-headline zz-h3 m-0 uppercase tracking-wide"
+            className="zz-anchor-greeting m-0 tracking-wide"
             lang="en"
-            style={{ color: ROCK_CARD_TEXT, fontFamily: 'var(--font-marvin)', fontWeight: 700 }}
+            style={{ color: ROCK_CARD_TEXT }}
           >
             Sign up with your mobile
           </h3>

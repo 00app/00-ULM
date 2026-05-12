@@ -27,7 +27,10 @@ import {
 } from '@/lib/animations'
 
 const REDIRECT_NO_PROFILE_MS = 1800
+/** Slack shown in kinetic + reveal: see `lib/brains/summaryLogic.ts` (same cord as Zone — `buildUserImpact`). */
 const WASTE_FACTOR = 0.22
+/** 40px inset each side on the kinetic line — must match `IntroWordCycle` `fitToViewportPaddingPx`. */
+const SUMMARY_VIEWPORT_PADDING_PX = 40
 const SUMMARY_WORD_SHIMMER_MS = INTRO_SHIMMER_WORD_DWELL_MS
 const PAGE_EXIT_NAV_MS = 800
 const SESSION_ZONE_HANDOFF = 'zz_summary_to_zone'
@@ -412,7 +415,7 @@ export default function ProfileSummaryPage() {
                   preserveCase
                   trailingPeriod={false}
                   lensFocusShimmer
-                  fitToViewportPaddingPx={40}
+                  fitToViewportPaddingPx={SUMMARY_VIEWPORT_PADDING_PX}
                   wrapLongPreservedWords
                   gapMs={INTRO_SHIMMER_WORD_GAP_MS}
                   wordDurations={summaryWordDurations}

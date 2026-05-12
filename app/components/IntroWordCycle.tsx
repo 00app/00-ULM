@@ -152,6 +152,15 @@ export default function IntroWordCycle({
     !isMultiline &&
     displayText.replace(/\s/g, '').length > 7
 
+  /** Summary locality: long letter-only token (e.g. Littlehampton) — tighter Marvin clamp + extra fit squeeze. */
+  const looksLikeLongPlaceToken =
+    wrapLongPreservedWords &&
+    preserveCase &&
+    !isMultiline &&
+    !displayText.startsWith('£') &&
+    !/\d/.test(displayText) &&
+    displayText.replace(/[\s'-]/g, '').length > 7
+
   useEffect(() => {
     if (fitToViewportPaddingPx <= 0) {
       setFitScale(1)
@@ -174,14 +183,18 @@ export default function IntroWordCycle({
       let next = Math.min(1, available / needed)
       /** Single long token (>7 chars): extra squeeze so Marvin never kisses the viewport edge */
       if (!isMultiline && displayText.replace(/\s/g, '').length > 7) {
-        next *= 0.94
+        next *= looksLikeLongPlaceToken ? 0.86 : 0.94
+      }
+      /** Two-line locality: keep both lines inside the 40px + 40px gutter */
+      if (isMultiline && wrapLongPreservedWords) {
+        next *= 0.92
       }
       setFitScale(next)
     }
     updateScale()
     window.addEventListener('resize', updateScale)
     return () => window.removeEventListener('resize', updateScale)
-  }, [currentWord, displayText, fitToViewportPaddingPx, isMultiline, useBalancedWrap])
+  }, [currentWord, displayText, fitToViewportPaddingPx, isMultiline, useBalancedWrap, looksLikeLongPlaceToken, wrapLongPreservedWords])
 
   return (
     <div
@@ -224,7 +237,11 @@ export default function IntroWordCycle({
                 ? {
                     fontSize: 'clamp(0.92rem, min(7vw, 8.5vmin), 2.45rem)',
                   }
-                : {}),
+                : looksLikeLongPlaceToken
+                  ? {
+                      fontSize: 'clamp(0.58rem, min(3.6vw + 0.9vmin, 4.8vmin), 1.75rem)',
+                    }
+                  : {}),
               transform: `scale(${fitScale})`,
               transformOrigin: 'center center',
             }}

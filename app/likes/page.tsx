@@ -21,16 +21,37 @@ export default function LikesPage() {
   const { state, toggleLike } = useApp()
   const [actionedIds, setActionedIds] = useState<Set<string>>(new Set())
   const [dbConnected, setDbConnected] = useState(true)
+  const [dbHealthHint, setDbHealthHint] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/health/diagnostics')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!cancelled) setDbConnected(Boolean(d?.neon))
+    fetch('/api/health', { cache: 'no-store' })
+      .then(async (r) => {
+        const body = (await r.json().catch(() => null)) as {
+          status?: string
+          database?: string
+          error?: string
+        } | null
+        if (cancelled) return
+        if (r.ok && body?.status === 'ok' && body?.database === 'connected') {
+          setDbConnected(true)
+          setDbHealthHint(null)
+          return
+        }
+        setDbConnected(false)
+        const hint =
+          r.status === 503
+            ? typeof body?.error === 'string' && body.error.trim()
+              ? body.error.trim()
+              : 'Database unreachable — set DATABASE_URL (Neon) in .env.local or Vercel env.'
+            : `GET /api/health → HTTP ${r.status}`
+        setDbHealthHint(hint)
       })
       .catch(() => {
-        if (!cancelled) setDbConnected(false)
+        if (!cancelled) {
+          setDbConnected(false)
+          setDbHealthHint('Network error calling /api/health')
+        }
       })
     return () => {
       cancelled = true
@@ -123,7 +144,7 @@ export default function LikesPage() {
         background: 'unset',
         color: 'var(--color-yellow)',
         minHeight: '100vh',
-        paddingBottom: 'calc(9.5rem + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))',
       }}
       {...KINETIC_ZIP_PULSE}
     >
@@ -167,7 +188,7 @@ export default function LikesPage() {
                     {journeyKey === 'transport' ? 'TRAVEL' : (journeyKey || 'CARD').replace(/-/g, ' ').toUpperCase()}
                   </span>
                 </div>
-                <h3 className="card-headline m-0" style={{ color: textColor, fontFamily: 'var(--font-marvin)' }}>
+                <h3 className="card-headline m-0 min-w-0" style={{ color: textColor }}>
                   {card.title}
                 </h3>
                 <div className="card-impact-grid grid grid-cols-2 gap-x-4 gap-y-0" style={{ color: textColor }}>
@@ -264,7 +285,7 @@ export default function LikesPage() {
           })}
         </div>
       )}
-      <ZoneIntelligenceStrip variant="likes" dbConnected={dbConnected} />
+      <ZoneIntelligenceStrip variant="likes" dbConnected={dbConnected} dbHealthHint={dbHealthHint} />
     </motion.div>
   )
 }

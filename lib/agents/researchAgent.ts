@@ -186,6 +186,12 @@ export async function runZeroResearch(params: {
   return { markdown, citations }
 }
 
+/**
+ * Intelligence loop — **Architect (Gemini)** on Vercel: raw Firecrawl markdown → structured JSON for Neon.
+ * Output keys align with `research_results`: `category`, `saving_amount_gbp`, `offer_url`, `architect_prose`
+ * (three paragraphs, \\n\\n separated). Carbon kg for Zone cards comes from `buildUserImpact` / scrapes, not
+ * a separate `verified_saving_kg` column on this row (see `verified_saving` / impact pipeline elsewhere).
+ */
 const RESEARCH_TRIPLET_MODEL = 'gemini-2.5-flash-lite'
 const ALLOWED_RESEARCH_CATEGORY = new Set<string>([...JOURNEY_IDS, 'general'])
 
@@ -246,7 +252,7 @@ async function extractResearchTripletWithGemini(
 - "category": one of: ${journeyList} — the single best thematic fit for the main opportunity in the text.
 - "saving_amount_gbp": non-negative number with up to two decimal places — plausible estimated annual GBP saving (use 0 if none inferable).
 - "offer_url": one https URL copied verbatim from the markdown if any appear; otherwise use "${PRICE_CAP_SOURCE_URL}".
-- "architect_prose": one short UK English sentence — the clearest money-saving tip implied by the text (max ~240 characters).
+- "architect_prose": exactly THREE paragraphs of UK English, separated by two newline characters (blank line between each). Voice: specialised auditor — direct, value-first, mostly lowercase where natural (sentence case OK for proper nouns). No filler openers ("did you know", "consider this", "fun fact", "here's the thing"). No bullet labels or markdown inside the prose. Structure: (1) THE WHAT — one sharp local or scheme-specific discovery (punchy, concrete); (2) THE WHY — cold numbers: tie savings to £/yr and CO₂e for a typical household using evidence from the text; (3) THE HOW — one crisp instruction the reader can do this week (aligned to the offer_url theme). Max ~1200 characters total.
 
 Markdown:
 ---
@@ -255,7 +261,7 @@ ${markdown.slice(0, 28_000)}`
     const genAI = new GoogleGenerativeAI(key)
     const model = genAI.getGenerativeModel({
       model: RESEARCH_TRIPLET_MODEL,
-      generationConfig: { maxOutputTokens: 512, temperature: 0.2 },
+      generationConfig: { maxOutputTokens: 1024, temperature: 0.25 },
     })
     const out = await model.generateContent(prompt)
     const text = out.response.text() ?? ''

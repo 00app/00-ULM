@@ -27,10 +27,9 @@ const WORD_EXIT_MS = 150
 
 /**
  * Mechanical sequence (SAVE MONEY CUT CARBON…):
- * v6 — dwell tuned for lens snap + stagger gap between words.
+ * v6 — dwell tuned for lens snap + stagger gap between words. (No leading HELLO — summary pulse owns that beat.)
  */
 const INTRO_KINETIC_WORDS = [
-  'HELLO',
   'SAVE',
   'MONEY',
   'CUT',
@@ -217,7 +216,7 @@ export default function IntroScreen() {
     ? { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const }
     : SHIMMER_FOCUS.transition
 
-  /** ELASTIC_PING family + v6 520/28 tension; scale 0 → 1 (no layout/copy change). */
+  /** CTA circles — same `KINETIC_SPRING` as profile answers (`INTRO_DECISION_CTA_TRANSITION`). */
   const ctaInitial = reduceMotion ? { opacity: 0 } : { scale: 0, opacity: 1 }
   const ctaAnimate = reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }
   const ctaTransitionBase = reduceMotion
@@ -253,7 +252,7 @@ export default function IntroScreen() {
       <div
         style={{ display: 'flex', gap: 40, alignItems: 'center', justifyContent: 'center' }}
       >
-        {/* v6.1: staggered bloom — 400ms / 600ms; same 520/28 spring as profile answers (INTRO_DECISION_CTA_TRANSITION) */}
+        {/* v6.1: staggered bloom; spring = shared kinetic token */}
         <motion.div
           className="zz-shimmer-cta"
           initial={ctaInitial}

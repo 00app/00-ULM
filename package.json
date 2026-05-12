@@ -39,7 +39,8 @@
     "db:test": "tsx scripts/db-test.ts",
     "reset-db": "tsx scripts/reset-schema.ts",
     "clean:cache": "rm -rf .next node_modules/.cache",
-    "db:columns": "tsx scripts/list-research-results-columns.ts"
+    "db:columns": "tsx scripts/list-research-results-columns.ts",
+    "db:log-research": "tsx scripts/log-latest-research-row.ts"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",

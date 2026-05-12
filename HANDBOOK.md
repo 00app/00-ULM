@@ -35,7 +35,7 @@ UK-first web app: **postcode** and **profile** drive local context; **Zone** sho
 |------|--------|--------|
 | Intro | `/`, `/intro` | Glitch logo → `IntroWordCycle` (SAVE → MONEY → …) → **CREATE** (`/profile`) or **SKIP** (`/zone`). `?skip=1` / `?step=message` skips logo. |
 | Profile | `/profile` | Stepped onboarding (`ProfilePageClient`); postcode → `POST /api/local-intelligence`. |
-| Summary | `/profile/summary` | **`IntroWordCycle`** kinetic: **HELLO** → **first name** (`profile.name`) → **locality** (split long tokens / wrap) → optional **grid g/kWh** when local intelligence returns `localCarbonG` → **~£** / **kg CO₂e** slack from **`buildUserImpact`** × waste factor — then navigate to Zone. Copy in **`lib/brains/summaryLogic.ts`** (`buildSummaryKineticWords`, `formatSummaryLocalityKineticToken`). Data: **`POST /api/local-intelligence`** + stored journeys (**`buildUserImpact`**). |
+| Summary | `/profile/summary` | **`IntroWordCycle`** kinetic: **HELLO** → **first name** → **based … in** → **locality** (long placenames scale; 40px gutters) → **waste** → **£** / **kg CO₂e** slack from **`buildUserImpact`** × waste factor → **per** / **year** — then Zone. **`lib/brains/summaryLogic.ts`**. |
 | Zone | `/zone` | Main dashboard; grid from profile + answers + local/research/discovery. |
 | Solo Focus | (overlay) | `JourneyBentoCard` / `SoloFocusOverlay` + `EmbeddedJourneyQuestion`. |
 | Other | `/zai`, `/likes`, `/settings` | Chat, saved cards, reset/session. |
@@ -81,9 +81,9 @@ Read this when tracing **profile summary**, **expanded Solo Focus**, or **resear
 | Piece | Location |
 |-------|-----------|
 | Title cleanup | **`stripExpandedCardTitleNoise`** — strips trailing **(Updated …)** so the H1 does not repeat body dates — **`lib/soloFocusCopy.ts`**; used in **`JourneyBentoCard`**, **`SoloFocusOverlay`** before **`headlineFromTitle`** |
-| Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`** (scraped morph lines + auditor fallback). Gemini triplet extraction asks for **three paragraphs** in **`architect_prose`** (What / Why / How in prose, separated by blank lines). |
+| Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini triplet in **`lib/agents/researchAgent.ts`** asks for **auditor voice**: What / Why / How, direct mostly-lowercase prose, no filler openers. |
 | Layout | **`TRUE_TIP_SECTION_LABELS`** — **The What (The Discovery)** / **The Why (Money & Carbon)** / **The How (Action)** labels above each paragraph in **`JourneyBentoCard`** + **`SoloFocusOverlay`**. |
-| Dedupe | **`polishTrueTipParagraphsForHeadline`** / **`dedupeTrueTipOpeningParagraph`** — if paragraph 1 duplicates the headline, swap for additive copy |
+| Dedupe | **`stripExpandedCardTitleNoise`** (incl. fluff prefixes), **`stripAuditorFluffParagraph`**, **`polishTrueTipParagraphsForHeadline`** / **`dedupeTrueTipOpeningParagraph`** — headline vs first paragraph overlap |
 | Links | **`offer_url`** / **`verifiedAuditSourceUrl`** / **`pickPrimaryHttpUrl`** — **`IndustrialHandoffButton`** uses **Claim / Buy / Get** via **`resolveRevenueCtaLabel`** (`lib/zone/verifiedRevenue.ts`); always passes a URL ( **`offer_url`** or **`/zai`** fallback). |
 
 Full manifest (Hermes, Neon host token, caps): **`docs/INTELLIGENCE-LOOP-MANIFEST.md`**. Verify DB: **`npm run db:log-research`**. |
@@ -178,7 +178,7 @@ Zai = UK energy / savings copilot: direct, lowercase where natural, value-first 
 
 | Path | Role |
 |------|------|
-| `app/components/ZoneIntelligenceStrip.tsx` | Fixed bottom HUD on **Zone** + **Likes**: DB, Neon `research_results` £ row, local grid, `architect_prose` / `offer_url` ticks, full pipeline line (Hermes → cron → scrape-sync → VM). |
+| `app/components/ZoneIntelligenceStrip.tsx` | **Zone** + **Likes**: triangle FAB + `pulse-diagnostic-panel`; **Neon tick** = public `GET /api/health`; on failure, **`dbHealthHint`** explains (no secrets). Dev **`debugHudLine`**. `suppressOverlay` when Solo Focus / tip expanded. |
 | `app/api/*` | Route handlers (answers, zone, zai, sentinel, scrape-sync, cron, …) |
 | `lib/brains/summaryLogic.ts` | Profile summary kinetic + reveal copy |
 | `lib/soloFocusCopy.ts` | Solo Focus headlines, True Tip paragraphs, title strip / polish |

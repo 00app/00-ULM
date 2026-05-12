@@ -37,6 +37,7 @@ import {
   ZIP_OPEN_Z_ANIMATE,
   ZIP_SHUT_Z_EXIT,
   ZIP_OPEN_Z_TRANSITION,
+  MECHANICAL_SNAP_SPRING,
 } from '@/lib/animations'
 
 import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
@@ -250,6 +251,7 @@ export default function ZonePage() {
   const [heroLiveGrounded, setHeroLiveGrounded] = useState(false)
   const [sentinelPulseLabel, setSentinelPulseLabel] = useState<string | null>(null)
   const [dbConnected, setDbConnected] = useState(true)
+  const [dbHealthHint, setDbHealthHint] = useState<string | null>(null)
   const [vmResolved, setVmResolved] = useState(false)
   const [marketContext, setMarketContext] = useState<{
     liveProfilePostcode?: string
@@ -525,16 +527,36 @@ export default function ZonePage() {
     return () => clearTimeout(t)
   }, [localJustLoaded])
 
+  // Public DB ping — `/api/health/diagnostics` is session/gateway-gated and would read as ✗ for signed-out users.
   useEffect(() => {
     let cancelled = false
-    fetch('/api/health/diagnostics')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
+    fetch('/api/health', { cache: 'no-store' })
+      .then(async (r) => {
+        const body = (await r.json().catch(() => null)) as {
+          status?: string
+          database?: string
+          error?: string
+        } | null
         if (cancelled) return
-        setDbConnected(Boolean(d?.neon))
+        if (r.ok && body?.status === 'ok' && body?.database === 'connected') {
+          setDbConnected(true)
+          setDbHealthHint(null)
+          return
+        }
+        setDbConnected(false)
+        const hint =
+          r.status === 503
+            ? typeof body?.error === 'string' && body.error.trim()
+              ? body.error.trim()
+              : 'Database unreachable — set DATABASE_URL (Neon) in .env.local or Vercel env.'
+            : `GET /api/health → HTTP ${r.status}`
+        setDbHealthHint(hint)
       })
       .catch(() => {
-        if (!cancelled) setDbConnected(false)
+        if (!cancelled) {
+          setDbConnected(false)
+          setDbHealthHint('Network error calling /api/health')
+        }
       })
     return () => {
       cancelled = true
@@ -1205,7 +1227,7 @@ export default function ZonePage() {
   return (
     <LayoutGroup>
       <motion.main
-        className="zone relative min-h-screen overflow-x-hidden pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))]"
+        className="zone relative min-h-screen overflow-x-hidden pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]"
         style={{
           background: 'transparent',
           color: 'var(--color-yellow)',
@@ -1215,27 +1237,6 @@ export default function ZonePage() {
         }}
         {...FADE_IN_UP}
       >
-        {isDev ? (
-          <div
-            data-testid="zone-debug-state"
-            style={{
-              position: 'fixed',
-              right: 12,
-              bottom: 12,
-              zIndex: 9999,
-              background: 'rgba(0,0,0,0.68)',
-              color: '#fff',
-              borderRadius: 10,
-              padding: '8px 10px',
-              fontSize: 12,
-              lineHeight: 1.35,
-              fontFamily: 'monospace',
-              pointerEvents: 'none',
-            }}
-          >
-            {`grid:${displayItems.length} | journeys:${viewModel.journeys.length} | tips:${viewModel.tips.length} | focus:${expandedCardId ? 'card' : expandedTipId ? 'tip' : 'none'} | appFocus:${state.soloFocus.activeCardId ? 'on' : 'off'}`}
-          </div>
-        ) : null}
         {/* 1. ZONE ANCHOR (Masthead + Ask Zai) — design system: purple bg, yellow type */}
         <motion.div
           className="zone-anchor flex flex-col items-center pt-0 pb-0"
@@ -1278,10 +1279,10 @@ export default function ZonePage() {
             <motion.p
               key={sentinelPulseLabel}
               className="zz-body-bold m-0 mt-2 uppercase"
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 1, scale: 0.94, y: -8, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 1, scale: 0.96, y: -6, filter: 'blur(3px)' }}
+              transition={MECHANICAL_SNAP_SPRING}
               style={{ color: 'var(--color-yellow)' }}
             >
               {sentinelPulseLabel}
@@ -1302,7 +1303,7 @@ export default function ZonePage() {
             className={`groovy-zone-grid mx-auto ${localJustLoaded ? 'zone-grid-local-shiver' : ''}`}
             variants={{
               initial: {},
-              animate: { transition: { staggerChildren: 0.06 } }
+              animate: { transition: { staggerChildren: 0.072 } },
             }}
             initial="initial"
             animate="animate"
@@ -1343,7 +1344,7 @@ export default function ZonePage() {
                       : ZIP_OPEN_Z_ANIMATE,
                   }}
                   exit={ZIP_SHUT_Z_EXIT}
-                  className={`${spanClass} groovy-cell-radius${cell.type === 'hero' ? ' zone-hero-cell' : ''}`.trim() || 'groovy-cell-radius'}
+                  className={`${spanClass} groovy-cell-radius h-full min-h-0${cell.type === 'hero' ? ' zone-hero-cell' : ''}`.trim() || 'groovy-cell-radius'}
                   style={{
                     willChange: 'transform',
                     pointerEvents: isHidden ? 'none' : 'auto',
@@ -1384,7 +1385,7 @@ export default function ZonePage() {
                                 </svg>
                               </span>
                             </div>
-                            <h2 className="card-headline m-0 min-w-0" lang="en" style={{ color: 'var(--color-yellow)' }}>Check out your stats</h2>
+                            <h3 className="card-headline m-0 min-w-0" lang="en">Check out your stats</h3>
                           </div>
                           <motion.div
                             key={`zone-hero-metrics-${Math.round(heroMoney)}-${Math.round(heroCarbon)}`}
@@ -1480,7 +1481,7 @@ export default function ZonePage() {
                       <motion.button
                         type="button"
                         layout
-                        className={`bento-card-groovy flex flex-col w-full h-full cursor-pointer border-0 text-left${greenPulse ? ' discovery-card-green-pulse' : ''}`}
+                        className={`bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left${greenPulse ? ' discovery-card-green-pulse' : ''}`}
                         style={{
                           backgroundColor: tipBg,
                           color: tipTextColor,
@@ -1520,10 +1521,10 @@ export default function ZonePage() {
                             </svg>
                           </span>
                         </div>
-                        <h2 className="card-headline m-0 min-w-0" lang="en" style={{ color: tipTextColor }}>
+                        <h3 className="card-headline m-0 min-w-0" lang="en">
                           {tipHeadline}
-                        </h2>
-                        <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0">
+                        </h3>
+                        <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
                           <div className="data-stack data-stack--tight">
                             <span className="data-label" style={{ color: tipTextColor }}>{ENGINE_UI_LABELS.potentialSavings}</span>
                             <span
@@ -1580,7 +1581,7 @@ export default function ZonePage() {
                             ? { type: "spring", stiffness: 600, damping: 30 }
                             : ZIP_OPEN_Z_TRANSITION
                       }
-                      className="w-full h-full min-h-0"
+                      className="w-full h-full min-h-0 flex flex-col"
                       id={`zone-journey-${cell.item.journey_key}`}
                     >
                     <JourneyBentoCard
@@ -1908,6 +1909,13 @@ export default function ZonePage() {
         )}
         <ZoneIntelligenceStrip
           variant="zone"
+          suppressOverlay={Boolean(expandedCardId || expandedTipId)}
+          debugHudLine={
+            isDev
+              ? `grid:${displayItems.length} | journeys:${viewModel.journeys.length} | tips:${viewModel.tips.length} | focus:${expandedCardId ? 'card' : expandedTipId ? 'tip' : 'none'} | appFocus:${state.soloFocus.activeCardId ? 'on' : 'off'}`
+              : undefined
+          }
+          dbHealthHint={dbHealthHint}
           dbConnected={dbConnected}
           neonVerifiedMoney={neonVerifiedMoney}
           verifiedSaving={researchMeta?.verifiedSaving}

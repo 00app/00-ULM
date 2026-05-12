@@ -43,7 +43,7 @@ export type RevenueCtaKind = 'swap' | 'grant' | 'reclaim'
 
 export function resolveRevenueCtaLabel(kind: RevenueCtaKind, moneyGbp: number): string {
   void moneyGbp
-  if (kind === 'swap') return 'Compare'
+  if (kind === 'swap') return 'Get'
   if (kind === 'grant') return 'Claim'
   return 'Buy'
 }

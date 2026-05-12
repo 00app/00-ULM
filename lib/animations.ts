@@ -1,21 +1,48 @@
 /**
- * Zero Zero Kinetic Logic — single source of truth.
- * Three core behaviors: Slam (data), Bloom (layout/cards), Tap (CTAs).
+ * Zero Zero — motion contract: **two springs only** (+ reduced-motion linear shortcuts).
+ *
+ * - **KINETIC_SPRING** — taps, snaps, copy swaps, shimmer settle, word beats.
+ * - **LAYOUT_SPRING** — Solo Focus zip, page shells, route presence, broad layout motion.
+ *
+ * Legacy names (`MECHANICAL_SNAP_SPRING`, `ZIP_OPEN_Z_TRANSITION`, `SPRING_TAP`, …) are aliases
+ * so imports stay stable; do not introduce new stiffness/damping families.
  */
 
 // =============================================================================
-// CORE SPRINGS
+// THE TWO SPRINGS (only tuning surfaces)
 // =============================================================================
 
-/** Unified Damped Slam spring — Intro, Onboarding, Solo Focus, Summary word beats */
-export const SLAM_SPRING = { type: 'spring' as const, stiffness: 450, damping: 32, mass: 1 }
+export const KINETIC_SPRING = {
+  type: 'spring' as const,
+  stiffness: 720,
+  damping: 22,
+  mass: 0.78,
+} as const
 
-/** Fluid expansion for cards, layouts, page transitions */
-export const INSTANT_BLOOM = { type: 'spring' as const, stiffness: 550, damping: 32, mass: 1 }
-export const SPRING_BLOOM = INSTANT_BLOOM
+export const LAYOUT_SPRING = {
+  type: 'spring' as const,
+  stiffness: 400,
+  damping: 30,
+  mass: 0.8,
+} as const
+
+/** @alias KINETIC_SPRING */
+export const MECHANICAL_SNAP_SPRING = KINETIC_SPRING
+/** @alias KINETIC_SPRING */
+export const MECHANICAL_SNAP_REPLACEMENT_SPRING = KINETIC_SPRING
+/** @alias KINETIC_SPRING */
+export const SLAM_SPRING = KINETIC_SPRING
+/** @alias KINETIC_SPRING */
+export const SPRING_TAP = KINETIC_SPRING
+/** @alias LAYOUT_SPRING */
+export const INSTANT_BLOOM = LAYOUT_SPRING
+/** @alias LAYOUT_SPRING */
+export const SPRING_BLOOM = LAYOUT_SPRING
+/** @alias KINETIC_SPRING — intro/profile decision circles */
+export const INTRO_DECISION_CTA_SPRING = KINETIC_SPRING
 
 // =============================================================================
-// DAMPED SLAM — Intro · Onboarding · Solo Focus · Summary
+// DAMPED SLAM — scale + opacity (springs above drive timing)
 // =============================================================================
 
 export const DAMPED_SLAM_INITIAL = { scale: 1.08, opacity: 0 }
@@ -27,15 +54,10 @@ export const SLAM_INTRO_ANIMATE = DAMPED_SLAM_ANIMATE
 export const SLAM_INTRO_EXIT = DAMPED_SLAM_EXIT
 
 // =============================================================================
-// v28 — Z-Axis Zip-Open / Zip-Shut (3D lift; pair with perspective on shell)
+// Z-Axis zip-open / zip-shut (3D lift; LAYOUT_SPRING on enter/exit spring paths)
 // =============================================================================
 
-export const ZIP_OPEN_Z_TRANSITION = {
-  type: 'spring' as const,
-  stiffness: 400,
-  damping: 30,
-  mass: 0.8,
-}
+export const ZIP_OPEN_Z_TRANSITION = LAYOUT_SPRING
 
 export const ZIP_OPEN_Z_INITIAL = {
   scale: 0.9,
@@ -51,7 +73,7 @@ export const ZIP_OPEN_Z_ANIMATE = {
   rotateX: 0,
 } as const
 
-/** Exit-only token — duration tween (not spring). */
+/** Exit-only tween (not a third spring family — quick zip shut). */
 export const ZIP_SHUT_Z_EXIT = {
   scale: 0.9,
   opacity: 0,
@@ -104,8 +126,6 @@ export const KINETIC_ZIP_PULSE = {
   transition: ZIP_OPEN_Z_TRANSITION,
 } as const
 
-export const SPRING_TAP = { type: 'spring' as const, stiffness: 620, damping: 24, mass: 0.45 }
-
 // =============================================================================
 // DURATIONS
 // =============================================================================
@@ -113,34 +133,37 @@ export const SPRING_TAP = { type: 'spring' as const, stiffness: 620, damping: 24
 export const KINETIC_WORD_DWELL_MS = 400
 
 // =============================================================================
-// PRESETS
+// PRESETS (both springs resolve to KINETIC_SPRING or LAYOUT_SPRING)
 // =============================================================================
 
+/** Zone main shell — snap assembly (no opacity fade). */
 export const FADE_IN_UP = {
-  initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -12 },
-  transition: SPRING_BLOOM,
+  initial: { opacity: 1, scale: 0.97, y: 20, filter: 'blur(4px)' },
+  animate: { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' },
+  exit: { opacity: 1, scale: 0.98, y: 14, filter: 'blur(3px)', transition: KINETIC_SPRING },
+  transition: KINETIC_SPRING,
 }
 
 export const WORD_APPEAR = {
   initial: DAMPED_SLAM_INITIAL,
   animate: DAMPED_SLAM_ANIMATE,
   exit: DAMPED_SLAM_EXIT,
-  transition: SLAM_SPRING,
+  transition: KINETIC_SPRING,
 }
 
 export const WORD_PULSE_APPEAR = {
-  initial: { opacity: 0, scale: 1.2 },
+  initial: { opacity: 1, scale: 0.85, filter: 'blur(6px)' },
   animate: {
     opacity: 1,
     scale: 1,
-    transition: { type: 'spring' as const, stiffness: 500, damping: 35, mass: 1 },
+    filter: 'blur(0px)',
+    transition: KINETIC_SPRING,
   },
   exit: {
-    opacity: 0,
-    scale: 0.9,
-    transition: { duration: 0.15, ease: [0.22, 1, 0.36, 1] as const },
+    opacity: 1,
+    scale: 0.92,
+    filter: 'blur(5px)',
+    transition: KINETIC_SPRING,
   },
 } as const
 
@@ -149,28 +172,27 @@ export const WORD_PULSE_APPEAR = {
 // =============================================================================
 
 export const ZONE_ANCHOR_VARIANTS = {
-  hidden: { opacity: 0, y: 28 },
-  visible: { opacity: 1, y: 0, transition: SPRING_BLOOM },
+  hidden: { opacity: 1, scale: 0.92, y: 22, filter: 'blur(4px)' },
+  visible: { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)', transition: KINETIC_SPRING },
 }
 
+/** Solo Focus / bento copy blocks — snap, not opacity mush. */
 export const FADE_VARIANTS = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: SPRING_BLOOM },
+  hidden: { opacity: 1, scale: 0.94, y: 6, filter: 'blur(5px)' },
+  visible: { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)', transition: KINETIC_SPRING },
 }
 
 export const ELASTIC_PING = {
-  initial: { scale: 0.95, opacity: 0 },
-  animate: { scale: 1, opacity: 1 },
-  exit: { scale: 0.95, opacity: 0 },
-  transition: { type: 'spring' as const, stiffness: 550, damping: 32, mass: 1 },
+  initial: { scale: 0.9, opacity: 1, filter: 'blur(5px)' },
+  animate: { scale: 1, opacity: 1, filter: 'blur(0px)' },
+  exit: { scale: 0.92, opacity: 1, filter: 'blur(4px)' },
+  transition: KINETIC_SPRING,
 } as const
 
 // =============================================================================
-// v6 — KINETIC SHIMMER (Fussy blur → lens focus) — Intro words + decision headline
-// Pairs with `.zz-shimmer-focus` in globals.css (will-change: filter, transform)
+// Shimmer / intro — kinetic snap only (pairs with `.zz-shimmer-focus` in globals.css)
 // =============================================================================
 
-/** Single preset: blur 20px → sharp, spring 400/30/1 */
 export const SHIMMER_FOCUS = {
   initial: {
     filter: 'blur(20px)',
@@ -182,47 +204,25 @@ export const SHIMMER_FOCUS = {
     opacity: 1,
     scale: 1,
   },
-  transition: {
-    duration: 0.34,
-    ease: [0.22, 1, 0.36, 1] as const,
-  },
+  transition: KINETIC_SPRING,
 } as const
 
 export const SHIMMER_FOCUS_INITIAL = SHIMMER_FOCUS.initial
 export const SHIMMER_FOCUS_ANIMATE = SHIMMER_FOCUS.animate
-export const SHIMMER_FOCUS_SPRING = SHIMMER_FOCUS.transition
+/** @alias KINETIC_SPRING */
+export const SHIMMER_FOCUS_SPRING = KINETIC_SPRING
 
-/** Intro decision CTAs — bloom tension v6 (520 / 28 / 0.55); delays applied in IntroScreen */
-export const INTRO_DECISION_CTA_SPRING = {
-  type: 'spring' as const,
-  stiffness: 520,
-  damping: 28,
-  mass: 0.55,
-}
+/** Profile / intro decision circles — same spring as all kinetic taps. */
+export const INTRO_DECISION_CTA_TRANSITION = KINETIC_SPRING
 
-/**
- * ELASTIC_PING spring family + v6 intro CTA tension (scale 0 → 1 on mount with delay in UI).
- */
-export const INTRO_DECISION_CTA_TRANSITION = {
-  ...ELASTIC_PING.transition,
-  stiffness: 520,
-  damping: 28,
-  mass: 0.55,
-} as const
-
-/** Step / word exit — sharp → blur (profile step change, intro word cycle) */
+/** Step / word exit — sharp → blur */
 export const SHIMMER_FOCUS_EXIT = {
   filter: 'blur(14px)',
   opacity: 0,
   scale: 0.97,
 } as const
 
-export const SHIMMER_FOCUS_EXIT_TRANSITION = {
-  type: 'spring' as const,
-  stiffness: 400,
-  damping: 32,
-  mass: 0.85,
-} as const
+export const SHIMMER_FOCUS_EXIT_TRANSITION = KINETIC_SPRING
 
 /** Dwell while sharp after lens snap (intro kinetic line only) */
 export const INTRO_SHIMMER_WORD_DWELL_MS = 520
@@ -234,14 +234,14 @@ export const INTRO_SHIMMER_WORD_GAP_MS = 120
 export const SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION = 3
 
 export const INTRO_FADE_UP_NO_DELAY = {
-  initial: { opacity: 0, y: 15 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: 10 },
-  transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as const },
+  initial: { opacity: 1, scale: 0.94, y: 12, filter: 'blur(4px)' },
+  animate: { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' },
+  exit: { opacity: 1, scale: 0.96, y: 8, filter: 'blur(3px)' },
+  transition: KINETIC_SPRING,
 }
 
 export const ZONE_HERO_FROM_SUMMARY = {
   initial: DAMPED_SLAM_INITIAL,
   animate: DAMPED_SLAM_ANIMATE,
-  transition: SLAM_SPRING,
+  transition: KINETIC_SPRING,
 }

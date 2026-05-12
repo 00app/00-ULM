@@ -35,7 +35,6 @@ import {
   ELASTIC_PING,
   INTRO_FADE_UP_NO_DELAY,
   FADE_VARIANTS,
-  SHIMMER_FOCUS,
   SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION,
   soloFocusSlamMotionProps,
   soloFocusShellZipMotionProps,
@@ -44,6 +43,7 @@ import {
   SLAM_INTRO_INITIAL,
   SLAM_INTRO_ANIMATE,
   SLAM_SPRING,
+  MECHANICAL_SNAP_SPRING,
 } from '@/lib/animations'
 import {
   PRICE_CAP_APRIL_2026,
@@ -57,6 +57,7 @@ import {
   polishTrueTipParagraphsForHeadline,
   resolveExpandedTrueTipInsight,
   stripExpandedCardTitleNoise,
+  TRUE_TIP_SECTION_LABELS,
   toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
 } from '@/lib/soloFocusCopy'
@@ -787,16 +788,27 @@ export function JourneyBentoCard({
     const trueTipSectionsEl =
       trueTipParagraphs.some((p) => p.trim().length > 0) ? (
         <div className="solo-focus-true-tip-sections flex flex-col gap-4 w-full min-w-0 mt-1">
-          {trueTipParagraphs.map((para, i) =>
-            para.trim() ? (
-              <motion.p
-                key={`true-tip-${i}`}
-                className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left m-0"
-                style={{ color: 'var(--journey-text)' }}
-                variants={FADE_VARIANTS}
-              >
-                {para}
-              </motion.p>
+          {TRUE_TIP_SECTION_LABELS.map((label, i) =>
+            trueTipParagraphs[i]?.trim() ? (
+              <div key={`${label}-${i}`} className="min-w-0">
+                <p
+                  className="zz-label m-0 mb-1 text-left uppercase tracking-wide opacity-90"
+                  style={{
+                    color: 'var(--journey-text)',
+                    fontSize: 'clamp(10px, 2.6vw, 12px)',
+                    fontFamily: 'var(--font-label)',
+                  }}
+                >
+                  {label}
+                </p>
+                <motion.p
+                  className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left m-0"
+                  style={{ color: 'var(--journey-text)' }}
+                  variants={FADE_VARIANTS}
+                >
+                  {trueTipParagraphs[i]}
+                </motion.p>
+              </div>
             ) : null
           )}
         </div>
@@ -890,10 +902,10 @@ export function JourneyBentoCard({
             {...soloFocusShellZipMotionProps(reducePagerMotion)}
             animate={
               isExiting
-                ? { scale: 0.9, opacity: 0, z: -100, rotateX: -5 }
+                ? { scale: 0.92, opacity: 1, z: -80, rotateX: -4 }
                 : ZIP_OPEN_Z_ANIMATE
             }
-            transition={isExiting ? { duration: 0.2 } : ZIP_OPEN_Z_TRANSITION}
+            transition={isExiting ? MECHANICAL_SNAP_SPRING : ZIP_OPEN_Z_TRANSITION}
             onAnimationComplete={() => {
               if (isExiting) {
                 handleCloseComplete()
@@ -917,26 +929,13 @@ export function JourneyBentoCard({
             >
             <div className="solo-focus-expanded-toolbar solo-focus-mother-columns w-full min-w-0">
               <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
-              <div className="flex flex-col gap-2 w-full min-w-0">
-              <motion.div
-                initial={INTRO_FADE_UP_NO_DELAY.initial}
-                animate={INTRO_FADE_UP_NO_DELAY.animate}
-                transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.05 }}
-              >
-            <motion.div
-              key={motherShimmerKey}
-              className="flex flex-col gap-2 w-full min-w-0"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
-            >
+                <div key={motherShimmerKey} className="flex flex-col gap-2 w-full min-w-0">
             {physicalSoloHref ? (
-              <motion.a
+              <a
                 href={physicalSoloHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="solo-focus-insight-bridge w-full min-w-0"
-                variants={FADE_VARIANTS}
                 onClick={() => triggerHaptic('light')}
               >
                 <motion.h3
@@ -951,9 +950,9 @@ export function JourneyBentoCard({
                     padding: 0,
                     willChange: 'filter, transform',
                   }}
-                  initial={reducePagerMotion ? false : SHIMMER_FOCUS.initial}
-                  animate={reducePagerMotion ? { opacity: 1, filter: 'none', scale: 1 } : SHIMMER_FOCUS.animate}
-                  transition={SHIMMER_FOCUS.transition}
+                  initial={false}
+                  animate={{ opacity: 1, filter: 'none', scale: 1 }}
+                  transition={MECHANICAL_SNAP_SPRING}
                 >
                   {recommendationTitle}
                 </motion.h3>
@@ -964,7 +963,7 @@ export function JourneyBentoCard({
                   {auditHeaderLabel}
                 </h5>
                 {trueTipSectionsEl}
-              </motion.a>
+              </a>
             ) : (
               <>
                 <motion.h3
@@ -979,9 +978,9 @@ export function JourneyBentoCard({
                     padding: 0,
                     willChange: 'filter, transform',
                   }}
-                  initial={reducePagerMotion ? false : SHIMMER_FOCUS.initial}
-                  animate={reducePagerMotion ? { opacity: 1, filter: 'none', scale: 1 } : SHIMMER_FOCUS.animate}
-                  transition={SHIMMER_FOCUS.transition}
+                  initial={false}
+                  animate={{ opacity: 1, filter: 'none', scale: 1 }}
+                  transition={MECHANICAL_SNAP_SPRING}
                 >
                   {recommendationTitle}
                 </motion.h3>
@@ -1010,10 +1009,8 @@ export function JourneyBentoCard({
               ctaJourneyId={displayJourneyId as string}
               ctaLabel={journeyCtaLabel}
             />
-            </motion.div>
-            </motion.div>
+                </div>
               </div>
-            </div>
               <div
                 className="solo-focus-utility-strip flex flex-col items-end"
                 style={{ gap: 20 }}
@@ -1523,7 +1520,7 @@ export function JourneyBentoCard({
           triggerHaptic('medium')
           onExpand?.()
         }}
-        className={`bento-card-groovy cursor-pointer w-full h-full ${isTall ? 'span-tall-block' : ''}`.trim()}
+        className={`bento-card-groovy cursor-pointer w-full h-full flex flex-col min-h-0 ${isTall ? 'span-tall-block' : ''}`.trim()}
         style={{
           background: color,
           color: textColor,
@@ -1544,15 +1541,14 @@ export function JourneyBentoCard({
           </svg>
         </span>
       </div>
-      <motion.h2
+      <motion.h3
         layoutId={`headline-${journeyId}`}
-        className="card-headline min-w-0"
+        className="card-headline m-0 min-w-0"
         lang="en"
-        style={{ color: textColor }}
       >
         {headline}
-      </motion.h2>
-      <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0">
+      </motion.h3>
+      <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
         <div className="data-stack data-stack--tight">
           <span className="data-label text-data" style={{ color: textColor }}>SAVE</span>
           <span className="data-value text-data data-stamp-metric" style={{ color: 'var(--color-ink)' }}>

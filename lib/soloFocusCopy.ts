@@ -17,7 +17,18 @@ export function stripExpandedCardTitleNoise(raw: string): string {
   let t = raw.trim()
   t = t.replace(/\s*\([^)]*(?:updated|as at|revised)[^)]*\)\s*$/i, '').trim()
   t = t.replace(/\s*\(\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{1,2},?\s*\d{4}\s*\)\s*$/i, '').trim()
+  t = t.replace(/^(?:did you know\??|consider (?:this|that)\.?\s*|fun fact:?\s*|here'?s (?:the thing|what you need to know):?\s*)/i, '').trim()
   return t
+}
+
+/** Remove cheap engagement openers from auditor / architect paragraphs (prompt hygiene). */
+export function stripAuditorFluffParagraph(raw: string): string {
+  return raw
+    .replace(
+      /^(?:did you know\??|consider (?:this|that)\.?\s*|fun fact:?\s*|here'?s (?:the thing|what you need to know):?\s*)/i,
+      ''
+    )
+    .trim()
 }
 
 function compactAlnumKey(s: string): string {
@@ -29,11 +40,16 @@ function compactAlnumKey(s: string): string {
  */
 export function dedupeTrueTipOpeningParagraph(headline: string, firstParagraph: string): string {
   const h = compactAlnumKey(stripExpandedCardTitleNoise(headline))
-  const firstSentence = firstParagraph.split(/(?<=[.!?])\s+/)[0] ?? firstParagraph
+  const fp0 = stripAuditorFluffParagraph(firstParagraph)
+  const firstSentence = fp0.split(/(?<=[.!?])\s+/)[0] ?? fp0
   const f = compactAlnumKey(firstSentence)
-  if (h.length < 14 || f.length < 14) return firstParagraph
-  const prefixLen = Math.min(28, h.length, f.length)
-  if (h.slice(0, prefixLen) === f.slice(0, prefixLen)) {
+  const fpKey = compactAlnumKey(fp0.slice(0, Math.min(140, fp0.length)))
+  if (h.length < 10 || f.length < 10) return firstParagraph
+  const prefixLen = Math.min(48, h.length, f.length)
+  if (prefixLen >= 10 && h.slice(0, prefixLen) === f.slice(0, prefixLen)) {
+    return `Behind this headline sits a live scheme from your audit trail — the £ and CO₂e figures are pathway estimates tied to your postcode and eligibility signals, not boilerplate.`
+  }
+  if (h.length >= 18 && fpKey.includes(h)) {
     return `Behind this headline sits a live scheme from your audit trail — the £ and CO₂e figures are pathway estimates tied to your postcode and eligibility signals, not boilerplate.`
   }
   return firstParagraph
@@ -259,7 +275,7 @@ export function buildResearchResultsTrueTipBody(params: {
   const raw = params.architectProse.trim()
   const blocks = raw
     .split(/\n\s*\n/)
-    .map((p) => p.trim())
+    .map((p) => stripAuditorFluffParagraph(p.trim()))
     .filter(Boolean)
   const m = Math.max(0, Math.round(params.verifiedSavingGbp))
   const c = Math.max(0, Math.round(params.carbonKg))
@@ -269,6 +285,19 @@ export function buildResearchResultsTrueTipBody(params: {
   }
   if (blocks.length === 2) {
     return [blocks[0]!, blocks[1]!, bridgeSentence(j)].join('\n\n')
+  }
+  /** Legacy single blob without blank-line breaks: split sentences into three beats for What / Why / How. */
+  const sentences = raw
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (sentences.length >= 3) {
+    const n = sentences.length
+    const a = Math.max(1, Math.ceil(n / 3))
+    const b = Math.max(a + 1, Math.ceil((2 * n) / 3))
+    return [sentences.slice(0, a).join(' '), sentences.slice(a, b).join(' '), sentences.slice(b).join(' ')].join(
+      '\n\n'
+    )
   }
   const what = blocks[0] ?? raw
   return [what, whyLine, bridgeSentence(j)].join('\n\n')
@@ -317,6 +346,9 @@ export function resolveExpandedTrueTipInsight(args: {
  * Prefers existing `\n\n` blocks; otherwise groups sentences.
  */
 export function toThreeTrueTipParagraphs(text: string): [string, string, string] {
+  const pack3 = (a: string, b: string, c: string): [string, string, string] =>
+    [stripAuditorFluffParagraph(a), stripAuditorFluffParagraph(b), stripAuditorFluffParagraph(c)]
+
   const t = text.trim()
   if (!t) {
     return ['', '', '']
@@ -326,7 +358,7 @@ export function toThreeTrueTipParagraphs(text: string): [string, string, string]
     .map((p) => p.trim())
     .filter(Boolean)
   if (parts.length >= 3) {
-    return [parts[0]!, parts[1]!, parts[2]!]
+    return pack3(parts[0]!, parts[1]!, parts[2]!)
   }
   const sentences = t
     .split(/(?<=[.!?])\s+/)
@@ -336,25 +368,25 @@ export function toThreeTrueTipParagraphs(text: string): [string, string, string]
     const n = sentences.length
     const a = Math.max(1, Math.ceil(n / 3))
     const b = Math.max(a + 1, Math.ceil((2 * n) / 3))
-    return [
+    return pack3(
       sentences.slice(0, a).join(' '),
       sentences.slice(a, b).join(' '),
-      sentences.slice(b).join(' '),
-    ]
+      sentences.slice(b).join(' ')
+    )
   }
   if (sentences.length === 2) {
-    return [
+    return pack3(
       sentences[0]!,
       sentences[1]!,
-      'Open the verified source link below to complete this action and lock in the saving.',
-    ]
+      'Open the verified source link below to complete this action and lock in the saving.'
+    )
   }
   if (sentences.length === 1) {
-    return [
+    return pack3(
       sentences[0]!,
       `This maps to the £ and kg figures shown — wallet and footprint move together when you act.`,
-      `Use the primary action below to claim the saving or change the behaviour; the source line confirms the live audit trail.`,
-    ]
+      `Use the primary action below to claim the saving or change the behaviour; the source line confirms the live audit trail.`
+    )
   }
-  return [t, t, t]
+  return pack3(t, t, t)
 }

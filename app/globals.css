@@ -923,7 +923,7 @@ input[type='number'] {
   container-type: inline-size;
   container-name: zone-card;
   transition: border-radius 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
-  height: auto;
+  height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -948,8 +948,8 @@ input[type='number'] {
   width: 100%;
   max-width: min(1400px, 100%);
   box-sizing: border-box;
-  /* Start-aligned: avoids tall journey cells (e.g. money) stretching with dead vertical fill */
-  align-items: start;
+  /* Stretch row height so 1×1 journey/tip cards match their neighbour in the same row */
+  align-items: stretch;
   transition:
     grid-template-columns 0.4s cubic-bezier(0.22, 1, 0.36, 1),
     row-gap 0.4s cubic-bezier(0.22, 1, 0.36, 1),
@@ -964,8 +964,8 @@ input[type='number'] {
   max-width: 100%;
   display: flex;
   box-sizing: border-box;
-  height: auto;
-  align-self: start;
+  height: 100%;
+  align-self: stretch;
 }
 
 /* Mobile: one column only. Every card square (1x1). Minimum card size; no overflow. */
@@ -1113,19 +1113,7 @@ body, p, span, input, button, textarea, select,
   padding: 30px !important;
 }
 
-/* Zone cards hug content — avoid grey/yellow dead bands inside rounded shells */
-@media (min-width: 1024px) {
-  .groovy-zone-grid .bento-card-groovy,
-  .groovy-zone-grid .zone-hero-card {
-    height: auto !important;
-    min-height: 0 !important;
-  }
-}
-
-/*
- * Zone wall — headline ↔ metrics rhythm (no space-between “tennis court” gap).
- * Equal-height rows stay; content stacks from the top with fixed gaps so middle doesn’t stretch.
- */
+/* Headline ↔ metrics rhythm (no space-between “tennis court” gap). */
 .groovy-zone-grid .bento-card-groovy,
 .groovy-zone-grid .zone-hero-card,
 .groovy-zone-grid button.bento-card-groovy {
@@ -1133,6 +1121,10 @@ body, p, span, input, button, textarea, select,
   gap: clamp(10px, 2.5cqw, 16px) !important;
 }
 
+/*
+ * Zone wall — `.card-headline` rhythm (hero + journey + tips).
+ * Typography matches `.zone-anchor .zz-anchor-greeting` (same tokens, no separate clamp scale).
+ */
 .groovy-zone-grid .card-headline {
   flex: 0 1 auto !important;
   height: auto !important;
@@ -1140,6 +1132,32 @@ body, p, span, input, button, textarea, select,
   margin-top: 0 !important;
   margin-bottom: 0 !important;
   align-self: stretch;
+  font-family: var(--font-marvin);
+  font-size: var(--zz-h2-mobile);
+  line-height: 0.8;
+  font-weight: bold;
+  letter-spacing: 0.02em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: block !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+}
+
+@media (max-width: 767px) {
+  .groovy-zone-grid .card-headline {
+    font-size: clamp(0.72rem, min(5.2vw, 4.5vmin), 1.55rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .groovy-zone-grid .card-headline {
+    font-size: var(--zz-h2-desktop);
+  }
 }
 
 .groovy-zone-grid .card-impact-grid {
@@ -3652,7 +3670,7 @@ body, p, span, input, button, textarea, select,
 
 /* Non-hero settings cards: smaller headline (H4) so answers don’t ellipsis; wrap to 2–3 lines */
 .settings-bento-card:not(.settings-hero-card) .card-headline,
-.settings-bento-card:not(.settings-hero-card) h2.card-headline {
+.settings-bento-card:not(.settings-hero-card) h3.card-headline {
   font-size: var(--zz-h4-mobile);
   line-height: 0.8;
   white-space: normal;
@@ -3664,7 +3682,7 @@ body, p, span, input, button, textarea, select,
 }
 @media (min-width: 1024px) {
   .settings-bento-card:not(.settings-hero-card) .card-headline,
-  .settings-bento-card:not(.settings-hero-card) h2.card-headline {
+  .settings-bento-card:not(.settings-hero-card) h3.card-headline {
     font-size: var(--zz-h4-desktop);
   }
 }
@@ -6139,25 +6157,43 @@ select,
   margin: 0;
 }
 
-/* Zone greeting — H2, 85% line-height, horizontal margin for breathing room */
-.zone-anchor .zz-anchor-greeting,
-.zone-anchor h3.zz-anchor-greeting {
+/* Greeting-scale Marvin: works under `.zone-anchor` or standalone (e.g. Rock tips masthead). */
+.zz-anchor-greeting {
   font-family: var(--font-marvin);
   font-size: var(--zz-h2-mobile);
   line-height: 0.8;
   font-weight: bold;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+@media (max-width: 767px) {
+  .zz-anchor-greeting {
+    font-size: clamp(0.72rem, min(5.2vw, 4.5vmin), 1.55rem);
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+  }
+}
+@media (min-width: 1024px) {
+  .zz-anchor-greeting {
+    font-size: var(--zz-h2-desktop);
+  }
+}
+
+/* Zone greeting — horizontal margin for breathing room (typography from `.zz-anchor-greeting` above). */
+.zone-anchor .zz-anchor-greeting,
+.zone-anchor h3.zz-anchor-greeting {
   vertical-align: top;
   margin-left: 24px;
   margin-right: 24px;
   margin-top: 0;
   margin-bottom: 0;
 }
-@media (min-width: 1024px) {
+@media (max-width: 767px) {
   .zone-anchor .zz-anchor-greeting,
   .zone-anchor h3.zz-anchor-greeting {
-    font-size: var(--zz-h2-desktop);
+    margin-left: 16px;
+    margin-right: 16px;
+    max-width: calc(100vw - 32px);
   }
 }
 
@@ -6206,7 +6242,7 @@ select,
   gap: 1rem;
 }
 
-/* Zone grid: profile card matches row height (neighbour tile sets row track; grid uses align-items:start elsewhere). */
+/* Zone grid: profile card matches row height (neighbour tile sets row track). */
 .groovy-zone-grid > .zone-hero-cell {
   align-self: stretch;
 }
@@ -6919,19 +6955,13 @@ body {
 
 /* ==========================================================================
    ZONE GRID STABILIZATION LOCK
+   Min-size + clip only. Do not set line-height on headings here — it drifted from the
+   Zone wall master headline (`.groovy-zone-grid .card-headline` + v4.1 Marvin lock).
    ========================================================================== */
-h1, h2, h3, h4, h5, h6,
-.zz-h1, .zz-h2, .zz-h3, .zz-h4, .zz-h5, .zz-h6,
-.text-marvin,
-.card-headline {
-  line-height: 0.75 !important;
-}
-
 .groovy-zone-grid .groovy-cell-radius,
 .groovy-zone-grid .bento-card-groovy {
   min-width: 0;
   min-height: 0;
-  height: auto;
 }
 
 .groovy-zone-grid .bento-card-groovy {
@@ -6978,22 +7008,4 @@ h1, h2, h3, h4, h5, h6,
   letter-spacing: 0.01em;
   opacity: 0.9;
   pointer-events: none;
-}
-
-.groovy-zone-grid .card-headline {
-  font-size: var(--zz-h3-mobile) !important;
-  display: block !important;
-  white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-  -webkit-line-clamp: unset !important;
-  line-clamp: unset !important;
-}
-
-@media (min-width: 1024px) {
-  .groovy-zone-grid .card-headline {
-    font-size: var(--zz-h3-desktop) !important;
-  }
 }

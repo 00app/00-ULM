@@ -21,8 +21,8 @@ export type ProfileAnswerBtnProps = {
 }
 
 /**
- * v6.1 — 100×100 profile option / continue circle: elastic bloom (scale 0→1),
- * `INTRO_DECISION_CTA_TRANSITION` (520/28), stagger via `optionIndex` or `delaySeconds`.
+ * v6.1 — 100×100 profile option / continue circle: scale 0→1 with shared `KINETIC_SPRING`
+ * (`INTRO_DECISION_CTA_TRANSITION`), stagger via `optionIndex` or `delaySeconds`.
  */
 export default function ProfileAnswerBtn({
   reduceMotion,

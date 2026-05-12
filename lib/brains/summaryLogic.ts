@@ -1,11 +1,18 @@
 /**
  * Profile summary — dynamic copy from employment, postcode, and local grid (council + carbon intensity).
  * Client supplies data from /api/local-intelligence (server uses getLocalData).
+ *
+ * ## Kinetic £ / CO₂ (same “cord” as Zone cards)
+ * `app/profile/summary` loads all `journey_*_answers` from localStorage and the same profile fields as Zone,
+ * then runs **`buildUserImpact({ profile, journeyAnswers })`** (`lib/brains/buildUserImpact.ts`).
+ * - **Spend anchor:** `max(BASELINE_2026_CAP_GBP, impact.totals.totalMoney)` — not below the 2026 cap baseline.
+ * - **“Waste” slack shown in the pulse:** `round(spendAnchor × WASTE_FACTOR)` for £ and `round(impact.totals.totalCarbon × WASTE_FACTOR)` for kg CO₂e/yr (`WASTE_FACTOR = 0.22` on the summary page). Same framing as “typical slack left on the table” in **`buildSummaryRevealCopy`**.
+ * These are **modelled** totals from answers + UK defaults, not the Neon **`research_results`** row (that path is scrape-sync / Hermes / Gemini “Architect” on Zone).
  */
 
 import type { EmploymentStatus } from './types'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
-import { formatLocationDisplayName, locationInPhrase } from '@/lib/locationIdentity'
+import { formatLocationDisplayName } from '@/lib/locationIdentity'
 
 function purgeYourAreaCopy(s: string): string {
   return s.replace(/\bin your area\.?/gi, '').replace(/\s+/g, ' ').trim()
@@ -132,29 +139,24 @@ export function employmentWinFocus(
 }
 
 /**
- * Long council / ward strings: one kinetic beat, two balanced lines (newline); IntroWordCycle scales each line.
- * Short labels (≤6 chars) stay one line; a single long token stays one line and scales down only.
+ * Locality beat for the summary pulse: multi-word labels split across two lines for balance; **single long
+ * placenames stay one token** so `IntroWordCycle` can scale font + `fitToViewportPaddingPx` (40px each side) only.
  */
 export function formatSummaryLocalityKineticToken(areaLabel: string): string {
   const t = purgeYourAreaCopy(areaLabel || 'the UK').trim()
   if (!t || t === 'the UK') return 'the UK'
-  if (t.length <= 7) return t
   const words = t.split(/\s+/).filter(Boolean)
   if (words.length >= 2) {
     const mid = Math.ceil(words.length / 2)
     return `${words.slice(0, mid).join(' ')}\n${words.slice(mid).join(' ')}`
   }
-  /** Very long single token (e.g. “Littlehampton”): split so Marvin can wrap without clipping. */
-  if (t.length > 10) {
-    const mid = Math.round(t.length / 2)
-    return `${t.slice(0, mid)}\n${t.slice(mid)}`
-  }
   return t
 }
 
 /**
- * Profile summary — one beat at a time (AnimatePresence). Uses live waste slack from impact math,
- * then locality (wrapped when long). Same numbers underpin the reveal block below.
+ * Profile summary — one beat at a time (`IntroWordCycle` + 40px horizontal inset on the summary page).
+ * On-screen sequence only: HELLO → first name → based … in → locality → waste → £… → and → …kg → CO₂e → per → year.
+ * (Any parentheticals in specs are author notes, not words in this array.) £ / CO₂: see file header — `buildUserImpact` × `WASTE_FACTOR`.
  */
 export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): string[] {
   const area = purgeYourAreaCopy(resolveSummaryAreaLabel(input))
@@ -163,21 +165,26 @@ export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): s
   const wasteKg = Math.max(0, Math.round(input.annualWasteCarbon))
   const rawName = (input.displayName ?? '').trim().split(/\s+/)[0] ?? ''
   const greetName = rawName || 'there'
+  const gbp = `£${wasteCash.toLocaleString('en-GB')}`
 
-  const beats: string[] = ['HELLO', greetName, localityWord]
-  const g = input.local?.localCarbonG
-  if (g != null && Number.isFinite(g)) {
-    beats.push(`${Math.round(g)}g`, 'grid')
-  }
-  beats.push(
-    `~£${wasteCash.toLocaleString('en-GB')}`,
+  return [
+    'HELLO',
+    greetName,
+    'based',
+    'on',
+    'your',
+    'profile',
+    'people',
+    'in',
+    localityWord,
+    'waste',
+    gbp,
     'and',
     `${wasteKg}kg`,
     'CO₂e',
     'per',
-    'year'
-  )
-  return beats
+    'year',
+  ]
 }
 
 /** Final reveal block after Zip-Shutter (headline = Marvin, body = Roboto). */
@@ -194,7 +201,7 @@ export function buildSummaryRevealCopy(input: ProfileSummaryNarrativeInput): {
       ? ` Grid ≈ ${Math.round(input.local.localCarbonG)} gCO₂/kWh.`
       : ''
   const tail = purgeYourAreaCopy(
-    ` Typical slack in your bracket: ~£${waste.toLocaleString('en-GB')} / ~${wasteKg} kg CO₂e/yr left on the table.${grid}`
+    ` Typical slack in your bracket: £${waste.toLocaleString('en-GB')} / ${wasteKg} kg CO₂e/yr left on the table.${grid}`
   )
   return {
     headline,
