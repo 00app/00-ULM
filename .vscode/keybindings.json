@@ -1,0 +1,7 @@
+[
+  {
+    "key": "cmd+shift+b",
+    "command": "simpleBrowser.show",
+    "args": ["http://localhost:3000"]
+  }
+]

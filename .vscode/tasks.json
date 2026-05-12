@@ -1,0 +1,118 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {},
+        "isBackground": true
+      },
+      "problemMatcher": [
+        {
+          "pattern": { "regexp": "^.*$" },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".",
+            "endsPattern": "Ready in|compiled|started server"
+          }
+        }
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false
+      },
+      "isBackground": true
+    },
+    {
+      "label": "dev (port 3020)",
+      "type": "shell",
+      "command": "npx next dev -p 3020",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {},
+        "isBackground": true
+      },
+      "problemMatcher": [
+        {
+          "pattern": { "regexp": "^.*$", "file": 1, "location": 2, "message": 3 },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".",
+            "endsPattern": "Ready in|compiled|started"
+          }
+        }
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false
+      },
+      "isBackground": true
+    },
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "start",
+      "type": "shell",
+      "command": "npm run start",
+      "options": { "cwd": "${workspaceFolder}", "env": {}, "isBackground": true },
+      "problemMatcher": [
+        {
+          "pattern": { "regexp": "^.*$" },
+          "background": { "activeOnStart": true, "beginsPattern": ".", "endsPattern": "started server|Ready" }
+        }
+      ],
+      "presentation": { "reveal": "always", "panel": "dedicated", "showReuseMessage": false },
+      "isBackground": true
+    },
+    {
+      "label": "Ultimate: Dev + Open in Browser",
+      "type": "shell",
+      "command": "npm run ultimate:dev",
+      "options": { "cwd": "${workspaceFolder}", "env": {}, "isBackground": true },
+      "problemMatcher": [{ "pattern": { "regexp": ".*" }, "background": { "activeOnStart": true, "beginsPattern": ".", "endsPattern": "Ready in|compiled" } }],
+      "presentation": { "reveal": "always", "panel": "dedicated", "showReuseMessage": false },
+      "isBackground": true
+    },
+    {
+      "label": "Open in Cursor Browser",
+      "type": "shell",
+      "command": "echo",
+      "args": ["${input:openCursorBrowser}"],
+      "inputs": [
+        {
+          "id": "openCursorBrowser",
+          "type": "command",
+          "command": "simpleBrowser.show",
+          "args": ["http://localhost:3020"]
+        }
+      ],
+      "presentation": { "reveal": "never", "panel": "shared" }
+    },
+    {
+      "label": "Open in Cursor Browser (port 3000)",
+      "type": "shell",
+      "command": "echo",
+      "args": ["${input:openCursorBrowser3000}"],
+      "inputs": [
+        {
+          "id": "openCursorBrowser3000",
+          "type": "command",
+          "command": "simpleBrowser.show",
+          "args": ["http://localhost:3000"]
+        }
+      ],
+      "presentation": { "reveal": "never", "panel": "shared" }
+    }
+  ]
+}

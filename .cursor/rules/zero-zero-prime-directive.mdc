@@ -1,0 +1,29 @@
+---
+description: Universal Project Manifest for Zero Zero (00-00)
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Zero Zero (00-00) Prime Directive
+
+## 1. Motion DNA (lib/animations.ts)
+
+- **Style A (Glitch):** Logo/Route transitions only (~469ms on `/` + `/intro`; CSS + `IntroScreen` timers stay in sync).
+- **Style B (Mechanical Snap):** UI assembly/card growth.
+- **Contract:** Staggered, springy assembly. No soft fades. Use KINETIC_SPRING and LAYOUT_SPRING.
+
+## 2. Intelligence Loop (Handbook Alignment)
+
+- **Trigger:** Oracle VPS (Hermes) hits `/api/cron/zone-research` at 05:00.
+- **Birth (embedded journey / Solo Focus):** `POST /api/answers` → discovery race → `discovery.new_card_data` / `grid_pulse_card` → `injectNewDiscoveryCard`. **`POST /api/research/question-card`** = free-form Ask path only.
+- **Reasoning:** Gemini generates `architect_prose` in 3 paragraphs: The What, The Why, The How.
+- **Persona:** Zai (direct, lowercase, value-first auditor).
+
+## 3. UI Constraints
+
+- **Summary:** HELLO -> Name -> Locality (Scale if > 7 chars).
+- **Clean Focus:** Always run `stripExpandedCardTitleNoise` on Solo Focus H1s.
+- **Stomach:** Canonical DB is Neon London (`npg_kQlNET5V4poz`).
+
+Reference: `HANDBOOK.md`, `docs/INTELLIGENCE-LOOP-MANIFEST.md`, and `mechanical-pulse.mdc`.

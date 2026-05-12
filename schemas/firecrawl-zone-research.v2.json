@@ -1,0 +1,265 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://zero-zero.app/schemas/firecrawl-zone-research.v2.json",
+  "title": "Zero Zero Zone / UK economy research (Firecrawl extract)",
+  "description": "Structured extraction target: Ofgem cap, unit rates, nine journeys, Solo Focus, BUS/HES. Align with lib/brains/constants.ts and lib/journeys.ts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "effective_from", "zero_zero_zone_dashboard", "homeenergyscotland_grant_loan_information"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "2.0.0"
+    },
+    "effective_from": {
+      "type": "string",
+      "description": "ISO 8601 date — research applies from this day (e.g. cap window)"
+    },
+    "retrieved_at": {
+      "type": "string",
+      "description": "ISO 8601 date-time when sources were read"
+    },
+    "zero_zero_zone_dashboard": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Carbon and money logic for the Zone dashboard + Solo Focus",
+      "required": ["april_2026_economy_lock_constants", "journey_calculation_formulas", "solo_focus_expanded_view_data"],
+      "properties": {
+        "april_2026_economy_lock_constants": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Typical cap £/yr + unit £/kWh lock (see MARCH_2026_ECONOMY, PRICE_CAP_* in code)",
+          "required": ["electricity_unit_gbp_per_kwh", "gas_unit_gbp_per_kwh", "price_cap_typicals", "citations"],
+          "properties": {
+            "electricity_unit_gbp_per_kwh": {
+              "type": "number",
+              "description": "Electricity unit rate GBP per kWh (not pence)"
+            },
+            "gas_unit_gbp_per_kwh": {
+              "type": "number",
+              "description": "Gas unit rate GBP per kWh"
+            },
+            "electricity_standing_gbp_per_day": {
+              "type": "number",
+              "description": "Optional: electricity standing charge £/day if stated"
+            },
+            "gas_standing_gbp_per_day": {
+              "type": "number",
+              "description": "Optional: gas standing charge £/day if stated"
+            },
+            "grid_intensity_g_co2e_per_kwh": {
+              "type": "number",
+              "description": "Optional: national grid intensity g CO2e/kWh for elec carbon"
+            },
+            "price_cap_typicals": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Ofgem typical dual-fuel household cap levels £/yr",
+              "required": ["currency", "typical_household_cap_gbp_per_year_march_window", "typical_household_cap_gbp_per_year_from_april"],
+              "properties": {
+                "currency": {
+                  "type": "string",
+                  "enum": ["GBP"]
+                },
+                "typical_household_cap_gbp_per_year_march_window": {
+                  "type": "number"
+                },
+                "typical_household_cap_gbp_per_year_from_april": {
+                  "type": "number"
+                },
+                "delta_gbp_april_vs_prior_window": {
+                  "type": "number",
+                  "description": "Optional: stated annual change for typical household"
+                },
+                "green_levy_shift_gbp_typical": {
+                  "type": "number",
+                  "description": "Optional: policy line re levies / general taxation April 2026"
+                }
+              }
+            },
+            "citations": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["label", "url"],
+                "properties": {
+                  "label": { "type": "string" },
+                  "url": { "type": "string" },
+                  "scope": {
+                    "type": "string",
+                    "enum": ["price_cap", "unit_rates", "grid", "general"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "journey_calculation_formulas": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "description": "One row per journey_key (app order: home, travel, food, shopping, money, carbon, tech, waste, holidays)",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["journey_key", "journey_name", "money_drivers", "carbon_drivers", "formula_summary"],
+            "properties": {
+              "journey_key": {
+                "type": "string",
+                "enum": ["home", "travel", "food", "shopping", "money", "carbon", "tech", "waste", "holidays"]
+              },
+              "journey_name": {
+                "type": "string",
+                "description": "Human label e.g. Home"
+              },
+              "formula_summary": {
+                "type": "string",
+                "maxLength": 800,
+                "description": "Plain-language model; not executable code"
+              },
+              "money_drivers": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Key inputs affecting £ (tariff, heating, miles, diet, etc.)"
+              },
+              "carbon_drivers": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "official_links": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["label", "url"],
+                  "properties": {
+                    "label": { "type": "string" },
+                    "url": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "solo_focus_expanded_view_data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sections", "data_fields", "grant_eligibility_logic", "post_answer_loop"],
+          "properties": {
+            "sections": {
+              "type": "array",
+              "description": "Ordered Solo Focus regions",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "hero_money_carbon",
+                  "insight_or_scraped_tip",
+                  "local_context_bar",
+                  "action_trinity_claim_like_ask",
+                  "embedded_journey_question",
+                  "result_copy_and_citation",
+                  "optional_new_zone_card_injection"
+                ]
+              }
+            },
+            "data_fields": {
+              "type": "array",
+              "description": "Concrete fields for expanded card / overlay",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "title",
+                  "money_gbp_display",
+                  "carbon_kg_co2e_display",
+                  "insight_label",
+                  "claim_offer_url",
+                  "learn_url",
+                  "source_label",
+                  "source_url",
+                  "citation_label",
+                  "citation_url"
+                ]
+              }
+            },
+            "post_answer_loop": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["server_calls", "client_outcomes"],
+              "properties": {
+                "server_calls": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "e.g. POST /api/answers, POST /api/zone/generate-next"
+                },
+                "client_outcomes": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "e.g. RESULT view, morph headline, inject tip"
+                }
+              }
+            },
+            "grant_eligibility_logic": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["boiler_upgrade_scheme"],
+              "properties": {
+                "boiler_upgrade_scheme": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "England & Wales BUS — headline + eligibility + URL",
+                  "required": ["summary", "max_grant_gbp", "official_url"],
+                  "properties": {
+                    "summary": { "type": "string" },
+                    "max_grant_gbp": { "type": "number" },
+                    "official_url": { "type": "string" },
+                    "eligibility_bullets": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    }
+                  }
+                },
+                "scotland_postcode_narrative": {
+                  "type": "string",
+                  "description": "How Scottish areas / rural uplift differ from rUK copy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "homeenergyscotland_grant_loan_information": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_loan_details"],
+      "properties": {
+        "grant_loan_details": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["summary", "official_url"],
+          "properties": {
+            "summary": { "type": "string" },
+            "official_url": { "type": "string" },
+            "heat_pump_grant_gbp_typical": { "type": "number" },
+            "rural_uplift_gbp_if_stated": { "type": "number" },
+            "loan_mentioned": { "type": "boolean" },
+            "citations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["label", "url"],
+                "properties": {
+                  "label": { "type": "string" },
+                  "url": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

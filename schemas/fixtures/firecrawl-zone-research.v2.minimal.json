@@ -1,0 +1,153 @@
+{
+  "schema_version": "2.0.0",
+  "effective_from": "2026-03-28",
+  "retrieved_at": "2026-03-28T12:00:00Z",
+  "zero_zero_zone_dashboard": {
+    "april_2026_economy_lock_constants": {
+      "electricity_unit_gbp_per_kwh": 0.2467,
+      "gas_unit_gbp_per_kwh": 0.0574,
+      "electricity_standing_gbp_per_day": 0.5475,
+      "gas_standing_gbp_per_day": 0.3509,
+      "grid_intensity_g_co2e_per_kwh": 129,
+      "price_cap_typicals": {
+        "currency": "GBP",
+        "typical_household_cap_gbp_per_year_march_window": 1758,
+        "typical_household_cap_gbp_per_year_from_april": 1641,
+        "delta_gbp_april_vs_prior_window": 117,
+        "green_levy_shift_gbp_typical": 150
+      },
+      "citations": [
+        {
+          "label": "Ofgem 2026 Price Cap Announcement",
+          "url": "https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap",
+          "scope": "price_cap"
+        }
+      ]
+    },
+    "journey_calculation_formulas": [
+      {
+        "journey_key": "home",
+        "journey_name": "Home",
+        "formula_summary": "Heating, tariff, insulation — unit rates × usage; grants (BUS/HES) as narrative caps.",
+        "money_drivers": ["heating_fuel", "tariff", "insulation"],
+        "carbon_drivers": ["grid_intensity", "gas_kwh"],
+        "official_links": [{ "label": "BUS", "url": "https://www.gov.uk/apply-boiler-upgrade-scheme" }]
+      },
+      {
+        "journey_key": "travel",
+        "journey_name": "Travel",
+        "formula_summary": "Mode share, annual miles, EV vs ICE cost and carbon.",
+        "money_drivers": ["fuel", "public_transport", "ev_grant"],
+        "carbon_drivers": ["miles", "mode"],
+        "official_links": [{ "label": "EV grant", "url": "https://www.gov.uk/ev-chargepoint-grant" }]
+      },
+      {
+        "journey_key": "food",
+        "journey_name": "Food",
+        "formula_summary": "Diet type and waste — benchmark kgCO2e and £ from typical UK baskets.",
+        "money_drivers": ["waste", "protein_mix"],
+        "carbon_drivers": ["diet_type"],
+        "official_links": [{ "label": "Love Food Hate Waste", "url": "https://www.lovefoodhatewaste.com/" }]
+      },
+      {
+        "journey_key": "shopping",
+        "journey_name": "Shopping",
+        "formula_summary": "Consumption intensity and second-hand / repair choices.",
+        "money_drivers": ["spend_level"],
+        "carbon_drivers": ["embedded_carbon_goods"],
+        "official_links": [{ "label": "Circular economy", "url": "https://ellenmacarthurfoundation.org" }]
+      },
+      {
+        "journey_key": "money",
+        "journey_name": "Money",
+        "formula_summary": "Pension greening, bank choice — indicative £ alignment.",
+        "money_drivers": ["pension", "bank"],
+        "carbon_drivers": ["financed_emissions"],
+        "official_links": [{ "label": "Make My Money Matter", "url": "https://www.makemymoneymatter.co.uk" }]
+      },
+      {
+        "journey_key": "carbon",
+        "journey_name": "Carbon",
+        "formula_summary": "Offsets and removals — narrative only; prefer reduction.",
+        "money_drivers": ["offset_spend"],
+        "carbon_drivers": ["offset_quality"],
+        "official_links": [{ "label": "Ofgem", "url": "https://www.ofgem.gov.uk" }]
+      },
+      {
+        "journey_key": "tech",
+        "journey_name": "Tech",
+        "formula_summary": "Device lifetime, repair, refurbished hardware.",
+        "money_drivers": ["replacement_cycle"],
+        "carbon_drivers": ["embodied_carbon_devices"],
+        "official_links": [{ "label": "Back Market", "url": "https://www.backmarket.co.uk" }]
+      },
+      {
+        "journey_key": "waste",
+        "journey_name": "Waste",
+        "formula_summary": "Recycling and reduction vs landfill methane.",
+        "money_drivers": ["council_charges"],
+        "carbon_drivers": ["diversion_rate"],
+        "official_links": [{ "label": "Recycling", "url": "https://www.gov.uk/recycling" }]
+      },
+      {
+        "journey_key": "holidays",
+        "journey_name": "Holidays",
+        "formula_summary": "Transport mode to destination dominates carbon; £ from fares/fuel.",
+        "money_drivers": ["flights", "rail"],
+        "carbon_drivers": ["distance", "mode"],
+        "official_links": [{ "label": "Eurostar", "url": "https://www.eurostar.com" }]
+      }
+    ],
+    "solo_focus_expanded_view_data": {
+      "sections": [
+        "hero_money_carbon",
+        "insight_or_scraped_tip",
+        "local_context_bar",
+        "action_trinity_claim_like_ask",
+        "embedded_journey_question",
+        "result_copy_and_citation",
+        "optional_new_zone_card_injection"
+      ],
+      "data_fields": [
+        "title",
+        "money_gbp_display",
+        "carbon_kg_co2e_display",
+        "insight_label",
+        "claim_offer_url",
+        "learn_url",
+        "source_label",
+        "source_url",
+        "citation_label",
+        "citation_url"
+      ],
+      "post_answer_loop": {
+        "server_calls": ["POST /api/answers", "POST /api/zone/generate-next"],
+        "client_outcomes": ["viewState RESULT", "morph headline", "inject Zone tip card"]
+      },
+      "grant_eligibility_logic": {
+        "boiler_upgrade_scheme": {
+          "summary": "Up to £7,500 toward heat pump replacing fossil fuel heating (rules apply).",
+          "max_grant_gbp": 7500,
+          "official_url": "https://www.gov.uk/apply-boiler-upgrade-scheme",
+          "eligibility_bullets": ["England and Wales", "MCS installer", "Valid EPC"]
+        },
+        "scotland_postcode_narrative": "Scotland: Home Energy Scotland grant/loan; rural uplift may apply — see HES block."
+      }
+    }
+  },
+  "homeenergyscotland_grant_loan_information": {
+    "grant_loan_details": {
+      "summary": "Home Energy Scotland offers grant and loan for efficiency and clean heat; amounts depend on measure and property.",
+      "official_url": "https://www.homeenergyscotland.org/",
+      "heat_pump_grant_gbp_typical": 7500,
+      "rural_uplift_gbp_if_stated": 1500,
+      "loan_mentioned": true,
+      "citations": [
+        {
+          "label": "Home Energy Scotland",
+          "url": "https://www.homeenergyscotland.org/"
+        }
+      ]
+    }
+  }
+}

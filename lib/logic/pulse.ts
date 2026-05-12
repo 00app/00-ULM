@@ -1,0 +1,115 @@
+import type { LocalIntelligence } from '@/lib/local/getLocalData'
+
+export interface LivePulseSnapshot {
+  priceCapGbp: number
+  electricityPPerKwh: number
+  gasPPerKwh: number
+  regionalCarbonGPerKwh: number
+  agilePPerKwh: number | null
+  source: 'live' | 'fallback'
+}
+
+const SAFE_SENTINEL = {
+  priceCapGbp: 1641,
+  electricityPPerKwh: 24.67,
+  gasPPerKwh: 5.74,
+  regionalCarbonGPerKwh: 140,
+} as const
+
+function compactPostcode(postcode: string): string {
+  return postcode.replace(/\s+/g, '').toUpperCase()
+}
+
+async function fetchOfgemPulse(): Promise<{
+  priceCapGbp: number
+  electricityPPerKwh: number
+  gasPPerKwh: number
+} | null> {
+  try {
+    const res = await fetch('https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap', {
+      headers: { Accept: 'text/html,application/xhtml+xml' },
+      cache: 'no-store',
+    })
+    if (!res.ok) return null
+    const html = await res.text()
+    const cap = html.match(/£\s*([0-9]{1,3}(?:,[0-9]{3})?)/)
+    const elec = html.match(/([0-9]{1,2}\.[0-9]{1,2})\s*p\/kWh[^<]{0,80}electric/i)
+    const gas = html.match(/([0-9]{1,2}\.[0-9]{1,2})\s*p\/kWh[^<]{0,80}gas/i)
+    return {
+      priceCapGbp: cap ? Number(cap[1].replace(/,/g, '')) : SAFE_SENTINEL.priceCapGbp,
+      electricityPPerKwh: elec ? Number(elec[1]) : SAFE_SENTINEL.electricityPPerKwh,
+      gasPPerKwh: gas ? Number(gas[1]) : SAFE_SENTINEL.gasPPerKwh,
+    }
+  } catch {
+    return null
+  }
+}
+
+async function fetchNationalGridPulse(postcode: string): Promise<number | null> {
+  try {
+    const outcode = compactPostcode(postcode).slice(0, 4)
+    if (!outcode) return null
+    const res = await fetch(
+      `https://api.carbonintensity.org.uk/regional/postcode/${encodeURIComponent(outcode)}`,
+      { cache: 'no-store' }
+    )
+    if (!res.ok) return null
+    const json = (await res.json()) as {
+      data?: Array<{
+        regions?: Array<{ intensity?: { actual?: number; forecast?: number } }>
+        intensity?: { actual?: number; forecast?: number }
+      }>
+    }
+    const d = json?.data?.[0]
+    const region = d?.regions?.[0] ?? d
+    const intensity = region?.intensity?.actual ?? region?.intensity?.forecast
+    return typeof intensity === 'number' ? intensity : null
+  } catch {
+    return null
+  }
+}
+
+async function fetchOctopusAgilePulse(regionCode: string): Promise<number | null> {
+  try {
+    const code = /^[A-Z]$/.test(regionCode) ? regionCode : 'A'
+    const url = `https://api.octopus.energy/v1/products/AGILE-18-02-21/electricity-tariffs/E-1R-AGILE-18-02-21-${code}/standard-unit-rates/?page_size=1`
+    const res = await fetch(url, { cache: 'no-store' })
+    if (!res.ok) return null
+    const json = (await res.json()) as { results?: Array<{ value_inc_vat?: number }> }
+    const val = json?.results?.[0]?.value_inc_vat
+    return typeof val === 'number' ? val : null
+  } catch {
+    return null
+  }
+}
+
+function regionCodeFromPostcode(postcode: string): string {
+  const first = compactPostcode(postcode).charAt(0)
+  return first && /[A-Z]/.test(first) ? first : 'A'
+}
+
+export async function fetchLivingPulseSnapshot(
+  postcode: string,
+  local: LocalIntelligence | null
+): Promise<LivePulseSnapshot> {
+  const ofgem = await fetchOfgemPulse()
+  const carbon = await fetchNationalGridPulse(postcode)
+  const agile = await fetchOctopusAgilePulse(regionCodeFromPostcode(postcode))
+
+  const useFallback = !ofgem || carbon == null
+  if (useFallback) {
+    console.warn('[pulse] Safe Sentinel fallback active')
+  }
+
+  return {
+    priceCapGbp: ofgem?.priceCapGbp ?? SAFE_SENTINEL.priceCapGbp,
+    electricityPPerKwh: ofgem?.electricityPPerKwh ?? SAFE_SENTINEL.electricityPPerKwh,
+    gasPPerKwh: ofgem?.gasPPerKwh ?? SAFE_SENTINEL.gasPPerKwh,
+    regionalCarbonGPerKwh:
+      carbon ??
+      (typeof local?.localCarbonG === 'number' ? local.localCarbonG : SAFE_SENTINEL.regionalCarbonGPerKwh),
+    agilePPerKwh: agile,
+    source: useFallback ? 'fallback' : 'live',
+  }
+}
+
