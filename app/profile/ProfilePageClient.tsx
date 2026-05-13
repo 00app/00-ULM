@@ -5,13 +5,7 @@ import { useState, useCallback, useEffect, useLayoutEffect, type CSSProperties }
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
-import {
-  STACCATO_CHILD_VARIANTS,
-  STACCATO_CONTAINER_VARIANTS,
-  STACCATO_DURATION_SEC,
-  STACCATO_STAGGER_SEC,
-  STACCATO_TWEEN,
-} from '@/lib/animations'
+import { STACCATO_DURATION_SEC, STACCATO_DROP_PX, STACCATO_STAGGER_SEC, STACCATO_TWEEN } from '@/lib/animations'
 import InputField from '@/app/components/InputField'
 import { createUser } from '@/lib/api'
 import { ROUTES } from '@/lib/routes'
@@ -78,14 +72,6 @@ const PROFILE_QUESTIONS = [
     ],
   },
 ]
-
-function splitProfileQuestionWords(label: string): string[] {
-  return label
-    .replace(/\n/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-}
 
 const STORAGE_KEYS: Record<string, string> = {
   name: 'profile_name',
@@ -271,8 +257,9 @@ export default function ProfilePageClient() {
     }
   }
 
-  const questionWords = current ? splitProfileQuestionWords(current.label) : []
-  const controlsAfterQuestionSec = questionWords.length * STACCATO_STAGGER_SEC + STACCATO_DURATION_SEC
+  const questionBlockLabel = current ? current.label.replace(/\n/g, '\n') : ''
+  /** Full-sentence headline + controls: one block fade (Mechanical Snap — not word-by-word). */
+  const controlsAfterQuestionSec = STACCATO_DURATION_SEC + STACCATO_STAGGER_SEC
 
   const stepBlockInitial = reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }
   const stepBlockAnimate = reduceMotion ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }
@@ -323,20 +310,14 @@ export default function ProfilePageClient() {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '0.06em',
+              maxWidth: 'min(92vw, 28rem)',
+              textAlign: 'center',
             }}
-            variants={STACCATO_CONTAINER_VARIANTS}
-            initial="hidden"
-            animate="visible"
+            initial={reduceMotion ? false : { opacity: 0, y: STACCATO_DROP_PX }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={reduceMotion ? { duration: 0.12 } : STACCATO_TWEEN}
           >
-            {questionWords.map((w, wi) => (
-              <motion.span
-                key={`${step}-q-${wi}-${w}`}
-                variants={STACCATO_CHILD_VARIANTS}
-                style={{ display: 'block' }}
-              >
-                {w}
-              </motion.span>
-            ))}
+            <span style={{ whiteSpace: 'pre-line', display: 'block' }}>{questionBlockLabel}</span>
           </motion.div>
           {current.type === 'input' ? (
             <div

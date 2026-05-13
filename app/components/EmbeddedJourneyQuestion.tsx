@@ -26,6 +26,8 @@ import {
   INTRO_DECISION_CTA_TRANSITION,
   SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION,
   SOLO_FOCUS_ZIP_SHUT_SEC,
+  STACCATO_TWEEN,
+  STACCATO_DROP_PX,
 } from '@/lib/animations'
 import { injectNewDiscoveryCard } from '@/lib/discoveryInject'
 import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
@@ -722,18 +724,38 @@ export function EmbeddedJourneyQuestion({
       <AnimatePresence mode="wait">
         <motion.h3
           key={questionLabel}
-          className={`solo-focus-question-label solo-focus-copy-width text-marvin uppercase zz-h3 zz-shimmer-focus ${railAlign ? 'text-left' : 'text-center'}`}
+          className={`solo-focus-question-label solo-focus-copy-width text-marvin uppercase zz-h3 ${
+            soloFocusZipShut ? '' : 'zz-shimmer-focus'
+          } ${railAlign ? 'text-left' : 'text-center'}`}
           style={{
             margin: 0,
             fontFamily: 'var(--font-marvin)',
             fontWeight: 700,
             color: textColor ?? 'var(--color-purple)',
-            willChange: 'filter, transform',
+            willChange: soloFocusZipShut ? 'opacity, transform' : 'filter, transform',
           }}
-          initial={reduceMotion ? false : SHIMMER_FOCUS.initial}
-          animate={reduceMotion ? { opacity: 1, filter: 'none', scale: 1 } : SHIMMER_FOCUS.animate}
-          exit={reduceMotion ? { opacity: 0 } : { ...SHIMMER_FOCUS.initial, transition: { duration: 0.12 } }}
-          transition={SHIMMER_FOCUS.transition}
+          initial={
+            reduceMotion
+              ? false
+              : soloFocusZipShut
+                ? { opacity: 0, y: STACCATO_DROP_PX }
+                : SHIMMER_FOCUS.initial
+          }
+          animate={
+            reduceMotion
+              ? { opacity: 1, filter: 'none', scale: 1 }
+              : soloFocusZipShut
+                ? { opacity: 1, y: 0, transition: STACCATO_TWEEN }
+                : SHIMMER_FOCUS.animate
+          }
+          exit={
+            reduceMotion
+              ? { opacity: 0 }
+              : soloFocusZipShut
+                ? { opacity: 0, y: 6, transition: { duration: 0.12, ease: [0, 0.55, 0.45, 1] as const } }
+                : { ...SHIMMER_FOCUS.initial, transition: { duration: 0.12 } }
+          }
+          transition={soloFocusZipShut ? undefined : SHIMMER_FOCUS.transition}
         >
           {questionLabel}
         </motion.h3>

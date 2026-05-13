@@ -8,6 +8,8 @@ import {
   SHIMMER_FOCUS,
   SHIMMER_FOCUS_EXIT,
   SHIMMER_FOCUS_EXIT_TRANSITION,
+  STACCATO_DURATION_SEC,
+  STACCATO_EASE,
 } from '@/lib/animations'
 
 interface IntroWordCycleProps {
@@ -36,6 +38,11 @@ interface IntroWordCycleProps {
   wrapLongPreservedWords?: boolean
   /** Exit blur duration before next word; intro uses `INTRO_ROUTE_WORD_EXIT_MS` (~30% faster than default). */
   wordExitMs?: number
+  /**
+   * `/profile/summary` + Mechanical Snap DNA: one word at a time, **opacity only** (no blur, no scale pulse).
+   * Intro `/` + `/intro` keep **`WORD_PULSE_APPEAR`** (Style A glitch) unless this is set.
+   */
+  opacityTicker?: boolean
 }
 
 const DEFAULT_GAP_MS = 90
@@ -53,6 +60,7 @@ export default function IntroWordCycle({
   fitToViewportPaddingPx = 0,
   wrapLongPreservedWords = false,
   wordExitMs = DEFAULT_WORD_EXIT_MS,
+  opacityTicker = false,
 }: IntroWordCycleProps) {
   const reduceMotion = useReducedMotion()
   const [index, setIndex] = useState(0)
@@ -79,6 +87,15 @@ export default function IntroWordCycle({
   const dwellMs = wordDurations?.[index] ?? KINETIC_WORD_DWELL_MS
 
   const motionPreset = useMemo(() => {
+    if (opacityTicker) {
+      const t = { duration: STACCATO_DURATION_SEC, ease: STACCATO_EASE }
+      return {
+        className: 'intro-text-large intro-summary-opacity-ticker',
+        initial: { opacity: 0 },
+        animate: { opacity: 1, transition: t },
+        exit: { opacity: 0, transition: { ...t, duration: STACCATO_DURATION_SEC * 0.85 } },
+      }
+    }
     if (!lensFocusShimmer) {
       return {
         className: 'intro-text-large intro-word-pulse',
@@ -106,7 +123,7 @@ export default function IntroWordCycle({
       },
       transition: SHIMMER_FOCUS.transition,
     }
-  }, [lensFocusShimmer, reduceMotion])
+  }, [opacityTicker, lensFocusShimmer, reduceMotion])
 
   useEffect(() => {
     if (completedRef.current) return

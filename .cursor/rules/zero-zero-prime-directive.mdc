@@ -7,23 +7,31 @@ alwaysApply: true
 
 # Zero Zero (00-00) Prime Directive
 
-## 1. Motion DNA (lib/animations.ts)
+## 1. Motion DNA (`lib/animations.ts`)
 
-- **Style A (Glitch):** Logo/Route transitions only (~469ms on `/` + `/intro`; CSS + `IntroScreen` timers stay in sync).
-- **Style B (Mechanical Snap):** UI assembly/card growth.
-- **Contract:** Staggered, springy assembly. No soft fades. Use KINETIC_SPRING and LAYOUT_SPRING.
+| Surface | Style | Rule |
+| --- | --- | --- |
+| **`/` + `/intro` (logo route)** | **Style A (Glitch)** | ~469ms CSS glitch; `IntroScreen` timers stay in sync. **Not** used on `/profile/summary`. |
+| **`/profile/summary`** | **Staccato word ticker** | `SummaryHeader` → `IntroWordCycle` with **`opacityTicker`**: one word at a time, **opacity 0→1 only** (no blur, no glitch). |
+| **`/profile` questions** | **Full-sentence fade** | Whole prompt as one block: **y: 10→0**, opacity, **circOut** (`STACCATO_TWEEN`). |
+| **Zone grid** | **Style B (Mechanical Snap)** | `STACCATO_*` staggered assembly; 60px card radius. |
+| **Solo Focus** | **Zip-shut → fade-open** | Answer collapses the chamber (`ZIP_SHUTTER_SPRING`); next question opens with **opacity + y** (no shimmer) when `soloFocusZipShut`. |
+
+**Springs:** `KINETIC_SPRING` + `LAYOUT_SPRING` only — no extra stiffness families.
 
 ## 2. Intelligence Loop (Handbook Alignment)
 
-- **Trigger:** Oracle VPS (Hermes) hits `/api/cron/zone-research` at 05:00.
-- **Birth (embedded journey / Solo Focus):** `POST /api/answers` → discovery race → `discovery.new_card_data` / `grid_pulse_card` → `injectNewDiscoveryCard`. **`POST /api/research/question-card`** = free-form Ask path only.
-- **Reasoning:** Gemini generates `architect_prose` in 3 paragraphs: The What, The Why, The How.
+- **Trigger:** Oracle VPS (Hermes) hits **`GET` or `POST`** `/api/cron/zone-research` at 05:00 (Bearer **`CRON_SECRET`**).
+- **Birth (Zone discovery cards from the embedded journey):** **`POST /api/answers`** → discovery race → `discovery.new_card_data` / `grid_pulse_card` → **`injectNewDiscoveryCard`**. This is the **canonical** birth path for MC answers in Solo Focus / bento.
+- **Supplemental (capped):** **`POST /api/zone/injections`** (trap follow-up) and **`POST /api/research/question-card`** (free-form Ask) — not the primary answer-loop birth; all respect **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`**.
+- **Neon:** Persisted invoke metadata column is **`research_snapshot`** (not legacy `openclaw_raw_json`).
+- **Reasoning:** Gemini emits **`architect_prose`** in three paragraphs: What / Why / How.
 - **Persona:** Zai (direct, lowercase, value-first auditor).
 
 ## 3. UI Constraints
 
-- **Summary:** HELLO -> Name -> Locality (Scale if > 7 chars).
-- **Clean Focus:** Always run `stripExpandedCardTitleNoise` on Solo Focus H1s.
-- **Stomach:** Canonical DB is Neon London (`npg_kQlNET5V4poz`).
+- **Summary:** HELLO → name → locality (scale / wrap for long single-word tokens) — ticker words from `buildSummaryStaccatoWords` + `IntroWordCycle`.
+- **Clean Focus:** Always run **`stripExpandedCardTitleNoise`** on Solo Focus H1s.
+- **Neon host:** Pooler hostname in **`DATABASE_URL`** must match **`MANIFEST_NEON_POOLER_HOST`** in `lib/intelligence/manifest.ts` (password only via Neon / Vercel env).
 
 Reference: `HANDBOOK.md`, `docs/INTELLIGENCE-LOOP-MANIFEST.md`, and `mechanical-pulse.mdc`.

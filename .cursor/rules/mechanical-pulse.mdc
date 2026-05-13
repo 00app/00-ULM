@@ -14,7 +14,7 @@ globs:
 - **Copy:** Use **SAVE** (imperative), not "SAVINGS". Data stack: SAVE + CARBON.
 - **Zone anchor:** Logo 51px + "HELLO {NAME}" Marvin H3 + Ask Zai 20px below. Floating Nav 40px visual. Bento: 13 blocks (1 Hero + 9 Journeys + 3 Tips), 60px radius. Card top-right: **arrow glyph only** (transparent, 2× H3).
 - **Solo Focus:** Soft Cream; Marvin/body = **Primary**; **Close** = **40px** circle top-right (open-card arrow rotated 180°); Trinity + answer circles = **Dark Accent** + Soft Cream. 40px gap; Squish; Zip-Shut on answer.
-- **Summary:** Soft Cream background; 40px logic gap; 80px Blue pill "ENTER THE KINETIC ZONE".
+- **Summary:** Soft Cream background; 40px logic gap; 80px Blue pill "ENTER THE KINETIC ZONE". Kinetic headline uses **word-by-word opacity ticker** on `/profile/summary` (not the intro glitch).
 - **Settings:** Soft Cream; Marvin labels; RESET MACHINE 80px circle clears localStorage and redirects to /intro.
 - **Zai:** 32px bubbles; user = Cool, Zai = Blue; 40px Floating Nav.
 - **useCountUp:** Use for Hero and Summary slot-machine numbers. See `lib/utils/useCountUp.ts`.

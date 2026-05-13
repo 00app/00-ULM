@@ -183,8 +183,8 @@ export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): s
 }
 
 /**
- * Profile summary — **vertical staccato** (`SummaryHeader`): one word per line, tight cadence.
- * Sequence: Hello → first name → Based on your profile → people in [place…] → waste → £… → and → t CO₂ → per → year.
+ * Profile summary — **Mechanical Snap ticker** (`SummaryHeader` → `IntroWordCycle` with **`opacityTicker`**):
+ * one word on screen at a time (opacity only — no per-word blur). Word list for cadence / locality wrapping.
  */
 export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): string[] {
   const area = purgeYourAreaCopy(resolveSummaryAreaLabel(input)).trim()

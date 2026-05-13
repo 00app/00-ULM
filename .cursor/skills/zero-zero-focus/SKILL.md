@@ -50,7 +50,7 @@ Replace `<SKILL_ID>` with e.g. `ce-work`, `ce-debug`, `ce-plan`, `ce-brainstorm`
 - Prefer small, reviewable diffs; do not “clean up” unrelated files.
 - After substantive TypeScript changes, run **`npm run check`** from the repo root.
 - **Region** is derived from **postcode** and APIs — do not reintroduce a manual region onboarding step.
-- **Profile summary** (`app/profile/summary`): static narrative; do not add count-up / glitch graphics there unless the user explicitly asks.
+- **Profile summary** (`app/profile/summary`): staccato **opacity ticker** (`IntroWordCycle` + `opacityTicker`); do not add glitch / count-up graphics there unless the user explicitly asks.
 
 ## 5. If skills still feel “broken”
 

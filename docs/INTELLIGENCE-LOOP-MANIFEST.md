@@ -17,14 +17,14 @@ Operational contract for infra, data flow, UX, and verification. **Secrets belon
 ## 2. Scraper and logic loop
 
 - **Firecrawl + Gemini:** Research runs category discovery (nine journey keys in `lib/journeys.ts`); locality seeds include Littlehampton / Arun and Les Azerables / Creuse where configured (`lib/agents/researchAgent.ts`).
-- **Expansion:** Journey answers in Solo Focus / bento use **`POST /api/answers`** (discovery race → `injectNewDiscoveryCard`). Free-form Ask uses **`POST /api/research/question-card`**; discovery follow-ups can use **`POST /api/zone/injections`** — all capped at **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`** (**3**) per user per journey (`lib/intelligence/manifest.ts`).
-- **Data mapping:** On persist, **`saving_amount_gbp`** and **`verified_saving`** are aligned (`lib/agents/researchAgent.ts` → `persistResearchResult`). **`offer_url`** must be HTTPS where possible.
+- **Expansion (canonical birth):** Journey answers in Solo Focus / bento use **`POST /api/answers`** → discovery race → `injectNewDiscoveryCard` when the API returns `new_card_data` / `grid_pulse_card`. **`POST /api/research/question-card`** is the **free-form Ask** path only (not the MC answer birth). **`POST /api/zone/injections`** handles trap follow-ups — all paths share the **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`** (**3**) cap per user per journey (`lib/intelligence/manifest.ts`).
+- **Data mapping:** On persist, **`saving_amount_gbp`** and **`verified_saving`** are aligned (`lib/agents/researchAgent.ts` → `persistResearchResult`). **`offer_url`** must be HTTPS where possible. Invoke payload JSON is stored in **`research_snapshot`** (column renamed from legacy `openclaw_raw_json`).
 
 ---
 
 ## 3. UX / UI
 
-- **Mobile locality:** Long placenames use **`formatSummaryLocalityKineticToken`** (`lib/brains/summaryLogic.ts`) + **`IntroWordCycle`** (`text-wrap: balance`, clamp, overflow-wrap, viewport fit). Kinetic order is **HELLO → name → locality** then bridge + waste beats; single-word towns **> 7 characters** get Marvin clamp + squeeze (Littlehampton path).
+- **Mobile locality:** Long placenames use **`formatSummaryLocalityKineticToken`** (`lib/brains/summaryLogic.ts`) + **`IntroWordCycle`** with **`opacityTicker`** on `/profile/summary` (word-by-word opacity only — no intro glitch). **`/` + `/intro`** keep the logo glitch (Style A). Kinetic order is **HELLO → name → locality** then bridge + waste beats; single-word towns **over seven characters** get Marvin clamp + squeeze (Littlehampton path).
 - **Expanded Solo Focus:** Three blocks — **The What (The Discovery)**, **The Why (Money & Carbon)**, **The How (Action)** — fed primarily from Neon **`architect_prose`** when the verified audit matches (`lib/soloFocusCopy.ts`, `JourneyBentoCard`, `SoloFocusOverlay`). Content should be editorial, not boilerplate; Gemini is prompted for three paragraphs separated by blank lines on new research rows.
 - **CTA:** Expanded cards use **`MotherCardRenderer`** + **`IndustrialHandoffButton`** with **`ctaUrl`** from **`offer_url`** / verified source, falling back to **`/zai`** audit URL when no partner link exists (`JourneyBentoCard`).
 
