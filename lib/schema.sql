@@ -28,14 +28,13 @@ CREATE TABLE IF NOT EXISTS users (
   user_genome JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMP DEFAULT now()
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
-
--- Add auth columns to users if table already existed from an older schema (idempotent)
+-- Add auth columns first if `users` predates this schema (avoids "column email does not exist" on index create).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS employment_status TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS user_genome JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
 
 -- =========================
 -- SESSIONS (auth: login/signup and profile-only session cookie)

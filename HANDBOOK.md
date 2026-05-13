@@ -9,7 +9,7 @@ Single reference for product intent, user flow, architecture, integrations, moti
 ```bash
 npm install
 cp .env.example .env.local   # DATABASE_URL, GEMINI_API_KEY, etc. — never commit .env.local
-npm run init-db              # applies lib/schema.sql via TCP (loads .env.local automatically)
+npm run init-db              # lib/schema.sql + research_snapshot migration (loads .env.local)
 npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030 / :3001 variants)
 ```
 
@@ -20,6 +20,8 @@ npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030
 **`.env.local` vs shell:** `npm run init-db`, `npm run db:test`, and `npm run db:log-research` load `.env.local` with **`preferLocal: true`** (`scripts/load-env-local.ts`) so values in the file **override** a stale exported `DATABASE_URL`. Still **save** `.env.local` to disk after edits — the terminal reads the file, not an unsaved editor buffer.
 
 **Build:** `npm run build` · **Deploy:** `npm run deploy` or `npm run ship` (build + Vercel prod). Production alias example: `https://00-ulm.vercel.app` (project-linked hostname).
+
+**DB init:** `npm run init-db` applies **`lib/schema.sql`** then runs **`db/migrations/20260513_research_snapshot_column.sql`** as a single batch (legacy JSONB column → **`research_snapshot`** merge/rename). Files under `db/migrations/` are otherwise for Neon SQL editor / manual history unless wired here.
 
 **Typecheck:** `npm run check` · **Vulnerabilities:** `npm run audit` · **E2E:** `npm run test:e2e`
 

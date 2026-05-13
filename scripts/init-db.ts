@@ -2,6 +2,8 @@ import fs from 'fs'
 import path from 'path'
 import { loadEnvLocal } from './load-env-local'
 
+// Applies lib/schema.sql, then db/migrations/20260513_research_snapshot_column.sql (single pool.query so DO $$ blocks stay intact).
+
 function splitSqlStatements(sql: string): string[] {
   const out: string[] = []
   let cur = ''
@@ -105,6 +107,17 @@ async function initDatabase() {
     )
     const tables = verify.rows.map((r) => r.n)
     console.log(`✅ Public tables (${tables.length}): ${tables.join(', ')}`)
+
+    const snapPath = path.join(process.cwd(), 'db', 'migrations', '20260513_research_snapshot_column.sql')
+    if (fs.existsSync(snapPath)) {
+      try {
+        await pool.query(fs.readFileSync(snapPath, 'utf8'))
+        console.log('✅ Applied db/migrations/20260513_research_snapshot_column.sql (single batch).')
+      } catch (snapErr: unknown) {
+        const m = snapErr instanceof Error ? snapErr.message : String(snapErr)
+        console.warn('⚠️  research_snapshot migration:', m.slice(0, 220))
+      }
+    }
 
     await shutdownDbPool()
     process.exit(0)
