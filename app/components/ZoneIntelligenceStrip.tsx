@@ -226,7 +226,7 @@ export function ZoneIntelligenceStrip({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.94, opacity: 1 }}
             transition={MECHANICAL_SNAP_SPRING}
-            className="pointer-events-auto pulse-diagnostic-panel relative w-[min(100vw-2rem,22rem)] max-h-[min(72dvh,520px)] overflow-y-auto"
+            className="pointer-events-auto pulse-diagnostic-panel pulse-diagnostic-panel--intel relative flex w-[min(100vw-2rem,22rem)] min-h-[min(44dvh,380px)] max-h-[min(72dvh,520px)] flex-col overflow-y-auto"
           >
             <motion.button
               type="button"
@@ -239,13 +239,15 @@ export function ZoneIntelligenceStrip({
               <BackArrowDownLeft size={22} />
             </motion.button>
 
-            <div className="flex w-full min-w-0 flex-col pr-14 text-left">
-              <p className="pulse-diagnostic-label mb-2">INTELLIGENCE LOOP</p>
-              {panelInner}
+            <div className="pulse-diagnostic-panel__sheet flex min-h-0 min-w-0 flex-1 flex-col pr-14 text-left">
+              <p className="pulse-diagnostic-label mb-2 shrink-0">INTELLIGENCE LOOP</p>
+              <div className="pulse-diagnostic-body mt-auto flex min-w-0 flex-col">
+                {panelInner}
+              </div>
               {debugHudLine ? (
                 <pre
                   data-testid="zone-debug-state"
-                  className="m-0 mt-3 overflow-x-auto rounded-lg p-2 text-left"
+                  className="m-0 mt-3 shrink-0 overflow-x-auto rounded-lg p-2 text-left"
                   style={{
                     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                     fontSize: 11,

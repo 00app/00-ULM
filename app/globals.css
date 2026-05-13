@@ -2069,6 +2069,35 @@ body, p, span, input, button, textarea, select,
   margin-bottom: 0;
 }
 
+/* Intelligence Loop — title top, checklist block rides bottom (short panel = dead space above data). */
+.pulse-diagnostic-panel--intel {
+  display: flex;
+  flex-direction: column;
+}
+.pulse-diagnostic-panel--intel > .pulse-diagnostic-panel__sheet {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.pulse-diagnostic-panel--intel .pulse-diagnostic-body {
+  flex-shrink: 0;
+}
+
+/* Summary kinetic ticker — same 0.8 Marvin box as intro h1 (opacity-only path). */
+.intro-text-large.intro-summary-opacity-ticker {
+  line-height: 0.8 !important;
+}
+
+/* Profile onboarding — full-sentence question block (Marvin). */
+.profile-question-headline,
+.profile-question-headline span {
+  line-height: 0.8 !important;
+}
+
+/* Solo Focus embedded question label — always 0.8 (zip path + expanded). */
+h3.solo-focus-question-label.zz-h3 {
+  line-height: 0.8 !important;
+}
+
 /* Brain feed — two-column machine grid */
 .pulse-diagnostic-brain-grid {
   display: grid;
