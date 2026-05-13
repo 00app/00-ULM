@@ -49,10 +49,11 @@ import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/
 import {
   headlineFromTitle,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
+  MAX_ZONE_CARD_HEADLINE_WORDS,
+  formatAuditSourceLinkDisplay,
   polishTrueTipParagraphsForHeadline,
   resolveExpandedTrueTipInsight,
   stripExpandedCardTitleNoise,
-  TRUE_TIP_SECTION_LABELS,
   toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
 } from '@/lib/soloFocusCopy'
@@ -320,7 +321,7 @@ export function JourneyBentoCard({
   const color = `var(--color-j-${journeyId})`
   const resolvedTextColor = useTextColor(journeyId)
   const textColor = textColorOverride ?? resolvedTextColor
-  const headline = headlineFromTitle(title || String(journeyId ?? ''))
+  const headline = headlineFromTitle(title || String(journeyId ?? ''), MAX_ZONE_CARD_HEADLINE_WORDS)
 
   const [morphDeck, setMorphDeck] = useState<any[]>(
     () => (readHydrationSnap(soloFocusSnapKey, journeyId)?.morphDeck as any[]) ?? []
@@ -470,21 +471,6 @@ export function JourneyBentoCard({
     isPriorityHome: Boolean(isPriorityAlert && ctaActionTypeRaw !== 'switch'),
   })
   const journeyCtaLabel = resolveRevenueCtaLabel(revenueKind, motherMoneyTargetGbp)
-
-  const recommendationTitle = headlineFromTitle(
-    stripExpandedCardTitleNoise((displayTitle || String(displayJourneyId)).trim() || String(displayJourneyId)),
-    MAX_EXPANDED_VIEW_HEADLINE_WORDS
-  ).toUpperCase()
-  let sourceName = 'our partners'
-  if (resolvedOfferUrl) {
-    try {
-      if (resolvedOfferUrl.trim().startsWith('http')) {
-        sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '')
-      }
-    } catch {
-      /* ignore */
-    }
-  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -774,7 +760,10 @@ export function JourneyBentoCard({
           : researchAttribution?.headline?.trim() ||
             String(displayTitle || title || journeyId).trim() ||
             journeyId
-    const recommendationTitle = headlineFromTitle(stripExpandedCardTitleNoise(String(effectiveTitleRaw)), MAX_EXPANDED_VIEW_HEADLINE_WORDS).toUpperCase()
+    const recommendationTitle = headlineFromTitle(
+      stripExpandedCardTitleNoise(String(effectiveTitleRaw)),
+      MAX_EXPANDED_VIEW_HEADLINE_WORDS
+    )
     const localityLabel = (state.locationState?.locationName ?? '').trim().toUpperCase()
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =
@@ -786,6 +775,10 @@ export function JourneyBentoCard({
     if (resolvedOfferUrl) {
       try { sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '') } catch {}
     }
+    const diagnosticUrlJourney =
+      verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+        ? verifiedAuditSourceUrl.trim()
+        : pickPrimaryHttpUrl(resolvedOfferUrl) || (allowZaiFallback ? buildZaiAuditUrl() : '')
     const profileTransport =
       state.profile?.transport ??
       (typeof window !== 'undefined' ? localStorage.getItem('profile_transport') : null)
@@ -818,28 +811,28 @@ export function JourneyBentoCard({
     const trueTipSectionsEl =
       trueTipParagraphs.some((p) => p.trim().length > 0) ? (
         <div className="solo-focus-true-tip-sections flex flex-col gap-4 w-full min-w-0 mt-1">
-          {TRUE_TIP_SECTION_LABELS.map((label, i) =>
-            trueTipParagraphs[i]?.trim() ? (
-              <div key={`${label}-${i}`} className="min-w-0">
-                <p
-                  className="zz-label m-0 mb-1 text-left uppercase tracking-wide opacity-90"
-                  style={{
-                    color: 'var(--journey-text)',
-                    fontSize: 'clamp(10px, 2.6vw, 12px)',
-                    fontFamily: 'var(--font-label)',
-                  }}
-                >
-                  {label}
-                </p>
-                <p
-                  className="solo-focus-insight solo-focus-description solo-focus-scraped-tip solo-focus-copy-width solo-focus-content-text text-left m-0"
-                  style={{ color: 'var(--journey-text)' }}
-                >
-                  {trueTipParagraphs[i]}
-                </p>
-              </div>
+          {trueTipParagraphs.map((para, i) =>
+            para?.trim() ? (
+              <p
+                key={`architect-p-${i}`}
+                className="solo-focus-architect-prose solo-focus-copy-width solo-focus-content-text text-left m-0"
+                style={{ color: 'var(--journey-text)' }}
+              >
+                {para}
+              </p>
             ) : null
           )}
+          {diagnosticUrlJourney.trim().startsWith('http') ? (
+            <a
+              href={diagnosticUrlJourney}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="solo-focus-verified-source-link"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {formatAuditSourceLinkDisplay(diagnosticUrlJourney)}
+            </a>
+          ) : null}
         </div>
       ) : null
 
@@ -860,10 +853,6 @@ export function JourneyBentoCard({
       (verifiedSourceName ?? diagnosticProviderJourney).trim(),
       (verifiedSourceDate ?? VERIFIED_SOURCE_DATE).trim()
     )
-    const diagnosticUrlJourney =
-      verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
-        ? verifiedAuditSourceUrl.trim()
-        : pickPrimaryHttpUrl(resolvedOfferUrl) || (allowZaiFallback ? buildZaiAuditUrl() : '')
 
     const discovery =
       discoverySnap != null
@@ -963,28 +952,23 @@ export function JourneyBentoCard({
               <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
                 <div key={motherShimmerKey} className="flex flex-col gap-2 w-full min-w-0">
             {physicalSoloHref ? (
-              <a
-                href={physicalSoloHref}
-                target="_blank"
-                rel="noopener noreferrer"
+              <div
                 className="solo-focus-insight-bridge w-full min-w-0"
                 onClick={() => triggerHaptic('light')}
+                role="presentation"
               >
-                <motion.h3
+                <motion.h1
                   layoutId={`headline-${journeyId}`}
                   layout={false}
-                  className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3"
+                  className="solo-focus-architect-headline solo-focus-content-text text-left"
                   style={{
-                    fontFamily: 'var(--font-marvin)',
-                    fontWeight: 700,
-                    lineHeight: 0.8,
                     color: 'var(--journey-text)',
                     margin: 0,
                     padding: 0,
                   }}
                 >
                   {recommendationTitle}
-                </motion.h3>
+                </motion.h1>
                 <h5
                   className="solo-focus-category solo-focus-offer-preview zz-label m-0 text-left"
                   style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
@@ -992,7 +976,7 @@ export function JourneyBentoCard({
                   {auditHeaderLabel}
                 </h5>
                 {trueTipSectionsEl}
-              </a>
+              </div>
             ) : (
               <>
                 {!physicalSoloHref && researchCategoryCoverage != null && !journeyResearchCov?.insightReady ? (
@@ -1003,21 +987,18 @@ export function JourneyBentoCard({
                     Computing…
                   </p>
                 ) : null}
-                <motion.h3
+                <motion.h1
                   layoutId={`headline-${journeyId}`}
                   layout={false}
-                  className="solo-focus-recommendation-headline solo-focus-content-text text-marvin uppercase text-left zz-h3"
+                  className="solo-focus-architect-headline solo-focus-content-text text-left"
                   style={{
-                    fontFamily: 'var(--font-marvin)',
-                    fontWeight: 700,
-                    lineHeight: 0.8,
                     color: 'var(--journey-text)',
                     margin: 0,
                     padding: 0,
                   }}
                 >
                   {recommendationTitle}
-                </motion.h3>
+                </motion.h1>
                 <h5
                   className="solo-focus-category solo-focus-offer-preview zz-label m-0 text-left"
                   style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}

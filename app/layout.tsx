@@ -104,6 +104,10 @@ export default function RootLayout({
   return (
     <html lang="en-GB" className={roboto.variable} style={{ backgroundColor: 'transparent' }}>
       <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=League+Gothic&display=swap"
+        />
         {/* Marvin: `@font-face` in globals.css — preload so display type is ready early */}
         <link
           rel="preload"

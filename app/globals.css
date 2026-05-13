@@ -106,6 +106,7 @@ nextjs-portal > * {
 :root {
   /* Typography — Marvin (display / stamps) + Roboto (all body / UI copy); one body size */
   --font-marvin: 'Marvin Visions Bold', sans-serif;
+  --font-league-gothic: 'League Gothic', 'Arial Narrow', system-ui, sans-serif;
   /* --font-roboto: set on <html> by next/font (layout.tsx) */
   --font-label: var(--font-marvin);
 
@@ -2278,6 +2279,53 @@ h3.solo-focus-question-label.zz-h3 {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow: hidden;
+}
+
+/* Zai Architect — ~20-word League Gothic H1 + Inter 16px prose (no section labels) */
+.expanded-solo-focus .solo-focus-architect-headline {
+  font-family: var(--font-league-gothic), var(--font-marvin), sans-serif;
+  font-weight: 400;
+  line-height: 0.8 !important;
+  font-size: clamp(26px, 5.5vw, 42px) !important;
+  letter-spacing: -0.02em;
+  text-transform: none !important;
+  color: var(--journey-text, var(--color-yellow));
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  max-width: 100%;
+  display: block;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.expanded-solo-focus .solo-focus-architect-headline + .solo-focus-category {
+  margin-top: 10px !important;
+}
+.expanded-solo-focus p.solo-focus-architect-prose {
+  font-family: var(--font-roboto), 'Roboto', sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 400;
+  margin: 0 0 1rem 0;
+  padding: 0;
+  color: var(--journey-text, var(--color-yellow));
+  max-width: 100%;
+}
+.expanded-solo-focus p.solo-focus-architect-prose:last-of-type {
+  margin-bottom: 0;
+}
+.expanded-solo-focus a.solo-focus-verified-source-link {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 0.5rem;
+  display: inline-block;
+  max-width: 100%;
+  word-break: break-all;
+  color: var(--journey-text, var(--color-yellow));
+  opacity: 0.88;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .expanded-solo-focus .solo-focus-description {
@@ -6142,10 +6190,10 @@ select,
 }
 
 .zone-anchor .zone-masthead {
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
-/* Hard lock: no panel/tint behind "USE LESS, MORE." masthead cluster. */
+/* Hard lock: no panel/tint behind masthead cluster. */
 .zone .zone-anchor,
 .zone .zone-anchor .zone-masthead,
 .zone .zone-menu,
@@ -6157,7 +6205,7 @@ select,
   box-shadow: none !important;
 }
 
-/* Menu: "USE LESS, MORE" top left — inherits zone main color (yellow on purple) */
+/* Menu copy (legacy / reuse); Zone masthead no longer renders `.zone-menu`. */
 .zone-menu {
   font-family: var(--font-label);
   font-size: var(--zz-h4-mobile);
@@ -6217,6 +6265,20 @@ select,
   margin-top: 0;
   margin-bottom: 0;
 }
+/* h3 matches global `h3 { font-size: … !important }`; keep anchor greeting on H2 scale (same as former `p`). */
+.zone-anchor h3.zz-anchor-greeting {
+  font-size: var(--zz-h2-mobile) !important;
+}
+@media (max-width: 767px) {
+  .zone-anchor h3.zz-anchor-greeting {
+    font-size: clamp(0.72rem, min(5.2vw, 4.5vmin), 1.55rem) !important;
+  }
+}
+@media (min-width: 1024px) {
+  .zone-anchor h3.zz-anchor-greeting {
+    font-size: var(--zz-h2-desktop) !important;
+  }
+}
 @media (max-width: 767px) {
   .zone-anchor .zz-anchor-greeting,
   .zone-anchor h3.zz-anchor-greeting {
@@ -6226,11 +6288,26 @@ select,
   }
 }
 
+/* Zone welcome — same Marvin scale as `.question-text`; one `pre-line` block; no clamp/min-height padding */
+.zone-anchor h3.question-text.zone-welcome {
+  text-transform: lowercase !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  max-width: min(92vw, 22rem) !important;
+  display: block !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  overflow: visible !important;
+  white-space: pre-line;
+}
+
 /* Ask Zai pill: flat pill, Marvin + body size token — tap or Enter → /zai */
 .zone-ask-zai-wrap {
   width: 90%;
   max-width: 400px;
-  margin: 20px 0 0 0;
+  margin: 12px 0 0 0;
 }
 
 /* Ask Zai pill: pink bg, purple text (legible). Interaction → yellow bg, pink text. */

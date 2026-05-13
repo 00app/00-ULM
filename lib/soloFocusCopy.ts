@@ -90,8 +90,8 @@ export function polishTrueTipParagraphsForHeadline(
 }
 
 /** Zone / bento card face — Marvin stamp stays one line. */
-export const MAX_ZONE_CARD_HEADLINE_WORDS = 7
-/** Solo Focus / expanded industrial H1 — more room before ellipsis. */
+export const MAX_ZONE_CARD_HEADLINE_WORDS = 8
+/** Solo Focus / expanded Zai Architect H1 — ~20 words before ellipsis. */
 export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 20
 
 /** Headline = max N words with ellipsis when clipped. */
@@ -101,6 +101,19 @@ export function headlineFromTitle(title: string, maxWords: number = MAX_ZONE_CAR
     .filter(Boolean)
   if (words.length <= maxWords) return words.join(' ')
   return `${words.slice(0, maxWords).join(' ')}...`
+}
+
+/** Short display string for verified source URLs (expanded Solo Focus footer link). */
+export function formatAuditSourceLinkDisplay(url: string, maxLen = 96): string {
+  const u = url.trim()
+  if (!u.startsWith('http')) return u.slice(0, maxLen)
+  try {
+    const parsed = new URL(u)
+    const short = `${parsed.hostname}${parsed.pathname === '/' ? '' : parsed.pathname}`
+    return short.length > maxLen ? `${short.slice(0, Math.max(0, maxLen - 1))}…` : short
+  } catch {
+    return u.slice(0, maxLen)
+  }
 }
 
 /**
@@ -284,13 +297,6 @@ function pruneDuplicateLocalityInsight(
   })
   return out.join('\n\n')
 }
-
-/** Expanded True Tip / Solo Focus — manifest §3 (What / Why / How + discovery + CTA). */
-export const TRUE_TIP_SECTION_LABELS = [
-  'The What (The Discovery)',
-  'The Why (Money & Carbon)',
-  'The How (Action — use CTA below)',
-] as const
 
 /**
  * Three paragraphs from Neon `research_results.architect_prose` + verified £/CO₂e figures.

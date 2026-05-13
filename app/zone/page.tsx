@@ -198,13 +198,13 @@ function neonJourneyResearchFromCoverage(
   return Object.keys(out).length > 0 ? out : undefined
 }
 
-/** 6-word max greeting: Hello {name}. + how they're doing (groovy / cool / let's fix this) */
-function getZoneGreeting(
+/** Hello {name}. on line 1; punch on line 2 (Marvin / anchor layout). */
+function getZoneGreetingParts(
   name: string | undefined,
   completedCount: number,
   heroMoney: number,
   heroCarbon: number
-): string {
+): { line1: string; line2: string } {
   try {
     const who = (typeof name === 'string' ? name.trim() : '') || 'Guest'
     const first = who.split(/\s+/)[0] || 'Guest'
@@ -221,9 +221,9 @@ function getZoneGreeting(
     } else {
       punch = "You're doing cool."
     }
-    return `Hello ${first}. ${punch}`.trim()
+    return { line1: `Hello ${first}.`.trim(), line2: punch.trim() }
   } catch {
-    return "Hello. You're doing cool."
+    return { line1: 'Hello.', line2: "You're doing cool." }
   }
 }
 
@@ -1315,16 +1315,15 @@ export default function ZonePage() {
   const displayCarbon = useCountUp(heroCarbon, { duration: 920, spring: true })
   const heroDataSource = dbConnected && neonVerifiedMoney ? 'VERIFIED AUDIT' : 'ESTIMATED AUDIT'
 
-  const zoneGreetingWords = useMemo(() => {
-    const line = getZoneGreeting(
+  /** One block (newline between lines), question-text style + lowercase. */
+  const zoneGreetingBlock = useMemo(() => {
+    const { line1, line2 } = getZoneGreetingParts(
       state?.profile?.name,
       Array.isArray(completedJourneys) ? completedJourneys.length : 0,
       heroMoney,
       heroCarbon
     )
-      .toUpperCase()
-      .trim()
-    return line.split(/\s+/).filter(Boolean)
+    return `${line1}\n${line2}`
   }, [state?.profile?.name, completedJourneys, heroMoney, heroCarbon])
 
   return (
@@ -1348,42 +1347,25 @@ export default function ZonePage() {
           initial="hidden"
           animate="visible"
         >
-          <header className="zone-masthead flex flex-col items-start w-full px-4 flex-shrink-0 gap-2">
-            <div className="flex flex-row items-start justify-between w-full gap-3">
-              <motion.div variants={STACCATO_CHILD_VARIANTS} className="flex-shrink-0">
-                <Logo width={66} className="zone-logo" style={{ color: 'var(--color-yellow)' }} />
-              </motion.div>
-              <div className="flex-1 min-w-0" aria-hidden />
-            </div>
-            <motion.div
-              variants={STACCATO_CHILD_VARIANTS}
-              className="flex flex-col items-start min-w-0"
-              aria-hidden
-            >
-              <span className="zone-menu">
-                <span className="zone-menu-line">use less,</span>
-                <span className="zone-menu-line">more.</span>
-              </span>
+          <header className="zone-masthead flex flex-col items-center w-full px-4 flex-shrink-0 py-0 gap-0">
+            <motion.div variants={STACCATO_CHILD_VARIANTS} className="flex-shrink-0">
+              <Logo width={66} className="zone-logo" style={{ color: 'var(--color-yellow)' }} />
             </motion.div>
           </header>
           <motion.div
             variants={STACCATO_CHILD_VARIANTS}
-            className="w-full flex flex-col items-center px-2"
+            className="w-full flex flex-col items-center px-2 py-0"
             aria-live="polite"
           >
-            <motion.div
-              className="text-marvin text-center tracking-wide zz-anchor-greeting uppercase flex flex-col items-center gap-0.5"
-              style={{ color: 'var(--color-yellow)' }}
-              variants={STACCATO_CONTAINER_VARIANTS}
+            <motion.h3
+              className="question-text zone-welcome text-center m-0"
+              style={{ color: 'var(--color-yellow)', lineHeight: 0.8 }}
+              variants={STACCATO_CHILD_VARIANTS}
               initial="hidden"
               animate="visible"
             >
-              {zoneGreetingWords.map((w, i) => (
-                <motion.span key={`${w}-${i}`} variants={STACCATO_CHILD_VARIANTS} className="block leading-tight">
-                  {w}
-                </motion.span>
-              ))}
-            </motion.div>
+              {zoneGreetingBlock}
+            </motion.h3>
           </motion.div>
           <motion.div variants={STACCATO_CHILD_VARIANTS} className="w-[90%] max-w-[400px] relative zone-ask-zai-wrap">
             <input

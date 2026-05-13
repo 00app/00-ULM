@@ -1,6 +1,5 @@
 /**
- * True Tip narrative — three paragraphs aligned with expanded Solo Focus sections:
- * Detection → **The What**, Proof → **The Why**, Bridge → **The How**.
+ * True Tip narrative — three paragraphs (discovery → money/carbon → action) without UI labels.
  */
 
 import type { JourneyId } from '@/lib/journeys'

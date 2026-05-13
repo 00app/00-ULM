@@ -9,6 +9,11 @@ import { parseApril2026UnitRatesFromMarkdown, triggerSupplementalResearch } from
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
 import { APRIL_2026_TRUTH_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
 import { JOURNEY_IDS } from '@/lib/journeys'
+import {
+  headlineFromTitle,
+  MAX_EXPANDED_VIEW_HEADLINE_WORDS,
+  stripExpandedCardTitleNoise,
+} from '@/lib/soloFocusCopy'
 
 export interface ResearchCitation {
   source_name: string
@@ -193,9 +198,10 @@ export async function runZeroResearch(params: {
 
 /**
  * Intelligence loop — **Architect (Gemini)** on Vercel: raw Firecrawl markdown → structured JSON for Neon.
- * Output keys align with `research_results`: `category`, `saving_amount_gbp`, `offer_url`, `architect_prose`
- * (three paragraphs, \\n\\n separated). Carbon kg for Zone cards comes from `buildUserImpact` / scrapes, not
- * a separate `verified_saving_kg` column on this row (see `verified_saving` / impact pipeline elsewhere).
+ * Output keys align with `research_results`: `category`, `saving_amount_gbp`, `offer_url`, `agent_headline` (~20 words),
+ * `architect_prose` (exactly three paragraphs, \\n\\n separated, no UI section labels in text). Carbon kg for Zone
+ * cards comes from `buildUserImpact` / scrapes, not a separate `verified_saving_kg` column on this row (see
+ * `verified_saving` / impact pipeline elsewhere).
  */
 const RESEARCH_TRIPLET_MODEL = 'gemini-2.5-flash-lite'
 const ALLOWED_RESEARCH_CATEGORY = new Set<string>([...JOURNEY_IDS, 'general'])
@@ -226,10 +232,19 @@ function normalizeArchitectProseThreeParagraphs(ap: string | undefined): string 
   return undefined
 }
 
+/** ~20-word auditor headline for Solo Focus H1 + Neon `agent_headline`. */
+function normalizeGeminiAgentHeadline(raw: string | undefined): string | undefined {
+  if (!raw?.trim()) return undefined
+  const cleaned = stripExpandedCardTitleNoise(raw.trim())
+  const clipped = headlineFromTitle(cleaned, MAX_EXPANDED_VIEW_HEADLINE_WORDS)
+  return clipped.length > 0 ? clipped.slice(0, 600) : undefined
+}
+
 function parseResearchTripletJson(raw: string): {
   category: string
   saving_amount_gbp: number
   offer_url: string
+  agent_headline?: string
   architect_prose?: string
 } | null {
   let t = raw.trim()
@@ -252,7 +267,10 @@ function parseResearchTripletJson(raw: string): {
         ? j.architect_prose.trim().slice(0, 4000)
         : undefined
     const architect_prose = normalizeArchitectProseThreeParagraphs(apRaw)
-    return { category, saving_amount_gbp, offer_url, architect_prose }
+    const agent_headline = normalizeGeminiAgentHeadline(
+      typeof j.agent_headline === 'string' ? j.agent_headline : undefined
+    )
+    return { category, saving_amount_gbp, offer_url, agent_headline, architect_prose }
   } catch {
     return null
   }
@@ -261,16 +279,24 @@ function parseResearchTripletJson(raw: string): {
 async function extractResearchTripletWithGemini(
   markdown: string,
   postcode: string | null | undefined
-): Promise<{ category: string; saving_amount_gbp: number; offer_url: string; architect_prose?: string } | null> {
+): Promise<{
+  category: string
+  saving_amount_gbp: number
+  offer_url: string
+  agent_headline?: string
+  architect_prose?: string
+} | null> {
   const key = process.env.GEMINI_API_KEY?.trim()
   if (!key || markdown.length < 80) return null
   const journeyList = [...JOURNEY_IDS, 'general'].join(', ')
   const pc = postcode?.trim() ? `Postcode context: ${postcode.trim()}\n\n` : ''
-  const prompt = `${pc}From the UK household research markdown below, return ONLY valid JSON (no markdown code fence) with exactly these keys:
+  const prompt = `${pc}You are **Zai**, the Senior Auditor for Zero Zero (UK household energy, money, carbon).
+From the markdown below, return ONLY valid JSON (no markdown code fence) with exactly these keys:
 - "category": one of: ${journeyList} — the single best thematic fit for the main opportunity in the text.
 - "saving_amount_gbp": non-negative number with up to two decimal places — plausible estimated annual GBP saving (use 0 if none inferable).
 - "offer_url": one https URL copied verbatim from the markdown if any appear; otherwise use "${PRICE_CAP_SOURCE_URL}".
-- "architect_prose": exactly THREE paragraphs of UK English, separated by two newline characters (blank line between each). Persona: **Zai** — Zero Zero's specialised auditor: direct, lowercase-first, value-first; no cheerleading. No filler openers ("did you know", "consider this", "fun fact", "here's the thing"). No bullet labels or markdown inside the prose. Mandatory structure — paragraph 1 = **THE WHAT** (one sharp local or scheme-specific discovery, punchy and concrete); paragraph 2 = **THE WHY** (cold numbers: tie savings to £/yr and CO₂e for a typical household using evidence from the text); paragraph 3 = **THE HOW** (one crisp instruction the reader can do this week, aligned to the offer_url theme). If you output fewer or more than three paragraphs, the response is invalid — rewrite until there are exactly three. Max ~1200 characters total.
+- "agent_headline": one bold, specific sentence of **approximately twenty words** (hard cap: do not exceed 22 words). It must read like a verified audit lead — concrete locality or scheme where the text supports it (e.g. outcode, programme name, £/yr figure). No section labels ("The What", etc.). No trailing colon. Normal sentence casing; lowercase where natural at the start of clauses is fine.
+- "architect_prose": exactly **THREE** paragraphs of UK English, each separated by **two** newline characters (one blank line between paragraphs). Same persona: industrial, direct, zero-fluff; lowercase where natural. **Do not** print structural headings or labels (no "The What", "The Why", "The How", no markdown headings, no bullets). The trinity must live **inside** the prose only: paragraph 1 = the concrete discovery for this household/postcode context; paragraph 2 = the cold math (£/yr and kg CO₂e or equivalent, tied to evidence in the text); paragraph 3 = the immediate industrial action the reader should take this week (aligned with offer_url). If you output fewer or more than three paragraphs, the response is invalid — rewrite until there are exactly three. Max ~1200 characters total for architect_prose.
 
 Markdown:
 ---
@@ -279,7 +305,7 @@ ${markdown.slice(0, 28_000)}`
     const genAI = new GoogleGenerativeAI(key)
     const model = genAI.getGenerativeModel({
       model: RESEARCH_TRIPLET_MODEL,
-      generationConfig: { maxOutputTokens: 1024, temperature: 0.25 },
+      generationConfig: { maxOutputTokens: 1536, temperature: 0.25 },
     })
     const out = await model.generateContent(prompt)
     const text = out.response.text() ?? ''
@@ -366,6 +392,7 @@ export async function persistResearchResult(params: {
       category: string
       saving_amount_gbp: number
       offer_url: string
+      agent_headline?: string
       architect_prose?: string
     } | null = null
     const skipGemini =
@@ -414,7 +441,11 @@ export async function persistResearchResult(params: {
     const mergedArchitectProse =
       normalizeArchitectProseThreeParagraphs(params.architectProse?.trim()) ??
       normalizeArchitectProseThreeParagraphs(geminiTriplet?.architect_prose?.trim()) ??
-      normalizeArchitectProseThreeParagraphs(params.agentHeadline?.trim()) ??
+      null
+
+    const mergedAgentHeadline =
+      normalizeGeminiAgentHeadline(params.agentHeadline ?? undefined) ??
+      normalizeGeminiAgentHeadline(geminiTriplet?.agent_headline) ??
       null
 
     await pool.query(
@@ -441,7 +472,7 @@ export async function persistResearchResult(params: {
         savingForDb,
         params.localityContext ?? null,
         providerName,
-        params.agentHeadline?.trim() ?? null,
+        mergedAgentHeadline,
         mergedArchitectProse,
         params.invokePayload !== undefined ? JSON.stringify(params.invokePayload) : null,
       ]

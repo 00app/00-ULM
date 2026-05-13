@@ -191,7 +191,7 @@ export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): 
   const wasteCash = Math.max(0, Math.round(input.annualWasteCash))
   const wasteKg = Math.max(0, Math.round(input.annualWasteCarbon))
   const rawName = (input.displayName ?? '').trim().split(/\s+/)[0] ?? ''
-  const greetName = rawName ? `[${rawName}]` : 'there'
+  const greetName = rawName || 'there'
 
   const out: string[] = ['Hello', greetName, 'Based', 'on', 'your', 'profile', 'people', 'in']
 

@@ -88,8 +88,8 @@ Read this when tracing **profile summary**, **expanded Solo Focus**, or **resear
 | Piece | Location |
 |-------|-----------|
 | Title cleanup | **`stripExpandedCardTitleNoise`** — strips trailing **(Updated …)** so the H1 does not repeat body dates — **`lib/soloFocusCopy.ts`**; used in **`JourneyBentoCard`**, **`SoloFocusOverlay`** before **`headlineFromTitle`** |
-| Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini triplet in **`lib/agents/researchAgent.ts`** locks **Zai** persona: exactly three paragraphs (What / Why / How), direct mostly-lowercase prose, no filler openers. |
-| Layout | **`TRUE_TIP_SECTION_LABELS`** — **The What (The Discovery)** / **The Why (Money & Carbon)** / **The How (Action)** labels above each paragraph in **`JourneyBentoCard`** + **`SoloFocusOverlay`**. |
+| Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini triplet in **`lib/agents/researchAgent.ts`** locks **Zai Senior Auditor** persona: **`agent_headline`** (~20 words) + exactly three label-free paragraphs (what / why / how embedded in prose only). |
+| Layout | Expanded view: **League Gothic** H1 (**`solo-focus-architect-headline`**) + **Inter 16px** three **`solo-focus-architect-prose`** blocks + monospace **verified source** link — **`JourneyBentoCard`**, **`SoloFocusOverlay`** (no “The What / Why / How” UI labels). Zone card face still uses **`headlineFromTitle`** with **`MAX_ZONE_CARD_HEADLINE_WORDS` (8)**. |
 | Dedupe | **`stripExpandedCardTitleNoise`** (incl. fluff prefixes), **`stripAuditorFluffParagraph`**, **`polishTrueTipParagraphsForHeadline`** / **`dedupeTrueTipOpeningParagraph`** — headline vs first paragraph overlap |
 | Links | **`offer_url`** / **`verifiedAuditSourceUrl`** / **`pickPrimaryHttpUrl`** — **`IndustrialHandoffButton`** uses **Claim / Buy / Get** via **`resolveRevenueCtaLabel`** (`lib/zone/verifiedRevenue.ts`); always passes a URL ( **`offer_url`** or **`/zai`** fallback). |
 
@@ -133,7 +133,7 @@ Hermes on the Oracle VPS is the **trigger** for a multi-step pipeline, not an is
 
 1. **Trigger (Hermes):** Scheduled job (e.g. 05:00) calls **`GET /api/cron/zone-research`** on Vercel with **`CRON_SECRET`** → kicks research refresh for queued users/postcodes.
 2. **Extraction:** **Firecrawl** deep-scrapes locality/trust seeds; **Gemini** maps findings into the **nine journey categories**, producing persistable GBP, prose, `offer_url`, and citations (`lib/agents/researchAgent.ts`, `persistResearchResult`).
-3. **Consumption (Zone):** Dashboard cards surface totals and tips; **Solo Focus** expanded view shows **three paragraphs** (`TRUE_TIP_SECTION_LABELS` + `architect_prose` when audit matches) and a **handoff CTA** (`IndustrialHandoffButton`).
+3. **Consumption (Zone):** Dashboard cards surface totals and tips; **Solo Focus** expanded view shows **~20-word architect headline** + **three prose paragraphs** (`architect_prose` when audit matches) + **verified source link**, and a **handoff CTA** (`IndustrialHandoffButton`).
 4. **Expansion (user):** **`POST /api/answers`** remains the **canonical** server path that returns discovery payloads for **`injectNewDiscoveryCard`**. **`POST /api/zone/injections`** (trap follow-up) and **`POST /api/research/question-card`** (Ask) are **supplemental** and share the **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`** cap.
 
 **UX:** While injections run after a trap answer, Solo Focus shows **“Targeted scrape running…”** and disables duplicate taps. **£ column** shows a **✓ True data** pill when **`verifiedDataBadge`** (Neon-aligned audit).
@@ -211,7 +211,7 @@ Zai = UK energy / savings copilot: direct, lowercase where natural, value-first 
 - **Pipeline:** Builds run on Vercel when Git integration receives pushes to the connected branch (usually **`main`**) **or** when you run **`npm run deploy`** / **`npm run ship`**. If previews stop updating, confirm the Git link in the Vercel project and run **`vercel link`** locally so the CLI target matches **`gary-lomi-lomicos-projects/00-ulm`** (or your team project). There is **no** `.github/workflows` CI in-repo.
 - **Smoke test:** **`GET /api/health`** on production (`database: connected` ⇒ Neon **`DATABASE_URL`** is valid in Vercel env).
 - **Admin API gate:** Root **`proxy.ts`** (Next.js 16+) runs on `/api/admin/*` — same behaviour as the old `middleware.ts`; do not duplicate auth in two files.
-- **Node version:** `package.json` **`engines.node`** is pinned to **`20.x`** so Vercel does not float onto a new major during redeploys. Bump intentionally when you upgrade the runtime.
+- **Node version:** `package.json` **`engines.node`** is **`20.x || 22.x`** — use **20** on Vercel until you switch the project to **22** in the dashboard; local **22** satisfies Firecrawl’s engine range. Bump intentionally when you change the runtime.
 - **npm transitive warnings** (e.g. `node-domexception`): usually clear when upstream packages update; run **`npm update`** on a branch when convenient.
 
 ---

@@ -25,7 +25,7 @@ Operational contract for infra, data flow, UX, and verification. **Secrets belon
 ## 3. UX / UI
 
 - **Mobile locality:** Long placenames use **`formatSummaryLocalityKineticToken`** (`lib/brains/summaryLogic.ts`) + **`IntroWordCycle`** with **`opacityTicker`** on `/profile/summary` (word-by-word opacity only — no intro glitch). **`/` + `/intro`** keep the logo glitch (Style A). Kinetic order is **HELLO → name → locality** then bridge + waste beats; single-word towns **over seven characters** get Marvin clamp + squeeze (Littlehampton path).
-- **Expanded Solo Focus:** Three blocks — **The What (The Discovery)**, **The Why (Money & Carbon)**, **The How (Action)** — fed primarily from Neon **`architect_prose`** when the verified audit matches (`lib/soloFocusCopy.ts`, `JourneyBentoCard`, `SoloFocusOverlay`). Content should be editorial, not boilerplate; Gemini is prompted for three paragraphs separated by blank lines on new research rows.
+- **Expanded Solo Focus:** **Zai Architect** layout — **League Gothic** ~20-word **`agent_headline`** (H1) + three **Inter** paragraphs from Neon **`architect_prose`** (no “The What / Why / How” UI labels; trinity lives only in prose). **`JourneyBentoCard`** + **`SoloFocusOverlay`** + **`lib/soloFocusCopy.ts`**. Gemini triplet prompt in **`lib/agents/researchAgent.ts`** emits **`agent_headline`** + label-free three paragraphs on new research rows.
 - **CTA:** Expanded cards use **`MotherCardRenderer`** + **`IndustrialHandoffButton`** with **`ctaUrl`** from **`offer_url`** / verified source, falling back to **`/zai`** audit URL when no partner link exists (`JourneyBentoCard`).
 
 ---

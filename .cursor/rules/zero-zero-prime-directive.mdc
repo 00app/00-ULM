@@ -25,8 +25,8 @@ alwaysApply: true
 - **Birth (Zone discovery cards from the embedded journey):** **`POST /api/answers`** → discovery race → `discovery.new_card_data` / `grid_pulse_card` → **`injectNewDiscoveryCard`**. This is the **canonical** birth path for MC answers in Solo Focus / bento.
 - **Supplemental (capped):** **`POST /api/zone/injections`** (trap follow-up) and **`POST /api/research/question-card`** (free-form Ask) — not the primary answer-loop birth; all respect **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`**.
 - **Neon:** Persisted invoke metadata column is **`research_snapshot`** (JSONB).
-- **Reasoning:** Gemini emits **`architect_prose`** in three paragraphs: What / Why / How.
-- **Persona:** Zai (direct, lowercase, value-first auditor).
+- **Reasoning:** Gemini emits **`agent_headline`** (~20 words) + **`architect_prose`** as exactly three paragraphs (what / why / how embedded in prose — no structural labels in the text).
+- **Persona:** Zai Senior Auditor (industrial, direct, zero-fluff; lowercase where natural).
 
 ## 3. UI Constraints
 
