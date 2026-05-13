@@ -174,24 +174,29 @@ CREATE TABLE IF NOT EXISTS research_results (
   source_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_research_results_postcode ON research_results(postcode);
-CREATE INDEX IF NOT EXISTS idx_research_results_created_at ON research_results(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_research_results_user_created ON research_results (user_id, created_at DESC NULLS LAST) WHERE user_id IS NOT NULL;
-
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS postcode TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE research_results ADD COLUMN IF NOT EXISTS provider_name TEXT;
-ALTER TABLE research_results ADD COLUMN IF NOT EXISTS agent_headline TEXT;
-ALTER TABLE research_results ADD COLUMN IF NOT EXISTS research_snapshot JSONB;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS profile_snapshot JSONB DEFAULT '{}';
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS markdown TEXT;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS citations JSONB DEFAULT '[]';
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS architect_prose TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS elec_unit_rate_gbp_per_kwh DOUBLE PRECISION;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS gas_unit_rate_gbp_per_kwh DOUBLE PRECISION;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS deep_link TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS verified_saving DOUBLE PRECISION;
-ALTER TABLE research_results ADD COLUMN IF NOT EXISTS locality_context TEXT;
-ALTER TABLE research_results ADD COLUMN IF NOT EXISTS source_url TEXT;
-ALTER TABLE research_results ADD COLUMN IF NOT EXISTS architect_prose TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS category TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS offer_url TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS saving_amount_gbp NUMERIC(10,2);
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS locality_context TEXT;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS source_url TEXT;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS provider_name TEXT;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS agent_headline TEXT;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS research_snapshot JSONB;
+CREATE INDEX IF NOT EXISTS idx_research_results_postcode ON research_results(postcode);
+CREATE INDEX IF NOT EXISTS idx_research_results_created_at ON research_results(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_research_results_user_created ON research_results (user_id, created_at DESC NULLS LAST) WHERE user_id IS NOT NULL;
+
 ALTER TABLE research_results
   ADD COLUMN IF NOT EXISTS verified BOOLEAN
   GENERATED ALWAYS AS (
