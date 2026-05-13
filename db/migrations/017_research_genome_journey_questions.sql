@@ -1,13 +1,13 @@
--- Infinite morph genome: attribution + OpenClaw debug payload; fast JSONB upserts; optional DB-backed question catalog.
+-- Infinite morph genome: attribution + invoke snapshot JSONB; fast upserts; optional DB-backed question catalog.
 -- Apply in Neon SQL editor or via your migration runner.
 
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS provider_name TEXT;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS agent_headline TEXT;
-ALTER TABLE research_results ADD COLUMN IF NOT EXISTS openclaw_raw_json JSONB;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS research_snapshot JSONB;
 
 COMMENT ON COLUMN research_results.provider_name IS 'Supplied-by attribution (e.g. Ofgem, GOV.UK) for Zone / Solo Focus.';
 COMMENT ON COLUMN research_results.agent_headline IS 'Short headline from ZeroResearch / NextWin for card title override.';
-COMMENT ON COLUMN research_results.openclaw_raw_json IS 'Last invoke response snapshot for QA / Pulse widget.';
+COMMENT ON COLUMN research_results.research_snapshot IS 'Last research invoke metadata JSON for QA / diagnostics.';
 
 -- High-velocity reads: latest answers per user (pulse, dashboards)
 CREATE INDEX IF NOT EXISTS idx_journey_answers_jsonb_user_updated

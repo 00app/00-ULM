@@ -1,4 +1,4 @@
--- Store ZeroResearch agent results (OpenClaw/Firecrawl) for postcode + profile.
+-- Store ZeroResearch agent results (Firecrawl-backed) for postcode + profile.
 -- Used to serve returning users and to avoid re-scraping on every request.
 
 CREATE TABLE IF NOT EXISTS research_results (

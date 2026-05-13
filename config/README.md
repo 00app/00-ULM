@@ -10,4 +10,4 @@ The live product uses **Neon** (persistence), **Firecrawl** (scrapes), **Gemini*
 - **`CRON_SECRET`** — Authorizes cron routes and some diagnostics (`Authorization: Bearer …`).
 - **`GATEWAY_TOKEN`** — Optional; authorizes internal POST routes such as `/api/zone/tips-inject` and `/api/agents/pulse`.
 
-Legacy `config/openclaw/` paths may still exist on disk from older clones; they are **not** required for the Intelligence Loop in this repo.
+Legacy `config/` paths from older clones may still exist on disk; they are **not** required for the Intelligence Loop in this repo.

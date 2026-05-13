@@ -144,7 +144,7 @@ Hermes on the Oracle VPS is the **trigger** for a multi-step pipeline, not an is
 
 Apply in Neon (or your pipeline) as needed:
 
-- `db/migrations/20260513_rename_openclaw_raw_to_research_snapshot.sql` — column rename **`openclaw_raw_json` → `research_snapshot`**
+- `db/migrations/20260513_research_snapshot_column.sql` — ensures **`research_snapshot`** (rename/merge from legacy JSONB column if present)
 - `db/migrations/20260512_research_results_verified_generated.sql` — verified / generated alignment on `research_results`
 - `db/migrations/20260512_research_results_architect_prose_numeric.sql` — architect prose / numeric alignment
 - `db/migrations/20260511_research_results_user_id.sql` — `research_results.user_id`
