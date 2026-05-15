@@ -14,6 +14,7 @@ import { getLocalData } from '@/lib/local/getLocalData'
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
 import { APRIL_2026_TRUTH_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
 import { JOURNEY_IDS } from '@/lib/journeys'
+import { GRANTS_AND_BILLS_CATEGORY_PROTOCOL, isAllowedResearchCategory } from '@/lib/intelligence/researchCategories'
 import {
   headlineFromTitle,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
@@ -414,12 +415,12 @@ Return markdown only (no JSON, no code fences).`
     return null
   }
 }
-const ALLOWED_RESEARCH_CATEGORY = new Set<string>([...JOURNEY_IDS, 'general'])
+const ALLOWED_TRIPLET_CATEGORIES = [...JOURNEY_IDS, 'general', 'grants', 'bills'] as const
 
 function normalizeResearchCategory(raw: string | null | undefined): string | null {
   const s = raw?.trim().toLowerCase()
   if (!s) return null
-  if (ALLOWED_RESEARCH_CATEGORY.has(s)) return s
+  if (isAllowedResearchCategory(s)) return s
   return 'general'
 }
 
@@ -523,10 +524,12 @@ async function extractResearchTripletWithGemini(
 } | null> {
   const key = process.env.GEMINI_API_KEY?.trim()
   if (!key || markdown.length < 80) return null
-  const journeyList = [...JOURNEY_IDS, 'general'].join(', ')
+  const journeyList = ALLOWED_TRIPLET_CATEGORIES.join(', ')
   const pc = postcode?.trim() ? `Postcode context: ${postcode.trim()}\n\n` : ''
   const profileBlock = buildResearchProfileAuditorContext(profileData ?? null)
   const prompt = `${pc}${profileBlock}You are **Zai**, the **Personal Intelligence Auditor** for Zero Zero (UK household energy, money, carbon). Your job is **forensic intelligence**, not generic web search: interrogate the evidence on the user’s behalf. When the profile implies children, tenancy, food waste, or a tight locality (for example a county, council, or outcode), prefer **surgical** angles — efficiency hacks, bulk-buy collectives, engineering-grade appliance calibration, scheme eligibility — over vague “look for grants” filler. If a grant is the best instrument, keep it; if a small £/week habit change dominates the math, say so plainly.
+
+${GRANTS_AND_BILLS_CATEGORY_PROTOCOL}
 
 From the markdown below, return ONLY valid JSON (no markdown code fence) with exactly these keys:
 - "category": one of: ${journeyList} — the single best thematic fit for the main opportunity in the text.

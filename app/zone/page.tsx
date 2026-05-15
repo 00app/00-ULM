@@ -16,6 +16,7 @@ import {
   type ArchitectJourneyPayload,
 } from '@/lib/agents/contentArchitect'
 import { buildContentArchitectCardPayload } from '@/lib/zone/architectZoneRequest'
+import { foldExtendedResearchCoverage } from '@/lib/zone/neonResearchMerge'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import {
   inferRevenueCtaKind,
@@ -190,7 +191,8 @@ function neonJourneyResearchFromCoverage(
       out[jid] = { savingGbp: sav, architectProse: ap }
     }
   }
-  return Object.keys(out).length > 0 ? out : undefined
+  const folded = foldExtendedResearchCoverage(out, cov)
+  return Object.keys(folded).length > 0 ? folded : undefined
 }
 
 /** Hello {name}. on line 1; punch on line 2 (Marvin / anchor layout). */
