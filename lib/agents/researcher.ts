@@ -6,10 +6,14 @@
 import type { ResearchCitation, ResearchProfileData, ZeroResearchResult } from '@/lib/agents/researchAgent'
 import {
   fetchLiveEnergyData,
+  fetchFirecrawlMarkdownForUrls,
   fetchUkEconomicSeedMarkdown,
+  hasFirecrawlApiKey,
   OFGEM_LIVE_PRICE_CAP_URL,
 } from '@/lib/agents/scraper'
 import { APRIL_2026_TRUTH_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
+import { getLocalData } from '@/lib/local/getLocalData'
+import { NINE_DOMAIN_GRID_SEED_URLS } from '@/lib/agents/nineDomainResearchSeeds'
 
 function normalizeGbpPerKwh(n: unknown): number | null {
   if (typeof n !== 'number' || Number.isNaN(n)) return null
@@ -43,7 +47,7 @@ function parseUnitRatesFromRegex(markdown: string): {
   }
 }
 
-function isWeakResearchMarkdown(markdown: string): boolean {
+export function isWeakResearchMarkdown(markdown: string): boolean {
   const t = markdown.toLowerCase()
   if (t.length < 220) return true
   const weakMarkers = [
@@ -156,6 +160,46 @@ async function fetchDuckDuckGoFallbackMarkdown(query: string): Promise<{
   }
 }
 
+function uniqueUrls(urls: string[]): string[] {
+  return Array.from(new Set(urls.filter((u) => /^https:\/\//i.test(u))))
+}
+
+async function fetchPostcodeFirecrawlMarkdown(params: {
+  postcode?: string | null
+  profileData?: ResearchProfileData | null
+}): Promise<{ markdown: string; citations: ResearchCitation[]; localityContext: string | null }> {
+  const postcode = (params.postcode ?? params.profileData?.postcode ?? '').replace(/\s+/g, '').toUpperCase()
+  if (!postcode || !hasFirecrawlApiKey()) {
+    return { markdown: '', citations: [], localityContext: null }
+  }
+
+  const local = await getLocalData(postcode).catch(() => null)
+  const localityContext = [local?.locality, local?.council, local?.region].filter(Boolean).join(', ') || null
+  const urls = uniqueUrls([
+    ...NINE_DOMAIN_GRID_SEED_URLS,
+    `https://www.gov.uk/find-local-council/${encodeURIComponent(postcode)}`,
+    local?.heat_pump_grant_context?.source_url ?? '',
+    'https://www.gov.uk/apply-boiler-upgrade-scheme',
+    'https://energysavingtrust.org.uk/advice/grants-and-loans/',
+  ])
+
+  const scraped = await fetchFirecrawlMarkdownForUrls(urls, { maxUrls: 12, minChars: 160 })
+  const citations: ResearchCitation[] = scraped.map((row) => ({
+    source_name: row.title?.trim() || new URL(row.url).hostname.replace(/^www\./, ''),
+    url: row.url,
+    snippet: row.markdown.slice(0, 420),
+    title: row.title,
+  }))
+  const localHeader = localityContext
+    ? `Postcode: ${postcode}\nLocality: ${localityContext}`
+    : `Postcode: ${postcode}`
+  const markdown = scraped
+    .map((row) => `### Local source: ${row.title || row.url}\n${localHeader}\n\n${row.markdown.slice(0, 5000)}`)
+    .join('\n\n---\n\n')
+
+  return { markdown, citations, localityContext }
+}
+
 /**
  * Gather UK energy markdown via Firecrawl-backed fetch + DuckDuckGo fallbacks, then persist to Neon when requested.
  */
@@ -169,15 +213,16 @@ export async function triggerSupplementalResearch(params: {
 }): Promise<ZeroResearchResult | null> {
   let markdown = ''
   let citations: ResearchCitation[] = []
+  let localityContext: string | null = null
 
-  if (markdown.length < 200 && process.env.FIRECRAWL_API_KEY?.trim()) {
+  if (markdown.length < 200 && hasFirecrawlApiKey()) {
     const fallbackMd = await fetchLiveEnergyData()
     if (fallbackMd.length > markdown.length) {
       markdown = fallbackMd
       citations = citationForOfgem(fallbackMd)
     }
   }
-  if (markdown.length < 200 && !process.env.FIRECRAWL_API_KEY?.trim()) {
+  if (markdown.length < 200 && !hasFirecrawlApiKey()) {
     const ddg = await fetchDuckDuckGoFallbackMarkdown(
       `UK energy price cap ${params.postcode ?? ''} Ofgem April 2026`
     )
@@ -185,6 +230,16 @@ export async function triggerSupplementalResearch(params: {
       markdown = ddg.markdown
       citations = ddg.citations
     }
+  }
+
+  const localFirecrawl = await fetchPostcodeFirecrawlMarkdown({
+    postcode: params.postcode,
+    profileData: params.profileData ?? null,
+  })
+  if (localFirecrawl.markdown.length > 0) {
+    markdown = `${markdown.trim()}\n\n---\n\n## Postcode council grants and energy offers\n\n${localFirecrawl.markdown}`
+    citations = [...localFirecrawl.citations, ...citations]
+    localityContext = localFirecrawl.localityContext
   }
 
   if (markdown.length < 40) return null
@@ -199,7 +254,7 @@ export async function triggerSupplementalResearch(params: {
     }
   }
 
-  if (process.env.FIRECRAWL_API_KEY?.trim()) {
+  if (hasFirecrawlApiKey()) {
     const seeds = await fetchUkEconomicSeedMarkdown()
     if (seeds.length > 120) {
       markdown = `${markdown.trim()}\n\n---\n\n## UK economic seeds\n\n${seeds}`
@@ -244,6 +299,7 @@ export async function triggerSupplementalResearch(params: {
       gasUnitRateGbpPerKwh: persistedGas,
       sourceUrl: PRICE_CAP_SOURCE_URL,
       providerName: degraded ? 'Ofgem (degraded fallback)' : 'Ofgem',
+      localityContext,
       invokePayload: {
         trigger: 'Location',
         markdownChars: markdown.length,
@@ -255,6 +311,12 @@ export async function triggerSupplementalResearch(params: {
           gasGbpPerKwh: persistedGas,
         },
       },
+    })
+    const { repairResearchResultsMissingHeadlines } = await import('@/lib/agents/researchAgent')
+    await repairResearchResultsMissingHeadlines({
+      userId: params.userId,
+      postcode: params.postcode,
+      profileData: params.profileData ?? null,
     })
   }
 

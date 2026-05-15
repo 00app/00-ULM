@@ -69,6 +69,23 @@ Zone VM blends: **AppContext** + **localStorage** mirror, **journey answers**, *
 
 ---
 
+## Integrations — Neon, Gemini, Firecrawl, Hermes (one pipeline)
+
+These are **not** four separate services talking past each other. They meet inside the **deployed Next.js app** (and your local **`npm run dev`**) via env vars and route handlers:
+
+| Layer | What it does | Contract |
+|-------|----------------|----------|
+| **Neon** | PostgreSQL: users, `journey_answers_jsonb`, **`research_results`** (includes **`research_snapshot`** JSONB for invoke metadata). | `DATABASE_URL` must use the **pooler** host; canonical hostname check: **`MANIFEST_NEON_POOLER_HOST`** in `lib/intelligence/manifest.ts`. |
+| **Gemini** | Models for `/api/zai`, research triplet (`agent_headline`, `architect_prose`), auditor JSON, discovery. | **`GEMINI_API_KEY`** (server-only). |
+| **Firecrawl** | Scrapes UK-trusted seeds for research, sentinel, and cron-driven refresh. | **`FIRE_CRAWL_KEY_2`** or **`FIRECRAWL_API_KEY`** — both are read in **`lib/sentinel/api-config.ts`** (`FIRE_CRAWL_KEY_2` wins when set). Same value must be present on Vercel if production scrapes run. |
+| **Hermes** | Name for the **Oracle VPS cron** — it only **HTTP-triggers** the app; it does not hold DB credentials itself. | **`GET` or `POST`** `/api/cron/zone-research?limit=…` with **`Authorization: Bearer <CRON_SECRET>`** (same secret as Vercel). The **app** then uses **`DATABASE_URL`** + API keys to run the pipeline. |
+
+**End-to-end flow:** Hermes (schedule) → **cron route** → research jobs → **Firecrawl** scrape → **Gemini** structure → **`persistResearchResult`** → **Neon**. Separately, **`POST /api/answers`** remains the **canonical** discovery birth path for MC answers (Solo Focus / bento) → `injectNewDiscoveryCard`; Ask (`/api/research/question-card`) and trap injects are supplemental and share the injection cap (see manifest).
+
+**Verify without exposing secrets:** `bash scripts/verify-env-and-health.sh` (set `BASE_URL` for prod smoke tests). **`GET /api/health/diagnostics`** returns booleans `neon`, `gemini`, `firecrawl` plus DB latency and last research row hints — auth: signed-in session **or** `Authorization: Bearer` matching **`CRON_SECRET`** or **`GATEWAY_TOKEN`**.
+
+---
+
 ## Wiring map (connections)
 
 Read this when tracing **profile summary**, **expanded Solo Focus**, or **research rows**.
@@ -89,7 +106,7 @@ Read this when tracing **profile summary**, **expanded Solo Focus**, or **resear
 |-------|-----------|
 | Title cleanup | **`stripExpandedCardTitleNoise`** — strips trailing **(Updated …)** so the H1 does not repeat body dates — **`lib/soloFocusCopy.ts`**; used in **`JourneyBentoCard`**, **`SoloFocusOverlay`** before **`headlineFromTitle`** |
 | Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini triplet in **`lib/agents/researchAgent.ts`** locks **Zai Senior Auditor** persona: **`agent_headline`** (~20 words) + exactly three label-free paragraphs (what / why / how embedded in prose only). |
-| Layout | Expanded view: **League Gothic** H1 (**`solo-focus-architect-headline`**) + **Inter 16px** three **`solo-focus-architect-prose`** blocks + monospace **verified source** link — **`JourneyBentoCard`**, **`SoloFocusOverlay`** (no “The What / Why / How” UI labels). Zone card face still uses **`headlineFromTitle`** with **`MAX_ZONE_CARD_HEADLINE_WORDS` (8)**. |
+| Layout | Expanded view: **Marvin Visions** H1 (**`solo-focus-architect-headline`**) + three **Roboto Bold 16px / 1.2lh** **`solo-focus-architect-prose`** blocks + **Roboto Bold** verified source link — **`JourneyBentoCard`**, **`SoloFocusOverlay`** (no UI labels). Zone card face still uses **`headlineFromTitle`** with **`MAX_ZONE_CARD_HEADLINE_WORDS` (8)**. |
 | Dedupe | **`stripExpandedCardTitleNoise`** (incl. fluff prefixes), **`stripAuditorFluffParagraph`**, **`polishTrueTipParagraphsForHeadline`** / **`dedupeTrueTipOpeningParagraph`** — headline vs first paragraph overlap |
 | Links | **`offer_url`** / **`verifiedAuditSourceUrl`** / **`pickPrimaryHttpUrl`** — **`IndustrialHandoffButton`** uses **Claim / Buy / Get** via **`resolveRevenueCtaLabel`** (`lib/zone/verifiedRevenue.ts`); always passes a URL ( **`offer_url`** or **`/zai`** fallback). |
 
@@ -111,11 +128,11 @@ Full manifest (Hermes, Neon host token, caps): **`docs/INTELLIGENCE-LOOP-MANIFES
 | **Answers** | `POST /api/answers` (auth), `GET /api/answers` (hydrate). |
 | **Health** | **`GET /api/health`** — DB ping (`database: connected` when Neon is reachable); add **`?live=1`** for HTTP 200 liveness only (no DB). **`GET /api/health/diagnostics`** — richer booleans + timestamps; requires **signed-in session** *or* **`Authorization: Bearer`** matching **`GATEWAY_TOKEN`** or **`CRON_SECRET`** (same pattern as `lib/agents` gates). |
 | **Research** | `persistResearchResult` in `lib/agents/researchAgent.ts` → `research_results` (`user_id`, `category`, `offer_url`, `source_url`, `saving_amount_gbp`, rates, markdown, **`research_snapshot`** JSON invoke payload, …). Optional Gemini triplet extraction when params do not already supply all three. |
-| **Personal audit** | `runPersonalAudit(userId)` in `lib/agents/auditor.ts` — Firecrawl seeds + Gemini JSON `{ prose, category, saving_amount_gbp, offer_url }` → persist (requires `GEMINI_API_KEY`, `FIRECRAWL_API_KEY`). |
+| **Personal audit** | `runPersonalAudit(userId)` in `lib/agents/auditor.ts` — Firecrawl seeds + Gemini JSON `{ prose, category, saving_amount_gbp, offer_url }` → persist (requires `GEMINI_API_KEY` + Firecrawl via `FIRE_CRAWL_KEY_2` or `FIRECRAWL_API_KEY`). |
 | **Cron** | **`GET` or `POST`** `/api/cron/zone-research?limit=20` — Hermes / Vercel Cron; requires **`CRON_SECRET`** (min 16 chars) in `Authorization: Bearer …` or `x-cron-secret`. Seeds from **`users`** (postcode + profile columns + `user_genome`). |
 | **Question → card** | `POST /api/research/question-card` (auth) — `{ journey_key, question }` triggers Firecrawl/Gemini discovery for that category; capped per user/journey (see Intelligence Loop). |
 
-**Required for full live behaviour:** `DATABASE_URL`, `GEMINI_API_KEY`, `FIRECRAWL_API_KEY`. Optional: `GATEWAY_TOKEN` (internal inject/pulse webhooks). **Cron / admin gates:** `CRON_SECRET`. **Client URL hints:** `NEXT_PUBLIC_APP_URL`. See `.env.example`.
+**Required for full live behaviour:** `DATABASE_URL`, `GEMINI_API_KEY`, and Firecrawl (`FIRE_CRAWL_KEY_2` or `FIRECRAWL_API_KEY`). Optional: `GATEWAY_TOKEN` (internal inject/pulse webhooks). **Cron / admin gates:** `CRON_SECRET`. **Client URL hints:** `NEXT_PUBLIC_APP_URL`. See `.env.example`.
 
 ---
 
@@ -168,15 +185,33 @@ Apply in Neon (or your pipeline) as needed:
 | **`/profile` questions** | **Full-sentence fade** | `ProfilePageClient`: whole label as one block, **y: 10→0** + opacity, **`STACCATO_TWEEN`**. |
 | **Zone grid** | **Style B — Mechanical assembly** | `STACCATO_CONTAINER_VARIANTS` / **`STACCATO_CHILD_VARIANTS`** in `app/zone/page.tsx`; 20px gap, **60px** card radius, `grid-auto-rows: 1fr` on tablet+. |
 | **Solo Focus** | **Zip-shut → fade-open** | `EmbeddedJourneyQuestion`: **`ZIP_SHUTTER_SPRING`** on the question stack when answering; next **`motion.h3`** uses **opacity + y** when **`soloFocusZipShut`** (no `zz-shimmer-focus`). 40px close circle; journey slab colours. |
-| **Colours** | — | Yellow `#FDFD00`, pink `#E80DAD`, purple `#7800ce` — `:root` in `app/globals.css`. |
+| **Colours** | — | Yellow `#FDFD00`, pink `#FF00FF`, purple `#7800ce` — `:root` in `app/globals.css`. |
 
-Timers: **`SUMMARY_KINETIC_WORD_*`**, **`SHIMMER_FOCUS_*`**, **`INTRO_DECISION_CTA_*`** in `lib/animations.ts` (intro/summary/CTA only — Zone sticks to **`STACCATO_*`** + layout springs).
+Timers: **`SUMMARY_KINETIC_WORD_*`** and **`SHIMMER_FOCUS_*`** in `lib/animations.ts` (intro/summary/CTA only — Zone sticks to **`STACCATO_*`** + fussy snap).
 
 ---
 
-## Zai persona (short)
+## Zai Active Auditor Persona (Brain Stomach & Logic)
 
-Zai = UK energy / savings copilot: direct, lowercase where natural, value-first (£ / kg). Lead wins to **LEARN / SWITCH / CLAIM**. Do not apologise or “as an AI”. (Full prompt wiring: `lib/brains/zai/`, `/api/zai`.)
+Zai operates as the **Active Auditor** for Zero Zero. This goes beyond a static chat assistant; it is the "brain stomach" digesting local data into actionable intelligence.
+
+**1. The 12k/1t Logic (Core Engine)**
+All insights and recommendations are strictly evaluated against the **12,000 kWh / 1 tonne CO₂e** baseline. Zai must ground every suggestion in measurable £ and CO₂e reductions.
+
+**2. Gemini Rules (Extraction & Persona)**
+- **Strict Parsing**: Gemini acts as a forensic triplet extractor (What, Why, How) to process user inputs and scraped data.
+- **Tone**: Direct, lowercase where natural, value-first (£ / kg). No fluff.
+- **Prose formatting**: All output must be label-free. Structural headings are forbidden. The trinity of logic lives *inside* the prose.
+- **No AI Apologies**: Never use "As an AI..." or "Here is..." padding.
+
+**3. Firecrawl Rules (Locality & Triggers)**
+- **Dynamic Locality**: `user_profiles.postcode` / profile postcode is the coordinate for all Firecrawl research triggers. No static postcode anchor is allowed.
+- **Targeted Scraping**: The cron engine and discovery pipeline invoke Firecrawl with strict URL seeds to pull verified local grants, tariffs, and EV infrastructure logic.
+
+**4. The "Fussy" Motion DNA**
+The application UI reflects the Auditor's precision: mechanical, low-latency, and precise. 
+- **Linear Fades**: `0.12s linear`. No floaty physics.
+- **2px Snaps**: Elements fade in (`opacity: 0` to `1`) with a strict `2px` vertical snap (`y: 2` to `y: 0`).
 
 ---
 

@@ -25,6 +25,12 @@ export const APRIL_2026_TRUTH_PENCE = {
   GAS_PER_KWH: 5.74,
 } as const
 
+/** April 2026 default tariff — standing charges (pence per day), display lock. */
+export const APRIL_2026_STANDING_PENCE = {
+  ELECTRICITY_PER_DAY: 57.21,
+  GAS_PER_DAY: 29.09,
+} as const
+
 /** Universal Auditor regional grid tiers (April 2026 lock). */
 export const REG_HI_RURAL_G_PER_KWH = 8
 export const REG_URBAN_LEZ_G_PER_KWH = 48
@@ -43,9 +49,9 @@ export const MARCH_2026_ECONOMY = {
   /** Octopus Export Rate */
   OCTOPUS_EXPORT_RATE: 0.12,
 
-  /** Standing charges (£/day) */
-  ELEC_STANDING_CHARGE: 0.5475,
-  GAS_STANDING_CHARGE: 0.3509,
+  /** Standing charges (£/day) — April 2026 lock */
+  ELEC_STANDING_CHARGE: APRIL_2026_STANDING_PENCE.ELECTRICITY_PER_DAY / 100,
+  GAS_STANDING_CHARGE: APRIL_2026_STANDING_PENCE.GAS_PER_DAY / 100,
 
   /** kg CO₂e per kWh — locked to TRUTH_2026_MARCH.GRID_INTENSITY (129 g) */
   CARBON_FACTOR_ELEC: TRUTH_2026_MARCH.GRID_INTENSITY_G_PER_KWH / 1000,

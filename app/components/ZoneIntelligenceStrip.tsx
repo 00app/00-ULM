@@ -3,9 +3,9 @@
 import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
-import { MECHANICAL_SNAP_SPRING } from '@/lib/animations'
+import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 
 const TICK = '✓'
@@ -102,6 +102,36 @@ export function ZoneIntelligenceStrip({
 }: ZoneIntelligenceStripProps) {
   const [mounted, setMounted] = useState(false)
   const [open, setOpen] = useState(false)
+  /** From GET /api/health/diagnostics — same booleans as Vercel server env (not a live generate probe). */
+  const [apiGemini, setApiGemini] = useState(false)
+  const [apiFirecrawl, setApiFirecrawl] = useState(false)
+  const [apiDiagReady, setApiDiagReady] = useState(false)
+
+  const pollApiDiagnostics = useCallback(async () => {
+    try {
+      const res = await fetch('/api/health/diagnostics', { cache: 'no-store' })
+      if (!res.ok) {
+        setApiGemini(false)
+        setApiFirecrawl(false)
+        setApiDiagReady(true)
+        return
+      }
+      const d = (await res.json()) as { gemini?: boolean; firecrawl?: boolean }
+      setApiGemini(Boolean(d.gemini))
+      setApiFirecrawl(Boolean(d.firecrawl))
+      setApiDiagReady(true)
+    } catch {
+      setApiGemini(false)
+      setApiFirecrawl(false)
+      setApiDiagReady(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    void pollApiDiagnostics()
+    const id = setInterval(() => void pollApiDiagnostics(), 15_000)
+    return () => clearInterval(id)
+  }, [pollApiDiagnostics])
 
   useEffect(() => setMounted(true), [])
 
@@ -128,9 +158,12 @@ export function ZoneIntelligenceStrip({
   const covRows = categoryCoverage ? Object.values(categoryCoverage) : []
   const covInsight = covRows.some((c) => c.insightReady)
   const covOffer = covRows.some((c) => c.hasOffer)
+  const moneyOk =
+    neonVerifiedMoney ||
+    covRows.some((c) => (c.latestSavingGbp ?? 0) > 0 || (c.latestVerifiedGbp ?? 0) > 0)
   const proseOk = covInsight || hasArchitectProse
   const offerOk = covOffer || hasOfferUrl
-  const rowOk = proseOk && offerOk
+  const rowOk = moneyOk && proseOk && offerOk
 
   const moneyHint =
     typeof verifiedSaving === 'number' && verifiedSaving > 0
@@ -150,6 +183,30 @@ export function ZoneIntelligenceStrip({
     variant === 'likes' ? (
       <>
         <BulletRow ok={dbConnected} title="NEON (LONDON)" source="GET /api/health (public DB ping)" detail={dbHealthHint ?? undefined} />
+        <BulletRow
+          ok={apiDiagReady && apiGemini}
+          title="GEMINI API"
+          source="GET /api/health/diagnostics · server env"
+          detail={
+            !apiDiagReady
+              ? 'Polling…'
+              : apiGemini
+                ? 'GEMINI_API_KEY set on this deployment.'
+                : 'GEMINI_API_KEY unset — Zai / Gemini JSON paths will not run.'
+          }
+        />
+        <BulletRow
+          ok={apiDiagReady && apiFirecrawl}
+          title="FIRECRAWL API"
+          source="GET /api/health/diagnostics · server env"
+          detail={
+            !apiDiagReady
+              ? 'Polling…'
+              : apiFirecrawl
+                ? 'FIRE_CRAWL_KEY_2 or FIRECRAWL_API_KEY set on this deployment.'
+                : 'Firecrawl key unset — Firecrawl scrape seeds will not run.'
+          }
+        />
         <BulletRow ok title="SAVED TILES" source="Last Zone view model in this browser" />
         <p className="pulse-diagnostic-label mt-2 mb-0">ZONE LIVE PIPELINE</p>
         <p className="pulse-diagnostic-value !mb-0">
@@ -165,10 +222,31 @@ export function ZoneIntelligenceStrip({
           detail={dbHealthHint ?? undefined}
         />
         <BulletRow
-          ok={
-            neonVerifiedMoney ||
-            covRows.some((c) => (c.latestSavingGbp ?? 0) > 0 || (c.latestVerifiedGbp ?? 0) > 0)
+          ok={apiDiagReady && apiGemini}
+          title="GEMINI API"
+          source="GET /api/health/diagnostics · server env"
+          detail={
+            !apiDiagReady
+              ? 'Polling…'
+              : apiGemini
+                ? 'GEMINI_API_KEY set on this deployment (Vercel / local).'
+                : 'GEMINI_API_KEY unset — research triplet, Zai, and discovery Gemini calls are disabled.'
           }
+        />
+        <BulletRow
+          ok={apiDiagReady && apiFirecrawl}
+          title="FIRECRAWL API"
+          source="GET /api/health/diagnostics · server env"
+          detail={
+            !apiDiagReady
+              ? 'Polling…'
+              : apiFirecrawl
+                ? 'FIRE_CRAWL_KEY_2 or FIRECRAWL_API_KEY set on this deployment.'
+                : 'Firecrawl key unset — Firecrawl-backed research will not run.'
+          }
+        />
+        <BulletRow
+          ok={moneyOk}
           title="RESEARCH £ ROW"
           source={
             moneyHint
@@ -217,23 +295,20 @@ export function ZoneIntelligenceStrip({
 
   const node = (
     <div className="pulse-diagnostic-anchor pointer-events-none fixed bottom-8 right-8 z-[99] flex flex-col items-end gap-2">
-      <AnimatePresence>
-        {open ? (
+      {open ? (
           <motion.div
             id="zz-intelligence-loop-panel"
             key="intel-loop-panel"
-            initial={{ scale: 0.94, opacity: 1 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.94, opacity: 1 }}
-            transition={MECHANICAL_SNAP_SPRING}
-            className="pointer-events-auto pulse-diagnostic-panel pulse-diagnostic-panel--intel relative flex w-[min(100vw-2rem,22rem)] min-h-[min(44dvh,380px)] max-h-[min(72dvh,520px)] flex-col overflow-y-auto"
+            initial={{ opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={INDUSTRIAL_OPACITY_SNAP}
+            className={`pointer-events-auto pulse-diagnostic-panel pulse-diagnostic-panel--intel ${rowOk ? 'pulse-diagnostic-panel--research-live' : ''} relative flex w-[min(100vw-2rem,22rem)] min-h-[min(44dvh,380px)] max-h-[min(72dvh,520px)] flex-col overflow-y-auto`}
           >
             <motion.button
               type="button"
               aria-label="Close intelligence loop"
               onClick={close}
               className="pulse-panel-close-circle"
-              whileTap={{ scale: 0.96 }}
               transition={{ duration: 0.12 }}
             >
               <BackArrowDownLeft size={22} />
@@ -264,7 +339,6 @@ export function ZoneIntelligenceStrip({
             </div>
           </motion.div>
         ) : null}
-      </AnimatePresence>
 
       <motion.button
         type="button"
@@ -273,8 +347,7 @@ export function ZoneIntelligenceStrip({
         aria-label={open ? 'Close intelligence loop' : 'Open intelligence loop'}
         onClick={() => setOpen((o) => !o)}
         className="pulse-triangle-fab pointer-events-auto"
-        whileTap={{ scale: 0.96 }}
-        transition={MECHANICAL_SNAP_SPRING}
+        transition={INDUSTRIAL_OPACITY_SNAP}
       >
         <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden style={{ color: yellow }}>
           <path d="M12 3L22 20H2L12 3z" fill="currentColor" />

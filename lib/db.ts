@@ -18,8 +18,31 @@ function dbGlobal(): DbGlobal {
   return g.__zz_neon_db
 }
 
+/**
+ * Neon “Connection details” sometimes append `channel_binding=require` (SCRAM).
+ * That breaks or flakes some Node `pg` / pooler paths; pooler + sslmode=require is enough.
+ */
+export function sanitizeNeonConnectionString(connectionString: string): string {
+  const t = connectionString.trim()
+  if (!t.includes('channel_binding')) return t
+  try {
+    const u = new URL(t)
+    u.searchParams.delete('channel_binding')
+    let out = u.toString()
+    if (out.endsWith('?')) out = out.slice(0, -1)
+    return out
+  } catch {
+    return t
+      .replace(/[?&]channel_binding=[^&]*/gi, '')
+      .replace(/\?&+/g, '?')
+      .replace(/&&+/g, '&')
+      .replace(/\?$/g, '')
+  }
+}
+
 function resolveConnectionString(): string {
-  const connectionString = process.env.DATABASE_URL?.trim()
+  const raw = process.env.DATABASE_URL?.trim() ?? ''
+  const connectionString = raw ? sanitizeNeonConnectionString(raw) : ''
   const isProduction = process.env.NODE_ENV === 'production'
 
   if (isProduction && !connectionString) {

@@ -2,17 +2,13 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal, flushSync } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { type JourneyId } from '@/lib/journeys'
 import { getNextQuestion } from '@/lib/zone/questionHandler'
 import {
-  COLOR_YELLOW,
-  getJourneyCardTextHex,
-  getJourneyColorHex,
-  getJourneyCtaBgHex,
-  getJourneyCtaTextHex,
-  getSystemCtaBgHex,
-  getSystemCtaTextHex,
+  resolveZoneSurfaceKind,
+  zoneSurfaceStyleProps,
+  type ZoneSurfaceKind,
 } from '@/lib/journeyColors'
 import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
 import {
@@ -31,18 +27,18 @@ import { EmbeddedJourneyQuestion } from '@/app/components/EmbeddedJourneyQuestio
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import {
-  SPRING_TAP,
+  INDUSTRIAL_OPACITY_SNAP,
   SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION,
-  LAYOUT_SPRING,
   SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC,
   SOLO_FOCUS_CONTENT_SNAP_INITIAL,
   SOLO_FOCUS_CONTENT_SNAP_ANIMATE,
-  MECHANICAL_SNAP_SPRING,
 } from '@/lib/animations'
 import {
   PRICE_CAP_APRIL_2026,
   PRICE_CAP_MARCH_2026,
   PRICE_CAP_SAVING_APRIL_1,
+  APRIL_2026_TRUTH_PENCE,
+  APRIL_2026_STANDING_PENCE,
 } from '@/lib/brains/constants'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
@@ -74,6 +70,7 @@ import {
   triggerScrapeSyncForCategory,
   type ResearchCategoryCoverageRow,
 } from '@/lib/researchSyncClient'
+import { runSoloFocusAuditCompletionClient } from '@/lib/soloFocusAuditCompleteClient'
 import {
   SOLO_FOCUS_SNAPSHOT_V,
   soloFocusSnapStorageKeys,
@@ -85,6 +82,7 @@ import {
 import { pickOfferLineFromAnswerMorph } from '@/lib/soloFocusAnswerHandoff'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
 import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
+import { scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
 
 type HomeSentinelRecard = {
   headline: string
@@ -109,20 +107,18 @@ function readSoloFocusSessionQuestionCount(storageKeyCore: string): number {
 
 function parseSentinelMotherRefresh(raw: unknown): HomeSentinelRecard | null {
   if (!raw || typeof raw !== 'object') return null
-  const o = raw as Record<string, unknown>
-  if (typeof o.headline !== 'string' || typeof o.description !== 'string') return null
-  if (typeof o.moneyValue !== 'number' || typeof o.carbonValue !== 'number') return null
+  const p = raw as SentinelMotherRecardPayload
+  const headline = typeof p.headline === 'string' ? p.headline.trim() : ''
+  if (!headline) return null
   return {
-    headline: o.headline,
-    description: o.description,
-    moneyGbp: o.moneyValue,
-    carbonKg: o.carbonValue,
-    sourceUrl: typeof o.source_url === 'string' ? o.source_url : undefined,
-    verifiedAt: typeof o.verified_date === 'string' ? o.verified_date : undefined,
+    headline,
+    description: typeof p.description === 'string' ? p.description.trim() : '',
+    moneyGbp: typeof p.moneyValue === 'number' && Number.isFinite(p.moneyValue) ? p.moneyValue : 0,
+    carbonKg: typeof p.carbonValue === 'number' && Number.isFinite(p.carbonValue) ? p.carbonValue : 0,
+    sourceUrl: typeof p.source_url === 'string' ? p.source_url : undefined,
+    verifiedAt: typeof p.verified_date === 'string' ? p.verified_date : undefined,
   }
 }
-
-/** Hydrate morph deck + citation after reload even when the bottom rail is still QUESTION (infinite loop). */
 function readHydrationSnap(snapKey: string, journeyId: JourneyId): SoloFocusResultSnapshotV1 | null {
   if (typeof window === 'undefined') return null
   return readSoloFocusSnapshot(snapKey, journeyId)
@@ -203,11 +199,6 @@ export interface JourneyBentoCardProps {
   insightGenerationPending?: boolean
 }
 
-/** Card text follows industrial surface lock (journeyColors). */
-function useTextColor(journeyId: JourneyId): string {
-  return getJourneyCardTextHex(journeyId)
-}
-
 /** Bento card / Solo Focus — same northeast “open” stroke as `card-top-arrow` tiles. */
 function BentoNortheastOpenArrow({ size = 22 }: { size?: number }) {
   return (
@@ -274,6 +265,7 @@ export function JourneyBentoCard({
   verifiedArchitectProse = null,
   researchCategoryCoverage = null,
   insightGenerationPending = false,
+  fromScraper = false,
 }: JourneyBentoCardProps) {
   const { state } = useApp()
   const profilePostcode = state.profile?.postcode ?? null
@@ -318,9 +310,11 @@ export function JourneyBentoCard({
     intensity_g_per_kwh: number | null
     cleaner_vs_2025_pct: number | null
   } | null>(() => readHydrationSnap(soloFocusSnapKey, journeyId)?.gridContext ?? null)
-  const color = `var(--color-j-${journeyId})`
-  const resolvedTextColor = useTextColor(journeyId)
-  const textColor = textColorOverride ?? resolvedTextColor
+  const surfaceKind: ZoneSurfaceKind = resolveZoneSurfaceKind({
+    journeyId,
+    cardId,
+  })
+  const surfaceVars = zoneSurfaceStyleProps(surfaceKind)
   const headline = headlineFromTitle(title || String(journeyId ?? ''), MAX_ZONE_CARD_HEADLINE_WORDS)
 
   const [morphDeck, setMorphDeck] = useState<any[]>(
@@ -810,7 +804,7 @@ export function JourneyBentoCard({
     )
     const trueTipSectionsEl =
       trueTipParagraphs.some((p) => p.trim().length > 0) ? (
-        <div className="solo-focus-true-tip-sections flex flex-col gap-4 w-full min-w-0 mt-1">
+        <div className="solo-focus-true-tip-sections flex flex-col gap-0 w-full min-w-0 mt-1">
           {trueTipParagraphs.map((para, i) =>
             para?.trim() ? (
               <p
@@ -890,30 +884,17 @@ export function JourneyBentoCard({
       setResearchAttribution(null)
     }
 
-    const surfaceJourneyId = displayJourneyId as JourneyId
-    const expandedJourneyBg = getJourneyColorHex(surfaceJourneyId)
-    const expandedJourneyText = getJourneyCardTextHex(surfaceJourneyId)
-    const expandedCtaBg = getJourneyCtaBgHex(surfaceJourneyId) || getSystemCtaBgHex()
-    const expandedCtaText = getJourneyCtaTextHex(surfaceJourneyId) || getSystemCtaTextHex()
-    const isYellowSurface = expandedJourneyBg.toUpperCase() === COLOR_YELLOW.toUpperCase()
-
     const expandedOverlay = (
         kineticGrid && (effectiveOpen || isExiting) ? (
             <motion.div key={`sf-grow-${journeyId}-${cardId ?? 'card'}`} className="solo-focus-grow-layer" initial={false}>
             <ExpandedCardShell
-            layoutId={currentMorphData ? undefined : `card-${journeyId}`}
+            ref={bodyScrollRef}
             data-journey={displayJourneyId}
-            {...(isYellowSurface ? { 'data-sf-yellow-slab': 'true' } : {})}
+            data-zone-surface={surfaceKind}
             className="expanded-solo-focus view-expanded solo-focus-mobile-expand"
             style={
               {
-                ['--journey-bg' as string]: expandedJourneyBg,
-                ['--journey-text' as string]: expandedJourneyText,
-                ['--color-ink' as string]: expandedJourneyText,
-                ['--journey-accent' as string]: expandedCtaBg,
-                ['--journey-on-accent' as string]: expandedCtaText,
-                ['--journey-cta-bg' as string]: expandedCtaBg,
-                ['--journey-cta-text' as string]: expandedCtaText,
+                ...surfaceVars,
                 transformOrigin: '50% 50%',
               } as React.CSSProperties
             }
@@ -932,21 +913,20 @@ export function JourneyBentoCard({
           sourceUrl={diagnosticUrlJourney}
         />
 
-        <motion.div ref={bodyScrollRef} className="solo-focus-body-scroll w-full min-w-0">
-        <div className="solo-focus-rail w-full min-w-0">
+        <motion.div className="solo-focus-rail w-full min-w-0">
         <motion.div
           className="solo-focus-stack flex flex-col items-stretch justify-start w-full min-w-0"
           initial={reducePagerMotion ? false : SOLO_FOCUS_CONTENT_SNAP_INITIAL}
           animate={SOLO_FOCUS_CONTENT_SNAP_ANIMATE}
           transition={{
-            ...MECHANICAL_SNAP_SPRING,
+            ...INDUSTRIAL_OPACITY_SNAP,
             delay: reducePagerMotion ? 0 : SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC,
           }}
         >
           {/* Hero + metrics + actions */}
             <motion.div
               key={`sf-hero-${morphDeckCursor}-${displayJourneyId}-${String(activeCardId ?? 'base')}`}
-              className="solo-focus-shell solo-focus-mother solo-focus-content-stack w-full min-w-0"
+              className={`solo-focus-shell solo-focus-mother solo-focus-content-stack w-full min-w-0${currentMorphData?.high_impact ? ' zz-high-impact-rebirth' : ''}`}
             >
             <div className="solo-focus-expanded-toolbar solo-focus-mother-columns w-full min-w-0">
               <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
@@ -958,8 +938,6 @@ export function JourneyBentoCard({
                 role="presentation"
               >
                 <motion.h1
-                  layoutId={`headline-${journeyId}`}
-                  layout={false}
                   className="solo-focus-architect-headline solo-focus-content-text text-left"
                   style={{
                     color: 'var(--journey-text)',
@@ -988,8 +966,6 @@ export function JourneyBentoCard({
                   </p>
                 ) : null}
                 <motion.h1
-                  layoutId={`headline-${journeyId}`}
-                  layout={false}
                   className="solo-focus-architect-headline solo-focus-content-text text-left"
                   style={{
                     color: 'var(--journey-text)',
@@ -1023,6 +999,7 @@ export function JourneyBentoCard({
               ctaUrl={resolvedOfferUrl?.trim() || (allowZaiFallback ? buildZaiAuditUrl() : '')}
               ctaJourneyId={displayJourneyId as string}
               ctaLabel={journeyCtaLabel}
+              ctaSurface={currentMorphData?.high_impact ? 'yellow' : 'pink'}
             />
                 </div>
               </div>
@@ -1039,10 +1016,9 @@ export function JourneyBentoCard({
                     triggerHaptic('medium')
                     handleCloseStart()
                   }}
-                  whileTap={{ scale: 0.96 }}
                   initial={false}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={SPRING_TAP}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={INDUSTRIAL_OPACITY_SNAP}
                   style={{ transformOrigin: 'top right' }}
                 >
                   <BackArrowDownLeft size={24} />
@@ -1055,14 +1031,13 @@ export function JourneyBentoCard({
                     {onLike && (activeCardId || cardId) && (
                       <motion.button
                         type="button"
-                        className="circle-btn solo-focus-action-btn solo-focus-action-80"
+                        className="circle-btn solo-focus-action-btn solo-focus-action-80 zz-shimmer-cta"
                         onClick={() => {
                           triggerHaptic('medium')
                           const id = String(activeCardId || cardId)
                           onLike(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
                         }}
-                        whileTap={{ scale: 0.96 }}
-                        transition={{ ...SPRING_TAP, delay: 0.07 }}
+                        transition={INDUSTRIAL_OPACITY_SNAP}
                         aria-label="Like"
                         style={{
                           backgroundColor: isLiked
@@ -1079,7 +1054,7 @@ export function JourneyBentoCard({
                     {onAskZai && (
                       <motion.button
                         type="button"
-                        className="circle-btn solo-focus-action-btn solo-focus-action-80 solo-focus-ask-zai-btn"
+                        className="circle-btn solo-focus-action-btn solo-focus-action-80 solo-focus-ask-zai-btn zz-shimmer-cta"
                         onClick={() => {
                           triggerHaptic('medium')
                           const allAnswers: Record<string, any> = {}
@@ -1104,8 +1079,7 @@ export function JourneyBentoCard({
                           onClose?.()
                           onAskZai()
                         }}
-                        whileTap={{ scale: 0.96 }}
-                        transition={{ ...SPRING_TAP, delay: 0.14 }}
+                        transition={INDUSTRIAL_OPACITY_SNAP}
                         aria-label="Ask Zai about this"
                       >
                         <span className="solo-focus-ask-zai-visual" aria-hidden>
@@ -1138,7 +1112,7 @@ export function JourneyBentoCard({
           <motion.div
             className={`solo-focus-shell solo-focus-child solo-focus-loop trinity-to-question flex-shrink-0 w-full flex flex-col items-start view-expanded solo-focus-trap-block${loopZipCollapsing ? ' solo-focus-loop--posting' : ''}`}
           >
-            <AnimatePresence mode="wait">
+            <>
               {viewState === 'RESULT' ? (
                 <div
                   key={`sf-result-${discoverySnap?.questionId ?? 'q'}-${String(discoverySnap?.answerValue ?? '').slice(0, 24)}-${currentMorphData?.id ?? activeCardId ?? 'base'}`}
@@ -1265,22 +1239,16 @@ export function JourneyBentoCard({
                       )}
                     </p>
                   )}
-                  {journeyId === 'home' && (() => {
-                    const fromDiscovery =
-                      discoverySnap?.questionId === 'energy_type' && discoverySnap.answerValue.toUpperCase() === 'GAS'
-                    let fromStorage = false
-                    try {
-                      if (typeof window !== 'undefined') {
-                        const raw = localStorage.getItem('journey_home_answers')
-                        const answers = raw ? (JSON.parse(raw) as Record<string, string>) : {}
-                        fromStorage = (answers.energy_type ?? answers.heating ?? '').toUpperCase() === 'GAS'
-                      }
-                    } catch {
-                      fromStorage = false
-                    }
-                    if (!fromDiscovery && !fromStorage) return null
-                    return null
-                  })()}
+                  {journeyId === 'home' ? (
+                    <p
+                      className="zz-body solo-focus-copy-width text-left m-0 opacity-90"
+                      style={{ color: 'var(--journey-text)' }}
+                    >
+                      {wrapResultSupportingAsterisks(
+                        `April 2026 reference unit rates (Ofgem default tariff cap): electricity ${APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH}p/kWh (${APRIL_2026_STANDING_PENCE.ELECTRICITY_PER_DAY}p/day standing); gas ${APRIL_2026_TRUTH_PENCE.GAS_PER_KWH}p/kWh (${APRIL_2026_STANDING_PENCE.GAS_PER_DAY}p/day standing).`
+                      )}
+                    </p>
+                  ) : null}
                     <p className="zz-body solo-focus-copy-width text-left m-0 opacity-90" style={{ color: 'var(--journey-text)' }}>
                       From the top: swipe up to Zone, down for next journey. With several tips in this journey, swipe left/right between them.
                     </p>
@@ -1315,7 +1283,7 @@ export function JourneyBentoCard({
                     onClose={onClose}
                     onJourneyAnswered={onJourneyAnswered}
                     triggerHaptic={triggerHaptic}
-                    textColor="var(--sf-prose-contrast)"
+                    textColor="var(--journey-text)"
                     onActiveQuestionLabelChange={setSoloEmbedQuestionLabel}
                     soloFocusZipShut
                     onZipShutStart={() => setLoopZipCollapsing(true)}
@@ -1440,47 +1408,63 @@ export function JourneyBentoCard({
                           ? discovery.recommendation_copy.trim()
                           : null
                       )
-                      if (hasNextQuestion === true) {
-                        persistViewState('QUESTION', { preserveResultContext: true })
-                      } else {
-                        persistViewState('RESULT')
+                      if (hasNextQuestion === false) {
+                        runSoloFocusAuditCompletionClient({
+                          journeyId,
+                          questionId,
+                          answerValue,
+                          postcode: profilePostcode ?? state.profile?.postcode,
+                          profileData: {
+                            postcode: profilePostcode ?? state.profile?.postcode ?? undefined,
+                            home_type: state.profile?.homeType ?? null,
+                            transport_baseline: state.profile?.transport ?? null,
+                            household: state.profile?.livingSituation ?? null,
+                            employment_status: state.profile?.employmentStatus ?? null,
+                          },
+                          journeyAnswers: state.journeyAnswers as Record<string, Record<string, string>>,
+                        })
                       }
-                      
-                      onJourneyAnswered?.()
-                      onEmbeddedAnswerSuccess?.({ cardId, journeyId })
-
-                      // 3. Zip-open with the new card instantly
-                      setLoopZipCollapsing(false)
-                      
-                      if (hasNextQuestion === false && onAdvanceToNextJourneyAfterAnswer) {
-                        window.setTimeout(() => {
-                          onAdvanceToNextJourneyAfterAnswer({
-                            fromJourneyId: journeyId,
-                            offerLine: handoffLine,
-                          })
-                        }, 220)
-                      }
-                      triggerScrapeSyncForCategory({
-                        postcode: profilePostcode,
-                        category: journeyId,
-                        profileData: {
-                          postcode: profilePostcode ?? undefined,
-                          home_type: state.profile?.homeType ?? null,
-                          transport_baseline: state.profile?.transport ?? null,
-                          household: state.profile?.livingSituation ?? null,
-                          employment_status: state.profile?.employmentStatus ?? null,
-                        },
+                      scheduleSoloFocusRebirthOpen(() => {
+                        if (hasNextQuestion === true) {
+                          persistViewState('QUESTION', { preserveResultContext: true })
+                        } else {
+                          persistViewState('RESULT')
+                        }
+                        onJourneyAnswered?.()
+                        onEmbeddedAnswerSuccess?.({ cardId, journeyId })
+                        setLoopZipCollapsing(false)
+                        if (hasNextQuestion === false && onAdvanceToNextJourneyAfterAnswer) {
+                          window.setTimeout(() => {
+                            onAdvanceToNextJourneyAfterAnswer({
+                              fromJourneyId: journeyId,
+                              offerLine: handoffLine,
+                            })
+                          }, 220)
+                        }
                       })
+                      if (hasNextQuestion !== false && journeyId) {
+                        triggerScrapeSyncForCategory({
+                          postcode: profilePostcode,
+                          category: journeyId,
+                          profileData: {
+                            postcode: profilePostcode ?? undefined,
+                            home_type: state.profile?.homeType ?? null,
+                            transport_baseline: state.profile?.transport ?? null,
+                            household: state.profile?.livingSituation ?? null,
+                            employment_status: state.profile?.employmentStatus ?? null,
+                          },
+                        })
+                      }
                     }}
                     onSourceCitation={(c) => setResultCitation(c)}
                   />
                 </div>
               )}
-            </AnimatePresence>
+            </>
           </motion.div>
         </motion.div>
-        </div>
-        <div
+        </motion.div>
+        <motion.div
           className="solo-focus-pager-rail"
           aria-label="Card pager"
           aria-live="polite"
@@ -1498,8 +1482,6 @@ export function JourneyBentoCard({
               }}
             />
           ))}
-        </div>
-
         </motion.div>
       </ExpandedCardShell>
       </motion.div>
@@ -1519,26 +1501,22 @@ export function JourneyBentoCard({
 
   return (
       <motion.div
-        layout
-        layoutId={`card-${journeyId}`}
         data-journey={journeyId}
+        data-zone-surface={surfaceKind}
         onClick={() => {
           triggerHaptic('medium')
           onExpand?.()
         }}
         className={`bento-card-groovy cursor-pointer w-full h-full flex flex-col min-h-0 ${isTall ? 'span-tall-block' : ''}`.trim()}
         style={{
-          background: color,
-          color: textColor,
-          ['--color-ink' as string]: textColor,
+          ...surfaceVars,
           height: '100%',
           ...(isTall && { minHeight: '100%' }),
         }}
-        whileTap={{ scale: 0.96, rotate: -0.5 }}
-        transition={LAYOUT_SPRING}
+        transition={INDUSTRIAL_OPACITY_SNAP}
       >
       <div className="flex items-center justify-between w-full shrink-0">
-        <span className="card-top-label" style={{ color: textColor }}>
+        <span className="card-top-label">
           {String(journeyId ?? '').replace(/-/g, ' ').toUpperCase()}
         </span>
         <span className="card-top-arrow card-top-arrow--hint flex items-center justify-center flex-shrink-0" style={{ width: arrowSize, height: arrowSize, color: 'currentColor', background: 'transparent' }} aria-hidden>
@@ -1548,23 +1526,22 @@ export function JourneyBentoCard({
         </span>
       </div>
       <motion.h3
-        layoutId={`headline-${journeyId}`}
-        layout={false}
         className="card-headline m-0 min-w-0"
         lang="en"
       >
         {headline}
       </motion.h3>
+      {/* Only one savings display allowed — shown in the bottom data grid */}
       <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
         <div className="data-stack data-stack--tight">
-          <span className="data-label text-data" style={{ color: textColor }}>SAVE</span>
-          <span className="data-value text-data data-stamp-metric" style={{ color: 'var(--color-ink)' }}>
+          <span className="data-label text-data">SAVE</span>
+          <span className="data-value text-data data-stamp-metric">
             <StampedMoneyGbp gbp={parseMoneyGbpFromDisplay(moneyValue || '0')} />
           </span>
         </div>
         <div className="data-stack data-stack--tight data-stack--secondary">
-          <span className="data-label" style={{ color: textColor }}>CARBON</span>
-          <span className="data-value data-stamp-metric" style={{ color: 'var(--color-ink)' }}>
+          <span className="data-label">CARBON</span>
+          <span className="data-value data-stamp-metric">
             <StampedCarbonKg kg={parseCarbonKgFromDisplay(carbonValue || '0')} />
           </span>
         </div>
@@ -1572,7 +1549,7 @@ export function JourneyBentoCard({
       {insightGenerationPending ||
       (researchCategoryCoverage != null && !researchCategoryCoverage[journeyId]?.insightReady) ? (
         <div className="mt-2 pt-2 shrink-0 border-t border-white/15" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
-          <p className="m-0 text-[10px] leading-tight uppercase tracking-wide opacity-75" style={{ color: textColor }}>
+          <p className="m-0 text-[10px] leading-tight uppercase tracking-wide opacity-75">
             Computing…
           </p>
           <div

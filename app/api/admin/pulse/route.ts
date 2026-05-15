@@ -4,6 +4,7 @@ import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 import { adminBasicAuthMatches } from '@/lib/adminBasicAuth'
 import type { PulseMetric } from '@/lib/adminPulse'
+import { FIRECRAWL_API_KEY } from '@/lib/sentinel/api-config'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -69,10 +70,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const fcKey = process.env.FIRECRAWL_API_KEY?.trim()
+  const fcKey = FIRECRAWL_API_KEY
   if (!fcKey) {
     firecrawl.state = 'skipped'
-    firecrawl.detail = 'FIRECRAWL_API_KEY unset'
+    firecrawl.detail = 'FIRE_CRAWL_KEY_2 or FIRECRAWL_API_KEY unset'
   } else {
     try {
       const t0 = Date.now()

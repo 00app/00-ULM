@@ -8,9 +8,9 @@ import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { headlineFromTitle, MAX_ZONE_CARD_HEADLINE_WORDS } from '@/lib/soloFocusCopy'
 
-/** Industrial lock: same shell as yellow Zone tiles — yellow field, purple type. */
-const ROCK_CARD_BG = 'var(--color-yellow)' as const
-const ROCK_CARD_TEXT = 'var(--color-purple)' as const
+/** Industrial lock: Tips/settings are pink base with yellow items. */
+const ROCK_CARD_BG = 'var(--color-pink)' as const
+const ROCK_CARD_TEXT = 'var(--color-yellow)' as const
 
 const PROFILE_MOBILE_LS = 'zz_profile_mobile'
 
@@ -134,10 +134,11 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
               key={tip.id}
               type="button"
               onClick={() => onOpenTip(tip.id)}
+              data-zone-surface="tip"
               className="bento-card-groovy rock-bento-tile groovy-cell-radius flex flex-col justify-between w-full h-full min-h-0 cursor-pointer border-0 text-left"
               style={{
-                backgroundColor: ROCK_CARD_BG,
-                color: ROCK_CARD_TEXT,
+                ['--journey-bg' as string]: ROCK_CARD_BG,
+                ['--journey-text' as string]: ROCK_CARD_TEXT,
                 ['--color-ink' as string]: ROCK_CARD_TEXT,
                 borderRadius: 60,
                 boxShadow: 'none',

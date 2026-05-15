@@ -7,7 +7,7 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { FunkyCircleCTA } from './Buttons'
 import { QuestionContainer } from './QuestionLayout'
 
-import { SPRING_BLOOM } from '@/lib/animations'
+import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 
 export interface PreviewBentoCardProps {
   journeyId: JourneyId
@@ -47,8 +47,9 @@ export function PreviewBentoCard({
         gridColumn: span === 2 ? 'span 2' : 'span 1',
         padding: 'var(--padding-bento)',
       }}
-      whileTap={{ scale: 0.98 }}
-      transition={SPRING_BLOOM}
+      initial={{ opacity: 0, y: 2 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={INDUSTRIAL_OPACITY_SNAP}
     >
       <span
         className="mb-1"
@@ -122,7 +123,6 @@ export function ExpandedBentoCard({
   const journeyColor = `var(--color-j-${journeyId})`
   return (
     <motion.div
-      layout
       className={`rounded-[60px] flex flex-col ${className}`}
       style={{
         background: 'var(--color-yellow)',
@@ -131,7 +131,9 @@ export function ExpandedBentoCard({
         gridColumn: '1 / -1',
         padding: 'var(--padding-bento)',
       }}
-      transition={SPRING_BLOOM}
+      initial={{ opacity: 0, y: 2 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={INDUSTRIAL_OPACITY_SNAP}
     >
       {/* 1. Hero DATA values */}
       <div

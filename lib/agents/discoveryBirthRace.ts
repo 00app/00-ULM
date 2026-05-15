@@ -1,5 +1,6 @@
 /**
- * Race structured discovery vs ZeroHunter — first valid card wins; single persist at the route layer.
+ * Race structured discovery, ZeroHunter, and optional Action Vault rebirth (Solo Focus).
+ * First pipeline to produce `new_card_data` wins; outer `timeoutMs` resolves `null` if none.
  */
 
 import type { ZoneTipCard } from '@/lib/logic/zone'
@@ -17,6 +18,7 @@ export interface DiscoveryBirthPayload {
 export async function raceDiscoveryBirth(params: {
   structured: () => Promise<DiscoveryBirthPayload | null>
   zeroHunter: () => Promise<DiscoveryBirthPayload | null>
+  rebirthVault?: () => Promise<DiscoveryBirthPayload | null>
   timeoutMs?: number
 }): Promise<DiscoveryBirthPayload | null> {
   const timeoutMs = params.timeoutMs ?? 7200
@@ -35,6 +37,12 @@ export async function raceDiscoveryBirth(params: {
       .then(() => params.zeroHunter())
       .then(win)
       .catch(() => {})
+    if (params.rebirthVault) {
+      Promise.resolve()
+        .then(() => params.rebirthVault!())
+        .then(win)
+        .catch(() => {})
+    }
     setTimeout(() => {
       if (!settled) {
         settled = true

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import { BASELINE_2026_CAP_GBP } from '@/lib/brains/calculations'
@@ -18,7 +18,7 @@ import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
 import SummaryHeader from '@/app/components/SummaryHeader'
 import { syncSessionState } from '@/lib/sessionStateSync'
-import { SLAM_SPRING, soloFocusSlamMotionProps } from '@/lib/animations'
+import { INDUSTRIAL_OPACITY_SNAP, soloFocusSlamMotionProps } from '@/lib/animations'
 
 const REDIRECT_NO_PROFILE_MS = 1800
 /** Slack shown in kinetic + reveal: see `lib/brains/summaryLogic.ts` (same cord as Zone — `buildUserImpact`). */
@@ -113,19 +113,13 @@ export default function ProfileSummaryPage() {
     let cancelled = false
     const journeyAnswers = loadJourneyAnswers()
     const impact = buildUserImpact({ profile, journeyAnswers })
-    const annualSpendLikeYou = Math.max(BASELINE_2026_CAP_GBP, impact.totals.totalMoney)
-    const annualWasteCash = Math.round(annualSpendLikeYou * WASTE_FACTOR)
-    const annualWasteCarbon = Math.round(impact.totals.totalCarbon * WASTE_FACTOR)
 
     const postcode = (profile.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
     const postcodeDisplay = (profile.postcode ?? '').trim()
 
-    const wastePack = {
-      annualWasteCash,
-      annualWasteCarbon,
-      totalsMoney: impact.totals.totalMoney,
-      totalsCarbon: impact.totals.totalCarbon,
-    }
+    let totalsMoney = impact.totals.totalMoney
+    let totalsCarbon = impact.totals.totalCarbon
+    let genomeSavingsMoney: number | undefined
 
     const locationFromContext = state.locationState?.locationName?.trim() ?? ''
     const councilImmediate = locationFromContext || 'the UK'
@@ -165,6 +159,32 @@ export default function ProfileSummaryPage() {
 
       if (cancelled) return
 
+      try {
+        const sr = await fetch('/api/summary?type=profile', { credentials: 'include', cache: 'no-store' })
+        if (sr.ok) {
+          const body = (await sr.json()) as {
+            savings?: number
+            carbon?: number
+            genomeTotals?: { totalMoney?: number; totalCarbon?: number }
+          }
+          const gMoney = body.genomeTotals?.totalMoney ?? body.savings
+          const gCarbon = body.genomeTotals?.totalCarbon ?? body.carbon
+          if (typeof gMoney === 'number' && gMoney > 0) genomeSavingsMoney = Math.round(gMoney)
+          if (typeof gMoney === 'number' && gMoney > 0) totalsMoney = gMoney
+          if (typeof gCarbon === 'number' && gCarbon > 0) totalsCarbon = gCarbon
+        }
+      } catch {
+        /* guest / offline — keep buildUserImpact totals */
+      }
+
+      const annualSpendLikeYou = Math.max(BASELINE_2026_CAP_GBP, totalsMoney)
+      const wastePack = {
+        annualWasteCash: Math.round(annualSpendLikeYou * WASTE_FACTOR),
+        annualWasteCarbon: Math.round(totalsCarbon * WASTE_FACTOR),
+        totalsMoney,
+        totalsCarbon,
+      }
+
       const locationName = formatLocationDisplayName(
         local
           ? {
@@ -188,10 +208,11 @@ export default function ProfileSummaryPage() {
         councilLabel: resolvedLocationName,
         postcodeDisplay,
         local,
-        totalsMoney: impact.totals.totalMoney,
-        totalsCarbon: impact.totals.totalCarbon,
-        annualWasteCash,
-        annualWasteCarbon,
+        totalsMoney: wastePack.totalsMoney,
+        totalsCarbon: wastePack.totalsCarbon,
+        annualWasteCash: wastePack.annualWasteCash,
+        annualWasteCarbon: wastePack.annualWasteCarbon,
+        genomeSavingsMoney,
       }
 
       setSummaryPack({
@@ -281,8 +302,8 @@ export default function ProfileSummaryPage() {
         await (handshakePromiseRef.current ?? Promise.resolve())
       } finally {
         setHeroTotals({
-          totalMoney: 0,
-          totalCarbon: 0,
+          totalMoney: Math.max(0, Math.round(summaryPack.waste.totalsMoney)),
+          totalCarbon: Math.max(0, Math.round(summaryPack.waste.totalsCarbon)),
         })
         syncSessionState()
         try {
@@ -351,10 +372,10 @@ export default function ProfileSummaryPage() {
       initial={false}
       animate={
         phase === 'exit'
-          ? { opacity: 0, scale: 0.96, filter: 'blur(4px)' }
-          : { opacity: 1, scale: 1, filter: 'blur(0px)' }
+          ? { opacity: 0, y: 2 }
+          : { opacity: 1, y: 0 }
       }
-      transition={phase === 'exit' ? SLAM_SPRING : { duration: 0.2 }}
+      transition={INDUSTRIAL_OPACITY_SNAP}
     >
       <div
         style={{
@@ -367,7 +388,7 @@ export default function ProfileSummaryPage() {
           minHeight: 'min(72vh, 520px)',
         }}
       >
-        <AnimatePresence mode="wait">
+        <>
           {(phase === 'cycle' || phase === 'settle') && (
             <motion.div
               key="summary-cycle"
@@ -386,21 +407,24 @@ export default function ProfileSummaryPage() {
                 background: 'transparent',
               }}
               initial={false}
-              animate={{ opacity: 1, filter: 'none', scale: 1 }}
-              transition={{ duration: 0.2 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={INDUSTRIAL_OPACITY_SNAP}
               exit={{
                 opacity: 0,
-                scale: 0.96,
-                filter: 'blur(4px)',
-                transition: SLAM_SPRING,
+                y: 2,
+                transition: INDUSTRIAL_OPACITY_SNAP,
               }}
             >
               <div style={{ position: 'relative', width: '100%', minHeight: 120 }}>
-                <SummaryHeader words={staccatoWords} onComplete={handleCycleComplete} />
+                <SummaryHeader
+                  words={staccatoWords}
+                  pulseGenomeMoney={(summaryPack?.narrative?.genomeSavingsMoney ?? 0) > 0}
+                  onComplete={handleCycleComplete}
+                />
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
+        </>
       </div>
     </motion.div>
   )

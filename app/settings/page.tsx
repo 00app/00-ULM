@@ -9,9 +9,8 @@ import { motion } from 'framer-motion'
 import { JOURNEY_ORDER, JOURNEYS, getFunkyOptionDisplay, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
 import { ENGINE_UI_LABELS } from '@/lib/logic/engine'
-import { SPRING_TAP, SPRING_BLOOM, KINETIC_ZIP_PULSE, MECHANICAL_SNAP_SPRING } from '@/lib/animations'
+import { INDUSTRIAL_OPACITY_SNAP, KINETIC_ZIP_PULSE } from '@/lib/animations'
 import { SoloFocusOverlay } from '@/app/components/SoloFocusOverlay'
-import { AnimatePresence } from 'framer-motion'
 import { buildZoneViewModel } from '@/lib/logic/zone'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
@@ -73,7 +72,7 @@ function ResetIcon() {
   )
 }
 
-const CARD_TEXT = { default: 'var(--color-purple)', hero: 'var(--color-yellow)' } as const
+const CARD_TEXT = { default: 'var(--color-yellow)', hero: 'var(--color-yellow)' } as const
 
 /** One cell in the grid: bento-card-groovy (existing), yellow bg purple text, or hero (pink bg yellow text) */
 function SettingsBentoCard({
@@ -90,7 +89,7 @@ function SettingsBentoCard({
   isHero?: boolean
 }) {
   const textColor = isHero ? CARD_TEXT.hero : CARD_TEXT.default
-  const bgColor = isHero ? 'var(--color-pink)' : 'var(--color-yellow)'
+  const bgColor = 'var(--color-pink)'
   const card = (
     <div
       className={`bento-card-groovy settings-bento-card settings-card-bento flex flex-col justify-between w-full h-full ${isHero ? 'settings-hero-card' : ''}`.trim()}
@@ -326,11 +325,10 @@ export default function SettingsPage() {
       <div className="settings-grid-wrap">
         <section className="settings-hero-section" aria-label="Overview">
           <motion.div
-            layout
             className="settings-hero-inner"
-            initial={{ opacity: 1, scale: 0.94, y: 12, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-            transition={{ ...MECHANICAL_SNAP_SPRING, delay: 0.08 }}
+            initial={{ opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...INDUSTRIAL_OPACITY_SNAP, delay: 0.08 }}
           >
             <SettingsBentoCard label="Overview" headline="TOTAL ANNUAL" isHero>
               <div
@@ -362,15 +360,14 @@ export default function SettingsPage() {
         </section>
 
         <section className="settings-cards-section" aria-label="Profile and journeys">
-          <motion.div layout className="settings-answer-grid" transition={SPRING_BLOOM}>
+          <motion.div className="settings-answer-grid" transition={INDUSTRIAL_OPACITY_SNAP}>
             {profileRows.map((row, i) => (
               <motion.div
                 key={`profile-${i}`}
-                layout
                 className="settings-card-cell"
-                initial={{ opacity: 1, scale: 0.94, y: 10, filter: 'blur(4px)' }}
-                animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-                transition={{ ...MECHANICAL_SNAP_SPRING, delay: 0.05 + i * 0.04 }}
+                initial={{ opacity: 0, y: 2 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...INDUSTRIAL_OPACITY_SNAP, delay: 0.05 + i * 0.05 }}
               >
                 <SettingsBentoCard label={row.question} headline={row.answer} editHref={ROUTES.PROFILE} />
               </motion.div>
@@ -379,26 +376,24 @@ export default function SettingsPage() {
             {journeyCardsData.map((card, j) => (
               <motion.div
                 key={`journey-${card.journey}`}
-                layout
                 className="settings-card-cell cursor-pointer"
                 onClick={() => setActiveJourneyEdit({ id: card.journey, title: card.title })}
-                initial={{ opacity: 1, scale: 0.94, y: 10, filter: 'blur(4px)' }}
-                animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+                initial={{ opacity: 0, y: 2 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{
-                  ...MECHANICAL_SNAP_SPRING,
-                  delay: 0.05 + (profileRows.length + j) * 0.04,
+                  ...INDUSTRIAL_OPACITY_SNAP,
+                  delay: 0.05 + (profileRows.length + j) * 0.05,
                 }}
-                whileTap={{ scale: 0.98 }}
               >
                 <div
                   className="bento-card-groovy settings-bento-card settings-card-bento settings-journey-card-shell flex flex-col w-full h-full"
-                  style={{ backgroundColor: 'var(--color-yellow)', color: 'var(--color-purple)' }}
+                  style={{ backgroundColor: 'var(--color-pink)', color: 'var(--color-yellow)' }}
                 >
                   <div className="flex items-center justify-between w-full shrink-0 mb-2">
-                    <span className="card-top-label" style={{ color: 'var(--color-purple)' }}>
+                    <span className="card-top-label" style={{ color: 'var(--color-yellow)' }}>
                       {card.title.toUpperCase()}
                     </span>
-                    <div className="card-top-arrow flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42, color: 'var(--color-purple)' }} aria-hidden>
+                    <div className="card-top-arrow flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42, color: 'var(--color-yellow)' }} aria-hidden>
                       <PencilIcon />
                     </div>
                   </div>
@@ -417,7 +412,7 @@ export default function SettingsPage() {
         </section>
       </div>
 
-      <AnimatePresence>
+      <>
         {activeJourneyEdit && (
           <SoloFocusOverlay
             key={`edit-${activeJourneyEdit.id}`}
@@ -435,7 +430,7 @@ export default function SettingsPage() {
             startInQuestionMode={true}
           />
         )}
-      </AnimatePresence>
+      </>
 
       {profileRows.length === 0 && journeyCardsData.length === 0 && (
         <p className="zz-body text-left max-w-[28rem] mx-auto" style={{ color: 'var(--color-yellow)', marginTop: -8, paddingLeft: 20, paddingRight: 20 }}>
@@ -449,8 +444,7 @@ export default function SettingsPage() {
           type="button"
           onClick={() => router.push(ROUTES.ZONE)}
           className="settings-circle-cta settings-circle-cta--yellow"
-          whileTap={{ scale: 0.94 }}
-          transition={SPRING_TAP}
+          transition={INDUSTRIAL_OPACITY_SNAP}
           aria-label="Save and return to Zone"
         >
           <span className="settings-circle-cta__label zz-h4">SAVE</span>
@@ -470,8 +464,7 @@ export default function SettingsPage() {
           type="button"
           onClick={handleReset}
           className="settings-circle-cta settings-circle-cta--pink"
-          whileTap={{ scale: 0.94 }}
-          transition={SPRING_TAP}
+          transition={INDUSTRIAL_OPACITY_SNAP}
           aria-label="Reset all data"
         >
           <span className="settings-circle-cta__label zz-h4">

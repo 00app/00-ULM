@@ -7,7 +7,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { SPRING_BLOOM } from '@/lib/animations'
+import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 
 /** Answer area starts exactly this many px below the question heading. */
 export const QUESTION_TO_ANSWER_MARGIN_PX = 40
@@ -164,8 +164,7 @@ export function AbsoluteSlider({
           background: 'var(--color-purple)',
           boxShadow: 'none',
         }}
-        layout
-        transition={SPRING_BLOOM}
+        transition={INDUSTRIAL_OPACITY_SNAP}
       />
     </div>
   )

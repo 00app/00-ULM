@@ -4,16 +4,26 @@
  * Profile summary (`/profile/summary`) — **Mechanical Snap** ticker:
  * one word on screen at a time via `IntroWordCycle` + **`opacityTicker`**
  * (opacity 0→1 only — no Style A glitch, no blur pulse).
+ *
+ * Hero £ / kg for Zone handoff: `sumSavingsFromUserGenome` (Neon `user_genome` JSONB).
  */
 import IntroWordCycle from '@/app/components/IntroWordCycle'
-import { SUMMARY_KINETIC_WORD_DWELL_MS, SUMMARY_KINETIC_WORD_GAP_MS } from '@/lib/animations'
+import { sumSavingsFromUserGenome } from '@/lib/brains/genomeTotals'
+
+export { sumSavingsFromUserGenome }
+import {
+  INTRO_ROUTE_WORD_EXIT_MS,
+  SUMMARY_KINETIC_WORD_DWELL_MS,
+  SUMMARY_KINETIC_WORD_GAP_MS,
+} from '@/lib/animations'
 
 export type SummaryHeaderProps = {
   words: string[]
+  pulseGenomeMoney?: boolean
   onComplete?: () => void
 }
 
-export default function SummaryHeader({ words, onComplete }: SummaryHeaderProps) {
+export default function SummaryHeader({ words, pulseGenomeMoney = false, onComplete }: SummaryHeaderProps) {
   const dwell = SUMMARY_KINETIC_WORD_DWELL_MS
   const wordDurations = words.length > 0 ? words.map(() => dwell) : undefined
 
@@ -28,8 +38,9 @@ export default function SummaryHeader({ words, onComplete }: SummaryHeaderProps)
       wordDurations={wordDurations}
       wrapLongPreservedWords
       fitToViewportPaddingPx={40}
-      wordExitMs={Math.round(SUMMARY_KINETIC_WORD_GAP_MS * 0.85)}
+      wordExitMs={INTRO_ROUTE_WORD_EXIT_MS}
       opacityTicker
+      pulseGenomeMoney={pulseGenomeMoney}
     />
   )
 }

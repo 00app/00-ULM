@@ -1,5 +1,5 @@
 /**
- * Content Architect — Gemini maps raw £/kg + profile to industrial "What / Why / How" copy for Zone cards.
+ * Content Architect — Gemini maps raw £/kg + profile to industrial three-paragraph copy for Zone cards.
  * Server-only (uses GEMINI_API_KEY). Zone UI calls POST /api/zone/content-architect.
  */
 

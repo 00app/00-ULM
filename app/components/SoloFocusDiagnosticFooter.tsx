@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { SPRING_TAP } from '@/lib/animations'
+import { motion } from 'framer-motion'
+import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 
 export type SoloFocusDiagnosticFooterProps = {
   /** Human-readable supplier / attribution for this card. */
@@ -28,21 +28,20 @@ export function SoloFocusDiagnosticFooter({ providerName, sourceUrl }: SoloFocus
         aria-label="Show data source for this card"
         onClick={() => setOpen((o) => !o)}
         className="solo-focus-diagnostic-trigger flex h-[60px] w-[60px] shrink-0 items-center justify-center self-start rounded-full border-0 bg-[var(--color-purple)]"
-        whileTap={{ scale: 0.94 }}
-        transition={SPRING_TAP}
+        transition={INDUSTRIAL_OPACITY_SNAP}
       >
         <svg width={24} height={24} viewBox="0 0 24 24" fill="var(--color-yellow)" aria-hidden>
           <path d="M12 3L22 20H2L12 3z" />
         </svg>
       </motion.button>
-      <AnimatePresence initial={false}>
+      <>
         {open ? (
           <motion.div
             key="solo-focus-diag-panel"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 2 }}
+            transition={INDUSTRIAL_OPACITY_SNAP}
             className="overflow-hidden rounded-[60px] border-0 bg-[var(--color-purple)] text-left"
             style={{ padding: 'var(--padding-bento)' }}
           >
@@ -78,7 +77,7 @@ export function SoloFocusDiagnosticFooter({ providerName, sourceUrl }: SoloFocus
             </p>
           </motion.div>
         ) : null}
-      </AnimatePresence>
+      </>
     </div>
   )
 }

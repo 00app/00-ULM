@@ -53,6 +53,11 @@ export interface ProfileSummaryNarrativeInput {
   totalsCarbon: number
   annualWasteCash: number
   annualWasteCarbon: number
+  /**
+   * Neon `user_genome` aggregated £ (Hermes wins) — when set, the kinetic £ beat uses this
+   * instead of modelled “slack” (`annualWasteCash`) so Summary matches Zone handoff.
+   */
+  genomeSavingsMoney?: number
 }
 
 /** Prefer parish / ward / council for locality-led summary beats. */
@@ -190,6 +195,11 @@ export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): 
   const area = purgeYourAreaCopy(resolveSummaryAreaLabel(input)).trim()
   const wasteCash = Math.max(0, Math.round(input.annualWasteCash))
   const wasteKg = Math.max(0, Math.round(input.annualWasteCarbon))
+  const genomeMoney =
+    input.genomeSavingsMoney != null && Number.isFinite(input.genomeSavingsMoney) && input.genomeSavingsMoney > 0
+      ? Math.round(input.genomeSavingsMoney)
+      : null
+  const cashForTicker = genomeMoney != null ? genomeMoney : wasteCash
   const rawName = (input.displayName ?? '').trim().split(/\s+/)[0] ?? ''
   const greetName = rawName || 'there'
 
@@ -204,9 +214,9 @@ export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): 
   out.push('waste')
 
   const gbp =
-    wasteCash >= 1000
-      ? `£${Math.round(wasteCash / 1000)}k`
-      : `£${wasteCash.toLocaleString('en-GB')}`
+    cashForTicker >= 1000
+      ? `£${Math.round(cashForTicker / 1000)}k`
+      : `£${cashForTicker.toLocaleString('en-GB')}`
   out.push(gbp, 'and')
 
   const tCo2 = wasteKg / 1000

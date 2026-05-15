@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 
-const SWISH_TRANSITION = { type: 'spring' as const, stiffness: 600, damping: 15 }
+const SWISH_TRANSITION = { type: 'tween' as const, duration: 0.12, ease: 'linear' as const }
 
 export interface FunkyCircleCTAProps {
   label: string
@@ -37,11 +37,6 @@ export function FunkyCircleCTA({
         color: labelColor,
         fontSize: 12,
       }}
-      whileTap={{
-        scaleX: 1.15,
-        scaleY: 0.85,
-        transition: SWISH_TRANSITION,
-      }}
       transition={SWISH_TRANSITION}
     >
       {label}
@@ -58,7 +53,7 @@ export interface FunkyAnswerPillProps {
 
 /**
  * Pill-shaped answer button. Purple default + yellow label; selected = journey surface + purple label.
- * Bounce on tap. No shadows. Marvin Visions Bold.
+ * Fussy snap on tap. No shadows. Marvin Visions Bold.
  */
 export function FunkyAnswerPill({
   label,
@@ -79,8 +74,7 @@ export function FunkyAnswerPill({
         color: selected ? 'var(--color-purple)' : 'var(--color-yellow)',
         borderRadius: 9999,
       }}
-      whileTap={{ scale: 0.95 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+      transition={SWISH_TRANSITION}
     >
       {label}
     </motion.button>

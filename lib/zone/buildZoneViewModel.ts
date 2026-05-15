@@ -3,7 +3,7 @@
 // NO calculations here — all £/kg from buildUserImpact.
 //
 // v1.8.12 Content Architect: sync `architectSuppliedBy` on every journey/general/tip row via
-// `defaultVerifiedArchitectSuppliedBy`. Async WHAT/WHY/HOW from Gemini: client POSTs
+// `defaultVerifiedArchitectSuppliedBy`. Async three-paragraph prose from Gemini: client POSTs
 // `buildContentArchitectCardPayload(vm, …)` → `/api/zone/content-architect` → `applyArchitectEnrichment`.
 
 import { JourneyId, JOURNEY_ORDER } from '@/lib/journeys'
@@ -24,7 +24,7 @@ import {
   formatVerifiedSourceNameFromLabel,
 } from '@/lib/zone/verifiedRevenue'
 
-/** Split Neon `architect_prose` into three Trinity blocks (What / Why / How). */
+/** Split Neon `architect_prose` into three Trinity blocks. */
 function trinityExplanationFromArchitectProse(prose: string | null | undefined): string[] | null {
   const t = prose?.trim()
   if (!t) return null
@@ -132,6 +132,8 @@ export interface ZoneTipCard {
   badge?: string
   /** Semantic win signal from discovery pipeline: drives money/carbon emphasis. */
   dominant_win?: 'money' | 'carbon'
+  /** Action Vault rebirth — high-signal Solo Focus / Zone inject. */
+  high_impact?: boolean
   /** Verified short attribution (sync + Content Architect). */
   architectSuppliedBy?: string
   /** v35.0 — traceable source + revenue link */
@@ -1002,7 +1004,8 @@ export function buildZoneViewModel({
   const isOctopus = electricityProvider === 'OCTOPUS' || gasProvider === 'OCTOPUS'
   const needsSwitching = !isOctopus && !hasGreenTariff
 
-  // Build tips: top 3 by carbon, biased by age persona (Junior → food/tech, Retired → home only; Spec v1.4)
+  // Pink tips — MVP pillars (home / travel / food) from Pulse 0 Firecrawl+Neon, then carbon-ranked fill.
+  const MVP_INTAKE_TIP_JOURNEYS: JourneyId[] = ['home', 'travel', 'food']
   const age = profile?.age ?? 'MID'
   const personaBoost: Partial<Record<JourneyId, number>> =
     age === 'JUNIOR'
@@ -1010,13 +1013,29 @@ export function buildZoneViewModel({
       : age === 'RETIRED'
         ? { home: 600 }
         : {}
-  const sortedJourneys = JOURNEY_ORDER.map((journeyKey) => ({
+  const rankedJourneys = JOURNEY_ORDER.map((journeyKey) => ({
+    journeyKey,
+    impact: journeyImpacts[journeyKey],
+    score: dynamicJourneyValues[journeyKey].carbonKg + (personaBoost[journeyKey] ?? 0),
+  })).sort((a, b) => b.score - a.score)
+  const intakeReady = MVP_INTAKE_TIP_JOURNEYS.filter((j) => {
+    const neon = neonJourneyResearch?.[j]
+    return neon?.savingGbp != null && Number.isFinite(neon.savingGbp) && neon.savingGbp > 0
+  })
+  const tipJourneyKeys: JourneyId[] = []
+  for (const j of intakeReady.length >= 3 ? intakeReady : MVP_INTAKE_TIP_JOURNEYS) {
+    if (!tipJourneyKeys.includes(j)) tipJourneyKeys.push(j)
+    if (tipJourneyKeys.length >= 3) break
+  }
+  for (const { journeyKey } of rankedJourneys) {
+    if (tipJourneyKeys.length >= 3) break
+    if (!tipJourneyKeys.includes(journeyKey)) tipJourneyKeys.push(journeyKey)
+  }
+  const sortedJourneys = tipJourneyKeys.map((journeyKey) => ({
     journeyKey,
     impact: journeyImpacts[journeyKey],
     score: dynamicJourneyValues[journeyKey].carbonKg + (personaBoost[journeyKey] ?? 0),
   }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
 
   let tips: ZoneTipCard[] = sortedJourneys.map(({ journeyKey }) => {
     const source = getJourneySource(journeyKey, 0)

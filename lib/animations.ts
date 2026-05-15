@@ -1,67 +1,33 @@
 /**
- * Zero Zero — motion contract: **two springs only** (+ reduced-motion linear shortcuts).
- *
- * - **KINETIC_SPRING** — taps, snaps, copy swaps, shimmer settle, word beats.
- * - **LAYOUT_SPRING** — Solo Focus zip, page shells, route presence, broad layout motion.
- *
- * Legacy names (`MECHANICAL_SNAP_SPRING`, `ZIP_OPEN_Z_TRANSITION`, `SPRING_TAP`, …) are aliases
- * so imports stay stable; do not introduce new stiffness/damping families.
+ * Zero Zero — **MVP industrial lock**: linear opacity snaps (no physics, no vertical drift).
  */
 
 // =============================================================================
-// THE TWO SPRINGS (only tuning surfaces)
+// INDUSTRIAL SNAP (single timing surface)
 // =============================================================================
 
-/** Slightly softer than v1 — closer to intro / profile “fussy” lens rhythm. */
-export const KINETIC_SPRING = {
-  type: 'spring' as const,
-  stiffness: 560,
-  damping: 23,
-  mass: 0.88,
+export const INDUSTRIAL_OPACITY_SNAP = {
+  type: 'tween' as const,
+  duration: 0.12,
+  ease: 'linear' as const,
 } as const
-
-export const LAYOUT_SPRING = {
-  type: 'spring' as const,
-  stiffness: 400,
-  damping: 30,
-  mass: 0.8,
-} as const
-
-/** @alias KINETIC_SPRING */
-export const MECHANICAL_SNAP_SPRING = KINETIC_SPRING
-/** @alias KINETIC_SPRING */
-export const MECHANICAL_SNAP_REPLACEMENT_SPRING = KINETIC_SPRING
-/** @alias KINETIC_SPRING */
-export const SLAM_SPRING = KINETIC_SPRING
-/** @alias KINETIC_SPRING */
-export const SPRING_TAP = KINETIC_SPRING
-/** @alias LAYOUT_SPRING */
-export const INSTANT_BLOOM = LAYOUT_SPRING
-/** @alias LAYOUT_SPRING */
-export const SPRING_BLOOM = LAYOUT_SPRING
-/** @alias KINETIC_SPRING — intro/profile decision circles */
-export const INTRO_DECISION_CTA_SPRING = KINETIC_SPRING
 
 // =============================================================================
-// VERTICAL STACCATO — single DNA (mechanical snap, no floaty blur)
-// y: 10→0, opacity 0→1, 0.1s stagger, circOut
+// VERTICAL STACCATO — industrial: opacity-only stagger (legacy y export = 0)
 // =============================================================================
 
 /** Seconds between sibling reveals (word / row / grid cell). */
-export const STACCATO_STAGGER_SEC = 0.1
-/** Drop distance (px). */
-export const STACCATO_DROP_PX = 10
-/** Per-element motion length (matches stagger for a tight cadence). */
-export const STACCATO_DURATION_SEC = 0.1
-/** Framer `circOut` — mechanical, no bounce. */
-export const STACCATO_EASE = 'circOut' as const
-/** Cubic fallback where `ease` must be an array (legacy callers). */
-export const STACCATO_EASE_CUBIC = [0, 0.55, 0.45, 1] as const
+export const STACCATO_STAGGER_SEC = 0.05
+/** Legacy vertical drop — fussy motion y: 2 -> 0 */
+export const STACCATO_DROP_PX = 2
+/** Per-element motion length. */
+export const STACCATO_DURATION_SEC = 0.12
+/** Fussy ease token. */
+export const STACCATO_EASE = 'linear' as const
+/** Cubic fallback. */
+export const STACCATO_EASE_CUBIC = 'linear' as const
 
-export const STACCATO_TWEEN = {
-  duration: STACCATO_DURATION_SEC,
-  ease: STACCATO_EASE,
-} as const
+export const STACCATO_TWEEN = INDUSTRIAL_OPACITY_SNAP
 
 export const STACCATO_CONTAINER_VARIANTS = {
   hidden: {},
@@ -74,7 +40,7 @@ export const STACCATO_CONTAINER_VARIANTS = {
 } as const
 
 export const STACCATO_CHILD_VARIANTS = {
-  hidden: { opacity: 0, y: STACCATO_DROP_PX },
+  hidden: { opacity: 0, y: 2 },
   visible: {
     opacity: 1,
     y: 0,
@@ -83,44 +49,38 @@ export const STACCATO_CHILD_VARIANTS = {
 } as const
 
 // =============================================================================
-// DAMPED SLAM — scale + opacity (springs above drive timing)
+// DAMPED SLAM — scale + opacity (linear snap timing)
 // =============================================================================
 
-export const DAMPED_SLAM_INITIAL = { scale: 1.08, opacity: 0 }
-export const DAMPED_SLAM_ANIMATE = { scale: 1, opacity: 1 }
-export const DAMPED_SLAM_EXIT = { scale: 0.96, opacity: 0 }
+export const DAMPED_SLAM_INITIAL = { opacity: 0, y: 2 }
+export const DAMPED_SLAM_ANIMATE = { opacity: 1, y: 0 }
+export const DAMPED_SLAM_EXIT = { opacity: 0, y: 2 }
 
 export const SLAM_INTRO_INITIAL = DAMPED_SLAM_INITIAL
 export const SLAM_INTRO_ANIMATE = DAMPED_SLAM_ANIMATE
 export const SLAM_INTRO_EXIT = DAMPED_SLAM_EXIT
 
 // =============================================================================
-// Z-Axis zip-open / zip-shut (3D lift; LAYOUT_SPRING on enter/exit spring paths)
+// Z-Axis zip-open / zip-shut
 // =============================================================================
 
-export const ZIP_OPEN_Z_TRANSITION = LAYOUT_SPRING
+export const ZIP_OPEN_Z_TRANSITION = INDUSTRIAL_OPACITY_SNAP
 
 export const ZIP_OPEN_Z_INITIAL = {
-  scale: 0.9,
   opacity: 0,
-  z: -100,
-  rotateX: 5,
+  y: 2,
 } as const
 
 export const ZIP_OPEN_Z_ANIMATE = {
-  scale: 1,
   opacity: 1,
-  z: 0,
-  rotateX: 0,
+  y: 0,
 } as const
 
-/** Exit-only tween (not a third spring family — quick zip shut). */
+/** Exit — opacity snap only. */
 export const ZIP_SHUT_Z_EXIT = {
-  scale: 0.9,
   opacity: 0,
-  z: -100,
-  rotateX: -5,
-  transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] as const },
+  y: 2,
+  transition: { duration: 0.12, ease: 'linear' as const },
 } as const
 
 /** Expanded Solo Focus shell — quick mechanical zip (staccato DNA). */
@@ -137,20 +97,18 @@ export const EXPANDED_CARD_OPEN_TRANSITION = {
 
 /** Coordinates used when collapsing the expanded portal (matches prior bespoke exit pose). */
 export const EXPANDED_CARD_EXIT_COORDS = {
-  scale: 0.92,
-  opacity: 1,
-  z: -80,
-  rotateX: -4,
+  opacity: 0,
+  y: 2,
 } as const
 
-/** Props for `motion.div` (AnimatePresence) — Z-axis zip; respects reduced motion. */
+/** Props for `motion.div` — opacity snap; respects reduced motion. */
 export function soloFocusSlamMotionProps(reduceMotion: boolean, skipInitialSlam: boolean) {
   if (reduceMotion) {
     return {
       initial: false as const,
-      animate: { opacity: 1, scale: 1, z: 0, rotateX: 0 },
-      exit: { opacity: 0, transition: { duration: 0.12 } },
-      transition: { duration: 0.12 },
+      animate: { opacity: 1 },
+      exit: { opacity: 0, transition: INDUSTRIAL_OPACITY_SNAP },
+      transition: INDUSTRIAL_OPACITY_SNAP,
     }
   }
   return {
@@ -161,14 +119,14 @@ export function soloFocusSlamMotionProps(reduceMotion: boolean, skipInitialSlam:
   }
 }
 
-/** Full-screen Solo Focus portal shell (`.expanded-solo-focus`) — same Z-tokens. */
+/** Full-screen Solo Focus portal shell (`.expanded-solo-focus`) — same tokens. */
 export function soloFocusShellZipMotionProps(reduceMotion: boolean) {
   if (reduceMotion) {
     return {
       initial: false as const,
-      animate: { opacity: 1, scale: 1, z: 0, rotateX: 0 },
-      exit: { opacity: 0, transition: { duration: 0.12 } },
-      transition: { duration: 0.12 },
+      animate: { opacity: 1 },
+      exit: { opacity: 0, transition: INDUSTRIAL_OPACITY_SNAP },
+      transition: INDUSTRIAL_OPACITY_SNAP,
     }
   }
   return {
@@ -194,37 +152,35 @@ export const KINETIC_ZIP_PULSE = {
 export const KINETIC_WORD_DWELL_MS = 400
 
 // =============================================================================
-// PRESETS (both springs resolve to KINETIC_SPRING or LAYOUT_SPRING)
+// PRESETS
 // =============================================================================
 
-/** Zone main shell — vertical staccato (same DNA as summary/profile). */
+/** Zone main shell — opacity snap only. */
 export const FADE_IN_UP = {
-  initial: { opacity: 0, y: STACCATO_DROP_PX },
+  initial: { opacity: 0, y: 2 },
   animate: { opacity: 1, y: 0 },
   transition: STACCATO_TWEEN,
-  exit: { opacity: 0, y: 8, transition: { duration: 0.08, ease: STACCATO_EASE_CUBIC } },
+  exit: { opacity: 0, y: 2, transition: INDUSTRIAL_OPACITY_SNAP },
 }
 
 export const WORD_APPEAR = {
-  initial: DAMPED_SLAM_INITIAL,
-  animate: DAMPED_SLAM_ANIMATE,
-  exit: DAMPED_SLAM_EXIT,
-  transition: KINETIC_SPRING,
+  initial: { opacity: 0, y: 2 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: 2 },
+  transition: INDUSTRIAL_OPACITY_SNAP,
 }
 
 export const WORD_PULSE_APPEAR = {
-  initial: { opacity: 1, scale: 0.85, filter: 'blur(6px)' },
+  initial: { opacity: 0, y: 2 },
   animate: {
     opacity: 1,
-    scale: 1,
-    filter: 'blur(0px)',
-    transition: KINETIC_SPRING,
+    y: 0,
+    transition: INDUSTRIAL_OPACITY_SNAP,
   },
   exit: {
-    opacity: 1,
-    scale: 0.92,
-    filter: 'blur(5px)',
-    transition: KINETIC_SPRING,
+    opacity: 0,
+    y: 2,
+    transition: INDUSTRIAL_OPACITY_SNAP,
   },
 } as const
 
@@ -233,8 +189,8 @@ export const WORD_PULSE_APPEAR = {
 // =============================================================================
 
 export const ZONE_ANCHOR_VARIANTS = {
-  hidden: { opacity: 0, y: STACCATO_DROP_PX },
-  visible: { opacity: 1, y: 0, transition: STACCATO_TWEEN },
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: STACCATO_TWEEN },
 }
 
 /** Stagger between Zone bento cells (vertical wave, same cadence as staccato). */
@@ -247,7 +203,7 @@ export const ZONE_GRID_STAGGER_CHILD_DELAY_SEC = STACCATO_STAGGER_SEC
 export const ZONE_BENTO_CELL_VARIANTS = {
   hidden: {
     opacity: 0,
-    y: STACCATO_DROP_PX,
+    y: 2,
   },
   visible: {
     opacity: 1,
@@ -256,43 +212,42 @@ export const ZONE_BENTO_CELL_VARIANTS = {
   },
   shrunk: {
     opacity: 0,
-    y: 6,
-    transition: { duration: STACCATO_DURATION_SEC, ease: STACCATO_EASE_CUBIC },
+    y: 2,
+    transition: INDUSTRIAL_OPACITY_SNAP,
   },
   ping: {
     opacity: [0, 1],
-    y: [STACCATO_DROP_PX, 0],
-    transition: { duration: 0.18, ease: STACCATO_EASE_CUBIC },
+    transition: INDUSTRIAL_OPACITY_SNAP,
   },
 }
 
-/** Solo Focus: zip-shut rail collapse — tight 0.1s mechanical snap (answer → result). */
-export const SOLO_FOCUS_ZIP_SHUT_SEC = 0.1
+/** Solo Focus: zip-shut rail collapse — matches CSS `.solo-focus-loop` + inject gate in `EmbeddedJourneyQuestion`. */
+export const SOLO_FOCUS_ZIP_SHUT_SEC = 0.12
 
-/** Solo Focus: one fussy content snap after shell zip (delay lets layout finish first). */
-export const SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC = 0.1
+/** Delay before content snap after shell motion (layout settle). */
+export const SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC = 0.05
+
+/** Solo Focus content handoff — opacity snap only. */
 export const SOLO_FOCUS_CONTENT_SNAP_INITIAL = {
-  opacity: 1,
-  scale: 0.985,
-  filter: 'blur(4px)',
+  opacity: 0,
+  y: 2,
 } as const
 export const SOLO_FOCUS_CONTENT_SNAP_ANIMATE = {
   opacity: 1,
-  scale: 1,
-  filter: 'blur(0px)',
+  y: 0,
 } as const
 
-/** Solo Focus / bento copy blocks — vertical staccato. */
+/** Solo Focus / bento copy blocks — opacity snap. */
 export const FADE_VARIANTS = {
-  hidden: { opacity: 0, y: STACCATO_DROP_PX },
+  hidden: { opacity: 0, y: 2 },
   visible: { opacity: 1, y: 0, transition: STACCATO_TWEEN },
 }
 
 export const ELASTIC_PING = {
-  initial: { scale: 0.92, opacity: 0, y: STACCATO_DROP_PX },
-  animate: { scale: 1, opacity: 1, y: 0 },
-  exit: { scale: 0.94, opacity: 0, y: 6 },
-  transition: STACCATO_TWEEN,
+  initial: { opacity: 0, y: 2 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: 2 },
+  transition: INDUSTRIAL_OPACITY_SNAP,
 }
 
 // =============================================================================
@@ -301,46 +256,31 @@ export const ELASTIC_PING = {
 
 export const SHIMMER_FOCUS = {
   initial: {
-    filter: 'blur(20px)',
     opacity: 0,
-    scale: 0.96,
+    y: 2,
   },
   animate: {
-    filter: 'blur(0px)',
     opacity: 1,
-    scale: 1,
+    y: 0,
   },
-  /** Lens snap: fixed-duration ease (not a third spring tuning). */
-  transition: {
-    duration: 0.34,
-    ease: [0.22, 1, 0.36, 1] as const,
-  },
+  transition: INDUSTRIAL_OPACITY_SNAP,
 } as const
 
 export const SHIMMER_FOCUS_INITIAL = SHIMMER_FOCUS.initial
 export const SHIMMER_FOCUS_ANIMATE = SHIMMER_FOCUS.animate
-/** Legacy export — shimmer uses `SHIMMER_FOCUS.transition` (ease), not a spring. */
-export const SHIMMER_FOCUS_SPRING = SHIMMER_FOCUS.transition
-
-/** Profile / intro decision circles — same spring as all kinetic taps. */
-export const INTRO_DECISION_CTA_TRANSITION = KINETIC_SPRING
-
-/** Step / word exit — sharp → blur */
+/** Legacy export — shimmer uses `SHIMMER_FOCUS.transition`. */
+/** Step / word exit — opacity snap */
 export const SHIMMER_FOCUS_EXIT = {
-  filter: 'blur(14px)',
   opacity: 0,
-  scale: 0.97,
 } as const
-
-export const SHIMMER_FOCUS_EXIT_TRANSITION = KINETIC_SPRING
-
-/** Profile summary kinetic line — slower read (decoupled from `/` + `/intro` speed). */
-export const SUMMARY_KINETIC_WORD_DWELL_MS = 1040
-export const SUMMARY_KINETIC_WORD_GAP_MS = 120
 
 /** `/` + `/intro` kinetic word line — ~30% faster cadence than legacy 1040/120. */
 export const INTRO_SHIMMER_WORD_DWELL_MS = 728
 export const INTRO_SHIMMER_WORD_GAP_MS = 84
+
+/** Profile summary kinetic line — speed-locked to IntroWordCycle. */
+export const SUMMARY_KINETIC_WORD_DWELL_MS = INTRO_SHIMMER_WORD_DWELL_MS
+export const SUMMARY_KINETIC_WORD_GAP_MS = INTRO_SHIMMER_WORD_GAP_MS
 
 /** Intro route: exit beat between words (summary keeps default 150 in `IntroWordCycle`). */
 export const INTRO_ROUTE_WORD_EXIT_MS = 105
@@ -352,14 +292,14 @@ export const INTRO_ROUTE_SAFETY_TAIL_MS = 560
 export const SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION = 3
 
 export const INTRO_FADE_UP_NO_DELAY = {
-  initial: { opacity: 0, y: STACCATO_DROP_PX },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: 6, transition: STACCATO_TWEEN },
-  transition: STACCATO_TWEEN,
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0, transition: INDUSTRIAL_OPACITY_SNAP },
+  transition: INDUSTRIAL_OPACITY_SNAP,
 }
 
 export const ZONE_HERO_FROM_SUMMARY = {
-  initial: { opacity: 0, y: STACCATO_DROP_PX },
-  animate: { opacity: 1, y: 0 },
-  transition: STACCATO_TWEEN,
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  transition: INDUSTRIAL_OPACITY_SNAP,
 }

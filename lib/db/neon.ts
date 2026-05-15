@@ -505,3 +505,34 @@ export async function countDiscoveryInjectionsForUserJourney(
     return 0
   }
 }
+
+/** Solo Focus final audit — merge completion marker into `users.user_genome` for Hermes / auditors. */
+export async function mergeUserGenomeSoloFocusAudit(
+  userId: string,
+  patch: {
+    journeyId?: string | null
+    lastQuestionId?: string | null
+    lastAnswer?: string | null
+  }
+): Promise<void> {
+  const pool = getDbPool()
+  const uid = userId?.trim()
+  if (!uid) return
+
+  const payload = {
+    solo_focus_audit_complete: {
+      at: new Date().toISOString(),
+      journey_id: patch.journeyId ?? null,
+      last_question_id: patch.lastQuestionId ?? null,
+      last_answer: patch.lastAnswer ? String(patch.lastAnswer).slice(0, 500) : null,
+    },
+  }
+  try {
+    await pool.query(
+      `UPDATE users SET user_genome = COALESCE(user_genome, '{}'::jsonb) || $2::jsonb WHERE id = $1::uuid`,
+      [uid, JSON.stringify(payload)]
+    )
+  } catch {
+    /* non-blocking */
+  }
+}

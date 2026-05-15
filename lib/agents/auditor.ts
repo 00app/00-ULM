@@ -8,7 +8,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import pool from '@/lib/db'
-import { getFirecrawlClient } from '@/lib/sentinel/api-config'
+import { FIRECRAWL_API_KEY, getFirecrawlClient } from '@/lib/sentinel/api-config'
 import { getJourneyAnswersForUser } from '@/lib/db/neon'
 import { UK_2026_SEED_URLS, persistResearchResult } from '@/lib/agents/researchAgent'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
@@ -173,8 +173,8 @@ export async function runPersonalAudit(userId: string): Promise<PersonalAuditRes
   if (!geminiKey) {
     return { ok: false, userId, error: 'GEMINI_API_KEY unset' }
   }
-  if (!process.env.FIRECRAWL_API_KEY?.trim()) {
-    return { ok: false, userId, error: 'FIRECRAWL_API_KEY unset' }
+  if (!FIRECRAWL_API_KEY) {
+    return { ok: false, userId, error: 'FIRE_CRAWL_KEY_2 or FIRECRAWL_API_KEY unset' }
   }
 
   const profile = await fetchUserAuditContext(userId)

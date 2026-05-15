@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { SPRING_TAP } from '@/lib/animations'
+import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 
 interface AnswerCircleProps {
   text: string
@@ -13,8 +13,6 @@ interface AnswerCircleProps {
   /** Two-colour rule (onboarding): rest/hover reversed; restColor = text (yellow), restBg = fill; hover = restColor fill + restBg text */
   theme?: { restBg: string; restColor: string; selectedBg: string; selectedColor: string }
 }
-
-const SQUISH = { scaleX: 1.08, scaleY: 0.88 }
 
 export default function AnswerCircle({
   text,
@@ -58,8 +56,7 @@ export default function AnswerCircle({
         whiteSpace: twoLine ? 'pre-line' : 'nowrap',
         transition: 'background 120ms ease, color 120ms ease',
       }}
-      whileTap={SQUISH}
-      transition={SPRING_TAP}
+      transition={INDUSTRIAL_OPACITY_SNAP}
     >
       {displayText}
     </motion.button>

@@ -80,7 +80,9 @@ export async function GET(request: NextRequest) {
       : null
 
   const gemini = Boolean(process.env.GEMINI_API_KEY?.trim())
-  const firecrawl = Boolean(process.env.FIRECRAWL_API_KEY?.trim())
+  const firecrawl = Boolean(
+    process.env.FIRE_CRAWL_KEY_2?.trim() || process.env.FIRECRAWL_API_KEY?.trim()
+  )
 
   const rockTipProviderSample = [...new Set(ROCK_HABITS.map((h) => h.provider_name))].slice(0, 14)
 

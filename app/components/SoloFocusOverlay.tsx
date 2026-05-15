@@ -2,25 +2,23 @@
 
 /**
  * Solo Focus expanded view — same content template as JourneyBentoCard expanded (kinetic grid).
- * Tips use this overlay; journey cards use JourneyBentoCard + shared layoutId where applicable.
+ * Tips use this overlay; journey cards use JourneyBentoCard.
  * v1.8.3: portaled to `document.body`; QUESTION ↔ RESULT (140ms), source footer, insight/RESULT asterisk lock.
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { type JourneyId, getOptionFullLabel } from '@/lib/journeys'
 import { formatMoneyImpact, formatCarbonImpact, formatZoneCardMoney } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
 import {
-  ELASTIC_PING,
+  INDUSTRIAL_OPACITY_SNAP,
   INTRO_FADE_UP_NO_DELAY,
   FADE_VARIANTS,
-  SPRING_TAP,
-  SPRING_BLOOM,
   SHIMMER_FOCUS,
   soloFocusSlamMotionProps,
-  SLAM_SPRING,
+  SOLO_FOCUS_ZIP_SHUT_SEC,
   STACCATO_DURATION_SEC,
   STACCATO_EASE,
 } from '@/lib/animations'
@@ -53,23 +51,18 @@ import {
   PRICE_CAP_APRIL_2026,
   PRICE_CAP_MARCH_2026,
   PRICE_CAP_SAVING_APRIL_1,
+  APRIL_2026_TRUTH_PENCE,
+  APRIL_2026_STANDING_PENCE,
 } from '@/lib/brains/constants'
 import { normalizeCategoryToJourneyKey, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
-import {
-  COLOR_YELLOW,
-  getJourneyCardTextHex,
-  getJourneyColorHex,
-  getJourneyCtaBgHex,
-  getJourneyCtaTextHex,
-  getSystemCtaBgHex,
-  getSystemCtaTextHex,
-} from '@/lib/journeyColors'
+import { resolveZoneSurfaceKind, zoneSurfaceStyleProps } from '@/lib/journeyColors'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
+import { runSoloFocusAuditCompletionClient } from '@/lib/soloFocusAuditCompleteClient'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
 import { getNextQuestion } from '@/lib/zone/questionHandler'
 import {
@@ -80,6 +73,7 @@ import {
   resolveRevenueCtaLabel,
 } from '@/lib/zone/verifiedRevenue'
 import { triggerScrapeSyncForCategory, type ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
+import { resolveBirthedCardId, scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
 
 export interface SoloFocusOverlayProps {
   category: string
@@ -213,10 +207,13 @@ export function SoloFocusOverlay({
   const [impactAnswerPulse, setImpactAnswerPulse] = useState(false)
   const [heroTotalsOverride, setHeroTotalsOverride] = useState<{ money: number; carbon: number } | null>(null)
   const [questionCount, setQuestionCount] = useState(0)
-  /** Brief blank beat between last answer zip and RESULT (kills ghosting). */
+  /** Brief blank beat between last answer zip and RESULT. */
   const [spawnHandoffBlank, setSpawnHandoffBlank] = useState(false)
   /** Discovery trap: Firecrawl/Gemini birth in flight after answer tap. */
   const [discoveryBirthPending, setDiscoveryBirthPending] = useState(false)
+  /** Pulse 3 — pink high-impact discovery card rebirth after final answer. */
+  const [discoveryRebirthTip, setDiscoveryRebirthTip] = useState(false)
+  const [rebirthDiscoveryTitle, setRebirthDiscoveryTitle] = useState<string | null>(null)
 
   useEffect(() => {
     const core = cardId ?? journeyId ?? 'solo-overlay'
@@ -371,11 +368,14 @@ export function SoloFocusOverlay({
       ? journeyResearchCov?.verified === true
       : null
 
-  const effectiveTitleRaw = currentMorphData
-    ? String(displayTitle || displayRecommendation).trim() || displayRecommendation
-    : researchAttribution?.headline?.trim() ||
-      String(displayTitle || displayRecommendation || title).trim() ||
-      displayRecommendation
+  const effectiveTitleRaw =
+    discoveryRebirthTip && rebirthDiscoveryTitle?.trim()
+      ? rebirthDiscoveryTitle.trim()
+      : currentMorphData
+        ? String(displayTitle || displayRecommendation).trim() || displayRecommendation
+        : researchAttribution?.headline?.trim() ||
+          String(displayTitle || displayRecommendation || title).trim() ||
+          displayRecommendation
   const isZoneMotherChild = !startInQuestionMode
   const recommendationTitle = headlineFromTitle(
     stripExpandedCardTitleNoise(String(effectiveTitleRaw)),
@@ -446,7 +446,7 @@ export function SoloFocusOverlay({
   )
   const trueTipSectionsEl =
     trueTipParagraphs.some((p) => p.trim().length > 0) ? (
-      <div className="solo-focus-true-tip-sections flex flex-col gap-4 w-full min-w-0 mt-1">
+      <div className="solo-focus-true-tip-sections flex flex-col gap-0 w-full min-w-0 mt-1">
         {trueTipParagraphs.map((para, i) =>
           para?.trim() ? (
             <motion.p
@@ -600,33 +600,25 @@ export function SoloFocusOverlay({
       : 0
   const treeEquivalent = Math.max(1, Math.round(discoveryImpactKg / 21))
 
-  const surfaceJid = (displayJourneyId ?? journeyId) as JourneyId | undefined
-  const overlayJourneyBg =
-    surfaceJid != null ? getJourneyColorHex(surfaceJid) : 'var(--color-purple)'
-  const overlayJourneyText =
-    surfaceJid != null ? getJourneyCardTextHex(surfaceJid) : 'var(--color-yellow)'
-  const overlayCtaBg = surfaceJid != null ? getJourneyCtaBgHex(surfaceJid) : getSystemCtaBgHex()
-  const overlayCtaText = surfaceJid != null ? getJourneyCtaTextHex(surfaceJid) : getSystemCtaTextHex()
-  const isYellowSurface =
-    typeof overlayJourneyBg === 'string' &&
-    overlayJourneyBg.toUpperCase() === COLOR_YELLOW.toUpperCase()
+  const overlaySurfaceKind = discoveryRebirthTip
+    ? 'tip'
+    : resolveZoneSurfaceKind({
+        journeyId,
+        cardId,
+        category,
+      })
+  const overlaySurfaceVars = zoneSurfaceStyleProps(overlaySurfaceKind)
 
   const overlay = (
-    <AnimatePresence mode="wait">
+    <>
       <motion.div key={activeCardId} className="solo-focus-grow-layer" initial={false}>
       <ExpandedCardShell
         className="expanded-solo-focus view-expanded solo-focus-mobile-expand zz-shimmer-focus"
         data-journey={displayJourneyId ?? 'overlay'}
-        {...(isZoneMotherChild && isYellowSurface ? { 'data-sf-yellow-slab': 'true' } : {})}
+        data-zone-surface={overlaySurfaceKind}
         style={
           {
-            ['--journey-bg' as string]: overlayJourneyBg,
-            ['--journey-text' as string]: overlayJourneyText,
-            ['--color-ink' as string]: overlayJourneyText,
-            ['--journey-accent' as string]: overlayCtaBg,
-            ['--journey-on-accent' as string]: overlayCtaText,
-            ['--journey-cta-bg' as string]: overlayCtaBg,
-            ['--journey-cta-text' as string]: overlayCtaText,
+            ...overlaySurfaceVars,
             transformOrigin: '50% 50%',
           } as React.CSSProperties
         }
@@ -634,26 +626,24 @@ export function SoloFocusOverlay({
         isExiting={false}
       >
       <PulseExpandedSync providerName={diagnosticProvider} sourceUrl={diagnosticUrl} />
-      <motion.div className="solo-focus-body-scroll w-full min-w-0">
         <motion.div
           className={`solo-focus-stack solo-focus-rail flex flex-col justify-start w-full items-center min-w-[280px] max-w-[800px] md:w-[90%] lg:w-[800px] ${isZoneMotherChild ? 'px-4 sm:px-0' : ''}`}
         >
           {/* Card A: The Mother */}
           {isZoneMotherChild && (
-          <AnimatePresence mode="wait">
+          <>
               <motion.div
                 key={`overlay-hero-${activeSiblingIndex}-${String(activeCardId ?? 'base')}`}
                 {...soloFocusSlamMotionProps(reducePagerMotion, false)}
                 style={{
                   transformOrigin: 'top center',
                   willChange: 'transform',
-                  backgroundColor: overlayJourneyBg,
                 }}
                 className="solo-focus-shell solo-focus-mother solo-focus-content-stack w-full min-w-0 rounded-[60px] p-[40px] relative"
               >
             <div className="solo-focus-expanded-toolbar solo-focus-mother-columns w-full min-w-0">
               <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
-                <div className="flex flex-col gap-2 w-full min-w-0">
+                <div className="flex flex-col gap-0 w-full min-w-0">
                 {resolvedOpenUrl.trim() ? (
                   <motion.div
                     className="solo-focus-insight-bridge w-full min-w-0"
@@ -668,7 +658,7 @@ export function SoloFocusOverlay({
                         padding: 0,
                       }}
                       initial={reducePagerMotion ? false : SHIMMER_FOCUS.initial}
-                      animate={reducePagerMotion ? { opacity: 1, filter: 'none', scale: 1 } : SHIMMER_FOCUS.animate}
+                      animate={reducePagerMotion ? { opacity: 1 } : SHIMMER_FOCUS.animate}
                       transition={SHIMMER_FOCUS.transition}
                     >
                       {recommendationTitle}
@@ -702,7 +692,7 @@ export function SoloFocusOverlay({
                         padding: 0,
                       }}
                       initial={reducePagerMotion ? false : SHIMMER_FOCUS.initial}
-                      animate={reducePagerMotion ? { opacity: 1, filter: 'none', scale: 1 } : SHIMMER_FOCUS.animate}
+                      animate={reducePagerMotion ? { opacity: 1 } : SHIMMER_FOCUS.animate}
                       transition={SHIMMER_FOCUS.transition}
                     >
                       {recommendationTitle}
@@ -746,11 +736,10 @@ export function SoloFocusOverlay({
                   aria-label="Close"
                   className="solo-focus-close-circle"
                   onClick={handleClose}
-                  whileTap={{ scale: 0.96 }}
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0, opacity: 0 }}
-                  transition={ELASTIC_PING.transition}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={INDUSTRIAL_OPACITY_SNAP}
                   style={{ transformOrigin: 'top right' }}
                 >
                   <BackArrowDownLeft size={24} />
@@ -764,15 +753,14 @@ export function SoloFocusOverlay({
                     {(activeCardId || cardId) && (
                       <motion.button
                         type="button"
-                        className="circle-btn solo-focus-action-btn solo-focus-action-80"
+                        className="circle-btn solo-focus-action-btn solo-focus-action-80 zz-shimmer-cta"
                         onClick={() => {
                           triggerHaptic('medium')
                           const id = String(activeCardId || cardId)
                           const likeFn = onLike ?? toggleLike
                           likeFn(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
                         }}
-                        whileTap={{ scale: 0.96 }}
-                        transition={{ ...SPRING_TAP, delay: 0.07 }}
+                        transition={INDUSTRIAL_OPACITY_SNAP}
                         aria-label="Like"
                         style={{
                           backgroundColor: isLiked
@@ -789,7 +777,7 @@ export function SoloFocusOverlay({
                     {onAskZai && (
                       <motion.button
                         type="button"
-                        className="circle-btn solo-focus-action-btn solo-focus-action-80 solo-focus-ask-zai-btn"
+                        className="circle-btn solo-focus-action-btn solo-focus-action-80 solo-focus-ask-zai-btn zz-shimmer-cta"
                         onClick={() => {
                           triggerHaptic('medium')
                           const allAnswers: Record<string, any> = {}
@@ -817,8 +805,7 @@ export function SoloFocusOverlay({
                           handleClose()
                           onAskZai()
                         }}
-                        whileTap={{ scale: 0.96 }}
-                        transition={{ ...SPRING_TAP, delay: 0.14 }}
+                        transition={INDUSTRIAL_OPACITY_SNAP}
                         aria-label="Ask Zai about this"
                       >
                         <span className="solo-focus-ask-zai-visual" aria-hidden>
@@ -846,14 +833,13 @@ export function SoloFocusOverlay({
               </div>
             </div>
               </motion.div>
-          </AnimatePresence>
+          </>
           )}
 
           {/* Card B: The Gate */}
           <motion.div
             className="solo-focus-shell solo-focus-child w-full flex flex-col items-start rounded-[60px] p-[40px]"
             style={{
-              backgroundColor: overlayJourneyBg,
               transformOrigin: 'top center',
               willChange: 'transform',
             }}
@@ -861,19 +847,18 @@ export function SoloFocusOverlay({
           >
             {discoveryFollowUp && !trapComplete ? (
               <motion.div
-                className="solo-focus-loop trinity-to-question flex-shrink-0 w-full flex flex-col items-start view-expanded solo-focus-trap-block gap-4 pt-0"
+                className="solo-focus-loop trinity-to-question flex-shrink-0 w-full flex flex-col items-start view-expanded solo-focus-trap-block gap-0 pt-0"
                 variants={FADE_VARIANTS}
                 initial={INTRO_FADE_UP_NO_DELAY.initial}
                 animate={INTRO_FADE_UP_NO_DELAY.animate}
                 transition={INTRO_FADE_UP_NO_DELAY.transition}
               >
               <h4
-                className="solo-focus-question-label solo-focus-copy-width text-marvin text-left uppercase m-0"
+                className="solo-focus-question-label zz-vault-neon-yellow solo-focus-copy-width text-marvin text-left uppercase m-0"
                 style={{
                   fontFamily: 'var(--font-marvin)',
                   fontWeight: 700,
                   fontSize: '30px',
-                  color: 'var(--sf-prose-contrast)',
                 }}
               >
                 {discoveryFollowUp.question}
@@ -882,7 +867,7 @@ export function SoloFocusOverlay({
                 <p
                   className="zz-label m-0 text-left w-full uppercase tracking-wide animate-pulse"
                   style={{
-                    color: 'var(--sf-prose-contrast)',
+                    color: 'var(--journey-text)',
                     fontSize: 'clamp(12px, 3vw, 14px)',
                     fontFamily: 'var(--font-label)',
                   }}
@@ -914,7 +899,7 @@ export function SoloFocusOverlay({
                       key={opt}
                       type="button"
                       disabled={discoveryBirthPending}
-                      className={`solo-focus-answer-option ${circleClass} circle-btn`}
+                      className={`solo-focus-answer-option ${circleClass} circle-btn zz-shimmer-cta`}
                       onClick={() => {
                       triggerHaptic('medium')
                       const j = journeyId ?? 'home'
@@ -1012,8 +997,7 @@ export function SoloFocusOverlay({
                       })()
                     }}
                     style={circleStyle}
-                    whileTap={{ scale: 0.96 }}
-                    transition={SPRING_TAP}
+                    transition={INDUSTRIAL_OPACITY_SNAP}
                   >
                     {getOptionFullLabel(opt).replace(/\s+/g, '').slice(0, 7).toUpperCase()}
                   </motion.button>
@@ -1028,14 +1012,14 @@ export function SoloFocusOverlay({
               className={`solo-focus-loop trinity-to-question flex-shrink-0 w-full flex flex-col items-start view-expanded solo-focus-trap-block${loopZipCollapsing ? ' solo-focus-loop--posting' : ''}`}
               variants={FADE_VARIANTS}
             >
-              <AnimatePresence mode="wait">
+              <>
                 {spawnHandoffBlank ? (
                   <motion.div
                     key="solo-focus-spawn-blank"
                     className="w-full min-h-[180px] rounded-[48px] flex items-center justify-center"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 0.45, backdropFilter: 'blur(12px)' }}
-                    exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                    initial={{ opacity: 0, y: 2 }}
+                    animate={{ opacity: 0.45, y: 0 }}
+                    exit={{ opacity: 0, y: 2 }}
                     transition={{ duration: STACCATO_DURATION_SEC, ease: STACCATO_EASE }}
                     style={{
                       backgroundColor: 'color-mix(in srgb, var(--color-purple) 35%, transparent)',
@@ -1046,16 +1030,15 @@ export function SoloFocusOverlay({
                   <motion.div
                     key={`overlay-sf-result-${discoverySnap?.questionId ?? 'q'}-${String(discoverySnap?.answerValue ?? '').slice(0, 24)}-${currentMorphData?.id ?? activeCardId ?? 'base'}`}
                     {...soloFocusSlamMotionProps(reducePagerMotion, false)}
-                    className="flex flex-col items-start w-full gap-6"
+                    className="flex flex-col items-start w-full gap-0"
                     style={{ transformOrigin: '50% 50%' }}
                   >
                     <h4
-                      className="solo-focus-question-label solo-focus-copy-width text-marvin text-left uppercase m-0"
+                      className="solo-focus-question-label zz-vault-neon-yellow solo-focus-copy-width text-marvin text-left uppercase m-0"
                       style={{
                         fontFamily: 'var(--font-marvin)',
                         fontWeight: 700,
                         fontSize: '30px',
-                        color: 'var(--sf-prose-contrast)',
                       }}
                     >
                       How we calculated this
@@ -1168,22 +1151,16 @@ export function SoloFocusOverlay({
                         )}
                       </p>
                     )}
-                    {journeyId === 'home' && (() => {
-                      const fromDiscovery =
-                        discoverySnap?.questionId === 'energy_type' && discoverySnap.answerValue.toUpperCase() === 'GAS'
-                      let fromStorage = false
-                      try {
-                        if (typeof window !== 'undefined') {
-                          const raw = localStorage.getItem('journey_home_answers')
-                          const answers = raw ? (JSON.parse(raw) as Record<string, string>) : {}
-                          fromStorage = (answers.energy_type ?? answers.heating ?? '').toUpperCase() === 'GAS'
-                        }
-                      } catch {
-                        fromStorage = false
-                      }
-                      if (!fromDiscovery && !fromStorage) return null
-                      return null
-                    })()}
+                    {journeyId === 'home' ? (
+                      <p
+                        className="zz-body solo-focus-copy-width text-left m-0 opacity-90"
+                        style={{ color: 'var(--journey-text)' }}
+                      >
+                        {wrapResultSupportingAsterisks(
+                          `April 2026 reference unit rates (Ofgem default tariff cap): electricity ${APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH}p/kWh (${APRIL_2026_STANDING_PENCE.ELECTRICITY_PER_DAY}p/day standing); gas ${APRIL_2026_TRUTH_PENCE.GAS_PER_KWH}p/kWh (${APRIL_2026_STANDING_PENCE.GAS_PER_DAY}p/day standing).`
+                        )}
+                      </p>
+                    ) : null}
                     <p className="zz-body solo-focus-copy-width text-left m-0 opacity-90" style={{ color: 'var(--journey-text)' }}>
                       Tap the close control to return to your zone.
                     </p>
@@ -1220,7 +1197,7 @@ export function SoloFocusOverlay({
                       onClose={handleClose}
                       onJourneyAnswered={onJourneyAnswered}
                       triggerHaptic={triggerHaptic}
-                      textColor="var(--sf-prose-contrast)"
+                      textColor="var(--journey-text)"
                       onActiveQuestionLabelChange={setSoloEmbedQuestionLabel}
                       soloFocusZipShut
                     onZipShutStart={() => setLoopZipCollapsing(true)}
@@ -1245,8 +1222,9 @@ export function SoloFocusOverlay({
                       sentinelMotherRefresh: _sentinelMotherRefresh,
                     }) => {
                       void _sentinelMotherRefresh
+                      const answeredCountAfter = questionCount + 1
                       setQuestionCount((c) => c + 1)
-                      const isLoopComplete = questionCount >= 5 || !hasNextQuestion
+                      const isLoopComplete = answeredCountAfter >= 5 || !hasNextQuestion
                       if (
                         newTotals &&
                         typeof newTotals.totalMoney === 'number' &&
@@ -1326,24 +1304,73 @@ export function SoloFocusOverlay({
                           ? discovery.recommendation_copy.trim()
                           : null
                       )
-                      if (!isLoopComplete) {
-                        persistViewState('QUESTION', { preserveResultContext: true })
-                      } else {
-                        setSpawnHandoffBlank(true)
-                        window.setTimeout(() => {
+                      if (isLoopComplete) {
+                        runSoloFocusAuditCompletionClient({
+                          journeyId: journeyId ?? null,
+                          questionId,
+                          answerValue,
+                          postcode: profilePostcode ?? state.profile?.postcode,
+                          profileData: {
+                            postcode: profilePostcode ?? state.profile?.postcode ?? undefined,
+                            home_type: state.profile?.homeType ?? null,
+                            transport_baseline: state.profile?.transport ?? null,
+                            household: state.profile?.livingSituation ?? null,
+                            employment_status: state.profile?.employmentStatus ?? null,
+                          },
+                          journeyAnswers: state.journeyAnswers as Record<string, Record<string, string>>,
+                        })
+                        const injectPayload =
+                          discovery?.new_card_data ??
+                          (new_discovery_card
+                            ? {
+                                id: new_discovery_card.id,
+                                title: new_discovery_card.title,
+                                journey_key: new_discovery_card.journey_key || journeyId,
+                                data: {
+                                  money: new_discovery_card.value || moneyValue,
+                                  carbon: carbonValue,
+                                },
+                                source: new_discovery_card.source_url || sourceUrl || '',
+                              }
+                            : null)
+                        const birthedId = resolveBirthedCardId({
+                          new_discovery_card,
+                          discovery: discovery
+                            ? {
+                                new_card_data:
+                                  discovery.new_card_data &&
+                                  typeof discovery.new_card_data === 'object'
+                                    ? (discovery.new_card_data as { id?: string })
+                                    : null,
+                              }
+                            : null,
+                        })
+                        if (injectPayload && typeof injectPayload === 'object') {
+                          injectNewDiscoveryCard(injectPayload)
+                        }
+                        if (birthedId || new_discovery_card?.title) {
+                          setDiscoveryRebirthTip(true)
+                          setRebirthDiscoveryTitle(
+                            born || new_discovery_card?.title?.trim() || recommendation
+                          )
+                        }
+                        syncSessionState()
+                      }
+
+                      scheduleSoloFocusRebirthOpen(() => {
+                        if (!isLoopComplete) {
+                          persistViewState('QUESTION', { preserveResultContext: true })
+                          setLoopZipCollapsing(false)
+                        } else {
+                          setSpawnHandoffBlank(true)
                           persistViewState('RESULT')
                           onJourneyAnswered?.()
                           setLoopZipCollapsing(false)
                           setSpawnHandoffBlank(false)
-                        }, Math.round(STACCATO_DURATION_SEC * 1000) + 40)
-                      }
-
-                      onEmbeddedAnswerSuccess?.({ cardId })
-
-                      if (!isLoopComplete) {
-                        setLoopZipCollapsing(false)
-                      }
-                      if (journeyId) {
+                        }
+                        onEmbeddedAnswerSuccess?.({ cardId })
+                      })
+                      if (!isLoopComplete && journeyId) {
                         triggerScrapeSyncForCategory({
                           postcode: profilePostcode ?? state.profile?.postcode,
                           category: journeyId,
@@ -1361,7 +1388,7 @@ export function SoloFocusOverlay({
                     />
                   </motion.div>
                 )}
-              </AnimatePresence>
+              </>
             </motion.div>
           ) : null}
           </motion.div>
@@ -1375,13 +1402,11 @@ export function SoloFocusOverlay({
                   className={`pager-pip${idx === activeSiblingIndex ? ' pager-pip--active' : ''}`}
                   aria-label={`Go to tip ${idx + 1}`}
                   aria-pressed={idx === activeSiblingIndex}
-                  whileTap={{ scale: 0.92 }}
                 />
               ))}
             </div>
           )}
-          </motion.div>
-          </motion.div>
+        </motion.div>
         </ExpandedCardShell>
 
       </motion.div>
@@ -1392,10 +1417,9 @@ export function SoloFocusOverlay({
           aria-label="Close"
           className="circle-btn flex items-center justify-center"
           onClick={handleClose}
-          whileTap={{ scale: 0.9 }}
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={ELASTIC_PING.transition}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={INDUSTRIAL_OPACITY_SNAP}
           style={{
             width: 40,
             height: 40,
@@ -1415,10 +1439,9 @@ export function SoloFocusOverlay({
               const likeFn = onLike ?? toggleLike
               likeFn(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
             }}
-            whileTap={{ scale: 0.9 }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={ELASTIC_PING.transition}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={INDUSTRIAL_OPACITY_SNAP}
             aria-label="Like"
             style={{
               width: 40,
@@ -1473,10 +1496,9 @@ export function SoloFocusOverlay({
               handleClose()
               onAskZai()
             }}
-            whileTap={{ scale: 0.9 }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={ELASTIC_PING.transition}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={INDUSTRIAL_OPACITY_SNAP}
             aria-label="Ask Zai about this"
             style={{
               width: 40,
@@ -1505,7 +1527,7 @@ export function SoloFocusOverlay({
         )}
       </div>
       )}
-    </AnimatePresence>
+    </>
   )
 
   if (typeof document !== 'undefined' && document.body) {

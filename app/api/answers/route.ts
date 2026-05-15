@@ -30,7 +30,14 @@ import { enforceTrueWinRails, passesBoundaryGuard } from '@/lib/zone/trueWinRail
 import { getLocalData } from '@/lib/local/getLocalData'
 import { prioritizeMorphCardsForProfileTags, prioritizeRegionalMorphCards } from '@/lib/zone/morphRegionalPriority'
 
-import { triggerSupplementalResearch, type ResearchProfileData } from '@/lib/agents/researchAgent'
+import {
+  loadDynamicUserProfileForResearch,
+  triggerSupplementalResearch,
+  type ResearchProfileData,
+} from '@/lib/agents/researchAgent'
+import { updateHermesMemoryAfterAnswer } from '@/lib/agents/hermes-memory'
+import { runRebirthVaultDiscovery } from '@/lib/agents/rebirthVaultDiscovery'
+import { FIRECRAWL_API_KEY as resolvedFirecrawlKey } from '@/lib/sentinel/api-config'
 import { runHybridLiveZoneTipForAnswer } from '@/lib/agents/scraperAgent'
 import { advanceHomeJourneySentinelAfterAnswer } from '@/lib/sentinel/runner'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
@@ -74,6 +81,7 @@ export async function POST(request: NextRequest) {
       question_key,
       answer,
       answer_value,
+      solo_focus,
     } = body
 
     const jKey = typeof (journey_key ?? journey_id) === 'string' ? (journey_key ?? journey_id).trim() : ''
@@ -93,27 +101,18 @@ export async function POST(request: NextRequest) {
 
     const [answersBeforeUpsert, profileRow] = await Promise.all([
       getJourneyAnswersForUser(user_id),
-      pool.query(
-        'SELECT postcode, home_type, household, transport_baseline, name, age_group, employment_status, user_genome FROM users WHERE id = $1',
-        [user_id]
-      ).then((r) =>
-        r.rows[0] as
-          | {
-              postcode?: string
-              home_type?: string
-              household?: string
-              transport_baseline?: string
-              name?: string
-              age_group?: string
-              employment_status?: string | null
-              user_genome?: Record<string, unknown> | null
-              goal?: string | null
-            }
-          | undefined
-      ).catch(() => undefined),
+      loadDynamicUserProfileForResearch(user_id).then((r) => r ?? undefined).catch(() => undefined),
     ])
     const profileGenome = (profileRow?.user_genome ?? {}) as Record<string, unknown>
     const tenureFromGenome = profileGenome.tenure ?? profileGenome.tenure_type ?? profileGenome.housing_tenure
+    const hermesMemoryRaw = profileGenome.hermes_memory
+    const hermesSkillFile =
+      hermesMemoryRaw &&
+      typeof hermesMemoryRaw === 'object' &&
+      !Array.isArray(hermesMemoryRaw) &&
+      typeof (hermesMemoryRaw as Record<string, unknown>).skill_file === 'string'
+        ? String((hermesMemoryRaw as Record<string, unknown>).skill_file).slice(0, 6000)
+        : null
     const householdSizeRaw = Number(profileGenome.household_size ?? profileGenome.householdSize)
     const householdSize =
       Number.isFinite(householdSizeRaw) && householdSizeRaw > 0 ? Math.round(householdSizeRaw) : null
@@ -127,8 +126,15 @@ export async function POST(request: NextRequest) {
           employment_status: profileRow.employment_status ?? null,
           tenure: typeof tenureFromGenome === 'string' ? tenureFromGenome : null,
           household_size: householdSize != null ? String(householdSize) : null,
+          hermes_skill_file: hermesSkillFile,
         }
       : null
+    const soloFocus =
+      solo_focus === true ||
+      solo_focus === 1 ||
+      solo_focus === '1' ||
+      solo_focus === 'true'
+
     const upsertPromise = upsertJourneyAnswerJsonb(user_id, jKey, qKey, String(value))
     const genomeUpsertPromise = upsertUserGenomeFromAnswer(user_id, jKey, qKey, String(value))
     const sourceCitationPromise = getLatestResearchCitation(postcodeNorm, user_id)
@@ -185,7 +191,19 @@ export async function POST(request: NextRequest) {
               new_card_data: z.zoneCard,
             }
           },
-          timeoutMs: 8000,
+          rebirthVault:
+            soloFocus && resolvedFirecrawlKey && process.env.GEMINI_API_KEY?.trim()
+              ? async () =>
+                  runRebirthVaultDiscovery({
+                    journeyId: jKey as JourneyId,
+                    questionId: qKey,
+                    answerValue: String(value),
+                    postcode: postcodeNorm,
+                    profileData: profileData as ResearchProfileData | null,
+                    userId: user_id,
+                  })
+              : undefined,
+          timeoutMs: soloFocus ? 14_000 : 8_000,
         })
       } catch {
         payload = null
@@ -202,11 +220,11 @@ export async function POST(request: NextRequest) {
     ])
     const profile: ImpactProfile | undefined = profileRow
       ? {
-          name: profileRow.name,
-          postcode: profileRow.postcode,
-          household: profileRow.household,
-          home_type: profileRow.home_type,
-          transport_baseline: profileRow.transport_baseline,
+          name: profileRow.name ?? undefined,
+          postcode: profileRow.postcode ?? undefined,
+          household: profileRow.household ?? undefined,
+          home_type: profileRow.home_type ?? undefined,
+          transport_baseline: profileRow.transport_baseline ?? undefined,
           age: profileRow.age_group as ImpactProfile['age'],
           employment_status: normalizeEmploymentStatus(profileRow.employment_status ?? undefined),
         }
@@ -223,7 +241,8 @@ export async function POST(request: NextRequest) {
     const homeJustFinished = jKey === 'home' && homeNowComplete && !homeWasComplete
 
     const canLiveResearch = Boolean(
-      process.env.DATABASE_URL?.trim() && (process.env.FIRECRAWL_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim())
+      process.env.DATABASE_URL?.trim() &&
+        (resolvedFirecrawlKey || process.env.GEMINI_API_KEY?.trim())
     )
     if (canLiveResearch) {
       const researchPayload = {
@@ -246,6 +265,17 @@ export async function POST(request: NextRequest) {
       { profile, journeyAnswers: journeyAnswers as Record<JourneyId, Record<string, string>> },
       { homeUnitRates }
     )
+    const hermesMemoryPromise = updateHermesMemoryAfterAnswer({
+      userId: user_id,
+      profile,
+      journeyAnswers: journeyAnswers as Record<JourneyId, Record<string, string>>,
+      userImpact,
+      lastAnswer: {
+        journeyId: jKey as JourneyId,
+        questionId: qKey,
+        answerValue: String(value),
+      },
+    }).catch(() => null)
 
     const discoveryWinPromise = generateDiscoveryWinWithGemini({
       journeyId: jKey as JourneyId,
@@ -340,6 +370,7 @@ export async function POST(request: NextRequest) {
     }
 
     const discovery_win = await discoveryWinPromise
+    const hermesMemory = await hermesMemoryPromise
 
     const new_discovery_card = discoveryPayloadFinal?.new_card_data
       ? discoveryCardFromZoneTip(discoveryPayloadFinal.new_card_data)
@@ -406,6 +437,7 @@ export async function POST(request: NextRequest) {
         cleaner_vs_2025_pct: grid_cleaner_pct,
       },
       grid_pulse_card,
+      hermesMemory: hermesMemory ?? undefined,
     })
   } catch {
     return NextResponse.json(

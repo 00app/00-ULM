@@ -31,7 +31,7 @@ export function stripAuditorFluffParagraph(raw: string): string {
     .trim()
 }
 
-/** Remove What/Why/How / Discovery headings Gemini often echoes in `architect_prose` (UI already shows section labels). */
+/** Remove What/Why/How / Discovery headings Gemini may echo in `architect_prose` (expanded UI is label-free). */
 export function stripArchitectEmbeddedSectionTitles(block: string): string {
   let t = stripAuditorFluffParagraph(block.trim())
   const lines = t.split('\n')
@@ -300,7 +300,7 @@ function pruneDuplicateLocalityInsight(
 
 /**
  * Three paragraphs from Neon `research_results.architect_prose` + verified £/CO₂e figures.
- * Prefer `\n\n`-split blocks when the DB row already carries What/Why/How shape.
+ * Prefer `\n\n`-split blocks when the DB row already carries three-paragraph shape.
  */
 export function buildResearchResultsTrueTipBody(params: {
   architectProse: string
@@ -323,7 +323,7 @@ export function buildResearchResultsTrueTipBody(params: {
   if (blocks.length === 2) {
     return [blocks[0]!, blocks[1]!, bridgeSentence(j)].join('\n\n')
   }
-  /** Legacy single blob without blank-line breaks: split sentences into three beats for What / Why / How. */
+  /** Legacy single blob without blank-line breaks: split sentences into three beats. */
   const sentences = rawClean
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
@@ -390,7 +390,7 @@ export function toThreeTrueTipParagraphs(text: string): [string, string, string]
   if (!t) {
     return ['', '', '']
   }
-  let parts = t
+  const parts = t
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean)

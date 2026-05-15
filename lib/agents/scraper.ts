@@ -15,8 +15,17 @@ export const PETROL_PRICES_UK_URL = 'https://www.petrolprices.com/'
 const MIN_MARKDOWN_CHARS = 500
 const BOT_BLOCK_RETRY_WAIT_MS = 3000
 
+/** Prefer `.env.local` `FIRE_CRAWL_KEY_2`, then legacy `FIRECRAWL_API_KEY`. */
+export function getFirecrawlApiKey(): string {
+  return process.env.FIRE_CRAWL_KEY_2?.trim() || process.env.FIRECRAWL_API_KEY?.trim() || ''
+}
+
+export function hasFirecrawlApiKey(): boolean {
+  return getFirecrawlApiKey().length > 0
+}
+
 function getClient(): Firecrawl | null {
-  const apiKey = process.env.FIRECRAWL_API_KEY?.trim()
+  const apiKey = getFirecrawlApiKey()
   if (!apiKey) return null
   return new Firecrawl({ apiKey })
 }
@@ -41,21 +50,26 @@ export async function fetchLiveEnergyData(): Promise<string> {
     onlyMainContent: true,
   }
 
-  let res = await client.scrapeUrl(OFGEM_LIVE_PRICE_CAP_URL, baseParams)
-  let md = extractMarkdown(res)
+  try {
+    let res = await client.scrapeUrl(OFGEM_LIVE_PRICE_CAP_URL, baseParams)
+    let md = extractMarkdown(res)
 
-  if (md.length < MIN_MARKDOWN_CHARS) {
-    console.warn(
-      `[scraper] Bot Block: Ofgem markdown only ${md.length} chars (< ${MIN_MARKDOWN_CHARS}); retrying with waitFor=${BOT_BLOCK_RETRY_WAIT_MS}ms`
-    )
-    res = await client.scrapeUrl(OFGEM_LIVE_PRICE_CAP_URL, {
-      ...baseParams,
-      waitFor: BOT_BLOCK_RETRY_WAIT_MS,
-    })
-    md = extractMarkdown(res)
+    if (md.length < MIN_MARKDOWN_CHARS) {
+      console.warn(
+        `[scraper] Ofgem markdown only ${md.length} chars (< ${MIN_MARKDOWN_CHARS}); retrying with waitFor=${BOT_BLOCK_RETRY_WAIT_MS}ms`
+      )
+      res = await client.scrapeUrl(OFGEM_LIVE_PRICE_CAP_URL, {
+        ...baseParams,
+        waitFor: BOT_BLOCK_RETRY_WAIT_MS,
+      })
+      md = extractMarkdown(res)
+    }
+
+    return md
+  } catch (err) {
+    console.warn('[scraper] Ofgem Firecrawl scrape failed:', err)
+    return ''
   }
-
-  return md
 }
 
 /**
@@ -84,4 +98,40 @@ export async function fetchUkEconomicSeedMarkdown(): Promise<string> {
   }
 
   return chunks.join('\n\n---\n\n')
+}
+
+/**
+ * OpenFirecrawl bridge for arbitrary trusted research URLs.
+ * Used for postcode-grounded council grant and energy-offer pages.
+ */
+export async function fetchFirecrawlMarkdownForUrls(
+  urls: string[],
+  params?: { minChars?: number; maxUrls?: number }
+): Promise<Array<{ url: string; markdown: string; title?: string }>> {
+  const client = getClient()
+  if (!client) return []
+
+  const minChars = params?.minChars ?? 120
+  const maxUrls = Math.min(Math.max(1, params?.maxUrls ?? urls.length), urls.length)
+  const baseParams = {
+    formats: ['markdown'] as ('markdown')[],
+    onlyMainContent: true,
+  }
+  const out: Array<{ url: string; markdown: string; title?: string }> = []
+
+  for (const url of urls.slice(0, maxUrls)) {
+    try {
+      const res = await client.scrapeUrl(url, baseParams)
+      const md = extractMarkdown(res)
+      if (md.length >= minChars) {
+        const meta = res as { metadata?: { title?: unknown } }
+        const title = typeof meta.metadata?.title === 'string' ? meta.metadata.title : undefined
+        out.push({ url, markdown: md, title })
+      }
+    } catch {
+      /* ignore single-source failure */
+    }
+  }
+
+  return out
 }

@@ -10,7 +10,7 @@ import { track } from '@vercel/analytics'
 import { motion } from 'framer-motion'
 import type { JourneyId } from '@/lib/journeys'
 
-import { SPRING_TAP } from '@/lib/animations'
+import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 
 export type FunkyCircleCTAVariant = 'primary' | 'journey' | 'secondary'
 
@@ -69,7 +69,7 @@ export function FunkyCircleCTA({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      whileTap={{ scaleX: 1.15, scaleY: 0.85, transition: SPRING_TAP }}
+      transition={INDUSTRIAL_OPACITY_SNAP}
       className={`flex items-center justify-center rounded-[9999px] border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${labelFont === 'marvin' ? 'zz-h4' : ''} ${className}`}
       style={{
         width: 80,
@@ -107,7 +107,7 @@ export function FunkyAnswerCircle({ label, onClick, className = '' }: FunkyAnswe
     <motion.button
       type="button"
       onClick={onClick}
-      whileTap={{ scale: 0.95 }}
+      transition={INDUSTRIAL_OPACITY_SNAP}
       className={`flex items-center justify-center rounded-[9999px] border-0 cursor-pointer funky-answer-circle zz-h4 ${className}`}
       style={{
         width: 100,
@@ -147,7 +147,7 @@ export function FunkyAnswerPill({
     <motion.button
       type="button"
       onClick={onClick}
-      whileTap={{ scale: 0.95 }}
+      transition={INDUSTRIAL_OPACITY_SNAP}
       className={`w-full max-w-[300px] rounded-[9999px] border-0 py-3 px-5 text-left cursor-pointer ${className}`}
       style={{
         background: selected ? journeyColor : 'var(--color-purple)',
@@ -172,6 +172,8 @@ export interface IndustrialHandoffButtonProps {
   moneyValue?: number
   ctaLabel?: string
   className?: string
+  /** Pink (default) vs yellow block + journey text (Action Vault rebirth). */
+  surface?: 'pink' | 'yellow'
 }
 
 export function IndustrialHandoffButton({
@@ -179,7 +181,8 @@ export function IndustrialHandoffButton({
   journeyId,
   moneyValue,
   ctaLabel = 'CLAIM',
-  className = ''
+  className = '',
+  surface = 'pink',
 }: IndustrialHandoffButtonProps) {
   const words = ctaLabel.trim().split(/\s+/).filter(Boolean)
   const line1 = words[0] ?? ''
@@ -201,12 +204,20 @@ export function IndustrialHandoffButton({
     <motion.button
       type="button"
       onClick={handleClick}
-      whileTap={{ scale: 0.85 }}
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 550, damping: 32 }}
-      className={`circle-btn border-0 cursor-pointer ${className}`}
+      initial={{ opacity: 0, y: 2 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'tween', duration: 0.12, ease: 'linear' }}
+      className={`circle-btn border-0 cursor-pointer ${className}`.trim()}
       style={{
+        backgroundColor: surface === 'yellow' ? 'var(--color-yellow)' : 'var(--color-pink)',
+        color: surface === 'yellow' ? 'var(--journey-text)' : 'var(--color-yellow)',
+        borderRadius: 60,
+        minWidth: 80,
+        minHeight: 80,
+        fontFamily: 'var(--font-roboto), sans-serif',
+        fontWeight: 800,
+        fontSize: 16,
+        lineHeight: 1.2,
         boxShadow: 'none',
       }}
     >

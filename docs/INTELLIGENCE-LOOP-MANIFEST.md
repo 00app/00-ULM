@@ -11,6 +11,8 @@ Operational contract for infra, data flow, UX, and verification. **Secrets belon
 | **Hermes (Oracle VPS)** | Daily trigger (e.g. **05:00**) → **`GET /api/cron/zone-research`** with header **`Authorization: Bearer <CRON_SECRET>`** (same value as Vercel `CRON_SECRET`). |
 | **Neon (London)** | Canonical pooler hostname is **`MANIFEST_NEON_POOLER_HOST`** in `lib/intelligence/manifest.ts`. It **must** match the host inside `DATABASE_URL` (password only via Neon Console / `vercel env`). |
 | **Credentials** | Set `DATABASE_URL` (full URI). Do **not** commit real passwords; rotate immediately if exposed. |
+| **Firecrawl** | API key: `FIRE_CRAWL_KEY_2` **or** `FIRECRAWL_API_KEY` — both read by `lib/sentinel/api-config.ts` (primary name wins). |
+| **Gemini** | `GEMINI_API_KEY` — extraction, Zai, research triplet. |
 
 ---
 
@@ -25,7 +27,7 @@ Operational contract for infra, data flow, UX, and verification. **Secrets belon
 ## 3. UX / UI
 
 - **Mobile locality:** Long placenames use **`formatSummaryLocalityKineticToken`** (`lib/brains/summaryLogic.ts`) + **`IntroWordCycle`** with **`opacityTicker`** on `/profile/summary` (word-by-word opacity only — no intro glitch). **`/` + `/intro`** keep the logo glitch (Style A). Kinetic order is **HELLO → name → locality** then bridge + waste beats; single-word towns **over seven characters** get Marvin clamp + squeeze (Littlehampton path).
-- **Expanded Solo Focus:** **Zai Architect** layout — **League Gothic** ~20-word **`agent_headline`** (H1) + three **Inter** paragraphs from Neon **`architect_prose`** (no “The What / Why / How” UI labels; trinity lives only in prose). **`JourneyBentoCard`** + **`SoloFocusOverlay`** + **`lib/soloFocusCopy.ts`**. Gemini triplet prompt in **`lib/agents/researchAgent.ts`** emits **`agent_headline`** + label-free three paragraphs on new research rows.
+- **Expanded Solo Focus:** **Zai Architect** layout — **Marvin Visions** ~20-word **`agent_headline`** (H1) + three **Roboto Bold** paragraphs from Neon **`architect_prose`** (≤40 words each, no UI labels; trinity lives only in prose). **`JourneyBentoCard`** + **`SoloFocusOverlay`** + **`lib/soloFocusCopy.ts`**. Gemini triplet prompt in **`lib/agents/researchAgent.ts`** emits **`agent_headline`** + label-free three paragraphs on new research rows (profile-aware forensic auditor framing).
 - **CTA:** Expanded cards use **`MotherCardRenderer`** + **`IndustrialHandoffButton`** with **`ctaUrl`** from **`offer_url`** / verified source, falling back to **`/zai`** audit URL when no partner link exists (`JourneyBentoCard`).
 
 ---

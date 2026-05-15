@@ -3,12 +3,20 @@ import {
   scrapeWithFirecrawlUrl,
 } from '../lib/agents/researchAgent'
 
+import { loadEnvLocal } from './load-env-local'
+
+loadEnvLocal({ preferLocal: true })
+
 async function main() {
   const zoneSchema = process.argv.includes('--zone-schema')
   const capUrl = 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap'
 
-  if (!process.env.FIRECRAWL_API_KEY) {
-    console.error('❌ FIRECRAWL_API_KEY is not set in your environment.')
+  const fcKey =
+    process.env.FIRE_CRAWL_KEY_2?.trim() || process.env.FIRECRAWL_API_KEY?.trim()
+  if (!fcKey) {
+    console.error(
+      '❌ Set FIRE_CRAWL_KEY_2 or FIRECRAWL_API_KEY in .env.local (same resolution as lib/sentinel/api-config.ts).'
+    )
     process.exit(1)
   }
 

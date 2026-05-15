@@ -1,11 +1,12 @@
 /**
  * Verify Neon connectivity and list columns for `research_results`.
- * Usage from repo root (loads `.env.local` if you `export $(grep -v '^#' .env.local | xargs)` or pass DATABASE_URL):
- *   `npx tsx scripts/list-research-results-columns.ts`
+ * Usage from repo root: `npm run db:columns` (loads `.env.local` via `load-env-local`).
  */
+import { loadEnvLocal } from './load-env-local'
 import { getDbPool, shutdownDbPool } from '../lib/db'
 
 async function main() {
+  loadEnvLocal({ preferLocal: true })
   const pool = getDbPool()
   const r = await pool.query<{ column_name: string; data_type: string }>(
     `SELECT column_name, data_type

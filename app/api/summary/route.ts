@@ -6,6 +6,7 @@ import type { ImpactProfile } from '@/lib/brains/types'
 import { getJourneyAnswersForUser } from '@/lib/db/neon'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
+import { sumSavingsFromUserGenome } from '@/lib/brains/genomeTotals'
 
 // This route is always dynamic (user-specific summary)
 export const dynamic = 'force-dynamic'
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     if (type === 'profile') {
       const userResult = await pool.query(
-        'SELECT id, name, postcode, household, home_type, transport_baseline, age_group, employment_status FROM users WHERE id = $1',
+        'SELECT id, name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome FROM users WHERE id = $1',
         [user_id]
       )
 
@@ -73,12 +74,19 @@ export async function GET(request: NextRequest) {
 
       const userRow = userResult.rows[0] as Record<string, unknown>
       const profile = toImpactProfile(userRow)
-      const summary = await calculateProfileSummary(user_id, profile)
+      const impactSummary = await calculateProfileSummary(user_id, profile)
+      const genomeTotals = sumSavingsFromUserGenome(userRow.user_genome)
+      const savings =
+        genomeTotals.totalMoney > 0 ? genomeTotals.totalMoney : impactSummary.savings
+      const carbon =
+        genomeTotals.totalCarbon > 0 ? genomeTotals.totalCarbon : impactSummary.carbon
 
       return NextResponse.json({
-        savings: summary.savings,
-        carbon: summary.carbon,
-        text: `you could save\n£${summary.savings}.\n${summary.carbon}kg co₂e\nthis year alone.`,
+        savings,
+        carbon,
+        genomeTotals,
+        impactTotals: impactSummary,
+        text: `you could save\n£${savings}.\n${carbon}kg co₂e\nthis year alone.`,
       })
     }
 

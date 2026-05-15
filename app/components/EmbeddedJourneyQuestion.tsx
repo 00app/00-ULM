@@ -7,27 +7,22 @@
  *
  * **Intelligence loop (journey MC / numeric answers):** `runSubmit` → `POST /api/answers` (auth) runs the
  * discovery race + Neon persistence server-side; JSON may include `discovery.new_card_data` and/or
- * `grid_pulse_card`. Those objects are passed to `injectNewDiscoveryCard` after a double rAF so the Zone
- * grid receives the birth event. **`POST /api/research/question-card`** is the separate free-form Ask path,
+ * `grid_pulse_card`. Those objects are passed to `injectNewDiscoveryCard` after **SOLO_FOCUS_ZIP_SHUT_SEC**
+ * (linear zip) elapses from `onZipShutStart` and a double rAF so the Zone grid receives the birth event. **`POST /api/research/question-card`** is the separate free-form Ask path,
  * not invoked here.
  */
 import React, { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { JOURNEYS, FUNKY_QUESTION_LABEL, getOptionFullLabel, type JourneyId, type JourneyQuestion } from '@/lib/journeys'
 import { getNextQuestion } from '@/lib/zone/questionHandler'
 import { useApp } from '@/app/context/AppContext'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import {
-  ELASTIC_PING,
-  SPRING_BLOOM,
-  SPRING_TAP,
+  INDUSTRIAL_OPACITY_SNAP,
   SHIMMER_FOCUS,
-  INTRO_DECISION_CTA_TRANSITION,
   SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION,
   SOLO_FOCUS_ZIP_SHUT_SEC,
-  STACCATO_TWEEN,
-  STACCATO_DROP_PX,
 } from '@/lib/animations'
 import { injectNewDiscoveryCard } from '@/lib/discoveryInject'
 import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
@@ -198,8 +193,7 @@ function NumberQuestionInput({
           color: activeText,
           opacity: value.trim() ? 1 : 0.7,
         }}
-        whileTap={value.trim() ? { scale: 0.98 } : {}}
-        transition={SPRING_TAP}
+        transition={INDUSTRIAL_OPACITY_SNAP}
       >
         Save
       </motion.button>
@@ -222,10 +216,10 @@ const ANSWER_CIRCLE_STYLE = {
   flexShrink: 0,
 }
 
-const ZIP_SHUTTER_SPRING = {
+const ZIP_SHUTTER_SNAP = {
   type: 'tween' as const,
   duration: SOLO_FOCUS_ZIP_SHUT_SEC,
-  ease: [0.33, 1, 0.68, 1] as const,
+  ease: 'linear' as const,
 }
 
 export function EmbeddedJourneyQuestion({
@@ -378,6 +372,10 @@ export function EmbeddedJourneyQuestion({
     const obj = { ...answers, [firstUnanswered.id]: trimmed }
 
     const questionIdSnapshot = firstUnanswered.id
+    if (soloFocusZipShut) {
+      onZipShutStart?.()
+    }
+
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(storageKey, JSON.stringify(obj))
@@ -428,7 +426,6 @@ export function EmbeddedJourneyQuestion({
       body: JSON.stringify({ category: journeyId, userContext }),
     }).catch(() => {})
 
-    onZipShutStart?.()
     const postPromise = fetch('/api/answers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -436,6 +433,7 @@ export function EmbeddedJourneyQuestion({
         journey_key: journeyId,
         question_id: questionIdSnapshot,
         answer_value: trimmed,
+        solo_focus: Boolean(soloFocusZipShut),
       }),
       credentials: 'include',
     })
@@ -500,6 +498,10 @@ export function EmbeddedJourneyQuestion({
         onSourceCitation?.(c)
         sourceCitationForSnap = c
       }
+
+      await new Promise<void>((r) =>
+        setTimeout(r, soloFocusZipShut ? Math.round(SOLO_FOCUS_ZIP_SHUT_SEC * 1000) : 0)
+      )
 
       const zoneCard = discovery?.new_card_data
       if (zoneCard && typeof zoneCard === 'object' && zoneCard !== null && 'id' in zoneCard && typeof (zoneCard as { id: unknown }).id === 'string') {
@@ -673,10 +675,10 @@ export function EmbeddedJourneyQuestion({
       ? (FUNKY_QUESTION_LABEL[journeyId] ?? (firstUnanswered?.label ?? ''))
       : (firstUnanswered?.label ?? '')
 
-  const restBg = 'var(--color-pink)'
-  const restText = 'var(--color-yellow)'
-  const activeBg = 'var(--color-purple)'
-  const activeText = 'var(--color-yellow)'
+  const restBg = 'var(--sf-answer-bg, var(--color-yellow))'
+  const restText = 'var(--sf-answer-text, var(--journey-bg, var(--color-purple)))'
+  const activeBg = 'var(--sf-answer-hover-bg, var(--journey-bg, var(--color-purple)))'
+  const activeText = 'var(--sf-answer-hover-text, var(--color-yellow))'
   const toChipLabel = (opt: string) =>
     getOptionFullLabel(opt).replace(/\s+/g, '').toUpperCase()
 
@@ -686,13 +688,13 @@ export function EmbeddedJourneyQuestion({
   const showResultCopy = submitted || !firstUnanswered || (!isNumberQuestion && !hasOptions)
   if (showResultCopy) {
     return (
-      <AnimatePresence mode="wait">
+      <>
         <motion.div
           key="zip-result"
-          initial={{ height: 0, scaleY: 0, opacity: 1 }}
-          animate={{ height: 'auto', scaleY: 1, opacity: 1 }}
-          exit={{ height: 0, scaleY: 0, opacity: 1 }}
-          transition={ZIP_SHUTTER_SPRING}
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={ZIP_SHUTTER_SNAP}
           style={{ width: '100%', transformOrigin: railAlign ? 'left top' : 'center top', overflow: 'hidden' }}
         >
           <p
@@ -702,7 +704,7 @@ export function EmbeddedJourneyQuestion({
             All set for this journey.
           </p>
         </motion.div>
-      </AnimatePresence>
+      </>
     )
   }
   return (
@@ -710,23 +712,22 @@ export function EmbeddedJourneyQuestion({
       className={`flex flex-col ${railAlign ? 'items-start justify-start' : 'items-center justify-center'} gap-4 sm:gap-6 w-full pt-0 pb-0`}
       style={{ transformOrigin: railAlign ? 'left top' : 'center top' }}
       variants={{
-        hidden: { y: 20, opacity: 0 },
-        visible: { y: 0, opacity: 1, transition: SPRING_BLOOM },
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: INDUSTRIAL_OPACITY_SNAP },
       }}
-      initial={{ height: 'auto', scaleY: 1, opacity: 1 }}
+      initial={{ height: 'auto', opacity: 1 }}
       animate={{
         height: isSwishing ? 0 : 'auto',
-        opacity: 1,
-        scaleY: isSwishing ? 0 : 1,
-        transition: ZIP_SHUTTER_SPRING,
+        opacity: isSwishing ? 0 : 1,
+        transition: ZIP_SHUTTER_SNAP,
       }}
     >
-      <AnimatePresence mode="wait">
+      <>
         <motion.h3
           key={questionLabel}
           className={`solo-focus-question-label solo-focus-copy-width text-marvin uppercase zz-h3 ${
-            soloFocusZipShut ? '' : 'zz-shimmer-focus'
-          } ${railAlign ? 'text-left' : 'text-center'}`}
+            soloFocusZipShut ? 'zz-vault-neon-yellow' : ''
+          } ${soloFocusZipShut ? '' : 'zz-shimmer-focus'} ${railAlign ? 'text-left' : 'text-center'}`}
           style={{
             margin: 0,
             fontFamily: 'var(--font-marvin)',
@@ -738,28 +739,28 @@ export function EmbeddedJourneyQuestion({
             reduceMotion
               ? false
               : soloFocusZipShut
-                ? { opacity: 0, y: STACCATO_DROP_PX }
+                ? { opacity: 0, y: 2 }
                 : SHIMMER_FOCUS.initial
           }
           animate={
             reduceMotion
-              ? { opacity: 1, filter: 'none', scale: 1 }
+              ? { opacity: 1 }
               : soloFocusZipShut
-                ? { opacity: 1, y: 0, transition: STACCATO_TWEEN }
+                ? { opacity: 1, y: 0, transition: INDUSTRIAL_OPACITY_SNAP }
                 : SHIMMER_FOCUS.animate
           }
           exit={
             reduceMotion
               ? { opacity: 0 }
               : soloFocusZipShut
-                ? { opacity: 0, y: 6, transition: { duration: 0.12, ease: [0, 0.55, 0.45, 1] as const } }
-                : { ...SHIMMER_FOCUS.initial, transition: { duration: 0.12 } }
+                ? { opacity: 0, transition: INDUSTRIAL_OPACITY_SNAP }
+                : { ...SHIMMER_FOCUS.initial, transition: INDUSTRIAL_OPACITY_SNAP }
           }
           transition={soloFocusZipShut ? undefined : SHIMMER_FOCUS.transition}
         >
           {questionLabel}
         </motion.h3>
-      </AnimatePresence>
+      </>
 
       {isNumberQuestion ? (
         soloFocusZipShut ? (
@@ -780,7 +781,7 @@ export function EmbeddedJourneyQuestion({
                   key={value}
                   type="button"
                   aria-label={label}
-                  className="solo-focus-answer-option answer-circle-100 zz-shimmer-focus"
+                  className="solo-focus-answer-option answer-circle-100 circle-btn zz-shimmer-cta"
                   onClick={() => handleEmbedSubmit(value)}
                   style={{
                     ...ANSWER_CIRCLE_STYLE,
@@ -788,15 +789,13 @@ export function EmbeddedJourneyQuestion({
                     color: restText,
                     willChange: 'filter, transform',
                   }}
-                  initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
+                  initial={reduceMotion ? false : { opacity: 0, y: 2 }}
                   animate={{
-                    scale: isThisSwishing ? 0.5 : 1,
-                    opacity: 1,
-                    transition: ELASTIC_PING.transition,
+                    opacity: isThisSwishing ? 0 : 1,
+                    y: isThisSwishing ? 2 : 0,
                   }}
-                  whileTap={!isSwishing ? { scale: 0.96 } : {}}
                   transition={{
-                    ...INTRO_DECISION_CTA_TRANSITION,
+                    ...INDUSTRIAL_OPACITY_SNAP,
                     delay: reduceMotion ? 0 : (idx + 1) * 0.1,
                   }}
                 >
@@ -854,7 +853,7 @@ export function EmbeddedJourneyQuestion({
                 key={opt}
                 type="button"
                 aria-label={opt}
-                className={`solo-focus-answer-option zz-shimmer-focus ${circleClass}`}
+                className={`solo-focus-answer-option circle-btn zz-shimmer-cta ${circleClass}`}
                 onClick={() => handleEmbedSubmit(opt)}
                 style={{
                   ...circleStyle,
@@ -862,15 +861,13 @@ export function EmbeddedJourneyQuestion({
                   color: isSelected ? activeText : restText,
                   willChange: 'filter, transform',
                 }}
-                initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 2 }}
                 animate={{
-                  scale: isThisSwishing ? 0.5 : 1,
-                  opacity: 1,
-                  transition: ELASTIC_PING.transition,
+                  opacity: isThisSwishing ? 0 : 1,
+                  y: isThisSwishing ? 2 : 0,
                 }}
-                whileTap={!isSwishing ? { scale: 0.96 } : {}}
                 transition={{
-                  ...INTRO_DECISION_CTA_TRANSITION,
+                  ...INDUSTRIAL_OPACITY_SNAP,
                   delay: reduceMotion ? 0 : (idx + 1) * 0.1,
                 }}
               >

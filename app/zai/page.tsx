@@ -11,7 +11,7 @@ import {
 } from '@/lib/expandStorage'
 import { sanitizeText } from '@/lib/sanitize'
 
-import { SPRING_TAP, ELASTIC_PING, MECHANICAL_SNAP_SPRING } from '@/lib/animations'
+import { ELASTIC_PING, INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 
 const ZAI_FALLBACK = "i'm scanning the 2026 grid, try in a sec."
@@ -249,10 +249,9 @@ export default function ZaiPage() {
           {messages.map((msg, i) => (
             <motion.div
               key={`${msg.role}-${i}`}
-              layout
-              initial={{ opacity: 1, scale: 0.88, x: msg.role === 'user' ? 10 : -10, filter: 'blur(5px)' }}
-              animate={{ opacity: 1, scale: 1, x: 0, filter: 'blur(0px)' }}
-              transition={MECHANICAL_SNAP_SPRING}
+              initial={{ opacity: 0, y: 2 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={INDUSTRIAL_OPACITY_SNAP}
               style={{
                 marginBottom: 16,
                 textAlign: msg.role === 'user' ? 'right' : 'left',
@@ -278,13 +277,13 @@ export default function ZaiPage() {
           {loading && (
             <motion.div
               className="zai-pulse-circle"
-              animate={{ scale: [0.88, 1.04, 1] }}
+              animate={{ opacity: [0.45, 1, 0.45] }}
               transition={{
                 type: 'tween',
-                duration: 0.42,
+                duration: 0.36,
                 repeat: Infinity,
                 repeatType: 'reverse',
-                ease: [0.22, 1, 0.36, 1],
+                ease: 'linear',
               }}
               style={{
                 width: 80,
@@ -312,8 +311,7 @@ export default function ZaiPage() {
             onClick={handleSend}
             disabled={!input.trim() || loading}
             className="zai-go-btn"
-            whileTap={input.trim() && !loading ? { scale: 0.92 } : undefined}
-            transition={SPRING_TAP}
+            transition={INDUSTRIAL_OPACITY_SNAP}
           >
             Go
           </motion.button>

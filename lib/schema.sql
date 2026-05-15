@@ -204,6 +204,9 @@ ALTER TABLE research_results
     OR (COALESCE(saving_amount_gbp, 0::numeric) > 0)
   ) STORED;
 
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS is_high_impact BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS carbon_impact_kg NUMERIC(12, 2);
+
 -- Optional question bank — query with WHERE journey_key = $1 only (no cross-category leak).
 CREATE TABLE IF NOT EXISTS journey_questions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

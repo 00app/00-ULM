@@ -1,5 +1,5 @@
 /**
- * Client bridge: optimistic discovery card → Zone grid (Framer spring).
+ * Client bridge: optimistic discovery card → Zone grid.
  * Safe to import from client components only (guards `window`).
  */
 
@@ -7,7 +7,7 @@ import { validateInjectionCard } from '@/lib/zone/injections'
 
 export const DISCOVERY_INJECT_EVENT = 'zero-zero-discovery-inject'
 
-/** Push a validated Zone tip card into the Zone page listener (SPRING_BLOOM pop-in). */
+/** Push a validated Zone tip card into the Zone page listener. */
 export function injectNewDiscoveryCard(newCardData: unknown): void {
   if (typeof window === 'undefined') return
   const card = validateInjectionCard(newCardData)

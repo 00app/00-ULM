@@ -20,6 +20,8 @@ interface MotherCardRendererProps {
   ctaUrl?: string | null
   ctaJourneyId?: string
   ctaLabel?: string
+  /** CTA handoff surface — yellow block for Action Vault high-impact rebirth. */
+  ctaSurface?: 'pink' | 'yellow'
 }
 
 export function MotherCardRenderer({
@@ -36,6 +38,7 @@ export function MotherCardRenderer({
   ctaUrl,
   ctaJourneyId,
   ctaLabel = 'CLAIM SAVING',
+  ctaSurface = 'pink',
 }: MotherCardRendererProps) {
   return (
     <>
@@ -118,6 +121,7 @@ export function MotherCardRenderer({
             journeyId={ctaJourneyId}
             moneyValue={moneyGbp}
             ctaLabel={ctaLabel}
+            surface={ctaSurface === 'yellow' ? 'yellow' : 'pink'}
           />
         </div>
       ) : null}

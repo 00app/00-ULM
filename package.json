@@ -40,7 +40,9 @@
     "reset-db": "tsx scripts/reset-schema.ts",
     "clean:cache": "rm -rf .next node_modules/.cache",
     "db:columns": "tsx scripts/list-research-results-columns.ts",
-    "db:log-research": "tsx scripts/log-latest-research-row.ts"
+    "db:ensure-rebirth-columns": "tsx scripts/ensure-research-rebirth-columns.ts",
+    "db:log-research": "tsx scripts/log-latest-research-row.ts",
+    "verify:env": "bash scripts/verify-env-and-health.sh"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",

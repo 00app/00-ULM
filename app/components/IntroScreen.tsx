@@ -6,8 +6,8 @@ import IntroWordCycle from './IntroWordCycle'
 import { ROUTES } from '@/lib/routes'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import {
+  INDUSTRIAL_OPACITY_SNAP,
   KINETIC_WORD_DWELL_MS,
-  INTRO_DECISION_CTA_TRANSITION,
   INTRO_ROUTE_SAFETY_TAIL_MS,
   INTRO_ROUTE_WORD_EXIT_MS,
   INTRO_SHIMMER_WORD_DWELL_MS,
@@ -171,22 +171,18 @@ export default function IntroScreen() {
   }
 
   const headlineInitial = reduceMotion
-    ? { opacity: 0, scale: 0.995 }
+    ? { opacity: 0, y: 2 }
     : { ...SHIMMER_FOCUS.initial }
   const headlineAnimate = reduceMotion
-    ? { opacity: 1, scale: 1, filter: 'none' }
+    ? { opacity: 1, y: 0 }
     : { ...SHIMMER_FOCUS.animate }
   const headlineTransition = reduceMotion
-    ? { duration: 0.196, ease: [0.16, 1, 0.3, 1] as const }
-    : { ...SHIMMER_FOCUS.transition, duration: 0.238 }
+    ? INDUSTRIAL_OPACITY_SNAP
+    : SHIMMER_FOCUS.transition
 
-  /** CTA circles — same `KINETIC_SPRING` as profile answers (`INTRO_DECISION_CTA_TRANSITION`). */
-  /** `scale: 0` collapses hit-testing in some engines — keep a floor so CREATE / SKIP stay tappable while blooming. */
-  const ctaInitial = reduceMotion ? { opacity: 0 } : { scale: 0.88, opacity: 1 }
-  const ctaAnimate = reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }
-  const ctaTransitionBase = reduceMotion
-    ? { type: 'tween' as const, duration: 0.154, ease: [0.22, 1, 0.36, 1] as const }
-    : INTRO_DECISION_CTA_TRANSITION
+  const ctaInitial = reduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }
+  const ctaAnimate = reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }
+  const ctaTransitionBase = INDUSTRIAL_OPACITY_SNAP
 
   return (
     <div

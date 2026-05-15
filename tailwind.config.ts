@@ -10,7 +10,7 @@ const config: Config = {
     extend: {
       colors: {
         yellow: '#FDFD00',
-        pink: '#E80DAD',
+        pink: '#FF00FF',
         purple: '#7800ce',
       },
       fontFamily: {
@@ -36,6 +36,7 @@ const config: Config = {
       },
       transitionTimingFunction: {
         'zero': 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+        'fussy': 'cubic-bezier(0, 0, 0, 1)',
       },
     },
   },

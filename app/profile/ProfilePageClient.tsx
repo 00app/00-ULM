@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useCallback, useEffect, useLayoutEffect, type CSSProperties } from 'react'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import { STACCATO_DURATION_SEC, STACCATO_DROP_PX, STACCATO_STAGGER_SEC, STACCATO_TWEEN } from '@/lib/animations'
@@ -161,6 +161,35 @@ export default function ProfilePageClient() {
     return () => window.clearTimeout(tid)
   }, [values.postcode, setLocationState])
 
+  useEffect(() => {
+    const pc = (values.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
+    if (pc.length < 4) return
+    const tid = window.setTimeout(() => {
+      void fetch('/api/scrape-sync', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trigger: true,
+          postcode: pc,
+          profileData: {
+            home_type: values.homeType ?? undefined,
+            transport_baseline: values.transport ?? undefined,
+            household: values.livingSituation ?? undefined,
+            employment_status: values.employmentStatus ?? undefined,
+          },
+        }),
+      }).catch(() => {})
+    }, 400)
+    return () => window.clearTimeout(tid)
+  }, [
+    values.postcode,
+    values.homeType,
+    values.transport,
+    values.livingSituation,
+    values.employmentStatus,
+  ])
+
   const submitProfile = useCallback(
     (finalValues: Record<string, string>, overrideReturnTo?: string) => {
       const payload = {
@@ -290,7 +319,7 @@ export default function ProfilePageClient() {
         gap: 40,
       }}
     >
-      <AnimatePresence mode="wait">
+      <>
         <motion.div
           key={step}
           className="profile-step-slam w-full flex flex-col items-center"
@@ -394,7 +423,7 @@ export default function ProfilePageClient() {
             </div>
           )}
         </motion.div>
-      </AnimatePresence>
+      </>
     </main>
   )
 }

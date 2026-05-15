@@ -1,6 +1,6 @@
 /**
  * Sanitize HTML for safe display (Zai responses). Prevents XSS.
- * Allows only safe inline formatting; strips script, iframe, event handlers.
+ * Allows only safe inline formatting; strips script, frame tags, event handlers.
  */
 
 const ALLOWED_TAGS = new Set(['b', 'i', 'em', 'strong', 'br', 'p', 'span', 'a'])

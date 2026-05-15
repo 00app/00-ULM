@@ -7,7 +7,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { usePulseExpandedDiagnostics } from '@/app/context/PulseExpandedDiagnosticsContext'
 import {
   TRUTH_2026_MARCH,
@@ -16,6 +16,7 @@ import {
 } from '@/lib/brains/constants'
 import { formatZoneCardMoney } from '@/lib/format'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
+import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 
 const ROCK_HABIT_CATALOG_FIXED = 60
 
@@ -59,6 +60,8 @@ export default function PulseWidget() {
         setDbLatencyMs(null)
         setResearchProvenanceUrl(null)
         setLastResearchScrapedAt(null)
+        setGeminiOn(false)
+        setFirecrawlOn(false)
         return
       }
       const d = (await diagRes.json()) as DiagnosticsPayload
@@ -76,6 +79,8 @@ export default function PulseWidget() {
       setDbLatencyMs(null)
       setResearchProvenanceUrl(null)
       setLastResearchScrapedAt(null)
+      setGeminiOn(false)
+      setFirecrawlOn(false)
     }
   }, [])
 
@@ -145,14 +150,14 @@ export default function PulseWidget() {
 
   return (
     <div className="pulse-diagnostic-anchor pointer-events-none fixed bottom-8 right-8 z-[240] flex flex-col items-end gap-2">
-      <AnimatePresence>
+      <>
         {open ? (
           <motion.div
             key="pulse-panel"
-            initial={{ opacity: 0, y: 32 }}
+            initial={{ opacity: 0, y: 2 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 24 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            exit={{ opacity: 0, y: 2 }}
+            transition={INDUSTRIAL_OPACITY_SNAP}
             className="pointer-events-auto pulse-diagnostic-panel relative w-[min(100vw-2rem,22rem)]"
           >
               <motion.button
@@ -160,8 +165,7 @@ export default function PulseWidget() {
                 aria-label="Close diagnostic panel"
                 onClick={() => setOpen(false)}
                 className="pulse-panel-close-circle"
-                whileTap={{ scale: 0.96 }}
-                transition={{ duration: 0.12 }}
+                transition={INDUSTRIAL_OPACITY_SNAP}
               >
                 <BackArrowDownLeft size={22} />
               </motion.button>
@@ -209,7 +213,7 @@ export default function PulseWidget() {
               </div>
           </motion.div>
         ) : null}
-      </AnimatePresence>
+      </>
 
       <motion.button
         type="button"
@@ -217,10 +221,9 @@ export default function PulseWidget() {
         aria-label="Open machine diagnostic"
         onClick={() => setOpen((o) => !o)}
         className="pulse-triangle-fab pointer-events-auto"
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 2 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-        whileTap={{ scale: 0.96 }}
+        transition={INDUSTRIAL_OPACITY_SNAP}
       >
         <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden style={{ color: yellow }}>
           <path d="M12 3L22 20H2L12 3z" fill="currentColor" />

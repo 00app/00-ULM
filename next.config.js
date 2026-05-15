@@ -1,3 +1,16 @@
+/**
+ * Prefer `.env.local` over stale shell exports — matches `scripts/load-env-local` + `preferLocal: true`.
+ * Omit on Vercel (dashboard env wins).
+ */
+if (!process.env.VERCEL) {
+  try {
+    const { loadEnvLocal } = require('./scripts/load-env-local.cjs')
+    loadEnvLocal({ preferLocal: true })
+  } catch {
+    /* ignore malformed env file */
+  }
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,

@@ -10,7 +10,7 @@ export type ResearchCategoryCoverageRow = {
   latestOfferUrl: string | null
   /** `research_results.source_url` when present (authoritative page, distinct from offer). */
   latestSourceUrl: string | null
-  /** Latest row prose for this category (What / Why / How). */
+  /** Latest label-free prose for this category. */
   architectProse?: string | null
 }
 
@@ -22,6 +22,8 @@ export function triggerScrapeSyncForCategory(params: {
   postcode: string | null | undefined
   category: string
   profileData?: ResearchProfileData | null
+  /** Appended to scrape-sync user context for best-offer / action URL pivots (solo focus completion). */
+  bestOfferHint?: string | null
 }): void {
   const pc = String(params.postcode ?? '')
     .replace(/\s+/g, '')
@@ -32,16 +34,21 @@ export function triggerScrapeSyncForCategory(params: {
     .trim()
     .toLowerCase()
   if (!cat) return
+  const body: Record<string, unknown> = {
+    trigger: true,
+    postcode: pc,
+    category: cat,
+    profileData: params.profileData && Object.keys(params.profileData).length > 0 ? params.profileData : undefined,
+  }
+  const hint = typeof params.bestOfferHint === 'string' ? params.bestOfferHint.trim() : ''
+  if (hint.length > 0) {
+    body.best_offer_hint = hint.slice(0, 1200)
+  }
   void fetch('/api/scrape-sync', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      trigger: true,
-      postcode: pc,
-      category: cat,
-      profileData: params.profileData && Object.keys(params.profileData).length > 0 ? params.profileData : undefined,
-    }),
+    body: JSON.stringify(body),
   }).catch(() => {
     /* non-blocking */
   })

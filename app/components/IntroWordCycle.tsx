@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useState, useRef, useMemo } from 'react'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
+  INDUSTRIAL_OPACITY_SNAP,
   WORD_PULSE_APPEAR,
   KINETIC_WORD_DWELL_MS,
   SHIMMER_FOCUS,
   SHIMMER_FOCUS_EXIT,
-  SHIMMER_FOCUS_EXIT_TRANSITION,
   STACCATO_DURATION_SEC,
   STACCATO_EASE,
 } from '@/lib/animations'
@@ -39,10 +39,12 @@ interface IntroWordCycleProps {
   /** Exit blur duration before next word; intro uses `INTRO_ROUTE_WORD_EXIT_MS` (~30% faster than default). */
   wordExitMs?: number
   /**
-   * `/profile/summary` + Mechanical Snap DNA: one word at a time, **opacity only** (no blur, no scale pulse).
+   * `/profile/summary` + Mechanical Snap DNA: one word at a time, **opacity only**.
    * Intro `/` + `/intro` keep **`WORD_PULSE_APPEAR`** (Style A glitch) unless this is set.
    */
   opacityTicker?: boolean
+  /** Extra glow on £ tokens when Neon genome savings drive the kinetic headline. */
+  pulseGenomeMoney?: boolean
 }
 
 const DEFAULT_GAP_MS = 90
@@ -61,6 +63,7 @@ export default function IntroWordCycle({
   wrapLongPreservedWords = false,
   wordExitMs = DEFAULT_WORD_EXIT_MS,
   opacityTicker = false,
+  pulseGenomeMoney = false,
 }: IntroWordCycleProps) {
   const reduceMotion = useReducedMotion()
   const [index, setIndex] = useState(0)
@@ -107,10 +110,10 @@ export default function IntroWordCycle({
     if (reduceMotion) {
       return {
         className: 'intro-text-large intro-word-pulse zz-shimmer-focus',
-        initial: { opacity: 0, scale: 0.99 },
-        animate: { opacity: 1, scale: 1, filter: 'none' },
-        exit: { opacity: 0, scale: 0.99, transition: { duration: 0.14, ease: [0.22, 1, 0.36, 1] as const } },
-        transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const },
+        initial: { opacity: 0, y: 2 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: 2, transition: INDUSTRIAL_OPACITY_SNAP },
+        transition: INDUSTRIAL_OPACITY_SNAP,
       }
     }
     return {
@@ -119,7 +122,7 @@ export default function IntroWordCycle({
       animate: { ...SHIMMER_FOCUS.animate },
       exit: {
         ...SHIMMER_FOCUS_EXIT,
-        transition: SHIMMER_FOCUS_EXIT_TRANSITION,
+        transition: INDUSTRIAL_OPACITY_SNAP,
       },
       transition: SHIMMER_FOCUS.transition,
     }
@@ -217,6 +220,9 @@ export default function IntroWordCycle({
     return () => window.removeEventListener('resize', updateScale)
   }, [currentWord, displayText, fitToViewportPaddingPx, isMultiline, useBalancedWrap, looksLikeLongPlaceToken, wrapLongPreservedWords])
 
+  const tickerGenomeGlow =
+    pulseGenomeMoney && opacityTicker && displayText.startsWith('£') ? ' intro-summary-genome-money-pulse' : ''
+
   return (
     <div
       className={lensFocusShimmer ? 'zz-shimmer-focus' : undefined}
@@ -230,12 +236,12 @@ export default function IntroWordCycle({
         minHeight: 120,
       }}
     >
-      <AnimatePresence mode="wait">
+      <>
         {visible && (
           <motion.h1
             ref={wordRef}
             key={currentWord}
-            className={motionPreset.className}
+            className={`${motionPreset.className}${tickerGenomeGlow}`}
             initial={motionPreset.initial}
             animate={motionPreset.animate}
             exit={motionPreset.exit}
@@ -285,7 +291,7 @@ export default function IntroWordCycle({
               : displayText}
           </motion.h1>
         )}
-      </AnimatePresence>
+      </>
     </div>
   )
 }

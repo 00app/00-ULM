@@ -11,7 +11,12 @@ import { getSessionFromRequest } from '@/lib/auth'
 import { getJourneyAnswersForUser } from '@/lib/db/neon'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { UK_2026_MONEY_LEAD } from '@/lib/scraper/uk2026Defaults'
-import { runZeroResearchWithProfile, type ResearchProfileData } from '@/lib/agents/researchAgent'
+import {
+  loadDynamicUserProfileForResearch,
+  repairResearchResultsMissingHeadlines,
+  runZeroResearchWithProfile,
+  type ResearchProfileData,
+} from '@/lib/agents/researchAgent'
 import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
@@ -114,18 +119,42 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getSessionFromRequest().catch(() => null)
     const sessionUserId = session?.userId ?? null
+    const sessionResearchProfile =
+      sessionUserId != null
+        ? await loadDynamicUserProfileForResearch(sessionUserId).catch(() => null)
+        : null
     const researchCategoryCoverage =
       sessionUserId != null ? await loadResearchCategoryCoverage(sessionUserId) : undefined
 
-    const postcodeRaw = request.nextUrl.searchParams.get('postcode')?.trim() || null
-    const postcode = postcodeRaw ? postcodeRaw.replace(/\s+/g, '').toUpperCase() : null
+    const postcodeRaw =
+      request.nextUrl.searchParams.get('postcode')?.trim() ||
+      sessionResearchProfile?.postcode?.trim() ||
+      ''
+    const postcode = postcodeRaw.replace(/\s+/g, '').toUpperCase()
     if (postcode && postcode.length > 12) {
       return NextResponse.json({ error: 'postcode too long' }, { status: 400 })
     }
     let research: { markdown: string; citations: Array<{ source_name: string; url: string; snippet?: string }> } | undefined
 
     if (postcode) {
-      const profileData: ResearchProfileData = {}
+      const profileData: ResearchProfileData = {
+        ...(sessionResearchProfile?.home_type ? { home_type: sessionResearchProfile.home_type } : {}),
+        ...(sessionResearchProfile?.transport_baseline
+          ? { transport_baseline: sessionResearchProfile.transport_baseline }
+          : {}),
+        ...(sessionResearchProfile?.household ? { household: sessionResearchProfile.household } : {}),
+        ...(sessionResearchProfile?.employment_status
+          ? { employment_status: sessionResearchProfile.employment_status }
+          : {}),
+        ...(sessionResearchProfile?.goal ? { goal: sessionResearchProfile.goal } : {}),
+      }
+      const hermesRaw = sessionResearchProfile?.user_genome?.hermes_memory
+      if (hermesRaw && typeof hermesRaw === 'object' && !Array.isArray(hermesRaw)) {
+        const skillFile = (hermesRaw as Record<string, unknown>).skill_file
+        if (typeof skillFile === 'string' && skillFile.trim()) {
+          profileData.hermes_skill_file = skillFile.slice(0, 6000)
+        }
+      }
       const homeType = request.nextUrl.searchParams.get('home_type')?.trim()
       const transport = request.nextUrl.searchParams.get('transport')?.trim()
       const household = request.nextUrl.searchParams.get('household')?.trim()
@@ -387,9 +416,32 @@ export async function POST(request: NextRequest) {
         body?.profileData && typeof body.profileData === 'object' ? (body.profileData as ResearchProfileData) : undefined
       const categoryRaw = typeof body?.category === 'string' ? body.category.trim().toLowerCase() : ''
       const category = categoryRaw.length > 0 ? categoryRaw : null
+      const bestOfferHint =
+        typeof body?.best_offer_hint === 'string' ? body.best_offer_hint.trim().slice(0, 1200) : ''
       const session = await getSessionFromRequest().catch(() => null)
       const userId = session?.userId ?? null
-      const pd: ResearchProfileData = { ...(profileData ?? {}), postcode }
+      const sessionResearchProfile =
+        userId != null ? await loadDynamicUserProfileForResearch(userId).catch(() => null) : null
+      const pd: ResearchProfileData = {
+        ...(sessionResearchProfile?.home_type ? { home_type: sessionResearchProfile.home_type } : {}),
+        ...(sessionResearchProfile?.transport_baseline
+          ? { transport_baseline: sessionResearchProfile.transport_baseline }
+          : {}),
+        ...(sessionResearchProfile?.household ? { household: sessionResearchProfile.household } : {}),
+        ...(sessionResearchProfile?.employment_status
+          ? { employment_status: sessionResearchProfile.employment_status }
+          : {}),
+        ...(sessionResearchProfile?.goal ? { goal: sessionResearchProfile.goal } : {}),
+        ...(profileData ?? {}),
+        postcode,
+      }
+      const hermesRaw = sessionResearchProfile?.user_genome?.hermes_memory
+      if (hermesRaw && typeof hermesRaw === 'object' && !Array.isArray(hermesRaw)) {
+        const skillFile = (hermesRaw as Record<string, unknown>).skill_file
+        if (typeof skillFile === 'string' && skillFile.trim()) {
+          pd.hermes_skill_file = skillFile.slice(0, 6000)
+        }
+      }
       let loopGenomeSummary: string | undefined
       if (userId) {
         try {
@@ -411,6 +463,9 @@ export async function POST(request: NextRequest) {
       if (category) {
         userContext = `${userContext}\n\nSolo Focus scrape-sync category: ${category}`
       }
+      if (bestOfferHint.length > 0) {
+        userContext = `${userContext}\n\nBEST OFFER / ACTION URL PRIORITY:\n${bestOfferHint}`
+      }
       const research = await runZeroResearchWithProfile({
         postcode,
         profileData: Object.keys(pd).length > 0 ? pd : undefined,
@@ -419,9 +474,15 @@ export async function POST(request: NextRequest) {
         userContext,
         category,
       })
+      const headlinesRepaired = await repairResearchResultsMissingHeadlines({
+        userId,
+        postcode,
+        profileData: pd,
+      })
       return NextResponse.json({
         ok: true,
         mode: 'trigger',
+        headlinesRepaired,
         research: {
           markdown: research.markdown,
           citations: research.citations.map((c) => ({

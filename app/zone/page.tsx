@@ -5,7 +5,7 @@ import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'framer-motion'
+import { motion, LayoutGroup, useReducedMotion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { buildZoneViewModel } from '@/lib/logic/zone'
@@ -28,12 +28,10 @@ import { useCountUp } from '@/lib/utils/useCountUp'
 import {
   ZONE_BENTO_CELL_VARIANTS,
   ZONE_GRID_STAGGER_CHILD_DELAY_SEC,
-  SPRING_TAP,
   FADE_IN_UP,
   ZONE_HERO_FROM_SUMMARY,
   ZIP_OPEN_Z_INITIAL,
   ZIP_OPEN_Z_ANIMATE,
-  ZIP_SHUT_Z_EXIT,
   ZIP_OPEN_Z_TRANSITION,
   STACCATO_CONTAINER_VARIANTS,
   STACCATO_CHILD_VARIANTS,
@@ -44,8 +42,8 @@ import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
 import { ZeroGateShutter } from '@/app/components/background/ZeroGateShutter'
 import { setExpandCard } from '@/lib/expandStorage'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
-import { getJourneyColorHex } from '@/lib/journeyColors'
 import { DISCOVERY_INJECT_EVENT } from '@/lib/discoveryInject'
+import { scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
 import { headlineFromTitle, MAX_ZONE_CARD_HEADLINE_WORDS } from '@/lib/soloFocusCopy'
 import { runDiscoveryPulse, readStoredEconomyFingerprint, writeStoredEconomyFingerprint } from '@/lib/agents/heartbeat'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
@@ -103,9 +101,6 @@ type GroovyItem =
   | { type: 'hero'; hero: ZoneViewModel['hero'] }
   | { type: 'tip'; tip: ZoneTipCard }
   | { type: 'journey'; item: ZoneJourneyCard; index: number; persona: BentoPersona }
-
-/** Yellow background journeys → purple text; pink background → yellow text (legibility) */
-const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
 
 const UNLOCKED_COUNT_KEY = 'zoneUnlockedCount'
 const SENTINEL_RECENT_CHAT_KEY = 'zz_recent_chat_history'
@@ -253,13 +248,13 @@ export default function ZonePage() {
     const n = raw ? Number.parseInt(raw, 10) : NaN
     return Number.isFinite(n) ? 9 : 9
   })
-  /** v1.7: index of the journey card that just popped in (for spring animation); cleared after animation. */
+  /** v1.7: index of the journey card that just popped in; cleared after animation. */
   /** Discovery Engine: server-stored tip injections (GET /api/zone/injections). */
   const [injectedTips, setInjectedTips] = useState<ZoneTipCard[]>([])
   /** Discovery Pulse: patch £/kg on inject cards when economy fingerprint changes. */
   const [tipDataPatches, setTipDataPatches] = useState<Record<string, { money?: string; carbon?: string }>>({})
-  /** Framer SPRING_BLOOM (320, 24) target for freshly injected discovery card. */
-  const [discoverySpringTipId, setDiscoverySpringTipId] = useState<string | null>(null)
+  /** Fussy-snap target for freshly injected discovery card. */
+  const [discoverySnapTipId, setDiscoverySnapTipId] = useState<string | null>(null)
   /** Bump when a Rock slot is replaced after Like (zip-shutter). */
   const [rockRefreshKey, setRockRefreshKey] = useState(0)
   /** One-shot hero zoom after profile summary Zip-Shutter → Zone */
@@ -451,9 +446,9 @@ export default function ZonePage() {
 
   useEffect(() => {
     if (!sentinelSupportTipCard) return
-    setDiscoverySpringTipId(sentinelSupportTipCard.id)
+    setDiscoverySnapTipId(sentinelSupportTipCard.id)
     const t = window.setTimeout(() => {
-      setDiscoverySpringTipId((id) => (id === sentinelSupportTipCard.id ? null : id))
+      setDiscoverySnapTipId((id) => (id === sentinelSupportTipCard.id ? null : id))
     }, 720)
     return () => window.clearTimeout(t)
   }, [sentinelSupportTipCard])
@@ -777,17 +772,17 @@ export default function ZonePage() {
       const detail = (e as CustomEvent<unknown>).detail
       if (!isDiscoveryTipPayload(detail)) return
       setInjectedTips((prev) => [...prev.filter((c) => c.id !== detail.id), detail])
-      setDiscoverySpringTipId(detail.id)
-      window.setTimeout(() => setDiscoverySpringTipId((id) => (id === detail.id ? null : id)), 950)
-      /* After POST /api/answers discovery race (Gemini + Firecrawl): refresh batch + open new tip Solo Focus */
+      setDiscoverySnapTipId(detail.id)
+      window.setTimeout(() => setDiscoverySnapTipId((id) => (id === detail.id ? null : id)), 950)
+      /* Pulse 3 — zip shut, refresh grid, zip open discovery card in the same slot (120ms). */
       void fetch('/api/zone/tips-refresh', { method: 'POST', credentials: 'include' }).catch(() => {})
+      closeAnySoloFocus()
       setRefreshKey((k) => k + 1)
-      window.setTimeout(() => {
-        closeAnySoloFocus()
+      scheduleSoloFocusRebirthOpen(() => {
         if (openSoloFocus(detail.id, 'discovery')) {
           setExpandedTipId(detail.id)
         }
-      }, 420)
+      })
     }
     window.addEventListener(DISCOVERY_INJECT_EVENT, onInject)
     return () => window.removeEventListener(DISCOVERY_INJECT_EVENT, onInject)
@@ -1311,8 +1306,8 @@ export default function ZonePage() {
   const rockLikedImpact = sumRockLikedImpact(state.likedCards)
   const heroMoney = (dbConnected ? (state.heroTotals?.totalMoney ?? heroMoneyNum) : 0) + rockLikedImpact.money
   const heroCarbon = (dbConnected ? (state.heroTotals?.totalCarbon ?? heroCarbonNum) : 0) + rockLikedImpact.carbon
-  const displayMoney = useCountUp(heroMoney, { duration: 920, spring: true })
-  const displayCarbon = useCountUp(heroCarbon, { duration: 920, spring: true })
+  const displayMoney = useCountUp(heroMoney, { duration: 120 })
+  const displayCarbon = useCountUp(heroCarbon, { duration: 120 })
   const heroDataSource = dbConnected && neonVerifiedMoney ? 'VERIFIED AUDIT' : 'ESTIMATED AUDIT'
 
   /** One block (newline between lines), question-text style + lowercase. */
@@ -1418,7 +1413,6 @@ export default function ZonePage() {
             initial="initial"
             animate="animate"
           >
-            <AnimatePresence initial={false}>
             {displayItems.map((cell, i) => {
               if (i >= zoneRevealCount) return null
               const cellKey =
@@ -1444,8 +1438,6 @@ export default function ZonePage() {
               return (
                 <motion.div
                   key={cellKey}
-                  layout
-                  layoutId={`kinetic-cell-${cellKey}`}
                   variants={ZONE_BENTO_CELL_VARIANTS}
                   initial="hidden"
                   animate={
@@ -1457,7 +1449,6 @@ export default function ZonePage() {
                         ? 'ping'
                         : 'visible'
                   }
-                  exit={ZIP_SHUT_Z_EXIT}
                   className={`${spanClass} groovy-cell-radius h-full min-h-0${cell.type === 'hero' ? ' zone-hero-cell' : ''}`.trim() || 'groovy-cell-radius'}
                   style={{
                     willChange: 'transform',
@@ -1466,7 +1457,6 @@ export default function ZonePage() {
                 >
                   {cell.type === 'hero' && (
                     <motion.div
-                      layout
                       className="zone-hero-transparent relative flex flex-col items-stretch w-full flex-1 min-h-0 h-full text-left"
                       style={{ transformOrigin: 'center center' }}
                       {...(heroFromSummaryHandoff
@@ -1536,8 +1526,8 @@ export default function ZonePage() {
                   {cell.type === 'tip' && (() => {
                     const tip = cell.tip
                     const isDiscoveryInject = tip.id.startsWith('inject-')
-                    const tipBg = getJourneyColorHex(tip.journey_key)
-                    const tipTextColor = YELLOW_JOURNEY_IDS.includes(tip.journey_key) ? 'var(--color-purple)' : 'var(--color-yellow)'
+                    const tipBg = 'var(--color-pink)'
+                    const tipTextColor = 'var(--color-yellow)'
                     const semanticWin = tip.dominant_win ?? 'money'
                     const tipLabelH = 14
                     const tipArrowSz = tipLabelH * 3
@@ -1547,7 +1537,7 @@ export default function ZonePage() {
                     const carbonDisp = patch?.carbon ?? tip.data.carbon ?? '0'
                     const carbonKgNum = parseCarbonKgFromDisplay(carbonDisp)
                     const greenPulse = isDiscoveryInject && carbonKgNum > 500
-                    const springBloomIn = discoverySpringTipId === tip.id
+                    const snapBloomIn = discoverySnapTipId === tip.id
                     /* Expand the matching journey card so user gets full experience (tips, links, questions). */
                     const journeyCell = groovyItems.find((c): c is GroovyItem & { type: 'journey' } => c.type === 'journey' && c.item.journey_key === tip.journey_key)
                     const handleTipClick = () => {
@@ -1589,21 +1579,20 @@ export default function ZonePage() {
                     return (
                       <motion.button
                         type="button"
-                        layout
+                        data-zone-surface="tip"
                         className={`bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left${greenPulse ? ' discovery-card-green-pulse' : ''}`}
                         style={{
-                          backgroundColor: tipBg,
-                          color: tipTextColor,
                           borderRadius: 60,
                           boxShadow: 'none',
+                          ['--journey-bg' as string]: tipBg,
+                          ['--journey-text' as string]: tipTextColor,
                           ['--color-ink' as string]: tipTextColor,
                           ['--semantic-money' as string]: semanticWin === 'money' ? 'var(--color-yellow)' : tipTextColor,
                           ['--semantic-carbon' as string]: semanticWin === 'carbon' ? 'var(--color-pink)' : tipTextColor,
                         }}
                         onClick={handleTipClick}
-                        initial={springBloomIn || isDiscoveryInject ? ZIP_OPEN_Z_INITIAL : false}
+                        initial={snapBloomIn || isDiscoveryInject ? ZIP_OPEN_Z_INITIAL : false}
                         animate={ZIP_OPEN_Z_ANIMATE}
-                        whileTap={{ scale: 0.96 }}
                         transition={ZIP_OPEN_Z_TRANSITION}
                         aria-label={`Expand: ${tipHeadline}`}
                         data-dominant-win={semanticWin}
@@ -1684,7 +1673,7 @@ export default function ZonePage() {
                             : cell.item.title
                       }
                       isTall={cell.persona === 'tall'}
-                      textColorOverride={YELLOW_JOURNEY_IDS.includes(cell.item.journey_key) ? 'var(--color-purple)' : 'var(--color-yellow)'}
+                      textColorOverride="var(--color-yellow)"
                       carbonValue={expandedFromTip?.journey_key === cell.item.journey_key && (expandedFromTip.data?.carbon ?? '') ? expandedFromTip.data.carbon : cell.item.data.carbon}
                       moneyValue={expandedFromTip?.journey_key === cell.item.journey_key && (expandedFromTip.data?.money ?? '') ? expandedFromTip.data.money : cell.item.data.money}
                       carbonKg={cell.item.carbonKg}
@@ -1863,7 +1852,6 @@ export default function ZonePage() {
                 </motion.div>
               )
             })}
-            </AnimatePresence>
           </motion.div>
           )}
           </ClientOnly>
@@ -1933,7 +1921,7 @@ export default function ZonePage() {
               ? researchMeta?.savingAmountGbp ?? researchMeta?.verifiedSaving ?? null
               : null
           return (
-            <AnimatePresence mode="wait">
+            <>
               <SoloFocusOverlay
                 key={tip.id}
                 auditState={tip.auditState ?? null}
@@ -1996,7 +1984,7 @@ export default function ZonePage() {
                 verifiedAuditCategory={researchMeta?.category ?? null}
                 researchCategoryCoverage={researchCategoryCoverage}
               />
-            </AnimatePresence>
+            </>
           )
         })()}
 

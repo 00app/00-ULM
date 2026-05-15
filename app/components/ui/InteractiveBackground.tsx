@@ -1,19 +1,19 @@
 'use client'
 
 import { useEffect } from 'react'
-import { motion, useMotionValue, useSpring } from 'framer-motion'
+import { motion, useMotionValue } from 'framer-motion'
 
 /** Fixed liquid mesh + grain; sits at z-index stack from `globals.css` (env −10, grain −5). */
 export default function InteractiveBackground() {
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
 
-  const yellowX = useSpring(mouseX, { stiffness: 50, damping: 20 })
-  const yellowY = useSpring(mouseY, { stiffness: 50, damping: 20 })
-  const pinkX = useSpring(mouseX, { stiffness: 30, damping: 35 })
-  const pinkY = useSpring(mouseY, { stiffness: 30, damping: 35 })
-  const cursorX = useSpring(mouseX, { stiffness: 120, damping: 24 })
-  const cursorY = useSpring(mouseY, { stiffness: 120, damping: 24 })
+  const yellowX = mouseX
+  const yellowY = mouseY
+  const pinkX = mouseX
+  const pinkY = mouseY
+  const cursorX = mouseX
+  const cursorY = mouseY
 
   useEffect(() => {
     const toOffsets = (x: number, y: number) => {

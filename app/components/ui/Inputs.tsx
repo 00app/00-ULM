@@ -8,7 +8,7 @@
 import { useId } from 'react'
 import { motion } from 'framer-motion'
 
-import { SPRING_TAP } from '@/lib/animations'
+import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 
 export interface FlatTextInputProps {
   value: string
@@ -194,7 +194,7 @@ export function FlatToggle({
             boxShadow: 'none',
           }}
           animate={{ left: checked ? 23 : 3 }}
-          transition={SPRING_TAP}
+          transition={INDUSTRIAL_OPACITY_SNAP}
         />
       </motion.span>
       {label && (

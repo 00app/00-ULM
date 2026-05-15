@@ -98,7 +98,7 @@ export default function FloatingNav({ active, onNavigate, hasNewTipForZai: _hasN
   )
 
   return (
-    <div className="floating-nav safe-bottom">
+    <div className="floating-nav">
       {navButton(
         'likes',
         active === 'likes',

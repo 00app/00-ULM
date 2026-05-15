@@ -114,7 +114,10 @@ export function validateInjectionCard(raw: unknown): ZoneTipCard | null {
   }
   if (typeof o.badge === 'string' && o.badge.trim()) card.badge = o.badge.trim().slice(0, 48)
   if (o.dominant_win === 'money' || o.dominant_win === 'carbon') {
-    ;(card as ZoneTipCard & { dominant_win?: 'money' | 'carbon' }).dominant_win = o.dominant_win
+    card.dominant_win = o.dominant_win
+  }
+  if (o.high_impact === true) {
+    card.high_impact = true
   }
   ensureInjectionCardUrls(card)
   return card

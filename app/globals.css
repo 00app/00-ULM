@@ -1,4 +1,4 @@
-/* Typography: Marvin (`@font-face`) + Roboto (`next/font` in `app/layout.tsx` — 400 / 700 / 900, `--font-roboto` on `<html>`). */
+/* Typography: Marvin (`@font-face`) + Roboto Bold (`next/font` in `app/layout.tsx` — 400 / 700 / 900, `--font-roboto` on `<html>`). No League Gothic / Inter stacks. */
 @font-face {
   font-family: 'Marvin Visions Bold';
   src: url('/assets/Marvin%20Visions%20Bold.ttf') format('truetype');
@@ -87,7 +87,7 @@ nextjs-portal > * {
 
 /* ==========================================================================
    ZERO ZERO — MECHANICAL PULSE LOCK (v1.9.1)
-   3-colour lock · 60px radius · 30px bento (--padding-bento) · spring-shutter motion
+   3-colour lock · 60px radius · 30px bento (--padding-bento) · fussy-snap motion
    ========================================================================== */
 
 /* v28 — Z-axis zip: perspective on app shell so Framer `z` / `rotateX` read as true 3D lift */
@@ -106,14 +106,13 @@ nextjs-portal > * {
 :root {
   /* Typography — Marvin (display / stamps) + Roboto (all body / UI copy); one body size */
   --font-marvin: 'Marvin Visions Bold', sans-serif;
-  --font-league-gothic: 'League Gothic', 'Arial Narrow', system-ui, sans-serif;
   /* --font-roboto: set on <html> by next/font (layout.tsx) */
   --font-label: var(--font-marvin);
 
   /* Authorised palette only */
   --color-yellow: #FDFD00;
   --color-purple: #7800ce;
-  --color-pink: #E80DAD;
+  --color-pink: #FF00FF;
   --color-intro-type: var(--color-yellow);
 
   --color-purple-dark: var(--color-purple);
@@ -121,17 +120,18 @@ nextjs-portal > * {
   --color-yellow-accessible: var(--color-yellow);
   --color-pink-vivid: var(--color-pink);
 
-  /* Journey cards: yellow or pink only (set in journeyColors); general/hero = purple */
+  /* Journey cards: MVP purple flip — purple surface, yellow items. */
   --color-j-hero: var(--color-purple);
-  --color-j-home: var(--color-yellow);
-  --color-j-travel: var(--color-pink);
-  --color-j-food: var(--color-yellow);
-  --color-j-shopping: var(--color-pink);
-  --color-j-money: var(--color-yellow);
-  --color-j-carbon: var(--color-pink);
-  --color-j-tech: var(--color-yellow);
-  --color-j-waste: var(--color-pink);
-  --color-j-holidays: var(--color-yellow);
+  --color-j-home: var(--color-purple);
+  --color-j-travel: var(--color-purple);
+  --color-j-food: var(--color-purple);
+  --color-j-shopping: var(--color-purple);
+  --color-j-money: var(--color-purple);
+  --color-j-carbon: var(--color-purple);
+  --color-j-tech: var(--color-purple);
+  --color-j-waste: var(--color-purple);
+  --color-j-holidays: var(--color-purple);
+  --color-intelligence-green: #00a85a;
 
   /* Spacing */
   --gap-xs: 2px;
@@ -147,18 +147,18 @@ nextjs-portal > * {
   --margin-top-xl: 40px;
   --margin-bottom-md: 20px;
 
-  /* Physics — Mechanical Pulse: allowed radii 60px or 0 only */
+  /* Motion DNA — fussy snap: no physics. */
   --radius-groovy: 60px;
   --radius-pill: 60px;
-  --easing-groovy: cubic-bezier(0.34, 1.56, 0.64, 1);
-  /* Alias — Zip-Shutter / close control transitions (same curve as --easing-groovy) */
-  --spring-shutter: var(--easing-groovy);
-  --easing-zero: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --fussy-snap: 0.12s linear;
+  --easing-groovy: linear;
+  --snap-shutter: linear;
+  --easing-zero: linear;
   --duration-fast: 120ms;
   --duration-normal: 150ms;
   --duration-slow: 180ms;
-  --spring-bloom: 500;
-  --spring-bloom-damping: 30;
+  --snap-bloom: 500;
+  --snap-bloom-damping: 30;
 
   /* Typography scale — H1–H4 v1.9.4 mobile tighten; desktop locked; body v1.9.3 */
   --zz-h1-mobile: 90px;
@@ -170,14 +170,14 @@ nextjs-portal > * {
   /* Updated H4 Authority for Buttons and Stamps (v1.9.2-patch) */
   --zz-h4-mobile: 20px;
   --zz-h4-desktop: 20px;
-  /* Updated Body Scale (v1.9.3-patch) */
-  --zz-body-size: 14px;
+  /* MVP industrial — single body size (Roboto Bold rail) */
+  --zz-body-size: 16px;
   --zz-body-size-desktop: 16px;
   --zz-body-weight: 700;
   /* v2.5 — typography rhythm lock (Marvin / Roboto / Marvin track) — canonical only */
   --zz-lh-heading: 0.8 !important;
   --zz-lh-body: 1.2 !important;
-  --zz-track-marvin: -0.02em !important;
+  --zz-track-marvin: 0 !important;
   /* Embedded journey / discovery answer chips — Profile-sync 100px circles */
   --solo-focus-answer-chip: 100px;
   --circle-cta-size: 100px;
@@ -572,6 +572,7 @@ p, button:not(.circle-btn), .zz-body, .text-body {
   font-weight: var(--zz-body-weight) !important;
   font-size: var(--zz-body-size) !important;
   line-height: 1.2 !important;
+  margin: 0 !important;
 }
 .zz-body-bold,
 .text-roboto-bold {
@@ -579,14 +580,14 @@ p, button:not(.circle-btn), .zz-body, .text-body {
   font-weight: 800 !important;
   font-size: var(--zz-body-size) !important;
   line-height: 1.2 !important;
+  margin: 0 !important;
 }
 
-/* Authority body rail — instructional + Solo Focus prose + Pulse + Zai (v1.9.3) */
+/* Authority body rail — instructional + Solo Focus prose + Pulse + Zai (Roboto Bold 16 / 1.2) */
 p,
 .zz-body,
 .text-body,
 .expanded-solo-focus .solo-focus-insight,
-.expanded-solo-focus .solo-focus-scraped-tip,
 .expanded-solo-focus .solo-focus-description,
 .expanded-solo-focus .solo-focus-action-line,
 .expanded-solo-focus .solo-focus-tip-source-url,
@@ -602,13 +603,25 @@ p,
   text-transform: none !important;
 }
 
+/* Expanded tips — Marvin Visions (punch lines; not Roboto body rail). */
+.expanded-solo-focus .solo-focus-scraped-tip {
+  font-family: var(--font-marvin), sans-serif !important;
+  font-size: var(--zz-h4-mobile) !important;
+  line-height: 0.8 !important;
+  font-weight: 700 !important;
+  letter-spacing: var(--zz-track-marvin) !important;
+  text-transform: uppercase !important;
+}
+
 @media (min-width: 1024px) {
+  .expanded-solo-focus .solo-focus-scraped-tip {
+    font-size: var(--zz-h4-desktop) !important;
+  }
   p,
   .zz-body,
   .text-body,
   .expanded-solo-focus .solo-focus-insight,
   .expanded-solo-focus .solo-focus-description,
-  .expanded-solo-focus .solo-focus-scraped-tip,
   .expanded-solo-focus .solo-focus-action-line,
   .expanded-solo-focus .solo-focus-tip-source-url,
   .expanded-solo-focus .solo-focus-supplied-by,
@@ -634,12 +647,12 @@ p,
   }
 }
 
-/* §18.5.4 — Question rail collapses while POST is in flight (Framer Damped Slam on hero; CSS tuck only) */
+/* §18.5.4 — Question rail zip-shut (0.2s linear; sync with SOLO_FOCUS_ZIP_SHUT_SEC + inject gate) */
 .expanded-solo-focus .solo-focus-loop {
   transition:
-    opacity 0.22s var(--easing-groovy),
-    transform 0.22s var(--easing-groovy),
-    margin-top 0.22s var(--easing-groovy);
+    opacity 0.2s linear,
+    transform 0.2s linear,
+    margin-top 0.2s linear;
 }
 .expanded-solo-focus .solo-focus-loop.solo-focus-loop--posting {
   opacity: 0;
@@ -706,6 +719,142 @@ p,
   }
 }
 
+/* 0-0 MVP Final Lock */
+:root {
+  --color-purple: #7800CE;
+  --color-yellow: #FDFD00;
+  --color-pink: #FF00FF;
+}
+
+.card-purple { background: var(--color-purple); color: var(--color-yellow); }
+.card-pink { background: var(--color-pink); color: var(--color-yellow); }
+
+/* Sign-Go Button */
+.btn-sign-go {
+  background: #FF00FF !important;
+  color: #FDFD00 !important;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 800;
+  transition: all 0.12s linear !important;
+}
+
+/* Zone surface contract — set via data-zone-surface on tiles + expanded shell */
+.bento-card-groovy[data-zone-surface='journey'],
+.groovy-zone-grid .bento-card-groovy:not([data-zone-surface='tip']) {
+  background: var(--color-purple) !important;
+  color: var(--color-yellow) !important;
+  --journey-bg: var(--color-purple);
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
+}
+
+.bento-card-groovy[data-zone-surface='tip'] {
+  background: var(--color-pink) !important;
+  color: var(--color-yellow) !important;
+  --journey-bg: var(--color-pink);
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
+}
+
+.expanded-solo-focus[data-zone-surface='journey'] {
+  --journey-bg: var(--color-purple);
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
+  --journey-cta-bg: var(--color-yellow);
+  --journey-cta-text: var(--color-purple);
+  --sf-answer-bg: var(--color-yellow);
+  --sf-answer-text: var(--color-purple);
+  --sf-answer-hover-bg: var(--color-purple);
+  --sf-answer-hover-text: var(--color-yellow);
+}
+
+.expanded-solo-focus[data-zone-surface='tip'] {
+  --journey-bg: var(--color-pink);
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
+  --journey-cta-bg: var(--color-yellow);
+  --journey-cta-text: var(--color-pink);
+  --sf-answer-bg: var(--color-yellow);
+  --sf-answer-text: var(--color-pink);
+  --sf-answer-hover-bg: var(--color-pink);
+  --sf-answer-hover-text: var(--color-yellow);
+}
+
+.expanded-solo-focus .solo-focus-shell {
+  background-color: var(--journey-bg) !important;
+  color: var(--journey-text) !important;
+}
+
+.expanded-solo-focus .solo-focus-question-label,
+.expanded-solo-focus .question-text,
+.expanded-solo-focus .solo-focus-description,
+.expanded-solo-focus .solo-focus-insight,
+.expanded-solo-focus .solo-focus-scraped-tip,
+.expanded-solo-focus .solo-focus-architect-prose,
+.expanded-solo-focus .solo-focus-category,
+.expanded-solo-focus .solo-focus-content-text,
+.expanded-solo-focus .solo-focus-architect-headline {
+  color: var(--journey-text) !important;
+}
+
+/* Intelligence Vault — Neon yellow question labels in expanded Solo Focus (overrides block above). */
+.expanded-solo-focus .solo-focus-question-label.zz-vault-neon-yellow {
+  color: var(--color-yellow) !important;
+}
+
+/* Action Vault high-impact rebirth — pink signal on mother shell */
+.expanded-solo-focus .solo-focus-shell.zz-high-impact-rebirth {
+  box-shadow: 0 0 0 2px var(--color-pink);
+}
+
+.expanded-solo-focus .solo-focus-answer-option,
+.expanded-solo-focus .circle-btn.solo-focus-answer-option {
+  background: var(--sf-answer-bg) !important;
+  color: var(--sf-answer-text) !important;
+  transition: background-color 0.12s linear, color 0.12s linear, transform 0.12s linear;
+}
+
+.expanded-solo-focus .solo-focus-answer-option:hover,
+.expanded-solo-focus .solo-focus-trap-block .solo-focus-answer-option:hover {
+  background: var(--sf-answer-hover-bg) !important;
+  color: var(--sf-answer-hover-text) !important;
+  transform: scale(0.98);
+}
+
+.expanded-solo-focus .solo-focus-action-btn,
+.expanded-solo-focus .solo-focus-action-btn.solo-focus-ask-zai-btn,
+.expanded-solo-focus .solo-focus-close-circle {
+  background: var(--journey-cta-bg) !important;
+  color: var(--journey-cta-text) !important;
+}
+
+.expanded-solo-focus .solo-focus-action-btn:hover,
+.expanded-solo-focus .solo-focus-action-btn.solo-focus-ask-zai-btn:hover,
+.expanded-solo-focus .solo-focus-close-circle:hover {
+  background: var(--journey-cta-text) !important;
+  color: var(--journey-cta-bg) !important;
+  transform: scale(0.98);
+}
+
+.bento-card-groovy .card-top-label,
+.bento-card-groovy .card-headline,
+.bento-card-groovy .data-label,
+.bento-card-groovy .data-value {
+  color: var(--journey-text, var(--color-yellow));
+}
+
+.bento-card-groovy .data-value.data-stamp-metric {
+  font-family: var(--font-roboto), sans-serif;
+  font-weight: 800;
+}
+
+.zone-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 20px;
+}
+
 .content-feed {
   opacity: 0;
   animation: introFadeUp 450ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -745,6 +894,7 @@ p,
   font-weight: 800;
   font-size: var(--zz-body-size);
   line-height: 1.2 !important;
+  margin: 0 !important;
 }
 
 .text-body.font-bold,
@@ -753,9 +903,18 @@ p,
 body {
   font-family: var(--font-roboto);
   font-weight: var(--zz-body-weight);
-  font-size: var(--zz-body-size);
+  font-size: 16px !important;
   line-height: 1.2 !important;
   color: var(--color-yellow);
+.zone-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  height: 300px; /* Lock card height */
+}
   padding: 20px;
   min-height: 100vh;
   min-height: 100dvh;
@@ -1105,7 +1264,15 @@ body, p, span, input, button, textarea, select,
   
   container-type: inline-size;
   container-name: zone-card;
-  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity var(--fussy-snap), transform var(--fussy-snap);
+}
+
+.groovy-zone-grid .bento-card-groovy {
+  background: var(--color-purple) !important;
+  color: var(--color-yellow) !important;
+  --journey-bg: var(--color-purple);
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
 }
 
 /* Zone grid wall — 30px inset all around. */
@@ -1644,9 +1811,12 @@ body, p, span, input, button, textarea, select,
   flex-direction: column !important;
   padding: 0 !important;
   border-radius: 0 !important;
-  overflow: visible !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   box-sizing: border-box !important;
-  
+
   background-color: transparent !important;
   background: transparent !important;
   backdrop-filter: none !important;
@@ -1657,7 +1827,6 @@ body, p, span, input, button, textarea, select,
 }
 
 /* Hard lock: no translucent/film panel in expanded view root wrappers. */
-.expanded-solo-focus .solo-focus-body-scroll,
 .expanded-solo-focus .solo-focus-rail,
 .expanded-solo-focus .solo-focus-stack {
   background: transparent !important;
@@ -1715,9 +1884,9 @@ body, p, span, input, button, textarea, select,
   cursor: pointer;
   flex-shrink: 0;
   transition:
-    transform 0.2s var(--spring-shutter),
-    background-color 0.2s ease,
-    color 0.2s ease;
+    transform 0.12s linear,
+    background-color 0.12s linear,
+    color 0.12s linear;
 }
 .zz-close-btn {
   position: absolute !important;
@@ -1738,9 +1907,9 @@ body, p, span, input, button, textarea, select,
   justify-content: center;
   cursor: pointer;
   transition:
-    transform 0.2s var(--spring-shutter),
-    background-color 0.2s ease,
-    color 0.2s ease;
+    transform 0.12s linear,
+    background-color 0.12s linear,
+    color 0.12s linear;
 }
 .expanded-solo-focus .solo-focus-close-circle:hover,
 .zz-close-btn:hover {
@@ -1841,163 +2010,6 @@ body, p, span, input, button, textarea, select,
 }
 
 /*
- * Semantic contrast lock — yellow-surface vs pink-surface expanded tiles (`data-journey` on .expanded-solo-focus).
- * Yellow tile: insight/question purple; circles purple + yellow. Pink tile: insight/question yellow; circles yellow + pink.
- * `overlay` (SoloFocusOverlay) follows yellow-surface contrast.
- */
-.expanded-solo-focus:is(
-    [data-journey='home'],
-    [data-journey='food'],
-    [data-journey='money'],
-    [data-journey='tech'],
-    [data-journey='holidays'],
-    [data-journey='overlay']
-  ) {
-  --sf-prose-contrast: var(--color-purple);
-  --sf-circle-fill: var(--color-purple);
-  --sf-circle-label: var(--color-yellow);
-}
-.expanded-solo-focus:is([data-journey='travel'], [data-journey='shopping'], [data-journey='carbon'], [data-journey='waste']) {
-  --sf-prose-contrast: var(--color-yellow);
-  --sf-circle-fill: var(--color-yellow);
-  --sf-circle-label: var(--color-pink);
-}
-.expanded-solo-focus:is(
-    [data-journey='home'],
-    [data-journey='food'],
-    [data-journey='money'],
-    [data-journey='tech'],
-    [data-journey='holidays'],
-    [data-journey='overlay']
-  )
-  .solo-focus-insight,
-.expanded-solo-focus:is(
-    [data-journey='home'],
-    [data-journey='food'],
-    [data-journey='money'],
-    [data-journey='tech'],
-    [data-journey='holidays'],
-    [data-journey='overlay']
-  )
-  .solo-focus-scraped-tip,
-.expanded-solo-focus:is(
-    [data-journey='home'],
-    [data-journey='food'],
-    [data-journey='money'],
-    [data-journey='tech'],
-    [data-journey='holidays'],
-    [data-journey='overlay']
-  )
-  .solo-focus-description {
-  color: var(--sf-prose-contrast) !important;
-}
-.expanded-solo-focus:is([data-journey='travel'], [data-journey='shopping'], [data-journey='carbon'], [data-journey='waste'])
-  .solo-focus-insight,
-.expanded-solo-focus:is([data-journey='travel'], [data-journey='shopping'], [data-journey='carbon'], [data-journey='waste'])
-  .solo-focus-scraped-tip,
-.expanded-solo-focus:is([data-journey='travel'], [data-journey='shopping'], [data-journey='carbon'], [data-journey='waste'])
-  .solo-focus-description {
-  color: var(--sf-prose-contrast) !important;
-}
-.expanded-solo-focus:is(
-    [data-journey='home'],
-    [data-journey='food'],
-    [data-journey='money'],
-    [data-journey='tech'],
-    [data-journey='holidays'],
-    [data-journey='overlay']
-  )
-  .question-text,
-.expanded-solo-focus:is(
-    [data-journey='home'],
-    [data-journey='food'],
-    [data-journey='money'],
-    [data-journey='tech'],
-    [data-journey='holidays'],
-    [data-journey='overlay']
-  )
-  .solo-focus-question-label {
-  color: var(--sf-prose-contrast) !important;
-}
-.expanded-solo-focus:is([data-journey='travel'], [data-journey='shopping'], [data-journey='carbon'], [data-journey='waste'])
-  .question-text,
-.expanded-solo-focus:is([data-journey='travel'], [data-journey='shopping'], [data-journey='carbon'], [data-journey='waste'])
-  .solo-focus-question-label {
-  color: var(--sf-prose-contrast) !important;
-}
-.expanded-solo-focus:is(
-    [data-journey='home'],
-    [data-journey='food'],
-    [data-journey='money'],
-    [data-journey='tech'],
-    [data-journey='holidays'],
-    [data-journey='overlay']
-  )
-  .circle-btn,
-.expanded-solo-focus:is(
-    [data-journey='home'],
-    [data-journey='food'],
-    [data-journey='money'],
-    [data-journey='tech'],
-    [data-journey='holidays'],
-    [data-journey='overlay']
-  )
-  .solo-focus-action-btn,
-.expanded-solo-focus:is(
-    [data-journey='home'],
-    [data-journey='food'],
-    [data-journey='money'],
-    [data-journey='tech'],
-    [data-journey='holidays'],
-    [data-journey='overlay']
-  )
-  .solo-focus-answer-option:is(.action-circle-80, .answer-circle-100) {
-  background-color: var(--sf-circle-fill) !important;
-  color: var(--sf-circle-label) !important;
-}
-.expanded-solo-focus:is([data-journey='travel'], [data-journey='shopping'], [data-journey='carbon'], [data-journey='waste'])
-  .circle-btn,
-.expanded-solo-focus:is([data-journey='travel'], [data-journey='shopping'], [data-journey='carbon'], [data-journey='waste'])
-  .solo-focus-action-btn,
-.expanded-solo-focus:is([data-journey='travel'], [data-journey='shopping'], [data-journey='carbon'], [data-journey='waste'])
-  .solo-focus-answer-option:is(.action-circle-80, .answer-circle-100) {
-  background-color: var(--sf-circle-fill) !important;
-  color: var(--sf-circle-label) !important;
-}
-.expanded-solo-focus:is(
-    [data-journey='home'],
-    [data-journey='food'],
-    [data-journey='money'],
-    [data-journey='tech'],
-    [data-journey='holidays'],
-    [data-journey='overlay']
-  )
-  .solo-focus-trap-block
-  .solo-focus-answer-option:hover {
-  background: var(--color-yellow) !important;
-  color: var(--color-purple) !important;
-}
-.expanded-solo-focus:is([data-journey='travel'], [data-journey='shopping'], [data-journey='carbon'], [data-journey='waste'])
-  .solo-focus-trap-block
-  .solo-focus-answer-option:hover {
-  background: var(--color-pink) !important;
-  color: var(--color-yellow) !important;
-}
-
-/* Zone wall + tip overlay: one lime mother/child slab; overrides journey contrast split above. */
-.expanded-solo-focus[data-sf-yellow-slab='true'] {
-  --sf-prose-contrast: var(--color-purple) !important;
-  --sf-circle-fill: var(--color-purple) !important;
-  --sf-circle-label: var(--color-yellow) !important;
-}
-.expanded-solo-focus[data-sf-yellow-slab='true']
-  .solo-focus-trap-block
-  .solo-focus-answer-option:hover {
-  background: var(--color-yellow) !important;
-  color: var(--color-purple) !important;
-}
-
-/*
  * Pulse diagnostic — 40px close: solid yellow disc, pink zip-shut glyph (BackArrowDownLeft).
  */
 .pulse-panel-close-circle {
@@ -2040,6 +2052,11 @@ body, p, span, input, button, textarea, select,
   border-radius: var(--radius-groovy);
   box-sizing: border-box;
   padding: var(--padding-bento);
+}
+
+.pulse-diagnostic-panel--intel.pulse-diagnostic-panel--research-live {
+  background-color: var(--color-intelligence-green);
+  color: var(--color-yellow);
 }
 
 .pulse-diagnostic-label {
@@ -2086,6 +2103,11 @@ body, p, span, input, button, textarea, select,
 /* Summary kinetic ticker — same 0.8 Marvin box as intro h1 (opacity-only path). */
 .intro-text-large.intro-summary-opacity-ticker {
   line-height: 0.8 !important;
+}
+.intro-text-large.intro-summary-opacity-ticker.intro-summary-genome-money-pulse {
+  text-shadow:
+    0 0 18px rgba(253, 253, 0, 0.5),
+    0 0 40px rgba(120, 0, 206, 0.35);
 }
 
 /* Profile onboarding — full-sentence question block (Marvin). */
@@ -2262,6 +2284,11 @@ h3.solo-focus-question-label.zz-h3 {
   box-sizing: border-box;
 }
 
+/* Solo Focus overlay — no paragraph tail gaps (industrial slab). */
+.expanded-solo-focus .solo-focus-content-stack p {
+  margin-bottom: 0 !important;
+}
+
 .expanded-solo-focus .solo-focus-recommendation-headline {
   font-family: var(--font-marvin);
   font-weight: 700;
@@ -2281,9 +2308,9 @@ h3.solo-focus-question-label.zz-h3 {
   overflow: hidden;
 }
 
-/* Zai Architect — ~20-word League Gothic H1 + Inter 16px prose (no section labels) */
+/* Zai Architect — Marvin Visions headline + Roboto bold prose (no section labels) */
 .expanded-solo-focus .solo-focus-architect-headline {
-  font-family: var(--font-league-gothic), var(--font-marvin), sans-serif;
+  font-family: var(--font-marvin), sans-serif;
   font-weight: 400;
   line-height: 0.8 !important;
   font-size: clamp(26px, 5.5vw, 42px) !important;
@@ -2302,23 +2329,33 @@ h3.solo-focus-question-label.zz-h3 {
   margin-top: 10px !important;
 }
 .expanded-solo-focus p.solo-focus-architect-prose {
-  font-family: var(--font-roboto), 'Roboto', sans-serif;
-  font-size: 16px;
-  line-height: 1.45;
-  font-weight: 400;
-  margin: 0 0 1rem 0;
+  font-family: var(--font-roboto), sans-serif !important;
+  font-size: 16px !important;
+  line-height: 1.2 !important;
+  font-weight: 800 !important;
+  margin: 0 !important;
   padding: 0;
   color: var(--journey-text, var(--color-yellow));
   max-width: 100%;
 }
 .expanded-solo-focus p.solo-focus-architect-prose:last-of-type {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
+}
+.journey-card-raw-saving {
+  font-family: var(--font-roboto), sans-serif !important;
+  font-weight: 800 !important;
+  font-size: 24px !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+  color: var(--journey-text, var(--color-yellow)) !important;
+  letter-spacing: 0 !important;
 }
 .expanded-solo-focus a.solo-focus-verified-source-link {
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.35;
-  margin-top: 0.5rem;
+  font-family: var(--font-roboto), sans-serif !important;
+  font-size: 16px !important;
+  line-height: 1.2 !important;
+  font-weight: var(--zz-body-weight, 700) !important;
+  margin-top: 0 !important;
   display: inline-block;
   max-width: 100%;
   word-break: break-all;
@@ -2722,28 +2759,16 @@ h3.solo-focus-question-label.zz-h3 {
   margin-top: auto !important;
 }
 
-/* Main column: fills remaining chrome under Pulse; scrolls when stack exceeds viewport */
-.expanded-solo-focus .solo-focus-body-scroll {
+/* Main column: standard browser vertical scroll; fixed grow-layer backdrop */
+.solo-focus-grow-layer > .expanded-solo-focus {
   flex: 1 1 auto;
   min-height: 0;
-  max-height: none;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-  overscroll-behavior: contain;
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
+  max-height: 100%;
   touch-action: pan-y pinch-zoom;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  padding-top: 0;
-  padding-bottom: 0;
 }
 
-/* Rail stacks from top; scroll lives on body-scroll only */
-.expanded-solo-focus .solo-focus-body-scroll > .solo-focus-rail {
-  flex: 0 0 auto !important;
+.expanded-solo-focus > .solo-focus-rail {
+  flex: 0 0 auto;
   width: 100%;
   min-height: 0;
   margin-block: 0;
@@ -2849,9 +2874,9 @@ h3.solo-focus-question-label.zz-h3 {
   background-color: var(--journey-cta-bg, var(--color-yellow)) !important;
   color: var(--journey-cta-text, var(--color-purple)) !important;
   transition:
-    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
-    background-color 0.2s ease,
-    color 0.2s ease;
+    background-color 0.12s linear,
+    color 0.12s linear,
+    transform 0.12s linear;
 }
 .expanded-solo-focus .circle-btn .circle-btn-label-stack {
   display: flex;
@@ -2880,17 +2905,26 @@ h3.solo-focus-question-label.zz-h3 {
   }
 }
 .expanded-solo-focus .circle-btn:hover,
-.expanded-solo-focus .solo-focus-action-btn:hover {
-  background-color: var(--journey-cta-text, var(--color-purple)) !important;
-  color: var(--journey-cta-bg, var(--color-yellow)) !important;
+.expanded-solo-focus .solo-focus-action-btn:hover,
+.expanded-solo-focus .circle-btn.zz-shimmer-cta:hover,
+.expanded-solo-focus .solo-focus-action-btn.zz-shimmer-cta:hover {
+  background-color: var(--color-yellow) !important;
+  color: var(--color-purple) !important;
+  transform: scale(0.96);
 }
 .expanded-solo-focus .circle-btn:focus-visible,
 .expanded-solo-focus .solo-focus-action-btn:focus-visible {
-  outline: 2px solid var(--journey-cta-text, var(--color-purple));
+  outline: 2px solid var(--color-yellow);
   outline-offset: 2px;
 }
 .expanded-solo-focus .circle-btn:active,
 .expanded-solo-focus .solo-focus-action-btn:active {
+  transform: scale(0.96);
+}
+/* Answer chips — profile-style rollover (legible on purple + pink surfaces) */
+.expanded-solo-focus .solo-focus-answer-option.zz-shimmer-cta:hover {
+  background: var(--color-yellow) !important;
+  color: var(--color-purple) !important;
   transform: scale(0.96);
 }
 /* Solo Focus typography — scale only */
@@ -3242,8 +3276,8 @@ h3.solo-focus-question-label.zz-h3 {
   max-height: var(--circle-cta-size);
   box-sizing: border-box;
   border-radius: 9999px;
-  background: var(--journey-accent, var(--color-purple));
-  color: var(--journey-on-accent, var(--color-yellow));
+  background: var(--sf-answer-bg, var(--color-yellow));
+  color: var(--sf-answer-text, var(--journey-bg, var(--color-purple)));
   font-family: var(--font-marvin);
   font-weight: 700;
   font-size: var(--zz-h4-mobile);
@@ -3431,8 +3465,8 @@ h3.solo-focus-question-label.zz-h3 {
   transition: background-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .zai-interface .zai-go-btn:not(:disabled) {
-  background-color: var(--color-yellow);
-  color: var(--color-purple);
+  background-color: var(--color-pink);
+  color: var(--color-yellow);
 }
 @media (hover: hover) {
   .zai-interface .zai-go-btn:not(:disabled):hover {
@@ -3685,6 +3719,20 @@ h3.solo-focus-question-label.zz-h3 {
 .settings-page .settings-card-bento,
 .settings-page .settings-journey-card-shell {
   border-radius: var(--radius-groovy) !important;
+}
+.settings-page .settings-bento-card,
+.settings-page .settings-card-bento,
+.settings-page .settings-journey-card-shell {
+  background-color: var(--color-pink) !important;
+  color: var(--color-yellow) !important;
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
+}
+.settings-page .settings-bento-card .card-top-label,
+.settings-page .settings-bento-card .card-headline,
+.settings-page .settings-journey-q,
+.settings-page .settings-journey-a {
+  color: var(--color-yellow) !important;
 }
 .settings-council-blurb {
   margin: 10px 0 0;
@@ -5812,17 +5860,22 @@ h3.solo-focus-question-label.zz-h3 {
 
 .floating-nav {
   position: fixed;
-  bottom: 32px;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
+  width: auto;
+  max-width: calc(100% - 40px);
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   padding: 12px;
   border-radius: 60px;
   background-color: var(--color-purple);
-  
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
   z-index: 100;
 }
 
@@ -5845,19 +5898,20 @@ h3.solo-focus-question-label.zz-h3 {
   transition: none;
 }
 
-.floating-nav.safe-bottom {
-  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-}
-
 @media (min-width: 1024px) {
   .floating-nav {
     position: fixed !important;
-    top: 20px !important;
-    right: 20px !important;
+    top: 40px !important;
+    right: 40px !important;
     bottom: auto !important;
     left: auto !important;
+    width: auto !important;
     transform: none !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
+    border-radius: 60px !important;
+    background-color: var(--color-purple) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 }
 

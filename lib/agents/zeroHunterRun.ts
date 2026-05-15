@@ -3,6 +3,7 @@
  * Internal calls must pass `GATEWAY_TOKEN` or `CRON_SECRET` when hitting the app gateway.
  */
 
+import { FIRECRAWL_API_KEY } from '@/lib/sentinel/api-config'
 import { sanitizeAgentMarkdown } from '@/lib/agents/zeroHunterMarkdown'
 import { PRICE_CAP_SAVING_APRIL_1, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
 import { scrapeWithFirecrawlUrl } from '@/lib/agents/researchAgent'
@@ -35,8 +36,7 @@ export async function runZeroHunterForUserProfile(params: {
   homeType: string | null
   heatingType: string | null
 }): Promise<ZeroHunterGrantHit | null> {
-  const firecrawlKey = process.env.FIRECRAWL_API_KEY?.trim()
-  const md = firecrawlKey 
+  const md = FIRECRAWL_API_KEY
     ? ((await scrapePriceCapContext().catch(() => '')) || (await fallbackMarkdown()))
     : (await fallbackMarkdown())
 
