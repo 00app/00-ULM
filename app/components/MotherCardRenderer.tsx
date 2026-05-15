@@ -84,7 +84,7 @@ export function MotherCardRenderer({
             className="data-label inline-flex items-center gap-2 flex-wrap"
             style={{ color: 'var(--color-ink)' }}
           >
-            Potential Saving (£)
+            Saving (£)
             {verifiedDataBadge ? (
               <span
                 className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 zz-body-bold uppercase tracking-wide"

@@ -1812,7 +1812,7 @@ body, p, span, input, button, textarea, select,
   padding: 0 !important;
   border-radius: 0 !important;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   box-sizing: border-box !important;
@@ -2773,10 +2773,15 @@ h3.solo-focus-question-label.zz-h3 {
 }
 
 .expanded-solo-focus > .solo-focus-rail {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   width: 100%;
   min-height: 0;
+  max-height: 100%;
   margin-block: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Instrument reset: root is the only scroll container. */
