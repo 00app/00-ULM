@@ -4,10 +4,6 @@
  * NO React. NO JSX. TypeScript utilities only.
  */
 
-// Carbon calculations (DEPRECATED - use ./calculations.ts instead)
-// export * from './carbon/calculations' // DEPRECATED
-// export * from './carbon/transport' // DEPRECATED
-
 // Locked calculations (annual impact per journey)
 export * from './calculations'
 
