@@ -40,22 +40,19 @@ export function sanitizeNeonConnectionString(connectionString: string): string {
   }
 }
 
-/** Force TLS for pool + `neon()` — eliminates drift from env strings missing `sslmode`. */
+/**
+ * Force `sslmode=require` on the connection URI query string only.
+ * Avoids `new URL()` on full postgres URIs — WHATWG parsing can corrupt passwords
+ * that contain reserved characters (e.g. `@`, `#`) if not perfectly percent-encoded.
+ */
 export function mergeSslModeRequire(connectionString: string): string {
   const t = connectionString.trim()
   if (!t) return t
-  try {
-    const u = new URL(t)
-    u.searchParams.set('sslmode', 'require')
-    let out = u.toString()
-    if (out.endsWith('?')) out = out.slice(0, -1)
-    return out
-  } catch {
-    const replaced = t.replace(/\bsslmode=[^&]*/gi, 'sslmode=require')
-    if (/\bsslmode=require\b/i.test(replaced)) return replaced
-    const joiner = replaced.includes('?') ? '&' : '?'
-    return `${replaced}${joiner}sslmode=require`
+  if (/\bsslmode=[^&]*/i.test(t)) {
+    return t.replace(/\bsslmode=[^&]*/gi, 'sslmode=require')
   }
+  const joiner = t.includes('?') ? '&' : '?'
+  return `${t}${joiner}sslmode=require`
 }
 
 function resolveConnectionString(): string {
