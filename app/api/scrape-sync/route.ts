@@ -390,14 +390,12 @@ function configuredScraperAuthKeys(): string[] {
   return out
 }
 
-/** Production / locked dev: accept `x-scraper-key` or `Authorization: Bearer <same as secret>`. */
+/** Production / locked dev: Bearer token equals SCRAPER_SECRET or CRON_SECRET (Handbook-aligned). */
 function scrapeSyncAuthDenied(request: NextRequest): NextResponse | null {
   const keys = configuredScraperAuthKeys()
   const isProduction = process.env.NODE_ENV === 'production'
-  const x = request.headers.get('x-scraper-key')?.trim()
   const auth = request.headers.get('authorization')?.trim()
   const bearer = auth && /^bearer\s+/i.test(auth) ? auth.replace(/^Bearer\s+/i, '').trim() : null
-  const presented = [x, bearer].filter(Boolean) as string[]
 
   if (isProduction) {
     if (keys.length === 0) {
@@ -405,20 +403,20 @@ function scrapeSyncAuthDenied(request: NextRequest): NextResponse | null {
         {
           error: 'API auth not configured',
           hint:
-            'Set SCRAPER_SECRET or CRON_SECRET (≥16 chars) on this Vercel environment, then redeploy. Matches Authorization: Bearer … or x-scraper-key header.',
+            'Set SCRAPER_SECRET or CRON_SECRET (≥16 chars) on this Vercel environment, then redeploy. Send Authorization: Bearer <same secret>.',
           expects: ['SCRAPER_SECRET', 'CRON_SECRET'],
         },
         { status: 503 }
       )
     }
-    if (!presented.some((p) => keys.includes(p))) {
+    if (!bearer || !keys.includes(bearer)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     return null
   }
 
   if (keys.length === 0) return null
-  if (!presented.some((p) => keys.includes(p))) {
+  if (!bearer || !keys.includes(bearer)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   return null
@@ -454,7 +452,7 @@ async function parseScrapeSyncPostBody(request: NextRequest): Promise<Record<str
 
 /**
  * POST — Upsert crawler payload into scraped_summary (001 Crawler → dashboard).
- * Auth: `x-scraper-key` **or** `Authorization: Bearer …` matching `SCRAPER_SECRET` or `CRON_SECRET` (≥16 chars).
+ * Auth: `Authorization: Bearer …` matching `SCRAPER_SECRET` or `CRON_SECRET` (≥16 chars).
  * Trigger mode: JSON `{ "trigger": true, "postcode": "SW1A1AA" }` or query `?postcode=&force=true` with empty body.
  */
 export async function POST(request: NextRequest) {

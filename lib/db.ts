@@ -40,6 +40,24 @@ export function sanitizeNeonConnectionString(connectionString: string): string {
   }
 }
 
+/** Force TLS for pool + `neon()` — eliminates drift from env strings missing `sslmode`. */
+export function mergeSslModeRequire(connectionString: string): string {
+  const t = connectionString.trim()
+  if (!t) return t
+  try {
+    const u = new URL(t)
+    u.searchParams.set('sslmode', 'require')
+    let out = u.toString()
+    if (out.endsWith('?')) out = out.slice(0, -1)
+    return out
+  } catch {
+    const replaced = t.replace(/\bsslmode=[^&]*/gi, 'sslmode=require')
+    if (/\bsslmode=require\b/i.test(replaced)) return replaced
+    const joiner = replaced.includes('?') ? '&' : '?'
+    return `${replaced}${joiner}sslmode=require`
+  }
+}
+
 function resolveConnectionString(): string {
   const raw = process.env.DATABASE_URL?.trim() ?? ''
   const connectionString = raw ? sanitizeNeonConnectionString(raw) : ''
@@ -55,7 +73,7 @@ function resolveConnectionString(): string {
   if (!resolved) {
     throw new Error('DATABASE_URL is required in production.')
   }
-  return resolved
+  return mergeSslModeRequire(resolved)
 }
 
 /** Prefer Neon serverless Pool (HTTP-backed) over node-pg TCP pool for Neon hosts. */
@@ -66,31 +84,25 @@ function shouldUseNeonServerless(connectionString: string): boolean {
   return u.includes('neon.tech') || u.includes('.neon.build')
 }
 
-function poolMax(useNeonServerless: boolean): number {
+function poolMax(): number {
   const raw = process.env.DATABASE_POOL_MAX?.trim()
   if (raw) {
     const n = parseInt(raw, 10)
     if (Number.isFinite(n) && n >= 1) return Math.min(n, 32)
   }
-  if (process.env.NODE_ENV === 'production' && useNeonServerless) {
-    return 1
-  }
-  if (process.env.NODE_ENV === 'production') {
-    return 5
-  }
   return 10
 }
 
-function createPool(resolved: string, useNeonServerless: boolean): DbPool {
-  const max = poolMax(useNeonServerless)
+function createPool(resolved: string): DbPool {
+  const max = poolMax()
   const isProd = process.env.NODE_ENV === 'production'
 
-  if (useNeonServerless) {
+  if (shouldUseNeonServerless(resolved)) {
     const pool = new NeonPool({
       connectionString: resolved,
       max,
       connectionTimeoutMillis: 15_000,
-      idleTimeoutMillis: isProd ? 10_000 : 30_000,
+      idleTimeoutMillis: 30_000,
       allowExitOnIdle: isProd,
     })
     pool.on('error', (err: unknown) => {
@@ -116,8 +128,7 @@ function ensurePool(): DbPool {
   if (store.pool) return store.pool
 
   const resolved = resolveConnectionString()
-  const useNeon = shouldUseNeonServerless(resolved)
-  store.pool = createPool(resolved, useNeon)
+  store.pool = createPool(resolved)
   return store.pool
 }
 

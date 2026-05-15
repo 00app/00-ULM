@@ -2385,7 +2385,9 @@ h3.solo-focus-question-label.zz-h3 {
   min-height: 0;
 }
 
-.expanded-solo-focus .solo-focus-impact-hero .data-label,
+.expanded-solo-focus .solo-focus-impact-hero .data-label {
+  color: var(--color-yellow) !important;
+}
 .expanded-solo-focus .solo-focus-impact-hero .solo-focus-data-value {
   color: var(--color-ink) !important;
 }
@@ -2414,8 +2416,11 @@ h3.solo-focus-question-label.zz-h3 {
   padding-bottom: 0;
   margin-bottom: 0;
 }
-/* v2.3 — CARBON column uses same ink as SAVE (no purple split) */
-.expanded-solo-focus .solo-focus-impact-hero .solo-focus-carbon-stack .data-label,
+/* v2.3 — CARBON column labels match SAVE row (neon yellow ink) */
+.expanded-solo-focus .solo-focus-impact-hero .solo-focus-carbon-stack .data-label {
+  color: var(--color-yellow) !important;
+  opacity: 1 !important;
+}
 .expanded-solo-focus .solo-focus-impact-hero .solo-focus-carbon-stack .solo-focus-data-value {
   color: var(--color-ink) !important;
   opacity: 1 !important;
@@ -2877,6 +2882,16 @@ h3.solo-focus-question-label.zz-h3 {
     background-color 0.12s linear,
     color 0.12s linear,
     transform 0.12s linear;
+}
+/* Sign-Go / Industrial handoff — Neon pink + yellow (locks against generic .circle-btn Solo Focus tokens) */
+.expanded-solo-focus .circle-btn.solo-focus-handoff-btn {
+  background-color: var(--color-pink) !important;
+  color: var(--color-yellow) !important;
+}
+.expanded-solo-focus .circle-btn.solo-focus-handoff-btn:hover,
+.expanded-solo-focus .circle-btn.solo-focus-handoff-btn.zz-shimmer-cta:hover {
+  background-color: color-mix(in srgb, var(--color-pink) 88%, #000) !important;
+  color: var(--color-yellow) !important;
 }
 .expanded-solo-focus .circle-btn .circle-btn-label-stack {
   display: flex;

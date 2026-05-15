@@ -207,7 +207,7 @@ export function IndustrialHandoffButton({
       initial={{ opacity: 0, y: 2 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'tween', duration: 0.12, ease: 'linear' }}
-      className={`circle-btn border-0 cursor-pointer ${className}`.trim()}
+      className={`circle-btn solo-focus-handoff-btn border-0 cursor-pointer ${className}`.trim()}
       style={{
         backgroundColor: surface === 'yellow' ? 'var(--color-yellow)' : 'var(--color-pink)',
         color: surface === 'yellow' ? 'var(--journey-text)' : 'var(--color-yellow)',
