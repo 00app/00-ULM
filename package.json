@@ -41,8 +41,10 @@
     "clean:cache": "rm -rf .next node_modules/.cache",
     "db:columns": "tsx scripts/list-research-results-columns.ts",
     "db:ensure-rebirth-columns": "tsx scripts/ensure-research-rebirth-columns.ts",
+    "db:ensure-user-profiles": "tsx scripts/ensure-user-profiles-table.ts",
     "db:log-research": "tsx scripts/log-latest-research-row.ts",
-    "verify:env": "bash scripts/verify-env-and-health.sh"
+    "verify:env": "bash scripts/verify-env-and-health.sh",
+    "curl:scrape-sync": "bash scripts/curl-scrape-sync-trigger.sh"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
@@ -83,6 +85,6 @@
     "postcss": "^8.5.14"
   },
   "engines": {
-    "node": "20.x || 22.x"
+    "node": "22.x"
   }
 }

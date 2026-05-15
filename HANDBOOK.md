@@ -246,7 +246,11 @@ The application UI reflects the Auditor's precision: mechanical, low-latency, an
 - **Pipeline:** Builds run on Vercel when Git integration receives pushes to the connected branch (usually **`main`**) **or** when you run **`npm run deploy`** / **`npm run ship`**. If previews stop updating, confirm the Git link in the Vercel project and run **`vercel link`** locally so the CLI target matches **`gary-lomi-lomicos-projects/00-ulm`** (or your team project). There is **no** `.github/workflows` CI in-repo.
 - **Smoke test:** **`GET /api/health`** on production (`database: connected` ⇒ Neon **`DATABASE_URL`** is valid in Vercel env).
 - **Admin API gate:** Root **`proxy.ts`** (Next.js 16+) runs on `/api/admin/*` — same behaviour as the old `middleware.ts`; do not duplicate auth in two files.
-- **Node version:** `package.json` **`engines.node`** is **`20.x || 22.x`** — use **20** on Vercel until you switch the project to **22** in the dashboard; local **22** satisfies Firecrawl’s engine range. Bump intentionally when you change the runtime.
+- **Node version:** **`engines.node`**: **`22.x`**, **`.nvmrc`**: **`22`** — match Vercel **Production → Node.js 22.x**.
+- **Env / redeploy:** **`POST /api/scrape-sync`** responses: **503** + **`API auth not configured`** ⇒ set **`SCRAPER_SECRET`** or **`CRON_SECRET`** (≥16 chars) for **Production**, then **Redeploy** (uncheck build cache once). **503** + **`Scraper not configured`** ⇒ set **`FIRE_CRAWL_KEY_2`** (preferred on Vercel) or legacy **`FIRECRAWL_API_KEY`**. **Bearer** must equal **`SCRAPER_SECRET`** or **`CRON_SECRET`** (**not** the Firecrawl key).
+- **Wrong hostname:** HTML **`Cannot POST /api/scrape-sync`** (e.g. **`00-01.vercel.app`**) means that URL is **not** this Next deployment — use the production domain from the Vercel project (e.g. **`00-ulm.vercel.app`**).
+- **zsh + curl:** **`!`** inside double-quoted **`Authorization`** triggers **history expansion** (`unknown file attribute: h`). Use **single-quoted** Bearer, or run **`bash scripts/curl-scrape-sync-trigger.sh`**, or **`setopt nobanghist`** for the session.
+- **Lines starting with `#`:** In some pastes, **`#` isn’t treated as a comment** and zsh runs **`#` as a command** — run comments on their own line **after** `$` prompt, or omit them.
 - **npm transitive warnings** (e.g. `node-domexception`): usually clear when upstream packages update; run **`npm update`** on a branch when convenient.
 
 ---

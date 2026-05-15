@@ -27,6 +27,16 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 const SCRAPE_SYNC_MAX_PER_MINUTE = 24
 
+/** Firecrawl gate — `FIRE_CRAWL_KEY_2` must match Production Vercel exactly; `FIRECRAWL_API_KEY` is legacy fallback. */
+function firecrawlMissingResponse(): NextResponse | null {
+  const scraperKey =
+    process.env.FIRE_CRAWL_KEY_2?.trim() || process.env.FIRECRAWL_API_KEY?.trim() || ''
+  if (!scraperKey) {
+    return NextResponse.json({ error: 'Scraper not configured' }, { status: 503 })
+  }
+  return null
+}
+
 interface ScrapedPayloadItem {
   journey_key: JourneyId
   carbon_value: number
@@ -137,6 +147,8 @@ export async function GET(request: NextRequest) {
     let research: { markdown: string; citations: Array<{ source_name: string; url: string; snippet?: string }> } | undefined
 
     if (postcode) {
+      const fcErr = firecrawlMissingResponse()
+      if (fcErr) return fcErr
       const profileData: ResearchProfileData = {
         ...(sessionResearchProfile?.home_type ? { home_type: sessionResearchProfile.home_type } : {}),
         ...(sessionResearchProfile?.transport_baseline
@@ -369,10 +381,81 @@ export async function GET(request: NextRequest) {
 
 const MIN_SCRAPER_SECRET_LENGTH = 16
 
+function configuredScraperAuthKeys(): string[] {
+  const a = process.env.SCRAPER_SECRET?.trim()
+  const b = process.env.CRON_SECRET?.trim()
+  const out: string[] = []
+  if (a && a.length >= MIN_SCRAPER_SECRET_LENGTH) out.push(a)
+  if (b && b.length >= MIN_SCRAPER_SECRET_LENGTH) out.push(b)
+  return out
+}
+
+/** Production / locked dev: accept `x-scraper-key` or `Authorization: Bearer <same as secret>`. */
+function scrapeSyncAuthDenied(request: NextRequest): NextResponse | null {
+  const keys = configuredScraperAuthKeys()
+  const isProduction = process.env.NODE_ENV === 'production'
+  const x = request.headers.get('x-scraper-key')?.trim()
+  const auth = request.headers.get('authorization')?.trim()
+  const bearer = auth && /^bearer\s+/i.test(auth) ? auth.replace(/^Bearer\s+/i, '').trim() : null
+  const presented = [x, bearer].filter(Boolean) as string[]
+
+  if (isProduction) {
+    if (keys.length === 0) {
+      return NextResponse.json(
+        {
+          error: 'API auth not configured',
+          hint:
+            'Set SCRAPER_SECRET or CRON_SECRET (≥16 chars) on this Vercel environment, then redeploy. Matches Authorization: Bearer … or x-scraper-key header.',
+          expects: ['SCRAPER_SECRET', 'CRON_SECRET'],
+        },
+        { status: 503 }
+      )
+    }
+    if (!presented.some((p) => keys.includes(p))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return null
+  }
+
+  if (keys.length === 0) return null
+  if (!presented.some((p) => keys.includes(p))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  return null
+}
+
+/**
+ * Parse POST body (JSON optional). Query `?postcode=` + `force=true` merges into trigger handshake
+ * so zsh `curl` without `-d '{}'` still works (empty body no longer throws).
+ */
+async function parseScrapeSyncPostBody(request: NextRequest): Promise<Record<string, unknown>> {
+  const raw = await request.text().catch(() => '')
+  const trimmed = raw.trim()
+  let body: Record<string, unknown> = {}
+  if (trimmed) {
+    body = JSON.parse(trimmed) as Record<string, unknown>
+  }
+
+  const sp = request.nextUrl.searchParams
+  const qPostcode = (sp.get('postcode') ?? '').replace(/\s+/g, '').trim().toUpperCase()
+  const qForce =
+    ['1', 'true', 'yes'].includes(String(sp.get('force') ?? '').toLowerCase()) ||
+    ['1', 'true', 'yes'].includes(String(sp.get('trigger') ?? '').toLowerCase())
+
+  if (body.trigger === true || qForce) {
+    body.trigger = true
+    const pc =
+      typeof body.postcode === 'string' ? body.postcode.replace(/\s+/g, '').trim().toUpperCase() : ''
+    if (pc.length < 4 && qPostcode.length >= 4) body.postcode = qPostcode
+  }
+
+  return body
+}
+
 /**
  * POST — Upsert crawler payload into scraped_summary (001 Crawler → dashboard).
- * In production, SCRAPER_SECRET must be set (min 16 chars) and x-scraper-key must match.
- * In non-production, if SCRAPER_SECRET is set we still validate the key; if unset, POST is allowed for local dev only.
+ * Auth: `x-scraper-key` **or** `Authorization: Bearer …` matching `SCRAPER_SECRET` or `CRON_SECRET` (≥16 chars).
+ * Trigger mode: JSON `{ "trigger": true, "postcode": "SW1A1AA" }` or query `?postcode=&force=true` with empty body.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -384,25 +467,15 @@ export async function POST(request: NextRequest) {
         { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined }
       )
     }
-    const secret = process.env.SCRAPER_SECRET?.trim()
-    const isProduction = process.env.NODE_ENV === 'production'
+    const authErr = scrapeSyncAuthDenied(request)
+    if (authErr) return authErr
 
-    if (isProduction) {
-      if (!secret || secret.length < MIN_SCRAPER_SECRET_LENGTH) {
-        return NextResponse.json({ error: 'Scraper not configured' }, { status: 503 })
-      }
-      const key = request.headers.get('x-scraper-key')
-      if (key !== secret) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    } else if (secret) {
-      // Non-production but secret set: still require matching key
-      const key = request.headers.get('x-scraper-key')
-      if (key !== secret) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+    let body: Record<string, unknown>
+    try {
+      body = await parseScrapeSyncPostBody(request)
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
-    const body = await request.json()
 
     // Airlock handshake mode: trigger local research/scrape without requiring crawler payload.
     if (body?.trigger === true) {
@@ -412,6 +485,8 @@ export async function POST(request: NextRequest) {
       if (postcode.length < 4) {
         return NextResponse.json({ error: 'postcode required for trigger' }, { status: 400 })
       }
+      const fcErr = firecrawlMissingResponse()
+      if (fcErr) return fcErr
       const profileData =
         body?.profileData && typeof body.profileData === 'object' ? (body.profileData as ResearchProfileData) : undefined
       const categoryRaw = typeof body?.category === 'string' ? body.category.trim().toLowerCase() : ''
@@ -494,7 +569,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const items: ScrapedPayloadItem[] = Array.isArray(body.scraped) ? body.scraped : body.items ?? []
+    const rawItems = Array.isArray(body.scraped) ? body.scraped : body.items
+    const items: ScrapedPayloadItem[] = Array.isArray(rawItems) ? (rawItems as ScrapedPayloadItem[]) : []
 
     if (items.length === 0) {
       return NextResponse.json({ error: 'Missing scraped array' }, { status: 400 })

@@ -273,3 +273,13 @@ CREATE TABLE IF NOT EXISTS scraped_summary (
 );
 CREATE INDEX IF NOT EXISTS idx_scraped_summary_journey ON scraped_summary(journey_key);
 CREATE INDEX IF NOT EXISTS idx_scraped_summary_scraped_at ON scraped_summary(scraped_at);
+
+-- =========================
+-- USER PROFILES (Hermes / Solo Focus mirror — JSON snapshot keyed by users.id)
+-- =========================
+CREATE TABLE IF NOT EXISTS user_profiles (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  journey_answers_jsonb JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_updated_at ON user_profiles (updated_at DESC);
