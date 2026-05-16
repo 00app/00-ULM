@@ -628,12 +628,15 @@ export async function repairResearchResultsMissingHeadlines(params: {
   }
   let rows: Row[] = []
   try {
+    const incomplete = `(agent_headline IS NULL OR TRIM(agent_headline) = '')
+           OR architect_prose IS NULL OR TRIM(architect_prose) = ''
+           OR saving_amount_gbp IS NULL OR COALESCE(saving_amount_gbp, 0) <= 0`
     if (uid) {
       const r = await pool.query<Row>(
         `SELECT id::text, markdown, citations, profile_snapshot, postcode
          FROM research_results
          WHERE user_id = $1::uuid
-           AND (agent_headline IS NULL OR TRIM(agent_headline) = '')
+           AND (${incomplete})
          ORDER BY created_at DESC NULLS LAST
          LIMIT $2`,
         [uid, limit]
@@ -644,7 +647,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
         `SELECT id::text, markdown, citations, profile_snapshot, postcode
          FROM research_results
          WHERE REPLACE(COALESCE(postcode, ''), ' ', '') = $1
-           AND (agent_headline IS NULL OR TRIM(agent_headline) = '')
+           AND (${incomplete})
          ORDER BY created_at DESC NULLS LAST
          LIMIT $2`,
         [pc, limit]
@@ -672,8 +675,9 @@ export async function repairResearchResultsMissingHeadlines(params: {
       skipGemini: false,
     })
     const headline = normalizeGeminiAgentHeadline(triplet?.agent_headline)
-    if (!headline) continue
     const architect = normalizeArchitectProseThreeParagraphs(triplet?.architect_prose)
+    const saving = normalizeSavingAmountGbp(triplet?.saving_amount_gbp)
+    if (!headline && !architect && saving == null) continue
     const mergedCitations = [...extraCitations, ...citations]
     const offer =
       typeof triplet?.offer_url === 'string' && triplet.offer_url.startsWith('http')
@@ -695,7 +699,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
           headline,
           architect ?? null,
           triplet?.category ?? null,
-          triplet?.saving_amount_gbp ?? null,
+          saving ?? triplet?.saving_amount_gbp ?? null,
           offer,
           markdown,
           JSON.stringify(mergedCitations),

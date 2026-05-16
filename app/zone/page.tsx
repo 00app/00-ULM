@@ -175,8 +175,8 @@ function getGroovyGridItems(viewModel: ZoneViewModel): GroovyItem[] {
   return items
 }
 
-/** Default zone when user skips profile: empty profile + empty answers so zone always renders */
-function getDefaultZoneViewModel(): ZoneViewModel {
+/** Placeholder VM — wall stays behind ZeroGateShutter until scrape-sync feeds Neon/API data. */
+function getPlaceholderZoneViewModel(): ZoneViewModel {
   const emptyAnswers = {} as Record<JourneyId, Record<string, string>>
   return buildZoneViewModel({ profile: {}, journeyAnswers: emptyAnswers })
 }
@@ -237,7 +237,7 @@ export default function ZonePage() {
   const reduceMotion = useReducedMotion()
   const { state, toggleLike, setHeroTotals, setLocationState, openSoloFocus, closeSoloFocus, refreshProfile } = useApp()
 
-  const [viewModel, setViewModel] = useState<ZoneViewModel>(getDefaultZoneViewModel)
+  const [viewModel, setViewModel] = useState<ZoneViewModel>(getPlaceholderZoneViewModel)
   const [vmSyncStamp, setVmSyncStamp] = useState(0)
   const [completedJourneys, setCompletedJourneys] = useState<JourneyId[]>([])
   const [scraped, setScraped] = useState<Record<JourneyId, { scraped_at: string; carbon_value: number; money_value: number; deep_content_tip?: string; high_saving?: boolean }> | null>(null)
@@ -618,6 +618,7 @@ export default function ZonePage() {
     const url = postcode ? `/api/scrape-sync?postcode=${encodeURIComponent(postcode)}` : '/api/scrape-sync'
     let clearHydrationPhases: (() => void) | null = null
     if (postcode) {
+      setVmResolved(false)
       setEngineStatus('scraping')
       clearHydrationPhases = scheduleZoneEngineHydrationPhases((phase) => setEngineStatus(phase))
     }
@@ -716,7 +717,14 @@ export default function ZonePage() {
           setResearchCategoryCoverage(null)
         }
         setLiveResearchData(
-          Boolean(data?.source === 'database' || verifiedSaving != null || savingAmountGbp != null || deepLink)
+          Boolean(
+            data?.source === 'database' ||
+              data?.source === 'research_results' ||
+              verifiedSaving != null ||
+              savingAmountGbp != null ||
+              deepLink ||
+              architectProse
+          )
         )
         const rawRates = data?.home_unit_rates as { elecGbpPerKwh?: unknown; gasGbpPerKwh?: unknown } | undefined
         if (rawRates && typeof rawRates === 'object') {
@@ -731,6 +739,20 @@ export default function ZonePage() {
           setHomeUnitRates(null)
         }
         setRatesSourceUrl(typeof data?.rates_source_url === 'string' ? data.rates_source_url : null)
+        const src = typeof data?.source === 'string' ? data.source : ''
+        const covReady =
+          rawCov && typeof rawCov === 'object' && !Array.isArray(rawCov)
+            ? Object.keys(rawCov as Record<string, unknown>).length > 0
+            : false
+        const feedReady =
+          src === 'database' ||
+          src === 'research_results' ||
+          covReady ||
+          verifiedSaving != null ||
+          savingAmountGbp != null ||
+          Boolean(architectProse?.trim())
+        if (feedReady) setVmResolved(true)
+
         if (data?.scraped && Array.isArray(data.scraped)) {
           type ScrapedJourneyRow = {
             journey_key: string
@@ -759,6 +781,7 @@ export default function ZonePage() {
         setResearchCategoryCoverage(null)
         setHomeUnitRates(null)
         setRatesSourceUrl(null)
+        setVmResolved(false)
       })
       .finally(() => {
         clearHydrationPhases?.()
@@ -889,6 +912,16 @@ export default function ZonePage() {
       employment_status:
         state.profile?.employmentStatus?.trim() || profileFromStorage.employment_status,
     }
+    const hasResearchFeed =
+      scraped != null ||
+      (researchCategoryCoverage != null && Object.keys(researchCategoryCoverage).length > 0) ||
+      liveResearchData ||
+      Boolean(researchMeta?.architectProse?.trim()) ||
+      (researchMeta?.savingAmountGbp != null && researchMeta.savingAmountGbp > 0) ||
+      (researchMeta?.verifiedSaving != null && researchMeta.verifiedSaving > 0)
+
+    if (!hasResearchFeed) return
+
     const effectiveMarket = {
       ...(marketContext ?? {}),
       ...(homeUnitRates ? { homeUnitRates } : {}),
@@ -924,12 +957,8 @@ export default function ZonePage() {
       marketContext: Object.keys(effectiveMarket).length > 0 ? effectiveMarket : undefined,
       neonJourneyResearch: neonJourneyResearchFromCoverage(researchCategoryCoverage),
     })
-    // v41.0: sync card model immediately on postcode/profile mutation, then layer live pulse totals.
-    // Keep the existing wall visible while refreshing to avoid loading shutter flicker/reload feel.
     setViewModel(vm)
     setVmSyncStamp(Date.now())
-    /** Show the wall as soon as we have a sync VM — do not wait on async pulse / strict “9 journeys + locality”. */
-    setVmResolved(true)
     let cancelled = false
     const postcode = (
       liveProfilePostcode ||
@@ -1011,23 +1040,24 @@ export default function ZonePage() {
         window.setTimeout(() => setSentinelPulseLabel(null), 1800)
       }
 
-      setViewModel(
-        dbConnected
-          ? vmLive
-          : {
-              ...vmLive,
-              hero: {
-                ...vmLive.hero,
-                title: 'RECALCULATING...',
-                data: {
-                  money: '£0',
-                  carbon: '0kg CO₂',
+      if (hasResearchFeed) {
+        setViewModel(
+          dbConnected
+            ? vmLive
+            : {
+                ...vmLive,
+                hero: {
+                  ...vmLive.hero,
+                  title: 'RECALCULATING...',
+                  data: {
+                    money: '£0',
+                    carbon: '0kg CO₂',
+                  },
                 },
-              },
-            }
-      )
-      setVmResolved(true)
-      setVmSyncStamp(Date.now())
+              }
+        )
+        setVmSyncStamp(Date.now())
+      }
     })()
 
     return () => {

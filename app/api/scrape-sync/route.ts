@@ -150,6 +150,69 @@ async function loadResearchCategoryCoverageByPostcode(
   }
 }
 
+async function buildScrapedFromResearchResults(
+  postcode: string,
+  userId: string | null
+): Promise<ScrapedPayloadItem[] | null> {
+  const pc = postcode.replace(/\s+/g, '').toUpperCase()
+  if (pc.length < 4) return null
+  const toNum = (v: unknown): number => {
+    if (v == null) return 0
+    const n = typeof v === 'number' ? v : Number(v)
+    return Number.isFinite(n) ? n : 0
+  }
+  try {
+    const cov = await pool.query<{
+      cat: string
+      architect_prose: string | null
+      saving_amount_gbp: unknown
+      verified_saving: unknown
+      carbon_impact_kg: unknown
+    }>(
+      userId
+        ? `${RESEARCH_COVERAGE_SELECT}
+           FROM research_results rr
+           WHERE (rr.user_id = $1::uuid OR REPLACE(COALESCE(rr.postcode, ''), ' ', '') = $2)
+             AND rr.category IS NOT NULL AND btrim(rr.category) <> ''
+           ORDER BY lower(trim(rr.category)), rr.created_at DESC NULLS LAST`
+        : `${RESEARCH_COVERAGE_SELECT}
+           FROM research_results rr
+           WHERE REPLACE(COALESCE(rr.postcode, ''), ' ', '') = $1
+             AND rr.category IS NOT NULL AND btrim(rr.category) <> ''
+           ORDER BY lower(trim(rr.category)), rr.created_at DESC NULLS LAST`,
+      userId ? [userId, pc] : [pc]
+    )
+    if (cov.rows.length === 0) return null
+    const byCat = new Map(cov.rows.map((r) => [String(r.cat || '').trim().toLowerCase(), r]))
+    const hasAny = JOURNEY_ORDER.some((key) => {
+      const row = byCat.get(key)
+      if (!row) return false
+      const sav = toNum(row.saving_amount_gbp) || toNum(row.verified_saving)
+      const prose = typeof row.architect_prose === 'string' ? row.architect_prose.trim() : ''
+      return sav > 0 || prose.length > 0
+    })
+    if (!hasAny) return null
+    return JOURNEY_ORDER.map((key) => {
+      const row = byCat.get(key)
+      const sav = row ? toNum(row.saving_amount_gbp) || toNum(row.verified_saving) : 0
+      const carbon = row ? toNum(row.carbon_impact_kg) : 0
+      const tip =
+        row && typeof row.architect_prose === 'string' ? row.architect_prose.trim().slice(0, 280) : undefined
+      return {
+        journey_key: key,
+        scraped_at: new Date().toISOString(),
+        carbon_value: carbon > 0 ? Math.round(carbon) : 0,
+        money_value: sav > 0 ? Math.round(sav) : 0,
+        deep_content_tip: tip,
+        high_saving: sav >= 500,
+      }
+    })
+  } catch (err) {
+    console.warn('[scrape-sync] buildScrapedFromResearchResults:', err)
+    return null
+  }
+}
+
 /** GET — Return scraped data for dashboard (buildUserImpact options.scraped). Optional ?postcode= triggers fresh regional research. */
 export async function GET(request: NextRequest) {
   const id = getClientIdentifier(request)
@@ -185,7 +248,7 @@ export async function GET(request: NextRequest) {
       ''
     const postcode = postcodeRaw.replace(/\s+/g, '').toUpperCase()
 
-    const researchCategoryCoverage =
+    let researchCategoryCoverage =
       sessionUserId != null
         ? await loadResearchCategoryCoverage(sessionUserId)
         : postcode.length >= 4
@@ -261,6 +324,16 @@ export async function GET(request: NextRequest) {
           snippet: c.snippet,
         })),
       }
+      await repairResearchResultsMissingHeadlines({
+        userId: sessionUserId,
+        postcode,
+        profileData: Object.keys(profileData).length > 0 ? profileData : null,
+        limit: 12,
+      })
+      researchCategoryCoverage =
+        sessionUserId != null
+          ? await loadResearchCategoryCoverage(sessionUserId)
+          : await loadResearchCategoryCoverageByPostcode(postcode)
     }
 
     let researchMeta: {
@@ -363,7 +436,34 @@ export async function GET(request: NextRequest) {
     const rows = result.rows || []
 
     if (rows.length === 0) {
-      // Fallback: UK 2026 money-lead defaults so dashboard still has hero values
+      const fromResearch =
+        postcode.length >= 4
+          ? await buildScrapedFromResearchResults(postcode, sessionUserId)
+          : null
+      if (fromResearch?.length) {
+        const payload = {
+          scraped: fromResearch,
+          source: 'research_results' as const,
+          researchMeta,
+          ...(researchCategoryCoverage !== undefined
+            ? { research_category_coverage: researchCategoryCoverage }
+            : {}),
+          ...ratesExtra,
+        }
+        return NextResponse.json(research ? { ...payload, research } : payload)
+      }
+      if (postcode.length >= 4) {
+        const pending = {
+          scraped: [] as ScrapedPayloadItem[],
+          source: 'pending' as const,
+          researchMeta,
+          ...(researchCategoryCoverage !== undefined
+            ? { research_category_coverage: researchCategoryCoverage }
+            : {}),
+          ...ratesExtra,
+        }
+        return NextResponse.json(research ? { ...pending, research } : pending)
+      }
       const defaults = fallbackDefaults()
       return NextResponse.json(
         research

@@ -230,22 +230,6 @@ export default function IntroScreen() {
         >
           CREATE
         </motion.a>
-        <motion.a
-          href={ROUTES.ZONE}
-          className="intro-cta-circle zz-h4 zz-shimmer-cta"
-          initial={ctaInitial}
-          animate={ctaAnimate}
-          transition={{ ...ctaTransitionBase, delay: 0.42 }}
-          style={{
-            ...ctaCircleStyle,
-            background: 'transparent',
-            color: 'var(--color-yellow)',
-            textDecoration: 'none',
-          }}
-          aria-label="Skip to Zone"
-        >
-          SKIP
-        </motion.a>
       </div>
     </div>
   )
