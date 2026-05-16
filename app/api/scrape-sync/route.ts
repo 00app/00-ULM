@@ -45,13 +45,59 @@ interface ScrapedPayloadItem {
   high_saving?: boolean
 }
 
-async function loadResearchCategoryCoverage(userId: string): Promise<Record<string, ResearchCategoryCoverageRow>> {
+function mapResearchCoverageRows(
+  rows: Array<{
+    cat: string
+    architect_prose: string | null
+    offer_url: string | null
+    source_url: string | null
+    saving_amount_gbp: unknown
+    verified_saving: unknown
+    verified: unknown
+  }>
+): Record<string, ResearchCategoryCoverageRow> {
   const out: Record<string, ResearchCategoryCoverageRow> = {}
   const toNum = (v: unknown): number | null => {
     if (v == null) return null
     const n = typeof v === 'number' ? v : Number(v)
     return Number.isFinite(n) ? n : null
   }
+  for (const row of rows) {
+    const k = String(row.cat || '').trim().toLowerCase()
+    if (!k) continue
+    const prose = typeof row.architect_prose === 'string' ? row.architect_prose.trim() : ''
+    const offer = typeof row.offer_url === 'string' ? row.offer_url.trim() : ''
+    const src = typeof row.source_url === 'string' ? row.source_url.trim() : ''
+    const sav = toNum(row.saving_amount_gbp)
+    const ver = toNum(row.verified_saving)
+    const insightReady = prose.length > 0
+    const hasOffer = offer.startsWith('http')
+    const hasSrc = src.startsWith('http')
+    const rowVerified = row.verified === true
+    out[k] = {
+      insightReady,
+      hasOffer,
+      verified: rowVerified,
+      latestSavingGbp: sav,
+      latestVerifiedGbp: ver,
+      latestOfferUrl: hasOffer ? offer.slice(0, 2048) : null,
+      latestSourceUrl: hasSrc ? src.slice(0, 2048) : null,
+      architectProse: prose.length > 0 ? prose.slice(0, 4000) : null,
+    }
+  }
+  return out
+}
+
+const RESEARCH_COVERAGE_SELECT = `SELECT DISTINCT ON (lower(trim(rr.category)))
+          lower(trim(rr.category)) AS cat,
+          rr.architect_prose,
+          rr.offer_url,
+          rr.source_url,
+          rr.saving_amount_gbp,
+          rr.verified_saving,
+          rr.verified`
+
+async function loadResearchCategoryCoverage(userId: string): Promise<Record<string, ResearchCategoryCoverageRow>> {
   try {
     const cov = await pool.query<{
       cat: string
@@ -62,46 +108,46 @@ async function loadResearchCategoryCoverage(userId: string): Promise<Record<stri
       verified_saving: unknown
       verified: unknown
     }>(
-      `SELECT DISTINCT ON (lower(trim(rr.category)))
-          lower(trim(rr.category)) AS cat,
-          rr.architect_prose,
-          rr.offer_url,
-          rr.source_url,
-          rr.saving_amount_gbp,
-          rr.verified_saving,
-          rr.verified
+      `${RESEARCH_COVERAGE_SELECT}
        FROM research_results rr
        WHERE rr.user_id = $1::uuid AND rr.category IS NOT NULL AND btrim(rr.category) <> ''
        ORDER BY lower(trim(rr.category)), rr.created_at DESC NULLS LAST`,
       [userId]
     )
-    for (const row of cov.rows) {
-      const k = String(row.cat || '').trim().toLowerCase()
-      if (!k) continue
-      const prose = typeof row.architect_prose === 'string' ? row.architect_prose.trim() : ''
-      const offer = typeof row.offer_url === 'string' ? row.offer_url.trim() : ''
-      const src = typeof row.source_url === 'string' ? row.source_url.trim() : ''
-      const sav = toNum(row.saving_amount_gbp)
-      const ver = toNum(row.verified_saving)
-      const insightReady = prose.length > 0
-      const hasOffer = offer.startsWith('http')
-      const hasSrc = src.startsWith('http')
-      const rowVerified = row.verified === true
-      out[k] = {
-        insightReady,
-        hasOffer,
-        verified: rowVerified,
-        latestSavingGbp: sav,
-        latestVerifiedGbp: ver,
-        latestOfferUrl: hasOffer ? offer.slice(0, 2048) : null,
-        latestSourceUrl: hasSrc ? src.slice(0, 2048) : null,
-        architectProse: prose.length > 0 ? prose.slice(0, 4000) : null,
-      }
-    }
+    return mapResearchCoverageRows(cov.rows)
   } catch (err) {
     console.warn('[scrape-sync] research_category_coverage:', err)
+    return {}
   }
-  return out
+}
+
+async function loadResearchCategoryCoverageByPostcode(
+  postcode: string
+): Promise<Record<string, ResearchCategoryCoverageRow>> {
+  const pc = postcode.replace(/\s+/g, '').toUpperCase()
+  if (pc.length < 4) return {}
+  try {
+    const cov = await pool.query<{
+      cat: string
+      architect_prose: string | null
+      offer_url: string | null
+      source_url: string | null
+      saving_amount_gbp: unknown
+      verified_saving: unknown
+      verified: unknown
+    }>(
+      `${RESEARCH_COVERAGE_SELECT}
+       FROM research_results rr
+       WHERE REPLACE(COALESCE(rr.postcode, ''), ' ', '') = $1
+         AND rr.category IS NOT NULL AND btrim(rr.category) <> ''
+       ORDER BY lower(trim(rr.category)), rr.created_at DESC NULLS LAST`,
+      [pc]
+    )
+    return mapResearchCoverageRows(cov.rows)
+  } catch (err) {
+    console.warn('[scrape-sync] research_category_coverage_postcode:', err)
+    return {}
+  }
 }
 
 /** GET — Return scraped data for dashboard (buildUserImpact options.scraped). Optional ?postcode= triggers fresh regional research. */
@@ -133,14 +179,18 @@ export async function GET(request: NextRequest) {
       sessionUserId != null
         ? await loadDynamicUserProfileForResearch(sessionUserId).catch(() => null)
         : null
-    const researchCategoryCoverage =
-      sessionUserId != null ? await loadResearchCategoryCoverage(sessionUserId) : undefined
-
     const postcodeRaw =
       request.nextUrl.searchParams.get('postcode')?.trim() ||
       sessionResearchProfile?.postcode?.trim() ||
       ''
     const postcode = postcodeRaw.replace(/\s+/g, '').toUpperCase()
+
+    const researchCategoryCoverage =
+      sessionUserId != null
+        ? await loadResearchCategoryCoverage(sessionUserId)
+        : postcode.length >= 4
+          ? await loadResearchCategoryCoverageByPostcode(postcode)
+          : undefined
     if (postcode && postcode.length > 12) {
       return NextResponse.json({ error: 'postcode too long' }, { status: 400 })
     }

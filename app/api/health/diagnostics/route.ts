@@ -19,9 +19,7 @@ function hasGatewayAuth(request: NextRequest): boolean {
 
 export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest().catch(() => null)
-  if (!session && !hasGatewayAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authed = Boolean(session) || hasGatewayAuth(request)
 
   let neonOk = false
   let dbLatencyMs: number | null = null
@@ -83,6 +81,17 @@ export async function GET(request: NextRequest) {
   const firecrawl = Boolean(
     process.env.FIRE_CRAWL_KEY_2?.trim() || process.env.FIRECRAWL_API_KEY?.trim()
   )
+
+  /** Zone Intelligence Strip polls this without a session — expose capability booleans only. */
+  if (!authed) {
+    return NextResponse.json({
+      neon: neonOk,
+      dbLatencyMs,
+      gemini,
+      firecrawl,
+      public: true,
+    })
+  }
 
   const rockTipProviderSample = [...new Set(ROCK_HABITS.map((h) => h.provider_name))].slice(0, 14)
 
