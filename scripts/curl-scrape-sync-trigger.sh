@@ -46,48 +46,76 @@ HOST="${POSITIONAL[0]:-${NEXT_PUBLIC_APP_URL:-https://00-ulm.vercel.app}}"
 POSTCODE="${POSITIONAL[1]:-M11AG}"
 CATEGORY="${POSITIONAL[2]:-home}"
 
-TOKEN="${SCRAPER_SECRET:-}"
-if [[ -z "${TOKEN}" && -n "${CRON_SECRET:-}" ]]; then TOKEN="${CRON_SECRET}"; fi
+# Load secrets from env file first (avoids stale shell exports overriding a fresh `vercel env pull`).
+CRON_FROM_FILE=""
+SCRAPER_FROM_FILE=""
+for f in "${ENV_FILE}" .env.production.local .env.local; do
+  [[ -n "$f" && -f "$f" ]] || continue
+  [[ -z "$CRON_FROM_FILE" ]] && CRON_FROM_FILE="$(zz_read_env_var "$f" CRON_SECRET || true)"
+  [[ -z "$SCRAPER_FROM_FILE" ]] && SCRAPER_FROM_FILE="$(zz_read_env_var "$f" SCRAPER_SECRET || true)"
+  [[ -n "$CRON_FROM_FILE" || -n "$SCRAPER_FROM_FILE" ]] && break
+done
 
-if [[ -z "${TOKEN}" ]]; then
-  for f in "${ENV_FILE}" .env.production.local .env.local; do
-    [[ -n "$f" && -f "$f" ]] || continue
-    v="$(zz_read_env_var "$f" SCRAPER_SECRET)" && TOKEN="$v" && break
-    v="$(zz_read_env_var "$f" CRON_SECRET)" && TOKEN="$v" && break
+# Build candidate list: file secrets first, then shell (dedupe by value).
+declare -a AUTH_KEYS=()
+declare -a AUTH_VALS=()
+zz_add_auth_candidate() {
+  local key="$1" val="$2"
+  [[ -n "$val" ]] || return 0
+  [[ ${#val} -ge 16 ]] || return 0
+  local existing
+  for existing in "${AUTH_VALS[@]:-}"; do
+    [[ "$existing" == "$val" ]] && return 0
   done
+  AUTH_KEYS+=("$key")
+  AUTH_VALS+=("$val")
+}
+zz_add_auth_candidate "CRON_SECRET(file)" "$CRON_FROM_FILE"
+zz_add_auth_candidate "SCRAPER_SECRET(file)" "$SCRAPER_FROM_FILE"
+if [[ -z "${ENV_FILE}" ]]; then
+  zz_add_auth_candidate "CRON_SECRET(shell)" "${CRON_SECRET:-}"
+  zz_add_auth_candidate "SCRAPER_SECRET(shell)" "${SCRAPER_SECRET:-}"
 fi
 
-if [[ -z "${TOKEN}" ]]; then
+if [[ ${#AUTH_VALS[@]} -eq 0 ]]; then
   echo "Missing SCRAPER_SECRET or CRON_SECRET (≥16 chars; must match Vercel Production)." >&2
   echo "Usage: bash scripts/curl-scrape-sync-trigger.sh [--env-file .env.production.local] [HOST] [POSTCODE]" >&2
   exit 1
 fi
 
-if [[ ${#TOKEN} -lt 16 ]]; then
-  echo "Secret is only ${#TOKEN} chars — Vercel requires ≥16. Update CRON_SECRET on Production and redeploy." >&2
-  exit 1
-fi
-
 echo "→ POST ${HOST%/}/api/scrape-sync?postcode=${POSTCODE}&force=true (category=${CATEGORY})" >&2
+echo "  Auth candidates: ${#AUTH_VALS[@]} (from ${ENV_FILE:-.env.production.local,.env.local} + shell)" >&2
 echo "  Expect 2–4 minutes — do not Ctrl+C unless you mean to cancel." >&2
 
 RESP="$(mktemp)"
 BODY="$(printf '{"trigger":true,"postcode":"%s","category":"%s"}' "$POSTCODE" "$CATEGORY")"
-HTTP_CODE="$(curl -sS -o "$RESP" -w '%{http_code}' --max-time 600 -X POST "${HOST%/}/api/scrape-sync?postcode=${POSTCODE}&force=true" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d "$BODY")"
+HTTP_CODE="000"
+USED_KEY=""
+for i in "${!AUTH_VALS[@]}"; do
+  TOKEN="${AUTH_VALS[$i]}"
+  USED_KEY="${AUTH_KEYS[$i]}"
+  HTTP_CODE="$(curl -sS -o "$RESP" -w '%{http_code}' --max-time 600 -X POST "${HOST%/}/api/scrape-sync?postcode=${POSTCODE}&force=true" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$BODY")"
+  if [[ "$HTTP_CODE" != "401" ]]; then
+    break
+  fi
+  echo "  ✗ ${USED_KEY} (${#TOKEN} chars) → HTTP 401" >&2
+done
 cat "$RESP"
 echo ""
-echo "HTTP ${HTTP_CODE}" >&2
+echo "HTTP ${HTTP_CODE} (auth: ${USED_KEY}, ${#TOKEN} chars)" >&2
 rm -f "$RESP"
 
 if [[ "$HTTP_CODE" == "401" ]]; then
   echo "" >&2
-  echo "401 Unauthorized — the Bearer token does not match what this deployment has in Production." >&2
-  echo "  • Vercel → 00-ulm → Settings → Environment Variables → Production → copy CRON_SECRET (or SCRAPER_SECRET)." >&2
-  echo "  • vercel env pull .env.production.local --environment=production && redeploy if you just changed it." >&2
-  echo "  • Do not source .env in zsh when the secret contains ! — this script parses the file in bash." >&2
+  echo "401 Unauthorized — none of your local secrets match Vercel Production." >&2
+  echo "  1. vercel link && vercel env pull .env.production.local --environment=production" >&2
+  echo "  2. Vercel → 00-ulm → Settings → Environment Variables → Production → CRON_SECRET" >&2
+  echo "  3. Redeploy Production after changing the secret (uncheck build cache once)." >&2
+  echo "  4. unset CRON_SECRET SCRAPER_SECRET  # drop stale shell exports" >&2
+  echo "  5. Retry: bash scripts/curl-scrape-sync-trigger.sh --env-file .env.production.local https://00-ulm.vercel.app BN17" >&2
   exit 1
 fi
 
