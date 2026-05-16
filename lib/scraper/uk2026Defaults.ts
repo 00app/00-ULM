@@ -26,6 +26,20 @@ export const UK_2026_MONEY_LEAD: Record<JourneyId, JourneyMoneyLead> = {
     carbon_backup: PERSONALISE,
     carbon_value: 850,
   },
+  grants: {
+    journey_key: 'grants',
+    money_lead: '£7,500 BUS',
+    money_value: 7500,
+    carbon_backup: PERSONALISE,
+    carbon_value: 900,
+  },
+  solar: {
+    journey_key: 'solar',
+    money_lead: '£1,200/yr',
+    money_value: 1200,
+    carbon_backup: PERSONALISE,
+    carbon_value: 650,
+  },
   travel: {
     journey_key: 'travel',
     money_lead: '£500 grant',
@@ -67,6 +81,13 @@ export const UK_2026_MONEY_LEAD: Record<JourneyId, JourneyMoneyLead> = {
     money_value: 200,
     carbon_backup: PERSONALISE,
     carbon_value: 300,
+  },
+  water: {
+    journey_key: 'water',
+    money_lead: '£120/yr',
+    money_value: 120,
+    carbon_backup: PERSONALISE,
+    carbon_value: 180,
   },
   waste: {
     journey_key: 'waste',

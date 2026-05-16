@@ -26,6 +26,20 @@ export const SCRAPER_SOURCE_MATRIX: Record<JourneyId, ScraperSourceConfig> = {
     moneyMetric: 'unit rates £/kWh',
     insightLabel: 'Current UK unit rates and heat pump grants',
   },
+  grants: {
+    journey: 'grants',
+    primaryTarget: 'GOV.UK BUS & ECO4',
+    carbonMetric: 'scheme carbon abatement per household',
+    moneyMetric: 'grant caps and eligibility',
+    insightLabel: 'Boiler age and benefits-driven grant routes',
+  },
+  solar: {
+    journey: 'solar',
+    primaryTarget: 'MCS & Ofgem export',
+    carbonMetric: 'kWh yield vs grid intensity',
+    moneyMetric: 'export tariff and install cost',
+    insightLabel: 'Roof orientation and shading yield',
+  },
   travel: {
     journey: 'travel',
     primaryTarget: 'DFT & Zap-Map',
@@ -67,6 +81,13 @@ export const SCRAPER_SOURCE_MATRIX: Record<JourneyId, ScraperSourceConfig> = {
     carbonMetric: 'e-waste impact',
     moneyMetric: 'repair vs replacement savings',
     insightLabel: 'Repair over replacement impact',
+  },
+  water: {
+    journey: 'water',
+    primaryTarget: 'Waterwise & Ofwat',
+    carbonMetric: 'hot water energy linked to use',
+    moneyMetric: 'metered water and butt savings',
+    insightLabel: 'Shower vs bath and rainwater reuse',
   },
   waste: {
     journey: 'waste',

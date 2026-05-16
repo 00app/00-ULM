@@ -16,7 +16,6 @@ import {
   type ArchitectJourneyPayload,
 } from '@/lib/agents/contentArchitect'
 import { buildContentArchitectCardPayload } from '@/lib/zone/architectZoneRequest'
-import { foldExtendedResearchCoverage } from '@/lib/zone/neonResearchMerge'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import {
   inferRevenueCtaKind,
@@ -45,6 +44,11 @@ import { setExpandCard } from '@/lib/expandStorage'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { DISCOVERY_INJECT_EVENT } from '@/lib/discoveryInject'
 import { scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
+import {
+  bentoSpanClassForPersona,
+  JOURNEY_BENTO_PERSONA,
+  type BentoPersona,
+} from '@/lib/zone/bentoPersona'
 import { headlineFromTitle, MAX_ZONE_CARD_HEADLINE_WORDS } from '@/lib/soloFocusCopy'
 import { runDiscoveryPulse, readStoredEconomyFingerprint, writeStoredEconomyFingerprint } from '@/lib/agents/heartbeat'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
@@ -87,21 +91,21 @@ function isDiscoveryTipPayload(x: unknown): x is ZoneTipCard {
   )
 }
 
-/** High-Tension Bento Wall — order and grid persona (Square / Wide / Tall) */
-const WALL_JOURNEY_ORDER: JourneyId[] = ['home', 'travel', 'food', 'shopping', 'money', 'carbon', 'tech', 'waste', 'holidays']
-
-type BentoPersona = 'square' | 'wide' | 'tall'
-const JOURNEY_PERSONA: Record<JourneyId, BentoPersona> = {
-  home: 'wide',
-  travel: 'wide',
-  food: 'square',
-  shopping: 'square',
-  money: 'tall',
-  carbon: 'square',
-  tech: 'square',
-  waste: 'wide',
-  holidays: 'wide',
-}
+/** Twelve-domain bento wall — asymmetric personas + dense flow (see `lib/zone/bentoPersona.ts`). */
+const WALL_JOURNEY_ORDER: JourneyId[] = [
+  'home',
+  'grants',
+  'solar',
+  'travel',
+  'holidays',
+  'food',
+  'shopping',
+  'money',
+  'tech',
+  'water',
+  'waste',
+  'carbon',
+]
 
 type GroovyItem =
   | { type: 'hero'; hero: ZoneViewModel['hero'] }
@@ -158,7 +162,7 @@ function readRecentChatHistoryFromStorage(): Array<{ role: 'user' | 'zai'; text:
   }
 }
 
-/** Zone wall: hero + nine journey categories (no purple MORE/filler tiles). */
+/** Zone wall: hero + twelve journey domains (one tile each). */
 function getGroovyGridItems(viewModel: ZoneViewModel): GroovyItem[] {
   const journeyCardsOnly = viewModel.journeys.filter((j) => j.id.startsWith('journey-'))
   const byId = new Map(journeyCardsOnly.map((j) => [j.journey_key, j]))
@@ -166,7 +170,7 @@ function getGroovyGridItems(viewModel: ZoneViewModel): GroovyItem[] {
   items.push({ type: 'hero', hero: viewModel.hero })
   WALL_JOURNEY_ORDER.forEach((jid, index) => {
     const item = byId.get(jid)
-    if (item) items.push({ type: 'journey', item, index, persona: JOURNEY_PERSONA[jid] })
+    if (item) items.push({ type: 'journey', item, index, persona: JOURNEY_BENTO_PERSONA[jid] })
   })
   return items
 }
@@ -196,8 +200,7 @@ function neonJourneyResearchFromCoverage(
       out[jid] = { savingGbp: sav, architectProse: ap }
     }
   }
-  const folded = foldExtendedResearchCoverage(out, cov)
-  return Object.keys(folded).length > 0 ? folded : undefined
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 /** Hello {name}. on line 1; punch on line 2 (Marvin / anchor layout). */
@@ -248,12 +251,12 @@ export default function ZonePage() {
   const [expandedTipId, setExpandedTipId] = useState<string | null>(null)
   /** S Update: bump to re-read localStorage after embedded question submit */
   const [refreshKey, setRefreshKey] = useState(0)
-  /** Zone lock: always nine categories visible. */
+  /** Zone lock: all twelve domains visible on the wall. */
   const [unlockedCount, setUnlockedCount] = useState(() => {
-    if (typeof window === 'undefined') return 9
+    if (typeof window === 'undefined') return 12
     const raw = localStorage.getItem(UNLOCKED_COUNT_KEY)
     const n = raw ? Number.parseInt(raw, 10) : NaN
-    return Number.isFinite(n) ? 9 : 9
+    return Number.isFinite(n) ? 12 : 12
   })
   /** v1.7: index of the journey card that just popped in; cleared after animation. */
   /** Discovery Engine: server-stored tip injections (GET /api/zone/injections). */
@@ -765,7 +768,7 @@ export default function ZonePage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    localStorage.setItem(UNLOCKED_COUNT_KEY, '9')
+    localStorage.setItem(UNLOCKED_COUNT_KEY, '12')
   }, [unlockedCount])
 
   useEffect(() => {
@@ -845,7 +848,7 @@ export default function ZonePage() {
       JSON.parse(localStorage.getItem('completedJourneys') || '[]')
     setCompletedJourneys(storedCompleted)
     setUnlockedCount((prev) => {
-      const derived = Math.min(9, Math.max(3, 3 + storedCompleted.length))
+      const derived = Math.min(12, Math.max(3, 3 + storedCompleted.length))
       return Math.max(prev, derived)
     })
     const journeyAnswers: Record<JourneyId, Record<string, string>> = {} as Record<
@@ -1437,15 +1440,11 @@ export default function ZonePage() {
               const isExpanded = cell.type === 'journey' && expandedCardId === cell.item.id
               const spanClass =
                 cell.type === 'hero'
-                  ? ''
+                  ? 'bento-hero-span'
                   : cell.type === 'tip'
                     ? ''
                     : cell.type === 'journey'
-                      ? cell.persona === 'wide'
-                        ? 'span-wide'
-                        : cell.persona === 'tall'
-                          ? 'span-tall'
-                          : ''
+                      ? bentoSpanClassForPersona(cell.persona)
                       : ''
               /* Hide other cells when a journey/tip card is expanded */
               const isHidden =

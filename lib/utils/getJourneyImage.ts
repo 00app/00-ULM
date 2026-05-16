@@ -10,14 +10,17 @@ const UNSPLASH_BASE = 'https://images.unsplash.com/featured/800x600'
 
 const JOURNEY_KEYWORDS: Record<JourneyId, string> = {
   home: 'solar-panels,modern-house',
+  grants: 'government-building,uk',
+  solar: 'roof-solar-panels',
   travel: 'electric-car,bicycle',
+  holidays: 'train-travel',
   food: 'organic-vegetables,vegan',
   shopping: 'sustainable-fashion',
   money: 'british-coins,savings',
-  carbon: 'pine-forest',
   tech: 'smartphone-repair',
+  water: 'rainwater,garden',
   waste: 'recycling,compost',
-  holidays: 'train-travel',
+  carbon: 'pine-forest',
 }
 
 const GENERAL_KEYWORD = 'minimalist-lifestyle,eco-friendly'

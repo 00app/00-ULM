@@ -4,7 +4,8 @@ import { JOURNEY_IDS } from '@/lib/journeys'
  * Extra `research_results.category` values beyond core `JourneyId`.
  * Hermes / Gemini may emit these so government schemes stay typed without faking `home`.
  */
-export const EXTENDED_RESEARCH_CATEGORIES = ['grants', 'bills'] as const
+/** Neon-only categories outside the 12 journey tiles (no grid fold — `bills` rows map to `money` in queries only). */
+export const EXTENDED_RESEARCH_CATEGORIES = ['bills'] as const
 export type ExtendedResearchCategory = (typeof EXTENDED_RESEARCH_CATEGORIES)[number]
 
 const EXTENDED_SET = new Set<string>(EXTENDED_RESEARCH_CATEGORIES)

@@ -153,14 +153,17 @@ export interface ZoneViewModel {
 // Journey-specific recommendation titles (deterministic)
 const JOURNEY_TITLES: Record<JourneyId, string> = {
   home: 'reduce home energy costs',
+  grants: 'unlock government grants',
+  solar: 'size rooftop solar yield',
   travel: 'cut travel emissions',
+  holidays: 'travel smarter on holiday',
   food: 'lower food footprint',
   shopping: 'buy less, save more',
   money: 'optimise monthly spending',
-  carbon: 'track and reduce carbon',
   tech: 'keep devices longer',
+  water: 'trim water and hot use',
   waste: 'reduce household waste',
-  holidays: 'travel smarter on holiday',
+  carbon: 'track and reduce carbon',
 }
 
 // General card titles from profile (livingSituation / household, homeType / home_type, transport / transport_baseline)
@@ -448,26 +451,32 @@ function resolveBaselineMarketRate(args: {
   regionalGridIntensityGPerKwh: number
 }): { moneyBaseline: number; carbonBaseline: number } {
   const moneyShare: Record<JourneyId, number> = {
-    home: 0.34,
-    travel: 0.19,
-    food: 0.11,
-    shopping: 0.08,
-    money: 0.09,
-    carbon: 0.05,
-    tech: 0.05,
-    waste: 0.04,
+    home: 0.2,
+    grants: 0.12,
+    solar: 0.1,
+    travel: 0.12,
     holidays: 0.05,
+    food: 0.07,
+    shopping: 0.06,
+    money: 0.08,
+    tech: 0.05,
+    water: 0.04,
+    waste: 0.04,
+    carbon: 0.07,
   }
   const carbonWeight: Record<JourneyId, number> = {
-    home: 3.1,
-    travel: 2.4,
-    food: 1.5,
-    shopping: 0.9,
-    money: 0.6,
-    carbon: 1.1,
-    tech: 0.7,
-    waste: 0.8,
-    holidays: 1.3,
+    home: 2.4,
+    grants: 1.4,
+    solar: 1.6,
+    travel: 2.2,
+    holidays: 1.2,
+    food: 1.2,
+    shopping: 0.8,
+    money: 0.5,
+    tech: 0.6,
+    water: 0.7,
+    waste: 0.7,
+    carbon: 1.0,
   }
   const moneyBaseline = Math.max(0, args.capGbp * (moneyShare[args.journeyKey] ?? 0.07))
   const carbonBaseline = Math.max(0, (args.regionalGridIntensityGPerKwh / 100) * (carbonWeight[args.journeyKey] ?? 1))
@@ -703,7 +712,7 @@ export function buildZoneViewModel({
 
   const council = localData?.council
 
-  // JOURNEY CARDS - Exactly 9 cards, one per journey, in JOURNEY_ORDER
+  // JOURNEY CARDS — one tile per domain (12), in JOURNEY_ORDER
   const journeyCards: ZoneJourneyCard[] = JOURNEY_ORDER.map((journeyKey) => {
     const impact = journeyImpacts[journeyKey] as ScrapedOverlayResult
     const fallback = UK_2026_MONEY_LEAD[journeyKey]

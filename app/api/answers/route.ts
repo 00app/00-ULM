@@ -12,7 +12,8 @@ import {
 import pool from '@/lib/db'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import type { ImpactProfile } from '@/lib/brains/types'
-import type { JourneyId } from '@/lib/journeys'
+import { isValidJourneyId, type JourneyId } from '@/lib/journeys'
+import { runLoopSpawnResearch } from '@/lib/zone/loopSpawnResearch'
 import { persistZoneTipInjectBody } from '@/lib/zone/persistZoneTipInject'
 import { runDiscoveryStructuredPipeline } from '@/lib/agents/discoveryStructured'
 import { generateDiscoveryWinWithGemini } from '@/lib/agents/discoveryWin'
@@ -139,17 +140,28 @@ export async function POST(request: NextRequest) {
     const genomeUpsertPromise = upsertUserGenomeFromAnswer(user_id, jKey, qKey, String(value))
     const sourceCitationPromise = getLatestResearchCitation(postcodeNorm, user_id)
     const hybridLiveZoneTipPromise =
-      jKey === 'home' &&
-      qKey === 'energy_type' &&
-      String(value).trim().toUpperCase() === 'GAS'
+      jKey === 'grants' &&
+      qKey === 'boiler_age' &&
+      String(value).trim().toUpperCase() === 'OVER_10YR'
         ? runHybridLiveZoneTipForAnswer({
-            journeyId: 'home',
-            questionId: 'energy_type',
+            journeyId: 'grants',
+            questionId: 'boiler_age',
             answerValue: String(value),
             postcode: postcodeNorm,
             profileData,
           }).catch(() => null)
         : Promise.resolve(null)
+
+    if (isValidJourneyId(jKey) && postcodeNorm && postcodeNorm.length >= 4) {
+      void runLoopSpawnResearch({
+        userId: user_id,
+        postcode: postcodeNorm,
+        journeyId: jKey,
+        questionId: qKey,
+        answerValue: String(value),
+        profileData: profileData ?? null,
+      }).catch(() => {})
+    }
 
     const discoveryRacePromise = (async () => {
       let payload: {

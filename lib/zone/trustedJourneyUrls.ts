@@ -7,14 +7,17 @@ import { JOURNEY_IDS } from '@/lib/journeys'
 
 export const TRUSTED_JOURNEY_URLS: Record<JourneyId, string> = {
   home: 'https://www.gov.uk/government/publications/warm-homes-plan',
+  grants: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
+  solar: 'https://www.gov.uk/government/publications/solar-energy-uk',
   travel: 'https://www.gov.uk/ev-chargepoint-grants',
+  holidays: 'https://www.eurostar.com',
   food: 'https://www.lovefoodhatewaste.com',
   shopping: 'https://ellenmacarthurfoundation.org',
   money: 'https://www.gov.uk/apply-warm-home-discount-scheme',
-  carbon: 'https://www.ofgem.gov.uk',
   tech: 'https://www.backmarket.co.uk',
+  water: 'https://www.waterwise.org.uk',
   waste: 'https://www.gov.uk/recycling-collections',
-  holidays: 'https://www.eurostar.com',
+  carbon: 'https://www.ofgem.gov.uk',
 }
 
 export const DEFAULT_TRUSTED_URL = 'https://www.gov.uk/'
@@ -51,6 +54,10 @@ export function normalizeCategoryToJourneyKey(category: string): JourneyId {
     WASTE: 'waste',
     HOLIDAYS: 'holidays',
     HOLIDAY: 'holidays',
+    GRANTS: 'grants',
+    SOLAR: 'solar',
+    WATER: 'water',
+    BILLS: 'money',
   }
   if (map[c]) return map[c]
   if ((JOURNEY_IDS as readonly string[]).includes(c.toLowerCase())) return c.toLowerCase() as JourneyId

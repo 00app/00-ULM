@@ -117,13 +117,21 @@ export function calculateTravel(
   a: Record<string, string>,
   profileTransport?: string
 ): ImpactResult {
-  const amount = Number(a.distance_amount ?? 50)
+  const dailyMiles = Number(a.commute_distance ?? a.distance_amount ?? 50)
   const period = (a.distance_period ?? 'WEEK') as 'WEEK' | 'MONTH'
-  const milesPerYear = period === 'MONTH' ? amount * 12 : amount * 52
+  const milesPerYear =
+    a.commute_distance != null && String(a.commute_distance).trim() !== ''
+      ? dailyMiles * 250
+      : period === 'MONTH'
+        ? dailyMiles * 12
+        : dailyMiles * 52
   const kmPerYear = milesPerYear * MILES_TO_KM
-  const isPetrol = a.fuel_type === 'PETROL' || (a.primary_transport === 'CAR' && a.fuel_type !== 'ELECTRIC' && a.fuel_type !== 'HYBRID')
-  const isDiesel = a.fuel_type === 'DIESEL'
-  const isEv = a.fuel_type === 'ELECTRIC' || a.fuel_type === 'HYBRID'
+  const evHybrid = String(a.ev_hybrid ?? a.fuel_type ?? '').toUpperCase()
+  const isPetrol =
+    evHybrid === 'PETROL_DIESEL' ||
+    (a.fuel_type === 'PETROL' || (a.primary_transport === 'CAR' && a.fuel_type !== 'ELECTRIC' && a.fuel_type !== 'HYBRID'))
+  const isDiesel = a.fuel_type === 'DIESEL' || evHybrid === 'PETROL_DIESEL'
+  const isEv = evHybrid === 'EV' || evHybrid === 'HYBRID' || a.fuel_type === 'ELECTRIC' || a.fuel_type === 'HYBRID'
   const mode = a.primary_transport || profileTransport || 'CAR'
   let carbon = 0
   let money = 0
@@ -158,11 +166,17 @@ export function calculateTravel(
 }
 
 export function calculateFood(a: Record<string, string>): ImpactResult {
+  const diet = String(a.diet_profile ?? a.diet_type ?? '').toUpperCase()
   const carbon =
-    a.diet_type === 'VEGAN' ? 800 :
-    a.diet_type === 'VEGETARIAN' ? 1100 :
-    a.diet_type === 'FLEXI' ? 1400 : 1800
-  const money = a.food_waste === 'HIGH' ? 300 : a.food_waste === 'MEDIUM' ? 150 : 0
+    diet === 'PLANT_BASED' || diet === 'VEGAN'
+      ? 800
+      : diet === 'VEGETARIAN'
+        ? 1100
+        : diet === 'FLEXI'
+          ? 1400
+          : 1800
+  const organic = String(a.organic_shopping ?? a.food_waste ?? '').toUpperCase()
+  const money = organic === 'HIGH' ? 280 : organic === 'SOME' || organic === 'MEDIUM' ? 150 : 80
   return { carbonKg: carbon, moneyGbp: money, source: 'wrap uk', explanation: ['UK food emissions vary with what we eat.'] }
 }
 
@@ -201,29 +215,108 @@ export function calculateCarbon(a: Record<string, string>): ImpactResult {
   return { carbonKg: carbon, moneyGbp: 0, source: 'carbon trust uk', explanation: ['Tracking your carbon helps you see where to act.'] }
 }
 
+export function calculateGrants(a: Record<string, string>): ImpactResult {
+  const oldBoiler = String(a.boiler_age ?? '').toUpperCase() === 'OVER_10YR'
+  const onBenefits = String(a.income_benefits ?? '').toUpperCase() === 'YES'
+  const prior = String(a.prior_eco_bus ?? '').toUpperCase() === 'YES'
+  let moneyGbp = oldBoiler ? 7500 : 1200
+  if (onBenefits) moneyGbp = Math.round(moneyGbp * 1.08)
+  if (prior) moneyGbp = Math.round(moneyGbp * 0.35)
+  const carbonKg = oldBoiler ? 900 : 200
+  return {
+    carbonKg,
+    moneyGbp,
+    source: 'gov.uk grants',
+    explanation: ['UK grant routes stack with boiler age and eligibility signals.'],
+    claimOfferUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
+  }
+}
+
+export function calculateSolar(a: Record<string, string>): ImpactResult {
+  const orient = String(a.roof_orientation ?? '').toUpperCase()
+  const shade = String(a.roof_shading ?? '').toUpperCase()
+  const occ = String(a.daytime_occupancy ?? '').toUpperCase()
+  let moneyGbp = orient === 'SOUTH' ? 1400 : orient === 'MIXED' || orient === 'FLAT' ? 900 : 1100
+  if (shade === 'NONE') moneyGbp = Math.round(moneyGbp * 1.1)
+  if (shade === 'BOTH' || shade === 'TREES') moneyGbp = Math.round(moneyGbp * 0.75)
+  if (occ === 'HIGH') moneyGbp = Math.round(moneyGbp * 1.12)
+  const carbonKg = Math.round(moneyGbp * 0.55)
+  return {
+    carbonKg,
+    moneyGbp,
+    source: 'mcs solar uk',
+    explanation: ['South-facing low-shade roofs with daytime use export more value.'],
+  }
+}
+
+export function calculateWater(a: Record<string, string>): ImpactResult {
+  const garden = String(a.garden_butt ?? '').toUpperCase()
+  const wash = String(a.wash_preference ?? '').toUpperCase()
+  const rain = String(a.rainwater_harvest ?? '').toUpperCase()
+  let moneyGbp = wash === 'BATH' ? 180 : wash === 'BOTH' ? 120 : 80
+  if (garden === 'LARGE') moneyGbp += 60
+  if (rain === 'YES') moneyGbp += 90
+  const carbonKg = Math.round(moneyGbp * 1.4)
+  return {
+    carbonKg,
+    moneyGbp,
+    source: 'waterwise uk',
+    explanation: ['Showers, butts, and rainwater cut hot-water energy.'],
+  }
+}
+
 export function calculateTech(a: Record<string, string>): ImpactResult {
-  const cadence = String(a.upgrade_often ?? '').toUpperCase()
-  const carbon =
-    cadence === 'MONTHLY' ? 400 :
-    cadence === 'YEARLY' ? 200 :
-    cadence === '2+ YEARS' ? 80 : 0
-  const money =
-    cadence === 'MONTHLY' ? 220 :
-    cadence === 'YEARLY' ? 120 :
-    cadence === '2+ YEARS' ? 40 : 0
-  return { carbonKg: carbon, moneyGbp: money, source: 'uk tech emissions', explanation: ['Making devices last longer cuts carbon and saves cash.'] }
+  const thermo = String(a.smart_thermostat ?? a.upgrade_often ?? '').toUpperCase()
+  const smart = String(a.smart_home ?? '').toUpperCase()
+  const meter = String(a.smart_meter ?? '').toUpperCase()
+  let moneyGbp = 0
+  let carbonKg = 0
+  if (thermo === 'YES' || thermo === 'YEARLY') {
+    moneyGbp += 140
+    carbonKg += 120
+  } else if (thermo === 'PLANNED') {
+    moneyGbp += 60
+    carbonKg += 50
+  }
+  if (smart === 'YES' || smart === 'PARTIAL') {
+    moneyGbp += 80
+    carbonKg += 70
+  }
+  if (meter === 'NO') {
+    moneyGbp += 40
+    carbonKg += 35
+  }
+  return {
+    carbonKg,
+    moneyGbp,
+    source: 'uk tech emissions',
+    explanation: ['Smart heat and metering trim waste without new kit every year.'],
+  }
 }
 
 export function calculateWaste(a: Record<string, string>): ImpactResult {
-  const carbon = a.recycle === 'NEVER' ? 350 : a.recycle === 'SOMETIMES' ? 175 : 0
-  const money = a.compost === 'NO' ? 100 : 0
-  return { carbonKg: carbon, moneyGbp: money, source: 'wrap uk', explanation: ['Recycling and composting reduce landfill.'] }
+  const collection = String(a.food_waste_collection ?? a.recycle ?? '').toUpperCase()
+  const compost = String(a.composting ?? a.compost ?? '').toUpperCase()
+  const soft = String(a.soft_plastics ?? '').toUpperCase()
+  const carbon =
+    collection === 'NO' || collection === 'NEVER' ? 350 : collection === 'PARTIAL' || collection === 'SOMETIMES' ? 175 : 80
+  let moneyGbp = compost === 'NO' ? 100 : compost === 'SHARED' ? 60 : 30
+  if (soft === 'NEVER') moneyGbp += 40
+  return { carbonKg: carbon, moneyGbp, source: 'wrap uk', explanation: ['Recycling and composting reduce landfill.'] }
 }
 
 export function calculateHolidays(a: Record<string, string>): ImpactResult {
-  const carbon = a.fly_frequency === 'OFTEN' ? 2000 : a.fly_frequency === 'YEARLY' ? 1000 : 0
-  const money = a.long_haul === 'YES' ? 300 : 150
-  return { carbonKg: carbon, moneyGbp: money, source: 'defra aviation factors', explanation: ['Flying is one of the highest-carbon choices.'] }
+  const flights = String(a.annual_flights ?? a.fly_frequency ?? '').toUpperCase()
+  const duration = String(a.flight_duration ?? a.long_haul ?? '').toUpperCase()
+  const carbon =
+    flights === 'THREE_PLUS' || flights === 'OFTEN'
+      ? 2200
+      : flights === 'ONE_TWO' || flights === 'YEARLY'
+        ? 1100
+        : 0
+  let moneyGbp = duration === 'LONG_HAUL' || duration === 'YES' ? 320 : duration === 'MEDIUM' ? 200 : 120
+  if (String(a.carbon_offsets ?? '').toUpperCase() === 'YES') moneyGbp = Math.round(moneyGbp * 0.85)
+  return { carbonKg: carbon, moneyGbp, source: 'defra aviation factors', explanation: ['Flying is one of the highest-carbon choices.'] }
 }
 
 export interface GeneralProfile {

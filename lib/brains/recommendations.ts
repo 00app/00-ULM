@@ -31,6 +31,23 @@ export function getDiscoveryRecommendation(
 ): DiscoveryRecommendation {
   const a = u(answerRaw)
 
+  if (journeyId === 'grants' && questionId === 'boiler_age' && a === 'OVER_10YR') {
+    return {
+      headline: 'BUS GRANT ELIGIBLE',
+      body: 'Boilers over ten years often qualify for the Boiler Upgrade Scheme — accredited installers near your postcode can quote heat pump swaps up to £7,500.',
+      gridJourneyKey: 'grants',
+      learnUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
+      actionUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
+      ctaLabel: 'Find installers',
+      ctaUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
+      followUp: {
+        question: 'Are you on any income-related benefits?',
+        options: ['YES', 'NO', 'PREFER_NOT'],
+        targetField: 'income_benefits',
+      },
+    }
+  }
+
   if (journeyId === 'home' && questionId === 'energy_type') {
     if (a === 'GAS') {
       return {

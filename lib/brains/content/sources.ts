@@ -23,6 +23,16 @@ export function getSourceForCard(
       label: 'gov.uk',
       trusted: true,
     },
+    grants: {
+      url: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
+      label: 'gov.uk',
+      trusted: true,
+    },
+    solar: {
+      url: 'https://www.gov.uk/government/publications/solar-energy-uk',
+      label: 'gov.uk',
+      trusted: true,
+    },
     travel: {
       url: 'https://www.gov.uk/government/publications/greenhouse-gas-reporting-conversion-factors-2023',
       label: 'gov.uk',
@@ -51,6 +61,11 @@ export function getSourceForCard(
     tech: {
       url: 'https://www.ifixit.com/sustainability',
       label: 'ifixit.com',
+      trusted: true,
+    },
+    water: {
+      url: 'https://www.waterwise.org.uk',
+      label: 'waterwise.org.uk',
       trusted: true,
     },
     waste: {

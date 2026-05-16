@@ -17,14 +17,17 @@ export interface CardCopy {
 export function getCategoryLabel(journey: JourneyId): string {
   const categories: Record<JourneyId, string> = {
     home: 'home',
+    grants: 'grants',
+    solar: 'solar',
     travel: 'travel',
+    holidays: 'holidays',
     food: 'food',
     shopping: 'shopping',
     money: 'money',
-    carbon: 'carbon',
     tech: 'tech',
+    water: 'water',
     waste: 'waste',
-    holidays: 'holidays',
+    carbon: 'carbon',
   }
   
   return categories[journey] || 'sustainability'
@@ -36,6 +39,16 @@ export function getCategoryLabel(journey: JourneyId): string {
 export function getCardCopy(journey: JourneyId, type?: string): CardCopy {
   // Default copy structure - can be expanded with more specific content
   const defaultCopy: Record<JourneyId, CardCopy> = {
+    grants: {
+      title: 'check boiler upgrade scheme.',
+      body: ['Older boilers may qualify for BUS grants toward heat pumps.', 'Match scheme rules to your postcode and benefits status.'],
+      category: 'grants',
+    },
+    solar: {
+      title: 'check south-facing yield.',
+      body: ['Roof orientation and shading drive export value.', 'Daytime use improves payback on PV installs.'],
+      category: 'solar',
+    },
     home: {
       title: 'switch to a smart meter.',
       body: [
@@ -83,6 +96,11 @@ export function getCardCopy(journey: JourneyId, type?: string): CardCopy {
         'Tools and calculators can help you identify key areas of impact.',
       ],
       category: 'carbon',
+    },
+    water: {
+      title: 'cut hot water waste.',
+      body: ['Showers and butts reduce metered use.', 'Rain harvesting offsets garden demand.'],
+      category: 'water',
     },
     tech: {
       title: 'extend device life.',

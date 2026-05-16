@@ -13,14 +13,17 @@ import type { ZoneTipCard } from './buildZoneViewModel'
 /** Real publisher names + URLs for fallback attribution (mirrors multi-source research brief). */
 const FALLBACK_PUBLISHER: Record<JourneyId, { sourceLabel: string; source: string }> = {
   home: { sourceLabel: 'Energy Saving Trust', source: 'https://energysavingtrust.org.uk/' },
+  grants: { sourceLabel: 'GOV.UK', source: 'https://www.gov.uk/apply-boiler-upgrade-scheme' },
+  solar: { sourceLabel: 'MCS', source: 'https://mcscertified.com/' },
   travel: { sourceLabel: 'Octopus Energy', source: 'https://octopus.energy/' },
+  holidays: { sourceLabel: 'Eurostar', source: 'https://www.eurostar.com/' },
   food: { sourceLabel: 'WRAP UK', source: 'https://www.lovefoodhatewaste.com/' },
   shopping: { sourceLabel: 'Which?', source: 'https://www.which.co.uk/money' },
   money: { sourceLabel: 'MoneySavingExpert', source: 'https://www.moneysavingexpert.com/utilities/' },
-  carbon: { sourceLabel: 'Ofgem', source: 'https://www.ofgem.gov.uk/' },
   tech: { sourceLabel: 'Which?', source: 'https://www.which.co.uk/reviews' },
+  water: { sourceLabel: 'Waterwise', source: 'https://www.waterwise.org.uk/' },
   waste: { sourceLabel: 'Energy Saving Trust', source: 'https://energysavingtrust.org.uk/advice' },
-  holidays: { sourceLabel: 'Eurostar', source: 'https://www.eurostar.com/' },
+  carbon: { sourceLabel: 'Ofgem', source: 'https://www.ofgem.gov.uk/' },
 }
 
 export function buildFallbackInjectionCards(postcode?: string | null): ZoneTipCard[] {

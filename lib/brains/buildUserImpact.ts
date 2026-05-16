@@ -24,6 +24,9 @@ import {
   calculateTech,
   calculateWaste,
   calculateHolidays,
+  calculateGrants,
+  calculateSolar,
+  calculateWater,
   calculateGeneralHomeLiving,
   calculateGeneralTransport,
   calculateGeneralHomeExtra,
@@ -188,6 +191,10 @@ function calculateJourneyImpact(
   switch (journeyKey) {
     case 'home':
       return calculateHome(answers, homeUnitRates)
+    case 'grants':
+      return calculateGrants(answers)
+    case 'solar':
+      return calculateSolar(answers)
     case 'travel':
       return calculateTravel(answers, profile?.transport_baseline)
     case 'food':
@@ -200,6 +207,8 @@ function calculateJourneyImpact(
       return calculateCarbon(answers)
     case 'tech':
       return calculateTech(answers)
+    case 'water':
+      return calculateWater(answers)
     case 'waste':
       return calculateWaste(answers)
     case 'holidays':

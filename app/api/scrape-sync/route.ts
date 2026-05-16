@@ -447,6 +447,17 @@ async function parseScrapeSyncPostBody(request: NextRequest): Promise<Record<str
     if (pc.length < 4 && qPostcode.length >= 4) body.postcode = qPostcode
   }
 
+  const loopQ =
+    (typeof body.question_id === 'string' ? body.question_id.trim() : '') ||
+    sp.get('question_id')?.trim() ||
+    ''
+  const loopA =
+    (typeof body.answer_value === 'string' ? String(body.answer_value).trim() : '') ||
+    sp.get('answer_value')?.trim() ||
+    ''
+  if (loopQ) body.question_id = loopQ
+  if (loopA) body.answer_value = loopA
+
   return body
 }
 
@@ -528,11 +539,20 @@ export async function POST(request: NextRequest) {
           /* ignore */
         }
       }
-      const baseCtx = `postcode: ${postcode}, home_type: ${pd.home_type ?? '—'}, transport: ${pd.transport_baseline ?? '—'}, household: ${pd.household ?? '—'}`
+      const baseCtx = `Profile-first seed — postcode: ${postcode}, home_type: ${pd.home_type ?? '—'}, transport: ${pd.transport_baseline ?? '—'}, household: ${pd.household ?? '—'}`
       let userContext =
         loopGenomeSummary != null && loopGenomeSummary.length > 0
           ? `${baseCtx}\n\nUser journey answers (JSON from Neon, truncated): ${loopGenomeSummary}`
           : baseCtx
+      const loopQuestionId =
+        typeof body?.question_id === 'string' ? body.question_id.trim() : ''
+      const loopAnswer =
+        body?.answer_value != null && String(body.answer_value).trim() !== ''
+          ? String(body.answer_value).trim()
+          : ''
+      if (loopQuestionId && loopAnswer) {
+        userContext = `${userContext}\n\nLoop answer spawn:\nquestion_id: ${loopQuestionId}\nanswer: ${loopAnswer}`
+      }
       if (category) {
         userContext = `${userContext}\n\nSolo Focus scrape-sync category: ${category}`
       }

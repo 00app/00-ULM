@@ -10,6 +10,8 @@ const SOURCES: Record<JourneyId, JourneySource[]> = {
     { url: 'https://www.gov.uk', label: 'uk government data' },
     { url: 'https://www.energysavingtrust.org.uk', label: 'energy saving trust' },
   ],
+  grants: [{ url: 'https://www.gov.uk/apply-boiler-upgrade-scheme', label: 'gov.uk grants' }],
+  solar: [{ url: 'https://mcscertified.com', label: 'mcs solar uk' }],
   travel: [
     { url: 'https://www.gov.uk', label: 'uk government data' },
     { url: 'https://www.gov.uk/guidance/greenhouse-gas-reporting-conversion-factors', label: 'defra transport factors' },
@@ -19,6 +21,7 @@ const SOURCES: Record<JourneyId, JourneySource[]> = {
   money: [{ url: 'https://www.ons.gov.uk', label: 'uk household spending' }],
   carbon: [{ url: 'https://www.carbontrust.com', label: 'carbon trust uk' }],
   tech: [{ url: 'https://www.gov.uk', label: 'uk tech emissions' }],
+  water: [{ url: 'https://www.waterwise.org.uk', label: 'waterwise uk' }],
   waste: [{ url: 'https://wrap.org.uk', label: 'wrap uk' }],
   holidays: [{ url: 'https://www.gov.uk/guidance/greenhouse-gas-reporting-conversion-factors', label: 'defra aviation factors' }],
 }

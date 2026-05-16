@@ -23,66 +23,81 @@ export interface JourneyColorEntry {
 /** Card background: MVP purple flip */
 export const EMOTION_GRID_HEX: Record<JourneyId, string> = {
   home: COLOR_PURPLE,
+  grants: COLOR_PURPLE,
+  solar: COLOR_PURPLE,
   travel: COLOR_PURPLE,
+  holidays: COLOR_PURPLE,
   food: COLOR_PURPLE,
   shopping: COLOR_PURPLE,
   money: COLOR_PURPLE,
-  carbon: COLOR_PURPLE,
   tech: COLOR_PURPLE,
+  water: COLOR_PURPLE,
   waste: COLOR_PURPLE,
-  holidays: COLOR_PURPLE,
+  carbon: COLOR_PURPLE,
 }
 
 /** Body copy on card: yellow surface → purple; pink surface → yellow */
 export const EMOTION_TEXT_HEX: Record<JourneyId, string> = {
   home: COLOR_YELLOW,
+  grants: COLOR_YELLOW,
+  solar: COLOR_YELLOW,
   travel: COLOR_YELLOW,
+  holidays: COLOR_YELLOW,
   food: COLOR_YELLOW,
   shopping: COLOR_YELLOW,
   money: COLOR_YELLOW,
-  carbon: COLOR_YELLOW,
   tech: COLOR_YELLOW,
+  water: COLOR_YELLOW,
   waste: COLOR_YELLOW,
-  holidays: COLOR_YELLOW,
+  carbon: COLOR_YELLOW,
 }
 
 /** CTA fill (contrasts card surface) */
 export const EMOTION_CTA_BG_HEX: Record<JourneyId, string> = {
   home: COLOR_YELLOW,
+  grants: COLOR_YELLOW,
+  solar: COLOR_YELLOW,
   travel: COLOR_YELLOW,
+  holidays: COLOR_YELLOW,
   food: COLOR_YELLOW,
   shopping: COLOR_YELLOW,
   money: COLOR_YELLOW,
-  carbon: COLOR_YELLOW,
   tech: COLOR_YELLOW,
+  water: COLOR_YELLOW,
   waste: COLOR_YELLOW,
-  holidays: COLOR_YELLOW,
+  carbon: COLOR_YELLOW,
 }
 
 /** CTA label on CTA fill */
 export const EMOTION_CTA_TEXT_HEX: Record<JourneyId, string> = {
   home: COLOR_PURPLE,
+  grants: COLOR_PURPLE,
+  solar: COLOR_PURPLE,
   travel: COLOR_PURPLE,
+  holidays: COLOR_PURPLE,
   food: COLOR_PURPLE,
   shopping: COLOR_PURPLE,
   money: COLOR_PURPLE,
-  carbon: COLOR_PURPLE,
   tech: COLOR_PURPLE,
+  water: COLOR_PURPLE,
   waste: COLOR_PURPLE,
-  holidays: COLOR_PURPLE,
+  carbon: COLOR_PURPLE,
 }
 
 /** @deprecated Use EMOTION_CTA_BG_HEX — kept for callers still on “accent” naming */
 export const EMOTION_ACCENT_HEX: Record<JourneyId, string> = {
   home: EMOTION_CTA_BG_HEX.home,
+  grants: EMOTION_CTA_BG_HEX.grants,
+  solar: EMOTION_CTA_BG_HEX.solar,
   travel: EMOTION_CTA_BG_HEX.travel,
+  holidays: EMOTION_CTA_BG_HEX.holidays,
   food: EMOTION_CTA_BG_HEX.food,
   shopping: EMOTION_CTA_BG_HEX.shopping,
   money: EMOTION_CTA_BG_HEX.money,
-  carbon: EMOTION_CTA_BG_HEX.carbon,
   tech: EMOTION_CTA_BG_HEX.tech,
+  water: EMOTION_CTA_BG_HEX.water,
   waste: EMOTION_CTA_BG_HEX.waste,
-  holidays: EMOTION_CTA_BG_HEX.holidays,
+  carbon: EMOTION_CTA_BG_HEX.carbon,
 }
 
 export const HERO_GRID_HEX = COLOR_PURPLE
@@ -92,14 +107,17 @@ export const GENERAL_ACCENT_HEX = COLOR_YELLOW
 
 export const JOURNEY_COLOR_MAP: Record<JourneyId, JourneyColorEntry> = {
   home: { journey: 'home', keyword: 'solar-panels', name: 'Home', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
+  grants: { journey: 'grants', keyword: 'government-grant', name: 'Grants', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
+  solar: { journey: 'solar', keyword: 'roof-solar', name: 'Solar', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
   travel: { journey: 'travel', keyword: 'electric-car', name: 'Travel', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
+  holidays: { journey: 'holidays', keyword: 'railway', name: 'Holidays', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
   food: { journey: 'food', keyword: 'vegetables', name: 'Food', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
   shopping: { journey: 'shopping', keyword: 'second-hand-clothing', name: 'Shopping', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
   money: { journey: 'money', keyword: 'savings-account', name: 'Money', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
-  carbon: { journey: 'carbon', keyword: 'forest', name: 'Carbon', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
   tech: { journey: 'tech', keyword: 'electronics-repair', name: 'Tech', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
+  water: { journey: 'water', keyword: 'rainwater', name: 'Water', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
   waste: { journey: 'waste', keyword: 'composting', name: 'Waste', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
-  holidays: { journey: 'holidays', keyword: 'railway', name: 'Holidays', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
+  carbon: { journey: 'carbon', keyword: 'forest', name: 'Carbon', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
 }
 
 export function getExpandedAccentHex(journeyId: JourneyId): string {
