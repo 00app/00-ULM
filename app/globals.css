@@ -326,6 +326,20 @@ body {
   }
 }
 
+.zone-card-computing-pulse svg {
+  animation: zone-card-computing-logo 0.9s ease-in-out infinite;
+}
+
+@keyframes zone-card-computing-logo {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .zone-loading-heartbeat-logo {
   filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-yellow) 40%, transparent));
 }
@@ -1869,7 +1883,7 @@ body, p, span, input, button, textarea, select,
   height: 100dvh;
   max-height: 100dvh;
   overflow-x: hidden;
-  overflow-y: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   /* v4.1 — fixed viewport gutter: 20px mobile / 40px desktop (+ safe areas) */
   padding: calc(20px + env(safe-area-inset-top, 0px)) 20px env(safe-area-inset-bottom, 0px) 20px;
@@ -1909,9 +1923,8 @@ body, p, span, input, button, textarea, select,
   padding: 0 !important;
   border-radius: 0 !important;
   overflow-x: hidden;
-  overflow-y: hidden;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  overflow-y: visible;
+  overscroll-behavior: auto;
   box-sizing: border-box !important;
 
   background-color: transparent !important;
@@ -1921,6 +1934,25 @@ body, p, span, input, button, textarea, select,
   color: var(--journey-text, var(--color-yellow));
   transition: color 0.35s ease;
   isolation: auto !important;
+}
+
+.expanded-solo-focus .solo-focus-zone-category {
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.04em;
+}
+
+.expanded-solo-focus .solo-focus-true-tip-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-width: 100%;
+}
+
+.expanded-solo-focus .solo-focus-architect-prose {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 /* Hard lock: no translucent/film panel in expanded view root wrappers. */
@@ -2861,24 +2893,23 @@ h3.solo-focus-question-label.zz-h3 {
   margin-top: auto !important;
 }
 
-/* Main column: standard browser vertical scroll; fixed grow-layer backdrop */
+/* Single scroll container — grow layer only (no nested rail scroll / clip). */
 .solo-focus-grow-layer > .expanded-solo-focus {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
-  max-height: 100%;
-  touch-action: pan-y pinch-zoom;
+  max-height: none;
+  touch-action: manipulation;
 }
 
 .expanded-solo-focus > .solo-focus-rail {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   width: 100%;
   min-height: 0;
-  max-height: 100%;
+  max-height: none;
   margin-block: 0;
   overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  overflow-y: visible;
+  overscroll-behavior: auto;
 }
 
 /* Instrument reset: root is the only scroll container. */

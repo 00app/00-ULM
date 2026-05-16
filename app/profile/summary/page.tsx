@@ -14,6 +14,11 @@ import {
   type SummaryLocalContext,
 } from '@/lib/brains/summaryLogic'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
+import {
+  formatPostcodeFallback,
+  readCachedProfileLocality,
+  resolveProfileLocalityForPostcode,
+} from '@/lib/geocode/resolvePostcodeLocality'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
 import SummaryHeader from '@/app/components/SummaryHeader'
@@ -116,17 +121,21 @@ export default function ProfileSummaryPage() {
 
     const postcode = (profile.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
     const postcodeDisplay = (profile.postcode ?? '').trim()
+    const postcodeFallback = formatPostcodeFallback(postcodeDisplay || postcode)
 
     let totalsMoney = impact.totals.totalMoney
     let totalsCarbon = impact.totals.totalCarbon
     let genomeSavingsMoney: number | undefined
 
     const locationFromContext = state.locationState?.locationName?.trim() ?? ''
-    const councilImmediate = locationFromContext || 'the UK'
+    const cachedLocality = postcode.length >= 4 ? readCachedProfileLocality(postcode) : null
+    const councilImmediate = cachedLocality || locationFromContext || postcodeFallback || 'the UK'
 
     ;(async () => {
       let local: SummaryLocalContext | null = null
+      let geocodedLocality = cachedLocality
       if (postcode.length >= 4) {
+        const localityPromise = resolveProfileLocalityForPostcode(postcode)
         try {
           const ac = new AbortController()
           const tid = setTimeout(() => ac.abort(), 3200)
@@ -154,6 +163,13 @@ export default function ProfileSummaryPage() {
           }
         } catch {
           // offline / abort — still show summary with defaults
+        }
+
+        try {
+          const locality = await localityPromise
+          if (locality.label) geocodedLocality = locality.label
+        } catch {
+          /* Nominatim / API — keep postcode fallback */
         }
       }
 
@@ -185,7 +201,7 @@ export default function ProfileSummaryPage() {
         totalsCarbon,
       }
 
-      const locationName = formatLocationDisplayName(
+      const locationFromPostcodesIo = formatLocationDisplayName(
         local
           ? {
               council: local.council,
@@ -197,10 +213,13 @@ export default function ProfileSummaryPage() {
               country: local.country,
             }
           : null,
-        postcodeDisplay
+        null
       )
       const resolvedLocationName =
-        locationName.trim() || state.locationState?.locationName?.trim() || councilImmediate
+        geocodedLocality?.trim() ||
+        locationFromPostcodesIo.trim() ||
+        state.locationState?.locationName?.trim() ||
+        councilImmediate
 
       const narrative: ProfileSummaryNarrativeInput = {
         employment_status: profile.employment_status,

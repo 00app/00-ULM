@@ -34,9 +34,11 @@ import { useApp } from '@/app/context/AppContext'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import {
   headlineFromTitle,
+  formatZoneCategoryLabel,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   composeScrapedInsightDescription,
   buildResearchResultsTrueTipBody,
+  isRawResearchDump,
   polishTrueTipParagraphsForHeadline,
   stripExpandedCardTitleNoise,
   toThreeTrueTipParagraphs,
@@ -265,6 +267,7 @@ export function SoloFocusOverlay({
     : currentMorphData?.data?.carbon ?? (heroTotalsOverride ? `${heroTotalsOverride.carbon}kg CO₂` : carbonValue)
   const displayTitle = currentMorphData?.heading ?? currentMorphData?.title ?? title
   const displayJourneyId = currentMorphData?.journey_key ?? journeyId
+  const zoneCategoryLabel = formatZoneCategoryLabel(String(displayJourneyId ?? journeyId ?? 'home'))
 
   const activeCardId = currentMorphData?.id ?? cardId
 
@@ -407,7 +410,9 @@ export function SoloFocusOverlay({
       ? verifiedAuditSourceUrl.trim()
       : pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) || (allowZaiFallback ? buildZaiAuditUrl() : '')
   const researchBackedTrueTip =
-    verifiedAuditMatchesJourney && verifiedArchitectProse?.trim()
+    verifiedAuditMatchesJourney &&
+    verifiedArchitectProse?.trim() &&
+    !isRawResearchDump(verifiedArchitectProse)
       ? buildResearchResultsTrueTipBody({
           architectProse: verifiedArchitectProse.trim(),
           verifiedSavingGbp: motherMoneyTargetGbp,
@@ -650,6 +655,12 @@ export function SoloFocusOverlay({
                     variants={FADE_VARIANTS}
                     onClick={() => triggerHaptic('light')}
                   >
+                    <span
+                      className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
+                      style={{ color: 'var(--journey-text)' }}
+                    >
+                      {zoneCategoryLabel}
+                    </span>
                     <motion.h1
                       className="solo-focus-architect-headline solo-focus-content-text text-left zz-shimmer-focus"
                       style={{
@@ -684,6 +695,12 @@ export function SoloFocusOverlay({
                         Computing…
                       </p>
                     ) : null}
+                    <span
+                      className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
+                      style={{ color: 'var(--journey-text)' }}
+                    >
+                      {zoneCategoryLabel}
+                    </span>
                     <motion.h1
                       className="solo-focus-architect-headline solo-focus-content-text text-left zz-shimmer-focus"
                       style={{

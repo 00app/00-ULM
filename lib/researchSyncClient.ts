@@ -1,4 +1,5 @@
 import type { ResearchProfileData } from '@/lib/agents/researchAgent'
+import { resolveClientResearchUserId } from '@/lib/zone/garyMode'
 
 /** Latest row per `research_results.category` from GET /api/scrape-sync. */
 export type ResearchCategoryCoverageRow = {
@@ -36,11 +37,13 @@ export function triggerScrapeSyncForCategory(params: {
     .trim()
     .toLowerCase()
   if (!cat) return
+  const researchUserId = resolveClientResearchUserId()
   const body: Record<string, unknown> = {
     trigger: true,
     postcode: pc,
     category: cat,
     profileData: params.profileData && Object.keys(params.profileData).length > 0 ? params.profileData : undefined,
+    ...(researchUserId ? { user_id: researchUserId } : {}),
   }
   const hint = typeof params.bestOfferHint === 'string' ? params.bestOfferHint.trim() : ''
   if (hint.length > 0) {
@@ -55,3 +58,6 @@ export function triggerScrapeSyncForCategory(params: {
     /* non-blocking */
   })
 }
+
+/** Tier 2 scoped refresh — GET with category + answer (see `fetchTier2ScrapeSync`). */
+export { fetchTier2ScrapeSync } from '@/lib/zone/tier2RecursiveSpawner'

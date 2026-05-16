@@ -19,6 +19,7 @@ import {
   parseCarbonKgFromDisplay,
 } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
+import { Logo } from '@/app/components/Logo'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
@@ -44,6 +45,7 @@ import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
 import {
   headlineFromTitle,
+  formatZoneCategoryLabel,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   MAX_ZONE_CARD_HEADLINE_WORDS,
   formatAuditSourceLinkDisplay,
@@ -70,6 +72,10 @@ import {
   triggerScrapeSyncForCategory,
   type ResearchCategoryCoverageRow,
 } from '@/lib/researchSyncClient'
+import {
+  openOfferUrlInNewTab,
+  runTier2MotherChildSwap,
+} from '@/lib/zone/tier2RecursiveSpawner'
 import { runSoloFocusAuditCompletionClient } from '@/lib/soloFocusAuditCompleteClient'
 import {
   SOLO_FOCUS_SNAPSHOT_V,
@@ -274,6 +280,7 @@ export function JourneyBentoCard({
   const [isExiting, setIsExiting] = useState(false)
   const { viewKey: soloFocusViewKey, snapKey: soloFocusSnapKey } = soloFocusSnapStorageKeys(cardId, journeyId)
   const [loopZipCollapsing, setLoopZipCollapsing] = useState(false)
+  const [tier2SlotFading, setTier2SlotFading] = useState(false)
   const [viewState, setViewState] = useState<ExpandedViewState>(() => {
     if (typeof window === 'undefined') return 'QUESTION'
     try {
@@ -743,6 +750,17 @@ export function JourneyBentoCard({
     }
   }
 
+  const handleOpenOfferUrl = useCallback(() => {
+    triggerHaptic('light')
+    const url = pickPrimaryHttpUrl(resolvedOfferUrl)
+    if (!openOfferUrlInNewTab(url)) {
+      const fallback = pickPrimaryHttpUrl(
+        journeyResearchCov?.latestOfferUrl ?? journeyResearchCov?.latestSourceUrl ?? ''
+      )
+      openOfferUrlInNewTab(fallback)
+    }
+  }, [resolvedOfferUrl, journeyResearchCov])
+
   // —— EXPANDED (Solo Focus): v1.7 Active Intelligence — strict 00-00 Industrial Layout ——
   if (kineticGrid && (effectiveOpen || isExiting)) {
     /* v1.8.2 — H1 from morph card, else latest research_results.agent_headline, else tile title */
@@ -762,6 +780,7 @@ export function JourneyBentoCard({
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =
       auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
+    const zoneCategoryLabel = formatZoneCategoryLabel(String(displayJourneyId || journeyId))
     const auditHeaderLabel = localityLabel
       ? `OFFER PREVIEW — ${localityLabel}`
       : 'OFFER PREVIEW'
@@ -888,7 +907,6 @@ export function JourneyBentoCard({
         kineticGrid && (effectiveOpen || isExiting) ? (
             <motion.div key={`sf-grow-${journeyId}-${cardId ?? 'card'}`} className="solo-focus-grow-layer" initial={false}>
             <ExpandedCardShell
-            ref={bodyScrollRef}
             data-journey={displayJourneyId}
             data-zone-surface={surfaceKind}
             className="expanded-solo-focus view-expanded solo-focus-mobile-expand"
@@ -913,7 +931,7 @@ export function JourneyBentoCard({
           sourceUrl={diagnosticUrlJourney}
         />
 
-        <motion.div className="solo-focus-rail w-full min-w-0">
+        <motion.div ref={bodyScrollRef} className="solo-focus-rail w-full min-w-0">
         <motion.div
           className="solo-focus-stack flex flex-col items-stretch justify-start w-full min-w-0"
           initial={reducePagerMotion ? false : SOLO_FOCUS_CONTENT_SNAP_INITIAL}
@@ -932,11 +950,27 @@ export function JourneyBentoCard({
               <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
                 <div key={motherShimmerKey} className="flex flex-col gap-2 w-full min-w-0">
             {physicalSoloHref ? (
-              <div
-                className="solo-focus-insight-bridge w-full min-w-0"
-                onClick={() => triggerHaptic('light')}
-                role="presentation"
+              <motion.div
+                className="solo-focus-insight-bridge w-full min-w-0 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleOpenOfferUrl()
+                }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleOpenOfferUrl()
+                  }
+                }}
               >
+                <span
+                  className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
+                  style={{ color: 'var(--journey-text)' }}
+                >
+                  {zoneCategoryLabel}
+                </span>
                 <motion.h1
                   className="solo-focus-architect-headline solo-focus-content-text text-left"
                   style={{
@@ -954,7 +988,7 @@ export function JourneyBentoCard({
                   {auditHeaderLabel}
                 </h5>
                 {trueTipSectionsEl}
-              </div>
+              </motion.div>
             ) : (
               <>
                 {!physicalSoloHref && researchCategoryCoverage != null && !journeyResearchCov?.insightReady ? (
@@ -965,6 +999,12 @@ export function JourneyBentoCard({
                     Computing…
                   </p>
                 ) : null}
+                <span
+                  className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
+                  style={{ color: 'var(--journey-text)' }}
+                >
+                  {zoneCategoryLabel}
+                </span>
                 <motion.h1
                   className="solo-focus-architect-headline solo-focus-content-text text-left"
                   style={{
@@ -1008,6 +1048,23 @@ export function JourneyBentoCard({
                 style={{ gap: 20 }}
                 aria-label="Solo focus actions"
               >
+                <motion.button
+                  type="button"
+                  aria-label="Open offer in new tab"
+                  className="solo-focus-close-circle"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleOpenOfferUrl()
+                  }}
+                  initial={false}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={INDUSTRIAL_OPACITY_SNAP}
+                  style={{ transformOrigin: 'top right', color: 'var(--journey-text)' }}
+                >
+                  <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M7 17L17 7M17 7H7M17 7v10" />
+                  </svg>
+                </motion.button>
                 <motion.button
                   type="button"
                   aria-label="Close"
@@ -1442,18 +1499,65 @@ export function JourneyBentoCard({
                           }, 220)
                         }
                       })
-                      if (hasNextQuestion !== false && journeyId) {
-                        triggerScrapeSyncForCategory({
-                          postcode: profilePostcode,
-                          category: journeyId,
-                          profileData: {
-                            postcode: profilePostcode ?? undefined,
-                            home_type: state.profile?.homeType ?? null,
-                            transport_baseline: state.profile?.transport ?? null,
-                            household: state.profile?.livingSituation ?? null,
-                            employment_status: state.profile?.employmentStatus ?? null,
-                          },
-                        })
+                      if (hasNextQuestion !== false && journeyId && profilePostcode) {
+                        const tier2Answer = String(answerValue ?? '').trim()
+                        if (tier2Answer) {
+                          setLoopZipCollapsing(true)
+                          setTier2SlotFading(true)
+                          void runTier2MotherChildSwap({
+                            postcode: profilePostcode,
+                            category: journeyId,
+                            answer: tier2Answer,
+                            questionId: String(questionId ?? ''),
+                          })
+                            .then((tier2) => {
+                              const morph = tier2.morphCard
+                              if (morph) {
+                                pagerEnterDir.current = 1
+                                let nextLen = 0
+                                flushSync(() => {
+                                  setMorphDeck((prev) => {
+                                    const next = [...prev, morph]
+                                    nextLen = next.length
+                                    morphDeckLenRef.current = nextLen
+                                    return next
+                                  })
+                                })
+                                setMorphDeckCursor(Math.max(0, nextLen - 1))
+                                if (tier2.offerUrl) setLiveClaimUrl(tier2.offerUrl)
+                                if (journeyId === 'home' && morph.title) {
+                                  setHomeSentinelRecard({
+                                    headline: morph.title,
+                                    description:
+                                      typeof morph.explanation?.[0] === 'string'
+                                        ? morph.explanation[0]
+                                        : '',
+                                    moneyGbp: parseMoneyGbpFromDisplay(String(morph.data?.money ?? '0')),
+                                    carbonKg: parseCarbonKgFromDisplay(String(morph.data?.carbon ?? '0')),
+                                    sourceUrl: tier2.offerUrl ?? undefined,
+                                  })
+                                }
+                              }
+                            })
+                            .finally(() => {
+                              window.setTimeout(() => {
+                                setTier2SlotFading(false)
+                                setLoopZipCollapsing(false)
+                              }, 220)
+                            })
+                        } else {
+                          triggerScrapeSyncForCategory({
+                            postcode: profilePostcode,
+                            category: journeyId,
+                            profileData: {
+                              postcode: profilePostcode ?? undefined,
+                              home_type: state.profile?.homeType ?? null,
+                              transport_baseline: state.profile?.transport ?? null,
+                              household: state.profile?.livingSituation ?? null,
+                              employment_status: state.profile?.employmentStatus ?? null,
+                            },
+                          })
+                        }
                       }
                     }}
                     onSourceCitation={(c) => setResultCitation(c)}
@@ -1513,18 +1617,44 @@ export function JourneyBentoCard({
           height: '100%',
           ...(isTall && { minHeight: '100%' }),
         }}
+        animate={{ opacity: tier2SlotFading ? 0.35 : 1 }}
         transition={INDUSTRIAL_OPACITY_SNAP}
       >
-      <div className="flex items-center justify-between w-full shrink-0">
-        <span className="card-top-label">
-          {String(journeyId ?? '').replace(/-/g, ' ').toUpperCase()}
-        </span>
+      <motion.div
+        className="flex items-center justify-between w-full shrink-0"
+        role="button"
+        tabIndex={0}
+        onClick={(e) => {
+          e.stopPropagation()
+          handleOpenOfferUrl()
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            e.stopPropagation()
+            handleOpenOfferUrl()
+          }
+        }}
+      >
+        {insightGenerationPending ||
+        (researchCategoryCoverage != null && !journeyResearchCov?.insightReady) ? (
+          <span className="zone-card-computing-pulse flex items-center gap-2 min-w-0 flex-1">
+            <Logo width={22} className="shrink-0" style={{ color: 'currentColor' }} aria-hidden />
+            <span className="card-top-label m-0">
+              {String(journeyId ?? '').replace(/-/g, ' ').toUpperCase()}
+            </span>
+          </span>
+        ) : (
+          <span className="card-top-label">
+            {String(journeyId ?? '').replace(/-/g, ' ').toUpperCase()}
+          </span>
+        )}
         <span className="card-top-arrow card-top-arrow--hint flex items-center justify-center flex-shrink-0" style={{ width: arrowSize, height: arrowSize, color: 'currentColor', background: 'transparent' }} aria-hidden>
           <svg width={arrowSize} height={arrowSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M7 17L17 7M17 7H7M17 7v10" />
           </svg>
         </span>
-      </div>
+      </motion.div>
       <motion.h3
         className="card-headline m-0 min-w-0"
         lang="en"

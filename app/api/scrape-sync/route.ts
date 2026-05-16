@@ -8,8 +8,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
-import { getJourneyAnswersForUser } from '@/lib/db/neon'
-import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
+import {
+  getJourneyAnswersForUser,
+  upsertJourneyAnswerJsonb,
+  upsertUserGenomeFromAnswer,
+} from '@/lib/db/neon'
+import { JOURNEY_ORDER, type JourneyId, isValidJourneyQuestion } from '@/lib/journeys'
 import {
   loadDynamicUserProfileForResearch,
   repairResearchResultsMissingHeadlines,
@@ -17,6 +21,7 @@ import {
   runZeroResearchWithProfile,
   type ResearchProfileData,
 } from '@/lib/agents/researchAgent'
+import { mirrorJourneyAnswersToUserProfilesIfAvailable } from '@/lib/db/userProfilesMirror'
 import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
@@ -33,6 +38,23 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 300
 const SCRAPE_SYNC_MAX_PER_MINUTE = 24
+
+function isValidResearchUserId(v: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.trim())
+}
+
+function resolveResearchUserId(
+  sessionUserId: string | null,
+  request: NextRequest,
+  opts?: { bodyUserId?: string | null }
+): string | null {
+  if (sessionUserId && isValidResearchUserId(sessionUserId)) return sessionUserId
+  const fromBody = opts?.bodyUserId?.trim() ?? ''
+  if (fromBody && isValidResearchUserId(fromBody)) return fromBody
+  const fromQuery = request.nextUrl.searchParams.get('user_id')?.trim() ?? ''
+  if (fromQuery && isValidResearchUserId(fromQuery)) return fromQuery
+  return null
+}
 
 /** Firecrawl gate — `FIRE_CRAWL_KEY_2` must match Production Vercel exactly. */
 function firecrawlMissingResponse(): NextResponse | null {
@@ -270,19 +292,92 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getSessionFromRequest().catch(() => null)
     const sessionUserId = session?.userId ?? null
+    const researchUserId = resolveResearchUserId(sessionUserId, request)
     const sessionResearchProfile =
-      sessionUserId != null
-        ? await loadDynamicUserProfileForResearch(sessionUserId).catch(() => null)
+      researchUserId != null
+        ? await loadDynamicUserProfileForResearch(researchUserId).catch(() => null)
         : null
     const postcodeRaw =
       request.nextUrl.searchParams.get('postcode')?.trim() ||
       sessionResearchProfile?.postcode?.trim() ||
       ''
     const postcode = postcodeRaw.replace(/\s+/g, '').toUpperCase()
+    const tier2Category = request.nextUrl.searchParams.get('category')?.trim().toLowerCase() ?? ''
+    const tier2Answer = request.nextUrl.searchParams.get('answer')?.trim() ?? ''
+    const tier2QuestionId = request.nextUrl.searchParams.get('question_id')?.trim() ?? ''
+
+    /** Tier 2 mother/child swap — scoped category re-research after Solo Focus answer. */
+    if (postcode.length >= 4 && tier2Category && tier2Answer) {
+      const fcErr = firecrawlMissingResponse()
+      if (fcErr) return fcErr
+      const profileData: ResearchProfileData = {
+        ...(sessionResearchProfile?.home_type ? { home_type: sessionResearchProfile.home_type } : {}),
+        ...(sessionResearchProfile?.transport_baseline
+          ? { transport_baseline: sessionResearchProfile.transport_baseline }
+          : {}),
+        ...(sessionResearchProfile?.household ? { household: sessionResearchProfile.household } : {}),
+        ...(sessionResearchProfile?.employment_status
+          ? { employment_status: sessionResearchProfile.employment_status }
+          : {}),
+        postcode,
+      }
+      const userContext = [
+        `postcode: ${postcode}`,
+        `Solo Focus Tier 2 category: ${tier2Category}`,
+        `Child answer: ${tier2Answer.slice(0, 800)}`,
+      ].join('\n')
+
+      const tier2JourneyKey = researchCategoryToJourneyKey(tier2Category) ?? tier2Category
+      if (
+        researchUserId &&
+        tier2QuestionId &&
+        isValidJourneyQuestion(tier2JourneyKey, tier2QuestionId)
+      ) {
+        const tier2Q = tier2QuestionId
+        await upsertJourneyAnswerJsonb(researchUserId, tier2JourneyKey, tier2Q, tier2Answer)
+        await upsertUserGenomeFromAnswer(researchUserId, tier2JourneyKey, tier2Q, tier2Answer)
+        const genome = await getJourneyAnswersForUser(researchUserId).catch(() => ({}))
+        await mirrorJourneyAnswersToUserProfilesIfAvailable(researchUserId, genome)
+      }
+
+      await runTriggerResearchForCategory({
+        postcode,
+        category: tier2Category,
+        profileData: Object.keys(profileData).length > 0 ? profileData : undefined,
+        userId: researchUserId,
+        userContext,
+      })
+      await repairResearchResultsMissingHeadlines({
+        userId: researchUserId,
+        postcode,
+        profileData: Object.keys(profileData).length > 0 ? profileData : null,
+        limit: 4,
+      })
+      const tier2Coverage = await loadResearchCategoryCoverageResolved(researchUserId, postcode)
+      const folded = tier2Coverage ? foldCoverageRowsForZone(tier2Coverage) : {}
+      const row = folded[tier2Category]
+      return NextResponse.json({
+        tier2: true,
+        category: tier2Category,
+        answer: tier2Answer.slice(0, 800),
+        research_category_coverage: folded,
+        researchMeta: row
+          ? {
+              offer_url: row.latestOfferUrl,
+              source_url: row.latestSourceUrl,
+              audit_source_url: row.latestOfferUrl ?? row.latestSourceUrl,
+              saving_amount_gbp: row.latestSavingGbp,
+              verified_saving: row.latestVerifiedGbp,
+              category: tier2Category,
+              architect_prose: row.architectProse,
+            }
+          : null,
+      })
+    }
 
     let researchCategoryCoverage =
-      postcode.length >= 4 || sessionUserId != null
-        ? await loadResearchCategoryCoverageResolved(sessionUserId, postcode.length >= 4 ? postcode : 'BN17')
+      postcode.length >= 4 || researchUserId != null
+        ? await loadResearchCategoryCoverageResolved(researchUserId, postcode)
         : undefined
     if (researchCategoryCoverage) {
       researchCategoryCoverage = foldCoverageRowsForZone(researchCategoryCoverage)
@@ -326,7 +421,7 @@ export async function GET(request: NextRequest) {
       if (household) profileData.household = household
       profileData.postcode = postcode
 
-      const userId = sessionUserId
+      const userId = researchUserId
       let loopGenomeSummary: string | undefined
       if (userId) {
         try {
@@ -363,12 +458,12 @@ export async function GET(request: NextRequest) {
         })),
       }
       await repairResearchResultsMissingHeadlines({
-        userId: sessionUserId,
+        userId: researchUserId,
         postcode,
         profileData: Object.keys(profileData).length > 0 ? profileData : null,
         limit: 12,
       })
-      researchCategoryCoverage = await loadResearchCategoryCoverageResolved(sessionUserId, postcode)
+      researchCategoryCoverage = await loadResearchCategoryCoverageResolved(researchUserId, postcode)
       if (researchCategoryCoverage) {
         researchCategoryCoverage = foldCoverageRowsForZone(researchCategoryCoverage)
       }
@@ -405,7 +500,7 @@ export async function GET(request: NextRequest) {
         architect_prose?: string | null
       }
       let researchMetaRow: ResearchMetaDbRow | undefined
-      if (sessionUserId && postcode.length >= 4) {
+      if (researchUserId && postcode.length >= 4) {
         const byUserOrPc = await pool.query(
           `SELECT ${selectCols}
            FROM research_results
@@ -413,17 +508,17 @@ export async function GET(request: NextRequest) {
               OR REPLACE(COALESCE(postcode, ''), ' ', '') = $2
            ORDER BY created_at DESC NULLS LAST
            LIMIT 1`,
-          [sessionUserId, postcode]
+          [researchUserId, postcode]
         )
         researchMetaRow = byUserOrPc.rows?.[0]
-      } else if (sessionUserId) {
+      } else if (researchUserId) {
         const byUser = await pool.query(
           `SELECT ${selectCols}
            FROM research_results
            WHERE user_id = $1::uuid
            ORDER BY created_at DESC NULLS LAST
            LIMIT 1`,
-          [sessionUserId]
+          [researchUserId]
         )
         researchMetaRow = byUser.rows?.[0]
       }
@@ -484,7 +579,7 @@ export async function GET(request: NextRequest) {
     )
     const rows = result.rows || []
     const fromResearch =
-      postcode.length >= 4 ? await buildScrapedFromResearchResults(postcode, sessionUserId) : null
+      postcode.length >= 4 ? await buildScrapedFromResearchResults(postcode, researchUserId) : null
     const researchHasMoney =
       fromResearch?.some((s) => s.money_value > 0 || Boolean(s.deep_content_tip?.trim())) ?? false
 
@@ -681,7 +776,9 @@ export async function POST(request: NextRequest) {
       const bestOfferHint =
         typeof body?.best_offer_hint === 'string' ? body.best_offer_hint.trim().slice(0, 1200) : ''
       const session = await getSessionFromRequest().catch(() => null)
-      const userId = session?.userId ?? null
+      const userId = resolveResearchUserId(session?.userId ?? null, request, {
+        bodyUserId: typeof body?.user_id === 'string' ? body.user_id : null,
+      })
       const sessionResearchProfile =
         userId != null ? await loadDynamicUserProfileForResearch(userId).catch(() => null) : null
       const pd: ResearchProfileData = {

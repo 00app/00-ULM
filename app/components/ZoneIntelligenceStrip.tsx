@@ -12,7 +12,7 @@ import {
   parseResearchMetaFromApi,
   researchTicksFromPayload,
 } from '@/lib/zone/parseScrapeSyncClient'
-import { DEFAULT_ZONE_POSTCODE } from '@/lib/zone/safeProfileStorage'
+import { appendResearchUserIdQuery } from '@/lib/zone/garyMode'
 
 const TICK = '✓'
 const CROSS = '✗'
@@ -82,7 +82,7 @@ export type ZoneIntelligenceStripProps = {
   hasOfferUrl?: boolean
   /** Logged-in Zone: per-journey `research_results` coverage (GET /api/scrape-sync). */
   categoryCoverage?: Record<string, ResearchCategoryCoverageRow> | null
-  /** Postcode for live scrape-sync diagnostic poll (defaults BN17). */
+  /** Postcode for live scrape-sync diagnostic poll (empty = skip poll). */
   scrapePostcode?: string
   rightAside?: ReactNode
 }
@@ -106,7 +106,7 @@ export function ZoneIntelligenceStrip({
   hasArchitectProse = false,
   hasOfferUrl = false,
   categoryCoverage = null,
-  scrapePostcode = DEFAULT_ZONE_POSTCODE,
+  scrapePostcode = '',
   rightAside,
 }: ZoneIntelligenceStripProps) {
   const [mounted, setMounted] = useState(false)
@@ -127,10 +127,12 @@ export function ZoneIntelligenceStrip({
   } | null>(null)
 
   const pollScrapeResearch = useCallback(async () => {
-    const pc = (scrapePostcode ?? DEFAULT_ZONE_POSTCODE).replace(/\s+/g, '').trim().toUpperCase()
+    const pc = (scrapePostcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
     if (pc.length < 4) return
     try {
-      const res = await fetch(`/api/scrape-sync?postcode=${encodeURIComponent(pc)}`, { cache: 'no-store' })
+      const res = await fetch(appendResearchUserIdQuery(`/api/scrape-sync?postcode=${encodeURIComponent(pc)}`), {
+        cache: 'no-store',
+      })
       if (!res.ok) return
       const data = await res.json()
       const meta = parseResearchMetaFromApi(data)

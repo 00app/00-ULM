@@ -178,7 +178,10 @@ export function useSentinel(params: UseSentinelParams): SentinelOutput {
         run_scrape_sync: shouldRunScrapeSync,
       }),
     })
-      .then(async (r) => (r.ok ? r.json() : null))
+      .then(async (r) => {
+        if (!r.ok) return null
+        return r.json()
+      })
       .then((data) => {
         if (Array.isArray(data?.priorities)) {
           setPriorities(data.priorities as SentinelPriority[])

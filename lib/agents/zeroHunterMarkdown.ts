@@ -15,3 +15,15 @@ export function sanitizeAgentMarkdown(raw: string, maxLen = 8000): string {
   s = s.replace(/on\w+\s*=/gi, '')
   return s.trim().slice(0, maxLen)
 }
+
+/** Solo Focus display — strip markdown emphasis, headings, and list ordinals for plain prose. */
+export function stripMarkdownForProseDisplay(raw: string, maxLen = 1200): string {
+  let s = sanitizeAgentMarkdown(raw, maxLen)
+  s = s.replace(/\*\*([^*]+)\*\*/g, '$1')
+  s = s.replace(/\*([^*]+)\*/g, '$1')
+  s = s.replace(/^#{1,6}\s+/gm, '')
+  s = s.replace(/^\s*\d+\.\s+/gm, '')
+  s = s.replace(/^\s*[-*•]\s+/gm, '')
+  s = s.replace(/\s+/g, ' ').trim()
+  return s.slice(0, maxLen)
+}

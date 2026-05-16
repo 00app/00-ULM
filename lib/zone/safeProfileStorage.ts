@@ -1,6 +1,3 @@
-/** Guest / blocked-storage fallback — BN17 has live Neon research rows. */
-export const DEFAULT_ZONE_POSTCODE = 'BN17'
-
 const PROFILE_POSTCODE_KEY = 'profile_postcode'
 
 export function safeGetItem(key: string): string | null {
@@ -47,20 +44,18 @@ export function readPostcodeFromStorage(): string {
   return v ? v.replace(/\s+/g, '').toUpperCase() : ''
 }
 
-/** URL → storage → BN17 when storage is blocked or empty. */
+/** URL → storage only (no hardcoded postcode). */
 export function readProfilePostcode(): string {
   const fromUrl = readPostcodeFromUrl()
   if (fromUrl.length >= 4) return fromUrl
-  const fromStorage = readPostcodeFromStorage()
-  if (fromStorage.length >= 4) return fromStorage
-  return DEFAULT_ZONE_POSTCODE
+  return readPostcodeFromStorage()
 }
 
 export function resolveScrapePostcode(livePostcode?: string | null, profilePostcode?: string | null): string {
-  const raw = (livePostcode ?? profilePostcode ?? readPostcodeFromUrl() ?? readPostcodeFromStorage() ?? DEFAULT_ZONE_POSTCODE)
+  const raw = (livePostcode ?? profilePostcode ?? readPostcodeFromUrl() ?? readPostcodeFromStorage())
     .replace(/\s+/g, '')
     .trim()
-  return raw.length >= 4 ? raw.toUpperCase() : DEFAULT_ZONE_POSTCODE
+  return raw.length >= 4 ? raw.toUpperCase() : ''
 }
 
 export function readProfileFieldsFromStorage(): {

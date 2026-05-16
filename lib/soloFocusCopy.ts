@@ -4,7 +4,7 @@
 
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
-import { sanitizeAgentMarkdown } from '@/lib/agents/zeroHunterMarkdown'
+import { sanitizeAgentMarkdown, stripMarkdownForProseDisplay } from '@/lib/agents/zeroHunterMarkdown'
 import { bridgeSentence, buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 
@@ -86,13 +86,52 @@ export function polishTrueTipParagraphsForHeadline(
   paras: [string, string, string]
 ): [string, string, string] {
   const [a, b, c] = paras
-  return [dedupeTrueTipOpeningParagraph(headline, a), b, c]
+  return [
+    humanizeTrueTipParagraph(dedupeTrueTipOpeningParagraph(headline, a)),
+    humanizeTrueTipParagraph(b),
+    humanizeTrueTipParagraph(c),
+  ]
 }
 
 /** Zone / bento card face — Marvin stamp stays one line. */
 export const MAX_ZONE_CARD_HEADLINE_WORDS = 8
 /** Solo Focus / expanded Zai Architect H1 — ~20 words before ellipsis. */
 export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 20
+/** Each True Tip paragraph — readable auditor copy, not tariff tables. */
+export const MAX_TRUE_TIP_PARAGRAPH_WORDS = 40
+
+/** Expanded category label — matches collapsed Zone card top label. */
+export function formatZoneCategoryLabel(journeyId: string): string {
+  return String(journeyId ?? '')
+    .replace(/-/g, ' ')
+    .trim()
+    .toUpperCase()
+}
+
+export function clampWords(text: string, maxWords: number): string {
+  const words = text.split(/\s+/).filter(Boolean)
+  if (words.length <= maxWords) return words.join(' ')
+  return `${words.slice(0, maxWords).join(' ')}…`
+}
+
+/** Raw Gemini / scrape dumps — too fact-dense for expanded Solo Focus; use auditor narrative instead. */
+export function isRawResearchDump(prose: string): boolean {
+  const t = prose.trim()
+  if (t.length < 40) return false
+  const lower = t.toLowerCase()
+  const tariffSignals =
+    (/\d+\.?\d*\s*p\/?\s*kwh/i.test(t) || /standing charge/i.test(lower)) &&
+    (/price cap|unit rate|regulatory|ofgem|distribution network/i.test(lower) ||
+      /\*\*/.test(t) ||
+      /^\s*\d+\.\s/m.test(t))
+  const tabley = (t.match(/\d+\.\d+/g) ?? []).length >= 4 && /april 2026|bn\d{2}/i.test(t)
+  return tariffSignals || tabley
+}
+
+export function humanizeTrueTipParagraph(raw: string): string {
+  const cleaned = stripMarkdownForProseDisplay(stripArchitectEmbeddedSectionTitles(raw), 900)
+  return clampWords(cleaned, MAX_TRUE_TIP_PARAGRAPH_WORDS)
+}
 
 /** Headline = max N words with ellipsis when clipped. */
 export function headlineFromTitle(title: string, maxWords: number = MAX_ZONE_CARD_HEADLINE_WORDS): string {
@@ -309,10 +348,13 @@ export function buildResearchResultsTrueTipBody(params: {
   journeyId: string
 }): string {
   const j = coerceJourneyId(params.journeyId)
-  const rawClean = stripArchitectEmbeddedSectionTitles(params.architectProse.trim())
+  const rawClean = stripMarkdownForProseDisplay(
+    stripArchitectEmbeddedSectionTitles(params.architectProse.trim()),
+    4000
+  )
   const blocks = rawClean
     .split(/\n\s*\n/)
-    .map((p) => stripArchitectEmbeddedSectionTitles(p.trim()))
+    .map((p) => humanizeTrueTipParagraph(stripArchitectEmbeddedSectionTitles(p.trim())))
     .filter(Boolean)
   const m = Math.max(0, Math.round(params.verifiedSavingGbp))
   const c = Math.max(0, Math.round(params.carbonKg))
@@ -356,7 +398,7 @@ export function resolveExpandedTrueTipInsight(args: {
   auditHeaderLocality?: string | null
 }): string {
   const ap = (args.architectProse ?? '').trim()
-  if (args.verifiedAuditMatchesJourney && ap.length > 0) {
+  if (args.verifiedAuditMatchesJourney && ap.length > 0 && !isRawResearchDump(ap)) {
     return buildResearchResultsTrueTipBody({
       architectProse: ap,
       verifiedSavingGbp: args.moneyGbp,
@@ -384,7 +426,11 @@ export function resolveExpandedTrueTipInsight(args: {
  */
 export function toThreeTrueTipParagraphs(text: string): [string, string, string] {
   const pack3 = (a: string, b: string, c: string): [string, string, string] =>
-    [stripAuditorFluffParagraph(a), stripAuditorFluffParagraph(b), stripAuditorFluffParagraph(c)]
+    [
+      humanizeTrueTipParagraph(stripAuditorFluffParagraph(a)),
+      humanizeTrueTipParagraph(stripAuditorFluffParagraph(b)),
+      humanizeTrueTipParagraph(stripAuditorFluffParagraph(c)),
+    ]
 
   const t = text.trim()
   if (!t) {

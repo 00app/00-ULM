@@ -39,11 +39,19 @@ function hasRuralGrantSignal(markdown: string, citations: Array<{ source_name?: 
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionFromRequest()
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const body = await request.json().catch(() => ({}))
     const priorities = (Array.isArray(body?.priorities) ? body.priorities : []) as IncomingPriority[]
+
+    const session = await getSessionFromRequest()
+    if (!session) {
+      return NextResponse.json({
+        priorities,
+        last_refreshed: new Date().toISOString(),
+        guest: true,
+        grid_low: false,
+        grant_found: false,
+      })
+    }
     const systemPrompt = typeof body?.system_prompt === 'string' ? body.system_prompt : ''
     const region = typeof body?.region === 'string' ? body.region.trim() : ''
     const runScrapeSync = Boolean(body?.run_scrape_sync)

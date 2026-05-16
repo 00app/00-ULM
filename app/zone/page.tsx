@@ -42,7 +42,12 @@ import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
 import { LoadingHeartbeat } from '@/app/components/LoadingHeartbeat'
 import { parseCoverageFromApi, parseResearchMetaFromApi } from '@/lib/zone/parseScrapeSyncClient'
 import {
-  DEFAULT_ZONE_POSTCODE,
+  readCachedProfileLocality,
+  resolveProfileLocalityForPostcode,
+} from '@/lib/geocode/resolvePostcodeLocality'
+import { appendResearchUserIdQuery, ensureGaryModeForPostcode } from '@/lib/zone/garyMode'
+import { TIER2_PROFILE_REFRESH_EVENT } from '@/lib/zone/tier2RecursiveSpawner'
+import {
   readPostcodeFromUrl,
   readProfileFieldsFromStorage,
   readProfilePostcode,
@@ -80,7 +85,7 @@ import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import {
   FloatingNav,
-  JourneyBentoCard,
+  ZoneCard,
   Logo,
   RockSavingTips,
   SoloFocusOverlay,
@@ -326,13 +331,14 @@ export default function ZonePage() {
   const [insightPendingKeys, setInsightPendingKeys] = useState<Set<string>>(() => new Set())
   const [liveProfilePostcode, setLiveProfilePostcode] = useState('')
 
-  /** Client-only: safe storage + BN17 fallback (avoids SSR / SecurityError crashes). */
+  /** Client-only: safe storage (avoids SSR / SecurityError crashes). */
   useEffect(() => {
     setHydrated(true)
     setLiveProfilePostcode(readProfilePostcode())
     const fromUrl = readPostcodeFromUrl()
     if (fromUrl) safeSetItem('profile_postcode', fromUrl)
   }, [refreshKey])
+
   const isFocusViewOpen = Boolean(expandedCardId || expandedTipId)
 
   const closeAnySoloFocus = useCallback(() => {
@@ -504,7 +510,8 @@ export default function ZonePage() {
     const bumpIfChanged = (nextRaw: string) => {
       const next = nextRaw.replace(/\s+/g, '').toUpperCase()
       if (next === prev) return
-      prev = next.length >= 4 ? next : DEFAULT_ZONE_POSTCODE
+      if (next.length < 4) return
+      prev = next
       setLiveProfilePostcode(prev)
       setVmSyncStamp(Date.now())
       setRefreshKey((k) => k + 1)
@@ -523,13 +530,25 @@ export default function ZonePage() {
       setRefreshKey((k) => k + 1)
     }
     window.addEventListener('storage', onStorage)
+    const onTier2Refresh = (e: Event) => {
+      const detail = (e as CustomEvent<{ totalMoney?: number; totalCarbon?: number }>).detail
+      if (detail && typeof detail.totalMoney === 'number' && typeof detail.totalCarbon === 'number') {
+        setHeroTotals({ totalMoney: detail.totalMoney, totalCarbon: detail.totalCarbon })
+      }
+      refreshProfile()
+      bumpIfChanged(safeGetItem('profile_postcode') ?? '')
+      setVmSyncStamp(Date.now())
+      setRefreshKey((k) => k + 1)
+    }
     window.addEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onUnifiedProfile)
+    window.addEventListener(TIER2_PROFILE_REFRESH_EVENT, onTier2Refresh)
     return () => {
       window.clearInterval(interval)
       window.removeEventListener('storage', onStorage)
       window.removeEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onUnifiedProfile)
+      window.removeEventListener(TIER2_PROFILE_REFRESH_EVENT, onTier2Refresh)
     }
-  }, [refreshProfile, hydrated])
+  }, [refreshProfile, hydrated, setHeroTotals])
 
   // Allow page scroll when expanded (no body scroll lock)
 
@@ -615,15 +634,29 @@ export default function ZonePage() {
   )
 
   const displayLocationName = useMemo(() => {
+    const cached = scrapePostcode.length >= 4 ? readCachedProfileLocality(scrapePostcode) : null
+    if (cached) return cached
     return formatLocationDisplayName(localData ?? undefined, scrapePostcode)
   }, [localData, scrapePostcode])
+
+  useEffect(() => {
+    if (!hydrated) return
+    if (scrapePostcode.length < 4) return
+    ensureGaryModeForPostcode(scrapePostcode)
+    void resolveProfileLocalityForPostcode(scrapePostcode)
+  }, [hydrated, scrapePostcode])
 
   const inPlacePhrase = displayLocationName.trim() ? `in ${displayLocationName.trim()}` : 'near you'
 
   useEffect(() => {
     if (!hydrated) return
     const postcode = scrapePostcode
-    const url = `/api/scrape-sync?postcode=${encodeURIComponent(postcode)}`
+    if (postcode.length < 4) {
+      setVmResolved(true)
+      setEngineStatus('idle')
+      return
+    }
+    const url = appendResearchUserIdQuery(`/api/scrape-sync?postcode=${encodeURIComponent(postcode)}`)
     let clearHydrationPhases: (() => void) | null = null
     setVmResolved(false)
     setEngineStatus('scraping')
@@ -1636,7 +1669,7 @@ export default function ZonePage() {
                       className="w-full h-full min-h-0 flex flex-col"
                       id={`zone-journey-${cell.item.journey_key}`}
                     >
-                    <JourneyBentoCard
+                    <ZoneCard
                       journeyId={cell.item.journey_key}
                       auditState={cell.item.auditState ?? null}
                       title={
