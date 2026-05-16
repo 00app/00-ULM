@@ -10,7 +10,6 @@ import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 import { getJourneyAnswersForUser } from '@/lib/db/neon'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
-import { UK_2026_MONEY_LEAD } from '@/lib/scraper/uk2026Defaults'
 import {
   loadDynamicUserProfileForResearch,
   repairResearchResultsMissingHeadlines,
@@ -223,18 +222,16 @@ export async function GET(request: NextRequest) {
       { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined }
     )
   }
+  /** Honest empty shape — never fabricate £/kg when Neon has no rows. */
   const fallbackDefaults = () =>
-    JOURNEY_ORDER.map((key) => {
-      const d = UK_2026_MONEY_LEAD[key]
-      return {
-        journey_key: key,
-        scraped_at: new Date().toISOString(),
-        carbon_value: d.carbon_value,
-        money_value: d.money_value,
-        deep_content_tip: d.crawler_tip ?? null,
-        high_saving: false,
-      }
-    })
+    JOURNEY_ORDER.map((key) => ({
+      journey_key: key,
+      scraped_at: new Date().toISOString(),
+      carbon_value: 0,
+      money_value: 0,
+      deep_content_tip: 'Computing...',
+      high_saving: false,
+    }))
   try {
     const session = await getSessionFromRequest().catch(() => null)
     const sessionUserId = session?.userId ?? null

@@ -36,7 +36,6 @@ import {
 } from './calculations'
 import { applyScrapedOverlay, type ScrapedOverlayResult } from './scrapedOverlay'
 import type { ScrapedDataPoint } from '@/lib/scraper/sources'
-import { UK_2026_MONEY_LEAD } from '@/lib/scraper/uk2026Defaults'
 import type { Persona, ImpactProfile, UserData, EmploymentStatus } from './types'
 
 export type { Persona, ImpactProfile, UserData } from './types'
@@ -90,22 +89,7 @@ export function buildUserImpact(user: UserData, options?: BuildUserImpactOptions
     const homeRates = journeyKey === 'home' ? options?.homeUnitRates : undefined
     const base = calculateJourneyImpact(journeyKey, answers, profile, homeRates)
     let result = applyScrapedOverlay(base, scraped?.[journeyKey], journeyKey)
-    // Live amounts: use UK 2026 defaults when values are missing so cards always show real money + carbon
-    const def = UK_2026_MONEY_LEAD[journeyKey]
-    if (def) {
-      if (result.carbonKg === 0 && result.moneyGbp === 0) {
-        result = {
-          ...result,
-          carbonKg: def.carbon_value,
-          moneyGbp: def.money_value,
-          explanation: result.explanation?.length ? result.explanation : [def.carbon_backup || 'UK average — answer a question to personalise.'],
-        }
-      } else if (result.carbonKg === 0) {
-        result = { ...result, carbonKg: def.carbon_value }
-      } else if (result.moneyGbp === 0) {
-        result = { ...result, moneyGbp: def.money_value }
-      }
-    }
+    // Mechanical truth: no UK_2026 back-fill — empty stays 0 until scrape-sync / Neon stream.
     result = applyEmploymentFinancialPhysics(result, employment, journeyKey)
     perJourneyResults[journeyKey] = result
     totalCarbon += result.carbonKg

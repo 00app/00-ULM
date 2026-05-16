@@ -26,4 +26,5 @@ echo ""
 echo "== Production build =="
 npm run build:clean
 echo ""
-echo "✅ Prep complete. Next: npm run deploy:force  (or git push if CI deploys main)"
+echo "✅ Prep complete. Next: npm run deploy:force"
+echo "   (uses: vercel deploy --prod from repo root — not 'vercel --prod', which can mis-parse paths)"

@@ -1836,7 +1836,10 @@ export default function ZonePage() {
                       groovy
                       kineticGrid
                       researchCategoryCoverage={researchCategoryCoverage}
-                      insightGenerationPending={insightPendingKeys.has(cell.item.journey_key)}
+                      insightGenerationPending={
+                        cell.item.streamPending === true ||
+                        insightPendingKeys.has(cell.item.journey_key)
+                      }
                       isExpanded={expandedCardId === cell.item.id}
                       onExpand={() => {
                         if (!openSoloFocus(cell.item.id, 'journey')) return

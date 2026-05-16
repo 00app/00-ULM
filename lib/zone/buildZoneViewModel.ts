@@ -16,7 +16,11 @@ import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 import { defaultVerifiedArchitectSuppliedBy } from '@/lib/soloFocusSuppliedBy'
 import { getJourneySource, formatSourceLabel } from '@/lib/content/sources'
 import { PRICE_CAP_APRIL_2026, PRICE_CAP_SOURCE_URL, PRICE_CAP_SOURCE_LABEL } from '@/lib/brains/constants'
-import { UK_2026_MONEY_LEAD } from '@/lib/scraper/uk2026Defaults'
+import {
+  computingJourneyTitle,
+  hasAnyStreamData,
+  journeyHasStreamData,
+} from '@/lib/zone/mechanicalTruth'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import {
   VERIFIED_SOURCE_DATE,
@@ -104,6 +108,8 @@ export interface ZoneJourneyCard {
   partner_link?: string
   /** v41.1 audit state when genome data is incomplete */
   auditState?: 'LIVE_AUDIT' | 'ESTIMATED_AUDIT'
+  /** No scrape-sync / research_results stream yet — grid shows empty metrics. */
+  streamPending?: boolean
 }
 
 export interface ZoneTipCard {
@@ -591,8 +597,6 @@ export function buildZoneViewModel({
     Number(marketContext?.regionalGridIntensityGPerKwh ?? localData?.localCarbonG ?? 129)
   )
   const livePostcode = (marketContext?.liveProfilePostcode ?? profile?.postcode ?? '').trim() || undefined
-  const hasLiveResearchData = Boolean(marketContext?.liveResearchData)
-  const strictLiveFigureGuard = process.env.NODE_ENV === 'production'
   const hasVerifiedSaving = Number.isFinite(marketContext?.verifiedSaving) && Number(marketContext?.verifiedSaving) > 0
   const savingAmt = marketContext?.savingAmountGbp
   const hasVerifiedNeonMoney =
@@ -602,8 +606,13 @@ export function buildZoneViewModel({
   const vmAuditLive = (genomeIncomplete: boolean): 'LIVE_AUDIT' | 'ESTIMATED_AUDIT' =>
     hasVerifiedNeonMoney && !genomeIncomplete ? 'LIVE_AUDIT' : 'ESTIMATED_AUDIT'
   const marketDeepLink = marketContext?.deepLink?.trim()
+  const streamOpts = { neonJourneyResearch, scraped }
   const dynamicJourneyValues = JOURNEY_ORDER.reduce(
     (acc, journeyKey) => {
+      if (!journeyHasStreamData(journeyKey, streamOpts)) {
+        acc[journeyKey] = { moneyGbp: 0, carbonKg: 0, estimatedAudit: true }
+        return acc
+      }
       const impact = journeyImpacts[journeyKey]
       const baseline = resolveBaselineMarketRate({
         journeyKey,
@@ -623,12 +632,11 @@ export function buildZoneViewModel({
         profile,
         journeyAnswers,
       })
-      // v42.7 — True Waste formula lock.
       const trueWasteMoney = Math.max(0, (liveMarketRate - userEfficientRate) * genome.modifier)
       const calculatedMoney = Math.round(trueWasteMoney)
-      const calculatedCarbon = Math.max(1, Math.round(baseline.carbonBaseline * genome.modifier))
+      const calculatedCarbon = Math.round(baseline.carbonBaseline * genome.modifier)
       const moneyGbp = Math.max(calculatedMoney, Math.round(impact.moneyGbp))
-      const carbonKg = Math.max(calculatedCarbon, Math.round(impact.carbonKg))
+      const carbonKg = Math.max(0, calculatedCarbon, Math.round(impact.carbonKg))
       acc[journeyKey] = {
         moneyGbp,
         carbonKg,
@@ -667,9 +675,12 @@ export function buildZoneViewModel({
       : profileHomeType === 'HOUSE'
         ? 'for your household'
         : 'for your setup'
-  const heroTitle = hasProfile
-    ? `${profileName ? `${profileName}, ` : ''}your biggest opportunities ${heroContext}`.trim()
-    : 'Top cash-saving hacks for 2026'
+  const heroTitle =
+    dynamicTotals.totalMoney > 0 || hasAnyStreamData(streamOpts)
+      ? hasProfile
+        ? `${profileName ? `${profileName}, ` : ''}your biggest opportunities ${heroContext}`.trim()
+        : 'Top cash-saving hacks for 2026'
+      : 'Analyzing your postcode...'
   const aprilCapLine = `From April 1st the price cap is ${formatZoneCardMoney(capGbp)} for your current audit context (${livePostcode ?? 'UK profile baseline'}).`
   const baseExplanation = hasProfile
     ? (heroImpact?.explanation?.length
@@ -715,21 +726,7 @@ export function buildZoneViewModel({
   // JOURNEY CARDS — one tile per domain (12), in JOURNEY_ORDER
   const journeyCards: ZoneJourneyCard[] = JOURNEY_ORDER.map((journeyKey) => {
     const impact = journeyImpacts[journeyKey] as ScrapedOverlayResult
-    const fallback = UK_2026_MONEY_LEAD[journeyKey]
-    const hasJourneyAnswers = Object.keys(journeyAnswers[journeyKey] ?? {}).length > 0
-    if (
-      strictLiveFigureGuard &&
-      livePostcode &&
-      hasJourneyAnswers &&
-      hasLiveResearchData &&
-      fallback &&
-      Math.round(impact.moneyGbp) === Math.round(fallback.money_value) &&
-      Math.round(impact.carbonKg) === Math.round(fallback.carbon_value)
-    ) {
-      console.error(
-        `[v42.1] fallback-default-detected: "${journeyKey}" rendered UK_2026_MONEY_LEAD with live postcode "${livePostcode}" despite live research context.`
-      )
-    }
+    const hasStream = journeyHasStreamData(journeyKey, streamOpts)
     const source = getJourneySource(journeyKey, 0)
 
     // Special case: home journey with provider switching
@@ -781,13 +778,14 @@ export function buildZoneViewModel({
       teaserTitleFromOffer(impact.insightLabel) ??
       teaserTitleFromOffer(impact.insight) ??
       teaserTitleFromOffer(localCouncilTip)
-    const title =
-      offerTeaserTitle ??
-      (buildCompactHeadline({
-        journey: journeyKey,
-        moneyGbp,
-        journeyAnswers,
-      }) || baselineTitle)
+    const title = !hasStream
+      ? computingJourneyTitle(journeyKey)
+      : offerTeaserTitle ??
+        (buildCompactHeadline({
+          journey: journeyKey,
+          moneyGbp,
+          journeyAnswers,
+        }) || baselineTitle)
     const learnUrl =
       !isGenericHomepageUrl(claimOfferUrl) ? claimOfferUrl! :
       !isGenericHomepageUrl(source.url) ? source.url :
@@ -820,9 +818,10 @@ export function buildZoneViewModel({
       journey_key: journeyKey,
       category: journeyKey,
       data: {
-        carbon: formatCarbon(carbonKg),
-        money: formatZoneCardMoney(moneyGbp),
+        carbon: hasStream ? formatCarbon(carbonKg) : '—',
+        money: hasStream ? formatZoneCardMoney(moneyGbp) : '—',
       },
+      streamPending: !hasStream,
       carbonKg: carbonKg,
       moneyGbp: moneyGbp,
       source: source.url,

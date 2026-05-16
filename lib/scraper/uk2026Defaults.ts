@@ -1,7 +1,6 @@
 /**
- * UK journey baselines — **numeric + short display labels only**.
- * Narrative tips and agent copy come from Firecrawl / `scraped_summary`, Gemini (`research_results`),
- * and Hermes cron (`/api/cron/zone-research`); do not ship long crawler prose here.
+ * Honest empty-state baselines — **no fabricated £/kg on the Zone wall**.
+ * Real figures come only from `research_results`, `scraped_summary`, or scrape-sync stream.
  */
 
 import type { JourneyId } from '@/lib/journeys'
@@ -16,91 +15,32 @@ export interface JourneyMoneyLead {
   agent_focus?: string
 }
 
-const PERSONALISE = 'Answer questions to personalise.'
+const COMPUTING = 'Computing...'
 
+function emptyLead(journey_key: JourneyId): JourneyMoneyLead {
+  return {
+    journey_key,
+    money_lead: COMPUTING,
+    money_value: 0,
+    carbon_backup: COMPUTING,
+    carbon_value: 0,
+    crawler_tip: COMPUTING,
+    agent_focus: COMPUTING,
+  }
+}
+
+/** Shape-only defaults (all zero) — used when scrape-sync has no DB rows yet. */
 export const UK_2026_MONEY_LEAD: Record<JourneyId, JourneyMoneyLead> = {
-  home: {
-    journey_key: 'home',
-    money_lead: '£0 cost',
-    money_value: 12000,
-    carbon_backup: PERSONALISE,
-    carbon_value: 850,
-  },
-  grants: {
-    journey_key: 'grants',
-    money_lead: '£7,500 BUS',
-    money_value: 7500,
-    carbon_backup: PERSONALISE,
-    carbon_value: 900,
-  },
-  solar: {
-    journey_key: 'solar',
-    money_lead: '£1,200/yr',
-    money_value: 1200,
-    carbon_backup: PERSONALISE,
-    carbon_value: 650,
-  },
-  travel: {
-    journey_key: 'travel',
-    money_lead: '£500 grant',
-    money_value: 500,
-    carbon_backup: PERSONALISE,
-    carbon_value: 400,
-  },
-  food: {
-    journey_key: 'food',
-    money_lead: '£1,000/yr',
-    money_value: 1000,
-    carbon_backup: PERSONALISE,
-    carbon_value: 1200,
-  },
-  shopping: {
-    journey_key: 'shopping',
-    money_lead: '£400/yr',
-    money_value: 400,
-    carbon_backup: PERSONALISE,
-    carbon_value: 500,
-  },
-  money: {
-    journey_key: 'money',
-    money_lead: '20% ROI',
-    money_value: 1400,
-    carbon_backup: PERSONALISE,
-    carbon_value: 19000,
-  },
-  carbon: {
-    journey_key: 'carbon',
-    money_lead: '£117 drop',
-    money_value: 117,
-    carbon_backup: PERSONALISE,
-    carbon_value: 200,
-  },
-  tech: {
-    journey_key: 'tech',
-    money_lead: '£200/yr',
-    money_value: 200,
-    carbon_backup: PERSONALISE,
-    carbon_value: 300,
-  },
-  water: {
-    journey_key: 'water',
-    money_lead: '£120/yr',
-    money_value: 120,
-    carbon_backup: PERSONALISE,
-    carbon_value: 180,
-  },
-  waste: {
-    journey_key: 'waste',
-    money_lead: '£150/yr',
-    money_value: 150,
-    carbon_backup: PERSONALISE,
-    carbon_value: 350,
-  },
-  holidays: {
-    journey_key: 'holidays',
-    money_lead: '£300/yr',
-    money_value: 300,
-    carbon_backup: PERSONALISE,
-    carbon_value: 1000,
-  },
+  home: emptyLead('home'),
+  grants: emptyLead('grants'),
+  solar: emptyLead('solar'),
+  travel: emptyLead('travel'),
+  holidays: emptyLead('holidays'),
+  food: emptyLead('food'),
+  shopping: emptyLead('shopping'),
+  money: emptyLead('money'),
+  carbon: emptyLead('carbon'),
+  tech: emptyLead('tech'),
+  water: emptyLead('water'),
+  waste: emptyLead('waste'),
 }
