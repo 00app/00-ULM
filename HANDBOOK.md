@@ -44,8 +44,8 @@ UK-first web app: **postcode** and **profile** drive local context; **Zone** sho
 | Intro | `/`, `/intro` | Glitch logo → `IntroWordCycle` (SAVE → MONEY → …) → **CREATE** (`/profile`) only (no SKIP CTA). `?skip=1` / `?step=message` still skips logo via URL. |
 | Profile | `/profile` | Stepped onboarding (`ProfilePageClient`). **Full-sentence fade:** each step’s heading is **one block** (soft **y: 10→0** + opacity, `STACCATO_TWEEN`) — **not** word-by-word. Postcode → `POST /api/local-intelligence`. |
 | Summary | `/profile/summary` | **`SummaryHeader`** → **`IntroWordCycle`** with **`opacityTicker`**: **one word on screen at a time**, opacity **0→1** only (Mechanical Snap ticker — **no** Style A glitch). Words from **`buildSummaryStaccatoWords`**; locality wrap via **`formatSummaryLocalityKineticToken`** + **`fitToViewportPaddingPx`**. Dwell/gap: **`SUMMARY_KINETIC_WORD_*`** in `lib/animations.ts`. Then Zone. **`lib/brains/summaryLogic.ts`**. |
-| Zone | `/zone` | **12 journey tiles** (3×4 bento). **`ZeroGateShutter`** until `GET /api/scrape-sync` resolves (`vmResolved`). **Mechanical truth:** no fake £ when Neon is empty — see § Mechanical truth below. Style B: **`STACCATO_*`** assembly (`app/zone/page.tsx`). |
-| Solo Focus | (overlay) | `JourneyBentoCard` / `SoloFocusOverlay` + `EmbeddedJourneyQuestion` — **`POST /api/answers`** runs the discovery race → **`injectNewDiscoveryCard`** for new Zone cards; **`/api/research/question-card`** is Ask-only. Zip-shut on answer → **fade-open** (opacity + **y**) for the next question when `soloFocusZipShut`. |
+| Zone | `/zone` | **12 journey tiles** (3×4 bento) always visible; **`LoadingHeartbeat`** + per-card skeleton while `GET /api/scrape-sync` hydrates (`vmResolved`). **Mechanical truth:** no fake £ when Neon is empty — see § Mechanical truth below. Style B: **`STACCATO_*`** assembly (`app/zone/page.tsx`). **`ZoneCard`** export = `JourneyBentoCard`. |
+| Solo Focus | (overlay) | **`ZoneCard`** / `SoloFocusOverlay` + `EmbeddedJourneyQuestion` — **`POST /api/answers`** discovery race → **`injectNewDiscoveryCard`**. **Tier 2:** child answer → **`runTier2MotherChildSwap`** → `GET /api/scrape-sync?postcode&category&answer&question_id` → morph deck refresh. Zip-shut → **fade-open** for next question. |
 | Other | `/zai`, `/likes`, `/settings` | Chat, saved cards, reset/session. |
 
 No `/journeys` or `/expand/*` product routes — journeys live on Zone.
@@ -87,6 +87,45 @@ Zone VM blends: **AppContext** + **localStorage** mirror, **journey answers**, *
 
 **Postcode:** Source of truth includes `profile_postcode` in localStorage; Zone refreshes on change (polling, `storage` events, unified profile memory).
 
+**Locality:** `GET /api/geocode/postcode?postcode=…` (server Nominatim proxy) → **`profile_locality_name`** in localStorage via **`lib/geocode/resolvePostcodeLocality.ts`**. Summary + Zone headers read cache; fallback = formatted postcode.
+
+**Gary / demo identity:** Postcode **BN17** (or `zz_gary_mode=1`) pins research to UUID **`00000000-0000-4000-a000-000000000000`**. All scrape-sync GET/POST append **`user_id`** when active (`lib/zone/garyMode.ts`). Link DB rows: **`npx tsx scripts/link-gary-bn17-research.ts`** (uses `DATABASE_URL` only — never commit passwords).
+
+---
+
+## Neon hot path (what actually fills)
+
+| Table | Role |
+|-------|------|
+| **`research_results`** | Per-category £, prose, `offer_url`, `architect_prose`, `user_id`, postcode |
+| **`journey_answers`** + **`journey_answers_jsonb`** | Normalized MC answers (`upsertJourneyAnswerJsonb`) |
+| **`user_profiles`** | Optional mirror of `journey_answers_jsonb` (Hermes / audit-complete) |
+| **`scraped_summary`** | Legacy hero aggregates when populated |
+| **`guest_sessions`** | Pre-login profile + answers by `zz_sid` cookie |
+
+**Not on the hot path:** `micro_answers` (legacy FK to `cards`), empty discovery tables — safe to ignore for Zone/Solo Focus.
+
+---
+
+## CORS & client fetches
+
+Browser code must **not** call `ofgem.gov.uk` or Nominatim directly.
+
+| Need | Route |
+|------|--------|
+| Living pulse (Ofgem + grid) | **`GET /api/pulse/living?postcode=…`** (`lib/logic/pulse.ts` client branch) |
+| Postcode locality | **`GET /api/geocode/postcode?postcode=…`** |
+| Research / Zone tiles | **`GET /api/scrape-sync?postcode=…`** (+ optional `user_id`, Tier 2: `category`, `answer`, `question_id`) |
+
+---
+
+## Tier 2 mother/child swap
+
+1. User answers child question in Solo Focus (`EmbeddedJourneyQuestion`).
+2. Client: **`runTier2MotherChildSwap`** (`lib/zone/tier2RecursiveSpawner.ts`) — localStorage answer + **`GET /api/scrape-sync`** scoped refresh.
+3. Server: persists answer to **`journey_answers`** when `user_id` + valid `question_id`; runs **`runTriggerResearchForCategory`**; returns updated **`research_category_coverage`**.
+4. UI: morph deck append + **`zz-tier2-profile-refresh`** event → Zone hero totals refresh without full reload.
+
 ---
 
 ## Integrations — Neon, Gemini, Firecrawl, Hermes (one pipeline)
@@ -126,8 +165,11 @@ Read this when tracing **profile summary**, **expanded Solo Focus**, or **resear
 |-------|-----------|
 | Title cleanup | **`stripExpandedCardTitleNoise`** — strips trailing **(Updated …)** so the H1 does not repeat body dates — **`lib/soloFocusCopy.ts`**; used in **`JourneyBentoCard`**, **`SoloFocusOverlay`** before **`headlineFromTitle`** |
 | Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini triplet in **`lib/agents/researchAgent.ts`** locks **Zai Senior Auditor** persona: **`agent_headline`** (~20 words) + exactly three label-free paragraphs (what / why / how embedded in prose only). |
-| Layout | Expanded view: **Marvin Visions** H1 (**`solo-focus-architect-headline`**) + three **Roboto Bold 16px / 1.2lh** **`solo-focus-architect-prose`** blocks + **Roboto Bold** verified source link — **`JourneyBentoCard`**, **`SoloFocusOverlay`** (no UI labels). Zone card face still uses **`headlineFromTitle`** with **`MAX_ZONE_CARD_HEADLINE_WORDS` (8)**. |
-| Dedupe | **`stripExpandedCardTitleNoise`** (incl. fluff prefixes), **`stripAuditorFluffParagraph`**, **`polishTrueTipParagraphsForHeadline`** / **`dedupeTrueTipOpeningParagraph`** — headline vs first paragraph overlap |
+| Category label | Same as collapsed tile: **`card-top-label`** / **`formatZoneCategoryLabel`** above expanded H1. |
+| Headline limits | Expanded H1 ≤ **`MAX_EXPANDED_VIEW_HEADLINE_WORDS` (20)**; bento face ≤ **`MAX_ZONE_CARD_HEADLINE_WORDS` (8)**. |
+| Layout | Expanded: Marvin H1 + three **Roboto Bold** **`solo-focus-architect-prose`** paragraphs (≤ **`MAX_TRUE_TIP_PARAGRAPH_WORDS` (40)** each). Raw tariff dumps / markdown `**` stripped via **`isRawResearchDump`** → auditor fallback. |
+| Dedupe | **`stripExpandedCardTitleNoise`**, **`stripMarkdownForProseDisplay`**, **`polishTrueTipParagraphsForHeadline`** / **`dedupeTrueTipOpeningParagraph`**. |
+| Scroll | Single scroll on **`.solo-focus-grow-layer`** (no nested rail clip). |
 | Links | **`offer_url`** / **`verifiedAuditSourceUrl`** / **`pickPrimaryHttpUrl`** — **`IndustrialHandoffButton`** uses **Claim / Buy / Get** via **`resolveRevenueCtaLabel`** (`lib/zone/verifiedRevenue.ts`); always passes a URL ( **`offer_url`** or **`/zai`** fallback). |
 
 Full manifest (Hermes, Neon host token, caps): **`docs/INTELLIGENCE-LOOP-MANIFEST.md`**. Verify DB: **`npm run db:log-research`**. |
@@ -246,22 +288,47 @@ The application UI reflects the Auditor's precision: mechanical, low-latency, an
 
 ## Repo map (high level)
 
+**Keep these trees; do not duplicate logic elsewhere.**
+
 | Path | Role |
 |------|------|
-| `app/components/ZoneIntelligenceStrip.tsx` | **Zone** + **Likes**: triangle FAB + `pulse-diagnostic-panel`; **Neon tick** = public `GET /api/health`; on failure, **`dbHealthHint`** explains (no secrets). Dev **`debugHudLine`**. `suppressOverlay` when Solo Focus / tip expanded. |
-| `app/api/*` | Route handlers (answers, zone, zai, sentinel, scrape-sync, cron, …) |
-| `docs/PROFILE-ANSWERS-ZONE-TECH.md` | Profile + 12×3 questions + answers API + mechanical truth (built-state reference) |
-| `lib/journeys.ts` | 12 domains, question ids, validation helpers |
-| `lib/zone/mechanicalTruth.ts` | Stream detection for honest Zone tiles |
-| `lib/scraper/uk2026Defaults.ts` | Zeroed shape defaults (no fabricated £) |
-| `lib/brains/summaryLogic.ts` | Profile summary kinetic + reveal copy |
-| `lib/soloFocusCopy.ts` | Solo Focus headlines, True Tip paragraphs, title strip / polish |
-| `lib/agents/*` | Research, discovery, auditor, sentinel |
-| `lib/db/neon.ts` | Neon queries + invoke snapshots |
-| `lib/schema.sql` | Reference schema (init-db) |
-| `lib/logic/engine.ts` | Economic / grid truth helpers |
-| `lib/intelligence/manifest.ts` | Neon host token + injection caps (no secrets) |
+| `app/` | App Router pages, API routes, UI components |
+| `app/components/ZoneCard.tsx` | Zone export + Tier 2 helpers |
+| `app/components/LoadingHeartbeat.tsx` | Inline pulse above Saving Tips while hydrating |
+| `app/components/ZoneIntelligenceStrip.tsx` | Dev FAB; polls scrape-sync with Gary `user_id` when active |
+| `lib/zone/` | Zone VM, Tier 2, Gary mode, scrape parsers, bento persona |
+| `lib/brains/` | Impact engine, summary, constants, Zai router (**not** `lib/brain/` — single legacy API) |
+| `lib/agents/` | Research, discovery, Firecrawl, Gemini persist |
+| `lib/db/neon.ts` | Answer upserts + research reads |
+| `lib/geocode/resolvePostcodeLocality.ts` | Nominatim label + localStorage cache |
+| `lib/soloFocusCopy.ts` | Expanded copy rules (20-word H1, 3×40-word paragraphs) |
+| `lib/researchSyncClient.ts` | POST trigger + re-exports Tier 2 fetch |
+| `lib/schema.sql` + `db/migrations/` | Schema reference + Neon SQL history |
+| `scripts/` | Ops only — see **Scripts** below |
+| `docs/PROFILE-ANSWERS-ZONE-TECH.md` | Profile + 12×3 + mechanical truth |
+| `docs/INTELLIGENCE-LOOP-MANIFEST.md` | Hermes loop manifest |
 | `e2e/` | Playwright specs |
+
+### Scripts (npm / ops)
+
+| Command | Script |
+|---------|--------|
+| `npm run init-db` | `scripts/init-db.ts` |
+| `npm run db:test` | `scripts/db-test.ts` |
+| `npm run db:log-research` | `scripts/log-latest-research-row.ts` |
+| `npm run deploy` | `scripts/deploy-production.sh` |
+| `npm run verify:env` | `scripts/verify-env-and-health.sh` |
+| Gary BN17 link | `scripts/link-gary-bn17-research.ts` (manual; `DATABASE_URL` env) |
+
+Other files under `scripts/` are optional one-offs (seed, curl helpers) — not required for production runtime.
+
+### Removed / legacy (do not restore)
+
+- `lib/geocode.ts` — use `lib/geocode/resolvePostcodeLocality.ts` + `/api/geocode/postcode`
+- `tailwind.config.js` — use `tailwind.config.ts` only
+- `pages/_app.js` — App Router only (`app/`)
+- Root `hooks/` — use `app/hooks/` + `lib/hooks/`
+- `vercel-deploy*.log`, `deploy-trigger.*` — gitignored local noise
 
 ---
 

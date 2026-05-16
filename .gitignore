@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local deploy noise (never commit)
+vercel-deploy*.log
+deploy-trigger.err
+deploy-trigger.json

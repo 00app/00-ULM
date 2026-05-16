@@ -10,7 +10,7 @@ test.describe('Zone — Groovy Grid + Solo Focus', () => {
   test.describe.configure({ mode: 'serial', timeout: 60000 })
   test.beforeEach(async ({ page }) => {
     await page.goto('/zone', { waitUntil: 'domcontentloaded' })
-    // ClientOnly real grid exposes data-testid; brief route gate is ZeroGateShutter (logo pulse only).
+    // ClientOnly real grid exposes data-testid; skeleton grid + LoadingHeartbeat until scrape-sync resolves.
     await page.getByTestId('zone-grid-mounted').waitFor({ state: 'visible', timeout: 30000 })
     await page.getByTestId('zone-hero-card').waitFor({ state: 'visible', timeout: 30000 })
   })
