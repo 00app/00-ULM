@@ -35,6 +35,7 @@
     "test:firecrawl:zone-schema": "tsx scripts/test-firecrawl.ts --zone-schema",
     "deploy": "vercel --prod --yes",
     "deploy:force": "vercel --prod --force --yes",
+    "prep:live": "bash scripts/prep-clear-and-build.sh",
     "ship": "node scripts/build-with-manifest-fix.js && vercel --prod --yes",
     "init-db": "tsx scripts/init-db.ts",
     "db:test": "tsx scripts/db-test.ts",
