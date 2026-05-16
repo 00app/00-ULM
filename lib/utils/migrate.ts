@@ -19,6 +19,10 @@ export function clearLocalStorageExceptProfileAndUser(): void {
       if (k && !keepKey(k)) keys.push(k)
     }
     keys.forEach((k) => window.localStorage.removeItem(k))
+    for (let i = 0; i < window.sessionStorage.length; i++) {
+      const k = window.sessionStorage.key(i)
+      if (k) window.sessionStorage.removeItem(k)
+    }
   } catch {
     // ignore
   }

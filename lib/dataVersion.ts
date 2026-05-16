@@ -2,7 +2,8 @@
  * Data version for Zero Zero — when this changes in production, local data is reset
  * and returning users load from session/IP-based storage.
  */
-export const DATA_VERSION = process.env.NEXT_PUBLIC_DATA_VERSION ?? '2026-2'
+/** Bump when journey grid / local cache shape changes (e.g. 9 → 12 domains). */
+export const DATA_VERSION = process.env.NEXT_PUBLIC_DATA_VERSION ?? '2026-12'
 
 export const LOCAL_STORAGE_KEYS = {
   VERSION: 'zz_data_version',
@@ -50,9 +51,41 @@ export function getLocalDataKeysToReset(): string[] {
   return keys
 }
 
+/** Drop stale Solo Focus / sentinel / trap keys so 12-domain deploys do not reuse 9-tile cache. */
+export function clearSessionStorageForReset(): void {
+  if (typeof window === 'undefined') return
+  try {
+    const drop: string[] = []
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i)
+      if (k) drop.push(k)
+    }
+    drop.forEach((k) => sessionStorage.removeItem(k))
+  } catch {
+    // ignore
+  }
+}
+
+export function clearExtraLocalKeysForReset(): void {
+  if (typeof window === 'undefined') return
+  const extras: string[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (!k) continue
+    if (k.startsWith('discovery_trap_')) extras.push(k)
+    if (k.startsWith('zz_sentinel_')) extras.push(k)
+    if (k === 'profile_goal' || k === 'profile_region' || k === 'profile_location_region') {
+      extras.push(k)
+    }
+  }
+  extras.forEach((k) => localStorage.removeItem(k))
+}
+
 export function clearLocalDataAndSetVersion(version: string): void {
   if (typeof window === 'undefined') return
   getLocalDataKeysToReset().forEach((k) => localStorage.removeItem(k))
+  clearExtraLocalKeysForReset()
+  clearSessionStorageForReset()
   localStorage.setItem(LOCAL_STORAGE_KEYS.VERSION, version)
 }
 

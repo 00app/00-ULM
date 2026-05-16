@@ -9,17 +9,14 @@ import {
 } from '@/lib/dataVersion'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 
-const isProduction = typeof process !== 'undefined' && process.env.NODE_ENV === 'production'
-
 /**
- * When pushed live: reset local data if version changed, then rehydrate from session/IP storage.
- * Runs once per app load in production.
+ * On version bump: reset local + session storage, then rehydrate profile/journey answers from the server.
  */
 export default function SessionStateRehydrate() {
   const done = useRef(false)
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !isProduction || done.current) return
+    if (typeof window === 'undefined' || done.current) return
     done.current = true
 
     const storedVersion = getStoredDataVersion()

@@ -44,6 +44,7 @@
     "db:ensure-user-profiles": "tsx scripts/ensure-user-profiles-table.ts",
     "db:evolve-12-domains": "tsx scripts/evolve-12-domain-db.ts",
     "db:log-research": "tsx scripts/log-latest-research-row.ts",
+    "env:merge": "node scripts/merge-env-local.mjs",
     "verify:env": "bash scripts/verify-env-and-health.sh",
     "curl:scrape-sync": "bash scripts/curl-scrape-sync-trigger.sh"
   },
