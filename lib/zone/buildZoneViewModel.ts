@@ -1001,8 +1001,10 @@ export function buildZoneViewModel({
       auditState: vmAuditLive(false),
     },
   ]
+  void generalCards // legacy 9+3 fillers; 12-domain wall uses `journeyCards` only
 
-  const journeys: ZoneJourneyCard[] = [...journeyCards, ...generalCards]
+  /** Act-now wall: 12 journey tiles only (`app/zone` filters `journey-*`). */
+  const journeys: ZoneJourneyCard[] = journeyCards
 
   // TIPS - Top 3 journeys by carbon impact
   // Special case: If home provider is not green, add switching tip
@@ -1182,10 +1184,10 @@ export function buildZoneViewModel({
 
   tips = mergeDiscoveryInjectionsIntoTips(tips, injectedTips, profile?.goal)
 
-  // VALIDATION CHECKS — act now. grid: 9 journey + 3 general = 12 card-standard
-  if (journeys.length !== 12) {
-    console.error(
-      `[Zone] Expected 12 act now. cards (9 journey + 3 general), got ${journeys.length}`
+  // VALIDATION — 12-domain bento wall (one tile per JOURNEY_ORDER key)
+  if (journeys.length !== JOURNEY_ORDER.length) {
+    console.warn(
+      `[Zone] Expected ${JOURNEY_ORDER.length} journey tiles, got ${journeys.length}`
     )
   }
   if (tips.length !== 3) {

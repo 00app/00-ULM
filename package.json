@@ -34,6 +34,7 @@
     "test:schema:firecrawl-zone": "node scripts/validate-firecrawl-zone-schema.mjs",
     "test:firecrawl:zone-schema": "tsx scripts/test-firecrawl.ts --zone-schema",
     "deploy": "vercel --prod --yes",
+    "deploy:force": "vercel --prod --force --yes",
     "ship": "node scripts/build-with-manifest-fix.js && vercel --prod --yes",
     "init-db": "tsx scripts/init-db.ts",
     "db:test": "tsx scripts/db-test.ts",
