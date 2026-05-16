@@ -53,6 +53,11 @@ import {
   getApril2026Economy,
 } from '@/lib/logic/engine'
 import { fetchLivingPulseSnapshot } from '@/lib/logic/pulse'
+import {
+  scheduleZoneEngineHydrationPhases,
+  ZONE_ENGINE_HYDRATION_LABELS,
+  type ZoneEngineStatus,
+} from '@/lib/zone/engineHydration'
 import { ROCK_BY_SLUG, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/lib/rock/habitsCatalog'
 import { replaceRockSlotAfterLike } from '@/lib/rock/rotation'
 import { useRockVisibleHabits } from '@/lib/rock/useRockVisibleHabits'
@@ -275,6 +280,7 @@ export default function ZonePage() {
   const [dbConnected, setDbConnected] = useState(true)
   const [dbHealthHint, setDbHealthHint] = useState<string | null>(null)
   const [vmResolved, setVmResolved] = useState(false)
+  const [engineStatus, setEngineStatus] = useState<ZoneEngineStatus>('idle')
   const [marketContext, setMarketContext] = useState<{
     liveProfilePostcode?: string
     april2026PriceCapGbp?: number
@@ -607,6 +613,11 @@ export default function ZonePage() {
     const raw = (profilePostcode ?? fromStorage)?.replace(/\s+/g, '').trim()
     const postcode = raw && raw.length >= 4 ? raw : null
     const url = postcode ? `/api/scrape-sync?postcode=${encodeURIComponent(postcode)}` : '/api/scrape-sync'
+    let clearHydrationPhases: (() => void) | null = null
+    if (postcode) {
+      setEngineStatus('scraping')
+      clearHydrationPhases = scheduleZoneEngineHydrationPhases((phase) => setEngineStatus(phase))
+    }
     fetch(url)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
@@ -745,6 +756,10 @@ export default function ZonePage() {
         setResearchCategoryCoverage(null)
         setHomeUnitRates(null)
         setRatesSourceUrl(null)
+      })
+      .finally(() => {
+        clearHydrationPhases?.()
+        setEngineStatus('idle')
       })
   }, [profilePostcode])
 
@@ -1393,9 +1408,9 @@ export default function ZonePage() {
 
         {/* 2. BENTO WALL — ClientOnly to avoid hydration mismatch (localStorage / window) */}
         <div className="zone-container" aria-hidden={false}>
-          <ClientOnly fallback={<ZeroGateShutter />}>
+          <ClientOnly fallback={<ZeroGateShutter engineStatus={engineStatus} />}>
           {!vmResolved ? (
-            <ZeroGateShutter />
+            <ZeroGateShutter engineStatus={engineStatus} />
           ) : (
           <motion.div
             key={summaryGridStaggerKey}
@@ -2002,6 +2017,11 @@ export default function ZonePage() {
             hasNewTipForZai={!!scraped && Object.keys(scraped).length > 0}
           />
         )}
+        {vmResolved && engineStatus !== 'idle' ? (
+          <p className="zone-engine-hydration-status zone-engine-hydration-strip m-0" aria-live="polite">
+            {ZONE_ENGINE_HYDRATION_LABELS[engineStatus]}
+          </p>
+        ) : null}
         <ZoneIntelligenceStrip
           variant="zone"
           suppressOverlay={Boolean(expandedCardId || expandedTipId)}

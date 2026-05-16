@@ -304,6 +304,46 @@ body {
   }
 }
 
+/* Zone intelligence-loop hydration — Marvin yellow pulse on gate */
+.zone-engine-hydration-status {
+  font-family: var(--font-label);
+  font-size: var(--zz-h4-mobile);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  color: var(--color-yellow);
+  text-transform: uppercase;
+  animation: zz-engine-hydration-pulse 0.36s linear infinite alternate;
+}
+@media (min-width: 1024px) {
+  .zone-engine-hydration-status {
+    font-size: var(--zz-h4-desktop);
+  }
+}
+@keyframes zz-engine-hydration-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.68;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zone-engine-hydration-status {
+    animation: none;
+  }
+}
+.zone-engine-hydration-strip {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+  z-index: 35;
+  padding: 0 1rem;
+  text-align: center;
+  pointer-events: none;
+}
+
 /* Surface integrity — cards and chat bubbles stay solid on the atmospheric layer */
 .bento-card-groovy,
 .expanded-solo-focus,
