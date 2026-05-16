@@ -22,9 +22,12 @@ import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 import {
+  applyScrapeSyncTriggerFlags,
   scrapeSyncAuthDeniedResponse,
   scrapeSyncBearerMatches,
+  scrapeSyncTriggerRequested,
 } from '@/lib/intelligence/scrapeSyncAuth'
+import { foldCoverageRowsForZone, researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -174,6 +177,7 @@ async function buildScrapedFromResearchResults(
     const cov = await pool.query<{
       cat: string
       architect_prose: string | null
+      agent_headline: string | null
       saving_amount_gbp: unknown
       verified_saving: unknown
       carbon_impact_kg: unknown
@@ -192,21 +196,29 @@ async function buildScrapedFromResearchResults(
       userId ? [userId, pc] : [pc]
     )
     if (cov.rows.length === 0) return null
-    const byCat = new Map(cov.rows.map((r) => [String(r.cat || '').trim().toLowerCase(), r]))
-    const hasAny = JOURNEY_ORDER.some((key) => {
-      const row = byCat.get(key)
-      if (!row) return false
+    const byJourney = new Map<JourneyId, (typeof cov.rows)[0]>()
+    for (const row of cov.rows) {
+      const jid = researchCategoryToJourneyKey(String(row.cat || ''))
+      if (!jid) continue
+      const existing = byJourney.get(jid)
+      const sav = toNum(row.saving_amount_gbp) || toNum(row.verified_saving)
+      const prevSav = existing ? toNum(existing.saving_amount_gbp) || toNum(existing.verified_saving) : 0
+      if (!existing || sav > prevSav) byJourney.set(jid, row)
+    }
+    const hasAny = [...byJourney.values()].some((row) => {
       const sav = toNum(row.saving_amount_gbp) || toNum(row.verified_saving)
       const prose = typeof row.architect_prose === 'string' ? row.architect_prose.trim() : ''
-      return sav > 0 || prose.length > 0
+      const headline = typeof row.agent_headline === 'string' ? row.agent_headline.trim() : ''
+      return sav > 0 || prose.length > 0 || headline.length > 0
     })
     if (!hasAny) return null
     return JOURNEY_ORDER.map((key) => {
-      const row = byCat.get(key)
+      const row = byJourney.get(key)
       const sav = row ? toNum(row.saving_amount_gbp) || toNum(row.verified_saving) : 0
       const carbon = row ? toNum(row.carbon_impact_kg) : 0
-      const tip =
-        row && typeof row.architect_prose === 'string' ? row.architect_prose.trim().slice(0, 280) : undefined
+      const prose = row && typeof row.architect_prose === 'string' ? row.architect_prose.trim() : ''
+      const headline = row && typeof row.agent_headline === 'string' ? row.agent_headline.trim() : ''
+      const tip = prose.length > 0 ? prose.slice(0, 280) : headline.length > 0 ? headline.slice(0, 280) : undefined
       return {
         journey_key: key,
         scraped_at: new Date().toISOString(),
@@ -261,6 +273,9 @@ export async function GET(request: NextRequest) {
         : postcode.length >= 4
           ? await loadResearchCategoryCoverageByPostcode(postcode)
           : undefined
+    if (researchCategoryCoverage) {
+      researchCategoryCoverage = foldCoverageRowsForZone(researchCategoryCoverage)
+    }
     if (postcode && postcode.length > 12) {
       return NextResponse.json({ error: 'postcode too long' }, { status: 400 })
     }
@@ -346,6 +361,9 @@ export async function GET(request: NextRequest) {
         sessionUserId != null
           ? await loadResearchCategoryCoverage(sessionUserId)
           : await loadResearchCategoryCoverageByPostcode(postcode)
+      if (researchCategoryCoverage) {
+        researchCategoryCoverage = foldCoverageRowsForZone(researchCategoryCoverage)
+      }
     }
 
     let researchMeta: {
@@ -446,12 +464,12 @@ export async function GET(request: NextRequest) {
        ORDER BY journey_key`
     )
     const rows = result.rows || []
+    const fromResearch =
+      postcode.length >= 4 ? await buildScrapedFromResearchResults(postcode, sessionUserId) : null
+    const researchHasMoney =
+      fromResearch?.some((s) => s.money_value > 0 || Boolean(s.deep_content_tip?.trim())) ?? false
 
     if (rows.length === 0) {
-      const fromResearch =
-        postcode.length >= 4
-          ? await buildScrapedFromResearchResults(postcode, sessionUserId)
-          : null
       if (fromResearch?.length) {
         const payload = {
           scraped: fromResearch,
@@ -509,6 +527,19 @@ export async function GET(request: NextRequest) {
       deep_content_tip: r.deep_content_tip ?? undefined,
       high_saving: Boolean(r.high_saving),
     }))
+    const dbHasMoney = scraped.some((s) => s.money_value > 0 || Boolean(s.deep_content_tip?.trim()))
+    if (fromResearch?.length && researchHasMoney && !dbHasMoney) {
+      const payload = {
+        scraped: fromResearch,
+        source: 'research_results' as const,
+        researchMeta,
+        ...(researchCategoryCoverage !== undefined
+          ? { research_category_coverage: researchCategoryCoverage }
+          : {}),
+        ...ratesExtra,
+      }
+      return NextResponse.json(research ? { ...payload, research } : payload)
+    }
     return NextResponse.json(
       research
         ? {
@@ -570,17 +601,7 @@ async function parseScrapeSyncPostBody(request: NextRequest): Promise<Record<str
   }
 
   const sp = request.nextUrl.searchParams
-  const qPostcode = (sp.get('postcode') ?? '').replace(/\s+/g, '').trim().toUpperCase()
-  const qForce =
-    ['1', 'true', 'yes'].includes(String(sp.get('force') ?? '').toLowerCase()) ||
-    ['1', 'true', 'yes'].includes(String(sp.get('trigger') ?? '').toLowerCase())
-
-  if (body.trigger === true || qForce) {
-    body.trigger = true
-    const pc =
-      typeof body.postcode === 'string' ? body.postcode.replace(/\s+/g, '').trim().toUpperCase() : ''
-    if (pc.length < 4 && qPostcode.length >= 4) body.postcode = qPostcode
-  }
+  body = applyScrapeSyncTriggerFlags(sp, body)
 
   const loopQ =
     (typeof body.question_id === 'string' ? body.question_id.trim() : '') ||
@@ -619,7 +640,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    const isTrigger = body?.trigger === true
+    const isTrigger = scrapeSyncTriggerRequested(request.nextUrl.searchParams, body)
     const authErr = await scrapeSyncPostAuthDenied(request, { allowSessionTrigger: isTrigger })
     if (authErr) return authErr
 
@@ -731,11 +752,30 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const rawItems = Array.isArray(body.scraped) ? body.scraped : body.items
+    const rawItems = Array.isArray(body.scraped)
+      ? body.scraped
+      : Array.isArray(body.scrapedData)
+        ? body.scrapedData
+        : body.items
     const items: ScrapedPayloadItem[] = Array.isArray(rawItems) ? (rawItems as ScrapedPayloadItem[]) : []
 
     if (items.length === 0) {
-      return NextResponse.json({ error: 'Missing scraped array' }, { status: 400 })
+      if (scrapeSyncTriggerRequested(request.nextUrl.searchParams, body)) {
+        return NextResponse.json(
+          {
+            error: 'Trigger handshake incomplete',
+            hint: 'POST with trigger flag was recognized but trigger branch did not run — retry with ?postcode=BN17&force=true',
+          },
+          { status: 400 }
+        )
+      }
+      return NextResponse.json(
+        {
+          error: 'Missing scraped array',
+          hint: 'Send scraped[] for crawler upsert, or trigger mode: ?postcode=…&force=true with Authorization Bearer',
+        },
+        { status: 400 }
+      )
     }
 
     for (const item of items) {

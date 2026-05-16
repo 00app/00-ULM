@@ -1,6 +1,21 @@
 import type { NeonJourneyResearchRow } from '@/lib/zone/buildZoneViewModel'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
-import type { JourneyId } from '@/lib/journeys'
+import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
+
+function mergeCoverageRow(
+  a: ResearchCategoryCoverageRow | undefined,
+  b: ResearchCategoryCoverageRow
+): ResearchCategoryCoverageRow {
+  if (!a) return { ...b }
+  const moneyA = Math.max(a.latestSavingGbp ?? 0, a.latestVerifiedGbp ?? 0)
+  const moneyB = Math.max(b.latestSavingGbp ?? 0, b.latestVerifiedGbp ?? 0)
+  if (moneyB > moneyA) return { ...b }
+  if (moneyA > moneyB) return { ...a }
+  const proseA = a.architectProse?.length ?? 0
+  const proseB = b.architectProse?.length ?? 0
+  if (proseB > proseA) return { ...b }
+  return { ...a }
+}
 
 export function coverageRowToNeon(row: ResearchCategoryCoverageRow): NeonJourneyResearchRow | null {
   const sav =
@@ -35,6 +50,31 @@ export function mergeNeonJourneyResearch(
  * Fold `grants` / `bills` Neon categories onto the nine-card Zone (`home` / `money` display buckets).
  * Core journey keys are already mapped in the caller.
  */
+/** Map Neon `general` / `grants` / `bills` rows onto Zone bento journey keys. */
+export function foldCoverageRowsForZone(
+  cov: Record<string, ResearchCategoryCoverageRow>
+): Record<string, ResearchCategoryCoverageRow> {
+  const out: Record<string, ResearchCategoryCoverageRow> = { ...cov }
+  const fold = (from: string, to: JourneyId) => {
+    const src = cov[from]
+    if (!src) return
+    out[to] = mergeCoverageRow(out[to], src)
+  }
+  fold('grants', 'home')
+  fold('bills', 'money')
+  fold('general', 'home')
+  return out
+}
+
+export function researchCategoryToJourneyKey(cat: string): JourneyId | null {
+  const c = cat.trim().toLowerCase()
+  if ((JOURNEY_ORDER as readonly string[]).includes(c)) return c as JourneyId
+  if (c === 'grants') return 'home'
+  if (c === 'bills') return 'money'
+  if (c === 'general') return 'home'
+  return null
+}
+
 export function foldExtendedResearchCoverage(
   base: Partial<Record<JourneyId, NeonJourneyResearchRow>>,
   cov: Record<string, ResearchCategoryCoverageRow>

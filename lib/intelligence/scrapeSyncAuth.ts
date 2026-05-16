@@ -1,6 +1,48 @@
 import type { NextRequest } from 'next/server'
 import { normalizeSecret, secretMeetsMinLength } from '@/lib/intelligence/normalizeSecret'
 
+function isTruthyQueryFlag(v: string | null | undefined): boolean {
+  return ['1', 'true', 'yes'].includes(String(v ?? '').toLowerCase())
+}
+
+function isTruthyBodyFlag(v: unknown): boolean {
+  if (v === true || v === 1) return true
+  if (typeof v === 'string') return isTruthyQueryFlag(v)
+  return false
+}
+
+/**
+ * POST trigger handshake — query `force` / `mode=trigger` / `full=true` or JSON `{ trigger: true }`.
+ * When true, `scraped` / `scrapedData` arrays are not required.
+ */
+export function scrapeSyncTriggerRequested(
+  searchParams: URLSearchParams,
+  body: Record<string, unknown>
+): boolean {
+  if (isTruthyBodyFlag(body.trigger)) return true
+  if (isTruthyBodyFlag(body.full)) return true
+  const mode = String(body.mode ?? searchParams.get('mode') ?? '').toLowerCase()
+  if (mode === 'trigger' || mode === 'full') return true
+  if (isTruthyQueryFlag(searchParams.get('force'))) return true
+  if (isTruthyQueryFlag(searchParams.get('trigger'))) return true
+  if (isTruthyQueryFlag(searchParams.get('full'))) return true
+  return false
+}
+
+/** Normalize trigger flags on the parsed POST body (Hermes / curl / Solo Focus). */
+export function applyScrapeSyncTriggerFlags(
+  searchParams: URLSearchParams,
+  body: Record<string, unknown>
+): Record<string, unknown> {
+  if (!scrapeSyncTriggerRequested(searchParams, body)) return body
+  body.trigger = true
+  const pc =
+    typeof body.postcode === 'string' ? body.postcode.replace(/\s+/g, '').trim().toUpperCase() : ''
+  const qPostcode = (searchParams.get('postcode') ?? '').replace(/\s+/g, '').trim().toUpperCase()
+  if (pc.length < 4 && qPostcode.length >= 4) body.postcode = qPostcode
+  return body
+}
+
 const MIN_LEN = 16
 
 /** Bearer / header values accepted for POST /api/scrape-sync (server + Hermes). */

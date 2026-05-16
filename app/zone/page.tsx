@@ -67,6 +67,7 @@ import { replaceRockSlotAfterLike } from '@/lib/rock/rotation'
 import { useRockVisibleHabits } from '@/lib/rock/useRockVisibleHabits'
 import { useSentinel } from '@/app/hooks/useSentinel'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
+import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import {
   ClientOnly,
   FloatingNav,
@@ -756,7 +757,7 @@ export default function ZonePage() {
           src === 'defaults' ||
           covReady ||
           verifiedSaving != null ||
-          savingAmountGbp != null ||
+          (savingAmountGbp != null && savingAmountGbp > 0) ||
           Boolean(architectProse?.trim()) ||
           (Array.isArray(data?.scraped) && data.scraped.length > 0 && src !== 'pending')
         if (feedReady) setVmResolved(true)
@@ -1841,7 +1842,11 @@ export default function ZonePage() {
                               ? cov.latestVerifiedGbp
                               : null
                         if (cm != null) return cm
-                        return liveResearchData && researchMeta?.category === cell.item.journey_key
+                        const metaJourney =
+                          researchMeta?.category != null
+                            ? researchCategoryToJourneyKey(researchMeta.category)
+                            : null
+                        return liveResearchData && metaJourney === cell.item.journey_key && researchMeta
                           ? researchMeta.savingAmountGbp ?? researchMeta.verifiedSaving ?? null
                           : null
                       })()}
@@ -1849,7 +1854,11 @@ export default function ZonePage() {
                         const cov = researchCategoryCoverage?.[cell.item.journey_key]
                         const p = cov?.architectProse?.trim()
                         if (p) return p
-                        return liveResearchData && researchMeta?.category === cell.item.journey_key
+                        const metaJourney =
+                          researchMeta?.category != null
+                            ? researchCategoryToJourneyKey(researchMeta.category)
+                            : null
+                        return liveResearchData && metaJourney === cell.item.journey_key && researchMeta
                           ? researchMeta.architectProse ?? null
                           : null
                       })()}
