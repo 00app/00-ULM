@@ -13,6 +13,7 @@ import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import {
   loadDynamicUserProfileForResearch,
   repairResearchResultsMissingHeadlines,
+  runTriggerResearchForCategory,
   runZeroResearchWithProfile,
   type ResearchProfileData,
 } from '@/lib/agents/researchAgent'
@@ -27,7 +28,7 @@ import {
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 300
 const SCRAPE_SYNC_MAX_PER_MINUTE = 24
 
 /** Firecrawl gate — `FIRE_CRAWL_KEY_2` must match Production Vercel exactly. */
@@ -685,10 +686,9 @@ export async function POST(request: NextRequest) {
       if (bestOfferHint.length > 0) {
         userContext = `${userContext}\n\nBEST OFFER / ACTION URL PRIORITY:\n${bestOfferHint}`
       }
-      const research = await runZeroResearchWithProfile({
+      const research = await runTriggerResearchForCategory({
         postcode,
         profileData: Object.keys(pd).length > 0 ? pd : undefined,
-        persistToNeon: true,
         userId,
         userContext,
         category,
@@ -697,7 +697,7 @@ export async function POST(request: NextRequest) {
         userId,
         postcode,
         profileData: pd,
-        limit: 12,
+        limit: 4,
       })
       const coverage = await loadResearchCategoryCoverageByPostcode(postcode)
       const categoriesWithInsight = Object.entries(coverage).filter(

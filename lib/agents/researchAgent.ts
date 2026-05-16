@@ -629,7 +629,8 @@ async function resolveResearchTripletWithRecovery(params: {
   const extraCitations: ResearchCitation[] = []
   const extractOpts = { categoryHint: params.categoryHint ?? null }
 
-  if (isWeakResearchMarkdown(markdown) && params.postcode?.trim()) {
+  const alreadyHasDeepGemini = /## deep gemini search/i.test(markdown)
+  if (isWeakResearchMarkdown(markdown) && !alreadyHasDeepGemini && params.postcode?.trim()) {
     const local = await getLocalData(params.postcode).catch(() => null)
     const localityContext = local
       ? [local.locality, local.council, local.region].filter(Boolean).join(', ')
@@ -1005,6 +1006,64 @@ export function buildWickResearchUserContext(params: {
     if (g) lines.push(`goal: ${g}`)
   }
   return lines.join('\n')
+}
+
+/**
+ * Fast scrape-sync trigger: Gemini deep search + triplet persist (skips Firecrawl batch).
+ * Fits Vercel `maxDuration` for per-category POST triggers.
+ */
+export async function runTriggerResearchForCategory(params: {
+  postcode: string
+  category: string
+  profileData?: ResearchProfileData | null
+  userId?: string | null
+  userContext?: string
+}): Promise<ZeroResearchResult> {
+  const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
+  const cat = normalizeResearchCategory(params.category) ?? 'home'
+  const local = await getLocalData(pc).catch(() => null)
+  const localityContext = local
+    ? [local.locality, local.council, local.region].filter(Boolean).join(', ')
+    : null
+
+  let markdown = [
+    `## Location\nPostcode: ${pc}`,
+    localityContext ? `## Locality\n${localityContext}` : '',
+    params.userContext?.trim() ? `## User context\n${params.userContext.trim()}` : '',
+    `Target journey category: ${cat}`,
+  ]
+    .filter(Boolean)
+    .join('\n\n---\n\n')
+
+  const citations: ResearchCitation[] = []
+  const deep = await deepGeminiSearchUkEnergyMarkdown({
+    postcode: pc,
+    profileData: params.profileData ?? null,
+    localityContext,
+    category: cat,
+  })
+  if (deep) {
+    markdown = `${markdown}\n\n---\n\n${deep.markdown}`
+    citations.push(...deep.citations)
+  }
+
+  const parsed = await parseApril2026UnitRatesFromMarkdown(markdown)
+  await persistResearchResult({
+    userId: params.userId,
+    postcode: pc,
+    profileData: params.profileData,
+    markdown,
+    citations,
+    category: cat,
+    localityContext,
+    elecUnitRateGbpPerKwh:
+      parsed.electricityGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH / 100,
+    gasUnitRateGbpPerKwh: parsed.gasGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.GAS_PER_KWH / 100,
+    sourceUrl: PRICE_CAP_SOURCE_URL,
+    invokePayload: { trigger: 'scrape-sync-fast', category: cat },
+  })
+
+  return { markdown, citations }
 }
 
 /**
