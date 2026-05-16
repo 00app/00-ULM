@@ -7,6 +7,12 @@ import { motion } from 'framer-motion'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
+import {
+  parseCoverageFromApi,
+  parseResearchMetaFromApi,
+  researchTicksFromPayload,
+} from '@/lib/zone/parseScrapeSyncClient'
+import { DEFAULT_ZONE_POSTCODE } from '@/lib/zone/safeProfileStorage'
 
 const TICK = '✓'
 const CROSS = '✗'
@@ -76,6 +82,8 @@ export type ZoneIntelligenceStripProps = {
   hasOfferUrl?: boolean
   /** Logged-in Zone: per-journey `research_results` coverage (GET /api/scrape-sync). */
   categoryCoverage?: Record<string, ResearchCategoryCoverageRow> | null
+  /** Postcode for live scrape-sync diagnostic poll (defaults BN17). */
+  scrapePostcode?: string
   rightAside?: ReactNode
 }
 
@@ -98,6 +106,7 @@ export function ZoneIntelligenceStrip({
   hasArchitectProse = false,
   hasOfferUrl = false,
   categoryCoverage = null,
+  scrapePostcode = DEFAULT_ZONE_POSTCODE,
   rightAside,
 }: ZoneIntelligenceStripProps) {
   const [mounted, setMounted] = useState(false)
@@ -110,6 +119,27 @@ export function ZoneIntelligenceStrip({
   const [apiAiGatewayFallback, setApiAiGatewayFallback] = useState(false)
   const [apiAiGatewayDetail, setApiAiGatewayDetail] = useState<string | null>(null)
   const [apiDiagReady, setApiDiagReady] = useState(false)
+  const [liveResearchTicks, setLiveResearchTicks] = useState<{
+    moneyOk: boolean
+    proseOk: boolean
+    offerOk: boolean
+    moneyHint: string | null
+  } | null>(null)
+
+  const pollScrapeResearch = useCallback(async () => {
+    const pc = (scrapePostcode ?? DEFAULT_ZONE_POSTCODE).replace(/\s+/g, '').trim().toUpperCase()
+    if (pc.length < 4) return
+    try {
+      const res = await fetch(`/api/scrape-sync?postcode=${encodeURIComponent(pc)}`, { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      const meta = parseResearchMetaFromApi(data)
+      const coverage = parseCoverageFromApi(data)
+      setLiveResearchTicks(researchTicksFromPayload(meta, coverage))
+    } catch {
+      /* non-blocking */
+    }
+  }, [scrapePostcode])
 
   const pollApiDiagnostics = useCallback(async () => {
     try {
@@ -158,6 +188,13 @@ export function ZoneIntelligenceStrip({
     return () => clearInterval(id)
   }, [pollApiDiagnostics])
 
+  useEffect(() => {
+    if (variant !== 'zone') return
+    void pollScrapeResearch()
+    const id = setInterval(() => void pollScrapeResearch(), 15_000)
+    return () => clearInterval(id)
+  }, [pollScrapeResearch, variant])
+
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
@@ -183,30 +220,28 @@ export function ZoneIntelligenceStrip({
   const covRows = categoryCoverage ? Object.values(categoryCoverage) : []
   const covInsight = covRows.some((c) => c.insightReady)
   const covOffer = covRows.some((c) => c.hasOffer)
+  const propsTicks = researchTicksFromPayload(
+    { verifiedSaving, savingAmountGbp, offerUrl: hasOfferUrl ? 'https://local' : undefined },
+    categoryCoverage
+  )
   const moneyOk =
     neonVerifiedMoney ||
-    (typeof verifiedSaving === 'number' && verifiedSaving > 0) ||
-    (typeof savingAmountGbp === 'number' && savingAmountGbp > 0) ||
-    covRows.some((c) => (c.latestSavingGbp ?? 0) > 0 || (c.latestVerifiedGbp ?? 0) > 0)
+    propsTicks.moneyOk ||
+    (liveResearchTicks?.moneyOk ?? false)
   const proseOk =
     hasArchitectProse ||
-    covInsight ||
-    covRows.some(
-      (c) =>
-        Boolean(c.architectProse?.trim()) ||
-        Boolean(c.agentHeadline?.trim())
-    )
-  const offerOk = covOffer || hasOfferUrl
+    propsTicks.proseOk ||
+    (liveResearchTicks?.proseOk ?? false)
+  const offerOk = propsTicks.offerOk || (liveResearchTicks?.offerOk ?? false)
   const rowOk = moneyOk && proseOk && offerOk
 
   const moneyHint =
-    typeof verifiedSaving === 'number' && verifiedSaving > 0
+    liveResearchTicks?.moneyHint ??
+    (typeof verifiedSaving === 'number' && verifiedSaving > 0
       ? `verified_saving ≈ £${Math.round(verifiedSaving).toLocaleString('en-GB')}`
       : typeof savingAmountGbp === 'number' && savingAmountGbp > 0
         ? `saving_amount_gbp £${Math.round(savingAmountGbp).toLocaleString('en-GB')}`
-        : covRows.some((c) => (c.latestSavingGbp ?? 0) > 0 || (c.latestVerifiedGbp ?? 0) > 0)
-          ? 'per-category rows in research_results'
-          : null
+        : propsTicks.moneyHint)
 
   if (!mounted || typeof document === 'undefined') return null
   if (suppressOverlay) return null

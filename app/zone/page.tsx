@@ -40,9 +40,9 @@ import {
 
 import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
 import { LoadingHeartbeat } from '@/app/components/LoadingHeartbeat'
+import { parseCoverageFromApi, parseResearchMetaFromApi } from '@/lib/zone/parseScrapeSyncClient'
 import {
   DEFAULT_ZONE_POSTCODE,
-  readPostcodeFromStorage,
   readPostcodeFromUrl,
   readProfileFieldsFromStorage,
   readProfilePostcode,
@@ -632,89 +632,13 @@ export default function ZonePage() {
     fetch(url)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        const deepLink =
-          typeof data?.researchMeta?.deep_link === 'string' && data.researchMeta.deep_link.trim().length > 0
-            ? data.researchMeta.deep_link.trim()
-            : undefined
-        const toMetaNum = (v: unknown): number | undefined => {
-          if (v == null) return undefined
-          const n = typeof v === 'number' ? v : Number(v)
-          return Number.isFinite(n) ? n : undefined
-        }
-        const verifiedSaving = toMetaNum(data?.researchMeta?.verified_saving)
-        const savingAmountGbp = toMetaNum(data?.researchMeta?.saving_amount_gbp)
-        const localityContext =
-          typeof data?.researchMeta?.locality_context === 'string' && data.researchMeta.locality_context.trim().length > 0
-            ? data.researchMeta.locality_context.trim()
-            : undefined
-        const auditSourceUrl =
-          typeof data?.researchMeta?.audit_source_url === 'string' && data.researchMeta.audit_source_url.trim().startsWith('http')
-            ? data.researchMeta.audit_source_url.trim()
-            : undefined
-        const category =
-          typeof data?.researchMeta?.category === 'string' ? data.researchMeta.category.trim().toLowerCase() : null
-        const offerUrlRaw =
-          typeof data?.researchMeta?.offer_url === 'string' && data.researchMeta.offer_url.trim().startsWith('http')
-            ? data.researchMeta.offer_url.trim()
-            : undefined
-        const architectProse =
-          typeof data?.researchMeta?.architect_prose === 'string' && data.researchMeta.architect_prose.trim().length > 0
-            ? data.researchMeta.architect_prose.trim()
-            : undefined
-        setResearchMeta(
-          deepLink ||
-            offerUrlRaw ||
-            verifiedSaving != null ||
-            savingAmountGbp != null ||
-            localityContext ||
-            auditSourceUrl ||
-            category ||
-            architectProse
-            ? {
-                deepLink,
-                offerUrl: offerUrlRaw,
-                verifiedSaving,
-                savingAmountGbp,
-                localityContext,
-                auditSourceUrl,
-                category,
-                architectProse,
-              }
-            : null
-        )
-        const rawCov = data?.research_category_coverage
-        if (rawCov && typeof rawCov === 'object' && !Array.isArray(rawCov)) {
-          const next: Record<string, ResearchCategoryCoverageRow> = {}
-          for (const [k, v] of Object.entries(rawCov as Record<string, unknown>)) {
-            const key = k.trim().toLowerCase()
-            if (!key || typeof v !== 'object' || !v) continue
-            const o = v as Record<string, unknown>
-            const ls =
-              typeof o.latestSavingGbp === 'number' && Number.isFinite(o.latestSavingGbp) ? o.latestSavingGbp : null
-            const lv =
-              typeof o.latestVerifiedGbp === 'number' && Number.isFinite(o.latestVerifiedGbp)
-                ? o.latestVerifiedGbp
-                : null
-            const ap =
-              typeof o.architectProse === 'string' && o.architectProse.trim().length > 0
-                ? o.architectProse.trim()
-                : null
-            const hl =
-              typeof o.agentHeadline === 'string' && o.agentHeadline.trim().length > 0
-                ? o.agentHeadline.trim()
-                : null
-            next[key] = {
-              insightReady: Boolean(o.insightReady),
-              hasOffer: Boolean(o.hasOffer),
-              verified: Boolean(o.verified),
-              latestSavingGbp: ls,
-              latestVerifiedGbp: lv,
-              latestOfferUrl: typeof o.latestOfferUrl === 'string' ? o.latestOfferUrl : null,
-              latestSourceUrl: typeof o.latestSourceUrl === 'string' ? o.latestSourceUrl : null,
-              architectProse: ap,
-              agentHeadline: hl,
-            }
-          }
+        const parsedMeta = parseResearchMetaFromApi(data)
+        const verifiedSaving = parsedMeta?.verifiedSaving
+        const savingAmountGbp = parsedMeta?.savingAmountGbp
+        const architectProse = parsedMeta?.architectProse
+        setResearchMeta(parsedMeta)
+        const next = parseCoverageFromApi(data)
+        if (next) {
           setResearchCategoryCoverage(next)
           setInsightPendingKeys((prev) => {
             const n = new Set(prev)
@@ -732,7 +656,7 @@ export default function ZonePage() {
               data?.source === 'research_results' ||
               verifiedSaving != null ||
               savingAmountGbp != null ||
-              deepLink ||
+              parsedMeta?.deepLink ||
               architectProse
           )
         )
@@ -750,10 +674,7 @@ export default function ZonePage() {
         }
         setRatesSourceUrl(typeof data?.rates_source_url === 'string' ? data.rates_source_url : null)
         const src = typeof data?.source === 'string' ? data.source : ''
-        const covReady =
-          rawCov && typeof rawCov === 'object' && !Array.isArray(rawCov)
-            ? Object.keys(rawCov as Record<string, unknown>).length > 0
-            : false
+        const covReady = next != null && Object.keys(next).length > 0
         const feedReady =
           src === 'database' ||
           src === 'research_results' ||
@@ -2120,6 +2041,7 @@ export default function ZonePage() {
           }
           hasOfferUrl={Boolean(researchMeta?.offerUrl?.trim())}
           categoryCoverage={researchCategoryCoverage}
+          scrapePostcode={scrapePostcode}
           rightAside={
             <span
               aria-live="polite"
