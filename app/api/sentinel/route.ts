@@ -3,6 +3,7 @@ import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 import { runSentinelBrainRefresh } from '@/lib/agents/sentinel'
 import { syncUserZone } from '@/lib/sentinel/runner'
+import { configuredScrapeSyncBearerKeys } from '@/lib/intelligence/scrapeSyncAuth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -86,9 +87,15 @@ export async function POST(request: NextRequest) {
     let grantFound = Boolean(sentinelBrain.grant.found && isRemoteRegion)
     if (runScrapeSync && postcode.length >= 4) {
       try {
+        const bearerKeys = configuredScrapeSyncBearerKeys()
+        const scrapeHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+          cookie: request.headers.get('cookie') ?? '',
+        }
+        if (bearerKeys[0]) scrapeHeaders.Authorization = `Bearer ${bearerKeys[0]}`
         const scrapeRes = await fetch(`${appOrigin}/api/scrape-sync`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', cookie: request.headers.get('cookie') ?? '' },
+          headers: scrapeHeaders,
           body: JSON.stringify({ trigger: true, postcode }),
         })
         if (scrapeRes.ok) {

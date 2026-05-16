@@ -12,10 +12,10 @@ async function main() {
   const capUrl = 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap'
 
   const fcKey =
-    process.env.FIRE_CRAWL_KEY_2?.trim() || process.env.FIRECRAWL_API_KEY?.trim()
+    process.env.FIRE_CRAWL_KEY_2?.trim()
   if (!fcKey) {
     console.error(
-      '❌ Set FIRE_CRAWL_KEY_2 or FIRECRAWL_API_KEY in .env.local (same resolution as lib/sentinel/api-config.ts).'
+      '❌ Set FIRE_CRAWL_KEY_2 in .env.local (same resolution as lib/sentinel/api-config.ts).'
     )
     process.exit(1)
   }

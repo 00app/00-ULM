@@ -19,7 +19,9 @@ npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030
 
 **`.env.local` vs shell:** `npm run init-db`, `npm run db:test`, and `npm run db:log-research` load `.env.local` with **`preferLocal: true`** (`scripts/load-env-local.ts`) so values in the file **override** a stale exported `DATABASE_URL`. Still **save** `.env.local` to disk after edits — the terminal reads the file, not an unsaved editor buffer.
 
-**Build:** `npm run build` · **Deploy:** `npm run deploy` or `npm run ship` (build + Vercel prod). Production alias example: `https://00-ulm.vercel.app` (project-linked hostname).
+**Build:** `npm run build` · **Prep (Neon + clean build):** `npm run prep:live` · **Deploy:** `npm run deploy` or `npm run deploy:force` (runs `scripts/deploy-production.sh` → `vercel deploy --prod` from repo root). Production alias: `https://00-ulm.vercel.app`.
+
+**Technical deep-dive (profile, 12×3 questions, answers API, mechanical truth):** `docs/PROFILE-ANSWERS-ZONE-TECH.md`.
 
 **DB init:** `npm run init-db` applies **`lib/schema.sql`** then runs **`db/migrations/20260513_research_snapshot_column.sql`** as a single batch (legacy JSONB column → **`research_snapshot`** merge/rename). Files under `db/migrations/` are otherwise for Neon SQL editor / manual history unless wired here.
 
@@ -39,10 +41,10 @@ UK-first web app: **postcode** and **profile** drive local context; **Zone** sho
 
 | Step | Route | Notes |
 |------|--------|--------|
-| Intro | `/`, `/intro` | Glitch logo → `IntroWordCycle` (SAVE → MONEY → …) → **CREATE** (`/profile`) or **SKIP** (`/zone`). `?skip=1` / `?step=message` skips logo. |
+| Intro | `/`, `/intro` | Glitch logo → `IntroWordCycle` (SAVE → MONEY → …) → **CREATE** (`/profile`) only (no SKIP CTA). `?skip=1` / `?step=message` still skips logo via URL. |
 | Profile | `/profile` | Stepped onboarding (`ProfilePageClient`). **Full-sentence fade:** each step’s heading is **one block** (soft **y: 10→0** + opacity, `STACCATO_TWEEN`) — **not** word-by-word. Postcode → `POST /api/local-intelligence`. |
 | Summary | `/profile/summary` | **`SummaryHeader`** → **`IntroWordCycle`** with **`opacityTicker`**: **one word on screen at a time**, opacity **0→1** only (Mechanical Snap ticker — **no** Style A glitch). Words from **`buildSummaryStaccatoWords`**; locality wrap via **`formatSummaryLocalityKineticToken`** + **`fitToViewportPaddingPx`**. Dwell/gap: **`SUMMARY_KINETIC_WORD_*`** in `lib/animations.ts`. Then Zone. **`lib/brains/summaryLogic.ts`**. |
-| Zone | `/zone` | Main dashboard; bento grid uses **Style B** — **`STACCATO_*`** staggered mechanical assembly (`app/zone/page.tsx`). |
+| Zone | `/zone` | **12 journey tiles** (3×4 bento). **`ZeroGateShutter`** until `GET /api/scrape-sync` resolves (`vmResolved`). **Mechanical truth:** no fake £ when Neon is empty — see § Mechanical truth below. Style B: **`STACCATO_*`** assembly (`app/zone/page.tsx`). |
 | Solo Focus | (overlay) | `JourneyBentoCard` / `SoloFocusOverlay` + `EmbeddedJourneyQuestion` — **`POST /api/answers`** runs the discovery race → **`injectNewDiscoveryCard`** for new Zone cards; **`/api/research/question-card`** is Ask-only. Zip-shut on answer → **fade-open** (opacity + **y**) for the next question when `soloFocusZipShut`. |
 | Other | `/zai`, `/likes`, `/settings` | Chat, saved cards, reset/session. |
 
@@ -52,7 +54,8 @@ No `/journeys` or `/expand/*` product routes — journeys live on Zone.
 
 ## Journey questions (“the loop”)
 
-- **Definitions:** `lib/journeys.ts` — ordered `questions` per journey id (`home`, `travel`, `food`, …).
+- **Definitions:** `lib/journeys.ts` — **12 domains**, **3 questions each** (`JOURNEY_ORDER`: `home`, `grants`, `solar`, `travel`, `holidays`, `food`, `shopping`, `money`, `tech`, `water`, `waste`, `carbon`). Question labels are behavioural only — **no £/kg in copy**.
+- **Full question map:** `docs/PROFILE-ANSWERS-ZONE-TECH.md` §1.
 - **Next question:** `lib/zone/questionHandler.ts` — `getNextQuestion(journeyId, answers)` returns the first question with no (or empty) answer.
 - **UI (Solo Focus / embedded):** `app/components/EmbeddedJourneyQuestion.tsx` — session cap via `SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION` (`lib/animations.ts`). After a zip-shut answer, the **next** question label **fades open** (opacity + **y**), not the intro shimmer.
 - **UI (`/profile` onboarding):** `ProfilePageClient.tsx` — **full-sentence** question copy per step (same fade contract as above).
@@ -61,9 +64,26 @@ No `/journeys` or `/expand/*` product routes — journeys live on Zone.
 
 ---
 
+## Mechanical truth (Zone £ / carbon)
+
+The Zone wall must **not** show placeholder savings when Neon has no research stream.
+
+| Layer | Behaviour |
+|-------|-----------|
+| **`uk2026Defaults`** | All `money_value` / `carbon_value` = **0**; leads = **Computing...** (shape only). |
+| **`buildUserImpact`** | Does **not** back-fill from UK defaults when totals are 0. |
+| **`mechanicalTruth.ts`** | `journeyHasStreamData` — true only when `research_results` / scraped row has £, prose, or tip. |
+| **`buildZoneViewModel`** | Per-journey formula £ runs **only** if stream exists; else **COMPUTING — JOURNEY**, metrics **—**. |
+| **`GET /api/scrape-sync`** | Postcode + empty DB → `{ scraped: [], source: "pending" }` (not fake £12k tiles). |
+| **Fill screen** | `POST /api/scrape-sync?postcode=…&force=true`, cron `/api/cron/zone-research`, or answer-loop discovery after persist. |
+
+After a clean DB, expect an **empty honest Zone** until pulse — then tiles populate from Neon. Details: **`docs/PROFILE-ANSWERS-ZONE-TECH.md`**.
+
+---
+
 ## Data & view model
 
-Zone VM blends: **AppContext** + **localStorage** mirror, **journey answers**, **scraped_summary**, **`/api/local-intelligence`**, pulse snapshot, zone injections, content-architect prose. Cards use **`LIVE_AUDIT`** vs **`ESTIMATED_AUDIT`** when genome inputs are incomplete vs research-backed (`lib/zone/buildZoneViewModel.ts`).
+Zone VM blends: **AppContext** + **localStorage** mirror, **journey answers**, **`GET /api/scrape-sync`** (`scraped_summary` + `research_category_coverage`), **`/api/local-intelligence`**, pulse snapshot, zone injections, content-architect prose. Cards use **`LIVE_AUDIT`** vs **`ESTIMATED_AUDIT`** when genome inputs are incomplete vs research-backed (`lib/zone/buildZoneViewModel.ts`). **`streamPending`** on journey cards drives the “Computing…” strip on the bento face.
 
 **Postcode:** Source of truth includes `profile_postcode` in localStorage; Zone refreshes on change (polling, `storage` events, unified profile memory).
 
@@ -140,7 +160,7 @@ Full manifest (Hermes, Neon host token, caps): **`docs/INTELLIGENCE-LOOP-MANIFES
 
 - **Neon (London):** Canonical pooler host token is `MANIFEST_NEON_POOLER_HOST` in `lib/intelligence/manifest.ts` — it must match the hostname inside `DATABASE_URL` (set password only via Neon Console / Vercel env; never commit secrets).
 - **Hermes / Oracle VPS:** Run a daily cron (e.g. **05:00**) that calls **`GET` or `POST`** `https://<deployment>/api/cron/zone-research?limit=20` with header **`Authorization: Bearer <CRON_SECRET>`** (same value as Vercel `CRON_SECRET`). A shell wrapper (e.g. `~/hermes/pulse.sh`) and **`psql "$DATABASE_URL"`** on the box are fine sanity checks; the app uses the same Neon URI in **`DATABASE_URL`**.
-- **Nine categories:** Journey keys in `lib/journeys.ts` (`JOURNEY_ORDER`). Research persistence (`research_results`) requires **`saving_amount_gbp`**, **`offer_url`**, category, and prose fields as implemented in `lib/agents/researchAgent.ts` / `persistResearchResult`. **Carbon (kg)** on cards comes from Zone impact + scraped overlays; align Gemini prompts with GBP + HTTPS offer links.
+- **Twelve categories:** Journey keys in `lib/journeys.ts` (`JOURNEY_ORDER` — 12 domains × 3 questions). Research persistence (`research_results`) requires **`saving_amount_gbp`**, **`offer_url`**, category, and prose fields as implemented in `lib/agents/researchAgent.ts` / `persistResearchResult`. **Carbon (kg)** on cards comes from stream + impact only when `journeyHasStreamData` — no UK placeholder wall figures.
 - **Injection cap:** `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` (**3**) — enforced in `discovery_injections` per user per `journey_key` for both `POST /api/zone/injections` (answer loop → alternate journey) and `POST /api/research/question-card` (free question → same journey).
 - **Locality scrape hints:** `runZeroResearch` prepends extra Firecrawl seeds when user context mentions **Littlehampton** / **Arun** or **Les Azerables** / **Creuse** (`lib/agents/researchAgent.ts`).
 
@@ -149,7 +169,7 @@ Full manifest (Hermes, Neon host token, caps): **`docs/INTELLIGENCE-LOOP-MANIFES
 Hermes on the Oracle VPS is the **trigger** for a multi-step pipeline, not an isolated cron ping:
 
 1. **Trigger (Hermes):** Scheduled job (e.g. 05:00) calls **`GET /api/cron/zone-research`** on Vercel with **`CRON_SECRET`** → kicks research refresh for queued users/postcodes.
-2. **Extraction:** **Firecrawl** deep-scrapes locality/trust seeds; **Gemini** maps findings into the **nine journey categories**, producing persistable GBP, prose, `offer_url`, and citations (`lib/agents/researchAgent.ts`, `persistResearchResult`).
+2. **Extraction:** **Firecrawl** deep-scrapes locality/trust seeds; **Gemini** maps findings into the **twelve journey categories**, producing persistable GBP, prose, `offer_url`, and citations (`lib/agents/researchAgent.ts`, `persistResearchResult`).
 3. **Consumption (Zone):** Dashboard cards surface totals and tips; **Solo Focus** expanded view shows **~20-word architect headline** + **three prose paragraphs** (`architect_prose` when audit matches) + **verified source link**, and a **handoff CTA** (`IndustrialHandoffButton`).
 4. **Expansion (user):** **`POST /api/answers`** remains the **canonical** server path that returns discovery payloads for **`injectNewDiscoveryCard`**. **`POST /api/zone/injections`** (trap follow-up) and **`POST /api/research/question-card`** (Ask) are **supplemental** and share the **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`** cap.
 
@@ -230,6 +250,10 @@ The application UI reflects the Auditor's precision: mechanical, low-latency, an
 |------|------|
 | `app/components/ZoneIntelligenceStrip.tsx` | **Zone** + **Likes**: triangle FAB + `pulse-diagnostic-panel`; **Neon tick** = public `GET /api/health`; on failure, **`dbHealthHint`** explains (no secrets). Dev **`debugHudLine`**. `suppressOverlay` when Solo Focus / tip expanded. |
 | `app/api/*` | Route handlers (answers, zone, zai, sentinel, scrape-sync, cron, …) |
+| `docs/PROFILE-ANSWERS-ZONE-TECH.md` | Profile + 12×3 questions + answers API + mechanical truth (built-state reference) |
+| `lib/journeys.ts` | 12 domains, question ids, validation helpers |
+| `lib/zone/mechanicalTruth.ts` | Stream detection for honest Zone tiles |
+| `lib/scraper/uk2026Defaults.ts` | Zeroed shape defaults (no fabricated £) |
 | `lib/brains/summaryLogic.ts` | Profile summary kinetic + reveal copy |
 | `lib/soloFocusCopy.ts` | Solo Focus headlines, True Tip paragraphs, title strip / polish |
 | `lib/agents/*` | Research, discovery, auditor, sentinel |

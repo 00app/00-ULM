@@ -78,9 +78,7 @@ export async function GET(request: NextRequest) {
       : null
 
   const gemini = Boolean(process.env.GEMINI_API_KEY?.trim())
-  const firecrawl = Boolean(
-    process.env.FIRE_CRAWL_KEY_2?.trim() || process.env.FIRECRAWL_API_KEY?.trim()
-  )
+  const firecrawl = Boolean(process.env.FIRE_CRAWL_KEY_2?.trim())
 
   /** Zone Intelligence Strip polls this without a session — expose capability booleans only. */
   if (!authed) {

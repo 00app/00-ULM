@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
   const fcKey = FIRECRAWL_API_KEY
   if (!fcKey) {
     firecrawl.state = 'skipped'
-    firecrawl.detail = 'FIRE_CRAWL_KEY_2 or FIRECRAWL_API_KEY unset'
+    firecrawl.detail = 'FIRE_CRAWL_KEY_2 unset'
   } else {
     try {
       const t0 = Date.now()

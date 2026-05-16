@@ -185,28 +185,10 @@ export const UK_2026_SEED_URLS = [
  * Scrape a single URL using Firecrawl API when FIRECRAWL_API_KEY is set.
  */
 export async function scrapeWithFirecrawlUrl(url: string): Promise<{ markdown?: string; title?: string } | null> {
-  const apiKey = getFirecrawlApiKey()
-  if (!apiKey) return null
-  try {
-    const res = await fetch(FIRECRAWL_SCRAPE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        url,
-        formats: ['markdown'],
-        onlyMainContent: true,
-      }),
-    })
-    if (!res.ok) return null
-    const data = (await res.json()) as { data?: { markdown?: string; metadata?: { title?: string } } }
-    const d = data?.data
-    return d ? { markdown: d.markdown, title: d.metadata?.title } : null
-  } catch {
-    return null
-  }
+  const { fetchFirecrawlMarkdownForUrls } = await import('@/lib/agents/scraper')
+  const rows = await fetchFirecrawlMarkdownForUrls([url], { minChars: 80, maxUrls: 1 })
+  if (rows.length === 0) return null
+  return { markdown: rows[0].markdown, title: rows[0].title }
 }
 
 /**
@@ -296,8 +278,12 @@ export async function runZeroResearch(params: {
     sections.push(`## User context\n${userContext}\n`)
   }
 
-  for (const url of seedUrls) {
-    const scraped = await scrapeWithFirecrawlUrl(url)
+  const { fetchFirecrawlMarkdownForUrls } = await import('@/lib/agents/scraper')
+  const batchUrls = seedUrls.slice(0, 8)
+  const scrapedBatch = await fetchFirecrawlMarkdownForUrls(batchUrls, { minChars: 80, maxUrls: batchUrls.length })
+  const scrapedByUrl = new Map(scrapedBatch.map((r) => [r.url, r]))
+  for (const url of batchUrls) {
+    const scraped = scrapedByUrl.get(url)
     if (scraped?.markdown) {
       const sourceName = scraped.title ?? new URL(url).hostname.replace(/^www\./, '')
       citations.push({
@@ -318,7 +304,7 @@ export async function runZeroResearch(params: {
   let markdown =
     sections.length > 0
       ? sections.join('\n---\n\n')
-      : 'No scraped content available. Set FIRE_CRAWL_KEY_2 or FIRECRAWL_API_KEY for UK 2026 grant data.'
+      : 'No scraped content available. Set FIRE_CRAWL_KEY_2 for UK 2026 grant data.'
   if (isWeakResearchMarkdown(markdown) || markdown.includes('No scraped content')) {
     const localityContext = localIntel
       ? [localIntel.locality, localIntel.council, localIntel.region].filter(Boolean).join(', ')
@@ -326,10 +312,23 @@ export async function runZeroResearch(params: {
     const deep = await deepGeminiSearchUkEnergyMarkdown({
       postcode,
       localityContext,
+      profileData: undefined,
     })
     if (deep) {
       markdown = `${markdown}\n\n---\n\n${deep.markdown}`
       citations.push(...deep.citations)
+    }
+    if (isWeakResearchMarkdown(markdown)) {
+      const { fetchLiveEnergyData } = await import('@/lib/agents/scraper')
+      const ofgemMd = await fetchLiveEnergyData()
+      if (ofgemMd.length > 80) {
+        markdown = `${markdown}\n\n---\n\n## Ofgem live scrape\n\n${ofgemMd}`
+        citations.push({
+          source_name: 'Ofgem',
+          url: OFGEM_LIVE_PRICE_CAP_URL,
+          snippet: ofgemMd.slice(0, 320),
+        })
+      }
     }
   }
   return { markdown, citations }
@@ -342,9 +341,9 @@ export async function runZeroResearch(params: {
  * cards comes from `buildUserImpact` / scrapes, not a separate `verified_saving_kg` column on this row (see
  * `verified_saving` / impact pipeline elsewhere).
  */
-const RESEARCH_TRIPLET_MODEL = process.env.GEMINI_RESEARCH_MODEL?.trim() || 'gemini-3.1-pro'
-/** Recovery / backfill when `agent_headline` is null — user-facing “Deep Gemini Search”. */
-const RESEARCH_RECOVERY_MODEL = process.env.GEMINI_RESEARCH_RECOVERY_MODEL?.trim() || 'gemini-1.5-pro'
+const RESEARCH_TRIPLET_MODEL = process.env.GEMINI_RESEARCH_MODEL?.trim() || 'gemini-flash-latest'
+/** Recovery / backfill when triplet fields are missing — user-facing “Deep Gemini Search”. */
+const RESEARCH_RECOVERY_MODEL = process.env.GEMINI_RESEARCH_RECOVERY_MODEL?.trim() || 'gemini-flash-latest'
 
 async function buildDynamicLocalitySeedUrls(
   postcode: string,
@@ -379,15 +378,21 @@ export async function deepGeminiSearchUkEnergyMarkdown(params: {
   postcode: string
   profileData?: ResearchProfileData | null
   localityContext?: string | null
+  category?: string | null
 }): Promise<{ markdown: string; citations: ResearchCitation[] } | null> {
   const key = process.env.GEMINI_API_KEY?.trim()
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
   if (!key || pc.length < 4) return null
   const profileBlock = buildResearchProfileAuditorContext(params.profileData ?? null)
   const locality = params.localityContext?.trim()
+  const cat = normalizeResearchCategory(params.category ?? '')
+  const categoryLine = cat
+    ? `Focus this pass on the **${cat}** journey (UK household money/carbon) with a concrete £/year figure and one https offer URL in the prose.`
+    : ''
   const prompt = `You are a UK household energy research agent (April 2026 regulatory window).
 Write detailed markdown for postcode **${pc}**${locality ? ` (${locality})` : ''}.
-Include: current Ofgem-style default tariff unit rates (p/kWh and £/kWh where possible), council or regional grant/ECO/BUS cues, and one concrete £/year saving action.
+${categoryLine}
+Include: current Ofgem-style default tariff unit rates (p/kWh and £/kWh where possible), council or regional grant/ECO/BUS cues, and one concrete £/year saving action with a numeric GBP amount.
 Use UK English, industrial tone, no small-talk. Reference https:// sources inline where possible.
 ${profileBlock}
 Return markdown only (no JSON, no code fences).`
@@ -399,7 +404,7 @@ Return markdown only (no JSON, no code fences).`
       generationConfig: { maxOutputTokens: 2048, temperature: 0.35 },
     })
     const text = (await model.generateContent(prompt)).response.text()?.trim() ?? ''
-    if (text.length < 120) return null
+    if (text.length < 80) return null
     return {
       markdown: `## Deep Gemini search (UK energy)\n\n${text}`,
       citations: [
@@ -411,7 +416,11 @@ Return markdown only (no JSON, no code fences).`
         },
       ],
     }
-  } catch {
+  } catch (e) {
+    console.warn(
+      '[researchAgent] deepGeminiSearchUkEnergyMarkdown failed:',
+      e instanceof Error ? e.message : e
+    )
     return null
   }
 }
@@ -449,6 +458,25 @@ function normalizeArchitectProseThreeParagraphs(ap: string | undefined): string 
     .map((p) => clipArchitectParagraphToMaxWords(p, MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH))
   if (parts.length === 3) return parts.join('\n\n')
   if (parts.length > 3) return parts.slice(0, 3).join('\n\n')
+  if (parts.length === 1) {
+    const sentences = parts[0].split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 8)
+    if (sentences.length >= 3) {
+      const third = Math.ceil(sentences.length / 3)
+      const chunks = [
+        sentences.slice(0, third).join(' '),
+        sentences.slice(third, third * 2).join(' '),
+        sentences.slice(third * 2).join(' '),
+      ].map((p) => clipArchitectParagraphToMaxWords(p, MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH))
+      return chunks.join('\n\n')
+    }
+  }
+  if (parts.length === 2) {
+    return [
+      clipArchitectParagraphToMaxWords(parts[0], MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH),
+      clipArchitectParagraphToMaxWords(parts[1], MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH),
+      clipArchitectParagraphToMaxWords(parts[1], MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH),
+    ].join('\n\n')
+  }
   return undefined
 }
 
@@ -510,11 +538,24 @@ function buildResearchProfileAuditorContext(data: ResearchProfileData | null | u
   return `Household auditing context (treat as ground truth — interrogate the markdown through this lens, not generic “grants” SEO):\n${rows.join('\n')}\n\n`
 }
 
+function researchTripletNeedsRecovery(triplet: {
+  saving_amount_gbp: number
+  agent_headline?: string
+  architect_prose?: string
+} | null): boolean {
+  if (!triplet) return true
+  const saving = normalizeSavingAmountGbp(triplet.saving_amount_gbp)
+  if (saving == null || saving <= 0) return true
+  if (!normalizeGeminiAgentHeadline(triplet.agent_headline)) return true
+  if (!normalizeArchitectProseThreeParagraphs(triplet.architect_prose)) return true
+  return false
+}
+
 async function extractResearchTripletWithGemini(
   markdown: string,
   postcode: string | null | undefined,
   profileData?: ResearchProfileData | null,
-  options?: { model?: string }
+  options?: { model?: string; categoryHint?: string | null }
 ): Promise<{
   category: string
   saving_amount_gbp: number
@@ -527,7 +568,11 @@ async function extractResearchTripletWithGemini(
   const journeyList = ALLOWED_TRIPLET_CATEGORIES.join(', ')
   const pc = postcode?.trim() ? `Postcode context: ${postcode.trim()}\n\n` : ''
   const profileBlock = buildResearchProfileAuditorContext(profileData ?? null)
-  const prompt = `${pc}${profileBlock}You are **Zai**, the **Personal Intelligence Auditor** for Zero Zero (UK household energy, money, carbon). Your job is **forensic intelligence**, not generic web search: interrogate the evidence on the user’s behalf. When the profile implies children, tenancy, food waste, or a tight locality (for example a county, council, or outcode), prefer **surgical** angles — efficiency hacks, bulk-buy collectives, engineering-grade appliance calibration, scheme eligibility — over vague “look for grants” filler. If a grant is the best instrument, keep it; if a small £/week habit change dominates the math, say so plainly.
+  const catHint = normalizeResearchCategory(options?.categoryHint ?? '')
+  const categoryBias = catHint
+    ? `Target journey category for this pass (use "${catHint}" unless the evidence clearly fits another listed category): ${catHint}\n\n`
+    : ''
+  const prompt = `${pc}${profileBlock}${categoryBias}You are **Zai**, the **Personal Intelligence Auditor** for Zero Zero (UK household energy, money, carbon). Your job is **forensic intelligence**, not generic web search: interrogate the evidence on the user’s behalf. When the profile implies children, tenancy, food waste, or a tight locality (for example a county, council, or outcode), prefer **surgical** angles — efficiency hacks, bulk-buy collectives, engineering-grade appliance calibration, scheme eligibility — over vague “look for grants” filler. If a grant is the best instrument, keep it; if a small £/week habit change dominates the math, say so plainly.
 
 ${GRANTS_AND_BILLS_CATEGORY_PROTOCOL}
 
@@ -551,7 +596,11 @@ ${markdown.slice(0, 28_000)}`
     const text = out.response.text() ?? ''
     const parsed = parseResearchTripletJson(text)
     return parsed
-  } catch {
+  } catch (e) {
+    console.warn(
+      '[researchAgent] extractResearchTripletWithGemini failed:',
+      e instanceof Error ? e.message : e
+    )
     return null
   }
 }
@@ -561,6 +610,7 @@ async function resolveResearchTripletWithRecovery(params: {
   postcode: string | null | undefined
   profileData?: ResearchProfileData | null
   skipGemini: boolean
+  categoryHint?: string | null
 }): Promise<{
   markdown: string
   triplet: {
@@ -577,15 +627,48 @@ async function resolveResearchTripletWithRecovery(params: {
   }
   let markdown = params.markdown
   const extraCitations: ResearchCitation[] = []
-  let triplet = await extractResearchTripletWithGemini(markdown, params.postcode, params.profileData)
-  let headline = normalizeGeminiAgentHeadline(triplet?.agent_headline)
-  if (!headline) {
+  const extractOpts = { categoryHint: params.categoryHint ?? null }
+
+  if (isWeakResearchMarkdown(markdown) && params.postcode?.trim()) {
+    const local = await getLocalData(params.postcode).catch(() => null)
+    const localityContext = local
+      ? [local.locality, local.council, local.region].filter(Boolean).join(', ')
+      : null
+    const { fetchLiveEnergyData } = await import('@/lib/agents/scraper')
+    const ofgemMd = await fetchLiveEnergyData()
+    if (ofgemMd.length > 80) {
+      markdown = `${markdown.trim()}\n\n---\n\n## Ofgem live scrape\n\n${ofgemMd}`
+      extraCitations.push({
+        source_name: 'Ofgem',
+        url: OFGEM_LIVE_PRICE_CAP_URL,
+        snippet: ofgemMd.slice(0, 320),
+      })
+    }
+    const deep = await deepGeminiSearchUkEnergyMarkdown({
+      postcode: params.postcode,
+      profileData: params.profileData ?? null,
+      localityContext,
+      category: params.categoryHint ?? null,
+    })
+    if (deep) {
+      markdown = `${markdown}\n\n---\n\n${deep.markdown}`
+      extraCitations.push(...deep.citations)
+    }
+  }
+
+  let triplet = await extractResearchTripletWithGemini(
+    markdown,
+    params.postcode,
+    params.profileData,
+    extractOpts
+  )
+  if (researchTripletNeedsRecovery(triplet)) {
     triplet = await extractResearchTripletWithGemini(markdown, params.postcode, params.profileData, {
+      ...extractOpts,
       model: RESEARCH_RECOVERY_MODEL,
     })
-    headline = normalizeGeminiAgentHeadline(triplet?.agent_headline)
   }
-  if (!headline && params.postcode?.trim()) {
+  if (researchTripletNeedsRecovery(triplet) && params.postcode?.trim()) {
     const local = await getLocalData(params.postcode).catch(() => null)
     const localityContext = local
       ? [local.locality, local.council, local.region].filter(Boolean).join(', ')
@@ -594,11 +677,13 @@ async function resolveResearchTripletWithRecovery(params: {
       postcode: params.postcode,
       profileData: params.profileData ?? null,
       localityContext,
+      category: params.categoryHint ?? null,
     })
     if (deep) {
       markdown = `${markdown}\n\n---\n\n${deep.markdown}`
       extraCitations.push(...deep.citations)
       triplet = await extractResearchTripletWithGemini(markdown, params.postcode, params.profileData, {
+        ...extractOpts,
         model: RESEARCH_RECOVERY_MODEL,
       })
     }
@@ -625,6 +710,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
     citations: unknown
     profile_snapshot: unknown
     postcode: string | null
+    category: string | null
   }
   let rows: Row[] = []
   try {
@@ -633,7 +719,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
            OR saving_amount_gbp IS NULL OR COALESCE(saving_amount_gbp, 0) <= 0`
     if (uid) {
       const r = await pool.query<Row>(
-        `SELECT id::text, markdown, citations, profile_snapshot, postcode
+        `SELECT id::text, markdown, citations, profile_snapshot, postcode, category
          FROM research_results
          WHERE user_id = $1::uuid
            AND (${incomplete})
@@ -644,7 +730,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
       rows = r.rows
     } else if (pc.length >= 4) {
       const r = await pool.query<Row>(
-        `SELECT id::text, markdown, citations, profile_snapshot, postcode
+        `SELECT id::text, markdown, citations, profile_snapshot, postcode, category
          FROM research_results
          WHERE REPLACE(COALESCE(postcode, ''), ' ', '') = $1
            AND (${incomplete})
@@ -673,6 +759,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
       postcode: pcRow || null,
       profileData,
       skipGemini: false,
+      categoryHint: row.category,
     })
     const headline = normalizeGeminiAgentHeadline(triplet?.agent_headline)
     const architect = normalizeArchitectProseThreeParagraphs(triplet?.architect_prose)
@@ -796,6 +883,7 @@ export async function persistResearchResult(params: {
         postcode: params.postcode ?? null,
         profileData: params.profileData ?? null,
         skipGemini,
+        categoryHint: params.category ?? null,
       })
     const mergedCitations = [...extraCitations, ...params.citations]
     const providerName =
@@ -941,7 +1029,7 @@ export async function runZeroResearchWithProfile(params: {
     userId: params.userId,
     category: params.category ?? null,
   })
-  if (gatewayResult) return gatewayResult
+  if (gatewayResult && !isWeakResearchMarkdown(gatewayResult.markdown)) return gatewayResult
 
   const catNorm = normalizeResearchCategory(params.category)
   const catLine = catNorm ? `\n\nTarget journey category for this research pass: ${catNorm}` : ''

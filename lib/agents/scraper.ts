@@ -15,9 +15,9 @@ export const PETROL_PRICES_UK_URL = 'https://www.petrolprices.com/'
 const MIN_MARKDOWN_CHARS = 500
 const BOT_BLOCK_RETRY_WAIT_MS = 3000
 
-/** Prefer `.env.local` `FIRE_CRAWL_KEY_2`, then legacy `FIRECRAWL_API_KEY`. */
+/** Production / local: `FIRE_CRAWL_KEY_2` only. */
 export function getFirecrawlApiKey(): string {
-  return process.env.FIRE_CRAWL_KEY_2?.trim() || process.env.FIRECRAWL_API_KEY?.trim() || ''
+  return process.env.FIRE_CRAWL_KEY_2?.trim() || ''
 }
 
 export function hasFirecrawlApiKey(): boolean {
@@ -121,8 +121,12 @@ export async function fetchFirecrawlMarkdownForUrls(
 
   for (const url of urls.slice(0, maxUrls)) {
     try {
-      const res = await client.scrapeUrl(url, baseParams)
-      const md = extractMarkdown(res)
+      let res = await client.scrapeUrl(url, baseParams)
+      let md = extractMarkdown(res)
+      if (md.length < minChars) {
+        res = await client.scrapeUrl(url, { ...baseParams, waitFor: BOT_BLOCK_RETRY_WAIT_MS })
+        md = extractMarkdown(res)
+      }
       if (md.length >= minChars) {
         const meta = res as { metadata?: { title?: unknown } }
         const title = typeof meta.metadata?.title === 'string' ? meta.metadata.title : undefined

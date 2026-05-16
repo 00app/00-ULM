@@ -203,7 +203,7 @@ export function ZoneIntelligenceStrip({
             !apiDiagReady
               ? 'Polling…'
               : apiFirecrawl
-                ? 'FIRE_CRAWL_KEY_2 or FIRECRAWL_API_KEY set on this deployment.'
+                ? 'FIRE_CRAWL_KEY_2 set on this deployment.'
                 : 'Firecrawl key unset — Firecrawl scrape seeds will not run.'
           }
         />
@@ -241,7 +241,7 @@ export function ZoneIntelligenceStrip({
             !apiDiagReady
               ? 'Polling…'
               : apiFirecrawl
-                ? 'FIRE_CRAWL_KEY_2 or FIRECRAWL_API_KEY set on this deployment.'
+                ? 'FIRE_CRAWL_KEY_2 set on this deployment.'
                 : 'Firecrawl key unset — Firecrawl-backed research will not run.'
           }
         />

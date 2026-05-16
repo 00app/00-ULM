@@ -20,16 +20,19 @@ import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
+import {
+  scrapeSyncAuthDeniedResponse,
+  scrapeSyncBearerMatches,
+} from '@/lib/intelligence/scrapeSyncAuth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 const SCRAPE_SYNC_MAX_PER_MINUTE = 24
 
-/** Firecrawl gate — `FIRE_CRAWL_KEY_2` must match Production Vercel exactly; `FIRECRAWL_API_KEY` is legacy fallback. */
+/** Firecrawl gate — `FIRE_CRAWL_KEY_2` must match Production Vercel exactly. */
 function firecrawlMissingResponse(): NextResponse | null {
-  const scraperKey =
-    process.env.FIRE_CRAWL_KEY_2?.trim() || process.env.FIRECRAWL_API_KEY?.trim() || ''
+  const scraperKey = process.env.FIRE_CRAWL_KEY_2?.trim() || ''
   if (!scraperKey) {
     return NextResponse.json({ error: 'Scraper not configured' }, { status: 503 })
   }
@@ -526,47 +529,20 @@ export async function GET(request: NextRequest) {
   }
 }
 
-const MIN_SCRAPER_SECRET_LENGTH = 16
+/** Bearer (SCRAPER_SECRET / CRON_SECRET / GATEWAY_TOKEN) or signed-in session for `trigger` POST. */
+async function scrapeSyncPostAuthDenied(
+  request: NextRequest,
+  opts: { allowSessionTrigger: boolean }
+): Promise<NextResponse | null> {
+  if (scrapeSyncBearerMatches(request)) return null
 
-function configuredScraperAuthKeys(): string[] {
-  const a = process.env.SCRAPER_SECRET?.trim()
-  const b = process.env.CRON_SECRET?.trim()
-  const out: string[] = []
-  if (a && a.length >= MIN_SCRAPER_SECRET_LENGTH) out.push(a)
-  if (b && b.length >= MIN_SCRAPER_SECRET_LENGTH) out.push(b)
-  return out
-}
-
-/** Production / locked dev: Bearer token equals SCRAPER_SECRET or CRON_SECRET (Handbook-aligned). */
-function scrapeSyncAuthDenied(request: NextRequest): NextResponse | null {
-  const keys = configuredScraperAuthKeys()
-  const isProduction = process.env.NODE_ENV === 'production'
-  const auth = request.headers.get('authorization')?.trim()
-  const bearer = auth && /^bearer\s+/i.test(auth) ? auth.replace(/^Bearer\s+/i, '').trim() : null
-
-  if (isProduction) {
-    if (keys.length === 0) {
-      return NextResponse.json(
-        {
-          error: 'API auth not configured',
-          hint:
-            'Set SCRAPER_SECRET or CRON_SECRET (≥16 chars) on this Vercel environment, then redeploy. Send Authorization: Bearer <same secret>.',
-          expects: ['SCRAPER_SECRET', 'CRON_SECRET'],
-        },
-        { status: 503 }
-      )
-    }
-    if (!bearer || !keys.includes(bearer)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    return null
+  if (opts.allowSessionTrigger) {
+    const session = await getSessionFromRequest().catch(() => null)
+    if (session?.userId) return null
   }
 
-  if (keys.length === 0) return null
-  if (!bearer || !keys.includes(bearer)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  return null
+  const { status, body } = scrapeSyncAuthDeniedResponse()
+  return NextResponse.json(body, { status })
 }
 
 /**
@@ -610,7 +586,7 @@ async function parseScrapeSyncPostBody(request: NextRequest): Promise<Record<str
 
 /**
  * POST — Upsert crawler payload into scraped_summary (001 Crawler → dashboard).
- * Auth: `Authorization: Bearer …` matching `SCRAPER_SECRET` or `CRON_SECRET` (≥16 chars).
+ * Auth: Bearer `SCRAPER_SECRET` / `CRON_SECRET` / `GATEWAY_TOKEN`, or signed-in session for `trigger` POST.
  * Trigger mode: JSON `{ "trigger": true, "postcode": "SW1A1AA" }` or query `?postcode=&force=true` with empty body.
  */
 export async function POST(request: NextRequest) {
@@ -623,8 +599,6 @@ export async function POST(request: NextRequest) {
         { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined }
       )
     }
-    const authErr = scrapeSyncAuthDenied(request)
-    if (authErr) return authErr
 
     let body: Record<string, unknown>
     try {
@@ -633,8 +607,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
+    const isTrigger = body?.trigger === true
+    const authErr = await scrapeSyncPostAuthDenied(request, { allowSessionTrigger: isTrigger })
+    if (authErr) return authErr
+
     // Airlock handshake mode: trigger local research/scrape without requiring crawler payload.
-    if (body?.trigger === true) {
+    if (isTrigger) {
       const postcode = typeof body?.postcode === 'string'
         ? body.postcode.replace(/\s+/g, '').trim().toUpperCase()
         : ''
@@ -646,7 +624,8 @@ export async function POST(request: NextRequest) {
       const profileData =
         body?.profileData && typeof body.profileData === 'object' ? (body.profileData as ResearchProfileData) : undefined
       const categoryRaw = typeof body?.category === 'string' ? body.category.trim().toLowerCase() : ''
-      const category = categoryRaw.length > 0 ? categoryRaw : null
+      /** Postcode-only triggers need a journey category or Zone coverage stays `{}`. */
+      const category = categoryRaw.length > 0 ? categoryRaw : 'home'
       const bestOfferHint =
         typeof body?.best_offer_hint === 'string' ? body.best_offer_hint.trim().slice(0, 1200) : ''
       const session = await getSessionFromRequest().catch(() => null)
@@ -718,11 +697,18 @@ export async function POST(request: NextRequest) {
         userId,
         postcode,
         profileData: pd,
+        limit: 12,
       })
+      const coverage = await loadResearchCategoryCoverageByPostcode(postcode)
+      const categoriesWithInsight = Object.entries(coverage).filter(
+        ([, row]) => row.insightReady || (row.latestSavingGbp != null && row.latestSavingGbp > 0)
+      ).length
       return NextResponse.json({
         ok: true,
         mode: 'trigger',
+        category,
         headlinesRepaired,
+        categoriesWithInsight,
         research: {
           markdown: research.markdown,
           citations: research.citations.map((c) => ({

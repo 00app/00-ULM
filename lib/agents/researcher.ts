@@ -49,14 +49,36 @@ function parseUnitRatesFromRegex(markdown: string): {
 
 export function isWeakResearchMarkdown(markdown: string): boolean {
   const t = markdown.toLowerCase()
-  if (t.length < 220) return true
+  if (t.length < 120) return true
   const weakMarkers = [
     "sorry, we can't seem to find that content",
     "sorry, we couldn’t find that page",
     "that content isn't available",
     'no scraped content available',
+    '# not found',
+    'page not found',
   ]
-  return weakMarkers.some((m) => t.includes(m))
+  if (weakMarkers.some((m) => t.includes(m))) return true
+
+  const hasScrapedBody =
+    /## postcode council grants/i.test(markdown) ||
+    /## deep gemini search/i.test(markdown) ||
+    /## uk economic seeds/i.test(markdown) ||
+    /### local source:/i.test(markdown) ||
+    /### source:/i.test(markdown) ||
+    /^### [^\n]+\n\n.{80,}/m.test(markdown)
+
+  const hasEconomicSignal =
+    /£\s?\d|p\/kwh|pence per kwh|saving|grant|tariff|scheme|boiler upgrade|eco4/i.test(markdown)
+
+  if (!hasScrapedBody && !hasEconomicSignal) return true
+
+  const headerOnlyShell =
+    /^## location\b/i.test(markdown) &&
+    /^## locality\b/i.test(markdown) &&
+    !hasScrapedBody &&
+    !hasEconomicSignal
+  return headerOnlyShell
 }
 
 /**
@@ -263,6 +285,25 @@ export async function triggerSupplementalResearch(params: {
 
   if (citations.length === 0) {
     citations = citationForOfgem(markdown)
+  }
+
+  if (isWeakResearchMarkdown(markdown) && (params.postcode ?? params.profileData?.postcode)) {
+    const pc = (params.postcode ?? params.profileData?.postcode ?? '').replace(/\s+/g, '').trim()
+    const local = await getLocalData(pc).catch(() => null)
+    const localityContext = local
+      ? [local.locality, local.council, local.region].filter(Boolean).join(', ')
+      : null
+    const { deepGeminiSearchUkEnergyMarkdown } = await import('@/lib/agents/researchAgent')
+    const deep = await deepGeminiSearchUkEnergyMarkdown({
+      postcode: pc,
+      profileData: params.profileData ?? null,
+      localityContext,
+      category: params.category ?? null,
+    })
+    if (deep?.markdown) {
+      markdown = `${markdown.trim()}\n\n---\n\n${deep.markdown}`
+      citations = [...deep.citations, ...citations]
+    }
   }
 
   const result: ZeroResearchResult = { markdown, citations }

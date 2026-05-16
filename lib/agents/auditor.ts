@@ -174,7 +174,7 @@ export async function runPersonalAudit(userId: string): Promise<PersonalAuditRes
     return { ok: false, userId, error: 'GEMINI_API_KEY unset' }
   }
   if (!FIRECRAWL_API_KEY) {
-    return { ok: false, userId, error: 'FIRE_CRAWL_KEY_2 or FIRECRAWL_API_KEY unset' }
+    return { ok: false, userId, error: 'FIRE_CRAWL_KEY_2 unset' }
   }
 
   const profile = await fetchUserAuditContext(userId)

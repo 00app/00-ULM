@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDbPool, shutdownDbPool } from '@/lib/db'
 import { runZeroResearchWithProfile } from '@/lib/agents/researchAgent'
 import { profileGoalFromGenome } from '@/lib/agents/auditor'
+import { normalizeSecret } from '@/lib/intelligence/normalizeSecret'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
 export const dynamic = 'force-dynamic'
 
 function authorizeCron(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET?.trim()
+  const secret = normalizeSecret(process.env.CRON_SECRET)
   if (!secret || secret.length < 16) return false
-  const bearer = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')?.trim()
-  const header = request.headers.get('x-cron-secret')?.trim()
+  const bearer = normalizeSecret(request.headers.get('authorization')?.replace(/^Bearer\s+/i, ''))
+  const header = normalizeSecret(request.headers.get('x-cron-secret'))
   return bearer === secret || header === secret
 }
 

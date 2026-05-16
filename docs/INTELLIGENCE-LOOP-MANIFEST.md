@@ -2,6 +2,8 @@
 
 Operational contract for infra, data flow, UX, and verification. **Secrets belong only in `.env.local` / Vercel** — never commit passwords or paste them into docs or chat.
 
+**Profile, journey questions, answers, and Zone mechanical truth:** `docs/PROFILE-ANSWERS-ZONE-TECH.md`.
+
 ---
 
 ## 1. Infrastructure
@@ -18,7 +20,8 @@ Operational contract for infra, data flow, UX, and verification. **Secrets belon
 
 ## 2. Scraper and logic loop
 
-- **Firecrawl + Gemini:** Research runs category discovery (nine journey keys in `lib/journeys.ts`); locality seeds include Littlehampton / Arun and Les Azerables / Creuse where configured (`lib/agents/researchAgent.ts`).
+- **Firecrawl + Gemini:** Research runs category discovery across **twelve** journey keys in `lib/journeys.ts` (`JOURNEY_ORDER`); locality seeds include Littlehampton / Arun and Les Azerables / Creuse where configured (`lib/agents/researchAgent.ts`).
+- **Mechanical truth:** Zone tiles and hero totals only show non-zero £/kg when `journeyHasStreamData` (`lib/zone/mechanicalTruth.ts`) — Neon `research_results`, `scraped_summary`, or scrape-sync repair. Empty DB + postcode → `GET /api/scrape-sync` returns `source: "pending"`, `scraped: []`. UK shape defaults in `lib/scraper/uk2026Defaults.ts` are **zero**, not marketing £.
 - **Expansion (canonical birth):** Journey answers in Solo Focus / bento use **`POST /api/answers`** → discovery race → `injectNewDiscoveryCard` when the API returns `new_card_data` / `grid_pulse_card`. **`POST /api/research/question-card`** is the **free-form Ask** path only (not the MC answer birth). **`POST /api/zone/injections`** handles trap follow-ups — all paths share the **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`** (**3**) cap per user per journey (`lib/intelligence/manifest.ts`).
 - **Data mapping:** On persist, **`saving_amount_gbp`** and **`verified_saving`** are aligned (`lib/agents/researchAgent.ts` → `persistResearchResult`). **`offer_url`** must be HTTPS where possible. Invoke payload JSON is stored in **`research_snapshot`**.
 
@@ -37,9 +40,24 @@ Operational contract for infra, data flow, UX, and verification. **Secrets belon
 From repo root with **`DATABASE_URL`** in `.env.local`:
 
 ```bash
-npm run db:log-research
+npm run db:log-research      # latest research_results row
+npm run db:test              # Neon connectivity
+npm run db:evolve-12-domains # journey_questions for all 12 keys
 ```
 
-Logs the latest **`research_results`** row (including **`saving_amount_gbp`**, **`verified_saving`**, **`architect_prose`**, **`offer_url`**) to the console.
+**Honest empty Zone (production smoke):**
 
-See also: **`npm run db:test`**, **`npm run db:columns`**.
+```bash
+curl -sS "https://00-ulm.vercel.app/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length), .research_category_coverage'
+# pending + 0 scraped rows + {} coverage  ⇒  UI should show COMPUTING tiles, not £12.5k
+```
+
+**Fill stream (server; use your Bearer secret, single-quoted in zsh):**
+
+```bash
+bash scripts/curl-scrape-sync-trigger.sh https://00-ulm.vercel.app BN17
+```
+
+Logs the latest **`research_results`** row (including **`saving_amount_gbp`**, **`verified_saving`**, **`architect_prose`**, **`offer_url`**) via **`npm run db:log-research`**.
+
+See also: **`npm run db:columns`**, **`docs/PROFILE-ANSWERS-ZONE-TECH.md`**.

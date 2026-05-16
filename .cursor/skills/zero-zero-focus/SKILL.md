@@ -14,7 +14,8 @@ description: >-
 
 When editing `app/**`, `lib/**`, or user-facing copy, **read** (Read tool):
 
-- `HANDBOOK.md` (single project reference: flow, APIs, env, migrations — includes **Intelligence Loop**, Hermes trigger → Firecrawl/Gemini → Zone → user-triggered injections)
+- `HANDBOOK.md` (single project reference: flow, APIs, env, migrations — includes **Intelligence Loop**, mechanical truth, Hermes → Firecrawl/Gemini → Zone)
+- `docs/PROFILE-ANSWERS-ZONE-TECH.md` (12×3 questions, profile/answers API, scrape-sync pending vs stream-filled Zone)
 - `.cursor/rules/mechanical-pulse.mdc`
 - `lib/logic/engine.ts` (economic truth, regional grid tiers, audit placeholders)
 

@@ -53,7 +53,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "== Local .env.local (presence + value length only) =="
 if [[ -f .env.local ]]; then
-  for key in DATABASE_URL GEMINI_API_KEY FIRE_CRAWL_KEY_2 FIRECRAWL_API_KEY CRON_SECRET; do
+  for key in DATABASE_URL GEMINI_API_KEY FIRE_CRAWL_KEY_2 CRON_SECRET; do
     line="$(grep "^${key}=" .env.local 2>/dev/null | head -1 || true)"
     if [[ -z "$line" ]]; then
       echo "  ${key}: MISSING"

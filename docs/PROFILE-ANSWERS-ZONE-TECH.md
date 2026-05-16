@@ -1,0 +1,146 @@
+# Profile, journey questions & Zone data — technical reference
+
+What ships in **`main`** after the **mechanical truth** pass: the UI only shows £/kg and headlines when Neon or scrape-sync has **stream data**. No UK placeholder back-fill on the Zone wall.
+
+Cross-links: **`HANDBOOK.md`**, **`docs/INTELLIGENCE-LOOP-MANIFEST.md`**, **`lib/journeys.ts`**.
+
+---
+
+## 1. Twelve domains × three questions
+
+| Journey key | Profile / Solo Focus questions (ids) |
+|-------------|--------------------------------------|
+| `home` | `property_type`, `insulation_level`, `glazing_type` |
+| `grants` | `boiler_age`, `income_benefits`, `prior_eco_bus` |
+| `solar` | `roof_orientation`, `roof_shading`, `daytime_occupancy` |
+| `travel` | `commute_distance`, `ev_hybrid`, `public_transport` |
+| `holidays` | `annual_flights`, `flight_duration`, `carbon_offsets` |
+| `food` | `diet_profile`, `organic_shopping`, `own_produce` |
+| `shopping` | `retail_channel`, `repair_mindset`, `online_deliveries` |
+| `money` | `monthly_energy_bill`, `tariff_type`, `green_investments` |
+| `tech` | `smart_thermostat`, `smart_home`, `smart_meter` |
+| `water` | `garden_butt`, `wash_preference`, `rainwater_harvest` |
+| `waste` | `food_waste_collection`, `composting`, `soft_plastics` |
+| `carbon` | `footprint_awareness`, `carbon_removal`, `tonne_reduction_timeline` |
+
+- **Source of truth:** `lib/journeys.ts` — `JOURNEY_ORDER`, `JOURNEYS`, `isValidJourneyQuestion`, `isJourneyComplete`.
+- **Wall order:** `WALL_JOURNEY_ORDER` in `app/zone/page.tsx` (same 12 keys, bento layout 3×4).
+- **DB sync:** `npm run db:evolve-12-domains` seeds `journey_questions` for all 12.
+
+Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on cards comes from **research / scrape**, not from question text.
+
+---
+
+## 2. Profile onboarding
+
+| Step | Code | Persistence |
+|------|------|-------------|
+| Route | `app/profile/page.tsx` → `ProfilePageClient.tsx` | — |
+| Postcode step | `POST /api/local-intelligence` | Council, ward, `localCarbonG`, grant context → used in VM + summary |
+| Profile fields | name, postcode, `home_type`, transport, household, employment, goal | `users` + `AppContext` + `localStorage` mirror |
+| Motion | Full-sentence fade per step (`STACCATO_TWEEN`, y 10→0) | `HANDBOOK.md` Motion table |
+| After profile | `/profile/summary` → `/zone` | Summary uses `lib/brains/summaryLogic.ts` + `buildUserImpact` (no UK_2026 back-fill) |
+
+**Intro:** `/` and `/intro` — **CREATE** only (no SKIP button). `?skip=1` still skips the logo animation via URL.
+
+---
+
+## 3. Journey answers (Solo Focus & embedded)
+
+```mermaid
+flowchart LR
+  UI[EmbeddedJourneyQuestion] --> POST["POST /api/answers"]
+  POST --> VAL[isValidJourneyQuestion]
+  VAL --> DB[(journey_answers_jsonb)]
+  POST --> IMP[buildUserImpact]
+  POST --> DISC[discovery race / inject]
+  POST --> RES[research triggers optional]
+  GET["GET /api/answers"] --> HYDRATE[AppContext hydrate]
+  HYDRATE --> ZONE[app/zone/page.tsx]
+```
+
+| Piece | Location |
+|-------|----------|
+| Next unanswered question | `lib/zone/questionHandler.ts` → `getNextQuestion` |
+| UI | `app/components/EmbeddedJourneyQuestion.tsx` |
+| Session cap | `SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION` in `lib/animations.ts` |
+| Server handler | `app/api/answers/route.ts` |
+| Validation | `isValidJourneyId` + `isValidJourneyQuestion` from `lib/journeys.ts` |
+| Persist | `upsertJourneyAnswerJsonb`, `upsertUserGenomeFromAnswer` (`lib/db/neon.ts`) |
+| Discovery birth | `raceDiscoveryBirth` → response `new_card_data` / `grid_pulse_card` → client `injectNewDiscoveryCard` |
+| Supplemental | `POST /api/research/question-card` (Ask), `POST /api/zone/injections` (trap) — capped |
+
+Answers **refine** impact when stream data exists; they **do not** fabricate Zone wall £ when Neon is empty (see §4).
+
+---
+
+## 4. Mechanical truth on the Zone
+
+### Rule
+
+**If `research_results` / `scraped_summary` / per-journey Neon row has no stream for a journey → that tile shows £0, carbon 0, title `COMPUTING — <JOURNEY>`, metrics `—`, and a “Computing…” strip.**
+
+### Data path
+
+```mermaid
+flowchart TB
+  PC[profile.postcode] --> SS["GET /api/scrape-sync?postcode="]
+  SS --> PEND{rows in Neon?}
+  PEND -->|no| EMPTY["scraped: [] source: pending"]
+  PEND -->|yes| DB["scraped + research_category_coverage"]
+  EMPTY --> VM[buildZoneViewModel]
+  DB --> VM
+  VM --> STREAM{journeyHasStreamData}
+  STREAM -->|no| COMP[COMPUTING tile]
+  STREAM -->|yes| LIVE[£ + headline from stream]
+```
+
+| File | Role |
+|------|------|
+| `lib/scraper/uk2026Defaults.ts` | Shape-only defaults: **all zeros**, labels **Computing...** (not shown as fake savings) |
+| `lib/brains/buildUserImpact.ts` | **No** `UK_2026_MONEY_LEAD` back-fill when money/carbon are 0 |
+| `lib/zone/mechanicalTruth.ts` | `journeyHasStreamData`, `hasAnyStreamData`, `computingJourneyTitle` |
+| `lib/zone/buildZoneViewModel.ts` | Skips formula £ for journeys without stream; hero **Analyzing your postcode...** when totals are 0 |
+| `app/zone/page.tsx` | `vmResolved` false until scrape-sync returns; `ZeroGateShutter` until then; `streamPending` → `insightGenerationPending` on cards |
+| `app/api/scrape-sync/route.ts` | With postcode + empty DB → `{ scraped: [], source: "pending" }` (not fake defaults) |
+
+### Filling the screen (only path)
+
+1. **POST** `/api/scrape-sync?postcode=BN17&force=true` (Bearer `SCRAPER_SECRET` or `CRON_SECRET`) — regional research + persist repair.
+2. Or **Hermes** cron → `/api/cron/zone-research` for queued users.
+3. Or user **answers** in Solo Focus → discovery + supplemental research (capped).
+
+**Verify API (honest empty):**
+
+```bash
+curl -sS "https://00-ulm.vercel.app/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length)'
+# expect: "pending" and 0 until Neon has rows
+```
+
+**Verify DB:**
+
+```bash
+npm run db:log-research
+npm run db:columns
+```
+
+---
+
+## 5. What you should see in the browser
+
+| State | Zone hero | Journey tiles |
+|-------|-----------|---------------|
+| Clean Neon, first load | “Analyzing your postcode…”, £0 total | 12× **COMPUTING — …**, **—** for SAVE/CARBON, pulsing “Computing…” |
+| After pulse / research rows | Personalised hero when totals &gt; 0 | Real £, headlines, LIVE/ESTIMATED audit badges |
+| Stale client cache | Old £ may flash briefly | Hard refresh; `DATA_VERSION` in app clears journey cache on bump |
+
+---
+
+## 6. Deploy & prep
+
+```bash
+npm run prep:live          # db:test + db:evolve-12-domains + build:clean
+npm run deploy:force      # vercel deploy --prod from repo root (scripts/deploy-production.sh)
+```
+
+If `git push` says “no upstream”, run once: `git push -u origin main`.
