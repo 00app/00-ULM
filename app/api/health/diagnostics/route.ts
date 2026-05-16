@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { ROCK_HABIT_COUNT, ROCK_HABITS } from '@/lib/rock/habitsCatalog'
 import { getSessionFromRequest } from '@/lib/auth'
+import { getGatewayHealthSnapshot, isAiGatewayConfigured, probeAiGatewayConnection } from '@/lib/intelligence/aiGateway'
 
 export const dynamic = 'force-dynamic'
 
@@ -79,6 +80,10 @@ export async function GET(request: NextRequest) {
 
   const gemini = Boolean(process.env.GEMINI_API_KEY?.trim())
   const firecrawl = Boolean(process.env.FIRE_CRAWL_KEY_2?.trim())
+  const aiGatewayConfigured = isAiGatewayConfigured()
+  const gatewaySnap = getGatewayHealthSnapshot()
+  const wantLiveProbe = authed && request.nextUrl.searchParams.get('probe') === '1'
+  const gatewayProbe = wantLiveProbe && aiGatewayConfigured ? await probeAiGatewayConnection() : null
 
   /** Zone Intelligence Strip polls this without a session — expose capability booleans only. */
   if (!authed) {
@@ -87,6 +92,10 @@ export async function GET(request: NextRequest) {
       dbLatencyMs,
       gemini,
       firecrawl,
+      aiGateway: aiGatewayConfigured,
+      aiGatewayOk: aiGatewayConfigured ? gatewaySnap.ok || gemini : Boolean(gemini),
+      aiGatewayFallback: gatewaySnap.usingFallback,
+      aiGatewayDetail: gatewaySnap.lastError,
       public: true,
     })
   }
@@ -98,6 +107,11 @@ export async function GET(request: NextRequest) {
     dbLatencyMs,
     gemini,
     firecrawl,
+    aiGateway: aiGatewayConfigured,
+    aiGatewayOk: gatewayProbe?.ok ?? aiGatewayConfigured,
+    aiGatewayFallback: gatewaySnap.usingFallback || Boolean(gatewayProbe?.usingFallback),
+    aiGatewayDetail: gatewayProbe?.detail ?? gatewaySnap.lastError,
+    aiGatewayLastModel: gatewaySnap.lastModel,
     lastResearchScrapedAt,
     researchProvenanceUrl,
     lastResearchInvokePayload,

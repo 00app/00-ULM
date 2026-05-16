@@ -105,6 +105,10 @@ export function ZoneIntelligenceStrip({
   /** From GET /api/health/diagnostics — same booleans as Vercel server env (not a live generate probe). */
   const [apiGemini, setApiGemini] = useState(false)
   const [apiFirecrawl, setApiFirecrawl] = useState(false)
+  const [apiAiGateway, setApiAiGateway] = useState(false)
+  const [apiAiGatewayOk, setApiAiGatewayOk] = useState(false)
+  const [apiAiGatewayFallback, setApiAiGatewayFallback] = useState(false)
+  const [apiAiGatewayDetail, setApiAiGatewayDetail] = useState<string | null>(null)
   const [apiDiagReady, setApiDiagReady] = useState(false)
 
   const pollApiDiagnostics = useCallback(async () => {
@@ -113,16 +117,37 @@ export function ZoneIntelligenceStrip({
       if (!res.ok) {
         setApiGemini(false)
         setApiFirecrawl(false)
+        setApiAiGateway(false)
+        setApiAiGatewayOk(false)
+        setApiAiGatewayFallback(false)
+        setApiAiGatewayDetail(null)
         setApiDiagReady(true)
         return
       }
-      const d = (await res.json()) as { gemini?: boolean; firecrawl?: boolean }
+      const d = (await res.json()) as {
+        gemini?: boolean
+        firecrawl?: boolean
+        aiGateway?: boolean
+        aiGatewayOk?: boolean
+        aiGatewayFallback?: boolean
+        aiGatewayDetail?: string | null
+      }
       setApiGemini(Boolean(d.gemini))
       setApiFirecrawl(Boolean(d.firecrawl))
+      setApiAiGateway(Boolean(d.aiGateway))
+      setApiAiGatewayOk(Boolean(d.aiGatewayOk))
+      setApiAiGatewayFallback(Boolean(d.aiGatewayFallback))
+      setApiAiGatewayDetail(
+        typeof d.aiGatewayDetail === 'string' && d.aiGatewayDetail.trim() ? d.aiGatewayDetail.trim() : null
+      )
       setApiDiagReady(true)
     } catch {
       setApiGemini(false)
       setApiFirecrawl(false)
+      setApiAiGateway(false)
+      setApiAiGatewayOk(false)
+      setApiAiGatewayFallback(false)
+      setApiAiGatewayDetail(null)
       setApiDiagReady(true)
     }
   }, [])
@@ -243,6 +268,24 @@ export function ZoneIntelligenceStrip({
               : apiFirecrawl
                 ? 'FIRE_CRAWL_KEY_2 set on this deployment.'
                 : 'Firecrawl key unset — Firecrawl-backed research will not run.'
+          }
+        />
+        <BulletRow
+          ok={apiDiagReady && apiAiGateway && apiAiGatewayOk}
+          title="AI GATEWAY"
+          source="Vercel AI Gateway · research + Zai failover"
+          detail={
+            !apiDiagReady
+              ? 'Polling…'
+              : !apiAiGateway
+                ? 'AI_GATEWAY_API_KEY / VERCEL_AI_GATEWAY_API_KEY unset — direct Gemini only.'
+                : apiAiGatewayOk
+                  ? apiAiGatewayFallback
+                    ? 'Switching to fallback — secondary model or direct Gemini active.'
+                    : 'Gateway connected — primary model chain live.'
+                  : apiAiGatewayDetail
+                    ? `Gateway error — ${apiAiGatewayDetail}`
+                    : 'Gateway configured but last pass failed — check Vercel AI Gateway dashboard.'
           }
         />
         <BulletRow

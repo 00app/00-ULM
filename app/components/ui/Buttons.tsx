@@ -200,10 +200,13 @@ export function IndustrialHandoffButton({
     }, 150)
   }
 
+  const accessibleLabel = ctaLabel.trim() || 'CLAIM'
+
   return (
     <motion.button
       type="button"
       onClick={handleClick}
+      aria-label={accessibleLabel}
       initial={{ opacity: 0, y: 2 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'tween', duration: 0.12, ease: 'linear' }}

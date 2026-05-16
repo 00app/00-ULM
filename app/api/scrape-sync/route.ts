@@ -260,7 +260,12 @@ export async function GET(request: NextRequest) {
     }
     let research: { markdown: string; citations: Array<{ source_name: string; url: string; snippet?: string }> } | undefined
 
-    if (postcode) {
+    const forceResearch = ['1', 'true', 'yes'].includes(
+      String(request.nextUrl.searchParams.get('force') ?? '').toLowerCase()
+    )
+
+    /** GET without `force=true` must stay fast (Zone load, Vercel deployment checks). Heavy research: POST trigger or GET `?force=true`. */
+    if (postcode && forceResearch) {
       const fcErr = firecrawlMissingResponse()
       if (fcErr) return fcErr
       const profileData: ResearchProfileData = {

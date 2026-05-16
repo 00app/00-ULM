@@ -3,6 +3,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { generateGatewayText, RESEARCH_GATEWAY_MODEL_CHAIN } from '@/lib/intelligence/aiGateway'
 import { getDbPool } from '@/lib/db'
 import { getFirecrawlApiKey, OFGEM_LIVE_PRICE_CAP_URL } from '@/lib/agents/scraper'
 import {
@@ -380,9 +381,8 @@ export async function deepGeminiSearchUkEnergyMarkdown(params: {
   localityContext?: string | null
   category?: string | null
 }): Promise<{ markdown: string; citations: ResearchCitation[] } | null> {
-  const key = process.env.GEMINI_API_KEY?.trim()
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
-  if (!key || pc.length < 4) return null
+  if (pc.length < 4) return null
   const profileBlock = buildResearchProfileAuditorContext(params.profileData ?? null)
   const locality = params.localityContext?.trim()
   const cat = normalizeResearchCategory(params.category ?? '')
@@ -398,12 +398,14 @@ ${profileBlock}
 Return markdown only (no JSON, no code fences).`
 
   try {
-    const genAI = new GoogleGenerativeAI(key)
-    const model = genAI.getGenerativeModel({
-      model: RESEARCH_RECOVERY_MODEL,
-      generationConfig: { maxOutputTokens: 2048, temperature: 0.35 },
+    const tag = params.category?.trim().toLowerCase() || 'energy-recovery'
+    const { text: raw } = await generateGatewayText({
+      prompt,
+      tag,
+      maxOutputTokens: 2048,
+      temperature: 0.35,
     })
-    const text = (await model.generateContent(prompt)).response.text()?.trim() ?? ''
+    const text = raw.trim()
     if (text.length < 80) return null
     return {
       markdown: `## Deep Gemini search (UK energy)\n\n${text}`,
@@ -488,6 +490,70 @@ function normalizeGeminiAgentHeadline(raw: string | undefined): string | undefin
   return clipped.length > 0 ? clipped.slice(0, 600) : undefined
 }
 
+/** When Gemini / gateway JSON triplet fails, recover £/URL/prose from research markdown (BN17-style audits). */
+function inferResearchTripletFromMarkdown(
+  markdown: string,
+  categoryHint?: string | null
+): {
+  category: string
+  saving_amount_gbp: number
+  offer_url: string
+  agent_headline?: string
+  architect_prose?: string
+} | null {
+  const md = markdown.trim()
+  if (md.length < 120) return null
+
+  const savingPatterns = [
+    /Annual Saving:\s*\*?\*?£\s*([\d,]+(?:\.\d+)?)\s*\/?\s*year/i,
+    /\*\*£\s*([\d,]+(?:\.\d+)?)\s*\/?\s*year\*\*/i,
+    /£\s*([\d,]+(?:\.\d+)?)\s*\/?\s*year/i,
+    /save\s+£\s*([\d,]+(?:\.\d+)?)/i,
+  ]
+  let saving: number | null = null
+  for (const re of savingPatterns) {
+    const m = md.match(re)
+    if (!m?.[1]) continue
+    const n = normalizeSavingAmountGbp(m[1].replace(/,/g, ''))
+    if (n != null && n > 0) {
+      saving = n
+      break
+    }
+  }
+  if (saving == null) return null
+
+  const urlMatch = md.match(/https:\/\/[^\s)\]"']+/i)
+  const offer_url = urlMatch?.[0]?.trim().slice(0, 2048) ?? ''
+
+  const deepSection = md.split(/## Deep Gemini search/i)[1]?.trim() ?? md
+  const paragraphs = deepSection
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/^#+\s*/, '').trim())
+    .filter((p) => p.length > 40 && !p.startsWith('---'))
+  const architect_prose = normalizeArchitectProseThreeParagraphs(
+    paragraphs.length >= 3
+      ? paragraphs.slice(0, 3).join('\n\n')
+      : paragraphs.length > 0
+        ? paragraphs.join('\n\n')
+        : deepSection.slice(0, 1200)
+  )
+
+  const headlineSource =
+    paragraphs.find((p) => /£\s*[\d,]+/i.test(p)) ??
+    paragraphs[0] ??
+    `BN17 audit — £${Math.round(saving)} per year`
+  const agent_headline = normalizeGeminiAgentHeadline(headlineSource.slice(0, 320))
+
+  const category = normalizeResearchCategory(categoryHint) ?? 'home'
+  return {
+    category,
+    saving_amount_gbp: saving,
+    offer_url,
+    agent_headline,
+    architect_prose,
+  }
+}
+
 function parseResearchTripletJson(raw: string): {
   category: string
   saving_amount_gbp: number
@@ -563,8 +629,7 @@ async function extractResearchTripletWithGemini(
   agent_headline?: string
   architect_prose?: string
 } | null> {
-  const key = process.env.GEMINI_API_KEY?.trim()
-  if (!key || markdown.length < 80) return null
+  if (markdown.length < 80) return null
   const journeyList = ALLOWED_TRIPLET_CATEGORIES.join(', ')
   const pc = postcode?.trim() ? `Postcode context: ${postcode.trim()}\n\n` : ''
   const profileBlock = buildResearchProfileAuditorContext(profileData ?? null)
@@ -587,13 +652,16 @@ Markdown:
 ---
 ${markdown.slice(0, 28_000)}`
   try {
-    const genAI = new GoogleGenerativeAI(key)
-    const model = genAI.getGenerativeModel({
-      model: options?.model?.trim() || RESEARCH_TRIPLET_MODEL,
-      generationConfig: { maxOutputTokens: 1536, temperature: 0.25 },
+    const tag = normalizeResearchCategory(options?.categoryHint ?? '') || 'architect-triplet'
+    const { text } = await generateGatewayText({
+      prompt,
+      tag,
+      maxOutputTokens: 1536,
+      temperature: 0.25,
+      models: options?.model?.trim()
+        ? [options.model.trim(), ...RESEARCH_GATEWAY_MODEL_CHAIN]
+        : undefined,
     })
-    const out = await model.generateContent(prompt)
-    const text = out.response.text() ?? ''
     const parsed = parseResearchTripletJson(text)
     return parsed
   } catch (e) {
@@ -886,18 +954,22 @@ export async function persistResearchResult(params: {
         skipGemini,
         categoryHint: params.category ?? null,
       })
+    const markdownTriplet =
+      geminiTriplet ?? inferResearchTripletFromMarkdown(workingMarkdown, params.category ?? null)
     const mergedCitations = [...extraCitations, ...params.citations]
     const providerName =
       params.providerName?.trim() ||
       (mergedCitations[0]?.source_name ? String(mergedCitations[0].source_name).trim() : null)
     const mergedCategory =
       normalizeResearchCategory(params.category) ??
+      markdownTriplet?.category ??
       geminiTriplet?.category ??
       explicitTriplet?.category ??
       null
     const mergedSaving =
       normalizeSavingAmountGbp(params.savingAmountGbp) ??
       normalizeSavingAmountGbp(params.verifiedSaving) ??
+      markdownTriplet?.saving_amount_gbp ??
       geminiTriplet?.saving_amount_gbp ??
       explicitTriplet?.saving_amount_gbp ??
       null
@@ -909,6 +981,7 @@ export async function persistResearchResult(params: {
       (params.offerUrl?.trim() && params.offerUrl.trim().startsWith('http')
         ? params.offerUrl.trim()
         : null) ??
+      markdownTriplet?.offer_url ??
       geminiTriplet?.offer_url ??
       explicitTriplet?.offer_url ??
       (deepResolved?.startsWith('http') ? deepResolved : null) ??
@@ -929,11 +1002,13 @@ export async function persistResearchResult(params: {
 
     const mergedArchitectProse =
       normalizeArchitectProseThreeParagraphs(params.architectProse?.trim()) ??
+      normalizeArchitectProseThreeParagraphs(markdownTriplet?.architect_prose?.trim()) ??
       normalizeArchitectProseThreeParagraphs(geminiTriplet?.architect_prose?.trim()) ??
       null
 
     const mergedAgentHeadline =
       normalizeGeminiAgentHeadline(params.agentHeadline ?? undefined) ??
+      normalizeGeminiAgentHeadline(markdownTriplet?.agent_headline) ??
       normalizeGeminiAgentHeadline(geminiTriplet?.agent_headline) ??
       null
 

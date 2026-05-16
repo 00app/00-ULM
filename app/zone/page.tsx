@@ -175,7 +175,7 @@ function getGroovyGridItems(viewModel: ZoneViewModel): GroovyItem[] {
   return items
 }
 
-/** Placeholder VM — wall stays behind ZeroGateShutter until scrape-sync feeds Neon/API data. */
+/** Placeholder VM — wall stays behind ZeroGateShutter until scrape-sync responds (Neon, defaults, or degraded). */
 function getPlaceholderZoneViewModel(): ZoneViewModel {
   const emptyAnswers = {} as Record<JourneyId, Record<string, string>>
   return buildZoneViewModel({ profile: {}, journeyAnswers: emptyAnswers })
@@ -747,10 +747,12 @@ export default function ZonePage() {
         const feedReady =
           src === 'database' ||
           src === 'research_results' ||
+          src === 'defaults' ||
           covReady ||
           verifiedSaving != null ||
           savingAmountGbp != null ||
-          Boolean(architectProse?.trim())
+          Boolean(architectProse?.trim()) ||
+          (Array.isArray(data?.scraped) && data.scraped.length > 0 && src !== 'pending')
         if (feedReady) setVmResolved(true)
 
         if (data?.scraped && Array.isArray(data.scraped)) {

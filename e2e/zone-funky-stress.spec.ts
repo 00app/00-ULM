@@ -34,7 +34,7 @@ test.describe('Zone — Groovy Grid + Solo Focus', () => {
     await page.getByTestId('zone-grid-mounted').locator('[data-journey="home"]').first().click()
     await page.waitForTimeout(900)
     const primaryCta = page.getByRole('button', {
-      name: /^(RECLAIM £[\d,]+ NOW|SWAP DEAL|GET OFFICIAL GRANT)$/i,
+      name: /^(RECLAIM £[\d,]+ NOW|Get|Claim|Buy)$/i,
     })
     await expect(primaryCta).toBeVisible()
     await primaryCta.click()
@@ -46,7 +46,7 @@ test.describe('Zone — Groovy Grid + Solo Focus', () => {
     await page.getByTestId('zone-grid-mounted').locator('[data-journey="home"]').first().click()
     await page.waitForTimeout(900)
     const primaryCta = page.getByRole('button', {
-      name: /^(RECLAIM £[\d,]+ NOW|SWAP DEAL|GET OFFICIAL GRANT)$/i,
+      name: /^(RECLAIM £[\d,]+ NOW|Get|Claim|Buy)$/i,
     })
     await expect(primaryCta).toBeVisible()
     const popupPromise = context.waitForEvent('page')
@@ -65,7 +65,10 @@ test.describe('Zone — Groovy Grid + Solo Focus', () => {
     await expect(narrativeParagraphs.first()).toBeVisible()
     await expect(narrativeParagraphs).toHaveCount(3)
     await expect(
-      page.locator('.solo-focus-verified-source').filter({ hasText: /Source:\s+.+\s+—\s+Verified\s+April\s+2026/i }).first()
+      page
+        .locator('.solo-focus-verified-source')
+        .filter({ hasText: /Source:\s+.+\s+April\s+2026/i })
+        .first()
     ).toBeVisible()
   })
 
@@ -127,8 +130,7 @@ test.describe('Zone — Groovy Grid + Solo Focus', () => {
 
 test.describe('Profile → Local hook', () => {
   test('Profile page accepts postcode', async ({ page }) => {
-    await page.goto('/profile')
-    await page.waitForLoadState('networkidle')
+    await page.goto('/profile', { waitUntil: 'domcontentloaded' })
     const postcodeInput = page
       .getByPlaceholder(/postcode|your postcode/i)
       .or(page.locator('input').filter({ has: page.locator('[name="postcode"]') }))

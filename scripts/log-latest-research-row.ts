@@ -1,13 +1,42 @@
 /**
  * Print the latest row from research_results (verification / Neon smoke).
  * Uses DATABASE_URL from .env.local via scripts/load-env-local.ts
+ *
+ * Production Neon (same DB as Vercel):
+ *   npx tsx scripts/log-latest-research-row.ts --env-file .env.production.local
  */
+import fs from 'fs'
+import path from 'path'
 import { neon } from '@neondatabase/serverless'
 import { loadEnvLocal } from './load-env-local'
 import { sanitizeNeonConnectionString } from '../lib/db'
 
+function loadEnvFile(relPath: string) {
+  const envPath = path.join(process.cwd(), relPath)
+  if (!fs.existsSync(envPath)) return
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eq = trimmed.indexOf('=')
+    if (eq <= 0) continue
+    const key = trimmed.slice(0, eq).trim()
+    let val = trimmed.slice(eq + 1).trim()
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1)
+    }
+    process.env[key] = val
+  }
+}
+
 async function main() {
-  loadEnvLocal({ preferLocal: true })
+  const envArgIdx = process.argv.indexOf('--env-file')
+  const envFile =
+    envArgIdx >= 0 && process.argv[envArgIdx + 1] ? process.argv[envArgIdx + 1] : undefined
+  if (envFile) loadEnvFile(envFile)
+  else loadEnvLocal({ preferLocal: true })
   const url = sanitizeNeonConnectionString(process.env.DATABASE_URL?.trim() ?? '')
   if (!url) {
     console.error('DATABASE_URL missing — set in .env.local')

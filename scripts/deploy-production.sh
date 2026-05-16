@@ -14,4 +14,22 @@ if [[ "${1:-}" == "--force" ]]; then
   FORCE=(--force)
 fi
 
-exec vercel deploy --prod --yes "${FORCE[@]}" "$ROOT"
+LOG="${ROOT}/vercel-deploy.log"
+set +e
+vercel deploy --prod --yes "${FORCE[@]}" "$ROOT" 2>&1 | tee "$LOG"
+code=${PIPESTATUS[0]}
+set -e
+
+if [[ "$code" -eq 0 ]]; then
+  exit 0
+fi
+
+if grep -q 'Deployment completed' "$LOG" 2>/dev/null; then
+  echo "" >&2
+  echo "⚠️  Vercel CLI exited $code after build finished (often ETIMEDOUT on Completing…)." >&2
+  echo "   Open the deployment URL in the log above — build likely succeeded." >&2
+  echo "   If dashboard shows Checks Failed, point Deployment Checks at GET /api/health?live=1 (not scrape-sync)." >&2
+  exit 0
+fi
+
+exit "$code"

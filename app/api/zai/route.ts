@@ -17,6 +17,12 @@ import { buildUserContextMarkdown } from "@/lib/memory/userContext"
 import type { JourneyId } from "@/lib/journeys"
 import { isValidJourneyQuestion } from "@/lib/journeys"
 import { generateDiscoveryWinWithGemini } from "@/lib/agents/discoveryWin";
+import {
+  generateGatewayText,
+  isAiGatewayConfigured,
+  RESEARCH_GATEWAY_MODEL_CHAIN,
+} from "@/lib/intelligence/aiGateway";
+import { routeQuestion } from "@/lib/brains/zai/router";
 import { ZAI_PERFORMANCE_AUDITOR_V3_MATRIX } from "@/lib/brains/zai/prompts";
 
 export const runtime = 'nodejs';
@@ -164,13 +170,13 @@ function mandatoryOpenerPrefix(
 export async function POST(req: Request) {
   // Read at request time so Vercel runtime env is available (not build-cached)
   const runtimeKey = process.env.GEMINI_API_KEY?.trim()
-  if (!runtimeKey) {
+  if (!runtimeKey && !isAiGatewayConfigured()) {
     return NextResponse.json(
       { answer: "i'm not configured yet. try again later." },
       { status: 503 }
     )
   }
-  const genAI = new GoogleGenerativeAI(runtimeKey)
+  const genAI = runtimeKey ? new GoogleGenerativeAI(runtimeKey) : null
   try {
     // App Router: body is parsed via req.json() (ReadableStream).
     // Fallback to JSON.parse(req.body text) so `journey_answers` is never lost on malformed clients.
@@ -428,14 +434,41 @@ export async function POST(req: Request) {
       context: focus on uk-specific advice (defra, wrap uk, energy saving trust). april 2026 uk baseline: typical domestic cap £1,641/yr (ofgem reference).${userContextNote}
       keep responses under 3 sentences.${auditorBlock}${roleGuard}${userContextBlock}`
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-lite",
-      systemInstruction,
-    })
     const streamRequested = body.stream !== false
+    const zaiTopic = routeQuestion(question)
 
     let text: string
     try {
+      if (!streamRequested && isAiGatewayConfigured()) {
+        const gatewayPrompt = `${systemInstruction}\n\nUser question:\n${question}`
+        const { text: gwText } = await generateGatewayText({
+          prompt: gatewayPrompt,
+          tag: `zai-${zaiTopic}`,
+          maxOutputTokens: 512,
+          temperature: 0.4,
+          models: ['google/gemini-2.5-flash', ...RESEARCH_GATEWAY_MODEL_CHAIN],
+        })
+        text = gwText
+        if (!text) {
+          return NextResponse.json({ answer: "i'm scanning the 2026 grid, try in a sec." }, { status: 200 })
+        }
+        text = text.toLowerCase()
+        const opener = mandatoryOpenerPrefix(journeyAnswersForContext, effectivePostcode)
+        if (opener && !text.startsWith(opener)) {
+          text = `${opener} ${text}`.replace(/\s+/g, ' ').trim()
+        }
+        return NextResponse.json({ answer: text })
+      }
+
+      if (!genAI) {
+        return NextResponse.json({ answer: ZAI_FALLBACK }, { status: 503 })
+      }
+
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash-lite",
+        systemInstruction,
+      })
+
       if (streamRequested) {
         const opener = mandatoryOpenerPrefix(journeyAnswersForContext, effectivePostcode)
         const stream = new ReadableStream<Uint8Array>({

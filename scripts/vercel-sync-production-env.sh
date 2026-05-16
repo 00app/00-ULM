@@ -21,6 +21,8 @@ add_or_replace() {
 echo "== Vercel Production env (00-ulm) =="
 add_or_replace DATABASE_URL
 add_or_replace GEMINI_API_KEY
+add_or_replace AI_GATEWAY_API_KEY
+add_or_replace VERCEL_AI_GATEWAY_API_KEY
 add_or_replace FIRE_CRAWL_KEY_2
 add_or_replace CRON_SECRET
 add_or_replace SCRAPER_SECRET

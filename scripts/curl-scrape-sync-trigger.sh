@@ -68,9 +68,12 @@ if [[ ${#TOKEN} -lt 16 ]]; then
   exit 1
 fi
 
+echo "→ POST ${HOST%/}/api/scrape-sync?postcode=${POSTCODE}&force=true (category=${CATEGORY})" >&2
+echo "  Expect 2–4 minutes — do not Ctrl+C unless you mean to cancel." >&2
+
 RESP="$(mktemp)"
 BODY="$(printf '{"trigger":true,"postcode":"%s","category":"%s"}' "$POSTCODE" "$CATEGORY")"
-HTTP_CODE="$(curl -sS -o "$RESP" -w '%{http_code}' -X POST "${HOST%/}/api/scrape-sync?postcode=${POSTCODE}&force=true" \
+HTTP_CODE="$(curl -sS -o "$RESP" -w '%{http_code}' --max-time 600 -X POST "${HOST%/}/api/scrape-sync?postcode=${POSTCODE}&force=true" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d "$BODY")"
