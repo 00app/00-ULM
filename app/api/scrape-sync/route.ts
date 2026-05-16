@@ -132,6 +132,19 @@ async function loadResearchCategoryCoverage(userId: string): Promise<Record<stri
   }
 }
 
+/** Guest sessions: rows may be keyed by postcode only (`user_id` null). Merge postcode + user coverage. */
+async function loadResearchCategoryCoverageResolved(
+  userId: string | null,
+  postcode: string
+): Promise<Record<string, ResearchCategoryCoverageRow>> {
+  const pc = postcode.replace(/\s+/g, '').toUpperCase()
+  const byUser = userId ? await loadResearchCategoryCoverage(userId) : {}
+  if (pc.length < 4) return byUser
+  const byPc = await loadResearchCategoryCoverageByPostcode(pc)
+  if (Object.keys(byUser).length === 0) return byPc
+  return { ...byPc, ...byUser }
+}
+
 async function loadResearchCategoryCoverageByPostcode(
   postcode: string
 ): Promise<Record<string, ResearchCategoryCoverageRow>> {
@@ -268,11 +281,9 @@ export async function GET(request: NextRequest) {
     const postcode = postcodeRaw.replace(/\s+/g, '').toUpperCase()
 
     let researchCategoryCoverage =
-      sessionUserId != null
-        ? await loadResearchCategoryCoverage(sessionUserId)
-        : postcode.length >= 4
-          ? await loadResearchCategoryCoverageByPostcode(postcode)
-          : undefined
+      postcode.length >= 4 || sessionUserId != null
+        ? await loadResearchCategoryCoverageResolved(sessionUserId, postcode.length >= 4 ? postcode : 'BN17')
+        : undefined
     if (researchCategoryCoverage) {
       researchCategoryCoverage = foldCoverageRowsForZone(researchCategoryCoverage)
     }
@@ -357,10 +368,7 @@ export async function GET(request: NextRequest) {
         profileData: Object.keys(profileData).length > 0 ? profileData : null,
         limit: 12,
       })
-      researchCategoryCoverage =
-        sessionUserId != null
-          ? await loadResearchCategoryCoverage(sessionUserId)
-          : await loadResearchCategoryCoverageByPostcode(postcode)
+      researchCategoryCoverage = await loadResearchCategoryCoverageResolved(sessionUserId, postcode)
       if (researchCategoryCoverage) {
         researchCategoryCoverage = foldCoverageRowsForZone(researchCategoryCoverage)
       }
@@ -397,7 +405,18 @@ export async function GET(request: NextRequest) {
         architect_prose?: string | null
       }
       let researchMetaRow: ResearchMetaDbRow | undefined
-      if (sessionUserId) {
+      if (sessionUserId && postcode.length >= 4) {
+        const byUserOrPc = await pool.query(
+          `SELECT ${selectCols}
+           FROM research_results
+           WHERE user_id = $1::uuid
+              OR REPLACE(COALESCE(postcode, ''), ' ', '') = $2
+           ORDER BY created_at DESC NULLS LAST
+           LIMIT 1`,
+          [sessionUserId, postcode]
+        )
+        researchMetaRow = byUserOrPc.rows?.[0]
+      } else if (sessionUserId) {
         const byUser = await pool.query(
           `SELECT ${selectCols}
            FROM research_results
@@ -408,7 +427,7 @@ export async function GET(request: NextRequest) {
         )
         researchMetaRow = byUser.rows?.[0]
       }
-      if (!researchMetaRow) {
+      if (!researchMetaRow && postcode.length >= 4) {
         const byPc = await pool.query(
           `SELECT ${selectCols}
            FROM research_results

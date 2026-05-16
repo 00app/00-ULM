@@ -304,6 +304,32 @@ body {
   }
 }
 
+/* Zone bento — skeleton while research_results hydrates (no fullscreen gate) */
+.zone-bento-skeleton {
+  opacity: 0.5;
+  pointer-events: none;
+  animation: zone-bento-skeleton-pulse 1.1s ease-in-out infinite;
+}
+@keyframes zone-bento-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zone-bento-skeleton {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+.zone-loading-heartbeat-logo {
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-yellow) 40%, transparent));
+}
+
 /* Zone intelligence-loop hydration — Marvin yellow pulse on gate */
 .zone-engine-hydration-status {
   font-family: var(--font-label);

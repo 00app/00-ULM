@@ -185,8 +185,17 @@ export function ZoneIntelligenceStrip({
   const covOffer = covRows.some((c) => c.hasOffer)
   const moneyOk =
     neonVerifiedMoney ||
+    (typeof verifiedSaving === 'number' && verifiedSaving > 0) ||
+    (typeof savingAmountGbp === 'number' && savingAmountGbp > 0) ||
     covRows.some((c) => (c.latestSavingGbp ?? 0) > 0 || (c.latestVerifiedGbp ?? 0) > 0)
-  const proseOk = covInsight || hasArchitectProse
+  const proseOk =
+    hasArchitectProse ||
+    covInsight ||
+    covRows.some(
+      (c) =>
+        Boolean(c.architectProse?.trim()) ||
+        Boolean(c.agentHeadline?.trim())
+    )
   const offerOk = covOffer || hasOfferUrl
   const rowOk = moneyOk && proseOk && offerOk
 

@@ -39,7 +39,18 @@ import {
 } from '@/lib/animations'
 
 import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
-import { ZeroGateShutter } from '@/app/components/background/ZeroGateShutter'
+import { LoadingHeartbeat } from '@/app/components/LoadingHeartbeat'
+import {
+  DEFAULT_ZONE_POSTCODE,
+  readPostcodeFromStorage,
+  readPostcodeFromUrl,
+  readProfileFieldsFromStorage,
+  readProfilePostcode,
+  resolveScrapePostcode,
+  safeGetItem,
+  safeGetJson,
+  safeSetItem,
+} from '@/lib/zone/safeProfileStorage'
 import { setExpandCard } from '@/lib/expandStorage'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { DISCOVERY_INJECT_EVENT } from '@/lib/discoveryInject'
@@ -69,7 +80,6 @@ import { useSentinel } from '@/app/hooks/useSentinel'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import {
-  ClientOnly,
   FloatingNav,
   JourneyBentoCard,
   Logo,
@@ -145,7 +155,7 @@ function sumJourneyGridTotals(vm: ZoneViewModel): { totalMoney: number; totalCar
 function readRecentChatHistoryFromStorage(): Array<{ role: 'user' | 'zai'; text: string }> {
   if (typeof window === 'undefined') return []
   try {
-    const raw = window.localStorage.getItem(SENTINEL_RECENT_CHAT_KEY)
+    const raw = safeGetItem(SENTINEL_RECENT_CHAT_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as Array<{ role?: unknown; text?: unknown }>
     if (!Array.isArray(parsed)) return []
@@ -176,7 +186,7 @@ function getGroovyGridItems(viewModel: ZoneViewModel): GroovyItem[] {
   return items
 }
 
-/** Placeholder VM — wall stays behind ZeroGateShutter until scrape-sync responds (Neon, defaults, or degraded). */
+/** Placeholder VM — shown at skeleton opacity until scrape-sync / Neon research hydrates. */
 function getPlaceholderZoneViewModel(): ZoneViewModel {
   const emptyAnswers = {} as Record<JourneyId, Record<string, string>>
   return buildZoneViewModel({ profile: {}, journeyAnswers: emptyAnswers })
@@ -254,12 +264,8 @@ export default function ZonePage() {
   /** S Update: bump to re-read localStorage after embedded question submit */
   const [refreshKey, setRefreshKey] = useState(0)
   /** Zone lock: all twelve domains visible on the wall. */
-  const [unlockedCount, setUnlockedCount] = useState(() => {
-    if (typeof window === 'undefined') return 12
-    const raw = localStorage.getItem(UNLOCKED_COUNT_KEY)
-    const n = raw ? Number.parseInt(raw, 10) : NaN
-    return Number.isFinite(n) ? 12 : 12
-  })
+  const [unlockedCount, setUnlockedCount] = useState(12)
+  const [hydrated, setHydrated] = useState(false)
   /** v1.7: index of the journey card that just popped in; cleared after animation. */
   /** Discovery Engine: server-stored tip injections (GET /api/zone/injections). */
   const [injectedTips, setInjectedTips] = useState<ZoneTipCard[]>([])
@@ -319,10 +325,15 @@ export default function ZonePage() {
     ResearchCategoryCoverageRow
   > | null>(null)
   const [insightPendingKeys, setInsightPendingKeys] = useState<Set<string>>(() => new Set())
-  const [liveProfilePostcode, setLiveProfilePostcode] = useState<string>(() => {
-    if (typeof window === 'undefined') return ''
-    return (localStorage.getItem('profile_postcode') ?? '').replace(/\s+/g, '').toUpperCase()
-  })
+  const [liveProfilePostcode, setLiveProfilePostcode] = useState('')
+
+  /** Client-only: safe storage + BN17 fallback (avoids SSR / SecurityError crashes). */
+  useEffect(() => {
+    setHydrated(true)
+    setLiveProfilePostcode(readProfilePostcode())
+    const fromUrl = readPostcodeFromUrl()
+    if (fromUrl) safeSetItem('profile_postcode', fromUrl)
+  }, [refreshKey])
   const isFocusViewOpen = Boolean(expandedCardId || expandedTipId)
 
   const closeAnySoloFocus = useCallback(() => {
@@ -488,30 +499,27 @@ export default function ZonePage() {
 
   // v41.0 Live Audit Sync: refresh cards as soon as postcode mutates in profile storage.
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    let prev = (localStorage.getItem('profile_postcode') ?? '').replace(/\s+/g, '').toUpperCase()
+    if (!hydrated) return
+    let prev = readProfilePostcode()
     setLiveProfilePostcode(prev)
     const bumpIfChanged = (nextRaw: string) => {
       const next = nextRaw.replace(/\s+/g, '').toUpperCase()
       if (next === prev) return
-      prev = next
-      setLiveProfilePostcode(next)
+      prev = next.length >= 4 ? next : DEFAULT_ZONE_POSTCODE
+      setLiveProfilePostcode(prev)
       setVmSyncStamp(Date.now())
       setRefreshKey((k) => k + 1)
     }
-    /** Rare poll only — same-tab updates use UNIFIED_PROFILE_MEMORY_EVENT (180ms caused main-thread churn). */
     const interval = window.setInterval(() => {
-      const next = localStorage.getItem('profile_postcode') ?? ''
-      bumpIfChanged(next)
+      bumpIfChanged(safeGetItem('profile_postcode') ?? '')
     }, 2500)
     const onStorage = (e: StorageEvent) => {
       if (e.key !== 'profile_postcode') return
       bumpIfChanged(e.newValue ?? '')
     }
-    /** Same-tab saves use `persistUnifiedUserProfileMemory` — `storage` events only fire across tabs. */
     const onUnifiedProfile = () => {
       refreshProfile()
-      bumpIfChanged(localStorage.getItem('profile_postcode') ?? '')
+      bumpIfChanged(safeGetItem('profile_postcode') ?? '')
       setVmSyncStamp(Date.now())
       setRefreshKey((k) => k + 1)
     }
@@ -522,14 +530,14 @@ export default function ZonePage() {
       window.removeEventListener('storage', onStorage)
       window.removeEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onUnifiedProfile)
     }
-  }, [refreshProfile])
+  }, [refreshProfile, hydrated])
 
   // Allow page scroll when expanded (no body scroll lock)
 
   // Local Living: fetch council + regional carbon; postcode from localStorage (primary) or profile context
   useEffect(() => {
-    const fromStorage = typeof window !== 'undefined' ? localStorage.getItem('profile_postcode') : null
-    const raw = (liveProfilePostcode || state.profile?.postcode || fromStorage)?.replace(/\s+/g, '').trim()
+    if (!hydrated) return
+    const raw = resolveScrapePostcode(liveProfilePostcode, state.profile?.postcode)?.replace(/\s+/g, '').trim()
     // UK outward codes: do not silently substitute Wick — that reads as a "failed" postcode lookup.
     if (!raw || raw.length < 2) {
       setLocalData(null)
@@ -602,28 +610,25 @@ export default function ZonePage() {
     }
   }, [refreshKey, liveProfilePostcode])
 
-  // Load scraped data from API so dashboard hero values use £/yr from 001 Crawler
-  const profilePostcode = (liveProfilePostcode || state.profile?.postcode || '').trim() || null
+  const scrapePostcode = useMemo(
+    () => resolveScrapePostcode(liveProfilePostcode, state.profile?.postcode ?? null),
+    [liveProfilePostcode, state.profile?.postcode]
+  )
 
   const displayLocationName = useMemo(() => {
-    const fromStorage = typeof window !== 'undefined' ? localStorage.getItem('profile_postcode') : null
-    const pcDisp = (profilePostcode ?? fromStorage ?? '').trim()
-    return formatLocationDisplayName(localData ?? undefined, pcDisp)
-  }, [localData, profilePostcode])
+    return formatLocationDisplayName(localData ?? undefined, scrapePostcode)
+  }, [localData, scrapePostcode])
 
   const inPlacePhrase = displayLocationName.trim() ? `in ${displayLocationName.trim()}` : 'near you'
 
   useEffect(() => {
-    const fromStorage = typeof window !== 'undefined' ? localStorage.getItem('profile_postcode') : null
-    const raw = (profilePostcode ?? fromStorage)?.replace(/\s+/g, '').trim()
-    const postcode = raw && raw.length >= 4 ? raw : null
-    const url = postcode ? `/api/scrape-sync?postcode=${encodeURIComponent(postcode)}` : '/api/scrape-sync'
+    if (!hydrated) return
+    const postcode = scrapePostcode
+    const url = `/api/scrape-sync?postcode=${encodeURIComponent(postcode)}`
     let clearHydrationPhases: (() => void) | null = null
-    if (postcode) {
-      setVmResolved(false)
-      setEngineStatus('scraping')
-      clearHydrationPhases = scheduleZoneEngineHydrationPhases((phase) => setEngineStatus(phase))
-    }
+    setVmResolved(false)
+    setEngineStatus('scraping')
+    clearHydrationPhases = scheduleZoneEngineHydrationPhases((phase) => setEngineStatus(phase))
     fetch(url)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
@@ -631,15 +636,13 @@ export default function ZonePage() {
           typeof data?.researchMeta?.deep_link === 'string' && data.researchMeta.deep_link.trim().length > 0
             ? data.researchMeta.deep_link.trim()
             : undefined
-        const verifiedSaving =
-          typeof data?.researchMeta?.verified_saving === 'number' && Number.isFinite(data.researchMeta.verified_saving)
-            ? Number(data.researchMeta.verified_saving)
-            : undefined
-        const savingAmountGbp =
-          typeof data?.researchMeta?.saving_amount_gbp === 'number' &&
-          Number.isFinite(data.researchMeta.saving_amount_gbp)
-            ? Number(data.researchMeta.saving_amount_gbp)
-            : undefined
+        const toMetaNum = (v: unknown): number | undefined => {
+          if (v == null) return undefined
+          const n = typeof v === 'number' ? v : Number(v)
+          return Number.isFinite(n) ? n : undefined
+        }
+        const verifiedSaving = toMetaNum(data?.researchMeta?.verified_saving)
+        const savingAmountGbp = toMetaNum(data?.researchMeta?.saving_amount_gbp)
         const localityContext =
           typeof data?.researchMeta?.locality_context === 'string' && data.researchMeta.locality_context.trim().length > 0
             ? data.researchMeta.locality_context.trim()
@@ -790,18 +793,18 @@ export default function ZonePage() {
         setResearchCategoryCoverage(null)
         setHomeUnitRates(null)
         setRatesSourceUrl(null)
-        setVmResolved(false)
+        setVmResolved(true)
       })
       .finally(() => {
         clearHydrationPhases?.()
         setEngineStatus('idle')
       })
-  }, [profilePostcode])
+  }, [scrapePostcode, hydrated])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem(UNLOCKED_COUNT_KEY, '12')
-  }, [unlockedCount])
+    if (!hydrated) return
+    safeSetItem(UNLOCKED_COUNT_KEY, '12')
+  }, [unlockedCount, hydrated])
 
   useEffect(() => {
     let cancelled = false
@@ -876,8 +879,8 @@ export default function ZonePage() {
   }, [effectiveInjectedTips])
 
   useEffect(() => {
-    const storedCompleted: JourneyId[] =
-      JSON.parse(localStorage.getItem('completedJourneys') || '[]')
+    if (!hydrated) return
+    const storedCompleted = safeGetJson<JourneyId[]>('completedJourneys', [])
     setCompletedJourneys(storedCompleted)
     setUnlockedCount((prev) => {
       const derived = Math.min(12, Math.max(3, 3 + storedCompleted.length))
@@ -888,7 +891,7 @@ export default function ZonePage() {
       Record<string, string>
     >
     JOURNEY_ORDER.forEach((journeyId) => {
-      const stored = localStorage.getItem(`journey_${journeyId}_answers`)
+      const stored = safeGetItem(`journey_${journeyId}_answers`)
       if (stored) {
         try {
           journeyAnswers[journeyId] = JSON.parse(stored)
@@ -897,23 +900,15 @@ export default function ZonePage() {
         }
       }
     })
-    // Mechanical Pulse: profile from localStorage is primary source of truth (seed); context fills gaps
-    const profileFromStorage =
-      typeof window !== 'undefined'
-        ? {
-            name: localStorage.getItem('profile_name') ?? undefined,
-            postcode: localStorage.getItem('profile_postcode') ?? undefined,
-            household: localStorage.getItem('profile_household') ?? undefined,
-            home_type: localStorage.getItem('profile_home_type') ?? undefined,
-            transport_baseline: localStorage.getItem('profile_transport') ?? undefined,
-            age: localStorage.getItem('profile_age') ?? undefined,
-            employment_status: localStorage.getItem('profile_employment_status') ?? undefined,
-          }
-        : {}
+    const profileFromStorage = readProfileFieldsFromStorage()
     const profile = {
       ...profileFromStorage,
       name: state.profile?.name ?? profileFromStorage.name,
-      postcode: liveProfilePostcode || state.profile?.postcode || profileFromStorage.postcode,
+      postcode:
+        liveProfilePostcode ||
+        state.profile?.postcode ||
+        profileFromStorage.postcode ||
+        scrapePostcode,
       household: state.profile?.livingSituation ?? profileFromStorage.household,
       home_type: state.profile?.homeType ?? profileFromStorage.home_type,
       transport_baseline: state.profile?.transport ?? profileFromStorage.transport_baseline,
@@ -1112,18 +1107,20 @@ export default function ZonePage() {
     researchMeta,
     homeUnitRates,
     researchCategoryCoverage,
+    hydrated,
+    scrapePostcode,
   ])
 
   /** Content Architect (Gemini): enrich nine category cards — cached per profile + answers + £/kg. */
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (!hydrated) return
 
     const journeyAnswers: Record<JourneyId, Record<string, string>> = {} as Record<
       JourneyId,
       Record<string, string>
     >
     JOURNEY_ORDER.forEach((journeyId) => {
-      const stored = localStorage.getItem(`journey_${journeyId}_answers`)
+      const stored = safeGetItem(`journey_${journeyId}_answers`)
       if (stored) {
         try {
           journeyAnswers[journeyId] = JSON.parse(stored)
@@ -1132,19 +1129,15 @@ export default function ZonePage() {
         }
       }
     })
-    const profileFromStorage = {
-      name: localStorage.getItem('profile_name') ?? undefined,
-      postcode: localStorage.getItem('profile_postcode') ?? undefined,
-      household: localStorage.getItem('profile_household') ?? undefined,
-      home_type: localStorage.getItem('profile_home_type') ?? undefined,
-      transport_baseline: localStorage.getItem('profile_transport') ?? undefined,
-      age: localStorage.getItem('profile_age') ?? undefined,
-      employment_status: localStorage.getItem('profile_employment_status') ?? undefined,
-    }
+    const profileFromStorage = readProfileFieldsFromStorage()
     const profile = {
       ...profileFromStorage,
       name: state.profile?.name ?? profileFromStorage.name,
-      postcode: liveProfilePostcode || state.profile?.postcode || profileFromStorage.postcode,
+      postcode:
+        liveProfilePostcode ||
+        state.profile?.postcode ||
+        profileFromStorage.postcode ||
+        scrapePostcode,
       household: state.profile?.livingSituation ?? profileFromStorage.household,
       home_type: state.profile?.homeType ?? profileFromStorage.home_type,
       transport_baseline: state.profile?.transport ?? profileFromStorage.transport_baseline,
@@ -1304,13 +1297,15 @@ export default function ZonePage() {
     researchMeta,
     liveResearchData,
     researchCategoryCoverage,
+    hydrated,
   ])
 
   const groovyItems = getGroovyGridItems(viewModel)
   const displayItems: GroovyItem[] = useMemo(() => [...groovyItems], [groovyItems])
   const isDev = process.env.NODE_ENV !== 'production'
-  /** Derive synchronously — avoids a painted frame where vmResolved is true but count is still 0 (blank grid). */
-  const zoneRevealCount = vmResolved ? displayItems.length : 0
+  const researchLoading = !vmResolved
+  const zoneInteractable = hydrated && vmResolved
+  const zoneRevealCount = displayItems.length
 
   const openNextJourneyFromExpanded = useCallback(
     (jid: JourneyId) => {
@@ -1473,17 +1468,14 @@ export default function ZonePage() {
           ) : null}
         </motion.div>
 
-        {/* 2. BENTO WALL — ClientOnly to avoid hydration mismatch (localStorage / window) */}
-        <div className="zone-container" aria-hidden={false}>
-          <ClientOnly fallback={<ZeroGateShutter engineStatus={engineStatus} />}>
-          {!vmResolved ? (
-            <ZeroGateShutter engineStatus={engineStatus} />
-          ) : (
+        {/* 2. BENTO WALL — always mounted; skeleton pulse until research hydrates */}
+        <motion.div className="zone-container" aria-hidden={false}>
           <motion.div
             key={summaryGridStaggerKey}
             data-testid="zone-grid-mounted"
-            data-profile-postcode={profilePostcode ?? ''}
+            data-profile-postcode={scrapePostcode}
             data-vm-sync={String(vmSyncStamp)}
+            data-research-loading={researchLoading ? '1' : '0'}
             className={`groovy-zone-grid mx-auto ${localJustLoaded ? 'zone-grid-local-shiver' : ''}`}
             variants={{
               initial: {},
@@ -1514,6 +1506,8 @@ export default function ZonePage() {
               const isHidden =
                 (!!expandedCardId && !(cell.type === 'journey' && cell.item.id === expandedCardId)) ||
                 (!!expandedTipId && !(cell.type === 'tip' && cell.tip.id === expandedTipId))
+              const skeletonCell =
+                researchLoading && (cell.type === 'hero' || cell.type === 'journey')
 
               return (
                 <motion.div
@@ -1529,10 +1523,10 @@ export default function ZonePage() {
                         ? 'ping'
                         : 'visible'
                   }
-                  className={`${spanClass} groovy-cell-radius h-full min-h-0${cell.type === 'hero' ? ' zone-hero-cell' : ''}`.trim() || 'groovy-cell-radius'}
+                  className={`${spanClass} groovy-cell-radius h-full min-h-0${cell.type === 'hero' ? ' zone-hero-cell' : ''}${skeletonCell ? ' zone-bento-skeleton' : ''}`.trim() || 'groovy-cell-radius'}
                   style={{
                     willChange: 'transform',
-                    pointerEvents: isHidden ? 'none' : 'auto',
+                    pointerEvents: zoneInteractable && !isHidden ? 'auto' : 'none',
                   }}
                 >
                   {cell.type === 'hero' && (
@@ -1553,6 +1547,11 @@ export default function ZonePage() {
                           href={ROUTES.SETTINGS}
                           data-testid="zone-hero-card"
                           data-source={heroDataSource}
+                          tabIndex={zoneInteractable ? 0 : -1}
+                          aria-disabled={!zoneInteractable}
+                          onClick={(e) => {
+                            if (!zoneInteractable) e.preventDefault()
+                          }}
                           className={`zone-hero-card bento-card-groovy flex flex-col flex-1 min-h-0 h-full w-full justify-between cursor-pointer no-underline text-inherit${sentinelHeroPing ? ' sentinel-hero-ping' : ''}`}
                           style={{
                             color: 'var(--color-yellow)',
@@ -1761,6 +1760,7 @@ export default function ZonePage() {
                       isComplete={completedJourneys.includes(cell.item.journey_key)}
                       onRefineQuestions={undefined}
                       onActionClick={() => {
+                        if (!zoneInteractable) return
                         if (!openSoloFocus(cell.item.id, 'journey')) return
                         setExpandCard(
                           {
@@ -1944,24 +1944,22 @@ export default function ZonePage() {
               )
             })}
           </motion.div>
-          )}
-          </ClientOnly>
-        </div>
+        </motion.div>
 
-        {/* The Rock — directly under Groovy Grid. */}
+        {/* The Rock — heartbeat above Saving Tips while master wall hydrates */}
         {!expandedCardId && !expandedTipId && (
-          <ClientOnly fallback={null}>
-            <div className="w-full mt-8 mb-24">
-              <RockSavingTips
-                habits={rockVisibleHabits}
-                likedCardIds={state.likedCards}
-                onOpenTip={(id) => {
-                  if (!openSoloFocus(id, 'tip')) return
-                  setExpandedTipId(id)
-                }}
-              />
-            </div>
-          </ClientOnly>
+          <motion.div className="w-full mt-8 mb-24">
+            <LoadingHeartbeat active={researchLoading} />
+            <RockSavingTips
+              habits={rockVisibleHabits}
+              likedCardIds={state.likedCards}
+              onOpenTip={(id) => {
+                if (!zoneInteractable) return
+                if (!openSoloFocus(id, 'tip')) return
+                setExpandedTipId(id)
+              }}
+            />
+          </motion.div>
         )}
 
         {/* Tip expand: same Solo Focus structure as journey cards (tips, amounts, links, question) */}
@@ -2114,7 +2112,12 @@ export default function ZonePage() {
             typeof localData?.localCarbonG === 'number' ? localData.localCarbonG : undefined
           }
           researchCategory={researchMeta?.category ?? null}
-          hasArchitectProse={Boolean(researchMeta?.architectProse?.trim())}
+          hasArchitectProse={
+            Boolean(researchMeta?.architectProse?.trim()) ||
+            Object.values(researchCategoryCoverage ?? {}).some(
+              (c) => c.insightReady || Boolean(c.architectProse?.trim()) || Boolean(c.agentHeadline?.trim())
+            )
+          }
           hasOfferUrl={Boolean(researchMeta?.offerUrl?.trim())}
           categoryCoverage={researchCategoryCoverage}
           rightAside={
