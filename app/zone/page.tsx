@@ -65,9 +65,8 @@ import { runDiscoveryPulse, readStoredEconomyFingerprint, writeStoredEconomyFing
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
   ENGINE_UI_LABELS,
-  getApril2026Economy,
 } from '@/lib/logic/engine'
-import type { LivePulseSnapshot } from '@/lib/logic/pulse'
+import { fetchLivingPulseSnapshot } from '@/lib/logic/pulse'
 import {
   scheduleZoneEngineHydrationPhases,
   ZONE_ENGINE_HYDRATION_LABELS,
@@ -895,37 +894,12 @@ export default function ZonePage() {
       .trim()
 
     void (async () => {
-      const economy = await getApril2026Economy(postcode, localData)
-      let pulse: LivePulseSnapshot
-      try {
-        const pr = postcode.length >= 4 ? postcode : 'SW1A1AA'
-        const res = await fetch(`/api/pulse/living?postcode=${encodeURIComponent(pr)}`, {
-          cache: 'no-store',
-        })
-        pulse = res.ok
-          ? ((await res.json()) as LivePulseSnapshot)
-          : {
-              priceCapGbp: economy.capGbp,
-              electricityPPerKwh: 24.67,
-              gasPPerKwh: 5.74,
-              regionalCarbonGPerKwh: localData?.localCarbonG ?? 140,
-              agilePPerKwh: null,
-              source: 'fallback',
-            }
-      } catch {
-        pulse = {
-          priceCapGbp: economy.capGbp,
-          electricityPPerKwh: 24.67,
-          gasPPerKwh: 5.74,
-          regionalCarbonGPerKwh: localData?.localCarbonG ?? 140,
-          agilePPerKwh: null,
-          source: 'fallback',
-        }
-      }
+      const pr = postcode.length >= 4 ? postcode : scrapePostcode
+      const pulse = await fetchLivingPulseSnapshot(pr, localData)
       if (cancelled) return
       const nextMarketContext = {
         liveProfilePostcode: postcode || undefined,
-        april2026PriceCapGbp: economy.capGbp,
+        april2026PriceCapGbp: pulse.priceCapGbp,
         regionalGridIntensityGPerKwh: pulse.regionalCarbonGPerKwh,
         liveResearchData,
         deepLink: researchMeta?.deepLink,

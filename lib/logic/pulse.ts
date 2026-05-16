@@ -88,10 +88,43 @@ function regionCodeFromPostcode(postcode: string): string {
   return first && /[A-Z]/.test(first) ? first : 'A'
 }
 
+function buildFallbackSnapshot(local: LocalIntelligence | null): LivePulseSnapshot {
+  return {
+    priceCapGbp: SAFE_SENTINEL.priceCapGbp,
+    electricityPPerKwh: SAFE_SENTINEL.electricityPPerKwh,
+    gasPPerKwh: SAFE_SENTINEL.gasPPerKwh,
+    regionalCarbonGPerKwh:
+      typeof local?.localCarbonG === 'number' && local.localCarbonG > 0
+        ? local.localCarbonG
+        : SAFE_SENTINEL.regionalCarbonGPerKwh,
+    agilePPerKwh: null,
+    source: 'fallback',
+  }
+}
+
 export async function fetchLivingPulseSnapshot(
   postcode: string,
   local: LocalIntelligence | null
 ): Promise<LivePulseSnapshot> {
+  /** Browser cannot scrape Ofgem / grid APIs (CORS) — proxy via our route. */
+  if (typeof window !== 'undefined') {
+    try {
+      const pc = compactPostcode(postcode)
+      if (pc.length >= 4) {
+        const res = await fetch(`/api/pulse/living?postcode=${encodeURIComponent(pc)}`, {
+          cache: 'no-store',
+        })
+        if (res.ok) {
+          return (await res.json()) as LivePulseSnapshot
+        }
+      }
+    } catch {
+      /* fall through */
+    }
+    console.warn('[pulse] Safe Sentinel fallback active')
+    return buildFallbackSnapshot(local)
+  }
+
   const ofgem = await fetchOfgemPulse()
   const carbon = await fetchNationalGridPulse(postcode)
   const agile = await fetchOctopusAgilePulse(regionCodeFromPostcode(postcode))
@@ -99,17 +132,18 @@ export async function fetchLivingPulseSnapshot(
   const useFallback = !ofgem || carbon == null
   if (useFallback) {
     console.warn('[pulse] Safe Sentinel fallback active')
+    return { ...buildFallbackSnapshot(local), agilePPerKwh: agile }
   }
 
   return {
-    priceCapGbp: ofgem?.priceCapGbp ?? SAFE_SENTINEL.priceCapGbp,
-    electricityPPerKwh: ofgem?.electricityPPerKwh ?? SAFE_SENTINEL.electricityPPerKwh,
-    gasPPerKwh: ofgem?.gasPPerKwh ?? SAFE_SENTINEL.gasPPerKwh,
+    priceCapGbp: ofgem.priceCapGbp,
+    electricityPPerKwh: ofgem.electricityPPerKwh,
+    gasPPerKwh: ofgem.gasPPerKwh,
     regionalCarbonGPerKwh:
       carbon ??
       (typeof local?.localCarbonG === 'number' ? local.localCarbonG : SAFE_SENTINEL.regionalCarbonGPerKwh),
     agilePPerKwh: agile,
-    source: useFallback ? 'fallback' : 'live',
+    source: 'live',
   }
 }
 
