@@ -10,8 +10,9 @@ export function coverageRowToNeon(row: ResearchCategoryCoverageRow): NeonJourney
         ? row.latestVerifiedGbp
         : 0
   const ap = row.architectProse?.trim() ?? null
-  if (sav > 0 || (ap != null && ap.length > 0)) {
-    return { savingGbp: sav, architectProse: ap }
+  const hl = row.agentHeadline?.trim() ?? null
+  if (sav > 0 || (ap != null && ap.length > 0) || (hl != null && hl.length > 0)) {
+    return { savingGbp: sav, architectProse: ap, agentHeadline: hl }
   }
   return null
 }

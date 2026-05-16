@@ -12,6 +12,8 @@ export type ResearchCategoryCoverageRow = {
   latestSourceUrl: string | null
   /** Latest label-free prose for this category. */
   architectProse?: string | null
+  /** ~20-word auditor headline when architect_prose is not yet persisted. */
+  agentHeadline?: string | null
 }
 
 /**

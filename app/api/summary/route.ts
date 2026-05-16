@@ -4,6 +4,7 @@ import { getSessionFromRequest } from '@/lib/auth'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import type { ImpactProfile } from '@/lib/brains/types'
 import { getJourneyAnswersForUser } from '@/lib/db/neon'
+import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { sumSavingsFromUserGenome } from '@/lib/brains/genomeTotals'
@@ -50,14 +51,34 @@ async function calculateProfileSummary(
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionFromRequest()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const user_id = session.userId
-
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') // 'profile' or 'journey'
+    const session = await getSessionFromRequest().catch(() => null)
+
+    if (!session) {
+      const postcodeParam = searchParams.get('postcode')?.replace(/\s+/g, '').trim().toUpperCase() ?? ''
+      if (type === 'profile' && postcodeParam.length >= 4) {
+        const profile: ImpactProfile = { postcode: postcodeParam }
+        const homeUnitRates = await resolveLiveUnitRatesForPostcode(postcodeParam).catch(() => undefined)
+        const emptyAnswers = Object.fromEntries(
+          JOURNEY_ORDER.map((jid) => [jid, {}])
+        ) as Record<JourneyId, Record<string, string>>
+        const userImpact = buildUserImpact(
+          { profile, journeyAnswers: emptyAnswers },
+          homeUnitRates ? { homeUnitRates } : undefined
+        )
+        const savings = userImpact.totals.totalMoney
+        const carbon = userImpact.totals.totalCarbon
+        return NextResponse.json({
+          savings,
+          carbon,
+          public: true,
+          text: `you could save\n£${savings}.\n${carbon}kg co₂e\nthis year alone.`,
+        })
+      }
+      return NextResponse.json({ savings: 0, carbon: 0, user: null, public: true })
+    }
+    const user_id = session.userId
 
     if (type === 'profile') {
       const userResult = await pool.query(

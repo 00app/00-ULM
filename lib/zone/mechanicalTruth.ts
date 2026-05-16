@@ -4,6 +4,7 @@ import type { ScrapedDataPoint } from '@/lib/scraper/sources'
 export type NeonJourneyResearchRow = {
   savingGbp?: number
   architectProse?: string | null
+  agentHeadline?: string | null
 }
 
 /** True when Neon scrape-sync or research_results supplied this journey. */
@@ -19,6 +20,9 @@ export function journeyHasStreamData(
     return true
   }
   if (typeof neon?.architectProse === 'string' && neon.architectProse.trim().length > 0) {
+    return true
+  }
+  if (typeof neon?.agentHeadline === 'string' && neon.agentHeadline.trim().length > 0) {
     return true
   }
   const sc = opts.scraped?.[journeyKey]

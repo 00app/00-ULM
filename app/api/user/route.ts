@@ -1,8 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
-import { createSession, getSessionCookieAttributes } from '@/lib/auth'
+import { createSession, getSessionCookieAttributes, getSessionFromRequest } from '@/lib/auth'
 import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
 import { getLocalData } from '@/lib/local/getLocalData'
+
+export const dynamic = 'force-dynamic'
+
+/** GET — session user or graceful null (never 500 for signed-out Zone). */
+export async function GET() {
+  try {
+    const session = await getSessionFromRequest().catch(() => null)
+    if (!session?.userId) {
+      return NextResponse.json({ user: null })
+    }
+    const result = await pool.query(
+      `SELECT id, name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome, created_at
+       FROM users WHERE id = $1`,
+      [session.userId]
+    )
+    if (!result.rows?.length) {
+      return NextResponse.json({ user: null })
+    }
+    return NextResponse.json({ user: result.rows[0] })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    console.error('[api/user] GET error:', message)
+    return NextResponse.json({ user: null })
+  }
+}
 
 const USER_CREATE_MAX_PER_MINUTE = 10
 /** Profile-only (no password) sessions are shorter-lived to reduce abuse impact. */

@@ -40,6 +40,7 @@ function trinityExplanationFromArchitectProse(prose: string | null | undefined):
 export type NeonJourneyResearchRow = {
   savingGbp: number
   architectProse: string | null
+  agentHeadline?: string | null
 }
 
 export interface ZoneHero {

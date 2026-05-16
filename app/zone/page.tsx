@@ -56,7 +56,7 @@ import {
   ENGINE_UI_LABELS,
   getApril2026Economy,
 } from '@/lib/logic/engine'
-import { fetchLivingPulseSnapshot } from '@/lib/logic/pulse'
+import type { LivePulseSnapshot } from '@/lib/logic/pulse'
 import {
   scheduleZoneEngineHydrationPhases,
   ZONE_ENGINE_HYDRATION_LABELS,
@@ -196,8 +196,9 @@ function neonJourneyResearchFromCoverage(
           ? row.latestVerifiedGbp
           : 0
     const ap = row.architectProse?.trim() ?? null
-    if (sav > 0 || (ap != null && ap.length > 0)) {
-      out[jid] = { savingGbp: sav, architectProse: ap }
+    const hl = row.agentHeadline?.trim() ?? null
+    if (sav > 0 || (ap != null && ap.length > 0) || (hl != null && hl.length > 0)) {
+      out[jid] = { savingGbp: sav, architectProse: ap, agentHeadline: hl }
     }
   }
   return Object.keys(out).length > 0 ? out : undefined
@@ -694,6 +695,10 @@ export default function ZonePage() {
               typeof o.architectProse === 'string' && o.architectProse.trim().length > 0
                 ? o.architectProse.trim()
                 : null
+            const hl =
+              typeof o.agentHeadline === 'string' && o.agentHeadline.trim().length > 0
+                ? o.agentHeadline.trim()
+                : null
             next[key] = {
               insightReady: Boolean(o.insightReady),
               hasOffer: Boolean(o.hasOffer),
@@ -703,6 +708,7 @@ export default function ZonePage() {
               latestOfferUrl: typeof o.latestOfferUrl === 'string' ? o.latestOfferUrl : null,
               latestSourceUrl: typeof o.latestSourceUrl === 'string' ? o.latestSourceUrl : null,
               architectProse: ap,
+              agentHeadline: hl,
             }
           }
           setResearchCategoryCoverage(next)
@@ -973,7 +979,32 @@ export default function ZonePage() {
 
     void (async () => {
       const economy = await getApril2026Economy(postcode, localData)
-      const pulse = await fetchLivingPulseSnapshot(postcode, localData)
+      let pulse: LivePulseSnapshot
+      try {
+        const pr = postcode.length >= 4 ? postcode : 'SW1A1AA'
+        const res = await fetch(`/api/pulse/living?postcode=${encodeURIComponent(pr)}`, {
+          cache: 'no-store',
+        })
+        pulse = res.ok
+          ? ((await res.json()) as LivePulseSnapshot)
+          : {
+              priceCapGbp: economy.capGbp,
+              electricityPPerKwh: 24.67,
+              gasPPerKwh: 5.74,
+              regionalCarbonGPerKwh: localData?.localCarbonG ?? 140,
+              agilePPerKwh: null,
+              source: 'fallback',
+            }
+      } catch {
+        pulse = {
+          priceCapGbp: economy.capGbp,
+          electricityPPerKwh: 24.67,
+          gasPPerKwh: 5.74,
+          regionalCarbonGPerKwh: localData?.localCarbonG ?? 140,
+          agilePPerKwh: null,
+          source: 'fallback',
+        }
+      }
       if (cancelled) return
       const nextMarketContext = {
         liveProfilePostcode: postcode || undefined,

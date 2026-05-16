@@ -49,6 +49,13 @@ export function isAiGatewayConfigured(): boolean {
   return Boolean(resolveAiGatewayApiKey() || process.env.VERCEL_OIDC_TOKEN?.trim())
 }
 
+/** Explicit gateway API key (not OIDC-only) — Zone strip “AI GATEWAY” tick. */
+export function hasAiGatewayApiKey(): boolean {
+  return Boolean(
+    process.env.AI_GATEWAY_API_KEY?.trim() || process.env.VERCEL_AI_GATEWAY_API_KEY?.trim()
+  )
+}
+
 export function getGatewayHealthSnapshot(): GatewayHealthSnapshot {
   return { ...health, configured: isAiGatewayConfigured() }
 }

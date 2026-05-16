@@ -59,9 +59,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionFromRequest()
+    const session = await getSessionFromRequest().catch(() => null)
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ liked_card_ids: [] })
     }
     const user_id = session.userId
 

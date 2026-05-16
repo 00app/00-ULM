@@ -52,6 +52,7 @@ function mapResearchCoverageRows(
   rows: Array<{
     cat: string
     architect_prose: string | null
+    agent_headline: string | null
     offer_url: string | null
     source_url: string | null
     saving_amount_gbp: unknown
@@ -69,11 +70,12 @@ function mapResearchCoverageRows(
     const k = String(row.cat || '').trim().toLowerCase()
     if (!k) continue
     const prose = typeof row.architect_prose === 'string' ? row.architect_prose.trim() : ''
+    const headline = typeof row.agent_headline === 'string' ? row.agent_headline.trim() : ''
     const offer = typeof row.offer_url === 'string' ? row.offer_url.trim() : ''
     const src = typeof row.source_url === 'string' ? row.source_url.trim() : ''
     const sav = toNum(row.saving_amount_gbp)
     const ver = toNum(row.verified_saving)
-    const insightReady = prose.length > 0
+    const insightReady = prose.length > 0 || headline.length > 0
     const hasOffer = offer.startsWith('http')
     const hasSrc = src.startsWith('http')
     const rowVerified = row.verified === true
@@ -86,6 +88,7 @@ function mapResearchCoverageRows(
       latestOfferUrl: hasOffer ? offer.slice(0, 2048) : null,
       latestSourceUrl: hasSrc ? src.slice(0, 2048) : null,
       architectProse: prose.length > 0 ? prose.slice(0, 4000) : null,
+      agentHeadline: headline.length > 0 ? headline.slice(0, 320) : null,
     }
   }
   return out
@@ -94,6 +97,7 @@ function mapResearchCoverageRows(
 const RESEARCH_COVERAGE_SELECT = `SELECT DISTINCT ON (lower(trim(rr.category)))
           lower(trim(rr.category)) AS cat,
           rr.architect_prose,
+          rr.agent_headline,
           rr.offer_url,
           rr.source_url,
           rr.saving_amount_gbp,
@@ -105,6 +109,7 @@ async function loadResearchCategoryCoverage(userId: string): Promise<Record<stri
     const cov = await pool.query<{
       cat: string
       architect_prose: string | null
+      agent_headline: string | null
       offer_url: string | null
       source_url: string | null
       saving_amount_gbp: unknown
@@ -133,6 +138,7 @@ async function loadResearchCategoryCoverageByPostcode(
     const cov = await pool.query<{
       cat: string
       architect_prose: string | null
+      agent_headline: string | null
       offer_url: string | null
       source_url: string | null
       saving_amount_gbp: unknown
