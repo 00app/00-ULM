@@ -42,6 +42,7 @@
     "db:columns": "tsx scripts/list-research-results-columns.ts",
     "db:ensure-rebirth-columns": "tsx scripts/ensure-research-rebirth-columns.ts",
     "db:ensure-user-profiles": "tsx scripts/ensure-user-profiles-table.ts",
+    "db:evolve-12-domains": "tsx scripts/evolve-12-domain-db.ts",
     "db:log-research": "tsx scripts/log-latest-research-row.ts",
     "verify:env": "bash scripts/verify-env-and-health.sh",
     "curl:scrape-sync": "bash scripts/curl-scrape-sync-trigger.sh"
