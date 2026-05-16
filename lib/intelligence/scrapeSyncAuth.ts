@@ -11,9 +11,27 @@ function isTruthyBodyFlag(v: unknown): boolean {
   return false
 }
 
+function hasPostcodeInQuery(searchParams: URLSearchParams): boolean {
+  const pc = (searchParams.get('postcode') ?? '').replace(/\s+/g, '').trim()
+  return pc.length >= 4
+}
+
+/** Hermes / manual VPS pulses: `{ "source": "manual-pulse" }` + `?postcode=&full=true`. */
+function isHermesPulseBody(body: Record<string, unknown>): boolean {
+  const src = String(body.source ?? body.origin ?? '').toLowerCase()
+  if (!src) return false
+  return (
+    src.includes('hermes') ||
+    src.includes('manual-pulse') ||
+    src.includes('manual-trigger') ||
+    src.includes('sovereign-trigger') ||
+    src.includes('manual-force')
+  )
+}
+
 /**
  * POST trigger handshake — query `force` / `mode=trigger` / `full=true` or JSON `{ trigger: true }`.
- * When true, `scraped` / `scrapedData` arrays are not required.
+ * When true, `scraped` / `scrapedData` arrays are not required (empty `[]` is fine).
  */
 export function scrapeSyncTriggerRequested(
   searchParams: URLSearchParams,
@@ -26,6 +44,7 @@ export function scrapeSyncTriggerRequested(
   if (isTruthyQueryFlag(searchParams.get('force'))) return true
   if (isTruthyQueryFlag(searchParams.get('trigger'))) return true
   if (isTruthyQueryFlag(searchParams.get('full'))) return true
+  if (hasPostcodeInQuery(searchParams) && isHermesPulseBody(body)) return true
   return false
 }
 

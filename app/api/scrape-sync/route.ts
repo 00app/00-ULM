@@ -757,7 +757,13 @@ export async function POST(request: NextRequest) {
       : Array.isArray(body.scrapedData)
         ? body.scrapedData
         : body.items
-    const items: ScrapedPayloadItem[] = Array.isArray(rawItems) ? (rawItems as ScrapedPayloadItem[]) : []
+    const rawArr = Array.isArray(rawItems) ? rawItems : []
+    /** Placeholder rows (`{ category, status }` only) — Hermes pulse, not crawler upsert. */
+    const items: ScrapedPayloadItem[] = rawArr.filter((row): row is ScrapedPayloadItem => {
+      if (!row || typeof row !== 'object') return false
+      const jk = (row as ScrapedPayloadItem).journey_key
+      return typeof jk === 'string' && JOURNEY_ORDER.includes(jk as JourneyId)
+    })
 
     if (items.length === 0) {
       if (scrapeSyncTriggerRequested(request.nextUrl.searchParams, body)) {
