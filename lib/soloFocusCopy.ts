@@ -12,18 +12,31 @@ function coerceJourneyId(id: string): JourneyId {
   return (JOURNEY_ORDER.includes(id as JourneyId) ? id : 'home') as JourneyId
 }
 
-/** Strip trailing “(Updated …)” / version noise so the card title does not repeat body dates. */
+const UK_POSTCODE_INLINE_RE = /\b[A-Z]{1,2}\d[A-Z0-9]?\s*\d[A-Z]{2}\b/gi
+
+const EXPANDED_TITLE_TARIFF_NOISE_RE =
+  /\b\d+\.?\d*\s*p\s*\/\s*(?:kwh|day)\b|\b(?:standard|variable)\s+tariff\b|\bregulatory\s+window\b|\bprice\s+cap\b/gi
+
+const EXPANDED_TITLE_REPORT_PREFIX_RE =
+  /\b(?:household\s+)?energy\s*(?:&|and)\s*travel\s+audit\b|\b(?:energy\s+)?audit\s+report\b|\bregional\s+(?:energy\s+)?profile\b/gi
+
+/** Strip postcodes, tariff dumps, audit report prefixes, and date noise from Solo Focus / expanded H1s. */
 export function stripExpandedCardTitleNoise(raw: string): string {
   let t = raw.trim()
   t = t.replace(/\*{2,3}/g, '').replace(/_{2,3}/g, '').replace(/\s+/g, ' ').trim()
+  t = t.replace(UK_POSTCODE_INLINE_RE, ' ')
+  t = t.replace(EXPANDED_TITLE_TARIFF_NOISE_RE, ' ')
+  t = t.replace(EXPANDED_TITLE_REPORT_PREFIX_RE, ' ')
+  t = t.replace(/\b(?:AUDIT|REPORT|REGULATORY|WINDOW)\b/gi, ' ')
   t = t.replace(/\s*\([^)]*(?:updated|as at|revised)[^)]*\)\s*$/i, '').trim()
   t = t.replace(/\s*\(\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{1,2},?\s*\d{4}\s*\)\s*$/i, '').trim()
   t = t.replace(/^(?:did you know\??|consider (?:this|that)\.?\s*|fun fact:?\s*|here'?s (?:the thing|what you need to know):?\s*)/i, '').trim()
   const colonIdx = t.indexOf(':')
   if (colonIdx >= 0 && colonIdx < t.length - 2) {
     const after = t.slice(colonIdx + 1).trim()
-    if (after.length >= 3) t = after
+    if (after.length >= 3 && !isZonePreviewHeadlineNoise(after)) t = after
   }
+  t = t.replace(/\s+/g, ' ').trim()
   return t
 }
 
