@@ -16,7 +16,11 @@ fi
 
 LOG="${ROOT}/vercel-deploy.log"
 set +e
-vercel deploy --prod --yes "${FORCE[@]}" "$ROOT" 2>&1 | tee "$LOG"
+if ((${#FORCE[@]})); then
+  vercel deploy --prod --yes "${FORCE[@]}" "$ROOT" 2>&1 | tee "$LOG"
+else
+  vercel deploy --prod --yes "$ROOT" 2>&1 | tee "$LOG"
+fi
 code=${PIPESTATUS[0]}
 set -e
 
