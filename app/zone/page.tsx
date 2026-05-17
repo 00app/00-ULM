@@ -85,7 +85,11 @@ import { ROCK_BY_SLUG, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/
 import { replaceRockSlotAfterLike } from '@/lib/rock/rotation'
 import { useRockVisibleHabits } from '@/lib/rock/useRockVisibleHabits'
 import { useSentinel } from '@/app/hooks/useSentinel'
-import { journeyResearchSettled, type ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
+import {
+  journeyResearchSettled,
+  triggerScrapeSyncForCategory,
+  type ResearchCategoryCoverageRow,
+} from '@/lib/researchSyncClient'
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import {
   FloatingNav,
@@ -773,6 +777,33 @@ export default function ZonePage() {
   }, [scrapePostcode, hydrated])
 
   const proseRepairRequestedRef = useRef(false)
+  const zoneResearchSeedRef = useRef(false)
+  useEffect(() => {
+    if (!hydrated || scrapePostcode.length < 4 || zoneResearchSeedRef.current) return
+    const cov = researchCategoryCoverage
+    if (!cov) return
+    const missing = JOURNEY_ORDER.filter((jid) => !journeyResearchSettled(cov[jid]))
+    if (missing.length === 0) return
+    zoneResearchSeedRef.current = true
+    const profileFields = readProfileFieldsFromStorage()
+    const batch = missing.slice(0, 4)
+    batch.forEach((category, i) => {
+      window.setTimeout(() => {
+        triggerScrapeSyncForCategory({
+          postcode: scrapePostcode,
+          category,
+          profileData: {
+            postcode: scrapePostcode,
+            home_type: profileFields.home_type,
+            transport_baseline: profileFields.transport_baseline,
+            household: profileFields.household,
+            employment_status: profileFields.employment_status,
+          },
+        })
+      }, 1200 + i * 2500)
+    })
+  }, [hydrated, scrapePostcode, researchCategoryCoverage])
+
   useEffect(() => {
     if (!hydrated || scrapePostcode.length < 4 || proseRepairRequestedRef.current) return
     const cov = researchCategoryCoverage

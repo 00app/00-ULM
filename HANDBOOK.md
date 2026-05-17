@@ -21,6 +21,8 @@ npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030
 
 **Build:** `npm run build` · **Prep (Neon + clean build):** `npm run prep:live` · **Deploy:** `npm run deploy` or `npm run deploy:force` (runs `scripts/deploy-production.sh` → `vercel deploy --prod` from repo root). Production alias: `https://00-ulm.vercel.app`.
 
+**Full application specification (architecture, APIs, DB, Hermes, mother/child cards):** `docs/FULL-APP-SPEC.md`.
+
 **Technical deep-dive (profile, 12×3 questions, answers API, mechanical truth):** `docs/PROFILE-ANSWERS-ZONE-TECH.md`.
 
 **DB init:** `npm run init-db` applies **`lib/schema.sql`** then runs **`db/migrations/20260513_research_snapshot_column.sql`** as a single batch (legacy JSONB column → **`research_snapshot`** merge/rename). Files under `db/migrations/` are otherwise for Neon SQL editor / manual history unless wired here.
@@ -203,7 +205,7 @@ Full manifest (Hermes, Neon host token, caps): **`docs/INTELLIGENCE-LOOP-MANIFES
 ## Intelligence Loop (manifest)
 
 - **Neon (London):** Canonical pooler host token is `MANIFEST_NEON_POOLER_HOST` in `lib/intelligence/manifest.ts` — it must match the hostname inside `DATABASE_URL` (set password only via Neon Console / Vercel env; never commit secrets).
-- **Hermes / Oracle VPS:** Run a daily cron (e.g. **05:00**) that calls **`GET` or `POST`** `https://<deployment>/api/cron/zone-research?limit=20` with header **`Authorization: Bearer <CRON_SECRET>`** (same value as Vercel `CRON_SECRET`). A shell wrapper (e.g. `~/hermes/pulse.sh`) and **`psql "$DATABASE_URL"`** on the box are fine sanity checks; the app uses the same Neon URI in **`DATABASE_URL`**.
+- **Hermes / Oracle VPS:** Step-by-step: **`docs/HERMES-VPS-SETUP.md`**. On the box: **`bash scripts/setup-hermes-vps.sh --install-cron`** (secret in `~/.hermes/cron.secret`, log `~/hermes-pulse.log`). Mac quick check: **`npm run hermes:ping`**. Do not use `/var/log/hermes-cron.log` unless you create it — default log is **`~/hermes-pulse.log`**.
 - **Twelve categories:** Journey keys in `lib/journeys.ts` (`JOURNEY_ORDER` — 12 domains × 3 questions). Research persistence (`research_results`) requires **`saving_amount_gbp`**, **`offer_url`**, category, and prose fields as implemented in `lib/agents/researchAgent.ts` / `persistResearchResult`. **Carbon (kg)** on cards comes from stream + impact only when `journeyHasStreamData` — no UK placeholder wall figures.
 - **Injection cap:** `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` (**3**) — enforced in `discovery_injections` per user per `journey_key` for both `POST /api/zone/injections` (answer loop → alternate journey) and `POST /api/research/question-card` (free question → same journey).
 - **Locality scrape hints:** `runZeroResearch` prepends extra Firecrawl seeds when user context mentions **Littlehampton** / **Arun** or **Les Azerables** / **Creuse** (`lib/agents/researchAgent.ts`).

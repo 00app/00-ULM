@@ -49,7 +49,9 @@
     "db:log-research:prod": "tsx scripts/log-latest-research-row.ts --env-file .env.production.local",
     "env:merge": "node scripts/merge-env-local.mjs",
     "verify:env": "bash scripts/verify-env-and-health.sh",
-    "curl:scrape-sync": "bash scripts/curl-scrape-sync-trigger.sh"
+    "curl:scrape-sync": "bash scripts/curl-scrape-sync-trigger.sh",
+    "hermes:ping": "bash scripts/hermes-pulse.sh --auth-only",
+    "hermes:pulse": "bash scripts/hermes-pulse.sh --smoke"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",

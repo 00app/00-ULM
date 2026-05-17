@@ -348,12 +348,6 @@ function previewTitleFromNeon(neon?: NeonJourneyResearchRow | null): string | nu
       return headlineFromTitle(t, MAX_ZONE_CARD_HEADLINE_WORDS)
     }
   }
-  if (neon?.architectProse?.trim()) {
-    const teaser = teaserTitleFromOffer(neon.architectProse)
-    if (teaser && !isZonePreviewHeadlineNoise(teaser)) {
-      return headlineFromTitle(teaser, MAX_ZONE_CARD_HEADLINE_WORDS)
-    }
-  }
   return null
 }
 
@@ -798,21 +792,22 @@ export function buildZoneViewModel({
     const sourceLabel = formatSourceLabel(source)
     if (isGenericHomepageUrl(claimOfferUrl)) claimOfferUrl = undefined
     const locality = council?.trim() || outwardFromPostcode(profile?.postcode)
+    const offerTeaserRaw =
+      teaserTitleFromOffer(impact.insight) ?? teaserTitleFromOffer(localCouncilTip)
     const offerTeaserTitle =
-      teaserTitleFromOffer(impact.insightLabel) ??
-      teaserTitleFromOffer(impact.insight) ??
-      teaserTitleFromOffer(localCouncilTip)
+      offerTeaserRaw && !isZonePreviewHeadlineNoise(offerTeaserRaw) ? offerTeaserRaw : null
     const title = !hasStream
       ? computingJourneyTitle(journeyKey)
-      : previewTitleFromNeon(neon) ??
+      : (previewTitleFromNeon(neon) ??
         (offerTeaserTitle
           ? headlineFromTitle(cleanZonePreviewHeadline(offerTeaserTitle), MAX_ZONE_CARD_HEADLINE_WORDS)
           : null) ??
-        (buildCompactHeadline({
-          journey: journeyKey,
-          moneyGbp,
-          journeyAnswers,
-        }) || baselineTitle)
+        (baselineTitle ||
+          buildCompactHeadline({
+            journey: journeyKey,
+            moneyGbp,
+            journeyAnswers,
+          })))
     const learnUrl =
       !isGenericHomepageUrl(claimOfferUrl) ? claimOfferUrl! :
       !isGenericHomepageUrl(source.url) ? source.url :

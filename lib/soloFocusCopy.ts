@@ -28,7 +28,7 @@ export function stripExpandedCardTitleNoise(raw: string): string {
 }
 
 const ZONE_PREVIEW_NOISE_RE =
-  /\b(?:BN\d|POSTCODE|REGULATORY|AUDIT|REPORT|REGIONAL|PROFILE|DNO|UKPN|APRIL\s*2026|ENERGY\s+AUDIT|LITTLEHAMPTON|ARUN|SOUTH\s+EAST|DISTRIB)\b/i
+  /\b(?:BN\d|POSTCODE|REGULATORY|AUDIT|REPORT|REGIONAL|PROFILE|DNO|UKPN|APRIL\s*2026|ENERGY\s+AUDIT|LITTLEHAMPTON|ARUN|SOUTH\s+EAST|DISTRIB|STANDING\s+CHARGE|UNIT\s+RATE|KWH|KWH\/|PRICE\s+CAP|OFgem|GOVERNMENT\s+DATA)\b/i
 
 /** True when a headline is still report metadata, not a user-facing insight. */
 export function isZonePreviewHeadlineNoise(text: string): boolean {
@@ -37,6 +37,9 @@ export function isZonePreviewHeadlineNoise(text: string): boolean {
   if (t.length > 52) return true
   if (ZONE_PREVIEW_NOISE_RE.test(t)) return true
   if (/\b[A-Z]{1,2}\d[A-Z0-9]?\s?\d[A-Z]{2}\b/i.test(t)) return true
+  if (/\d+\.?\d*\s*p(?:\/|\s*)?(?:kwh|day)\b/i.test(t)) return true
+  if (/\(\s*£\s*0\.\d+/i.test(t)) return true
+  if (/energy\s+audit/i.test(t)) return true
   return false
 }
 
