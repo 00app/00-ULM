@@ -45,7 +45,11 @@ import {
   readCachedProfileLocality,
   resolveProfileLocalityForPostcode,
 } from '@/lib/geocode/resolvePostcodeLocality'
-import { appendResearchUserIdQuery, ensureGaryModeForPostcode } from '@/lib/zone/garyMode'
+import {
+  appendResearchUserIdQuery,
+  ensureClientResearchUserId,
+  ensureGaryModeForPostcode,
+} from '@/lib/zone/garyMode'
 import { TIER2_PROFILE_REFRESH_EVENT } from '@/lib/zone/tier2RecursiveSpawner'
 import {
   readPostcodeFromUrl,
@@ -648,6 +652,7 @@ export default function ZonePage() {
     if (!hydrated) return
     if (scrapePostcode.length < 4) return
     ensureGaryModeForPostcode(scrapePostcode)
+    ensureClientResearchUserId(scrapePostcode)
     void resolveProfileLocalityForPostcode(scrapePostcode)
   }, [hydrated, scrapePostcode])
 

@@ -1,5 +1,5 @@
 import type { ResearchProfileData } from '@/lib/agents/researchAgent'
-import { resolveClientResearchUserId } from '@/lib/zone/garyMode'
+import { ensureClientResearchUserId, resolveClientResearchUserId } from '@/lib/zone/garyMode'
 
 /** Latest row per `research_results.category` from GET /api/scrape-sync. */
 export type ResearchCategoryCoverageRow = {
@@ -52,7 +52,7 @@ export function triggerScrapeSyncForCategory(params: {
     .trim()
     .toLowerCase()
   if (!cat) return
-  const researchUserId = resolveClientResearchUserId()
+  const researchUserId = ensureClientResearchUserId(pc) ?? resolveClientResearchUserId()
   const body: Record<string, unknown> = {
     trigger: true,
     postcode: pc,

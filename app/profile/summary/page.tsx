@@ -21,6 +21,7 @@ import {
 } from '@/lib/geocode/resolvePostcodeLocality'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
+import { ensureClientResearchUserId } from '@/lib/zone/garyMode'
 import SummaryHeader from '@/app/components/SummaryHeader'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { INDUSTRIAL_OPACITY_SNAP, soloFocusSlamMotionProps } from '@/lib/animations'
@@ -256,6 +257,7 @@ export default function ProfileSummaryPage() {
       }
 
       if (postcode.length >= 4) {
+        const researchUserId = ensureClientResearchUserId(postcode)
         handshakePromiseRef.current = (async () => {
           const [scrapeRes, tipsRefreshRes] = await Promise.allSettled([
             fetch('/api/scrape-sync', {
@@ -265,6 +267,8 @@ export default function ProfileSummaryPage() {
               body: JSON.stringify({
                 trigger: true,
                 postcode,
+                category: 'home',
+                ...(researchUserId ? { user_id: researchUserId } : {}),
                 profileData: {
                   home_type: profile.home_type ?? undefined,
                   transport_baseline: profile.transport_baseline ?? undefined,

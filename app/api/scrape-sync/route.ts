@@ -727,16 +727,24 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Bearer (SCRAPER_SECRET / CRON_SECRET / GATEWAY_TOKEN) or signed-in session for `trigger` POST. */
+/** Bearer, signed-in session, or browser trigger (`postcode` + valid `user_id`) for POST trigger. */
 async function scrapeSyncPostAuthDenied(
   request: NextRequest,
-  opts: { allowSessionTrigger: boolean }
+  opts: { allowSessionTrigger: boolean; body?: Record<string, unknown> }
 ): Promise<NextResponse | null> {
   if (scrapeSyncBearerMatches(request)) return null
 
   if (opts.allowSessionTrigger) {
     const session = await getSessionFromRequest().catch(() => null)
     if (session?.userId) return null
+
+    const body = opts.body ?? {}
+    const postcode =
+      typeof body.postcode === 'string' ? body.postcode.replace(/\s+/g, '').trim() : ''
+    const researchUserId = resolveResearchUserId(null, request, {
+      bodyUserId: typeof body.user_id === 'string' ? body.user_id : null,
+    })
+    if (postcode.length >= 4 && researchUserId) return null
   }
 
   const { status, body } = scrapeSyncAuthDeniedResponse()
@@ -796,7 +804,10 @@ export async function POST(request: NextRequest) {
     }
 
     const isTrigger = scrapeSyncTriggerRequested(request.nextUrl.searchParams, body)
-    const authErr = await scrapeSyncPostAuthDenied(request, { allowSessionTrigger: isTrigger })
+    const authErr = await scrapeSyncPostAuthDenied(request, {
+      allowSessionTrigger: isTrigger,
+      body,
+    })
     if (authErr) return authErr
 
     // Airlock handshake mode: trigger local research/scrape without requiring crawler payload.

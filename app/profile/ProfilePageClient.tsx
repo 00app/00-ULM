@@ -14,7 +14,7 @@ import type { ProfileAge } from '@/app/context/AppContext'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
-import { ensureGaryModeForPostcode } from '@/lib/zone/garyMode'
+import { ensureClientResearchUserId, ensureGaryModeForPostcode } from '@/lib/zone/garyMode'
 
 const PROFILE_QUESTIONS = [
   { id: 'name', label: 'name', type: 'input' as const, placeholder: 'alex' },
@@ -179,6 +179,7 @@ export default function ProfilePageClient() {
     const pc = (values.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
     if (pc.length < 4) return
     const tid = window.setTimeout(() => {
+      const researchUserId = ensureClientResearchUserId(pc)
       void fetch('/api/scrape-sync', {
         method: 'POST',
         credentials: 'include',
@@ -186,6 +187,8 @@ export default function ProfilePageClient() {
         body: JSON.stringify({
           trigger: true,
           postcode: pc,
+          category: 'home',
+          ...(researchUserId ? { user_id: researchUserId } : {}),
           profileData: {
             home_type: values.homeType ?? undefined,
             transport_baseline: values.transport ?? undefined,
@@ -248,9 +251,7 @@ export default function ProfilePageClient() {
         })
         .catch(() => {
           if (typeof window !== 'undefined') {
-            const guestId = 'guest-' + Date.now()
-            localStorage.setItem('userId', guestId)
-            localStorage.setItem('user_id', guestId)
+            ensureClientResearchUserId(finalValues.postcode)
           }
           refreshProfile()
           try {

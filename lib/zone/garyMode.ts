@@ -11,6 +11,11 @@ export const GARY_RESEARCH_USER_ID = '00000000-0000-4000-a000-000000000000'
 export const GARY_MODE_STORAGE_KEY = 'zz_gary_mode'
 export const RESEARCH_USER_ID_STORAGE_KEY = 'zz_research_user_id'
 
+export function isValidResearchUserId(v: string | null | undefined): boolean {
+  const raw = String(v ?? '').trim()
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw)
+}
+
 export function isGaryModeActive(): boolean {
   if (typeof window === 'undefined') return false
   try {
@@ -35,6 +40,24 @@ export function ensureGaryModeForPostcode(postcode: string | null | undefined): 
   safeSetItem(GARY_MODE_STORAGE_KEY, '1')
 }
 
+/**
+ * Stable browser research UUID for scrape-sync POST triggers (no session required).
+ * BN17 → Gary demo id; otherwise reuse session id or mint `crypto.randomUUID()`.
+ */
+export function ensureClientResearchUserId(postcode?: string | null): string | null {
+  if (typeof window === 'undefined') return null
+  ensureGaryModeForPostcode(postcode ?? safeGetItem('profile_postcode'))
+  const existing = resolveClientResearchUserId()
+  if (existing) return existing
+  try {
+    const id = crypto.randomUUID()
+    safeSetItem(RESEARCH_USER_ID_STORAGE_KEY, id)
+    return id
+  } catch {
+    return null
+  }
+}
+
 /** Session user wins; else Gary mode UUID; else explicit browser research id. */
 export function resolveClientResearchUserId(): string | null {
   if (typeof window === 'undefined') return null
@@ -42,9 +65,7 @@ export function resolveClientResearchUserId(): string | null {
   try {
     for (const key of [RESEARCH_USER_ID_STORAGE_KEY, 'user_id', 'profile_user_id']) {
       const raw = safeGetItem(key)?.trim()
-      if (raw && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw)) {
-        return raw
-      }
+      if (isValidResearchUserId(raw)) return raw!
     }
   } catch {
     /* ignore */

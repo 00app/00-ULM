@@ -76,12 +76,24 @@ export async function POST(request: NextRequest) {
     const genome = JSON.stringify(genomeObj)
 
     const [result, local] = await Promise.all([
-      pool.query(
-        `INSERT INTO users (name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome)
+      pool
+        .query(
+          `INSERT INTO users (name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
          RETURNING id, name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome, created_at`,
-        [raw.name, raw.postcode, raw.household, raw.home_type, raw.transport, raw.age_group, raw.employment_status, genome]
-      ),
+          [raw.name, raw.postcode, raw.household, raw.home_type, raw.transport, raw.age_group, raw.employment_status, genome]
+        )
+        .catch(async (insertErr: unknown) => {
+          const msg = insertErr instanceof Error ? insertErr.message : String(insertErr)
+          if (!/user_genome|employment_status|age_group/i.test(msg)) throw insertErr
+          console.warn('[api/user] INSERT fallback (legacy schema):', msg)
+          return pool.query(
+            `INSERT INTO users (name, postcode, household, home_type, transport_baseline)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, name, postcode, household, home_type, transport_baseline, created_at`,
+            [raw.name, raw.postcode, raw.household, raw.home_type, raw.transport]
+          )
+        }),
       getLocalData(raw.postcode).catch(() => null),
     ])
     const user = result.rows[0]
