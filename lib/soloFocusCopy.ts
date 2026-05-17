@@ -95,8 +95,8 @@ export function polishTrueTipParagraphsForHeadline(
 
 /** Zone / bento card face — Marvin stamp stays one line. */
 export const MAX_ZONE_CARD_HEADLINE_WORDS = 8
-/** Solo Focus / expanded Zai Architect H1 — ~20 words before ellipsis. */
-export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 20
+/** Solo Focus / expanded Zai Architect H1 — up to 12 words before ellipsis. */
+export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 12
 /** Each True Tip paragraph — readable auditor copy, not tariff tables. */
 export const MAX_TRUE_TIP_PARAGRAPH_WORDS = 40
 

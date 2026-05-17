@@ -1914,7 +1914,7 @@ body, p, span, input, button, textarea, select,
   min-width: 0;
   width: min(100%, 900px);
   max-width: min(900px, 100%) !important;
-  max-height: 100%;
+  max-height: none;
   align-self: center;
   margin-left: auto;
   margin-right: auto;
@@ -2454,7 +2454,7 @@ h3.solo-focus-question-label.zz-h3 {
   overflow-wrap: break-word;
   word-break: break-word;
 }
-.expanded-solo-focus .solo-focus-architect-headline + .solo-focus-category {
+.expanded-solo-focus .solo-focus-architect-headline + .solo-focus-true-tip-sections {
   margin-top: 10px !important;
 }
 .expanded-solo-focus p.solo-focus-architect-prose {
@@ -2899,6 +2899,7 @@ h3.solo-focus-question-label.zz-h3 {
   min-height: 0;
   max-height: none;
   touch-action: manipulation;
+  overflow: visible !important;
 }
 
 .expanded-solo-focus > .solo-focus-rail {
@@ -2907,8 +2908,7 @@ h3.solo-focus-question-label.zz-h3 {
   min-height: 0;
   max-height: none;
   margin-block: 0;
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: visible !important;
   overscroll-behavior: auto;
 }
 

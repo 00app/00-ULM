@@ -74,7 +74,11 @@ import {
   pickFirstHttpUrl,
   resolveRevenueCtaLabel,
 } from '@/lib/zone/verifiedRevenue'
-import { triggerScrapeSyncForCategory, type ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
+import {
+  triggerScrapeSyncForCategory,
+  journeyResearchSettled,
+  type ResearchCategoryCoverageRow,
+} from '@/lib/researchSyncClient'
 import { resolveBirthedCardId, scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
 
 export interface SoloFocusOverlayProps {
@@ -169,13 +173,9 @@ export function SoloFocusOverlay({
 }: SoloFocusOverlayProps) {
   const { setHeroTotals, state, toggleLike } = useApp()
   const profilePostcode = state.profile?.postcode ?? null
-  const localityLabel = (state.locationState?.locationName ?? '').trim().toUpperCase()
   const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(title ?? ''))
   const useEstimated =
     auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
-  const auditHeaderLabel = localityLabel
-    ? `OFFER PREVIEW — ${localityLabel}`
-    : 'OFFER PREVIEW'
   const [trapComplete, setTrapComplete] = useState(() => !discoveryFollowUp)
   const sfStorageKey = `zz_sf_view_${cardId ?? 'solo-overlay'}`
   const [viewState, setViewState] = useState<OverlayViewState>(() => {
@@ -318,6 +318,7 @@ export function SoloFocusOverlay({
     .toLowerCase()
   const journeyResearchCov =
     covLookupKey && researchCategoryCoverage ? researchCategoryCoverage[covLookupKey] : undefined
+  const overlayResearchSettled = journeyResearchSettled(journeyResearchCov)
   const covOfferHttp =
     journeyResearchCov?.latestOfferUrl?.trim().startsWith('http')
       ? journeyResearchCov.latestOfferUrl.trim()
@@ -449,8 +450,27 @@ export function SoloFocusOverlay({
     recommendationTitle,
     toThreeTrueTipParagraphs(insightParaSource)
   )
+  const verifiedSourceLinkUrl = pickPrimaryHttpUrl(
+    verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+      ? verifiedAuditSourceUrl.trim()
+      : '',
+    resolvedOpenUrl,
+    sourceUrl,
+    offerUrl
+  )
+  const verifiedSourceLinkEl = verifiedSourceLinkUrl ? (
+    <a
+      href={verifiedSourceLinkUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="solo-focus-verified-source-link"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {formatAuditSourceLinkDisplay(verifiedSourceLinkUrl)}
+    </a>
+  ) : null
   const trueTipSectionsEl =
-    trueTipParagraphs.some((p) => p.trim().length > 0) ? (
+    trueTipParagraphs.some((p) => p.trim().length > 0) || verifiedSourceLinkEl ? (
       <div className="solo-focus-true-tip-sections flex flex-col gap-0 w-full min-w-0 mt-1">
         {trueTipParagraphs.map((para, i) =>
           para?.trim() ? (
@@ -464,17 +484,7 @@ export function SoloFocusOverlay({
             </motion.p>
           ) : null
         )}
-        {diagnosticUrl.trim().startsWith('http') ? (
-          <a
-            href={diagnosticUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="solo-focus-verified-source-link"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {formatAuditSourceLinkDisplay(diagnosticUrl)}
-          </a>
-        ) : null}
+        {verifiedSourceLinkEl}
       </div>
     ) : null
   const sourceFooter = partnerHttp
@@ -674,20 +684,11 @@ export function SoloFocusOverlay({
                     >
                       {recommendationTitle}
                     </motion.h1>
-                    <motion.h5
-                      className="solo-focus-category solo-focus-offer-preview zz-label m-0 text-left"
-                      style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
-                      initial={INTRO_FADE_UP_NO_DELAY.initial}
-                      animate={INTRO_FADE_UP_NO_DELAY.animate}
-                      transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.05 }}
-                    >
-                      {auditHeaderLabel}
-                    </motion.h5>
                     {trueTipSectionsEl}
                   </motion.div>
                 ) : (
                   <>
-                    {!resolvedOpenUrl.trim() && researchCategoryCoverage != null && !journeyResearchCov?.insightReady ? (
+                    {!resolvedOpenUrl.trim() && researchCategoryCoverage != null && !overlayResearchSettled ? (
                       <p
                         className="zz-label m-0 opacity-80"
                         style={{ color: 'var(--journey-text)', letterSpacing: '0.04em' }}
@@ -714,15 +715,6 @@ export function SoloFocusOverlay({
                     >
                       {recommendationTitle}
                     </motion.h1>
-                    <motion.h5
-                      className="solo-focus-category solo-focus-offer-preview zz-label m-0 text-left"
-                      style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
-                      initial={INTRO_FADE_UP_NO_DELAY.initial}
-                      animate={INTRO_FADE_UP_NO_DELAY.animate}
-                      transition={{ ...INTRO_FADE_UP_NO_DELAY.transition, delay: 0.05 }}
-                    >
-                      {auditHeaderLabel}
-                    </motion.h5>
                     {trueTipSectionsEl}
                   </>
                 )}

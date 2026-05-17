@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import Link from 'next/link'
@@ -81,7 +81,7 @@ import { ROCK_BY_SLUG, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/
 import { replaceRockSlotAfterLike } from '@/lib/rock/rotation'
 import { useRockVisibleHabits } from '@/lib/rock/useRockVisibleHabits'
 import { useSentinel } from '@/app/hooks/useSentinel'
-import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
+import { journeyResearchSettled, type ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import {
   FloatingNav,
@@ -675,7 +675,15 @@ export default function ZonePage() {
           setInsightPendingKeys((prev) => {
             const n = new Set(prev)
             for (const jid of prev) {
-              if (next[jid]?.insightReady) n.delete(jid)
+              const row = next[jid]
+              if (
+                row?.insightReady ||
+                (row?.latestSavingGbp ?? 0) > 0 ||
+                (row?.latestVerifiedGbp ?? 0) > 0 ||
+                row?.hasOffer
+              ) {
+                n.delete(jid)
+              }
             }
             return n
           })
@@ -753,6 +761,85 @@ export default function ZonePage() {
         setEngineStatus('idle')
       })
   }, [scrapePostcode, hydrated])
+
+  const proseRepairRequestedRef = useRef(false)
+  useEffect(() => {
+    if (!hydrated || scrapePostcode.length < 4 || proseRepairRequestedRef.current) return
+    const cov = researchCategoryCoverage
+    if (!cov) return
+    const needsProse = Object.values(cov).some(
+      (r) =>
+        ((r.latestSavingGbp ?? 0) > 0 || (r.latestVerifiedGbp ?? 0) > 0) &&
+        !r.architectProse?.trim() &&
+        !r.agentHeadline?.trim()
+    )
+    if (!needsProse) return
+    proseRepairRequestedRef.current = true
+    const url = appendResearchUserIdQuery(
+      `/api/scrape-sync?postcode=${encodeURIComponent(scrapePostcode)}&repair=1`
+    )
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const next = parseCoverageFromApi(data)
+        if (next) {
+          setResearchCategoryCoverage(next)
+          setInsightPendingKeys((prev) => {
+            const n = new Set(prev)
+            for (const jid of prev) {
+              if (journeyResearchSettled(next[jid])) n.delete(jid)
+            }
+            return n
+          })
+        }
+        if (data?.scraped && Array.isArray(data.scraped)) {
+          type ScrapedJourneyRow = {
+            journey_key: string
+            scraped_at: string
+            carbon_value: number
+            money_value: number
+            deep_content_tip?: string
+            high_saving?: boolean
+          }
+          const map: Record<
+            string,
+            {
+              scraped_at: string
+              carbon_value: number
+              money_value: number
+              deep_content_tip?: string
+              high_saving?: boolean
+            }
+          > = {}
+          data.scraped.forEach((s: ScrapedJourneyRow) => {
+            map[s.journey_key] = {
+              scraped_at: s.scraped_at,
+              carbon_value: s.carbon_value,
+              money_value: s.money_value,
+              deep_content_tip: s.deep_content_tip,
+              high_saving: s.high_saving,
+            }
+          })
+          setScraped(
+            map as Record<
+              JourneyId,
+              {
+                scraped_at: string
+                carbon_value: number
+                money_value: number
+                deep_content_tip?: string
+                high_saving?: boolean
+              }
+            >
+          )
+          setLiveResearchData(true)
+          setVmSyncStamp(Date.now())
+        }
+      })
+      .catch(() => {
+        proseRepairRequestedRef.current = false
+      })
+  }, [hydrated, scrapePostcode, researchCategoryCoverage])
 
   useEffect(() => {
     if (!hydrated) return
@@ -1807,8 +1894,11 @@ export default function ZonePage() {
                       kineticGrid
                       researchCategoryCoverage={researchCategoryCoverage}
                       insightGenerationPending={
-                        cell.item.streamPending === true ||
-                        insightPendingKeys.has(cell.item.journey_key)
+                        !journeyResearchSettled(researchCategoryCoverage?.[cell.item.journey_key], {
+                          streamPending: cell.item.streamPending === true,
+                        }) &&
+                        (cell.item.streamPending === true ||
+                          insightPendingKeys.has(cell.item.journey_key))
                       }
                       isExpanded={expandedCardId === cell.item.id}
                       onExpand={() => {

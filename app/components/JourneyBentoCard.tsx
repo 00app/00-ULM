@@ -70,6 +70,7 @@ import {
 import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
 import {
   triggerScrapeSyncForCategory,
+  journeyResearchSettled,
   type ResearchCategoryCoverageRow,
 } from '@/lib/researchSyncClient'
 import {
@@ -377,6 +378,11 @@ export function JourneyBentoCard({
     Number.isFinite(verifiedAuditMoneyGbp) &&
     (verifiedAuditCategory ?? '').trim().toLowerCase() === journeyId
   const journeyResearchCov = researchCategoryCoverage?.[journeyId]
+  const researchSettled = journeyResearchSettled(journeyResearchCov, {
+    streamPending: insightGenerationPending,
+  })
+  const showCardComputing =
+    !researchSettled && (insightGenerationPending || researchCategoryCoverage != null)
   /** ✓ True data — Neon coverage `verified` (derived from `verified_saving` / `saving_amount_gbp` on latest row). */
   const dbVerifiedFromResearchTable =
     researchCategoryCoverage != null ? journeyResearchCov?.verified === true : null
@@ -776,14 +782,10 @@ export function JourneyBentoCard({
       stripExpandedCardTitleNoise(String(effectiveTitleRaw)),
       MAX_EXPANDED_VIEW_HEADLINE_WORDS
     )
-    const localityLabel = (state.locationState?.locationName ?? '').trim().toUpperCase()
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =
       auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
     const zoneCategoryLabel = formatZoneCategoryLabel(String(displayJourneyId || journeyId))
-    const auditHeaderLabel = localityLabel
-      ? `OFFER PREVIEW — ${localityLabel}`
-      : 'OFFER PREVIEW'
     let sourceName = 'our partners'
     if (resolvedOfferUrl) {
       try { sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '') } catch {}
@@ -821,8 +823,26 @@ export function JourneyBentoCard({
       recommendationTitle,
       toThreeTrueTipParagraphs(insightDisplay)
     )
+    const verifiedSourceLinkUrl =
+      pickPrimaryHttpUrl(
+        verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+          ? verifiedAuditSourceUrl.trim()
+          : '',
+        resolvedOfferUrl
+      ) ?? (diagnosticUrlJourney.trim().startsWith('http') ? diagnosticUrlJourney.trim() : '')
+    const verifiedSourceLinkEl = verifiedSourceLinkUrl ? (
+      <a
+        href={verifiedSourceLinkUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="solo-focus-verified-source-link"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {formatAuditSourceLinkDisplay(verifiedSourceLinkUrl)}
+      </a>
+    ) : null
     const trueTipSectionsEl =
-      trueTipParagraphs.some((p) => p.trim().length > 0) ? (
+      trueTipParagraphs.some((p) => p.trim().length > 0) || verifiedSourceLinkEl ? (
         <div className="solo-focus-true-tip-sections flex flex-col gap-0 w-full min-w-0 mt-1">
           {trueTipParagraphs.map((para, i) =>
             para?.trim() ? (
@@ -835,17 +855,7 @@ export function JourneyBentoCard({
               </p>
             ) : null
           )}
-          {diagnosticUrlJourney.trim().startsWith('http') ? (
-            <a
-              href={diagnosticUrlJourney}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="solo-focus-verified-source-link"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {formatAuditSourceLinkDisplay(diagnosticUrlJourney)}
-            </a>
-          ) : null}
+          {verifiedSourceLinkEl}
         </div>
       ) : null
 
@@ -905,7 +915,12 @@ export function JourneyBentoCard({
 
     const expandedOverlay = (
         kineticGrid && (effectiveOpen || isExiting) ? (
-            <motion.div key={`sf-grow-${journeyId}-${cardId ?? 'card'}`} className="solo-focus-grow-layer" initial={false}>
+            <motion.div
+              key={`sf-grow-${journeyId}-${cardId ?? 'card'}`}
+              ref={bodyScrollRef}
+              className="solo-focus-grow-layer"
+              initial={false}
+            >
             <ExpandedCardShell
             data-journey={displayJourneyId}
             data-zone-surface={surfaceKind}
@@ -931,7 +946,7 @@ export function JourneyBentoCard({
           sourceUrl={diagnosticUrlJourney}
         />
 
-        <motion.div ref={bodyScrollRef} className="solo-focus-rail w-full min-w-0">
+        <motion.div className="solo-focus-rail w-full min-w-0">
         <motion.div
           className="solo-focus-stack flex flex-col items-stretch justify-start w-full min-w-0"
           initial={reducePagerMotion ? false : SOLO_FOCUS_CONTENT_SNAP_INITIAL}
@@ -981,17 +996,11 @@ export function JourneyBentoCard({
                 >
                   {recommendationTitle}
                 </motion.h1>
-                <h5
-                  className="solo-focus-category solo-focus-offer-preview zz-label m-0 text-left"
-                  style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
-                >
-                  {auditHeaderLabel}
-                </h5>
                 {trueTipSectionsEl}
               </motion.div>
             ) : (
               <>
-                {!physicalSoloHref && researchCategoryCoverage != null && !journeyResearchCov?.insightReady ? (
+                {!physicalSoloHref && showCardComputing ? (
                   <p
                     className="zz-label m-0 opacity-80"
                     style={{ color: 'var(--journey-text)', letterSpacing: '0.04em' }}
@@ -1015,12 +1024,6 @@ export function JourneyBentoCard({
                 >
                   {recommendationTitle}
                 </motion.h1>
-                <h5
-                  className="solo-focus-category solo-focus-offer-preview zz-label m-0 text-left"
-                  style={{ color: 'var(--journey-text)', fontSize: 'var(--zz-h4-mobile)', lineHeight: 0.8 }}
-                >
-                  {auditHeaderLabel}
-                </h5>
                 {trueTipSectionsEl}
               </>
             )}
@@ -1048,24 +1051,7 @@ export function JourneyBentoCard({
                 style={{ gap: 20 }}
                 aria-label="Solo focus actions"
               >
-                <motion.button
-                  type="button"
-                  aria-label="Open offer in new tab"
-                  className="solo-focus-close-circle"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleOpenOfferUrl()
-                  }}
-                  initial={false}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={INDUSTRIAL_OPACITY_SNAP}
-                  style={{ transformOrigin: 'top right', color: 'var(--journey-text)' }}
-                >
-                  <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M7 17L17 7M17 7H7M17 7v10" />
-                  </svg>
-                </motion.button>
-                <motion.button
+                  <motion.button
                   type="button"
                   aria-label="Close"
                   className="solo-focus-close-circle"
@@ -1636,8 +1622,7 @@ export function JourneyBentoCard({
           }
         }}
       >
-        {insightGenerationPending ||
-        (researchCategoryCoverage != null && !journeyResearchCov?.insightReady) ? (
+        {showCardComputing ? (
           <span className="zone-card-computing-pulse flex items-center gap-2 min-w-0 flex-1">
             <Logo width={22} className="shrink-0" style={{ color: 'currentColor' }} aria-hidden />
             <span className="card-top-label m-0">
@@ -1676,8 +1661,7 @@ export function JourneyBentoCard({
           </span>
         </div>
       </div>
-      {insightGenerationPending ||
-      (researchCategoryCoverage != null && !researchCategoryCoverage[journeyId]?.insightReady) ? (
+      {showCardComputing ? (
         <div className="mt-2 pt-2 shrink-0 border-t border-white/15" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
           <p className="m-0 text-[10px] leading-tight uppercase tracking-wide opacity-75">
             Computing…

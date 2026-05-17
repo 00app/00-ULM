@@ -100,9 +100,14 @@ function mapResearchCoverageRows(
     const src = typeof row.source_url === 'string' ? row.source_url.trim() : ''
     const sav = toNum(row.saving_amount_gbp)
     const ver = toNum(row.verified_saving)
-    const insightReady = prose.length > 0 || headline.length > 0
     const hasOffer = offer.startsWith('http')
     const hasSrc = src.startsWith('http')
+    const insightReady =
+      prose.length > 0 ||
+      headline.length > 0 ||
+      (sav != null && sav > 0) ||
+      (ver != null && ver > 0) ||
+      hasOffer
     const rowVerified = row.verified === true
     out[k] = {
       insightReady,
@@ -390,6 +395,42 @@ export async function GET(request: NextRequest) {
     const forceResearch = ['1', 'true', 'yes'].includes(
       String(request.nextUrl.searchParams.get('force') ?? '').toLowerCase()
     )
+    const repairHeadlines = ['1', 'true', 'yes'].includes(
+      String(request.nextUrl.searchParams.get('repair') ?? '').toLowerCase()
+    )
+
+    /** Lightweight backfill — rows with £ but missing agent_headline / architect_prose (no full Firecrawl loop). */
+    if (postcode.length >= 4 && repairHeadlines && !forceResearch) {
+      const profileData: ResearchProfileData = {
+        ...(sessionResearchProfile?.home_type ? { home_type: sessionResearchProfile.home_type } : {}),
+        ...(sessionResearchProfile?.transport_baseline
+          ? { transport_baseline: sessionResearchProfile.transport_baseline }
+          : {}),
+        ...(sessionResearchProfile?.household ? { household: sessionResearchProfile.household } : {}),
+        postcode,
+      }
+      await repairResearchResultsMissingHeadlines({
+        userId: researchUserId,
+        postcode,
+        profileData: Object.keys(profileData).length > 0 ? profileData : null,
+        limit: 8,
+      })
+      researchCategoryCoverage = await loadResearchCategoryCoverageResolved(researchUserId, postcode)
+      if (researchCategoryCoverage) {
+        researchCategoryCoverage = foldCoverageRowsForZone(researchCategoryCoverage)
+      }
+      const fromResearch = await buildScrapedFromResearchResults(postcode, researchUserId)
+      if (fromResearch?.length) {
+        return NextResponse.json({
+          scraped: fromResearch,
+          source: 'research_results' as const,
+          repaired: true,
+          ...(researchCategoryCoverage !== undefined
+            ? { research_category_coverage: researchCategoryCoverage }
+            : {}),
+        })
+      }
+    }
 
     /** GET without `force=true` must stay fast (Zone load, Vercel deployment checks). Heavy research: POST trigger or GET `?force=true`. */
     if (postcode && forceResearch) {

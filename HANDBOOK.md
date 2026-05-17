@@ -101,6 +101,8 @@ Zone VM blends: **AppContext** + **localStorage** mirror, **journey answers**, *
 | **`journey_answers`** + **`journey_answers_jsonb`** | Normalized MC answers (`upsertJourneyAnswerJsonb`) |
 | **`user_profiles`** | Optional mirror of `journey_answers_jsonb` (Hermes / audit-complete) |
 | **`scraped_summary`** | Legacy hero aggregates when populated |
+
+**`insightReady` (scrape-sync):** true when a category row has prose, headline, £, or offer URL — Zone hides “Computing…” once settled. **`GET ?repair=1`** backfills missing headlines/prose without a full `force` research run.
 | **`guest_sessions`** | Pre-login profile + answers by `zz_sid` cookie |
 
 **Not on the hot path:** `micro_answers` (legacy FK to `cards`), empty discovery tables — safe to ignore for Zone/Solo Focus.
@@ -166,7 +168,7 @@ Read this when tracing **profile summary**, **expanded Solo Focus**, or **resear
 | Title cleanup | **`stripExpandedCardTitleNoise`** — strips trailing **(Updated …)** so the H1 does not repeat body dates — **`lib/soloFocusCopy.ts`**; used in **`JourneyBentoCard`**, **`SoloFocusOverlay`** before **`headlineFromTitle`** |
 | Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini triplet in **`lib/agents/researchAgent.ts`** locks **Zai Senior Auditor** persona: **`agent_headline`** (~20 words) + exactly three label-free paragraphs (what / why / how embedded in prose only). |
 | Category label | Same as collapsed tile: **`card-top-label`** / **`formatZoneCategoryLabel`** above expanded H1. |
-| Headline limits | Expanded H1 ≤ **`MAX_EXPANDED_VIEW_HEADLINE_WORDS` (20)**; bento face ≤ **`MAX_ZONE_CARD_HEADLINE_WORDS` (8)**. |
+| Headline limits | Expanded H1 ≤ **`MAX_EXPANDED_VIEW_HEADLINE_WORDS` (12)**; bento face ≤ **`MAX_ZONE_CARD_HEADLINE_WORDS` (8)**. |
 | Layout | Expanded: Marvin H1 + three **Roboto Bold** **`solo-focus-architect-prose`** paragraphs (≤ **`MAX_TRUE_TIP_PARAGRAPH_WORDS` (40)** each). Raw tariff dumps / markdown `**` stripped via **`isRawResearchDump`** → auditor fallback. |
 | Dedupe | **`stripExpandedCardTitleNoise`**, **`stripMarkdownForProseDisplay`**, **`polishTrueTipParagraphsForHeadline`** / **`dedupeTrueTipOpeningParagraph`**. |
 | Scroll | Single scroll on **`.solo-focus-grow-layer`** (no nested rail clip). |

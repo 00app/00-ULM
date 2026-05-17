@@ -84,7 +84,7 @@ export function MotherCardRenderer({
             className="data-label inline-flex items-center gap-2 flex-wrap"
             style={{ color: 'var(--color-ink)' }}
           >
-            Saving (£)
+            Saving
             {verifiedDataBadge ? (
               <span
                 className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 zz-body-bold uppercase tracking-wide"
@@ -107,7 +107,7 @@ export function MotherCardRenderer({
         </div>
         <div className="solo-focus-data-stack data-stack data-stack--tight data-stack--secondary solo-focus-carbon-stack">
           <span className="data-label" style={{ color: 'var(--color-ink)' }}>
-            Carbon Offset (kg)
+            Carbon Offset
           </span>
           <span className="data-value solo-focus-data-value data-stamp-metric" style={{ color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums' }}>
             <StampedCarbonKg kg={carbonKg} />

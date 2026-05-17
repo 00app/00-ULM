@@ -17,6 +17,21 @@ export type ResearchCategoryCoverageRow = {
   agentHeadline?: string | null
 }
 
+/** Card / Solo Focus can render when Neon has £, offer URL, headline, or prose — not prose-only. */
+export function journeyResearchSettled(
+  row: ResearchCategoryCoverageRow | undefined | null,
+  opts?: { streamPending?: boolean }
+): boolean {
+  if (opts?.streamPending === false) return true
+  if (!row) return false
+  if (row.insightReady) return true
+  if ((row.latestSavingGbp ?? 0) > 0 || (row.latestVerifiedGbp ?? 0) > 0) return true
+  if (row.hasOffer) return true
+  if (row.agentHeadline?.trim()) return true
+  if (row.architectProse?.trim()) return true
+  return false
+}
+
 /**
  * Fire-and-forget POST /api/scrape-sync (trigger mode) for a single journey category
  * after Solo Focus answers — Hermes / ZeroResearch persists `research_results` scoped by category.
