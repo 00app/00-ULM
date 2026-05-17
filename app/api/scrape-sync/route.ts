@@ -33,6 +33,8 @@ import {
   scrapeSyncTriggerRequested,
 } from '@/lib/intelligence/scrapeSyncAuth'
 import { foldCoverageRowsForZone, researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
+import { GARY_RESEARCH_USER_ID } from '@/lib/zone/garyMode'
+import { ensureGaryDemoUser } from '@/lib/db/ensureGaryDemoUser'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -307,6 +309,9 @@ export async function GET(request: NextRequest) {
       sessionResearchProfile?.postcode?.trim() ||
       ''
     const postcode = postcodeRaw.replace(/\s+/g, '').toUpperCase()
+    if (researchUserId === GARY_RESEARCH_USER_ID && postcode.length >= 4) {
+      await ensureGaryDemoUser(postcode).catch(() => null)
+    }
     const tier2Category = request.nextUrl.searchParams.get('category')?.trim().toLowerCase() ?? ''
     const tier2Answer = request.nextUrl.searchParams.get('answer')?.trim() ?? ''
     const tier2QuestionId = request.nextUrl.searchParams.get('question_id')?.trim() ?? ''

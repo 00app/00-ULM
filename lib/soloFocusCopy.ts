@@ -27,6 +27,21 @@ export function stripExpandedCardTitleNoise(raw: string): string {
   return t
 }
 
+/**
+ * Strips technical noise for small Zone grid / Saving Tips preview cards.
+ * e.g. "ELECTRICITY AUDIT: BN17 7DW" → tighter insight label.
+ */
+export function cleanZonePreviewHeadline(raw: string): string {
+  let t = raw.toUpperCase().replace(/\*{2,3}/g, '')
+  t = t.replace(/\b[A-Z]{1,2}\d[A-Z0-9]?\s?\d[A-Z]{2}\b/g, '')
+  t = t.replace(/\b(?:AUDIT|RESULT|REPORT|OUTLOOK|ENERGY|REGULATORY|WINDOW|HOUSEHOLD|POSTCODE)\b:?/g, '')
+  if (t.includes(':')) {
+    const after = t.split(':').pop()?.trim() ?? t
+    if (after.length >= 3) t = after
+  }
+  return t.replace(/\s+/g, ' ').trim().slice(0, 45)
+}
+
 /** Drop report-style headers / metadata blocks from architect prose (jump to insight). */
 export function stripProseReportLead(text: string): string {
   let t = text.trim()

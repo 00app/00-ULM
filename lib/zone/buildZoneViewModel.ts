@@ -21,6 +21,11 @@ import {
   hasAnyStreamData,
   journeyHasStreamData,
 } from '@/lib/zone/mechanicalTruth'
+import {
+  cleanZonePreviewHeadline,
+  headlineFromTitle,
+  MAX_ZONE_CARD_HEADLINE_WORDS,
+} from '@/lib/soloFocusCopy'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import {
   VERIFIED_SOURCE_DATE,
@@ -331,7 +336,20 @@ function teaserTitleFromOffer(input?: string | null): string | null {
   const words = firstSentence.split(/\s+/).filter(Boolean)
   if (words.length === 0) return null
   const clipped = words.slice(0, 8).join(' ')
-  return `${clipped.toUpperCase()}${words.length > 8 ? '...' : ''}`
+  const preview = cleanZonePreviewHeadline(`${clipped}${words.length > 8 ? '...' : ''}`)
+  return preview.length >= 3 ? preview : null
+}
+
+function previewTitleFromNeon(neon?: NeonJourneyResearchRow | null): string | null {
+  if (neon?.agentHeadline?.trim()) {
+    const t = cleanZonePreviewHeadline(neon.agentHeadline)
+    if (t.length >= 3) return headlineFromTitle(t, MAX_ZONE_CARD_HEADLINE_WORDS)
+  }
+  if (neon?.architectProse?.trim()) {
+    const teaser = teaserTitleFromOffer(neon.architectProse)
+    if (teaser) return headlineFromTitle(teaser, MAX_ZONE_CARD_HEADLINE_WORDS)
+  }
+  return null
 }
 
 function profileDrivenJourneyTitle(
@@ -781,7 +799,10 @@ export function buildZoneViewModel({
       teaserTitleFromOffer(localCouncilTip)
     const title = !hasStream
       ? computingJourneyTitle(journeyKey)
-      : offerTeaserTitle ??
+      : previewTitleFromNeon(neon) ??
+        (offerTeaserTitle
+          ? headlineFromTitle(cleanZonePreviewHeadline(offerTeaserTitle), MAX_ZONE_CARD_HEADLINE_WORDS)
+          : null) ??
         (buildCompactHeadline({
           journey: journeyKey,
           moneyGbp,
