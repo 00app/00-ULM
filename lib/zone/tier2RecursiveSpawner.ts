@@ -12,6 +12,12 @@ import {
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 import type { ZoneTipCard } from '@/lib/logic/zone'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
+import {
+  cleanZonePreviewHeadline,
+  headlineFromTitle,
+  isZonePreviewHeadlineNoise,
+  MAX_ZONE_CARD_HEADLINE_WORDS,
+} from '@/lib/soloFocusCopy'
 
 export { GARY_RESEARCH_USER_ID } from '@/lib/zone/garyMode'
 
@@ -123,18 +129,23 @@ export function buildTier2MorphCard(
             ? meta.auditSourceUrl.trim()
             : null
   const saving = row?.latestSavingGbp ?? row?.latestVerifiedGbp ?? meta?.savingAmountGbp ?? meta?.verifiedSaving ?? 0
-  const headline =
+  const rawHeadline =
     row?.agentHeadline?.trim() ||
-    (row?.architectProse?.trim() ? row.architectProse.trim().slice(0, 120) : '') ||
-    `Updated ${journeyId.replace(/-/g, ' ')} insight`
+    (row?.architectProse?.trim() ? row.architectProse.trim().slice(0, 160) : '') ||
+    ''
   const base = getNextMorphCard(journeyId, {
     postcode: profile?.postcode,
     homeType: profile?.homeType ?? null,
     transport: profile?.transport ?? null,
   })
+  const cleaned = rawHeadline ? cleanZonePreviewHeadline(rawHeadline) : ''
+  const title =
+    cleaned.length >= 6 && !isZonePreviewHeadlineNoise(cleaned)
+      ? headlineFromTitle(cleaned, MAX_ZONE_CARD_HEADLINE_WORDS)
+      : base.title
   return {
     ...base,
-    title: headline,
+    title,
     data: {
       ...base.data,
       money: saving > 0 ? `£${Math.round(saving)}` : base.data.money,

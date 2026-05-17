@@ -43,6 +43,7 @@ import { runHybridLiveZoneTipForAnswer } from '@/lib/agents/scraperAgent'
 import { advanceHomeJourneySentinelAfterAnswer } from '@/lib/sentinel/runner'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
+import { attachSessionCookieToResponse, resolveAnswersUser } from '@/lib/answers/resolveAnswersUser'
 
 /** v1.8.14 — Production lock: answers route must not initiate third-party messaging. */
 const DISALLOW_OUTBOUND = true
@@ -68,13 +69,14 @@ export async function GET(_request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionFromRequest()
-    if (!session) {
+    const body = await request.json()
+    const resolved = await resolveAnswersUser(request, body as Record<string, unknown>)
+    if (!resolved) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const user_id = session.userId
+    const user_id = resolved.userId
+    const attachSession = resolved.attachSession
 
-    const body = await request.json()
     const {
       journey_id,
       journey_key,
@@ -84,6 +86,7 @@ export async function POST(request: NextRequest) {
       answer_value,
       solo_focus,
       postcode: bodyPostcodeRaw,
+      user_id: _bodyUserId,
     } = body
 
     const jKey = typeof (journey_key ?? journey_id) === 'string' ? (journey_key ?? journey_id).trim() : ''
@@ -437,7 +440,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       newTotals: userImpact.totals,
       sourceCitation: sourceCitation ?? undefined,
@@ -462,6 +465,10 @@ export async function POST(request: NextRequest) {
       grid_pulse_card,
       hermesMemory: hermesMemory ?? undefined,
     })
+    if (attachSession) {
+      return attachSessionCookieToResponse(res, user_id)
+    }
+    return res
   } catch {
     return NextResponse.json(
       { error: 'Failed to save answer' },

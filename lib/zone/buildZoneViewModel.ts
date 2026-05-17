@@ -24,6 +24,7 @@ import {
 import {
   cleanZonePreviewHeadline,
   headlineFromTitle,
+  isZonePreviewHeadlineNoise,
   MAX_ZONE_CARD_HEADLINE_WORDS,
 } from '@/lib/soloFocusCopy'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
@@ -302,25 +303,25 @@ function buildCompactHeadline(params: {
   const reason = reasonForJourney(params.journey, params.journeyAnswers)
   switch (params.journey) {
     case 'tech':
-      return 'KILL STANDBY WASTE — TECH AUDIT'
+      return 'KILL STANDBY WASTE'
     case 'holidays':
-      return 'OPTIMIZE TRAVEL — HOLIDAY SAVING'
+      return 'OPTIMIZE TRAVEL'
     case 'home':
-      return 'CUT HOME COST LEAKS — ENERGY AUDIT'
+      return 'CUT HOME COST LEAKS'
     case 'travel':
-      return 'TRIM COMMUTE SPEND — TRAVEL AUDIT'
+      return 'TRIM COMMUTE SPEND'
     case 'food':
-      return 'CUT FOOD WASTE — KITCHEN AUDIT'
+      return 'CUT FOOD WASTE'
     case 'shopping':
-      return 'SLOW BUY CYCLE — SHOPPING AUDIT'
+      return 'SLOW BUY CYCLE'
     case 'money':
-      return 'STABILIZE MONTHLY BILLS — MONEY AUDIT'
+      return 'STABILIZE MONTHLY BILLS'
     case 'carbon':
-      return 'LOWER GRID LOAD — CARBON AUDIT'
+      return 'LOWER GRID LOAD'
     case 'waste':
-      return 'SHRINK BIN LEAKS — WASTE AUDIT'
+      return 'SHRINK BIN LEAKS'
     default:
-      return `${reason} — ACTION AUDIT`
+      return reason
   }
 }
 
@@ -343,11 +344,15 @@ function teaserTitleFromOffer(input?: string | null): string | null {
 function previewTitleFromNeon(neon?: NeonJourneyResearchRow | null): string | null {
   if (neon?.agentHeadline?.trim()) {
     const t = cleanZonePreviewHeadline(neon.agentHeadline)
-    if (t.length >= 3) return headlineFromTitle(t, MAX_ZONE_CARD_HEADLINE_WORDS)
+    if (t.length >= 6 && !isZonePreviewHeadlineNoise(t)) {
+      return headlineFromTitle(t, MAX_ZONE_CARD_HEADLINE_WORDS)
+    }
   }
   if (neon?.architectProse?.trim()) {
     const teaser = teaserTitleFromOffer(neon.architectProse)
-    if (teaser) return headlineFromTitle(teaser, MAX_ZONE_CARD_HEADLINE_WORDS)
+    if (teaser && !isZonePreviewHeadlineNoise(teaser)) {
+      return headlineFromTitle(teaser, MAX_ZONE_CARD_HEADLINE_WORDS)
+    }
   }
   return null
 }

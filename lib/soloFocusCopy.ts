@@ -27,19 +27,53 @@ export function stripExpandedCardTitleNoise(raw: string): string {
   return t
 }
 
+const ZONE_PREVIEW_NOISE_RE =
+  /\b(?:BN\d|POSTCODE|REGULATORY|AUDIT|REPORT|REGIONAL|PROFILE|DNO|UKPN|APRIL\s*2026|ENERGY\s+AUDIT|LITTLEHAMPTON|ARUN|SOUTH\s+EAST|DISTRIB)\b/i
+
+/** True when a headline is still report metadata, not a user-facing insight. */
+export function isZonePreviewHeadlineNoise(text: string): boolean {
+  const t = text.replace(/\s+/g, ' ').trim()
+  if (t.length < 3) return true
+  if (t.length > 52) return true
+  if (ZONE_PREVIEW_NOISE_RE.test(t)) return true
+  if (/\b[A-Z]{1,2}\d[A-Z0-9]?\s?\d[A-Z]{2}\b/i.test(t)) return true
+  return false
+}
+
 /**
  * Strips technical noise for small Zone grid / Saving Tips preview cards.
  * e.g. "ELECTRICITY AUDIT: BN17 7DW" → tighter insight label.
  */
 export function cleanZonePreviewHeadline(raw: string): string {
-  let t = raw.toUpperCase().replace(/\*{2,3}/g, '')
-  t = t.replace(/\b[A-Z]{1,2}\d[A-Z0-9]?\s?\d[A-Z]{2}\b/g, '')
-  t = t.replace(/\b(?:AUDIT|RESULT|REPORT|OUTLOOK|ENERGY|REGULATORY|WINDOW|HOUSEHOLD|POSTCODE)\b:?/g, '')
+  let t = raw.replace(/\*{2,3}/g, '').replace(/\s+/g, ' ').trim()
+  if (!t) return ''
+  t = t.replace(/\b[A-Z]{1,2}\d[A-Z0-9]?\s?\d[A-Z]{2}\b/gi, '')
+  t = t.replace(
+    /\b(?:energy\s+audit(?:\s+report)?|audit\s+report|regional\s+(?:energy\s+)?profile|grant\s+eligibility)[:\s-]*/gi,
+    ''
+  )
+  t = t.replace(
+    /\b(?:AUDIT|RESULT|REPORT|OUTLOOK|ENERGY|REGULATORY|WINDOW|HOUSEHOLD|POSTCODE|REGIONAL|PROFILE|SOURCE)\b:?/gi,
+    ''
+  )
   if (t.includes(':')) {
-    const after = t.split(':').pop()?.trim() ?? t
-    if (after.length >= 3) t = after
+    const parts = t.split(':').map((p) => p.trim()).filter(Boolean)
+    const meat = parts.find((p) => p.length >= 6 && !isZonePreviewHeadlineNoise(p))
+    if (meat) t = meat
+    else if (parts.length > 0) t = parts[parts.length - 1]!
   }
-  return t.replace(/\s+/g, ' ').trim().slice(0, 45)
+  t = t.replace(/\s+/g, ' ').trim()
+  if (isZonePreviewHeadlineNoise(t)) {
+    const action = t.match(
+      /\b(loft|solar|tariff|radiator|boiler|grant|insulation|commute|kwh|seal|foil|switch|upgrade|ev|heat pump)[^.!?]{0,36}/i
+    )
+    if (action?.[0] && !isZonePreviewHeadlineNoise(action[0])) {
+      t = action[0].trim()
+    } else {
+      return ''
+    }
+  }
+  return t.slice(0, 45)
 }
 
 /** Drop report-style headers / metadata blocks from architect prose (jump to insight). */

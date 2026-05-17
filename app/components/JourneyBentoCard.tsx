@@ -276,7 +276,12 @@ export function JourneyBentoCard({
   fromScraper = false,
 }: JourneyBentoCardProps) {
   const { state } = useApp()
-  const profilePostcode = state.profile?.postcode ?? null
+  const profilePostcode =
+    (state.profile?.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase() ||
+    (typeof window !== 'undefined'
+      ? (localStorage.getItem('profile_postcode') ?? '').replace(/\s+/g, '').trim().toUpperCase()
+      : '') ||
+    null
   type ExpandedViewState = 'QUESTION' | 'RESULT'
   const effectiveOpen = kineticGrid ? isExpanded : false
   const [isExiting, setIsExiting] = useState(false)

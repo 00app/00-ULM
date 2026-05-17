@@ -26,6 +26,8 @@ import {
 } from '@/lib/animations'
 import { injectNewDiscoveryCard } from '@/lib/discoveryInject'
 import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
+import { ensureClientResearchUserId } from '@/lib/zone/garyMode'
+import { runTier2MotherChildSwap } from '@/lib/zone/tier2RecursiveSpawner'
 
 const ANSWER_COMMITTED_EVENT = 'zz_answer_committed'
 
@@ -430,6 +432,8 @@ export function EmbeddedJourneyQuestion({
       typeof window !== 'undefined'
         ? (localStorage.getItem('profile_postcode') ?? '').replace(/\s+/g, '').trim().toUpperCase()
         : ''
+    const researchUserId =
+      typeof window !== 'undefined' ? ensureClientResearchUserId(profilePostcode) : null
     const postPromise = fetch('/api/answers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -439,6 +443,7 @@ export function EmbeddedJourneyQuestion({
         answer_value: trimmed,
         solo_focus: Boolean(soloFocusZipShut),
         ...(profilePostcode.length >= 4 ? { postcode: profilePostcode } : {}),
+        ...(researchUserId ? { user_id: researchUserId } : {}),
       }),
       credentials: 'include',
     })
@@ -457,6 +462,14 @@ export function EmbeddedJourneyQuestion({
         data = (await res.json().catch(() => ({}))) as Record<string, any>
       } else if (guestSoloFocusOk) {
         data = {}
+        if (profilePostcode.length >= 4 && soloFocusZipShut) {
+          void runTier2MotherChildSwap({
+            postcode: profilePostcode,
+            category: journeyId,
+            answer: trimmed,
+            questionId: questionIdSnapshot,
+          }).catch(() => null)
+        }
       } else {
         return
       }
