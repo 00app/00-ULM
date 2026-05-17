@@ -51,6 +51,7 @@ import {
   formatAuditSourceLinkDisplay,
   polishTrueTipParagraphsForHeadline,
   resolveExpandedTrueTipInsight,
+  resolveSoloFocusHandoffUrls,
   stripExpandedCardTitleNoise,
   toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
@@ -458,15 +459,18 @@ export function JourneyBentoCard({
     researchCategoryCoverage === undefined || researchCategoryCoverage === null
       ? true
       : journeyResearchCov == null
-  const httpOfferResolved =
-    covSourceHttp ||
-    covOfferHttp ||
-    (verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
-      ? verifiedAuditSourceUrl.trim()
-      : liveDiscoveryUrl || partnerHttp || '')
-  const resolvedOfferUrl = httpOfferResolved || (allowZaiFallback ? buildZaiAuditUrl() : '')
-
-  const physicalSoloHref = pickPrimaryHttpUrl(resolvedOfferUrl)
+  const soloHandoff = resolveSoloFocusHandoffUrls({
+    coverageOfferUrl: journeyResearchCov?.latestOfferUrl,
+    coverageSourceUrl: journeyResearchCov?.latestSourceUrl,
+    fallbackOfferUrl: pickPrimaryHttpUrl(liveDiscoveryUrl, partnerHttp),
+    fallbackSourceUrl:
+      verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+        ? verifiedAuditSourceUrl.trim()
+        : covSourceHttp,
+    buildZaiUrl: () => (allowZaiFallback ? buildZaiAuditUrl() : ''),
+  })
+  const resolvedOfferUrl = soloHandoff.ctaUrl
+  const physicalSoloHref = pickPrimaryHttpUrl(soloHandoff.offerUrl || soloHandoff.ctaUrl)
   const ctaActionTypeRaw =
     typeof currentMorphData?.actions?.actionType === 'string'
       ? currentMorphData.actions.actionType.toLowerCase()
@@ -790,10 +794,7 @@ export function JourneyBentoCard({
     if (resolvedOfferUrl) {
       try { sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '') } catch {}
     }
-    const diagnosticUrlJourney =
-      verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
-        ? verifiedAuditSourceUrl.trim()
-        : pickPrimaryHttpUrl(resolvedOfferUrl) || (allowZaiFallback ? buildZaiAuditUrl() : '')
+    const diagnosticUrlJourney = soloHandoff.sourceLinkUrl
     const profileTransport =
       state.profile?.transport ??
       (typeof window !== 'undefined' ? localStorage.getItem('profile_transport') : null)
@@ -823,13 +824,7 @@ export function JourneyBentoCard({
       recommendationTitle,
       toThreeTrueTipParagraphs(insightDisplay)
     )
-    const verifiedSourceLinkUrl =
-      pickPrimaryHttpUrl(
-        verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
-          ? verifiedAuditSourceUrl.trim()
-          : '',
-        resolvedOfferUrl
-      ) ?? (diagnosticUrlJourney.trim().startsWith('http') ? diagnosticUrlJourney.trim() : '')
+    const verifiedSourceLinkUrl = soloHandoff.sourceLinkUrl
     const verifiedSourceLinkEl = verifiedSourceLinkUrl ? (
       <a
         href={verifiedSourceLinkUrl}
@@ -1039,9 +1034,9 @@ export function JourneyBentoCard({
               carbonKg={animatedCarbonKg}
               verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
               impactPulse={impactAnswerPulse}
-              ctaUrl={resolvedOfferUrl?.trim() || (allowZaiFallback ? buildZaiAuditUrl() : '')}
+              ctaUrl={soloHandoff.ctaUrl}
               ctaJourneyId={displayJourneyId as string}
-              ctaLabel={journeyCtaLabel}
+              ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : journeyCtaLabel}
               ctaSurface={currentMorphData?.high_impact ? 'yellow' : 'pink'}
             />
                 </div>

@@ -44,6 +44,7 @@ import {
   toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
   formatAuditSourceLinkDisplay,
+  resolveSoloFocusHandoffUrls,
 } from '@/lib/soloFocusCopy'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
@@ -360,11 +361,14 @@ export function SoloFocusOverlay({
     researchCategoryCoverage === undefined || researchCategoryCoverage === null
       ? true
       : journeyResearchCov == null
-  const httpOpen =
-    verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
-      ? verifiedAuditSourceUrl.trim()
-      : liveDiscoveryUrl || partnerHttp || ''
-  const resolvedOpenUrl = (httpOpen || (allowZaiFallback ? buildZaiAuditUrl() : '')).trim()
+  const soloHandoff = resolveSoloFocusHandoffUrls({
+    coverageOfferUrl: journeyResearchCov?.latestOfferUrl,
+    coverageSourceUrl: journeyResearchCov?.latestSourceUrl,
+    fallbackOfferUrl: pickPrimaryHttpUrl(offerUrl, liveDiscoveryUrl, partnerHttp),
+    fallbackSourceUrl: pickPrimaryHttpUrl(sourceUrl, covSourceHttp),
+    buildZaiUrl: () => (allowZaiFallback ? buildZaiAuditUrl() : ''),
+  })
+  const resolvedOpenUrl = soloHandoff.ctaUrl.trim()
 
   /** ✓ True data — Neon `research_results.verified` (via scrape-sync coverage). */
   const dbVerifiedFromResearchTable =
@@ -401,15 +405,9 @@ export function SoloFocusOverlay({
     architectSuppliedBy,
     sourceLabel,
     sourceName,
-    liveScrapeSourceUrl:
-      verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
-        ? verifiedAuditSourceUrl.trim()
-        : pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) ?? undefined,
+    liveScrapeSourceUrl: soloHandoff.sourceLinkUrl || undefined,
   })
-  const diagnosticUrl =
-    verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
-      ? verifiedAuditSourceUrl.trim()
-      : pickPrimaryHttpUrl(resolvedOpenUrl, sourceUrl, offerUrl) || (allowZaiFallback ? buildZaiAuditUrl() : '')
+  const diagnosticUrl = soloHandoff.sourceLinkUrl
   const researchBackedTrueTip =
     verifiedAuditMatchesJourney &&
     verifiedArchitectProse?.trim() &&
@@ -450,14 +448,7 @@ export function SoloFocusOverlay({
     recommendationTitle,
     toThreeTrueTipParagraphs(insightParaSource)
   )
-  const verifiedSourceLinkUrl = pickPrimaryHttpUrl(
-    verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
-      ? verifiedAuditSourceUrl.trim()
-      : '',
-    resolvedOpenUrl,
-    sourceUrl,
-    offerUrl
-  )
+  const verifiedSourceLinkUrl = soloHandoff.sourceLinkUrl
   const verifiedSourceLinkEl = verifiedSourceLinkUrl ? (
     <a
       href={verifiedSourceLinkUrl}
@@ -729,9 +720,9 @@ export function SoloFocusOverlay({
                   moneyGbp={animatedMoneyGbp}
                   carbonKg={animatedCarbonKg}
                   impactPulse={impactAnswerPulse}
-                  ctaUrl={resolvedOpenUrl.trim() || (allowZaiFallback ? buildZaiAuditUrl() : '')}
+                  ctaUrl={soloHandoff.ctaUrl}
                   ctaJourneyId={journeyId}
-                  ctaLabel={effectiveHandoffLabel}
+                  ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : effectiveHandoffLabel}
                 />
               </div>
               </div>

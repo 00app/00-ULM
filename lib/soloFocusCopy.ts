@@ -15,10 +15,39 @@ function coerceJourneyId(id: string): JourneyId {
 /** Strip trailing “(Updated …)” / version noise so the card title does not repeat body dates. */
 export function stripExpandedCardTitleNoise(raw: string): string {
   let t = raw.trim()
+  t = t.replace(/\*{2,3}/g, '').replace(/_{2,3}/g, '').replace(/\s+/g, ' ').trim()
   t = t.replace(/\s*\([^)]*(?:updated|as at|revised)[^)]*\)\s*$/i, '').trim()
   t = t.replace(/\s*\(\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{1,2},?\s*\d{4}\s*\)\s*$/i, '').trim()
   t = t.replace(/^(?:did you know\??|consider (?:this|that)\.?\s*|fun fact:?\s*|here'?s (?:the thing|what you need to know):?\s*)/i, '').trim()
+  const colonIdx = t.indexOf(':')
+  if (colonIdx >= 0 && colonIdx < t.length - 2) {
+    const after = t.slice(colonIdx + 1).trim()
+    if (after.length >= 3) t = after
+  }
   return t
+}
+
+/** Drop report-style headers / metadata blocks from architect prose (jump to insight). */
+export function stripProseReportLead(text: string): string {
+  let t = text.trim()
+  t = t.replace(
+    /^(?:#{1,6}\s*|\*{1,3}\s*)?(?:energy\s+audit(?:\s+and\s+grant\s+eligibility)?\s+report|grant\s+eligibility\s+report|regional\s+energy\s+audit)[^\n]*\n*/i,
+    ''
+  )
+  const lines = t.split('\n')
+  while (lines.length > 0) {
+    const L = lines[0]!.trim()
+    if (
+      !L ||
+      /^(?:#{1,6}\s*)?\*{0,3}\s*(?:location|status|regulatory\s+window)\s*:/i.test(L) ||
+      /^\*{1,3}\s*[^*\n]{0,80}\*{1,3}\s*$/.test(L)
+    ) {
+      lines.shift()
+      continue
+    }
+    break
+  }
+  return lines.join('\n').trim()
 }
 
 /** Remove cheap engagement openers from auditor / architect paragraphs (prompt hygiene). */
@@ -142,17 +171,38 @@ export function headlineFromTitle(title: string, maxWords: number = MAX_ZONE_CAR
   return `${words.slice(0, maxWords).join(' ')}...`
 }
 
+/** Clean domain for Source link (e.g. gov.uk, ofgem.gov.uk). */
+export function formatSourceDomainLabel(url: string): string {
+  const u = url.trim()
+  if (!u.startsWith('http')) return u.slice(0, 48)
+  try {
+    return new URL(u).hostname.replace(/^www\./i, '')
+  } catch {
+    return u.slice(0, 48)
+  }
+}
+
 /** Short display string for verified source URLs (expanded Solo Focus footer link). */
 export function formatAuditSourceLinkDisplay(url: string, maxLen = 96): string {
-  const u = url.trim()
-  if (!u.startsWith('http')) return u.slice(0, maxLen)
-  try {
-    const parsed = new URL(u)
-    const short = `${parsed.hostname}${parsed.pathname === '/' ? '' : parsed.pathname}`
-    return short.length > maxLen ? `${short.slice(0, Math.max(0, maxLen - 1))}…` : short
-  } catch {
-    return u.slice(0, maxLen)
-  }
+  const domain = formatSourceDomainLabel(url)
+  return domain.length > maxLen ? `${domain.slice(0, Math.max(0, maxLen - 1))}…` : domain
+}
+
+/** CTA uses offer_url; Source link uses source_url; CTA falls back to Ask Zai when no offer. */
+export function resolveSoloFocusHandoffUrls(args: {
+  coverageOfferUrl?: string | null
+  coverageSourceUrl?: string | null
+  fallbackOfferUrl?: string | null
+  fallbackSourceUrl?: string | null
+  buildZaiUrl: () => string
+}): { ctaUrl: string; offerUrl: string; sourceLinkUrl: string; ctaIsZai: boolean } {
+  const pick = (u?: string | null) =>
+    typeof u === 'string' && u.trim().startsWith('http') ? u.trim() : ''
+  const offerUrl = pick(args.coverageOfferUrl) || pick(args.fallbackOfferUrl)
+  const sourceUrl = pick(args.coverageSourceUrl) || pick(args.fallbackSourceUrl)
+  const ctaIsZai = !offerUrl
+  const ctaUrl = offerUrl || args.buildZaiUrl()
+  return { ctaUrl, offerUrl, sourceLinkUrl: sourceUrl, ctaIsZai }
 }
 
 /**
@@ -349,7 +399,7 @@ export function buildResearchResultsTrueTipBody(params: {
 }): string {
   const j = coerceJourneyId(params.journeyId)
   const rawClean = stripMarkdownForProseDisplay(
-    stripArchitectEmbeddedSectionTitles(params.architectProse.trim()),
+    stripProseReportLead(stripArchitectEmbeddedSectionTitles(params.architectProse.trim())),
     4000
   )
   const blocks = rawClean
@@ -432,7 +482,7 @@ export function toThreeTrueTipParagraphs(text: string): [string, string, string]
       humanizeTrueTipParagraph(stripAuditorFluffParagraph(c)),
     ]
 
-  const t = text.trim()
+  const t = stripProseReportLead(text.trim())
   if (!t) {
     return ['', '', '']
   }

@@ -1945,7 +1945,8 @@ body, p, span, input, button, textarea, select,
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  max-width: 100%;
+  max-width: min(100%, 42rem);
+  width: 100%;
 }
 
 .expanded-solo-focus .solo-focus-architect-prose {
@@ -2124,9 +2125,14 @@ body, p, span, input, button, textarea, select,
 .expanded-solo-focus .solo-focus-shell {
   box-sizing: border-box;
   width: 100%;
-  border-radius: 60px;
+  border-radius: 60px !important;
   padding: 40px !important;
   background-color: transparent !important;
+}
+.expanded-solo-focus .solo-focus-impact-hero.solo-focus-impact-grid {
+  width: 100%;
+  max-width: min(100%, 42rem);
+  align-self: flex-start;
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus .solo-focus-rail {
@@ -2465,7 +2471,8 @@ h3.solo-focus-question-label.zz-h3 {
   margin: 0 !important;
   padding: 0;
   color: var(--journey-text, var(--color-yellow));
-  max-width: 100%;
+  max-width: min(100%, 42rem);
+  width: 100%;
 }
 .expanded-solo-focus p.solo-focus-architect-prose:last-of-type {
   margin-bottom: 0 !important;
