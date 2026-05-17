@@ -530,6 +530,10 @@ export default function ZonePage() {
       setRefreshKey((k) => k + 1)
     }
     window.addEventListener('storage', onStorage)
+    const onPostcodeChanged = () => {
+      bumpIfChanged(safeGetItem('profile_postcode') ?? '')
+    }
+    window.addEventListener('zz-postcode-changed', onPostcodeChanged)
     const onTier2Refresh = (e: Event) => {
       const detail = (e as CustomEvent<{ totalMoney?: number; totalCarbon?: number }>).detail
       if (detail && typeof detail.totalMoney === 'number' && typeof detail.totalCarbon === 'number') {
@@ -545,6 +549,7 @@ export default function ZonePage() {
     return () => {
       window.clearInterval(interval)
       window.removeEventListener('storage', onStorage)
+      window.removeEventListener('zz-postcode-changed', onPostcodeChanged)
       window.removeEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onUnifiedProfile)
       window.removeEventListener(TIER2_PROFILE_REFRESH_EVENT, onTier2Refresh)
     }

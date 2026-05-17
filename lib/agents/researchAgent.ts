@@ -541,7 +541,7 @@ function inferResearchTripletFromMarkdown(
   const headlineSource =
     paragraphs.find((p) => /£\s*[\d,]+/i.test(p)) ??
     paragraphs[0] ??
-    `BN17 audit — £${Math.round(saving)} per year`
+    `Regional audit — £${Math.round(saving)} per year`
   const agent_headline = normalizeGeminiAgentHeadline(headlineSource.slice(0, 320))
 
   const category = normalizeResearchCategory(categoryHint) ?? 'home'

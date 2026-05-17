@@ -927,7 +927,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: 'Trigger handshake incomplete',
-            hint: 'POST with trigger flag was recognized but trigger branch did not run — retry with ?postcode=BN17&force=true',
+            hint: 'POST with trigger flag was recognized but trigger branch did not run — retry with ?postcode=YOUR_PC&force=true',
           },
           { status: 400 }
         )

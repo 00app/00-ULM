@@ -426,6 +426,10 @@ export function EmbeddedJourneyQuestion({
       body: JSON.stringify({ category: journeyId, userContext }),
     }).catch(() => {})
 
+    const profilePostcode =
+      typeof window !== 'undefined'
+        ? (localStorage.getItem('profile_postcode') ?? '').replace(/\s+/g, '').trim().toUpperCase()
+        : ''
     const postPromise = fetch('/api/answers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -434,6 +438,7 @@ export function EmbeddedJourneyQuestion({
         question_id: questionIdSnapshot,
         answer_value: trimmed,
         solo_focus: Boolean(soloFocusZipShut),
+        ...(profilePostcode.length >= 4 ? { postcode: profilePostcode } : {}),
       }),
       credentials: 'include',
     })

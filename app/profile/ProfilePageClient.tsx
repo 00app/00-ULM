@@ -13,6 +13,8 @@ import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import type { ProfileAge } from '@/app/context/AppContext'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
+import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
+import { ensureGaryModeForPostcode } from '@/lib/zone/garyMode'
 
 const PROFILE_QUESTIONS = [
   { id: 'name', label: 'name', type: 'input' as const, placeholder: 'alex' },
@@ -115,6 +117,18 @@ export default function ProfilePageClient() {
   }, [step])
 
   const setValue = useCallback((id: string, value: string) => {
+    if (id === 'postcode' && typeof window !== 'undefined') {
+      const prev = (values.postcode ?? localStorage.getItem(STORAGE_KEYS.postcode) ?? '')
+        .replace(/\s+/g, '')
+        .trim()
+        .toUpperCase()
+      const next = value.replace(/\s+/g, '').trim().toUpperCase()
+      if (prev.length >= 4 && next.length >= 4 && prev !== next) {
+        clearZoneVmLocalCache({ preservePostcode: next })
+      } else if (next.length >= 4) {
+        ensureGaryModeForPostcode(next)
+      }
+    }
     setValues((prev) => ({ ...prev, [id]: value }))
     const key = STORAGE_KEYS[id] ?? id
     if (typeof window !== 'undefined') {
@@ -125,7 +139,7 @@ export default function ProfilePageClient() {
         // ignore
       }
     }
-  }, [])
+  }, [values.postcode])
 
   const current = PROFILE_QUESTIONS[step]
   const currentVal = values[current?.id] ?? ''

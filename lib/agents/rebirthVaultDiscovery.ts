@@ -60,11 +60,7 @@ async function scrapeVaultCorpus(vault: IntelligenceVaultId): Promise<{ markdown
 function formatPostcodeHint(pc: string | null): string {
   if (!pc?.trim()) return ''
   const c = pc.replace(/\s+/g, '').toUpperCase()
-  if (c.startsWith('BN17')) {
-    return 'locality: Littlehampton / Arun coast (BN17) — prefer Arun-adjacent schemes when cited.'
-  }
-  if (c.startsWith('BN')) return 'locality: West Sussex / Sussex coast context when sources allow.'
-  return `postcode outcode: ${c.slice(0, 4)}`
+  return `postcode: ${c} — cite grants and tariffs for this outcode and council when sources allow.`
 }
 
 /**

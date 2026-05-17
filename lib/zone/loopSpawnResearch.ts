@@ -1,7 +1,7 @@
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEYS } from '@/lib/journeys'
 import {
-  runZeroResearchWithProfile,
+  runTriggerResearchForCategory,
   type ResearchProfileData,
 } from '@/lib/agents/researchAgent'
 
@@ -52,12 +52,11 @@ export async function runLoopSpawnResearch(params: {
     ...(params.profileData ?? {}),
     postcode: pc,
   }
-  return runZeroResearchWithProfile({
+  return runTriggerResearchForCategory({
     postcode: pc,
+    category: params.journeyId,
     profileData,
-    persistToNeon: true,
     userId: params.userId ?? null,
     userContext,
-    category: params.journeyId,
   })
 }

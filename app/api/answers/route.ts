@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
       answer,
       answer_value,
       solo_focus,
+      postcode: bodyPostcodeRaw,
     } = body
 
     const jKey = typeof (journey_key ?? journey_id) === 'string' ? (journey_key ?? journey_id).trim() : ''
@@ -117,14 +118,24 @@ export async function POST(request: NextRequest) {
     const householdSizeRaw = Number(profileGenome.household_size ?? profileGenome.householdSize)
     const householdSize =
       Number.isFinite(householdSizeRaw) && householdSizeRaw > 0 ? Math.round(householdSizeRaw) : null
-    const postcodeNorm = profileRow?.postcode?.replace(/\s+/g, '').trim() ?? null
-    const profileData = profileRow
+    const bodyPostcode =
+      typeof bodyPostcodeRaw === 'string'
+        ? bodyPostcodeRaw.replace(/\s+/g, '').trim().toUpperCase()
+        : ''
+    const profilePostcode = profileRow?.postcode?.replace(/\s+/g, '').trim().toUpperCase() ?? ''
+    const postcodeNorm =
+      bodyPostcode.length >= 4
+        ? bodyPostcode
+        : profilePostcode.length >= 4
+          ? profilePostcode
+          : null
+    const profileData = profileRow || postcodeNorm
       ? {
-          postcode: profileRow.postcode ?? null,
-          home_type: profileRow.home_type ?? null,
-          household: profileRow.household ?? null,
-          transport_baseline: profileRow.transport_baseline ?? null,
-          employment_status: profileRow.employment_status ?? null,
+          postcode: postcodeNorm ?? profileRow?.postcode ?? null,
+          home_type: profileRow?.home_type ?? null,
+          household: profileRow?.household ?? null,
+          transport_baseline: profileRow?.transport_baseline ?? null,
+          employment_status: profileRow?.employment_status ?? null,
           tenure: typeof tenureFromGenome === 'string' ? tenureFromGenome : null,
           household_size: householdSize != null ? String(householdSize) : null,
           hermes_skill_file: hermesSkillFile,
