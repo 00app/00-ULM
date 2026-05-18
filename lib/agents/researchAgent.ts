@@ -3,7 +3,17 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { generateResearchText, RESEARCH_GATEWAY_MODEL_CHAIN } from '@/lib/intelligence/aiGateway'
+import {
+  ARTICLE_GATEWAY_MODEL_CHAIN,
+  EDITORIAL_MAGAZINE_CONSTRAINT,
+  GEMINI_DIRECT_ARTICLE,
+  GEMINI_DIRECT_ZONE,
+  generateResearchText,
+} from '@/lib/intelligence/aiGateway'
+import {
+  buildCategoryFirecrawlSeedUrls,
+  buildLocalizedResearchPrefix,
+} from '@/lib/intelligence/researchProfilePayload'
 import { isDeepLinkedUkOfferUrl } from '@/lib/zone/urlShield'
 import {
   normalizeCategoryToJourneyKey,
@@ -24,6 +34,7 @@ import { GRANTS_AND_BILLS_CATEGORY_PROTOCOL, isAllowedResearchCategory } from '@
 import {
   headlineFromTitle,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
+  MAX_ZONE_CARD_HEADLINE_WORDS,
   stripExpandedCardTitleNoise,
 } from '@/lib/soloFocusCopy'
 
@@ -347,9 +358,11 @@ export async function runZeroResearch(params: {
  * cards comes from `buildUserImpact` / scrapes, not a separate `verified_saving_kg` column on this row (see
  * `verified_saving` / impact pipeline elsewhere).
  */
-const RESEARCH_TRIPLET_MODEL = process.env.GEMINI_RESEARCH_MODEL?.trim() || 'gemini-flash-latest'
+const RESEARCH_TRIPLET_MODEL =
+  process.env.GEMINI_RESEARCH_MODEL?.trim() || GEMINI_DIRECT_ARTICLE
 /** Recovery / backfill when triplet fields are missing — user-facing “Deep Gemini Search”. */
-const RESEARCH_RECOVERY_MODEL = process.env.GEMINI_RESEARCH_RECOVERY_MODEL?.trim() || 'gemini-flash-latest'
+const RESEARCH_RECOVERY_MODEL =
+  process.env.GEMINI_RESEARCH_RECOVERY_MODEL?.trim() || GEMINI_DIRECT_ZONE
 
 async function buildDynamicLocalitySeedUrls(
   postcode: string,
@@ -400,28 +413,83 @@ function extractHttpsCitationsFromMarkdown(
 /**
  * Gemini-only UK energy research when Firecrawl markdown is thin or missing a headline.
  */
+async function fetchCategoryFirecrawlResearch(params: {
+  postcode: string
+  category: string
+  profileData?: ResearchProfileData | null
+  userContext?: string | null
+}): Promise<{ markdown: string; citations: ResearchCitation[] }> {
+  const { getFirecrawlApiKey } = await import('@/lib/agents/scraper')
+  if (!getFirecrawlApiKey()?.trim()) return { markdown: '', citations: [] }
+
+  const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
+  const cat = normalizeResearchCategory(params.category) ?? 'home'
+  const prefix = buildLocalizedResearchPrefix({
+    postcode: pc,
+    profileData: params.profileData ?? null,
+    category: cat,
+    userContext: params.userContext ?? null,
+  })
+  const seeds = buildCategoryFirecrawlSeedUrls({
+    postcode: pc,
+    category: cat,
+    profileData: params.profileData ?? null,
+  })
+  const { fetchFirecrawlMarkdownForUrls } = await import('@/lib/agents/scraper')
+  const scraped = await fetchFirecrawlMarkdownForUrls(seeds, {
+    minChars: 120,
+    maxUrls: Math.min(6, seeds.length),
+  })
+  if (!scraped.length) return { markdown: '', citations: [] }
+
+  const citations: ResearchCitation[] = scraped.map((row) => ({
+    source_name: row.title?.trim() || new URL(row.url).hostname.replace(/^www\./, ''),
+    url: row.url,
+    snippet: row.markdown.slice(0, 420),
+    title: row.title,
+  }))
+  const body = scraped
+    .map((row) => `### Live source: ${row.title || row.url}\n${row.markdown.slice(0, 4500)}`)
+    .join('\n\n---\n\n')
+  return {
+    markdown: `## Firecrawl (localized UK offers)\n\n${prefix}\n\n---\n\n${body}`,
+    citations,
+  }
+}
+
 export async function deepGeminiSearchUkEnergyMarkdown(params: {
   postcode: string
   profileData?: ResearchProfileData | null
   localityContext?: string | null
   category?: string | null
   lifestyleShift?: boolean
+  userContext?: string | null
 }): Promise<{ markdown: string; citations: ResearchCitation[] } | null> {
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
   if (pc.length < 4) return null
   const profileBlock = buildResearchProfileAuditorContext(params.profileData ?? null)
   const locality = params.localityContext?.trim()
   const cat = normalizeResearchCategory(params.category ?? '')
+  const localizedPrefix = buildLocalizedResearchPrefix({
+    postcode: pc,
+    profileData: params.profileData ?? null,
+    category: cat,
+    userContext: [locality ? `locality: ${locality}` : '', params.userContext?.trim() ?? '']
+      .filter(Boolean)
+      .join('\n'),
+  })
   const categoryLine = cat
     ? params.lifestyleShift
-      ? `Lifestyle shift / pattern arbitrage for **${cat}**: rail vs flight, EV swap, local vs long-haul holidays, meal shifts — not generic grant homepages. One concrete £/year trade-off and one deep-linked https application or booking URL.`
+      ? `Lifestyle shift / pattern arbitrage for **${cat}**: rail vs flight, EV swap, local vs long-haul holidays, meal shifts — not generic grant homepages. One concrete £/year trade-off and one deep-linked https application or booking URL copied from live UK sources.`
       : `Focus this pass on the **${cat}** journey (UK household money/carbon) with a concrete £/year figure and one https offer URL in the prose.`
     : ''
-  const prompt = `You are a UK household energy research agent (April 2026 regulatory window).
-Write detailed markdown for postcode **${pc}**${locality ? ` (${locality})` : ''}.
+  const prompt = `${localizedPrefix}
+
+You are a UK household savings researcher (April 2026). Write markdown for postcode **${pc}**${locality ? ` (${locality})` : ''}.
 ${categoryLine}
-Include: current Ofgem-style default tariff unit rates (p/kWh and £/kWh where possible), council or regional grant/ECO/BUS cues, and one concrete £/year saving action with a numeric GBP amount.
-Use UK English, industrial tone, no small-talk. Reference https:// sources inline where possible.
+Pull real localized deals from the profile context — no placeholder £0 rows. Include one numeric **£/year** saving and at least one **https://** deep link to a live UK offer or scheme page.
+Use UK English, editorial and direct (not dashboard/API jargon). Reference sources inline.
+${EDITORIAL_MAGAZINE_CONSTRAINT}
 ${profileBlock}
 Return markdown only (no JSON, no code fences).`
 
@@ -430,6 +498,7 @@ Return markdown only (no JSON, no code fences).`
     const { text: raw } = await generateResearchText({
       prompt,
       tag,
+      tier: 'zone',
       maxOutputTokens: 2048,
       temperature: 0.35,
     })
@@ -520,11 +589,14 @@ function normalizeArchitectProseThreeParagraphs(ap: string | undefined): string 
   return undefined
 }
 
-/** ~20-word auditor headline for Solo Focus H1 + Neon `agent_headline`. */
-function normalizeGeminiAgentHeadline(raw: string | undefined): string | undefined {
+/** Zone / expanded headlines for Neon `agent_headline` + Solo Focus H1. */
+function normalizeGeminiAgentHeadline(
+  raw: string | undefined,
+  maxWords: number = MAX_EXPANDED_VIEW_HEADLINE_WORDS
+): string | undefined {
   if (!raw?.trim()) return undefined
   const cleaned = stripExpandedCardTitleNoise(raw.trim())
-  const clipped = headlineFromTitle(cleaned, MAX_EXPANDED_VIEW_HEADLINE_WORDS)
+  const clipped = headlineFromTitle(cleaned, maxWords)
   return clipped.length > 0 ? clipped.slice(0, 600) : undefined
 }
 
@@ -619,9 +691,13 @@ function parseResearchTripletJson(raw: string): {
         ? j.architect_prose.trim().slice(0, 4000)
         : undefined
     const architect_prose = normalizeArchitectProseThreeParagraphs(apRaw)
-    const agent_headline = normalizeGeminiAgentHeadline(
+    const zoneHeadlineRaw =
       typeof j.agent_headline === 'string' ? j.agent_headline : undefined
-    )
+    const expandedHeadlineRaw =
+      typeof j.expanded_headline === 'string' ? j.expanded_headline : zoneHeadlineRaw
+    const agent_headline =
+      normalizeGeminiAgentHeadline(expandedHeadlineRaw, MAX_EXPANDED_VIEW_HEADLINE_WORDS) ??
+      normalizeGeminiAgentHeadline(zoneHeadlineRaw, MAX_ZONE_CARD_HEADLINE_WORDS)
     return { category, saving_amount_gbp, offer_url, agent_headline, architect_prose }
   } catch {
     return null
@@ -675,16 +751,23 @@ async function extractResearchTripletWithGemini(
   const categoryBias = catHint
     ? `Target journey category for this pass (use "${catHint}" unless the evidence clearly fits another listed category): ${catHint}\n\n`
     : ''
-  const prompt = `${pc}${profileBlock}${categoryBias}You are **Zai**, the **Personal Intelligence Auditor** for Zero Zero (UK household energy, money, carbon). Your job is **forensic intelligence**, not generic web search: interrogate the evidence on the user’s behalf. When the profile implies children, tenancy, food waste, or a tight locality (for example a county, council, or outcode), prefer **surgical** angles — efficiency hacks, bulk-buy collectives, engineering-grade appliance calibration, scheme eligibility — over vague “look for grants” filler. If a grant is the best instrument, keep it; if a small £/week habit change dominates the math, say so plainly.
+  const prompt = `${pc}${profileBlock}${categoryBias}You are an expert editorial writer for Zero Zero — sustainable lifestyle and smart UK consumer choices. Transform the scraped evidence into a compelling, human-centric feature. No dashboard speak, API jargon, or robotic summaries.
+
+${EDITORIAL_MAGAZINE_CONSTRAINT}
 
 ${GRANTS_AND_BILLS_CATEGORY_PROTOCOL}
 
 From the markdown below, return ONLY valid JSON (no markdown code fence) with exactly these keys:
 - "category": one of: ${journeyList} — the single best thematic fit for the main opportunity in the text.
-- "saving_amount_gbp": non-negative number with up to two decimal places — plausible estimated annual GBP saving (use 0 if none inferable).
+- "saving_amount_gbp": non-negative number with up to two decimal places — annual GBP saving grounded in the scraped text (use 0 only if truly none inferable).
 - "offer_url": one https URL copied verbatim from the markdown or citation context. If no live URL exists, return an empty string.
-- "agent_headline": one bold, specific sentence of **approximately twenty words** (hard cap: do not exceed 22 words). High-authority audit summary; concrete locality or scheme where the text supports it (e.g. outcode, programme name, £/yr figure). No section labels. No trailing colon. Normal sentence casing; lowercase where natural at the start of clauses is fine.
-- "architect_prose": exactly **THREE** paragraphs of UK English, each separated by **two** newline characters (one blank line between paragraphs). Industrial, dense, zero small-talk. **Hard cap: each paragraph must be at most ${MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH} words.** **Do not** print structural headings, labels, markdown hash-headings, bullets, numbering, roman numerals, or role markers. **Banned:** lines or sentence starts like "What:", "Why:", "How:", "Paragraph 1:", "Discovery:", or any bracketed staging — the reader must infer what / why / how **only** from plain flowing prose across the three paragraphs. The trinity lives **inside** the prose only: paragraph 1 = the concrete discovery for this household/postcode/profile context; paragraph 2 = the cold math (£/yr and kg CO₂e or equivalent, tied to evidence in the text); paragraph 3 = the immediate industrial action the reader should take this week (aligned with offer_url). Mix local schemes with high-authority technical levers when the text supports both. If you output fewer or more than three paragraphs, the response is invalid — rewrite until there are exactly three. Max ~1200 characters total for architect_prose.
+- "agent_headline": **Zone card heading** — maximum 7 words, punchy and benefit-driven (e.g. "leapfrog your energy bills this month"). No colons. No section labels.
+- "expanded_headline": **Expanded card heading** — maximum 20 words; high-impact lifestyle hook tying the user's setup to the win. Optional key; if omitted, agent_headline may be reused.
+- "architect_prose": exactly **THREE** paragraphs for the expanded view only, separated by **two** newlines (blank line between). **Hard cap: each paragraph at most ${MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH} words.** Editorial, lifestyle-first UK English:
+  - Paragraph 1 — **The Hook:** connect their current lifestyle setup (profile/postcode) directly to the opportunity.
+  - Paragraph 2 — **The Core Deal:** the real-world product or offer; financial and waste-reduction impact, not tech specs.
+  - Paragraph 3 — **The Leapfrog:** forward-looking payoff — how this choice steps them into the next tier of modern sustainable living.
+  **Banned:** "What:", "Why:", "How:", bullets, numbering, markdown headings, or role labels in the prose text.
 
 Markdown:
 ---
@@ -694,10 +777,11 @@ ${markdown.slice(0, 28_000)}`
     const { text } = await generateResearchText({
       prompt,
       tag,
+      tier: 'article',
       maxOutputTokens: 1536,
       temperature: 0.25,
       models: options?.model?.trim()
-        ? [options.model.trim(), ...RESEARCH_GATEWAY_MODEL_CHAIN]
+        ? [`google/${options.model.trim().replace(/^google\//, '')}`, ...ARTICLE_GATEWAY_MODEL_CHAIN]
         : undefined,
     })
     const parsed = parseResearchTripletJson(text)
@@ -1141,22 +1225,41 @@ export async function runTriggerResearchForCategory(params: {
     ? [local.locality, local.council, local.region].filter(Boolean).join(', ')
     : null
 
+  const profilePrefix = buildLocalizedResearchPrefix({
+    postcode: pc,
+    profileData: params.profileData ?? null,
+    category: cat,
+    userContext: params.userContext ?? null,
+  })
+
   let markdown = [
+    profilePrefix,
     `## Location\nPostcode: ${pc}`,
     localityContext ? `## Locality\n${localityContext}` : '',
-    params.userContext?.trim() ? `## User context\n${params.userContext.trim()}` : '',
     `Target journey category: ${cat}`,
   ]
     .filter(Boolean)
     .join('\n\n---\n\n')
 
   const citations: ResearchCitation[] = []
+  const firecrawl = await fetchCategoryFirecrawlResearch({
+    postcode: pc,
+    category: cat,
+    profileData: params.profileData ?? null,
+    userContext: params.userContext ?? null,
+  })
+  if (firecrawl.markdown.length > 80) {
+    markdown = `${markdown}\n\n---\n\n${firecrawl.markdown}`
+    citations.push(...firecrawl.citations)
+  }
+
   const deep = await deepGeminiSearchUkEnergyMarkdown({
     postcode: pc,
     profileData: params.profileData ?? null,
     localityContext,
     category: cat,
     lifestyleShift: params.lifestyleShift,
+    userContext: params.userContext ?? null,
   })
   if (deep) {
     markdown = `${markdown}\n\n---\n\n${deep.markdown}`
@@ -1164,6 +1267,7 @@ export async function runTriggerResearchForCategory(params: {
   }
 
   const parsed = await parseApril2026UnitRatesFromMarkdown(markdown)
+  const primaryCitation = citations.find((c) => isDeepLinkedUkOfferUrl(c.url ?? '')) ?? citations[0]
   await persistResearchResult({
     userId: params.userId,
     postcode: pc,
@@ -1175,8 +1279,14 @@ export async function runTriggerResearchForCategory(params: {
     elecUnitRateGbpPerKwh:
       parsed.electricityGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH / 100,
     gasUnitRateGbpPerKwh: parsed.gasGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.GAS_PER_KWH / 100,
-    sourceUrl: PRICE_CAP_SOURCE_URL,
-    invokePayload: { trigger: 'scrape-sync-fast', category: cat },
+    sourceUrl: primaryCitation?.url?.trim().startsWith('http')
+      ? primaryCitation.url.trim()
+      : PRICE_CAP_SOURCE_URL,
+    invokePayload: {
+      trigger: 'scrape-sync-fast',
+      category: cat,
+      firecrawl_sources: firecrawl.citations.length,
+    },
   })
 
   return { markdown, citations }

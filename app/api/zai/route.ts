@@ -20,7 +20,8 @@ import { generateDiscoveryWinWithGemini } from "@/lib/agents/discoveryWin";
 import {
   generateGatewayText,
   isAiGatewayConfigured,
-  RESEARCH_GATEWAY_MODEL_CHAIN,
+  CHAT_GATEWAY_MODEL_CHAIN,
+  GEMINI_DIRECT_CHAT,
 } from "@/lib/intelligence/aiGateway";
 import { routeQuestion } from "@/lib/brains/zai/router";
 import { ZAI_PERFORMANCE_AUDITOR_V3_MATRIX } from "@/lib/brains/zai/prompts";
@@ -444,9 +445,10 @@ export async function POST(req: Request) {
         const { text: gwText } = await generateGatewayText({
           prompt: gatewayPrompt,
           tag: `zai-${zaiTopic}`,
+          tier: 'chat',
           maxOutputTokens: 512,
           temperature: 0.4,
-          models: ['google/gemini-2.5-flash', ...RESEARCH_GATEWAY_MODEL_CHAIN],
+          models: [...CHAT_GATEWAY_MODEL_CHAIN],
         })
         text = gwText
         if (!text) {
@@ -465,7 +467,7 @@ export async function POST(req: Request) {
       }
 
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash-lite",
+        model: GEMINI_DIRECT_CHAT,
         systemInstruction,
       })
 

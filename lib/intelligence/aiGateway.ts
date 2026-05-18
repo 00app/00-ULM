@@ -2,9 +2,38 @@
  * Vercel AI Gateway — unified generate path with model failover + domain tags.
  * Auth: AI_GATEWAY_API_KEY | VERCEL_AI_GATEWAY_API_KEY | AI_GATEWAY | VERCEL_OIDC_TOKEN
  * Falls back to direct @google/generative-ai when gateway is unset.
+ *
+ * Model split (May 2026): Flash-Lite = zone + chat; Flash = architect articles.
+ * See `lib/intelligence/geminiModels.ts`.
  */
 
 import { generateText, gateway } from 'ai'
+import {
+  CHAT_GATEWAY_MODEL_CHAIN,
+  directModelForTier,
+  gatewayModelsForTier,
+  GEMINI_GATEWAY_CHAT,
+  resolveGeminiTier,
+  type GeminiModelTier,
+  ZONE_GATEWAY_MODEL_CHAIN,
+} from '@/lib/intelligence/geminiModels'
+
+export {
+  ARTICLE_GATEWAY_MODEL_CHAIN,
+  CHAT_GATEWAY_MODEL_CHAIN,
+  GEMINI_DIRECT_ARTICLE,
+  GEMINI_DIRECT_CHAT,
+  GEMINI_DIRECT_ZONE,
+  GEMINI_GATEWAY_ARTICLE,
+  GEMINI_GATEWAY_CHAT,
+  GEMINI_GATEWAY_ZONE,
+  RESEARCH_GATEWAY_MODEL_CHAIN,
+  ZONE_GATEWAY_MODEL_CHAIN,
+  EDITORIAL_MAGAZINE_CONSTRAINT,
+  directModelForTier,
+  gatewayModelsForTier,
+  resolveGeminiTier,
+} from '@/lib/intelligence/geminiModels'
 
 export type GatewayHealthSnapshot = {
   configured: boolean
@@ -25,13 +54,6 @@ const health: GatewayHealthSnapshot = {
   lastTag: null,
   lastAt: null,
 }
-
-/** Primary → secondary → tertiary (override via env). */
-export const RESEARCH_GATEWAY_MODEL_CHAIN = [
-  process.env.AI_GATEWAY_MODEL_PRIMARY?.trim() || 'google/gemini-2.5-pro',
-  process.env.AI_GATEWAY_MODEL_SECONDARY?.trim() || 'google/gemini-2.5-flash',
-  process.env.AI_GATEWAY_MODEL_TERTIARY?.trim() || 'anthropic/claude-3.7-sonnet',
-].filter(Boolean)
 
 export function resolveAiGatewayApiKey(): string {
   for (const name of [
@@ -78,39 +100,42 @@ export type GatewayGenerateParams = {
   temperature?: number
   /** Override failover chain for this call. */
   models?: string[]
+  /** zone = cards/scrape; article = 3-paragraph prose; chat = Zai/iHints. */
+  tier?: GeminiModelTier
 }
 
 /**
- * Research / scrape-sync / architect triplet — direct Gemini by default (no Vercel AI Gateway hop).
- * RESEARCH_FORCE_DIRECT_GEMINI=false re-enables gateway for research (not recommended).
+ * Research / scrape-sync — direct Gemini by default (no Vercel AI Gateway hop).
+ * RESEARCH_FORCE_DIRECT_GEMINI=false re-enables gateway for research.
  */
 export async function generateResearchText(params: GatewayGenerateParams): Promise<{
   text: string
   modelId: string
   viaGateway: boolean
 }> {
+  const tier = params.tier ?? resolveGeminiTier(params.tag)
   const forceDirect = process.env.RESEARCH_FORCE_DIRECT_GEMINI?.trim().toLowerCase() !== 'false'
   if (forceDirect) {
-    const primary = RESEARCH_GATEWAY_MODEL_CHAIN[0] ?? 'google/gemini-2.5-pro'
-    return generateViaDirectGemini(params, primary)
+    return generateViaDirectGemini(params, directModelForTier(tier))
   }
-  return generateGatewayText(params)
+  return generateGatewayText({ ...params, tier, models: params.models ?? gatewayModelsForTier(tier) })
 }
 
 /**
- * Vercel AI Gateway + failover — use for Ask Zai / chat, not heavy scrape-sync research.
+ * Vercel AI Gateway + failover — Ask Zai / iHints (Flash-Lite chain, no Pro).
  */
 export async function generateGatewayText(params: GatewayGenerateParams): Promise<{
   text: string
   modelId: string
   viaGateway: boolean
 }> {
-  const models = (params.models?.length ? params.models : RESEARCH_GATEWAY_MODEL_CHAIN).filter(Boolean)
-  const primary = models[0] ?? RESEARCH_GATEWAY_MODEL_CHAIN[0]
+  const tier = params.tier ?? resolveGeminiTier(params.tag)
+  const models = (params.models?.length ? params.models : gatewayModelsForTier(tier)).filter(Boolean)
+  const primary = models[0] ?? GEMINI_GATEWAY_CHAT
   const tags = normalizeGatewayTag(params.tag)
 
   if (!isAiGatewayConfigured()) {
-    return generateViaDirectGemini(params, primary)
+    return generateViaDirectGemini(params, directModelForTier(tier))
   }
 
   let lastErr: unknown = null
@@ -161,7 +186,7 @@ export async function generateGatewayText(params: GatewayGenerateParams): Promis
   })
 
   try {
-    return await generateViaDirectGemini(params, primary)
+    return await generateViaDirectGemini(params, directModelForTier(tier))
   } catch (directErr) {
     touchHealth({
       ok: false,
@@ -174,16 +199,13 @@ export async function generateGatewayText(params: GatewayGenerateParams): Promis
 
 async function generateViaDirectGemini(
   params: GatewayGenerateParams,
-  labelModel: string
+  directModel: string
 ): Promise<{ text: string; modelId: string; viaGateway: boolean }> {
   const key = process.env.GEMINI_API_KEY?.trim()
   if (!key) {
     throw new Error('GEMINI_API_KEY unset and AI Gateway unavailable')
   }
-  const modelName =
-    process.env.GEMINI_RESEARCH_MODEL?.trim() ||
-    process.env.GEMINI_RESEARCH_RECOVERY_MODEL?.trim() ||
-    'gemini-flash-latest'
+  const modelName = directModel.trim() || directModelForTier(params.tier ?? resolveGeminiTier(params.tag))
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(key)
   const model = genAI.getGenerativeModel({
@@ -201,7 +223,7 @@ async function generateViaDirectGemini(
     lastError: isAiGatewayConfigured() ? 'Gateway exhausted — direct Gemini' : null,
     lastTag: params.tag ?? null,
   })
-  return { text, modelId: labelModel, viaGateway: false }
+  return { text, modelId: modelName, viaGateway: false }
 }
 
 /** Lightweight probe for /api/health/diagnostics (no user prompt). */
@@ -227,7 +249,8 @@ export async function probeAiGatewayConnection(): Promise<{
       tag: 'health-probe',
       maxOutputTokens: 8,
       temperature: 0,
-      models: [RESEARCH_GATEWAY_MODEL_CHAIN[1] ?? 'google/gemini-2.5-flash'],
+      tier: 'chat',
+      models: [GEMINI_GATEWAY_CHAT],
     })
     const ok = /^ok\b/i.test(text.trim())
     const snap = getGatewayHealthSnapshot()

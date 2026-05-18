@@ -37,7 +37,7 @@ function sanitizeHttpsUrl(u: string, fallback: string): string {
 }
 
 const REBIRTH_MODEL_PRIMARY =
-  process.env.GEMINI_REBIRTH_MODEL?.trim() || 'gemini-2.5-pro-preview-05-06'
+  process.env.GEMINI_REBIRTH_MODEL?.trim() || 'gemini-2.5-flash'
 const REBIRTH_MODEL_FALLBACK = 'gemini-2.0-flash'
 
 async function scrapeVaultCorpus(vault: IntelligenceVaultId): Promise<{ markdown: string; urls: string[] }> {
