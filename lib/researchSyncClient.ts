@@ -44,6 +44,9 @@ export function triggerScrapeSyncForCategory(params: {
   bestOfferHint?: string | null
   /** Pattern arbitrage pass (rail vs flight, EV swap, local holidays). */
   lifestyleShift?: boolean
+  questionId?: string | null
+  answerValue?: string | null
+  isAchievementCard?: boolean
 }): void {
   const pc = String(params.postcode ?? '')
     .replace(/\s+/g, '')
@@ -67,8 +70,13 @@ export function triggerScrapeSyncForCategory(params: {
     body.best_offer_hint = hint.slice(0, 1200)
   }
   if (params.lifestyleShift) {
-    body.mode = 'lifestyle_shift'
+    body.lifestyle_mode = 'shift'
+    body.is_achievement_card = params.isAchievementCard !== false
   }
+  const qid = typeof params.questionId === 'string' ? params.questionId.trim() : ''
+  const ans = typeof params.answerValue === 'string' ? params.answerValue.trim() : ''
+  if (qid) body.question_id = qid
+  if (ans) body.answer_value = ans
   void fetch('/api/scrape-sync', {
     method: 'POST',
     credentials: 'include',

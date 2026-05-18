@@ -170,6 +170,9 @@ export function DiscoveryTakeover({
           category: journeyId,
           profileData: profileData ?? { postcode: pc },
           lifestyleShift: true,
+          isAchievementCard: true,
+          questionId: beat.questionId,
+          answerValue,
           bestOfferHint: `Lifestyle shift. User answered: ${answerValue}. Prioritise rail vs flight, EV swap, local holidays — not generic homepages.`,
         })
         try {
