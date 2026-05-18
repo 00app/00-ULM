@@ -98,6 +98,10 @@ import {
   triggerScrapeSyncForCategory,
   type ResearchCategoryCoverageRow,
 } from '@/lib/researchSyncClient'
+import {
+  bootstrapZoneCategoryResearch,
+  zoneNeedsResearchBootstrap,
+} from '@/lib/zone/bootstrapZoneResearch'
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import {
   FloatingNav,
@@ -332,7 +336,9 @@ export default function ZonePage() {
   const [dbConnected, setDbConnected] = useState(true)
   const [dbHealthHint, setDbHealthHint] = useState<string | null>(null)
   const [vmResolved, setVmResolved] = useState(false)
+  const [revealedCardCount, setRevealedCardCount] = useState(0)
   const [engineStatus, setEngineStatus] = useState<ZoneEngineStatus>('idle')
+  const zoneBootstrapRef = useRef(false)
   const [marketContext, setMarketContext] = useState<{
     liveProfilePostcode?: string
     april2026PriceCapGbp?: number
@@ -398,6 +404,8 @@ export default function ZonePage() {
     setPatternShiftJourneyId(null)
     setIsZoneVisible(true)
     setCleanBirthRevealKey((k) => k + 1)
+    setRefreshKey((k) => k + 1)
+    setVmSyncStamp(Date.now())
   }, [])
 
   // Recovery guard: if global focus state is stale but no local expanded card/tip exists,
@@ -825,6 +833,45 @@ export default function ZonePage() {
 
   const proseRepairRequestedRef = useRef(false)
   const zoneResearchSeedRef = useRef(false)
+
+  /** When GET scrape-sync returns empty £ rows, seed core categories in the background. */
+  useEffect(() => {
+    if (!hydrated || scrapePostcode.length < 4 || zoneBootstrapRef.current) return
+    if (!vmResolved) return
+    if (
+      !zoneNeedsResearchBootstrap({
+        coverage: researchCategoryCoverage,
+        savingAmountGbp: researchMeta?.savingAmountGbp,
+        verifiedSaving: researchMeta?.verifiedSaving,
+      })
+    ) {
+      return
+    }
+    zoneBootstrapRef.current = true
+    const pf = readProfileFieldsFromStorage()
+    bootstrapZoneCategoryResearch({
+      postcode: scrapePostcode,
+      profileData: {
+        postcode: scrapePostcode,
+        home_type: pf.home_type,
+        transport_baseline: pf.transport_baseline,
+        household: pf.household,
+        employment_status: pf.employment_status,
+      },
+    })
+    const pollTimers = [14_000, 32_000, 55_000].map((ms) =>
+      window.setTimeout(() => setRefreshKey((k) => k + 1), ms)
+    )
+    return () => pollTimers.forEach((t) => window.clearTimeout(t))
+  }, [
+    hydrated,
+    scrapePostcode,
+    vmResolved,
+    researchCategoryCoverage,
+    researchMeta?.savingAmountGbp,
+    researchMeta?.verifiedSaving,
+  ])
+
   useEffect(() => {
     if (!hydrated || scrapePostcode.length < 4 || zoneResearchSeedRef.current) return
     const cov = researchCategoryCoverage
@@ -970,7 +1017,7 @@ export default function ZonePage() {
         setPinnedAchievements((prev) => [...prev.filter((c) => c.id !== detail.id), detail])
         window.setTimeout(() => {
           setPinnedAchievements((prev) => prev.filter((c) => c.id !== detail.id))
-        }, 12000)
+        }, 120_000)
       }
       setDiscoverySnapTipId(detail.id)
       window.setTimeout(() => setDiscoverySnapTipId((id) => (id === detail.id ? null : id)), 950)
@@ -1435,7 +1482,7 @@ export default function ZonePage() {
     if (architecturalPulsePhase !== 'done' && architecturalPulsePhase !== 'punch') return
     const settle = () => {
       if (typeof window === 'undefined') return
-      if (window.scrollY > 80) {
+      if (window.scrollY > 160) {
         setPinnedAchievements([])
       }
     }
@@ -1478,7 +1525,58 @@ export default function ZonePage() {
     vmResolved &&
     architecturalPulsePhase === 'done' &&
     !patternShiftJourneyId
-  const zoneRevealCount = displayItems.length
+  const zoneWallCollapsed =
+    (architecturalPulsePhase === 'pulse' && !patternShiftJourneyId) ||
+    (!vmResolved && architecturalPulsePhase === 'done')
+  const showWallLoader =
+    isZoneVisible &&
+    !patternShiftJourneyId &&
+    (zoneWallCollapsed || (!vmResolved && architecturalPulsePhase === 'done'))
+  const zoneRevealCount = Math.min(revealedCardCount, displayItems.length)
+
+  useEffect(() => {
+    if (!isZoneVisible || architecturalPulsePhase !== 'done') {
+      setRevealedCardCount(0)
+      return
+    }
+    if (displayItems.length === 0) return
+    setRevealedCardCount(1)
+    let n = 1
+    const stepMs = Math.max(72, ZONE_GRID_STAGGER_CHILD_DELAY_SEC * 1000 * 3)
+    const id = window.setInterval(() => {
+      n += 1
+      setRevealedCardCount(n)
+      if (n >= displayItems.length) window.clearInterval(id)
+    }, stepMs)
+    return () => window.clearInterval(id)
+  }, [
+    isZoneVisible,
+    architecturalPulsePhase,
+    displayItems.length,
+    cleanBirthRevealKey,
+    summaryGridStaggerKey,
+  ])
+
+  const rockOfferByJourney = useMemo(() => {
+    const out: Partial<Record<JourneyId, string>> = {}
+    const cov = researchCategoryCoverage
+    if (!cov) return out
+    for (const jid of JOURNEY_ORDER) {
+      const row = cov[jid]
+      const url = row?.latestOfferUrl?.trim() || row?.latestSourceUrl?.trim()
+      if (url?.startsWith('https://')) out[jid] = url
+    }
+    return out
+  }, [researchCategoryCoverage])
+
+  const rockHabitsWithOffers = useMemo(
+    () =>
+      rockVisibleHabits.map((h) => {
+        const url = rockOfferByJourney[h.journey_key]
+        return url ? { ...h, learn_url: url } : h
+      }),
+    [rockVisibleHabits, rockOfferByJourney]
+  )
 
   const openNextJourneyFromExpanded = useCallback(
     (jid: JourneyId) => {
@@ -1643,6 +1741,27 @@ export default function ZonePage() {
         </motion.div>
         ) : null}
 
+        {showWallLoader ? (
+          <motion.div
+            className="zone-wall-loader"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={STACCATO_TWEEN}
+            aria-live="polite"
+          >
+            <LoadingHeartbeat active />
+            {engineStatus !== 'idle' ? (
+              <p className="zone-engine-hydration-status m-0" style={{ color: 'var(--color-yellow)' }}>
+                {ZONE_ENGINE_HYDRATION_LABELS[engineStatus]}
+              </p>
+            ) : !vmResolved ? (
+              <p className="zone-engine-hydration-status m-0" style={{ color: 'var(--color-yellow)' }}>
+                CONNECTING GEMINI
+              </p>
+            ) : null}
+          </motion.div>
+        ) : null}
+
         {(architecturalPulsePhase === 'pulse' || architecturalPulsePhase === 'punch') &&
         !patternShiftJourneyId ? (
           <ArchitecturalPulse
@@ -1654,8 +1773,16 @@ export default function ZonePage() {
         {/* 2. BENTO WALL — hidden until Clean Birth reveal; summary handoff pre-renders under pulse */}
         {isZoneVisible ? (
         <motion.div
-          className={`zone-container${architecturalPulsePhase === 'pulse' && !patternShiftJourneyId ? ' zone-container--pulse-prerender' : ''}`}
-          aria-hidden={architecturalPulsePhase === 'pulse' && !patternShiftJourneyId}
+          className={[
+            'zone-container',
+            architecturalPulsePhase === 'pulse' && !patternShiftJourneyId
+              ? 'zone-container--pulse-prerender'
+              : '',
+            zoneWallCollapsed ? 'zone-container--wall-collapsed' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-hidden={zoneWallCollapsed}
         >
           <motion.div
             key={`zone-grid-${summaryGridStaggerKey}-${cleanBirthRevealKey}`}
@@ -1680,7 +1807,7 @@ export default function ZonePage() {
             data-profile-postcode={scrapePostcode}
             data-vm-sync={String(vmSyncStamp)}
             data-research-loading={researchLoading ? '1' : '0'}
-            className={`groovy-zone-grid mx-auto ${localJustLoaded ? 'zone-grid-local-shiver' : ''}`}
+            className={`groovy-zone-grid mx-auto${zoneWallCollapsed ? '' : ' groovy-zone-grid--revealing'} ${localJustLoaded ? 'zone-grid-local-shiver' : ''}`}
             variants={{
               initial: {},
               animate: {
@@ -2158,10 +2285,9 @@ export default function ZonePage() {
 
         {/* The Rock — heartbeat above Saving Tips while master wall hydrates */}
         {isZoneVisible && !expandedCardId && !expandedTipId && (
-          <motion.div className="w-full mt-8 mb-24">
-            <LoadingHeartbeat active={researchLoading} />
+          <motion.div className="w-full mt-3 mb-10 px-0">
             <RockSavingTips
-              habits={rockVisibleHabits}
+              habits={rockHabitsWithOffers}
               likedCardIds={state.likedCards}
               onOpenTip={(id) => {
                 if (!zoneInteractable) return
@@ -2316,11 +2442,6 @@ export default function ZonePage() {
             hasNewTipForZai={!!scraped && Object.keys(scraped).length > 0}
           />
         )}
-        {vmResolved && engineStatus !== 'idle' ? (
-          <p className="zone-engine-hydration-status zone-engine-hydration-strip m-0" aria-live="polite">
-            {ZONE_ENGINE_HYDRATION_LABELS[engineStatus]}
-          </p>
-        ) : null}
         <ZoneIntelligenceStrip
           variant="zone"
           suppressOverlay={Boolean(expandedCardId || expandedTipId)}

@@ -3,7 +3,12 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { generateGatewayText, RESEARCH_GATEWAY_MODEL_CHAIN } from '@/lib/intelligence/aiGateway'
+import { generateResearchText, RESEARCH_GATEWAY_MODEL_CHAIN } from '@/lib/intelligence/aiGateway'
+import { isDeepLinkedUkOfferUrl } from '@/lib/zone/urlShield'
+import {
+  normalizeCategoryToJourneyKey,
+  trustedUrlForJourney,
+} from '@/lib/zone/trustedJourneyUrls'
 import { getDbPool } from '@/lib/db'
 import { getFirecrawlApiKey, OFGEM_LIVE_PRICE_CAP_URL } from '@/lib/agents/scraper'
 import {
@@ -372,6 +377,26 @@ async function buildDynamicLocalitySeedUrls(
   return seeds
 }
 
+function extractHttpsCitationsFromMarkdown(
+  text: string,
+  sourceName: string
+): ResearchCitation[] {
+  const seen = new Set<string>()
+  const out: ResearchCitation[] = []
+  for (const m of text.matchAll(/https:\/\/[^\s)\]"'<>]+/gi)) {
+    const url = m[0].replace(/[.,;]+$/, '')
+    if (!url.startsWith('https://') || seen.has(url)) continue
+    seen.add(url)
+    out.push({
+      source_name: sourceName,
+      url,
+      snippet: text.slice(0, 280),
+      title: sourceName,
+    })
+  }
+  return out
+}
+
 /**
  * Gemini-only UK energy research when Firecrawl markdown is thin or missing a headline.
  */
@@ -402,7 +427,7 @@ Return markdown only (no JSON, no code fences).`
 
   try {
     const tag = params.category?.trim().toLowerCase() || 'energy-recovery'
-    const { text: raw } = await generateGatewayText({
+    const { text: raw } = await generateResearchText({
       prompt,
       tag,
       maxOutputTokens: 2048,
@@ -410,16 +435,26 @@ Return markdown only (no JSON, no code fences).`
     })
     const text = raw.trim()
     if (text.length < 80) return null
+    const journeyKey = normalizeCategoryToJourneyKey(cat ?? 'home')
+    const parsed = extractHttpsCitationsFromMarkdown(text, 'Gemini deep search')
+    const deepCites = parsed.filter((c) => isDeepLinkedUkOfferUrl(c.url))
+    const citationUrl = params.lifestyleShift
+      ? trustedUrlForJourney(journeyKey)
+      : PRICE_CAP_SOURCE_URL
+    const citations =
+      deepCites.length > 0
+        ? deepCites
+        : [
+            {
+              source_name: 'Gemini deep search',
+              url: citationUrl,
+              snippet: text.slice(0, 320),
+              title: params.lifestyleShift ? `${cat} pattern shift` : 'UK energy recovery pass',
+            },
+          ]
     return {
       markdown: `## Deep Gemini search (UK energy)\n\n${text}`,
-      citations: [
-        {
-          source_name: 'Gemini deep search',
-          url: PRICE_CAP_SOURCE_URL,
-          snippet: text.slice(0, 320),
-          title: 'UK energy recovery pass',
-        },
-      ],
+      citations,
     }
   } catch (e) {
     console.warn(
@@ -656,7 +691,7 @@ Markdown:
 ${markdown.slice(0, 28_000)}`
   try {
     const tag = normalizeResearchCategory(options?.categoryHint ?? '') || 'architect-triplet'
-    const { text } = await generateGatewayText({
+    const { text } = await generateResearchText({
       prompt,
       tag,
       maxOutputTokens: 1536,

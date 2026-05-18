@@ -9,7 +9,7 @@ export const TRUSTED_JOURNEY_URLS: Record<JourneyId, string> = {
   home: 'https://www.gov.uk/government/publications/warm-homes-plan',
   grants: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
   solar: 'https://www.gov.uk/government/publications/solar-energy-uk',
-  travel: 'https://www.gov.uk/ev-chargepoint-grants',
+  travel: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
   holidays: 'https://www.eurostar.com',
   food: 'https://www.lovefoodhatewaste.com',
   shopping: 'https://ellenmacarthurfoundation.org',

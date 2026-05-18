@@ -1,6 +1,9 @@
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
-import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
+import {
+  getDiscoveryRecommendation,
+  type DiscoveryRecommendation,
+} from '@/lib/brains/recommendations'
 import { buildAchievementDiscoveryCard } from '@/lib/zone/achievementDiscoveryCard'
 import {
   getJourneyAnswerRowId,
@@ -75,19 +78,41 @@ export type ScrapeSyncAchievementResult = {
   parent_answer_id: string | null
 }
 
-export function urlShieldFromCitations(
+function recommendationDeepUrl(rec: DiscoveryRecommendation | null): string | null {
+  for (const u of [rec?.ctaUrl, rec?.actionUrl, rec?.learnUrl]) {
+    const candidate = typeof u === 'string' ? u.trim() : ''
+    if (candidate && isDeepLinkedUkOfferUrl(candidate)) return candidate
+  }
+  return null
+}
+
+/** Citation-first; lifestyle-shift cards accept curated recommendation URLs when Gemini cites Ofgem only. */
+export function urlShieldForAchievement(
   citations: ResearchCitationLike[],
-  journeyKey: JourneyId = 'home'
+  journeyKey: JourneyId = 'home',
+  rec: DiscoveryRecommendation | null = null
 ): ScrapeSyncAchievementResult['url_shield'] {
   const rawUrl = pickPrimaryResearchUrl(citations)
-  const { offerUrl, sourceUrl } = shieldUrlPair(rawUrl, rawUrl, journeyKey)
-  const urlOk = rawUrl != null && isDeepLinkedUkOfferUrl(rawUrl)
+  const recUrl = recommendationDeepUrl(rec)
+  const citationOk = rawUrl != null && isDeepLinkedUkOfferUrl(rawUrl)
+  const offerUrl = citationOk ? rawUrl! : recUrl ?? shieldUrlPair(rawUrl, rawUrl, journeyKey).offerUrl
+  const sourceUrl = citationOk
+    ? rawUrl!
+    : recUrl ?? shieldUrlPair(rawUrl, rawUrl, journeyKey).sourceUrl
+  const urlOk = citationOk || recUrl != null
   return {
     ok: urlOk,
     retry_recommended: !urlOk,
     offer_url: offerUrl,
     source_url: sourceUrl,
   }
+}
+
+export function urlShieldFromCitations(
+  citations: ResearchCitationLike[],
+  journeyKey: JourneyId = 'home'
+): ScrapeSyncAchievementResult['url_shield'] {
+  return urlShieldForAchievement(citations, journeyKey, null)
 }
 
 export async function maybeBirthAchievementFromScrapeSync(params: {
@@ -108,9 +133,6 @@ export async function maybeBirthAchievementFromScrapeSync(params: {
     JOURNEY_ORDER.includes(params.category as JourneyId) ? params.category : 'home'
   ) as JourneyId
 
-  const urlShield = urlShieldFromCitations(params.citations, journeyKey)
-  const urlOk = urlShield.ok
-
   let parentAnswerId = normalizeParentAnswerId(
     typeof params.body.parent_answer_id === 'string' ? params.body.parent_answer_id : null
   )
@@ -119,6 +141,9 @@ export async function maybeBirthAchievementFromScrapeSync(params: {
     params.loopQuestionId && params.loopAnswer
       ? getDiscoveryRecommendation(journeyKey, params.loopQuestionId, params.loopAnswer)
       : null
+
+  const urlShield = urlShieldForAchievement(params.citations, journeyKey, rec)
+  const urlOk = urlShield.ok
 
   const title =
     rec?.headline?.trim() ||

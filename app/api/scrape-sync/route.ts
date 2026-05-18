@@ -35,10 +35,11 @@ import {
 import { foldCoverageRowsForZone, researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import { GARY_RESEARCH_USER_ID } from '@/lib/zone/garyMode'
 import { ensureGaryDemoUser } from '@/lib/db/ensureGaryDemoUser'
+import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import {
   isLifestyleShiftMode,
   maybeBirthAchievementFromScrapeSync,
-  urlShieldFromCitations,
+  urlShieldForAchievement,
 } from '@/lib/zone/scrapeSyncLifestyle'
 
 export const dynamic = 'force-dynamic'
@@ -926,9 +927,13 @@ export async function POST(request: NextRequest) {
       const journeyForShield = (
         JOURNEY_ORDER.includes(category as JourneyId) ? category : 'home'
       ) as JourneyId
+      const loopRec =
+        loopQuestionId && loopAnswer
+          ? getDiscoveryRecommendation(journeyForShield, loopQuestionId, loopAnswer)
+          : null
       const urlShield =
         lifestyleShift || body.is_achievement_card === true
-          ? urlShieldFromCitations(citationsPayload, journeyForShield)
+          ? urlShieldForAchievement(citationsPayload, journeyForShield, loopRec)
           : null
       let achievement: Awaited<ReturnType<typeof maybeBirthAchievementFromScrapeSync>> = null
       let achievementError: string | null = null
@@ -958,6 +963,13 @@ export async function POST(request: NextRequest) {
         parent_answer_id: achievement?.parent_answer_id ?? null,
         url_shield: achievement?.url_shield ?? urlShield,
         achievement_card: achievement?.achievement_card ?? null,
+        achievement_card_summary: achievement?.achievement_card
+          ? {
+              id: achievement.achievement_card.id,
+              title: achievement.achievement_card.title,
+              journey_key: achievement.achievement_card.journey_key,
+            }
+          : null,
         achievement: achievement
           ? { persisted: achievement.persisted, id: achievement.achievement_card?.id }
           : null,

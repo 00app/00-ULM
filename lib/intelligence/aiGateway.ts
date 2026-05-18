@@ -81,7 +81,24 @@ export type GatewayGenerateParams = {
 }
 
 /**
- * Generate text via Vercel AI Gateway with model failover, or direct Gemini if gateway unset.
+ * Research / scrape-sync / architect triplet — direct Gemini by default (no Vercel AI Gateway hop).
+ * RESEARCH_FORCE_DIRECT_GEMINI=false re-enables gateway for research (not recommended).
+ */
+export async function generateResearchText(params: GatewayGenerateParams): Promise<{
+  text: string
+  modelId: string
+  viaGateway: boolean
+}> {
+  const forceDirect = process.env.RESEARCH_FORCE_DIRECT_GEMINI?.trim().toLowerCase() !== 'false'
+  if (forceDirect) {
+    const primary = RESEARCH_GATEWAY_MODEL_CHAIN[0] ?? 'google/gemini-2.5-pro'
+    return generateViaDirectGemini(params, primary)
+  }
+  return generateGatewayText(params)
+}
+
+/**
+ * Vercel AI Gateway + failover — use for Ask Zai / chat, not heavy scrape-sync research.
  */
 export async function generateGatewayText(params: GatewayGenerateParams): Promise<{
   text: string

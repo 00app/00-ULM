@@ -159,24 +159,40 @@ export function getDiscoveryRecommendation(
   }
 
   if (questionId === 'lifestyle_shift_pattern') {
+    if (
+      a.includes('RAIL') ||
+      a.includes('TRAIN') ||
+      a === 'RAIL_NOT_FLIGHT' ||
+      a.includes('NOT_FLIGHT')
+    ) {
+      return {
+        headline: 'RAIL NOT FLIGHT',
+        body: 'Pattern arbitrage: rail season tickets + UK breaks vs one annual flight — often £3k+ saved on the same miles.',
+        gridJourneyKey: 'travel',
+        learnUrl: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
+        actionUrl: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
+        ctaLabel: 'See railcards',
+        ctaUrl: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
+      }
+    }
     if (a.includes('YES') || a.includes('SHOW') || a.includes('MAYBE')) {
       return {
         headline: 'RAIL + LOCAL SHIFT',
         body: 'Pattern arbitrage: rail season + local breaks vs one annual flight — often £3k+ saved.',
         gridJourneyKey: 'travel',
-        learnUrl: 'https://www.nationalrail.co.uk/',
-        actionUrl: 'https://www.nationalrail.co.uk/',
+        learnUrl: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
+        actionUrl: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
         ctaLabel: 'See rail',
-        ctaUrl: 'https://www.nationalrail.co.uk/',
+        ctaUrl: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
       }
     }
     return {
       headline: 'KEEP YOUR PATTERN',
       body: 'Staying on flights? Pick direct routes and off-peak legs to trim cost without full swap.',
       gridJourneyKey: 'travel',
-      learnUrl: 'https://www.gov.uk/',
-      ctaLabel: 'GOV.UK hub',
-      ctaUrl: 'https://www.gov.uk/',
+      learnUrl: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
+      ctaLabel: 'Compare rail',
+      ctaUrl: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
     }
   }
 
