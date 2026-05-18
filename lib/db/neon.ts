@@ -464,22 +464,83 @@ export async function getTopUnspentUsersForPulse(
 /**
  * Persist a birthed discovery card for audit / analytics (table may be absent on older DBs).
  */
+export type DiscoveryInjectionMeta = {
+  journey_key?: string | null
+  question_id?: string | null
+  answer_value?: string | null
+  is_achievement_card?: boolean
+  parent_answer_id?: string | null
+  lifestyle_mode?: string | null
+}
+
+/** Normalized journey_answers row id after takeover / loop answer persist. */
+export async function getJourneyAnswerRowId(
+  userId: string,
+  journeyKey: string,
+  questionKey: string
+): Promise<string | null> {
+  const pool = getDbPool()
+  const uid = userId?.trim()
+  const jk = journeyKey?.trim().toLowerCase()
+  const qk = questionKey?.trim()
+  if (!uid || !jk || !qk) return null
+  try {
+    const res = await pool.query<{ id: string }>(
+      `SELECT id FROM journey_answers
+       WHERE user_id = $1::uuid AND journey_key = $2 AND question_key = $3
+       LIMIT 1`,
+      [uid, jk, qk]
+    )
+    return res.rows[0]?.id ?? null
+  } catch {
+    return null
+  }
+}
+
 export async function persistDiscoveryInjection(
   userId: string,
   cardId: string,
   payload: unknown,
-  source?: string | null
+  source?: string | null,
+  meta?: DiscoveryInjectionMeta
 ): Promise<void> {
   const pool = getDbPool()
   const id = String(cardId || 'unknown').slice(0, 256)
+  const jk = meta?.journey_key?.trim().toLowerCase().slice(0, 64) ?? null
+  const qid = meta?.question_id?.trim().slice(0, 128) ?? null
+  const ans = meta?.answer_value?.trim().slice(0, 512) ?? null
+  const achievement = meta?.is_achievement_card === true
+  const parentAnswerId = meta?.parent_answer_id?.trim() || null
+  const lifestyleMode = meta?.lifestyle_mode?.trim().slice(0, 64) || null
+  const payloadJson = JSON.stringify(payload ?? {})
+  const src = source ? String(source).slice(0, 120) : null
   try {
     await pool.query(
-      `INSERT INTO discovery_injections (user_id, card_id, payload, source)
-       VALUES ($1, $2, $3::jsonb, $4)`,
-      [userId, id, JSON.stringify(payload ?? {}), source ? String(source).slice(0, 120) : null]
+      `INSERT INTO discovery_injections (
+         user_id, card_id, payload, source, journey_key, question_id, answer_value,
+         is_achievement_card, parent_answer_id, lifestyle_mode
+       )
+       VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9::uuid, $10)`,
+      [userId, id, payloadJson, src, jk, qid, ans, achievement, parentAnswerId, lifestyleMode]
     )
   } catch {
-    /* table missing or constraint */
+    try {
+      await pool.query(
+        `INSERT INTO discovery_injections (user_id, card_id, payload, source, journey_key, question_id, answer_value)
+         VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7)`,
+        [userId, id, payloadJson, src, jk, qid, ans]
+      )
+    } catch {
+      try {
+        await pool.query(
+          `INSERT INTO discovery_injections (user_id, card_id, payload, source)
+           VALUES ($1, $2, $3::jsonb, $4)`,
+          [userId, id, payloadJson, src]
+        )
+      } catch {
+        /* table missing or constraint */
+      }
+    }
   }
 }
 
@@ -496,7 +557,7 @@ export async function countDiscoveryInjectionsForUserJourney(
       `SELECT COUNT(*)::text AS c
        FROM discovery_injections
        WHERE user_id = $1::uuid
-         AND LOWER(COALESCE(payload->>'journey_key', '')) = $2`,
+         AND LOWER(COALESCE(journey_key, payload->>'journey_key', '')) = $2`,
       [userId, jk]
     )
     const n = Number.parseInt(res.rows[0]?.c ?? '0', 10)

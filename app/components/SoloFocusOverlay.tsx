@@ -27,7 +27,7 @@ import {
   parseMoneyGbpFromImpactDisplay,
   parseCarbonKgFromImpactDisplay,
 } from '@/lib/soloFocusImpactParse'
-import { EmbeddedJourneyQuestion } from '@/app/components/EmbeddedJourneyQuestion'
+import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 import type { ZoneTipCard } from '@/lib/logic/zone'
 import { useApp } from '@/app/context/AppContext'
@@ -95,6 +95,8 @@ export interface SoloFocusOverlayProps {
   /** Verified provider short name from Zone view model / Content Architect */
   architectSuppliedBy?: string | null
   onClose: () => void
+  /** Close chevron → dismiss overlay, then pattern-shift takeover on Zone shell. */
+  onPatternShiftClose?: (journeyId: JourneyId) => void
   onAskZai?: () => void
   cardId?: string
   onLike?: (id: string, title?: string, moneyGbp?: number) => void
@@ -147,6 +149,7 @@ export function SoloFocusOverlay({
   sourceLabel,
   architectSuppliedBy = null,
   onClose,
+  onPatternShiftClose,
   onAskZai,
   cardId,
   onLike,
@@ -217,6 +220,7 @@ export function SoloFocusOverlay({
   /** Pulse 3 — pink high-impact discovery card rebirth after final answer. */
   const [discoveryRebirthTip, setDiscoveryRebirthTip] = useState(false)
   const [rebirthDiscoveryTitle, setRebirthDiscoveryTitle] = useState<string | null>(null)
+  const [askZaiDeepDiveOpen, setAskZaiDeepDiveOpen] = useState(false)
 
   useEffect(() => {
     const core = cardId ?? journeyId ?? 'solo-overlay'
@@ -566,7 +570,7 @@ export function SoloFocusOverlay({
     return () => clearTimeout(t)
   }, [viewState, discoverySnap, discoverySnap?.questionId, discoverySnap?.answerValue])
 
-  const handleClose = useCallback(() => {
+  const finishClose = useCallback(() => {
     triggerHaptic('medium')
     setResultCitation(null)
     setLiveClaimUrl(null)
@@ -575,9 +579,9 @@ export function SoloFocusOverlay({
     setDiscoveryWinLine(null)
     setBirthedZoneTitle(null)
     setGridContext(null)
-    setViewState('QUESTION')
-    setMorphedCardsQueue([]) // clear queue on close
-    setActiveSiblingIndex(0) // reset index
+    setViewState('RESULT')
+    setMorphedCardsQueue([])
+    setActiveSiblingIndex(0)
     setResearchAttribution(null)
     setSoloEmbedQuestionLabel(null)
     setLoopZipCollapsing(false)
@@ -592,6 +596,81 @@ export function SoloFocusOverlay({
     }
     onClose()
   }, [onClose, sfStorageKey])
+
+  const loopJourneyKey = (displayJourneyId ?? journeyId ?? normalizeCategoryToJourneyKey(category)) as JourneyId
+
+  const requestClose = useCallback(() => {
+    triggerHaptic('medium')
+    onPatternShiftClose?.(loopJourneyKey)
+    onClose()
+  }, [loopJourneyKey, onPatternShiftClose, onClose])
+
+  const handleTrinityLike = useCallback(() => {
+    triggerHaptic('medium')
+    const id = String(activeCardId || cardId || '')
+    if (!id) return
+    const likeFn = onLike ?? toggleLike
+    likeFn(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
+  }, [activeCardId, cardId, onLike, toggleLike, displayTitle, displayMoneyValue])
+
+  const handleTrinityAskZai = useCallback(() => {
+    triggerHaptic('medium')
+    setAskZaiDeepDiveOpen(true)
+  }, [])
+
+  const submitDeepDiveQuestion = useCallback(
+    async (question: string) => {
+      const allAnswers: Record<string, Record<string, string>> = {}
+      if (typeof window !== 'undefined') {
+        try {
+          const keys = Object.keys(localStorage).filter(
+            (k) => k.startsWith('journey_') && k.endsWith('_answers')
+          )
+          keys.forEach((k) => {
+            const jid = k.replace('journey_', '').replace('_answers', '')
+            allAnswers[jid] = JSON.parse(localStorage.getItem(k) || '{}')
+          })
+        } catch {
+          /* ignore */
+        }
+      }
+      setAskZaiContext({
+        category: displayCategory,
+        personalSpend: String(displayMoneyValue).replace(/^£\s*/, '').trim() || '0',
+        regionalAvg: String(displayCarbonValue).replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0',
+        question: buildSoloFocusAskZaiQuestion(displayTitle, question),
+        journey_question_label: question,
+        userContext: userContextSnap,
+        scraped_source: sourceLabel || sourceUrl || '',
+        journey_answers_jsonb: allAnswers,
+      })
+      await fetch('/api/research/question-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          question,
+          category: loopJourneyKey,
+          journey_key: loopJourneyKey,
+          headline: recommendationTitle,
+          postcode: profilePostcode ?? state.profile?.postcode,
+        }),
+      }).catch(() => {})
+    },
+    [
+      displayCategory,
+      displayMoneyValue,
+      displayCarbonValue,
+      displayTitle,
+      userContextSnap,
+      sourceLabel,
+      sourceUrl,
+      loopJourneyKey,
+      recommendationTitle,
+      profilePostcode,
+      state.profile?.postcode,
+    ]
+  )
 
   const discovery =
     discoverySnap != null && journeyId
@@ -723,6 +802,9 @@ export function SoloFocusOverlay({
                   ctaUrl={soloHandoff.ctaUrl}
                   ctaJourneyId={journeyId}
                   ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : effectiveHandoffLabel}
+                  isLiked={isLiked}
+                  onLike={handleTrinityLike}
+                  onAskZai={handleTrinityAskZai}
                 />
               </div>
               </div>
@@ -735,7 +817,7 @@ export function SoloFocusOverlay({
                   type="button"
                   aria-label="Close"
                   className="solo-focus-close-circle"
-                  onClick={handleClose}
+                  onClick={requestClose}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -744,679 +826,35 @@ export function SoloFocusOverlay({
                 >
                   <BackArrowDownLeft size={24} />
                 </motion.button>
-                {((activeCardId || cardId) || onAskZai) ? (
-                  <motion.div
-                    className="solo-focus-utility-row flex flex-col items-end justify-start shrink-0"
-                    style={{ gap: 20 }}
-                    variants={FADE_VARIANTS}
-                  >
-                    {(activeCardId || cardId) && (
-                      <motion.button
-                        type="button"
-                        className="circle-btn solo-focus-action-btn solo-focus-action-80 zz-shimmer-cta"
-                        onClick={() => {
-                          triggerHaptic('medium')
-                          const id = String(activeCardId || cardId)
-                          const likeFn = onLike ?? toggleLike
-                          likeFn(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
-                        }}
-                        transition={INDUSTRIAL_OPACITY_SNAP}
-                        aria-label="Like"
-                        style={{
-                          backgroundColor: isLiked
-                            ? 'var(--journey-cta-text)'
-                            : 'var(--journey-cta-bg)',
-                          color: isLiked ? 'var(--journey-cta-bg)' : 'var(--journey-cta-text)',
-                        }}
-                      >
-                        <svg width={18} height={18} viewBox="0 0 24 24" fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                        </svg>
-                      </motion.button>
-                    )}
-                    {onAskZai && (
-                      <motion.button
-                        type="button"
-                        className="circle-btn solo-focus-action-btn solo-focus-action-80 solo-focus-ask-zai-btn zz-shimmer-cta"
-                        onClick={() => {
-                          triggerHaptic('medium')
-                          const allAnswers: Record<string, any> = {}
-                          if (typeof window !== 'undefined') {
-                            try {
-                              const keys = Object.keys(localStorage).filter(k => k.startsWith('journey_') && k.endsWith('_answers'))
-                              keys.forEach(k => {
-                                const jid = k.replace('journey_', '').replace('_answers', '')
-                                allAnswers[jid] = JSON.parse(localStorage.getItem(k) || '{}')
-                              })
-                            } catch {}
-                          }
-                          const trapQuestion = !trapComplete && discoveryFollowUp?.question?.trim() ? discoveryFollowUp.question.trim() : ''
-                          const zaiLabel = soloEmbedQuestionLabel?.trim() || trapQuestion || null
-                          setAskZaiContext({
-                            category: displayCategory,
-                            personalSpend: String(displayMoneyValue).replace(/^£\s*/, '').trim() || '0',
-                            regionalAvg: String(displayCarbonValue).replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0',
-                            question: buildSoloFocusAskZaiQuestion(displayTitle, zaiLabel),
-                            journey_question_label: zaiLabel,
-                            userContext: userContextSnap,
-                            scraped_source: sourceLabel || sourceUrl || '',
-                            journey_answers_jsonb: allAnswers
-                          })
-                          handleClose()
-                          onAskZai()
-                        }}
-                        transition={INDUSTRIAL_OPACITY_SNAP}
-                        aria-label="Ask Zai about this"
-                      >
-                        <span className="solo-focus-ask-zai-visual" aria-hidden>
-                          <svg
-                            width={18}
-                            height={18}
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden
-                          >
-                            <path d="M21 12a8.5 8.5 0 0 1-8.5 8.5H7l-4 3V12A8.5 8.5 0 0 1 11.5 3.5h1A8.5 8.5 0 0 1 21 12z" />
-                            <circle cx="9.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-                            <circle cx="12.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-                            <circle cx="15.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-                          </svg>
-                        </span>
-                      </motion.button>
-                    )}
-                  </motion.div>
-                ) : null}
               </div>
             </div>
               </motion.div>
           </>
           )}
 
-          {/* Card B: The Gate */}
-          <motion.div
-            className="solo-focus-shell solo-focus-child w-full flex flex-col items-start rounded-[60px] p-[40px]"
-            style={{
-              transformOrigin: 'top center',
-              willChange: 'transform',
-            }}
-            {...soloFocusSlamMotionProps(reducePagerMotion, false)}
-          >
-            {discoveryFollowUp && !trapComplete ? (
-              <motion.div
-                className="solo-focus-loop trinity-to-question flex-shrink-0 w-full flex flex-col items-start view-expanded solo-focus-trap-block gap-0 pt-0"
-                variants={FADE_VARIANTS}
-                initial={INTRO_FADE_UP_NO_DELAY.initial}
-                animate={INTRO_FADE_UP_NO_DELAY.animate}
-                transition={INTRO_FADE_UP_NO_DELAY.transition}
-              >
-              <h4
-                className="solo-focus-question-label zz-vault-neon-yellow solo-focus-copy-width text-marvin text-left uppercase m-0"
-                style={{
-                  fontFamily: 'var(--font-marvin)',
-                  fontWeight: 700,
-                  fontSize: '30px',
-                }}
-              >
-                {discoveryFollowUp.question}
-              </h4>
-              {discoveryBirthPending ? (
-                <p
-                  className="zz-label m-0 text-left w-full uppercase tracking-wide animate-pulse"
-                  style={{
-                    color: 'var(--journey-text)',
-                    fontSize: 'clamp(12px, 3vw, 14px)',
-                    fontFamily: 'var(--font-label)',
-                  }}
-                >
-                  Targeted scrape running — building your card…
-                </p>
-              ) : null}
-                <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 16, rowGap: 16, justifyContent: 'flex-start', maxWidth: '100%' }}>
-                  {discoveryFollowUp.options.map((opt) => {
-                    const isDense = discoveryFollowUp.options.length > 6
-                    const circleClass = isDense ? 'answer-circle-80' : 'answer-circle-100'
-                    const circleStyle = isDense
-                      ? {
-                          width: 80,
-                          height: 80,
-                          fontSize: 'var(--zz-h4-mobile)',
-                          fontFamily: 'var(--font-marvin)',
-                          fontWeight: 700,
-                          lineHeight: 'var(--zz-lh-heading)',
-                        }
-                      : {
-                          fontSize: 'var(--zz-h4-mobile)',
-                          fontFamily: 'var(--font-marvin)',
-                          fontWeight: 700,
-                          lineHeight: 'var(--zz-lh-heading)',
-                        }
-                    return (
-                    <motion.button
-                      key={opt}
-                      type="button"
-                      disabled={discoveryBirthPending}
-                      className={`solo-focus-answer-option ${circleClass} circle-btn zz-shimmer-cta`}
-                      onClick={() => {
-                      triggerHaptic('medium')
-                      const j = journeyId ?? 'home'
-                      if (typeof window !== 'undefined') {
-                        try {
-                          const sk = `journey_${j}_answers`
-                          const prev = JSON.parse(window.localStorage.getItem(sk) || '{}') as Record<string, string>
-                          window.localStorage.setItem(
-                            sk,
-                            JSON.stringify({ ...prev, [discoveryFollowUp.targetField]: opt })
-                          )
-                          persistUnifiedUserProfileMemory()
-                        } catch {
-                          /* ignore */
-                        }
-                      }
-                      setLoopZipCollapsing(true)
-                      void (async () => {
-                        setDiscoveryBirthPending(true)
-                        try {
-                          const res = await fetch('/api/answers', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({
-                              journey_key: j,
-                              question_key: discoveryFollowUp.targetField,
-                              answer_value: opt,
-                            }),
-                          })
-                          const data = res.ok ? await res.json().catch(() => null) : null
-
-                          const injectRes = await fetch('/api/zone/injections', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({
-                              journey_key: j,
-                              question_key: discoveryFollowUp.targetField,
-                              answer_value: opt,
-                              postcode: profilePostcode ?? undefined,
-                            }),
-                          })
-                          const injectData = injectRes.ok ? await injectRes.json().catch(() => null) : null
-                          const zoneCard = injectData?.discovery?.new_card_data
-                          if (zoneCard && typeof zoneCard === 'object' && zoneCard !== null && 'id' in zoneCard) {
-                            injectNewDiscoveryCard(zoneCard)
-                          }
-
-                          if (
-                            data?.newTotals &&
-                            typeof data.newTotals.totalMoney === 'number' &&
-                            typeof data.newTotals.totalCarbon === 'number'
-                          ) {
-                            setHeroTotalsOverride({
-                              money: Math.max(0, Math.round(data.newTotals.totalMoney)),
-                              carbon: Math.max(0, Math.round(data.newTotals.totalCarbon)),
-                            })
-                            setHeroTotals({
-                              totalMoney: data.newTotals.totalMoney,
-                              totalCarbon: data.newTotals.totalCarbon,
-                            })
-                          }
-                          const cite = data?.sourceCitation as { label?: string; url?: string } | undefined
-                          if (cite && typeof cite.label === 'string' && cite.label.trim()) {
-                            setResultCitation({
-                              label: cite.label.trim(),
-                              url: typeof cite.url === 'string' ? cite.url : undefined,
-                            })
-                          }
-                          const disc = data?.discovery as { source_url?: string } | undefined
-                          if (typeof disc?.source_url === 'string' && disc.source_url.startsWith('http')) {
-                            setResultCitation((prev) => prev ?? { label: 'recommended link', url: disc.source_url })
-                          }
-                          if (typeof window !== 'undefined') {
-                            try {
-                              window.localStorage.setItem(`discovery_trap_${discoveryFollowUp.targetField}`, opt)
-                              const sk = `journey_${j}_answers`
-                              const prev = JSON.parse(window.localStorage.getItem(sk) || '{}') as Record<string, string>
-                              window.localStorage.setItem(sk, JSON.stringify({ ...prev, [discoveryFollowUp.targetField]: opt }))
-                              persistUnifiedUserProfileMemory()
-                            } catch {
-                              /* ignore */
-                            }
-                          }
-                        } catch {
-                          /* ignore network errors */
-                        } finally {
-                          setDiscoveryBirthPending(false)
-                        }
-                        syncSessionState()
-                        setTrapComplete(true)
-                        setLoopZipCollapsing(false)
-                        onDiscoveryTrapComplete?.()
-                      })()
-                    }}
-                    style={circleStyle}
-                    transition={INDUSTRIAL_OPACITY_SNAP}
-                  >
-                    {getOptionFullLabel(opt).replace(/\s+/g, '').slice(0, 7).toUpperCase()}
-                  </motion.button>
-                  )
-                })}
-              </div>
-            </motion.div>
-          ) : null}
-
-          {journeyId && onJourneyAnswered && (trapComplete || !discoveryFollowUp) ? (
-            <motion.div
-              className={`solo-focus-loop trinity-to-question flex-shrink-0 w-full flex flex-col items-start view-expanded solo-focus-trap-block${loopZipCollapsing ? ' solo-focus-loop--posting' : ''}`}
-              variants={FADE_VARIANTS}
-            >
-              <>
-                {spawnHandoffBlank ? (
-                  <motion.div
-                    key="solo-focus-spawn-blank"
-                    className="w-full min-h-[180px] rounded-[48px] flex items-center justify-center"
-                    initial={{ opacity: 0, y: 2 }}
-                    animate={{ opacity: 0.45, y: 0 }}
-                    exit={{ opacity: 0, y: 2 }}
-                    transition={{ duration: STACCATO_DURATION_SEC, ease: STACCATO_EASE }}
-                    style={{
-                      backgroundColor: 'color-mix(in srgb, var(--color-purple) 35%, transparent)',
-                    }}
-                    aria-hidden
-                  />
-                ) : viewState === 'RESULT' ? (
-                  <motion.div
-                    key={`overlay-sf-result-${discoverySnap?.questionId ?? 'q'}-${String(discoverySnap?.answerValue ?? '').slice(0, 24)}-${currentMorphData?.id ?? activeCardId ?? 'base'}`}
-                    {...soloFocusSlamMotionProps(reducePagerMotion, false)}
-                    className="flex flex-col items-start w-full gap-0"
-                    style={{ transformOrigin: '50% 50%' }}
-                  >
-                    <h4
-                      className="solo-focus-question-label zz-vault-neon-yellow solo-focus-copy-width text-marvin text-left uppercase m-0"
-                      style={{
-                        fontFamily: 'var(--font-marvin)',
-                        fontWeight: 700,
-                        fontSize: '30px',
-                      }}
-                    >
-                      How we calculated this
-                    </h4>
-                    {journeyId === 'home' ? (
-                      <p
-                        className="zz-body-bold solo-focus-copy-width text-left m-0"
-                        style={{
-                          color: 'var(--journey-text)',
-                          fontFamily: 'var(--font-roboto)',
-                          fontWeight: 800,
-                        }}
-                      >
-                        Save £{PRICE_CAP_SAVING_APRIL_1} on 1 April — typical cap {formatZoneCardMoney(PRICE_CAP_MARCH_2026)}/yr →{' '}
-                        {formatZoneCardMoney(PRICE_CAP_APRIL_2026)}/yr.
-                      </p>
-                    ) : null}
-                    {birthedZoneTitle ? (
-                      <p
-                        className="zz-body-bold solo-focus-copy-width text-left m-0"
-                        style={{
-                          color: 'var(--journey-text)',
-                          fontFamily: 'var(--font-marvin)',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {wrapResultSupportingAsterisks(`We found a new win! ${birthedZoneTitle} is now in your Zone.`)}
-                      </p>
-                    ) : null}
-                    {gridContext?.cleaner_vs_2025_pct != null ? (
-                      <p
-                        className="zz-body-bold solo-focus-copy-width text-left m-0"
-                        style={{ color: 'var(--journey-text)', fontFamily: 'var(--font-roboto)', fontWeight: 800 }}
-                      >
-                        {wrapResultSupportingAsterisks(
-                          `Grid is ${gridContext.cleaner_vs_2025_pct}% cleaner than 2025. Your win just got bigger.`
-                        )}
-                      </p>
-                    ) : null}
-                    {discovery ? (
-                      <>
-                        {discoveryWinLine ? (
-                          <p
-                            className="zz-body-bold solo-focus-copy-width text-left m-0"
-                            style={{
-                              color: 'var(--journey-text)',
-                              fontFamily: 'var(--font-roboto)',
-                              fontWeight: 800,
-                            }}
-                          >
-                            {wrapResultSupportingAsterisks(discoveryWinLine)}
-                          </p>
-                        ) : geminiRecommendationCopy ? (
-                          <p
-                            className="zz-body-bold solo-focus-copy-width text-left m-0"
-                            style={{
-                              color: 'var(--journey-text)',
-                              fontFamily: 'var(--font-roboto)',
-                              fontWeight: 800,
-                            }}
-                          >
-                            {wrapResultSupportingAsterisks(geminiRecommendationCopy)}
-                          </p>
-                        ) : null}
-                        <p className="zz-body-bold solo-focus-copy-width text-left m-0" style={{ color: 'var(--journey-text)' }}>
-                          {wrapResultSupportingAsterisks(
-                            `UK average saving for ${discovery.sav.answerLabel} is £${formatMoneyImpact(Math.round(discovery.sav.gbp))}.`
-                          )}
-                        </p>
-                        {discoveryImpactKg > 0 ? (
-                          <>
-                            <p
-                              className="zz-body-bold solo-focus-copy-width text-left m-0"
-                              style={{
-                                color: 'var(--journey-text)',
-                                fontFamily: 'var(--font-roboto)',
-                                fontWeight: 800,
-                              }}
-                            >
-                              {wrapResultSupportingAsterisks(
-                                `IMPACT: −${
-                                  discoveryImpactKg >= 1000
-                                    ? `${(discoveryImpactKg / 1000).toFixed(1)}T`
-                                    : `${Math.round(discoveryImpactKg)} kg`
-                                } CO₂e`
-                              )}
-                            </p>
-                            <p className="zz-body solo-focus-copy-width text-left m-0 opacity-95" style={{ color: 'var(--journey-text)' }}>
-                              {wrapResultSupportingAsterisks(
-                                `That is the equivalent of planting ${treeEquivalent} trees this year.`
-                              )}
-                            </p>
-                          </>
-                        ) : null}
-                        <p className="zz-body-bold solo-focus-copy-width text-left m-0" style={{ color: 'var(--journey-text)' }}>
-                          {wrapResultSupportingAsterisks(
-                            `${discovery.rec.headline.replace(/_/g, ' ')} — ${discovery.rec.body}`
-                          )}
-                        </p>
-                        <p className="zz-body solo-focus-copy-width text-left m-0 opacity-95" style={{ color: 'var(--journey-text)' }}>
-                          {wrapResultSupportingAsterisks(
-                            `You’re on track — save £${formatMoneyImpact(moneyValue)} and ${formatCarbonImpact(carbonValue).value} ${formatCarbonImpact(carbonValue).unit} from this journey.`
-                          )}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="zz-body-bold solo-focus-copy-width text-left m-0" style={{ color: 'var(--journey-text)' }}>
-                        {wrapResultSupportingAsterisks(
-                          `You’re on track — save £${formatMoneyImpact(moneyValue)} and ${formatCarbonImpact(carbonValue).value} ${formatCarbonImpact(carbonValue).unit} from this move.`
-                        )}
-                      </p>
-                    )}
-                    {journeyId === 'home' ? (
-                      <p
-                        className="zz-body solo-focus-copy-width text-left m-0 opacity-90"
-                        style={{ color: 'var(--journey-text)' }}
-                      >
-                        {wrapResultSupportingAsterisks(
-                          `April 2026 reference unit rates (Ofgem default tariff cap): electricity ${APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH}p/kWh (${APRIL_2026_STANDING_PENCE.ELECTRICITY_PER_DAY}p/day standing); gas ${APRIL_2026_TRUTH_PENCE.GAS_PER_KWH}p/kWh (${APRIL_2026_STANDING_PENCE.GAS_PER_DAY}p/day standing).`
-                        )}
-                      </p>
-                    ) : null}
-                    <p className="zz-body solo-focus-copy-width text-left m-0 opacity-90" style={{ color: 'var(--journey-text)' }}>
-                      Tap the close control to return to your zone.
-                    </p>
-                    {resultCitation && (
-                      <p className="zz-body-small solo-focus-copy-width text-left m-0 opacity-70" style={{ color: 'var(--journey-text)' }}>
-                        Verified via{' '}
-                        {resultCitation.url ? (
-                          <a
-                            href={resultCitation.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ textDecoration: 'underline' }}
-                          >
-                            {resultCitation.label}
-                          </a>
-                        ) : (
-                          resultCitation.label
-                        )}
-                        {resultCitation.verifiedAt ? ` — ${resultCitation.verifiedAt}` : ''}
-                      </p>
-                    )}
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="overlay-solo-focus-question-wrap"
-                    className="w-full flex flex-col items-start"
-                    {...soloFocusSlamMotionProps(reducePagerMotion, false)}
-                    style={{ transformOrigin: '50% 50%' }}
-                  >
-                    {/* Answers POST + background `/api/zone/generate-next` are handled inside EmbeddedJourneyQuestion. */}
-                    <EmbeddedJourneyQuestion
-                      journeyId={journeyId}
-                      sessionLaneKey={String(cardId ?? journeyId ?? 'solo-overlay')}
-                      onClose={handleClose}
-                      onJourneyAnswered={onJourneyAnswered}
-                      triggerHaptic={triggerHaptic}
-                      textColor="var(--journey-text)"
-                      onActiveQuestionLabelChange={setSoloEmbedQuestionLabel}
-                      soloFocusZipShut
-                    onZipShutStart={() => setLoopZipCollapsing(true)}
-                    onZipShutEnd={() => {
-                      // We handle zip open explicitly in onSoloFocusPostSuccess now
-                    }}
-                    onSoloEmbedComplete={() => onSoloEmbedComplete?.(journeyId)}
-                    deferJourneyAnsweredForZipRebirth
-                    onSoloFocusPostSuccess={({
-                      questionId,
-                      answerValue,
-                      discovery,
-                      discovery_win,
-                      new_discovery_card,
-                      grid_context,
-                      morphCards,
-                      userContext,
-                      researchAttribution: ra,
-                      sourceCitation: citeSnap,
-                      hasNextQuestion,
-                      newTotals,
-                      sentinelMotherRefresh: _sentinelMotherRefresh,
-                    }) => {
-                      void _sentinelMotherRefresh
-                      const answeredCountAfter = questionCount + 1
-                      setQuestionCount((c) => c + 1)
-                      const isLoopComplete = answeredCountAfter >= 5 || !hasNextQuestion
-                      if (
-                        newTotals &&
-                        typeof newTotals.totalMoney === 'number' &&
-                        typeof newTotals.totalCarbon === 'number'
-                      ) {
-                        setHeroTotalsOverride({
-                          money: Math.max(0, Math.round(newTotals.totalMoney)),
-                          carbon: Math.max(0, Math.round(newTotals.totalCarbon)),
-                        })
-                      }
-                      if (userContext) setUserContextSnap(userContext)
-                      if (citeSnap && typeof citeSnap.label === 'string' && citeSnap.label.trim()) {
-                        setResultCitation({
-                          label: citeSnap.label.trim(),
-                          url: typeof citeSnap.url === 'string' ? citeSnap.url : undefined,
-                          verifiedAt: typeof citeSnap.verifiedAt === 'string' ? citeSnap.verifiedAt : undefined,
-                        })
-                      }
-                      if (ra && (ra.headline != null || ra.supplied_by != null)) {
-                        setResearchAttribution(ra)
-                      }
-                      const fallbackMorphCard = getNextMorphCard(journeyId, {
-                        postcode: state.profile?.postcode,
-                        homeType: state.profile?.homeType,
-                        transport: state.profile?.transport,
-                        fuelType:
-                          journeyId === 'travel'
-                            ? (state.journeyAnswers?.travel?.fuel_type ?? null)
-                            : journeyId === 'home'
-                              ? (state.journeyAnswers?.home?.energy_type ?? null)
-                              : null,
-                      })
-                      const incomingMorphCards =
-                        morphCards && morphCards.length > 0
-                          ? morphCards
-                          : [fallbackMorphCard]
-                      if (incomingMorphCards.length > 0) {
-                        const prioritized = prioritizeMorphCardsForContext(incomingMorphCards, {
-                          postcode: profilePostcode,
-                          local: state.locationState?.local ?? null,
-                          profile: state.profile,
-                          journeyAnswers: state.journeyAnswers as Record<string, Record<string, string>>,
-                        })
-                        setMorphedCardsQueue((prev) => {
-                          const next = [...prev, prioritized[0]]
-                          setActiveSiblingIndex(next.length)
-                          return next
-                        })
-                      }
-                      const du =
-                        discovery?.source_url && typeof discovery.source_url === 'string'
-                          ? discovery.source_url.trim()
-                          : ''
-                      setLiveClaimUrl(du.startsWith('http') ? du : null)
-                      setDiscoverySnap({ questionId, answerValue })
-                      const win = typeof discovery_win === 'string' ? discovery_win.trim() : ''
-                      setDiscoveryWinLine(win || null)
-                      const born =
-                        typeof new_discovery_card?.title === 'string' ? new_discovery_card.title.trim() : ''
-                      setBirthedZoneTitle(born || null)
-                      if (grid_context && typeof grid_context === 'object') {
-                        setGridContext({
-                          intensity_g_per_kwh:
-                            typeof grid_context.intensity_g_per_kwh === 'number'
-                              ? grid_context.intensity_g_per_kwh
-                              : null,
-                          cleaner_vs_2025_pct:
-                            typeof grid_context.cleaner_vs_2025_pct === 'number'
-                              ? grid_context.cleaner_vs_2025_pct
-                              : null,
-                        })
-                      } else {
-                        setGridContext(null)
-                      }
-                      setGeminiRecommendationCopy(
-                        typeof discovery?.recommendation_copy === 'string' && discovery.recommendation_copy.trim()
-                          ? discovery.recommendation_copy.trim()
-                          : null
-                      )
-                      if (isLoopComplete) {
-                        runSoloFocusAuditCompletionClient({
-                          journeyId: journeyId ?? null,
-                          questionId,
-                          answerValue,
-                          postcode: profilePostcode ?? state.profile?.postcode,
-                          profileData: {
-                            postcode: profilePostcode ?? state.profile?.postcode ?? undefined,
-                            home_type: state.profile?.homeType ?? null,
-                            transport_baseline: state.profile?.transport ?? null,
-                            household: state.profile?.livingSituation ?? null,
-                            employment_status: state.profile?.employmentStatus ?? null,
-                          },
-                          journeyAnswers: state.journeyAnswers as Record<string, Record<string, string>>,
-                        })
-                        const injectPayload =
-                          discovery?.new_card_data ??
-                          (new_discovery_card
-                            ? {
-                                id: new_discovery_card.id,
-                                title: new_discovery_card.title,
-                                journey_key: new_discovery_card.journey_key || journeyId,
-                                data: {
-                                  money: new_discovery_card.value || moneyValue,
-                                  carbon: carbonValue,
-                                },
-                                source: new_discovery_card.source_url || sourceUrl || '',
-                              }
-                            : null)
-                        const birthedId = resolveBirthedCardId({
-                          new_discovery_card,
-                          discovery: discovery
-                            ? {
-                                new_card_data:
-                                  discovery.new_card_data &&
-                                  typeof discovery.new_card_data === 'object'
-                                    ? (discovery.new_card_data as { id?: string })
-                                    : null,
-                              }
-                            : null,
-                        })
-                        if (injectPayload && typeof injectPayload === 'object') {
-                          injectNewDiscoveryCard(injectPayload)
-                        }
-                        if (birthedId || new_discovery_card?.title) {
-                          setDiscoveryRebirthTip(true)
-                          setRebirthDiscoveryTitle(
-                            born || new_discovery_card?.title?.trim() || recommendation
-                          )
-                        }
-                        syncSessionState()
-                      }
-
-                      scheduleSoloFocusRebirthOpen(() => {
-                        if (!isLoopComplete) {
-                          persistViewState('QUESTION', { preserveResultContext: true })
-                          setLoopZipCollapsing(false)
-                        } else {
-                          setSpawnHandoffBlank(true)
-                          persistViewState('RESULT')
-                          onJourneyAnswered?.()
-                          setLoopZipCollapsing(false)
-                          setSpawnHandoffBlank(false)
-                        }
-                        onEmbeddedAnswerSuccess?.({ cardId })
-                      })
-                      if (!isLoopComplete && journeyId) {
-                        triggerScrapeSyncForCategory({
-                          postcode: profilePostcode ?? state.profile?.postcode,
-                          category: journeyId,
-                          profileData: {
-                            postcode: profilePostcode ?? state.profile?.postcode ?? undefined,
-                            home_type: state.profile?.homeType ?? null,
-                            transport_baseline: state.profile?.transport ?? null,
-                            household: state.profile?.livingSituation ?? null,
-                            employment_status: state.profile?.employmentStatus ?? null,
-                          },
-                        })
-                      }
-                    }}
-                      onSourceCitation={(c) => setResultCitation(c)}
-                    />
-                  </motion.div>
-                )}
-              </>
-            </motion.div>
-          ) : null}
-          </motion.div>
-          {deck.length > 1 && (
-            <div className="solo-focus-pager-rail" aria-label="Card pager" aria-live="polite">
-              {deck.map((_, idx) => (
-                <motion.button
-                  key={`overlay-pip-${idx}`}
-                  type="button"
-                  onClick={() => setActiveSiblingIndex(idx)}
-                  className={`pager-pip${idx === activeSiblingIndex ? ' pager-pip--active' : ''}`}
-                  aria-label={`Go to tip ${idx + 1}`}
-                  aria-pressed={idx === activeSiblingIndex}
-                />
-              ))}
-            </div>
-          )}
         </motion.div>
         </ExpandedCardShell>
 
       </motion.div>
+      <AskZaiDeepDiveSheet
+        open={askZaiDeepDiveOpen}
+        onClose={() => setAskZaiDeepDiveOpen(false)}
+        headline={String(recommendationTitle)}
+        category={zoneCategoryLabel}
+        suggestedQuestions={[
+          'Why this shift saves money',
+          'What is the carbon trade-off',
+          'What is the next concrete step',
+        ]}
+        onSubmitQuestion={submitDeepDiveQuestion}
+      />
       {!isZoneMotherChild && (
-      <div className="fixed right-5 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-50">
+      <motion.div className="fixed right-5 top-5 z-50">
         <motion.button
           type="button"
           aria-label="Close"
           className="circle-btn flex items-center justify-center"
-          onClick={handleClose}
+          onClick={requestClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={INDUSTRIAL_OPACITY_SNAP}
@@ -1429,103 +867,7 @@ export function SoloFocusOverlay({
         >
           <BackArrowDownLeft size={20} />
         </motion.button>
-        {(activeCardId || cardId) && (
-          <motion.button
-            type="button"
-            className="circle-btn flex items-center justify-center"
-            onClick={() => {
-              triggerHaptic('medium')
-              const id = String(activeCardId || cardId)
-              const likeFn = onLike ?? toggleLike
-              likeFn(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={INDUSTRIAL_OPACITY_SNAP}
-            aria-label="Like"
-            style={{
-              width: 40,
-              height: 40,
-              backgroundColor: isLiked ? 'var(--color-yellow)' : 'var(--color-purple)',
-              color: isLiked ? 'var(--color-purple)' : 'var(--color-yellow)',
-            }}
-          >
-            <svg
-              width={20}
-              height={20}
-              viewBox="0 0 24 24"
-              fill={isLiked ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-          </motion.button>
-        )}
-        {onAskZai && (
-          <motion.button
-            type="button"
-            className="circle-btn flex items-center justify-center"
-            onClick={() => {
-              triggerHaptic('medium')
-              const allAnswers: Record<string, any> = {}
-              if (typeof window !== 'undefined') {
-                try {
-                  const keys = Object.keys(localStorage).filter(k => k.startsWith('journey_') && k.endsWith('_answers'))
-                  keys.forEach(k => {
-                    const jid = k.replace('journey_', '').replace('_answers', '')
-                    allAnswers[jid] = JSON.parse(localStorage.getItem(k) || '{}')
-                  })
-                } catch {}
-              }
-              const trapQuestion = !trapComplete && discoveryFollowUp?.question?.trim() ? discoveryFollowUp.question.trim() : ''
-              const zaiLabel = soloEmbedQuestionLabel?.trim() || trapQuestion || null
-              setAskZaiContext({
-                category: displayCategory,
-                personalSpend: String(displayMoneyValue).replace(/^£\s*/, '').trim() || '0',
-                regionalAvg: String(displayCarbonValue).replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0',
-                question: buildSoloFocusAskZaiQuestion(displayTitle, zaiLabel),
-                journey_question_label: zaiLabel,
-                userContext: userContextSnap,
-                scraped_source: sourceLabel || sourceUrl || '',
-                journey_answers_jsonb: allAnswers
-              })
-              handleClose()
-              onAskZai()
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={INDUSTRIAL_OPACITY_SNAP}
-            aria-label="Ask Zai about this"
-            style={{
-              width: 40,
-              height: 40,
-              backgroundColor: 'var(--color-purple)',
-              color: 'var(--color-yellow)',
-            }}
-          >
-            <svg
-              width={20}
-              height={20}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M21 12a8.5 8.5 0 0 1-8.5 8.5H7l-4 3V12A8.5 8.5 0 0 1 11.5 3.5h1A8.5 8.5 0 0 1 21 12z" />
-              <circle cx="9.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-              <circle cx="12.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-              <circle cx="15.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-            </svg>
-          </motion.button>
-        )}
-      </div>
+      </motion.div>
       )}
     </>
   )

@@ -20,6 +20,7 @@ type IntroScreenState = 'value-message' | 'decision'
 /**
  * Mechanical sequence (SAVE MONEY CUT CARBON…):
  * v6 — dwell tuned for lens snap + stagger gap between words. (No leading HELLO — summary pulse owns that beat.)
+ * Post-summary → Zone hydration pulse words: `ARCHITECTURAL_PULSE_WORDS` in `lib/architecturalPulse.ts` (`isZoneReady` on `/zone`).
  */
 const INTRO_KINETIC_WORDS = [
   'SAVE',

@@ -303,3 +303,10 @@ export const ZONE_HERO_FROM_SUMMARY = {
   animate: { opacity: 1 },
   transition: INDUSTRIAL_OPACITY_SNAP,
 }
+
+/** Zone bento punch-through after Architectural Pulse `DONE.` */
+export const ZONE_GRID_PUNCH_THROUGH = {
+  initial: { opacity: 0, scale: 0.8 },
+  animate: { opacity: 1, scale: 1 },
+  transition: { type: 'spring' as const, stiffness: 420, damping: 32, mass: 0.85 },
+}

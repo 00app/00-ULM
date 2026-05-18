@@ -380,6 +380,7 @@ export async function deepGeminiSearchUkEnergyMarkdown(params: {
   profileData?: ResearchProfileData | null
   localityContext?: string | null
   category?: string | null
+  lifestyleShift?: boolean
 }): Promise<{ markdown: string; citations: ResearchCitation[] } | null> {
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
   if (pc.length < 4) return null
@@ -387,7 +388,9 @@ export async function deepGeminiSearchUkEnergyMarkdown(params: {
   const locality = params.localityContext?.trim()
   const cat = normalizeResearchCategory(params.category ?? '')
   const categoryLine = cat
-    ? `Focus this pass on the **${cat}** journey (UK household money/carbon) with a concrete £/year figure and one https offer URL in the prose.`
+    ? params.lifestyleShift
+      ? `Lifestyle shift / pattern arbitrage for **${cat}**: rail vs flight, EV swap, local vs long-haul holidays, meal shifts — not generic grant homepages. One concrete £/year trade-off and one deep-linked https application or booking URL.`
+      : `Focus this pass on the **${cat}** journey (UK household money/carbon) with a concrete £/year figure and one https offer URL in the prose.`
     : ''
   const prompt = `You are a UK household energy research agent (April 2026 regulatory window).
 Write detailed markdown for postcode **${pc}**${locality ? ` (${locality})` : ''}.
@@ -1093,6 +1096,8 @@ export async function runTriggerResearchForCategory(params: {
   profileData?: ResearchProfileData | null
   userId?: string | null
   userContext?: string
+  /** Prioritise behavioural pattern arbitrage over generic grant listings. */
+  lifestyleShift?: boolean
 }): Promise<ZeroResearchResult> {
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
   const cat = normalizeResearchCategory(params.category) ?? 'home'
@@ -1116,6 +1121,7 @@ export async function runTriggerResearchForCategory(params: {
     profileData: params.profileData ?? null,
     localityContext,
     category: cat,
+    lifestyleShift: params.lifestyleShift,
   })
   if (deep) {
     markdown = `${markdown}\n\n---\n\n${deep.markdown}`

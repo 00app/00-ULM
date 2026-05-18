@@ -24,12 +24,11 @@ import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
-import { EmbeddedJourneyQuestion } from '@/app/components/EmbeddedJourneyQuestion'
+import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import {
   INDUSTRIAL_OPACITY_SNAP,
-  SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION,
   SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC,
   SOLO_FOCUS_CONTENT_SNAP_INITIAL,
   SOLO_FOCUS_CONTENT_SNAP_ANIMATE,
@@ -101,18 +100,6 @@ type HomeSentinelRecard = {
   verifiedAt?: string
 }
 
-function readSoloFocusSessionQuestionCount(storageKeyCore: string): number {
-  if (typeof window === 'undefined') return 0
-  try {
-    const raw = sessionStorage.getItem(`zz_sf_q_${storageKeyCore}`)
-    if (raw == null || raw === '') return 0
-    const n = Number.parseInt(raw, 10)
-    return Number.isFinite(n) && n >= 0 ? n : 0
-  } catch {
-    return 0
-  }
-}
-
 function parseSentinelMotherRefresh(raw: unknown): HomeSentinelRecard | null {
   if (!raw || typeof raw !== 'object') return null
   const p = raw as SentinelMotherRecardPayload
@@ -157,6 +144,8 @@ export interface JourneyBentoCardProps {
   isExpanded?: boolean
   onExpand?: () => void
   onClose?: () => void
+  /** Close chevron → dismiss Solo Focus, then full-screen pattern-shift question (Zone shell). */
+  onPatternShiftClose?: (journeyId: JourneyId) => void
   cardId?: string
   onLike?: (id: string, title?: string, moneyGbp?: number) => void
   isLiked?: boolean
@@ -240,6 +229,7 @@ export function JourneyBentoCard({
   isExpanded = false,
   onExpand,
   onClose,
+  onPatternShiftClose,
   cardId,
   onLike,
   isLiked = false,
@@ -349,6 +339,7 @@ export function JourneyBentoCard({
   } | null>(() => readHydrationSnap(soloFocusSnapKey, journeyId)?.researchAttribution ?? null)
   const [soloEmbedQuestionLabel, setSoloEmbedQuestionLabel] = useState<string | null>(null)
   const [impactAnswerPulse, setImpactAnswerPulse] = useState(false)
+  const [askZaiDeepDiveOpen, setAskZaiDeepDiveOpen] = useState(false)
   const [heroTotalsOverride, setHeroTotalsOverride] = useState<{ money: number; carbon: number } | null>(null)
   const [homeSentinelRecard, setHomeSentinelRecard] = useState<HomeSentinelRecard | null>(null)
   const prevIsExpandedRef = useRef(false)
@@ -567,6 +558,27 @@ export function JourneyBentoCard({
       return true
     })
   }, [])
+
+  const requestClose = useCallback(() => {
+    triggerHaptic('medium')
+    onPatternShiftClose?.(journeyId)
+    onClose?.()
+  }, [journeyId, onPatternShiftClose, onClose])
+
+  const handleTrinityLike = useCallback(() => {
+    if (!onLike || !(activeCardId || cardId)) return
+    triggerHaptic('medium')
+    onLike(
+      String(activeCardId || cardId),
+      displayTitle,
+      parseMoneyGbpFromImpactDisplay(String(displayMoneyValue))
+    )
+  }, [onLike, activeCardId, cardId, displayTitle, displayMoneyValue])
+
+  const handleTrinityAskZai = useCallback(() => {
+    triggerHaptic('medium')
+    setAskZaiDeepDiveOpen(true)
+  }, [])
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && (effectiveOpen || isExiting)) handleCloseStart()
@@ -718,16 +730,6 @@ export function JourneyBentoCard({
       pagerEnterDir.current = -1
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5)
       return c - 1
-    })
-  }, [])
-
-  const handlePagerSelect = useCallback((targetIndex: number) => {
-    setMorphDeckCursor((current) => {
-      const clamped = Math.max(0, Math.min(targetIndex, morphDeckLenRef.current))
-      if (clamped === current) return current
-      pagerEnterDir.current = clamped > current ? 1 : -1
-      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5)
-      return clamped
     })
   }, [])
 
@@ -892,18 +894,7 @@ export function JourneyBentoCard({
           )
         : 0
     const treeEquivalent = Math.max(1, Math.round(discoveryImpactKg / 21))
-    const pagerPageCount = 1 + morphDeck.length
     const motherShimmerKey = `${morphDeckCursor}-${currentMorphData?.id ?? 'base'}-${homeSentinelRecard?.headline ?? ''}-${homeSentinelRecard?.moneyGbp ?? 0}`
-    const auditPipCore = String(cardId ?? journeyId)
-    const auditAnswered =
-      viewState === 'QUESTION' && typeof window !== 'undefined'
-        ? readSoloFocusSessionQuestionCount(auditPipCore)
-        : 0
-    const useAuditPips = viewState === 'QUESTION'
-    const pipCount = useAuditPips ? SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION : pagerPageCount
-    const pipActiveIndex = useAuditPips
-      ? Math.min(auditAnswered, SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION - 1)
-      : morphDeckCursor
 
     const handleCloseComplete = () => {
       onClose?.()
@@ -913,8 +904,9 @@ export function JourneyBentoCard({
       setResearchAttribution(null)
     }
 
-    const expandedOverlay = (
+    const expandedOverlay =
         kineticGrid && (effectiveOpen || isExiting) ? (
+          <>
             <motion.div
               key={`sf-grow-${journeyId}-${cardId ?? 'card'}`}
               ref={bodyScrollRef}
@@ -1043,6 +1035,9 @@ export function JourneyBentoCard({
               ctaJourneyId={displayJourneyId as string}
               ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : journeyCtaLabel}
               ctaSurface={currentMorphData?.high_impact ? 'yellow' : 'pink'}
+              isLiked={isLiked}
+              onLike={onLike ? handleTrinityLike : undefined}
+              onAskZai={onAskZai ? handleTrinityAskZai : undefined}
             />
                 </div>
               </div>
@@ -1057,7 +1052,7 @@ export function JourneyBentoCard({
                   className="solo-focus-close-circle"
                   onClick={() => {
                     triggerHaptic('medium')
-                    handleCloseStart()
+                    requestClose()
                   }}
                   initial={false}
                   animate={{ opacity: 1, y: 0 }}
@@ -1066,517 +1061,49 @@ export function JourneyBentoCard({
                 >
                   <BackArrowDownLeft size={24} />
                 </motion.button>
-                {(onLike && (activeCardId || cardId)) || onAskZai ? (
-                  <div
-                    className="solo-focus-utility-row flex flex-col items-end justify-start shrink-0"
-                    style={{ gap: 20 }}
-                  >
-                    {onLike && (activeCardId || cardId) && (
-                      <motion.button
-                        type="button"
-                        className="circle-btn solo-focus-action-btn solo-focus-action-80 zz-shimmer-cta"
-                        onClick={() => {
-                          triggerHaptic('medium')
-                          const id = String(activeCardId || cardId)
-                          onLike(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
-                        }}
-                        transition={INDUSTRIAL_OPACITY_SNAP}
-                        aria-label="Like"
-                        style={{
-                          backgroundColor: isLiked
-                            ? 'var(--journey-cta-text)'
-                            : 'var(--journey-cta-bg)',
-                          color: isLiked ? 'var(--journey-cta-bg)' : 'var(--journey-cta-text)',
-                        }}
-                      >
-                        <svg width={18} height={18} viewBox="0 0 24 24" fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                        </svg>
-                      </motion.button>
-                    )}
-                    {onAskZai && (
-                      <motion.button
-                        type="button"
-                        className="circle-btn solo-focus-action-btn solo-focus-action-80 solo-focus-ask-zai-btn zz-shimmer-cta"
-                        onClick={() => {
-                          triggerHaptic('medium')
-                          const allAnswers: Record<string, any> = {}
-                          if (typeof window !== 'undefined') {
-                            try {
-                              const keys = Object.keys(localStorage).filter(k => k.startsWith('journey_') && k.endsWith('_answers'))
-                              keys.forEach(k => {
-                                const jid = k.replace('journey_', '').replace('_answers', '')
-                                allAnswers[jid] = JSON.parse(localStorage.getItem(k) || '{}')
-                              })
-                            } catch {}
-                          }
-                          setAskZaiContext({
-                            category: journeyId,
-                            personalSpend: moneyValue.replace(/^£\s*/, '').trim() || '0',
-                            regionalAvg: carbonValue.replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0',
-                            question: buildSoloFocusAskZaiQuestion(displayTitle, soloEmbedQuestionLabel),
-                            journey_question_label: soloEmbedQuestionLabel,
-                            scraped_source: insightLabel || crawlerTip || localContextBar || '',
-                            journey_answers_jsonb: allAnswers
-                          })
-                          onClose?.()
-                          onAskZai()
-                        }}
-                        transition={INDUSTRIAL_OPACITY_SNAP}
-                        aria-label="Ask Zai about this"
-                      >
-                        <span className="solo-focus-ask-zai-visual" aria-hidden>
-                          <svg
-                            width={18}
-                            height={18}
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden
-                          >
-                            <path d="M21 12a8.5 8.5 0 0 1-8.5 8.5H7l-4 3V12A8.5 8.5 0 0 1 11.5 3.5h1A8.5 8.5 0 0 1 21 12z" />
-                            <circle cx="9.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-                            <circle cx="12.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-                            <circle cx="15.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-                          </svg>
-                        </span>
-                      </motion.button>
-                    )}
-                  </div>
-                ) : null}
               </div>
             </div>
             </motion.div>
-
-          {/* Question / Result — below hero stack */}
-          <motion.div
-            className={`solo-focus-shell solo-focus-child solo-focus-loop trinity-to-question flex-shrink-0 w-full flex flex-col items-start view-expanded solo-focus-trap-block${loopZipCollapsing ? ' solo-focus-loop--posting' : ''}`}
-          >
-            <>
-              {viewState === 'RESULT' ? (
-                <div
-                  key={`sf-result-${discoverySnap?.questionId ?? 'q'}-${String(discoverySnap?.answerValue ?? '').slice(0, 24)}-${currentMorphData?.id ?? activeCardId ?? 'base'}`}
-                  className="flex flex-col items-start w-full gap-10"
-                  style={{ gap: 40, transformOrigin: '50% 50%' }}
-                >
-                  {journeyId === 'home' ? (
-                    <p
-                      className="zz-body-bold solo-focus-copy-width text-left m-0"
-                      style={{
-                        color: 'var(--journey-text)',
-                        fontFamily: 'var(--font-roboto)',
-                        fontWeight: 800,
-                      }}
-                    >
-                      Save £{PRICE_CAP_SAVING_APRIL_1} on 1 April — typical cap {formatZoneCardMoney(PRICE_CAP_MARCH_2026)}/yr →{' '}
-                      {formatZoneCardMoney(PRICE_CAP_APRIL_2026)}/yr.
-                    </p>
-                  ) : null}
-                  {birthedZoneTitle ? (
-                    <p
-                      className="zz-body-bold solo-focus-copy-width text-left m-0"
-                      style={{
-                        color: 'var(--journey-text)',
-                        fontFamily: 'var(--font-marvin)',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {wrapResultSupportingAsterisks(`We found a new win! ${birthedZoneTitle} is now in your Zone.`)}
-                    </p>
-                  ) : null}
-                  {gridContext?.cleaner_vs_2025_pct != null ? (
-                    <p
-                      className="zz-body-bold solo-focus-copy-width text-left m-0"
-                      style={{ color: 'var(--journey-text)', fontFamily: 'var(--font-roboto)', fontWeight: 800 }}
-                    >
-                      {wrapResultSupportingAsterisks(
-                        `Grid is ${gridContext.cleaner_vs_2025_pct}% cleaner than 2025. Your win just got bigger.`
-                      )}
-                    </p>
-                  ) : null}
-                  {discovery ? (
-                    <>
-                      {discoveryWinLine ? (
-                        <p
-                          className="zz-body-bold solo-focus-copy-width text-left m-0"
-                          style={{
-                            color: 'var(--journey-text)',
-                            fontFamily: 'var(--font-roboto)',
-                            fontWeight: 800,
-                          }}
-                        >
-                          {wrapResultSupportingAsterisks(discoveryWinLine)}
-                        </p>
-                      ) : geminiRecommendationCopy ? (
-                        <p
-                          className="zz-body-bold solo-focus-copy-width text-left m-0"
-                          style={{
-                            color: 'var(--journey-text)',
-                            fontFamily: 'var(--font-roboto)',
-                            fontWeight: 800,
-                          }}
-                        >
-                          {wrapResultSupportingAsterisks(geminiRecommendationCopy)}
-                        </p>
-                      ) : null}
-                      <p
-                        className="zz-body-bold solo-focus-copy-width text-left m-0"
-                        style={{ color: 'var(--journey-text)' }}
-                      >
-                        {wrapResultSupportingAsterisks(
-                          `UK average saving for ${discovery.sav.answerLabel} is £${formatMoneyImpact(Math.round(discovery.sav.gbp))}.`
-                        )}
-                      </p>
-                      {discoveryImpactKg > 0 ? (
-                        <>
-                          <p
-                            className="zz-body-bold solo-focus-copy-width text-left m-0"
-                            style={{
-                              color: 'var(--journey-text)',
-                              fontFamily: 'var(--font-roboto)',
-                              fontWeight: 800,
-                            }}
-                          >
-                            {wrapResultSupportingAsterisks(
-                              `IMPACT: −${
-                                discoveryImpactKg >= 1000
-                                  ? `${(discoveryImpactKg / 1000).toFixed(1)}T`
-                                  : `${Math.round(discoveryImpactKg)} kg`
-                              } CO₂e`
-                            )}
-                          </p>
-                          <p
-                            className="zz-body solo-focus-copy-width text-left m-0 opacity-95"
-                            style={{ color: 'var(--journey-text)' }}
-                          >
-                            {wrapResultSupportingAsterisks(
-                              `That is the equivalent of planting ${treeEquivalent} trees this year.`
-                            )}
-                          </p>
-                        </>
-                      ) : null}
-                      <p
-                        className="zz-body-bold solo-focus-copy-width text-left m-0"
-                        style={{ color: 'var(--journey-text)' }}
-                      >
-                        {wrapResultSupportingAsterisks(
-                          `${discovery.rec.headline.replace(/_/g, ' ')} — ${discovery.rec.body}`
-                        )}
-                      </p>
-                      <p
-                        className="zz-body solo-focus-copy-width text-left m-0 opacity-95"
-                        style={{ color: 'var(--journey-text)' }}
-                      >
-                        {wrapResultSupportingAsterisks(
-                          `You’re on track — save £${formatMoneyImpact(moneyValue)} and ${formatCarbonImpact(carbonValue).value} ${formatCarbonImpact(carbonValue).unit} from this journey.`
-                        )}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="zz-body-bold solo-focus-copy-width text-left m-0" style={{ color: 'var(--journey-text)' }}>
-                      {wrapResultSupportingAsterisks(
-                        `You’re on track — save £${formatMoneyImpact(moneyValue)} and ${formatCarbonImpact(carbonValue).value} ${formatCarbonImpact(carbonValue).unit} from this move.`
-                      )}
-                    </p>
-                  )}
-                  {journeyId === 'home' ? (
-                    <p
-                      className="zz-body solo-focus-copy-width text-left m-0 opacity-90"
-                      style={{ color: 'var(--journey-text)' }}
-                    >
-                      {wrapResultSupportingAsterisks(
-                        `April 2026 reference unit rates (Ofgem default tariff cap): electricity ${APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH}p/kWh (${APRIL_2026_STANDING_PENCE.ELECTRICITY_PER_DAY}p/day standing); gas ${APRIL_2026_TRUTH_PENCE.GAS_PER_KWH}p/kWh (${APRIL_2026_STANDING_PENCE.GAS_PER_DAY}p/day standing).`
-                      )}
-                    </p>
-                  ) : null}
-                    <p className="zz-body solo-focus-copy-width text-left m-0 opacity-90" style={{ color: 'var(--journey-text)' }}>
-                      From the top: swipe up to Zone, down for next journey. With several tips in this journey, swipe left/right between them.
-                    </p>
-                    {resultCitation && (
-                      <p className="zz-body-small solo-focus-copy-width text-left m-0 opacity-70" style={{ color: 'var(--journey-text)' }}>
-                        Verified via{' '}
-                        {resultCitation.url ? (
-                          <a
-                            href={resultCitation.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ textDecoration: 'underline' }}
-                          >
-                            {resultCitation.label}
-                          </a>
-                        ) : (
-                          resultCitation.label
-                        )}
-                        {resultCitation.verifiedAt ? ` — ${resultCitation.verifiedAt}` : ''}
-                      </p>
-                    )}
-                  </div>
-              ) : (
-                <div
-                  key="solo-focus-question-wrap"
-                  className="w-full flex flex-col items-start"
-                  style={{ transformOrigin: '50% 50%' }}
-                >
-                  <EmbeddedJourneyQuestion
-                    journeyId={journeyId}
-                    sessionLaneKey={String(cardId ?? journeyId)}
-                    onClose={onClose}
-                    onJourneyAnswered={onJourneyAnswered}
-                    triggerHaptic={triggerHaptic}
-                    textColor="var(--journey-text)"
-                    onActiveQuestionLabelChange={setSoloEmbedQuestionLabel}
-                    soloFocusZipShut
-                    onZipShutStart={() => setLoopZipCollapsing(true)}
-                    onZipShutEnd={() => {
-                      // We handle zip open explicitly in onSoloFocusPostSuccess now
-                    }}
-                    onSoloEmbedComplete={() => onSoloEmbedComplete?.(journeyId)}
-                    deferJourneyAnsweredForZipRebirth
-                    onSoloFocusPostSuccess={(payload) => {
-                      const {
-                        questionId,
-                        answerValue,
-                        discovery,
-                        discovery_win,
-                        new_discovery_card,
-                        grid_context,
-                        morphCards,
-                        researchAttribution: ra,
-                        sourceCitation: citeSnap,
-                        hasNextQuestion,
-                        newTotals,
-                        sentinelMotherRefresh,
-                      } = payload
-                      if (journeyId === 'home' && sentinelMotherRefresh) {
-                        const parsed = parseSentinelMotherRefresh(
-                          sentinelMotherRefresh as SentinelMotherRecardPayload
-                        )
-                        if (parsed) {
-                          setHomeSentinelRecard(parsed)
-                        }
-                      }
-                      if (
-                        newTotals &&
-                        typeof newTotals.totalMoney === 'number' &&
-                        typeof newTotals.totalCarbon === 'number'
-                      ) {
-                        setHeroTotalsOverride({
-                          money: Math.max(0, Math.round(newTotals.totalMoney)),
-                          carbon: Math.max(0, Math.round(newTotals.totalCarbon)),
-                        })
-                      }
-                      const handoffLine =
-                        pickOfferLineFromAnswerMorph(morphCards, discovery_win, discovery) ||
-                        'Your next saving is one step away — open the next category to continue.'
-                      
-                      // 2. Swap content (Commit)
-                      const prevDeckLen = morphDeckLenRef.current
-                      if (citeSnap && typeof citeSnap.label === 'string' && citeSnap.label.trim()) {
-                        setResultCitation({
-                          label: citeSnap.label.trim(),
-                          url: typeof citeSnap.url === 'string' ? citeSnap.url : undefined,
-                          verifiedAt: typeof citeSnap.verifiedAt === 'string' ? citeSnap.verifiedAt : undefined,
-                        })
-                      }
-                      if (ra && (ra.headline != null || ra.supplied_by != null)) {
-                        setResearchAttribution(ra)
-                      }
-                      const fallbackMorphCard = getNextMorphCard(journeyId, {
-                        postcode: state.profile?.postcode,
-                        homeType: state.profile?.homeType,
-                        transport: state.profile?.transport,
-                        fuelType:
-                          journeyId === 'travel'
-                            ? (state.journeyAnswers?.travel?.fuel_type ?? null)
-                            : journeyId === 'home'
-                              ? (state.journeyAnswers?.home?.energy_type ?? null)
-                              : null,
-                      })
-                      const incomingMorphCards =
-                        hasNextQuestion === false
-                          ? morphCards && morphCards.length > 0
-                            ? morphCards
-                            : [fallbackMorphCard]
-                          : []
-                      if (incomingMorphCards.length > 0) {
-                        pagerEnterDir.current = 1
-                        const prevLen = prevDeckLen
-                        let nextLen = 0
-                        const prioritized = prioritizeMorphCardsForContext(incomingMorphCards, {
-                          postcode: profilePostcode,
-                          local: state.locationState?.local ?? null,
-                          profile: state.profile,
-                          journeyAnswers: state.journeyAnswers as Record<string, Record<string, string>>,
-                        })
-                        flushSync(() => {
-                          setMorphDeck((prev) => {
-                            const next = [...prev, ...prioritized]
-                            nextLen = next.length
-                            morphDeckLenRef.current = nextLen
-                            return next
-                          })
-                        })
-                        setMorphDeckCursor(prevLen + 1)
-                      }
-                      const du =
-                        discovery?.source_url && typeof discovery.source_url === 'string'
-                          ? discovery.source_url.trim()
-                          : ''
-                      setLiveClaimUrl(du.startsWith('http') ? du : null)
-                      setDiscoverySnap({ questionId, answerValue })
-                      const win = typeof discovery_win === 'string' ? discovery_win.trim() : ''
-                      setDiscoveryWinLine(win || null)
-                      const born =
-                        typeof new_discovery_card?.title === 'string' ? new_discovery_card.title.trim() : ''
-                      setBirthedZoneTitle(born || null)
-                      if (grid_context && typeof grid_context === 'object') {
-                        setGridContext({
-                          intensity_g_per_kwh:
-                            typeof grid_context.intensity_g_per_kwh === 'number'
-                              ? grid_context.intensity_g_per_kwh
-                              : null,
-                          cleaner_vs_2025_pct:
-                            typeof grid_context.cleaner_vs_2025_pct === 'number'
-                              ? grid_context.cleaner_vs_2025_pct
-                              : null,
-                        })
-                      } else {
-                        setGridContext(null)
-                      }
-                      setGeminiRecommendationCopy(
-                        typeof discovery?.recommendation_copy === 'string' && discovery.recommendation_copy.trim()
-                          ? discovery.recommendation_copy.trim()
-                          : null
-                      )
-                      if (hasNextQuestion === false) {
-                        runSoloFocusAuditCompletionClient({
-                          journeyId,
-                          questionId,
-                          answerValue,
-                          postcode: profilePostcode ?? state.profile?.postcode,
-                          profileData: {
-                            postcode: profilePostcode ?? state.profile?.postcode ?? undefined,
-                            home_type: state.profile?.homeType ?? null,
-                            transport_baseline: state.profile?.transport ?? null,
-                            household: state.profile?.livingSituation ?? null,
-                            employment_status: state.profile?.employmentStatus ?? null,
-                          },
-                          journeyAnswers: state.journeyAnswers as Record<string, Record<string, string>>,
-                        })
-                      }
-                      scheduleSoloFocusRebirthOpen(() => {
-                        if (hasNextQuestion === true) {
-                          persistViewState('QUESTION', { preserveResultContext: true })
-                        } else {
-                          persistViewState('RESULT')
-                        }
-                        onJourneyAnswered?.()
-                        onEmbeddedAnswerSuccess?.({ cardId, journeyId })
-                        setLoopZipCollapsing(false)
-                        if (hasNextQuestion === false && onAdvanceToNextJourneyAfterAnswer) {
-                          window.setTimeout(() => {
-                            onAdvanceToNextJourneyAfterAnswer({
-                              fromJourneyId: journeyId,
-                              offerLine: handoffLine,
-                            })
-                          }, 220)
-                        }
-                      })
-                      if (hasNextQuestion !== false && journeyId && profilePostcode) {
-                        const tier2Answer = String(answerValue ?? '').trim()
-                        if (tier2Answer) {
-                          setLoopZipCollapsing(true)
-                          setTier2SlotFading(true)
-                          void runTier2MotherChildSwap({
-                            postcode: profilePostcode,
-                            category: journeyId,
-                            answer: tier2Answer,
-                            questionId: String(questionId ?? ''),
-                          })
-                            .then((tier2) => {
-                              const morph = tier2.morphCard
-                              if (morph) {
-                                pagerEnterDir.current = 1
-                                let nextLen = 0
-                                flushSync(() => {
-                                  setMorphDeck((prev) => {
-                                    const next = [...prev, morph]
-                                    nextLen = next.length
-                                    morphDeckLenRef.current = nextLen
-                                    return next
-                                  })
-                                })
-                                setMorphDeckCursor(Math.max(0, nextLen - 1))
-                                if (tier2.offerUrl) setLiveClaimUrl(tier2.offerUrl)
-                                if (journeyId === 'home' && morph.title) {
-                                  setHomeSentinelRecard({
-                                    headline: morph.title,
-                                    description:
-                                      typeof morph.explanation?.[0] === 'string'
-                                        ? morph.explanation[0]
-                                        : '',
-                                    moneyGbp: parseMoneyGbpFromDisplay(String(morph.data?.money ?? '0')),
-                                    carbonKg: parseCarbonKgFromDisplay(String(morph.data?.carbon ?? '0')),
-                                    sourceUrl: tier2.offerUrl ?? undefined,
-                                  })
-                                }
-                              }
-                            })
-                            .finally(() => {
-                              window.setTimeout(() => {
-                                setTier2SlotFading(false)
-                                setLoopZipCollapsing(false)
-                              }, 220)
-                            })
-                        } else {
-                          triggerScrapeSyncForCategory({
-                            postcode: profilePostcode,
-                            category: journeyId,
-                            profileData: {
-                              postcode: profilePostcode ?? undefined,
-                              home_type: state.profile?.homeType ?? null,
-                              transport_baseline: state.profile?.transport ?? null,
-                              household: state.profile?.livingSituation ?? null,
-                              employment_status: state.profile?.employmentStatus ?? null,
-                            },
-                          })
-                        }
-                      }
-                    }}
-                    onSourceCitation={(c) => setResultCitation(c)}
-                  />
-                </div>
-              )}
-            </>
-          </motion.div>
         </motion.div>
-        </motion.div>
-        <motion.div
-          className="solo-focus-pager-rail"
-          aria-label="Card pager"
-          aria-live="polite"
-          data-solo-focus-no-swipe
-        >
-          {Array.from({ length: pipCount }).map((_, i) => (
-            <button
-              type="button"
-              key={`pip-${i}`}
-              className={`pager-pip${i === pipActiveIndex ? ' pager-pip--active' : ''}`}
-              aria-label={useAuditPips ? `Audit step ${i + 1} of ${pipCount}` : `Go to tip ${i + 1}`}
-              aria-pressed={i === pipActiveIndex}
-              onClick={() => {
-                handlePagerSelect(i)
-              }}
-            />
-          ))}
         </motion.div>
       </ExpandedCardShell>
-      </motion.div>
+            </motion.div>
+      <AskZaiDeepDiveSheet
+        open={askZaiDeepDiveOpen}
+        onClose={() => setAskZaiDeepDiveOpen(false)}
+        headline={String(recommendationTitle)}
+        category={zoneCategoryLabel}
+        suggestedQuestions={[
+          'Why this shift saves money',
+          'What is the carbon trade-off',
+          'What is the next concrete step',
+        ]}
+        onSubmitQuestion={async (question) => {
+          setAskZaiContext({
+            category: journeyId,
+            personalSpend: moneyValue.replace(/^£\s*/, '').trim() || '0',
+            regionalAvg: carbonValue.replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0',
+            question: buildSoloFocusAskZaiQuestion(displayTitle, question),
+            journey_question_label: question,
+            scraped_source: insightLabel || crawlerTip || localContextBar || '',
+            journey_answers_jsonb: {},
+          })
+          await fetch('/api/research/question-card', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              question,
+              category: journeyId,
+              journey_key: journeyId,
+              headline: recommendationTitle,
+              postcode: state.profile?.postcode,
+            }),
+          }).catch(() => {})
+        }}
+      />
+          </>
       ) : null
-    )
 
     if (typeof document !== 'undefined' && document.body) {
       return createPortal(expandedOverlay, document.body)
@@ -1682,4 +1209,3 @@ export function JourneyBentoCard({
   )
 }
 
-export { EmbeddedJourneyQuestion } from '@/app/components/EmbeddedJourneyQuestion'

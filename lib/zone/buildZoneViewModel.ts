@@ -141,6 +141,8 @@ export interface ZoneTipCard {
   cta?: { label: string; url: string }
   /** Card-to-question loop for Expanded View */
   followUp?: { question: string; options: string[]; targetField: string }
+  /** Close-loop achievement — pink card pins under hero then settles into grid. */
+  achievement_discovery?: boolean
   /** ZeroHunter urgency / policy window (e.g. pre–April 1 ECO4 messaging) */
   badge?: string
   /** Semantic win signal from discovery pipeline: drives money/carbon emphasis. */
@@ -409,21 +411,23 @@ function profileDrivenJourneyTitle(
 function mergeDiscoveryInjectionsIntoTips(staticTips: ZoneTipCard[], injected?: ZoneTipCard[], goal?: string): ZoneTipCard[] {
   if (!injected?.length) return staticTips.slice(0, 3)
   
-  // Sort injected tips based on goal
   const sortedInjected = [...injected]
-  if (goal === 'money') {
-    sortedInjected.sort((a, b) => {
+  sortedInjected.sort((a, b) => {
+    const aPin = a.achievement_discovery ? 1 : 0
+    const bPin = b.achievement_discovery ? 1 : 0
+    if (aPin !== bPin) return bPin - aPin
+    if (goal === 'money') {
       const aMoney = parseFloat(a.data?.money?.replace(/[^\d.]/g, '') || '0')
       const bMoney = parseFloat(b.data?.money?.replace(/[^\d.]/g, '') || '0')
       return bMoney - aMoney
-    })
-  } else if (goal === 'carbon') {
-    sortedInjected.sort((a, b) => {
+    }
+    if (goal === 'carbon') {
       const aCarbon = parseFloat(a.data?.carbon?.replace(/[^\d.]/g, '') || '0')
       const bCarbon = parseFloat(b.data?.carbon?.replace(/[^\d.]/g, '') || '0')
       return bCarbon - aCarbon
-    })
-  }
+    }
+    return 0
+  })
 
   const topInjected = sortedInjected.slice(0, 3)
   const usedJourneys = new Set(topInjected.map((i) => i.journey_key))

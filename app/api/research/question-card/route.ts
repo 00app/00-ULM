@@ -18,6 +18,9 @@ import { discoveryCardFromZoneTip } from '@/lib/types/discovery'
 import { resolveDiscoveryBirthPayload } from '@/lib/zone/discoveryBirthResolve'
 import { appendStoredInjections } from '@/lib/zone/injectionStore'
 import { MAX_DISCOVERY_INJECTIONS_PER_JOURNEY } from '@/lib/intelligence/manifest'
+import { scrapeSyncBearerMatches } from '@/lib/intelligence/scrapeSyncAuth'
+import { buildAchievementDiscoveryCard } from '@/lib/discoveryInject'
+import { isDeepLinkedUkOfferUrl } from '@/lib/zone/urlShield'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -32,6 +35,15 @@ interface QuestionCardBody {
   text?: string
   postcode?: string | null
   profileData?: ResearchProfileData | null
+  user_id?: string
+  question_id?: string
+  answer_value?: string
+  is_achievement_card?: boolean
+  parent_answer_id?: string | null
+  lifestyle_mode?: string
+  source_url?: string
+  offer_url?: string
+  title?: string
 }
 
 export async function POST(request: NextRequest) {
@@ -49,11 +61,20 @@ export async function POST(request: NextRequest) {
     ) as JourneyId
 
     const session = await getSessionFromRequest().catch(() => null)
-    if (!session?.userId) {
+    const hermesPush = scrapeSyncBearerMatches(request)
+    const userId =
+      session?.userId ??
+      (hermesPush && typeof body.user_id === 'string' ? body.user_id.trim() : '')
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const prior = await countDiscoveryInjectionsForUserJourney(session.userId, targetJourney)
+    const isAchievement =
+      body.is_achievement_card === true ||
+      String(body.lifestyle_mode ?? '').toLowerCase() === 'lifestyle_shift' ||
+      String(body.lifestyle_mode ?? '').toLowerCase() === 'shift'
+
+    const prior = await countDiscoveryInjectionsForUserJourney(userId, targetJourney)
     if (prior >= MAX_DISCOVERY_INJECTIONS_PER_JOURNEY) {
       return NextResponse.json(
         {
@@ -71,23 +92,55 @@ export async function POST(request: NextRequest) {
 
     await refreshZoneTips()
 
-    const discoveryPayload = await resolveDiscoveryBirthPayload({
-      targetJourney,
-      questionId: 'user_question',
-      answerValue: question.slice(0, 2000),
-      postcode,
-      profileData,
-      userId: session.userId,
-      currentJourneyForAlternate: targetJourney,
-      askedQuestionIds: [],
-      fallbackMode: 'prefer-target',
-    })
+    const loopQuestionId = normalizeString(body.question_id) || 'user_question'
+    const loopAnswer = normalizeString(body.answer_value) || question.slice(0, 2000)
 
-    if (!discoveryPayload?.new_card_data) {
-      return NextResponse.json({ ok: false, birthed: false, reason: 'no-card' }, { status: 404 })
+    let guarded = null as ReturnType<typeof enforceTrueWinRails> | null
+
+    if (isAchievement && hermesPush) {
+      const offer = normalizeString(body.offer_url ?? body.source_url)
+      if (offer && !isDeepLinkedUkOfferUrl(offer)) {
+        return NextResponse.json(
+          {
+            ok: false,
+            birthed: false,
+            reason: 'url-shield',
+            url_shield: { ok: false, retry_recommended: true },
+          },
+          { status: 422 }
+        )
+      }
+      const title = normalizeString(body.title) || question.slice(0, 140)
+      guarded = buildAchievementDiscoveryCard({
+        journeyId: targetJourney,
+        questionId: loopQuestionId,
+        answerValue: loopAnswer,
+        title,
+        offerUrl: offer || null,
+      })
+    } else {
+      const discoveryPayload = await resolveDiscoveryBirthPayload({
+        targetJourney,
+        questionId: loopQuestionId,
+        answerValue: loopAnswer,
+        postcode,
+        profileData,
+        userId,
+        currentJourneyForAlternate: targetJourney,
+        askedQuestionIds: [],
+        fallbackMode: 'prefer-target',
+      })
+
+      if (!discoveryPayload?.new_card_data) {
+        return NextResponse.json({ ok: false, birthed: false, reason: 'no-card' }, { status: 404 })
+      }
+
+      guarded = enforceTrueWinRails(discoveryPayload.new_card_data)
     }
 
-    const guarded = enforceTrueWinRails(discoveryPayload.new_card_data)
+    if (!guarded) {
+      return NextResponse.json({ ok: false, birthed: false, reason: 'no-card' }, { status: 404 })
+    }
     const blockedByBoundary = !passesBoundaryGuard(guarded, postcode)
     if (blockedByBoundary) {
       return NextResponse.json({ ok: false, birthed: false, reason: 'boundary-guard' }, { status: 400 })
@@ -95,15 +148,24 @@ export async function POST(request: NextRequest) {
 
     appendStoredInjections([guarded])
     persistZoneTipInjectBody({ cards: [guarded] })
-    void persistDiscoveryInjection(session.userId, guarded.id, guarded, 'research_question_card')
+    void persistDiscoveryInjection(userId, guarded.id, guarded, 'research_question_card', {
+      journey_key: targetJourney,
+      question_id: loopQuestionId,
+      answer_value: loopAnswer,
+      is_achievement_card: isAchievement,
+      parent_answer_id:
+        typeof body.parent_answer_id === 'string' ? body.parent_answer_id.trim() : null,
+      lifestyle_mode: isAchievement ? 'lifestyle_shift' : null,
+    })
 
     return NextResponse.json({
       ok: true,
       birthed: true,
       target_journey: targetJourney,
+      is_achievement_card: isAchievement,
+      parent_answer_id: body.parent_answer_id ?? null,
+      lifestyle_mode: isAchievement ? 'lifestyle_shift' : null,
       discovery: {
-        recommendation_copy: discoveryPayload.recommendation_copy,
-        source_url: discoveryPayload.source_url,
         new_card_data: guarded,
       },
       new_discovery_card: discoveryCardFromZoneTip(guarded),

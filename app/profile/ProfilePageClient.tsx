@@ -209,6 +209,26 @@ export default function ProfilePageClient() {
 
   const submitProfile = useCallback(
     (finalValues: Record<string, string>, overrideReturnTo?: string) => {
+      const dest = overrideReturnTo || returnTo || ROUTES.PROFILE_SUMMARY
+
+      if (typeof window !== 'undefined') {
+        Object.entries(finalValues).forEach(([id, val]) => {
+          const key = STORAGE_KEYS[id]
+          if (key && typeof val === 'string' && val.trim()) {
+            localStorage.setItem(key, val.trim())
+          }
+        })
+        try {
+          persistUnifiedUserProfileMemory()
+        } catch {
+          // ignore
+        }
+        ensureClientResearchUserId(finalValues.postcode)
+      }
+
+      refreshProfile()
+      router.push(dest)
+
       const payload = {
         name: finalValues.name ?? '',
         postcode: finalValues.postcode ?? '',
@@ -219,7 +239,8 @@ export default function ProfilePageClient() {
         employment_status: finalValues.employmentStatus ?? undefined,
         goal: finalValues.goal ?? undefined,
       }
-      createUser(payload)
+
+      void createUser(payload)
         .then((res) => {
           const userId = res?.user?.id ?? res?.id
           if (typeof window !== 'undefined' && userId) {
@@ -246,20 +267,15 @@ export default function ProfilePageClient() {
           } catch {
             // ignore
           }
-          import('@/lib/sessionStateSync').then((m) => m.syncSessionState())
-          router.push(overrideReturnTo || returnTo || ROUTES.PROFILE_SUMMARY)
+          void import('@/lib/sessionStateSync').then((m) => m.syncSessionState())
         })
         .catch(() => {
-          if (typeof window !== 'undefined') {
-            ensureClientResearchUserId(finalValues.postcode)
-          }
           refreshProfile()
           try {
             persistUnifiedUserProfileMemory()
           } catch {
             // ignore
           }
-          router.push(overrideReturnTo || returnTo || ROUTES.PROFILE_SUMMARY)
         })
     },
     [refreshProfile, router, returnTo, setLocationState]

@@ -5,9 +5,10 @@
 #   bash scripts/hermes-pulse.sh                    # production URL, limit=20
 #   bash scripts/hermes-pulse.sh --smoke            # limit=1 (~2–5 min; proves full pipeline)
 #   bash scripts/hermes-pulse.sh --auth-only        # fast: liveness + diagnostics only (~2s)
+#   bash scripts/hermes-pulse.sh --mode=lifestyle_shift --postcode BN17 --category travel \
+#     --answer-value "RAIL_NOT_FLIGHT" [--user-id UUID] [--parent-answer-id UUID]
 #   bash scripts/hermes-pulse.sh --env-file .env.production.local
 #   CRON_SECRET_FILE=~/.hermes/cron.secret bash scripts/hermes-pulse.sh
-#   bash scripts/hermes-pulse.sh --secret-file ~/.hermes/cron.secret
 #
 # Crontab: use `crontab -e` — do NOT paste cron lines into zsh (see scripts/install-hermes-crontab.sh).
 #
@@ -40,6 +41,13 @@ SMOKE=0
 AUTH_ONLY=0
 HOST="${NEXT_PUBLIC_APP_URL:-https://00-ulm.vercel.app}"
 LIMIT=20
+MODE=""
+POSTCODE=""
+CATEGORY="home"
+QUESTION_ID="lifestyle_shift_pattern"
+ANSWER_VALUE=""
+USER_ID=""
+PARENT_ANSWER_ID=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -55,6 +63,39 @@ while [[ $# -gt 0 ]]; do
         shift
       fi
       shift
+      ;;
+    --mode|--mode=*)
+      if [[ "$1" == --mode=* ]]; then
+        MODE="${1#--mode=}"
+        shift
+      else
+        MODE="${2:-}"
+        shift 2
+      fi
+      ;;
+    --postcode)
+      POSTCODE="${2:-}"
+      shift 2
+      ;;
+    --category)
+      CATEGORY="${2:-}"
+      shift 2
+      ;;
+    --question-id)
+      QUESTION_ID="${2:-}"
+      shift 2
+      ;;
+    --answer-value)
+      ANSWER_VALUE="${2:-}"
+      shift 2
+      ;;
+    --user-id)
+      USER_ID="${2:-}"
+      shift 2
+      ;;
+    --parent-answer-id)
+      PARENT_ANSWER_ID="${2:-}"
+      shift 2
       ;;
     --smoke)
       SMOKE=1
@@ -75,11 +116,24 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown arg: $1" >&2
-      echo "Usage: bash scripts/hermes-pulse.sh [--smoke|--auth-only] [--secret-file PATH] [--env-file PATH] [--limit N] [HOST]" >&2
+      echo "Usage: bash scripts/hermes-pulse.sh [--smoke|--auth-only|--mode=lifestyle_shift] ..." >&2
       exit 1
       ;;
   esac
 done
+
+if [[ "$MODE" == "lifestyle_shift" ]]; then
+  LS_ARGS=(--host "$HOST")
+  [[ -n "$SECRET_FILE" ]] && LS_ARGS+=(--secret-file "$SECRET_FILE")
+  [[ -n "$ENV_FILE" ]] && LS_ARGS+=(--env-file "$ENV_FILE")
+  [[ -n "$POSTCODE" ]] && LS_ARGS+=(--postcode "$POSTCODE")
+  [[ -n "$CATEGORY" ]] && LS_ARGS+=(--category "$CATEGORY")
+  [[ -n "$QUESTION_ID" ]] && LS_ARGS+=(--question-id "$QUESTION_ID")
+  [[ -n "$ANSWER_VALUE" ]] && LS_ARGS+=(--answer-value "$ANSWER_VALUE")
+  [[ -n "$USER_ID" ]] && LS_ARGS+=(--user-id "$USER_ID")
+  [[ -n "$PARENT_ANSWER_ID" ]] && LS_ARGS+=(--parent-answer-id "$PARENT_ANSWER_ID")
+  exec bash "${ROOT}/scripts/hermes-lifestyle-shift.sh" "${LS_ARGS[@]}"
+fi
 
 if [[ -n "$SECRET_FILE" ]]; then
   export CRON_SECRET_FILE="$SECRET_FILE"

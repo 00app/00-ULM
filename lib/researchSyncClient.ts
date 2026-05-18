@@ -42,6 +42,8 @@ export function triggerScrapeSyncForCategory(params: {
   profileData?: ResearchProfileData | null
   /** Appended to scrape-sync user context for best-offer / action URL pivots (solo focus completion). */
   bestOfferHint?: string | null
+  /** Pattern arbitrage pass (rail vs flight, EV swap, local holidays). */
+  lifestyleShift?: boolean
 }): void {
   const pc = String(params.postcode ?? '')
     .replace(/\s+/g, '')
@@ -63,6 +65,9 @@ export function triggerScrapeSyncForCategory(params: {
   const hint = typeof params.bestOfferHint === 'string' ? params.bestOfferHint.trim() : ''
   if (hint.length > 0) {
     body.best_offer_hint = hint.slice(0, 1200)
+  }
+  if (params.lifestyleShift) {
+    body.mode = 'lifestyle_shift'
   }
   void fetch('/api/scrape-sync', {
     method: 'POST',

@@ -45,6 +45,8 @@ interface IntroWordCycleProps {
   opacityTicker?: boolean
   /** Extra glow on £ tokens when Neon genome savings drive the kinetic headline. */
   pulseGenomeMoney?: boolean
+  /** On the final word: fire `onComplete` after dwell but keep the word visible (hydration shield). */
+  holdFinalWord?: boolean
 }
 
 const DEFAULT_GAP_MS = 90
@@ -64,6 +66,7 @@ export default function IntroWordCycle({
   wordExitMs = DEFAULT_WORD_EXIT_MS,
   opacityTicker = false,
   pulseGenomeMoney = false,
+  holdFinalWord = false,
 }: IntroWordCycleProps) {
   const reduceMotion = useReducedMotion()
   const [index, setIndex] = useState(0)
@@ -132,16 +135,19 @@ export default function IntroWordCycle({
     if (completedRef.current) return
     setVisible(true)
     const outerId = setTimeout(() => {
-      setVisible(false)
-      innerTimeoutRef.current = setTimeout(() => {
-        innerTimeoutRef.current = null
-        if (index < words.length - 1) {
+      if (index < words.length - 1) {
+        setVisible(false)
+        innerTimeoutRef.current = setTimeout(() => {
+          innerTimeoutRef.current = null
           setIndex((i) => i + 1)
-        } else if (!completedRef.current) {
+        }, wordExitMs + gapMs)
+      } else {
+        if (!completedRef.current) {
           completedRef.current = true
           onCompleteRef.current?.()
         }
-      }, wordExitMs + gapMs)
+        if (!holdFinalWord) setVisible(false)
+      }
     }, dwellMs)
     return () => {
       clearTimeout(outerId)
@@ -150,7 +156,7 @@ export default function IntroWordCycle({
         innerTimeoutRef.current = null
       }
     }
-  }, [index, words.length, dwellMs, gapMs, wordExitMs])
+  }, [index, words.length, dwellMs, gapMs, wordExitMs, holdFinalWord])
 
   // Last resort if word timers never finish (tab sleep, Strict Mode edge cases).
   // Must exceed real wall time: dwell + exit+gap per word.

@@ -7,6 +7,7 @@ import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_IDS } from '@/lib/journeys'
 import type { ZoneTipCard } from './buildZoneViewModel'
 import { isHttpsUrl, trustedUrlForJourney } from './trustedJourneyUrls'
+import { shieldOfferUrl } from '@/lib/zone/urlShield'
 
 /** Normalize learn/cta/source to a trusted https URL (call for cards that skip validateInjectionCard). */
 export function ensureInjectionCardUrls(card: ZoneTipCard): void {
@@ -15,9 +16,11 @@ export function ensureInjectionCardUrls(card: ZoneTipCard): void {
     card.actions?.learnUrl && isHttpsUrl(card.actions.learnUrl) ? card.actions.learnUrl.trim() : ''
   const fromCta = card.cta?.url && isHttpsUrl(card.cta.url) ? card.cta.url.trim() : ''
   const fromSource = card.source && isHttpsUrl(card.source) ? card.source.trim() : ''
-  const learn = fromActions || fromCta || fromSource || fallback
-  const actionUrl =
+  const learnRaw = fromActions || fromCta || fromSource || fallback
+  const learn = shieldOfferUrl(learnRaw, card.journey_key)
+  const actionRaw =
     card.actions?.actionUrl && isHttpsUrl(card.actions.actionUrl) ? card.actions.actionUrl.trim() : learn
+  const actionUrl = shieldOfferUrl(actionRaw, card.journey_key)
   card.actions = {
     actionType: card.actions?.actionType ?? 'learn',
     learnUrl: learn,
@@ -28,9 +31,16 @@ export function ensureInjectionCardUrls(card: ZoneTipCard): void {
       label: (card.cta?.label && card.cta.label.trim()) || 'Get this Saving',
       url: learn,
     }
+  } else {
+    card.cta = {
+      ...card.cta,
+      url: shieldOfferUrl(card.cta.url, card.journey_key),
+    }
   }
   if (!card.source || !isHttpsUrl(card.source)) {
     card.source = learn
+  } else {
+    card.source = shieldOfferUrl(card.source, card.journey_key)
   }
 }
 
@@ -118,6 +128,11 @@ export function validateInjectionCard(raw: unknown): ZoneTipCard | null {
   }
   if (o.high_impact === true) {
     card.high_impact = true
+  }
+  if (o.achievement_discovery === true) {
+    card.achievement_discovery = true
+    card.high_impact = true
+    if (!card.badge) card.badge = 'NEW DISCOVERY'
   }
   ensureInjectionCardUrls(card)
   return card

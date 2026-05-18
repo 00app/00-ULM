@@ -59,6 +59,7 @@ ssh "${SSH_OPTS[@]}" "$SSH_HOST" "mkdir -p ${REMOTE_DIR}/scripts ~/.hermes && ch
 
 rsync -avz -e "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=accept-new" \
   "${ROOT}/scripts/hermes-pulse.sh" \
+  "${ROOT}/scripts/hermes-lifestyle-shift.sh" \
   "${ROOT}/scripts/install-hermes-crontab.sh" \
   "${ROOT}/scripts/setup-hermes-vps.sh" \
   "${SSH_HOST}:${REMOTE_DIR}/scripts/"
@@ -66,7 +67,7 @@ rsync -avz -e "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=accept-new" \
 printf '%s' "$CRON_SECRET" | ssh "${SSH_OPTS[@]}" "$SSH_HOST" \
   'cat > ~/.hermes/cron.secret && chmod 600 ~/.hermes/cron.secret'
 
-ssh "${SSH_OPTS[@]}" "$SSH_HOST" "chmod +x ${REMOTE_DIR}/scripts/hermes-pulse.sh ${REMOTE_DIR}/scripts/*.sh"
+ssh "${SSH_OPTS[@]}" "$SSH_HOST" "chmod +x ${REMOTE_DIR}/scripts/hermes-pulse.sh ${REMOTE_DIR}/scripts/hermes-lifestyle-shift.sh ${REMOTE_DIR}/scripts/*.sh"
 
 echo ""
 echo "→ Remote auth test"

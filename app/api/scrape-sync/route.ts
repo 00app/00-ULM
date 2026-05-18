@@ -35,6 +35,11 @@ import {
 import { foldCoverageRowsForZone, researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import { GARY_RESEARCH_USER_ID } from '@/lib/zone/garyMode'
 import { ensureGaryDemoUser } from '@/lib/db/ensureGaryDemoUser'
+import {
+  isLifestyleShiftMode,
+  maybeBirthAchievementFromScrapeSync,
+  urlShieldFromCitations,
+} from '@/lib/zone/scrapeSyncLifestyle'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -891,12 +896,17 @@ export async function POST(request: NextRequest) {
       if (bestOfferHint.length > 0) {
         userContext = `${userContext}\n\nBEST OFFER / ACTION URL PRIORITY:\n${bestOfferHint}`
       }
+      const lifestyleShift = isLifestyleShiftMode(body)
+      if (lifestyleShift) {
+        userContext = `${userContext}\n\nMODE: lifestyle_shift — pattern arbitrage (rail vs flight, EV swap, local holidays). Reject generic homepage URLs; require deep-linked UK portals only.`
+      }
       const research = await runTriggerResearchForCategory({
         postcode,
         profileData: Object.keys(pd).length > 0 ? pd : undefined,
         userId,
         userContext,
         category,
+        lifestyleShift,
       })
       const headlinesRepaired = await repairResearchResultsMissingHeadlines({
         userId,
@@ -908,19 +918,53 @@ export async function POST(request: NextRequest) {
       const categoriesWithInsight = Object.entries(coverage).filter(
         ([, row]) => row.insightReady || (row.latestSavingGbp != null && row.latestSavingGbp > 0)
       ).length
+      const citationsPayload = research.citations.map((c) => ({
+        source_name: c.source_name,
+        url: c.url,
+        snippet: c.snippet,
+      }))
+      const journeyForShield = (
+        JOURNEY_ORDER.includes(category as JourneyId) ? category : 'home'
+      ) as JourneyId
+      const urlShield =
+        lifestyleShift || body.is_achievement_card === true
+          ? urlShieldFromCitations(citationsPayload, journeyForShield)
+          : null
+      let achievement: Awaited<ReturnType<typeof maybeBirthAchievementFromScrapeSync>> = null
+      let achievementError: string | null = null
+      try {
+        achievement = await maybeBirthAchievementFromScrapeSync({
+          body,
+          userId,
+          category,
+          loopQuestionId,
+          loopAnswer,
+          markdown: research.markdown,
+          citations: citationsPayload,
+        })
+      } catch (err) {
+        achievementError =
+          err instanceof Error ? err.message.slice(0, 240) : 'achievement-birth-failed'
+        console.error('[scrape-sync] achievement birth failed:', err)
+      }
       return NextResponse.json({
         ok: true,
-        mode: 'trigger',
+        mode: lifestyleShift ? 'lifestyle_shift' : 'trigger',
+        lifestyle_mode: lifestyleShift ? 'lifestyle_shift' : null,
         category,
         headlinesRepaired,
         categoriesWithInsight,
+        is_achievement_card: Boolean(achievement?.achievement_card),
+        parent_answer_id: achievement?.parent_answer_id ?? null,
+        url_shield: achievement?.url_shield ?? urlShield,
+        achievement_card: achievement?.achievement_card ?? null,
+        achievement: achievement
+          ? { persisted: achievement.persisted, id: achievement.achievement_card?.id }
+          : null,
+        ...(achievementError ? { achievement_error: achievementError } : {}),
         research: {
           markdown: research.markdown,
-          citations: research.citations.map((c) => ({
-            source_name: c.source_name,
-            url: c.url,
-            snippet: c.snippet,
-          })),
+          citations: citationsPayload,
         },
       })
     }
@@ -982,6 +1026,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, updated: items.length })
   } catch (e) {
     console.error('[scrape-sync] POST error:', e)
-    return NextResponse.json({ error: 'Failed to sync scraped data' }, { status: 500 })
+    const detail = e instanceof Error ? e.message.slice(0, 280) : String(e).slice(0, 280)
+    return NextResponse.json(
+      { error: 'Failed to sync scraped data', detail },
+      { status: 500 }
+    )
   }
 }

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { StampedCarbonKg, StampedMoneyGbp } from '@/app/components/StampedMetric'
-import { IndustrialHandoffButton } from '@/app/components/ui/Buttons'
+import { SoloFocusActionTrinity } from '@/app/components/SoloFocusActionTrinity'
 
 interface MotherCardRendererProps {
   categoryLabel: string
@@ -22,6 +22,9 @@ interface MotherCardRendererProps {
   ctaLabel?: string
   /** CTA handoff surface — yellow block for Action Vault high-impact rebirth. */
   ctaSurface?: 'pink' | 'yellow'
+  isLiked?: boolean
+  onLike?: () => void
+  onAskZai?: () => void
 }
 
 export function MotherCardRenderer({
@@ -39,6 +42,9 @@ export function MotherCardRenderer({
   ctaJourneyId,
   ctaLabel = 'CLAIM SAVING',
   ctaSurface = 'pink',
+  isLiked = false,
+  onLike,
+  onAskZai,
 }: MotherCardRendererProps) {
   return (
     <>
@@ -114,16 +120,19 @@ export function MotherCardRenderer({
           </span>
         </div>
       </div>
-      {ctaUrl ? (
-        <div className="solo-focus-trinity impact-to-trinity flex flex-row items-center justify-start flex-shrink-0 w-full" style={{ gap: 20, marginTop: 0, marginBottom: 0 }}>
-          <IndustrialHandoffButton
-            url={ctaUrl}
-            journeyId={ctaJourneyId}
-            moneyValue={moneyGbp}
-            ctaLabel={ctaLabel}
-            surface={ctaSurface === 'yellow' ? 'yellow' : 'pink'}
-          />
-        </div>
+      {(ctaUrl || onLike || onAskZai) ? (
+        <SoloFocusActionTrinity
+          ctaUrl={ctaUrl}
+          ctaLabel={ctaLabel}
+          journeyId={ctaJourneyId}
+          moneyGbp={moneyGbp}
+          ctaSurface={ctaSurface}
+          isLiked={isLiked}
+          showLike={Boolean(onLike)}
+          showAskZai={Boolean(onAskZai)}
+          onLike={onLike}
+          onAskZai={onAskZai}
+        />
       ) : null}
     </>
   )

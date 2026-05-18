@@ -30,6 +30,7 @@ import {
   ZONE_GRID_STAGGER_CHILD_DELAY_SEC,
   FADE_IN_UP,
   ZONE_HERO_FROM_SUMMARY,
+  ZONE_GRID_PUNCH_THROUGH,
   ZIP_OPEN_Z_INITIAL,
   ZIP_OPEN_Z_ANIMATE,
   ZIP_OPEN_Z_TRANSITION,
@@ -63,6 +64,13 @@ import {
 import { setExpandCard } from '@/lib/expandStorage'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { DISCOVERY_INJECT_EVENT } from '@/lib/discoveryInject'
+import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
+import { DiscoveryTakeover } from '@/app/components/DiscoveryTakeover'
+import {
+  SESSION_SUMMARY_TO_ZONE,
+  ZONE_READY_MAX_WAIT_MS,
+  computeIsZoneReady,
+} from '@/lib/architecturalPulse'
 import { scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
 import {
   bentoSpanClassForPersona,
@@ -185,12 +193,18 @@ function readRecentChatHistoryFromStorage(): Array<{ role: 'user' | 'zai'; text:
   }
 }
 
-/** Zone wall: hero + twelve journey domains (one tile each). */
-function getGroovyGridItems(viewModel: ZoneViewModel): GroovyItem[] {
+/** Zone wall: hero + optional pinned achievements + twelve journey domains. */
+function getGroovyGridItems(
+  viewModel: ZoneViewModel,
+  pinnedAchievements: ZoneTipCard[] = []
+): GroovyItem[] {
   const journeyCardsOnly = viewModel.journeys.filter((j) => j.id.startsWith('journey-'))
   const byId = new Map(journeyCardsOnly.map((j) => [j.journey_key, j]))
   const items: GroovyItem[] = []
   items.push({ type: 'hero', hero: viewModel.hero })
+  for (const tip of pinnedAchievements) {
+    items.push({ type: 'tip', tip })
+  }
   WALL_JOURNEY_ORDER.forEach((jid, index) => {
     const item = byId.get(jid)
     if (item) items.push({ type: 'journey', item, index, persona: JOURNEY_BENTO_PERSONA[jid] })
@@ -291,6 +305,21 @@ export default function ZonePage() {
   const [heroFromSummaryHandoff, setHeroFromSummaryHandoff] = useState(false)
   /** Bump so bento `staggerChildren` replays when landing from `/profile/summary` (last staccato word → grid drop). */
   const [summaryGridStaggerKey, setSummaryGridStaggerKey] = useState(0)
+  /** Post-summary Architectural Pulse → grid punch-through. */
+  const [architecturalPulsePhase, setArchitecturalPulsePhase] = useState<
+    'idle' | 'pulse' | 'punch' | 'done'
+  >('done')
+  const [pulseFadeOut, setPulseFadeOut] = useState(false)
+  const [pulseWordsComplete, setPulseWordsComplete] = useState(false)
+  const architecturalPulsePhaseRef = useRef(architecturalPulsePhase)
+  architecturalPulsePhaseRef.current = architecturalPulsePhase
+  /** Pink achievement cards pinned directly under profile hero. */
+  const [pinnedAchievements, setPinnedAchievements] = useState<ZoneTipCard[]>([])
+  /** Pattern-shift question after Solo Focus close (exclusive full-screen focus). */
+  const [patternShiftJourneyId, setPatternShiftJourneyId] = useState<JourneyId | null>(null)
+  /** Clean Birth: hide Zone grid/anchor until post-answer pulse completes. */
+  const [isZoneVisible, setIsZoneVisible] = useState(true)
+  const [cleanBirthRevealKey, setCleanBirthRevealKey] = useState(0)
   /** After answering the last question on a journey: contextual line for the next tile we open */
   const [answerHandoffOffer, setAnswerHandoffOffer] = useState<{
     journeyKey: JourneyId
@@ -355,6 +384,21 @@ export default function ZonePage() {
     setExpandedTipId(null)
     closeSoloFocus()
   }, [closeSoloFocus])
+
+  const launchPatternShiftTakeover = useCallback(
+    (journeyId: JourneyId) => {
+      closeAnySoloFocus()
+      setIsZoneVisible(false)
+      setPatternShiftJourneyId(journeyId)
+    },
+    [closeAnySoloFocus]
+  )
+
+  const completeCleanBirth = useCallback(() => {
+    setPatternShiftJourneyId(null)
+    setIsZoneVisible(true)
+    setCleanBirthRevealKey((k) => k + 1)
+  }, [])
 
   // Recovery guard: if global focus state is stale but no local expanded card/tip exists,
   // unhide the Zone wall immediately.
@@ -500,10 +544,13 @@ export default function ZonePage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
-      if (sessionStorage.getItem('zz_summary_to_zone') === '1') {
-        sessionStorage.removeItem('zz_summary_to_zone')
+      if (sessionStorage.getItem(SESSION_SUMMARY_TO_ZONE) === '1') {
+        sessionStorage.removeItem(SESSION_SUMMARY_TO_ZONE)
         setHeroFromSummaryHandoff(true)
         setSummaryGridStaggerKey((k) => k + 1)
+        setPulseWordsComplete(false)
+        setPulseFadeOut(false)
+        setArchitecturalPulsePhase('pulse')
       }
     } catch {
       //
@@ -893,10 +940,20 @@ export default function ZonePage() {
       .then((r) => (r.ok ? r.json() : []))
       .then((data: unknown) => {
         if (cancelled) return
-        setInjectedTips(Array.isArray(data) ? (data as ZoneTipCard[]) : [])
+        const server = Array.isArray(data) ? (data as ZoneTipCard[]) : []
+        setInjectedTips((prev) => {
+          const byId = new Map<string, ZoneTipCard>()
+          for (const c of server) {
+            if (c?.id) byId.set(c.id, c)
+          }
+          for (const c of prev) {
+            if (c.id.startsWith('inject-') && !byId.has(c.id)) byId.set(c.id, c)
+          }
+          return [...byId.values()]
+        })
       })
       .catch(() => {
-        if (!cancelled) setInjectedTips([])
+        /* Keep optimistic client injections on fetch failure */
       })
     return () => {
       cancelled = true
@@ -907,14 +964,26 @@ export default function ZonePage() {
     const onInject = (e: Event) => {
       const detail = (e as CustomEvent<unknown>).detail
       if (!isDiscoveryTipPayload(detail)) return
+      const isAchievement = Boolean(detail.achievement_discovery)
       setInjectedTips((prev) => [...prev.filter((c) => c.id !== detail.id), detail])
+      if (isAchievement) {
+        setPinnedAchievements((prev) => [...prev.filter((c) => c.id !== detail.id), detail])
+        window.setTimeout(() => {
+          setPinnedAchievements((prev) => prev.filter((c) => c.id !== detail.id))
+        }, 12000)
+      }
       setDiscoverySnapTipId(detail.id)
       window.setTimeout(() => setDiscoverySnapTipId((id) => (id === detail.id ? null : id)), 950)
-      /* Pulse 3 — zip shut, refresh grid, zip open discovery card in the same slot (120ms). */
-      void fetch('/api/zone/tips-refresh', { method: 'POST', credentials: 'include' }).catch(() => {})
-      closeAnySoloFocus()
-      setRefreshKey((k) => k + 1)
+      setVmSyncStamp(Date.now())
+      /* Achievement cards are client-birthed — tips-refresh + refreshKey refetch wiped them. */
+      if (!isAchievement) {
+        void fetch('/api/zone/tips-refresh', { method: 'POST', credentials: 'include' }).catch(() => {})
+        setRefreshKey((k) => k + 1)
+      }
       scheduleSoloFocusRebirthOpen(() => {
+        setExpandedCardId(null)
+        setExpandedFromTip(null)
+        closeSoloFocus()
         if (openSoloFocus(detail.id, 'discovery')) {
           setExpandedTipId(detail.id)
         }
@@ -1356,11 +1425,59 @@ export default function ZonePage() {
     hydrated,
   ])
 
-  const groovyItems = getGroovyGridItems(viewModel)
+  const groovyItems = useMemo(
+    () => getGroovyGridItems(viewModel, pinnedAchievements),
+    [viewModel, pinnedAchievements]
+  )
   const displayItems: GroovyItem[] = useMemo(() => [...groovyItems], [groovyItems])
+
+  useEffect(() => {
+    if (architecturalPulsePhase !== 'done' && architecturalPulsePhase !== 'punch') return
+    const settle = () => {
+      if (typeof window === 'undefined') return
+      if (window.scrollY > 80) {
+        setPinnedAchievements([])
+      }
+    }
+    window.addEventListener('scroll', settle, { passive: true })
+    return () => window.removeEventListener('scroll', settle)
+  }, [architecturalPulsePhase])
   const isDev = process.env.NODE_ENV !== 'production'
   const researchLoading = !vmResolved
-  const zoneInteractable = hydrated && vmResolved
+  const isZoneReady = useMemo(
+    () => computeIsZoneReady({ hydrated, vmResolved, scrapePostcode }),
+    [hydrated, vmResolved, scrapePostcode]
+  )
+
+  const beginZonePunchThrough = useCallback(() => {
+    if (architecturalPulsePhaseRef.current !== 'pulse') return
+    setPulseFadeOut(true)
+    setArchitecturalPulsePhase('punch')
+    window.setTimeout(() => {
+      setArchitecturalPulsePhase('done')
+      setPulseFadeOut(false)
+    }, 480)
+  }, [])
+
+  useEffect(() => {
+    if (architecturalPulsePhase !== 'pulse' || !pulseWordsComplete || !isZoneReady) return
+    beginZonePunchThrough()
+  }, [architecturalPulsePhase, pulseWordsComplete, isZoneReady, beginZonePunchThrough])
+
+  useEffect(() => {
+    if (architecturalPulsePhase !== 'pulse' || !pulseWordsComplete || isZoneReady) return
+    const safety = window.setTimeout(() => {
+      if (architecturalPulsePhaseRef.current === 'pulse') beginZonePunchThrough()
+    }, ZONE_READY_MAX_WAIT_MS)
+    return () => window.clearTimeout(safety)
+  }, [architecturalPulsePhase, pulseWordsComplete, isZoneReady, beginZonePunchThrough])
+
+  const zoneInteractable =
+    isZoneVisible &&
+    hydrated &&
+    vmResolved &&
+    architecturalPulsePhase === 'done' &&
+    !patternShiftJourneyId
   const zoneRevealCount = displayItems.length
 
   const openNextJourneyFromExpanded = useCallback(
@@ -1469,7 +1586,8 @@ export default function ZonePage() {
         }}
         {...FADE_IN_UP}
       >
-        {/* 1. ZONE ANCHOR (Masthead + Ask Zai) — design system: purple bg, yellow type */}
+        {/* 1. ZONE ANCHOR — hidden during Clean Birth (question + pulse on empty background) */}
+        {isZoneVisible ? (
         <motion.div
           className="zone-anchor flex flex-col items-center pt-0 pb-0"
           aria-hidden={false}
@@ -1523,12 +1641,42 @@ export default function ZonePage() {
             </motion.p>
           ) : null}
         </motion.div>
+        ) : null}
 
-        {/* 2. BENTO WALL — always mounted; skeleton pulse until research hydrates */}
-        <motion.div className="zone-container" aria-hidden={false}>
+        {(architecturalPulsePhase === 'pulse' || architecturalPulsePhase === 'punch') &&
+        !patternShiftJourneyId ? (
+          <ArchitecturalPulse
+            fadingOut={pulseFadeOut}
+            onComplete={() => setPulseWordsComplete(true)}
+          />
+        ) : null}
+
+        {/* 2. BENTO WALL — hidden until Clean Birth reveal; summary handoff pre-renders under pulse */}
+        {isZoneVisible ? (
+        <motion.div
+          className={`zone-container${architecturalPulsePhase === 'pulse' && !patternShiftJourneyId ? ' zone-container--pulse-prerender' : ''}`}
+          aria-hidden={architecturalPulsePhase === 'pulse' && !patternShiftJourneyId}
+        >
           <motion.div
-            key={summaryGridStaggerKey}
+            key={`zone-grid-${summaryGridStaggerKey}-${cleanBirthRevealKey}`}
             data-testid="zone-grid-mounted"
+            {...(architecturalPulsePhase === 'punch'
+              ? {
+                  initial: ZONE_GRID_PUNCH_THROUGH.initial,
+                  animate: ZONE_GRID_PUNCH_THROUGH.animate,
+                  transition: ZONE_GRID_PUNCH_THROUGH.transition,
+                  style: { transformOrigin: 'center center' },
+                }
+              : cleanBirthRevealKey > 0
+                ? {
+                    initial: ZONE_GRID_PUNCH_THROUGH.initial,
+                    animate: ZONE_GRID_PUNCH_THROUGH.animate,
+                    transition: ZONE_GRID_PUNCH_THROUGH.transition,
+                    style: { transformOrigin: 'center center' },
+                  }
+                : architecturalPulsePhase === 'done' && summaryGridStaggerKey > 0
+                  ? {}
+                  : {})}
             data-profile-postcode={scrapePostcode}
             data-vm-sync={String(vmSyncStamp)}
             data-research-loading={researchLoading ? '1' : '0'}
@@ -1673,6 +1821,7 @@ export default function ZonePage() {
                     const carbonKgNum = parseCarbonKgFromDisplay(carbonDisp)
                     const greenPulse = isDiscoveryInject && carbonKgNum > 500
                     const snapBloomIn = discoverySnapTipId === tip.id
+                    const achievementPin = Boolean(tip.achievement_discovery && pinnedAchievements.some((p) => p.id === tip.id))
                     /* Expand the matching journey card so user gets full experience (tips, links, questions). */
                     const journeyCell = groovyItems.find((c): c is GroovyItem & { type: 'journey' } => c.type === 'journey' && c.item.journey_key === tip.journey_key)
                     const handleTipClick = () => {
@@ -1715,7 +1864,7 @@ export default function ZonePage() {
                       <motion.button
                         type="button"
                         data-zone-surface="tip"
-                        className={`bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left${greenPulse ? ' discovery-card-green-pulse' : ''}`}
+                        className={`bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left${greenPulse ? ' discovery-card-green-pulse' : ''}${achievementPin ? ' discovery-achievement-pin' : ''}`}
                         style={{
                           borderRadius: 60,
                           boxShadow: 'none',
@@ -1970,6 +2119,7 @@ export default function ZonePage() {
                         setExpandedCardId(cell.item.id)
                         setExpandedFromTip(null)
                       }}
+                      onPatternShiftClose={launchPatternShiftTakeover}
                       onClose={() => {
                         closeAnySoloFocus()
                         setAnswerHandoffOffer(null)
@@ -2004,9 +2154,10 @@ export default function ZonePage() {
             })}
           </motion.div>
         </motion.div>
+        ) : null}
 
         {/* The Rock — heartbeat above Saving Tips while master wall hydrates */}
-        {!expandedCardId && !expandedTipId && (
+        {isZoneVisible && !expandedCardId && !expandedTipId && (
           <motion.div className="w-full mt-8 mb-24">
             <LoadingHeartbeat active={researchLoading} />
             <RockSavingTips
@@ -2087,6 +2238,7 @@ export default function ZonePage() {
                 sourceLabel={tip.sourceLabel}
                 architectSuppliedBy={tip.architectSuppliedBy}
                 onClose={closeAnySoloFocus}
+                onPatternShiftClose={launchPatternShiftTakeover}
                 onAskZai={() => router.push(ROUTES.ZAI)}
                 cardId={tip.id}
                 onLike={(id, title, savings) => toggleLike(id, title, savings)}
@@ -2136,7 +2288,23 @@ export default function ZonePage() {
           )
         })()}
 
-        {!expandedCardId && !expandedTipId && (
+        {patternShiftJourneyId ? (
+          <DiscoveryTakeover
+            open
+            journeyId={patternShiftJourneyId}
+            postcode={liveProfilePostcode || state.profile?.postcode}
+            profileData={{
+              postcode: liveProfilePostcode || state.profile?.postcode || undefined,
+              home_type: state.profile?.homeType ?? null,
+              transport_baseline: state.profile?.transport ?? null,
+              household: state.profile?.livingSituation ?? null,
+              employment_status: state.profile?.employmentStatus ?? null,
+            }}
+            onRevealComplete={completeCleanBirth}
+          />
+        ) : null}
+
+        {isZoneVisible && !expandedCardId && !expandedTipId && !patternShiftJourneyId && (
           <FloatingNav
             active="zone"
             onNavigate={(key) => {

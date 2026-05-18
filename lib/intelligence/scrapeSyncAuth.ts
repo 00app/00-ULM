@@ -41,6 +41,9 @@ export function scrapeSyncTriggerRequested(
   if (isTruthyBodyFlag(body.full)) return true
   const mode = String(body.mode ?? searchParams.get('mode') ?? '').toLowerCase()
   if (mode === 'trigger' || mode === 'full') return true
+  /** Hermes lifestyle_shift POST: `trigger` + `?force=true` + `lifestyle_mode` (not `mode`). */
+  if (mode === 'lifestyle_shift' && isTruthyBodyFlag(body.trigger)) return true
+  if (mode === 'lifestyle_shift' && isTruthyQueryFlag(searchParams.get('force'))) return true
   if (isTruthyQueryFlag(searchParams.get('force'))) return true
   if (isTruthyQueryFlag(searchParams.get('trigger'))) return true
   if (isTruthyQueryFlag(searchParams.get('full'))) return true

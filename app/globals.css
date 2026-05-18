@@ -2716,18 +2716,44 @@ h3.solo-focus-question-label.zz-h3 {
   min-width: var(--circle-cta-size) !important;
   min-height: var(--circle-cta-size) !important;
 }
-/* Solo Focus Trinity lock: CTA circles set to 40x40. */
-.expanded-solo-focus .solo-focus-trinity .solo-focus-action-80 {
-  width: 40px !important;
-  height: 40px !important;
-  min-width: 40px !important;
-  min-height: 40px !important;
+/* Action Trinity — 80px decision hub (BUY/DO · LIKE · ASK ZAI). */
+.expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-80,
+.expanded-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn,
+.expanded-solo-focus .solo-focus-trinity--80 .solo-focus-trinity-cta {
+  width: 80px !important;
+  height: 80px !important;
+  min-width: 80px !important;
+  min-height: 80px !important;
 }
-.expanded-solo-focus .solo-focus-utility-row .solo-focus-action-80 {
-  width: 40px !important;
-  height: 40px !important;
-  min-width: 40px !important;
-  min-height: 40px !important;
+
+/* Pink achievement — subtle arrival glow when pinned under hero. */
+.discovery-achievement-pin {
+  animation: discovery-achievement-glow 2.4s ease-in-out 2;
+}
+@keyframes discovery-achievement-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-yellow) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 28px 4px color-mix(in srgb, var(--color-yellow) 55%, transparent);
+  }
+}
+
+.architectural-pulse-overlay .intro-summary-opacity-ticker {
+  color: #ffff00 !important;
+  font-family: var(--font-marvin), sans-serif !important;
+  font-weight: 700;
+}
+
+/* Zone grid pre-renders under Architectural Pulse hydration shield */
+.zone-container--pulse-prerender {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.discovery-clean-birth {
+  background: transparent !important;
 }
 
 /* Top bar sticks to top while rest of page scrolls */

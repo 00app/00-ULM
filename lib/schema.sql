@@ -228,10 +228,17 @@ CREATE TABLE IF NOT EXISTS discovery_injections (
   card_id TEXT NOT NULL,
   payload JSONB NOT NULL DEFAULT '{}',
   source TEXT,
+  journey_key TEXT,
+  question_id TEXT,
+  answer_value TEXT,
+  is_achievement_card BOOLEAN NOT NULL DEFAULT false,
+  parent_answer_id UUID REFERENCES journey_answers(id) ON DELETE SET NULL,
+  lifestyle_mode TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_discovery_injections_user_id ON discovery_injections(user_id);
 CREATE INDEX IF NOT EXISTS idx_discovery_injections_created_at ON discovery_injections(created_at DESC);
+-- journey_key / question_id indexes: db/migrations/018_discovery_injections_pattern_shift.sql (existing DBs may lack columns until 018 runs)
 
 -- =========================
 -- ZAI MESSAGES (Gemini real-time Q&A per session)

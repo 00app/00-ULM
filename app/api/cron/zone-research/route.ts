@@ -40,6 +40,12 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
 
   const raw = request.nextUrl.searchParams.get('limit') ?? '20'
   const limit = Math.min(50, Math.max(1, parseInt(raw, 10) || 20))
+  const lifestyleShift =
+    request.nextUrl.searchParams.get('lifestyle_shift') === '1' ||
+    request.nextUrl.searchParams.get('lifestyle_mode') === 'lifestyle_shift'
+  const lifestyleContext = lifestyleShift
+    ? 'MODE: lifestyle_shift — pattern arbitrage (rail vs flight, EV swap, local holidays). Reject generic homepage URLs; require deep-linked UK portals only.'
+    : undefined
 
   try {
     const res = await getDbPool().query<UserResearchSeedRow>(
@@ -77,6 +83,7 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
             goal,
             age_group: row.age_group ?? undefined,
           },
+          userContext: lifestyleContext,
           persistToNeon: true,
           userId: row.id,
         })
@@ -90,6 +97,7 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
     return NextResponse.json({
       ok: true,
       count: results.length,
+      lifestyle_mode: lifestyleShift ? 'lifestyle_shift' : null,
       results,
     })
   } catch (e) {

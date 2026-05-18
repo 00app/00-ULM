@@ -212,8 +212,15 @@ export async function generateCardContextsBatch(
     },
   })
 
+  const lifestyleShift = cards.some((c) => c.flags?.includes('lifestyle_shift'))
+  const lifestyleBlock = lifestyleShift
+    ? `
+Lifestyle shift / pattern arbitrage: prioritise behavioural shifts (rail vs flight, EV swap, local holidays, meal patterns) over generic grant homepages. Paragraph 3 must reference a deep-linked https portal — never a site root or 404 page.`
+    : ''
+
   const system = `You are the Performance Auditor for a UK climate/savings product (2026).
 Market accuracy beats creative writing. If any value is uncertain, stay conservative and tie claims to provided source_url/source_hint.
+${lifestyleBlock}
 Format raw savings into precise instructions. No marketing fluff, no emojis, no "you could save".
 Absolute voice constraints:
 - No dev-speak words: tile, lane, anchored, component, card rail.

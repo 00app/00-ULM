@@ -108,14 +108,20 @@ async function initDatabase() {
     const tables = verify.rows.map((r) => r.n)
     console.log(`✅ Public tables (${tables.length}): ${tables.join(', ')}`)
 
-    const snapPath = path.join(process.cwd(), 'db', 'migrations', '20260513_research_snapshot_column.sql')
-    if (fs.existsSync(snapPath)) {
+    const extraMigrations = [
+      '20260513_research_snapshot_column.sql',
+      '018_discovery_injections_pattern_shift.sql',
+      '019_discovery_injections_lifestyle_architect.sql',
+    ]
+    for (const file of extraMigrations) {
+      const migPath = path.join(process.cwd(), 'db', 'migrations', file)
+      if (!fs.existsSync(migPath)) continue
       try {
-        await pool.query(fs.readFileSync(snapPath, 'utf8'))
-        console.log('✅ Applied db/migrations/20260513_research_snapshot_column.sql (single batch).')
-      } catch (snapErr: unknown) {
-        const m = snapErr instanceof Error ? snapErr.message : String(snapErr)
-        console.warn('⚠️  research_snapshot migration:', m.slice(0, 220))
+        await pool.query(fs.readFileSync(migPath, 'utf8'))
+        console.log(`✅ Applied db/migrations/${file}`)
+      } catch (migErr: unknown) {
+        const m = migErr instanceof Error ? migErr.message : String(migErr)
+        console.warn(`⚠️  db/migrations/${file}:`, m.slice(0, 220))
       }
     }
 
