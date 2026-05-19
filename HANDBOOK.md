@@ -19,7 +19,7 @@ npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030
 
 **`.env.local` vs shell:** `npm run init-db`, `npm run db:test`, and `npm run db:log-research` load `.env.local` with **`preferLocal: true`** (`scripts/load-env-local.ts`) so values in the file **override** a stale exported `DATABASE_URL`. Still **save** `.env.local` to disk after edits — the terminal reads the file, not an unsaved editor buffer.
 
-**Build:** `npm run build` · **Prep (Neon + clean build):** `npm run prep:live` · **Deploy:** `npm run deploy` or `npm run deploy:force` (runs `scripts/deploy-production.sh` → `vercel deploy --prod` from repo root). Production alias: `https://00-ulm.vercel.app`.
+**Build:** `npm run build` (runs `verify` = typecheck + lint before Next build) · **Prep (Neon + clean build):** `npm run prep:live` · **Deploy:** `npm run deploy` or `npm run deploy:force` (runs `scripts/deploy-production.sh` → `vercel deploy --prod` from repo root). Production alias: `https://00-ulm.vercel.app`. **Vercel native Lint/Typecheck:** need `lint` + `typecheck` scripts; repo uses `.npmrc` `production=false` and `engines.node` **24.x** to match the Vercel project Node setting — if checks show “internal error”, align Node in dashboard with `package.json` or **Force Promote** (build already ran verify).
 
 **Full application specification (architecture, APIs, DB, Hermes, mother/child cards):** `docs/FULL-APP-SPEC.md`.
 

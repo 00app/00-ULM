@@ -25,10 +25,10 @@
     "start:5000": "node node_modules/.bin/next start -p 5000",
     "start:8765": "node node_modules/.bin/next start -p 8765",
     "check": "npm run typecheck",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit -p tsconfig.typecheck.json",
     "check:build": "npm run typecheck && node scripts/build-with-manifest-fix.js",
-    "lint": "eslint app lib --cache --cache-location .eslintcache",
-    "lint:ci": "eslint app lib",
+    "lint": "node node_modules/eslint/bin/eslint.js app lib --cache --cache-location .eslintcache",
+    "lint:ci": "node node_modules/eslint/bin/eslint.js app lib",
     "verify": "npm run typecheck && npm run lint:ci",
     "audit": "npm audit",
     "test:e2e": "playwright test",
@@ -73,6 +73,9 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "tailwind-merge": "^3.5.0",
+    "typescript": "^5.3.3",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "^16.2.4",
     "ws": "^8.20.0",
     "zod": "^3.25.76"
   },
@@ -84,18 +87,15 @@
     "@types/react-dom": "^18.2.0",
     "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.17",
-    "eslint": "^9.39.1",
-    "eslint-config-next": "^16.2.4",
     "postcss": "^8.5.14",
     "tailwindcss": "^3.4.1",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "tsx": "^4.7.0"
   },
   "overrides": {
     "axios": "^1.15.2",
     "postcss": "^8.5.14"
   },
   "engines": {
-    "node": "22.x"
+    "node": "24.x"
   }
 }
