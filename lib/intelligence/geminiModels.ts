@@ -42,7 +42,7 @@ export const ARTICLE_GATEWAY_MODEL_CHAIN = [
 /** @deprecated Use {@link ZONE_GATEWAY_MODEL_CHAIN} — kept for imports; no Pro/Claude. */
 export const RESEARCH_GATEWAY_MODEL_CHAIN = ZONE_GATEWAY_MODEL_CHAIN
 
-export const EDITORIAL_MAGAZINE_CONSTRAINT = `CRITICAL: Do not use technical jargon. Write in the style of a premium lifestyle magazine (e.g. Wired or Monocle). Use article speak with a focus on human benefit. No dashboard summaries, API field names, or robotic audit tone.`
+export const EDITORIAL_MAGAZINE_CONSTRAINT = `CRITICAL: Write as a forensic auditor for Monocle — UK English, human benefit first. No bullet points. Never open with "Here is your advice", "As an AI", or repeat the postcode twice in one sentence (e.g. avoid "in BN17 area, in the BN17 area"). No dashboard field names, API jargon, or lines like "your zone pattern is learned". Exactly three paragraphs in architect_prose when requested: (1) localized why for the user's town, (2) the £ and kg logic, (3) one concrete next step.`
 
 export function resolveGeminiTier(tag?: string | null): GeminiModelTier {
   const t = (tag ?? '').toLowerCase()

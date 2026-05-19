@@ -9,6 +9,7 @@ import { motion, LayoutGroup, useReducedMotion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { buildZoneViewModel } from '@/lib/logic/zone'
+import { ZAI_AUDIT_COMPLETE_EVENT } from '@/lib/zai/zoneSync'
 import type { ZoneViewModel, ZoneJourneyCard, ZoneTipCard, NeonJourneyResearchRow } from '@/lib/logic/zone'
 import {
   applyArchitectEnrichment,
@@ -112,6 +113,7 @@ import {
   zoneNeedsResearchBootstrap,
 } from '@/lib/zone/bootstrapZoneResearch'
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
+import ZoneDesktopNavRail from '@/app/components/ZoneDesktopNavRail'
 import {
   AppFloatingNav,
   ZoneCard,
@@ -272,6 +274,13 @@ export default function ZonePage() {
   const [expandedTipId, setExpandedTipId] = useState<string | null>(null)
   /** S Update: bump to re-read localStorage after embedded question submit */
   const [refreshKey, setRefreshKey] = useState(0)
+
+  useEffect(() => {
+    const onZaiAuditComplete = () => setRefreshKey((k) => k + 1)
+    window.addEventListener(ZAI_AUDIT_COMPLETE_EVENT, onZaiAuditComplete)
+    return () => window.removeEventListener(ZAI_AUDIT_COMPLETE_EVENT, onZaiAuditComplete)
+  }, [])
+
   /** Zone lock: all twelve domains visible on the wall. */
   const [unlockedCount, setUnlockedCount] = useState(12)
   const [hydrated, setHydrated] = useState(false)
@@ -1726,7 +1735,7 @@ export default function ZonePage() {
   return (
     <LayoutGroup>
       <motion.main
-        className="zone relative min-h-screen overflow-x-hidden pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]"
+        className="zone relative min-h-screen overflow-x-hidden pb-[calc(11rem+env(safe-area-inset-bottom,0px))]"
         style={{
           color: 'var(--color-yellow)',
           boxShadow: 'none',
@@ -1744,57 +1753,48 @@ export default function ZonePage() {
         >
           <motion.div
             variants={STACCATO_CHILD_VARIANTS}
-            className="w-full flex flex-col items-start px-0 py-0"
+            className="zone-hero-grid w-full"
             aria-live="polite"
           >
-            <motion.h2
-              className="zz-h2 zone-welcome zone-welcome-block m-0"
-              style={{ color: 'var(--color-yellow)' }}
-              variants={STACCATO_CHILD_VARIANTS}
-              initial="hidden"
-              animate="visible"
-            >
-              {zoneWelcome.nameLine}
-            </motion.h2>
-            <motion.h2
-              className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
-              style={{ color: 'var(--color-yellow)' }}
-              variants={STACCATO_CHILD_VARIANTS}
-              initial="hidden"
-              animate="visible"
-            >
-              {zoneWelcome.savingsLine1}
-            </motion.h2>
-            <motion.h2
-              className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
-              style={{ color: 'var(--color-yellow)' }}
-              variants={STACCATO_CHILD_VARIANTS}
-              initial="hidden"
-              animate="visible"
-            >
-              {zoneWelcome.savingsLine2}
-            </motion.h2>
-            <motion.h2
-              className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
-              style={{ color: 'var(--color-yellow)' }}
-              variants={STACCATO_CHILD_VARIANTS}
-              initial="hidden"
-              animate="visible"
-            >
-              {zoneWelcome.savingsLine3}
-            </motion.h2>
-          </motion.div>
-          <motion.div variants={STACCATO_CHILD_VARIANTS} className="w-full max-w-[400px] relative zone-ask-zai-wrap">
-            <input
-              type="text"
-              placeholder="ASK ZAI..."
-              className="zone-ask-zai-pill w-full rounded-full border-none text-marvin focus:ring-2 focus:ring-[var(--color-yellow)] focus:ring-offset-2 focus:ring-offset-[var(--color-purple)] uppercase caret-[var(--color-purple)]"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') router.push(ROUTES.ZAI)
-              }}
-              onClick={() => router.push(ROUTES.ZAI)}
-              aria-label="Ask Zai — tap or press Enter to open chat"
-            />
+            <div className="zone-hero-copy">
+              <motion.h2
+                className="zz-h2 zone-welcome zone-welcome-block m-0"
+                style={{ color: 'var(--color-yellow)' }}
+                variants={STACCATO_CHILD_VARIANTS}
+                initial="hidden"
+                animate="visible"
+              >
+                {zoneWelcome.nameLine}
+              </motion.h2>
+              <motion.h2
+                className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+                style={{ color: 'var(--color-yellow)' }}
+                variants={STACCATO_CHILD_VARIANTS}
+                initial="hidden"
+                animate="visible"
+              >
+                {zoneWelcome.savingsLine1}
+              </motion.h2>
+              <motion.h2
+                className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+                style={{ color: 'var(--color-yellow)' }}
+                variants={STACCATO_CHILD_VARIANTS}
+                initial="hidden"
+                animate="visible"
+              >
+                {zoneWelcome.savingsLine2}
+              </motion.h2>
+              <motion.h2
+                className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+                style={{ color: 'var(--color-yellow)' }}
+                variants={STACCATO_CHILD_VARIANTS}
+                initial="hidden"
+                animate="visible"
+              >
+                {zoneWelcome.savingsLine3}
+              </motion.h2>
+            </div>
+            <ZoneDesktopNavRail />
           </motion.div>
           {showInlineLoadingLogo ? (
             <motion.div
@@ -2490,8 +2490,28 @@ export default function ZonePage() {
           />
         ) : null}
 
+        {isZoneVisible && !expandedCardId && !expandedTipId && !patternShiftJourneyId ? (
+          <motion.div
+            className="zone-ask-zai-dock"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={STACCATO_TWEEN}
+          >
+            <input
+              type="text"
+              placeholder="ASK ZAI..."
+              className="zone-ask-zai-pill zone-ask-zai-pill--dock w-full rounded-full border-none text-marvin focus:ring-2 focus:ring-[var(--color-yellow)] focus:ring-offset-2 focus:ring-offset-[var(--color-purple)] uppercase caret-[var(--color-purple)]"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') router.push(ROUTES.ZAI)
+              }}
+              onClick={() => router.push(ROUTES.ZAI)}
+              aria-label="Ask Zai — persistent brain of the Zone"
+            />
+          </motion.div>
+        ) : null}
+
         {isZoneVisible && !expandedCardId && !expandedTipId && !patternShiftJourneyId && (
-          <AppFloatingNav active="zone" />
+          <AppFloatingNav active="zone" className="floating-nav--zone-rail-desktop" />
         )}
       </motion.main>
     </LayoutGroup>

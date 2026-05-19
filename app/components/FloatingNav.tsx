@@ -8,6 +8,8 @@ interface FloatingNavProps {
   onNavigate: (key: 'likes' | 'zone' | 'summary' | 'chat') => void
   /** Reserved for future badge / tip signal (no motion in nav). */
   hasNewTipForZai?: boolean
+  /** Zone desktop: hero rail owns nav — keep bottom dock + Ask Zai only. */
+  className?: string
 }
 
 const ICON_SIZE = 18
@@ -16,7 +18,12 @@ const ICON_SIZE = 18
  * Floating Nav — 40×40px circles (no button padding), 18px icons, 12px gap.
  * Order: Likes · Zai (centre) · Settings. Portaled to `document.body`.
  */
-export default function FloatingNav({ active, onNavigate, hasNewTipForZai: _hasNewTipForZai = false }: FloatingNavProps) {
+export default function FloatingNav({
+  active,
+  onNavigate,
+  hasNewTipForZai: _hasNewTipForZai = false,
+  className,
+}: FloatingNavProps) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
@@ -76,7 +83,11 @@ export default function FloatingNav({ active, onNavigate, hasNewTipForZai: _hasN
   )
 
   const nav = (
-    <div className="floating-nav" role="navigation" aria-label="Main">
+    <div
+      className={['floating-nav', className].filter(Boolean).join(' ')}
+      role="navigation"
+      aria-label="Main"
+    >
       {navButton(
         'likes',
         active === 'likes',

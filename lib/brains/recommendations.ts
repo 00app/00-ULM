@@ -272,7 +272,7 @@ export function getDiscoveryRecommendation(
 
   if (isLoopQuestionId(questionId)) {
     return {
-      headline: 'YOUR ZONE PATTERN IS LEARNED',
+      headline: 'YOUR WALL NOW REMEMBERS THIS SHIFT',
       body: 'We remember this choice and sharpen grants, tariffs, and lifestyle offers on your Zone wall.',
       gridJourneyKey: journeyId,
       learnUrl: 'https://energysavingtrust.org.uk/',

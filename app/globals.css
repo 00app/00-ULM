@@ -215,7 +215,7 @@ body {
   z-index: -10;
   overflow: hidden;
   pointer-events: none;
-  background-color: #2a004a;
+  background-color: color-mix(in srgb, #2a004a 42%, transparent);
 }
 
 .zz-blob {
@@ -3709,13 +3709,15 @@ h3.solo-focus-question-label.zz-h3 {
 }
 .zai-interface .zone-ask-zai-pill,
 .zai-interface .ask-zai-input {
-  background-color: var(--color-yellow);
-  color: var(--color-purple);
+  background-color: #fdfd00;
+  color: #7800ce;
+  border: none;
+  outline: none;
   border-radius: 9999px;
   padding: 12px 24px;
   font-weight: 800;
   font-size: 1.125rem;
-  caret-color: var(--color-purple);
+  caret-color: #7800ce;
 }
 @media (min-width: 768px) {
   .zai-interface .zone-ask-zai-pill,
@@ -3749,6 +3751,14 @@ h3.solo-focus-question-label.zz-h3 {
   min-width: 0;
   height: 54px;
   box-sizing: border-box;
+  background: #fdfd00 !important;
+  color: #7800ce !important;
+  font-weight: 800 !important;
+  border: none !important;
+  outline: none !important;
+}
+.zai-interface .zai-ask-input::placeholder {
+  color: color-mix(in srgb, #7800ce 55%, transparent);
 }
 /* Go button: pink default, yellow text; hover yellow bg, purple text; bounce (match other CTAs) */
 .zai-interface .zai-go-btn {
@@ -6300,6 +6310,10 @@ h3.solo-focus-question-label.zz-h3 {
 }
 
 @media (min-width: 1024px) {
+  .floating-nav.floating-nav--zone-rail-desktop {
+    display: none !important;
+  }
+
   .floating-nav {
     position: fixed !important;
     top: calc(20px + env(safe-area-inset-top, 0px)) !important;
@@ -6639,10 +6653,84 @@ select,
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 0;
   padding-top: 0px;
   padding-bottom: 0px;
+}
+
+/* Desktop hero — 60% punchy welcome / 40% vertical nav gallery */
+.zone-hero-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 24px;
+  width: 100%;
+}
+.zone-hero-copy {
+  width: 100%;
+  min-width: 0;
+}
+.zone-desktop-nav-rail {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .zone-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(120px, 2fr);
+    align-items: start;
+    gap: clamp(24px, 4vw, 48px);
+  }
+  .zone-desktop-nav-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 12px;
+    padding-top: 4px;
+  }
+  .zone-desktop-nav-item {
+    border: none;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .zone-desktop-nav-item-inner {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-yellow);
+    color: var(--color-purple);
+  }
+  .zone-desktop-nav-item:hover .zone-desktop-nav-item-inner {
+    background: var(--color-pink);
+    color: var(--color-yellow);
+  }
+}
+
+/* Ask Zai — fixed above floating nav (persistent Zone brain) */
+.zone-ask-zai-dock {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  z-index: 195;
+  width: min(400px, calc(100vw - 32px));
+  pointer-events: auto;
+}
+.zone-ask-zai-pill--dock {
+  width: 100%;
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--color-purple) 35%, transparent);
+}
+
+.zz-modal-close-btn .zz-modal-close-glyph {
+  font-family: var(--font-marvin);
+  font-size: 2rem;
+  line-height: 0.8;
+  font-weight: bold;
 }
 
 .zone-anchor .zone-masthead {

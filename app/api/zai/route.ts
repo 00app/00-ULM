@@ -27,6 +27,9 @@ import {
   ZAI_EDITORIAL_AUDITOR_DNA,
   ZAI_PERFORMANCE_AUDITOR_V3_MATRIX,
 } from "@/lib/brains/zai/prompts";
+import { buildZaiGenomeContextPrompt } from '@/lib/brains/zai/genomeContext'
+import { finalizeZaiChatLearning } from '@/lib/brains/zai/learning'
+import { dedupeLocalityInProse, textAlreadyHasLocality } from '@/lib/brains/zai/prose'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import type { ImpactProfile } from '@/lib/brains/types'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
@@ -201,8 +204,10 @@ function heatingPhraseForOpener(ja: Record<string, Record<string, string>>): str
   return raw.length > 24 ? `${raw.slice(0, 24)}…` : raw
 }
 
-/** Place token for opener — UK outward code from postcode (no legacy place-name lock-ins). */
-function postcodePlaceForOpener(postcode: string | null): string {
+/** Prefer council/locality name; fall back to outward postcode token only when needed. */
+function localityPlaceForOpener(localityName: string | null, postcode: string | null): string {
+  const loc = localityName?.trim()
+  if (loc) return loc.toLowerCase()
   if (!postcode?.trim()) return ''
   const compact = postcode.replace(/\s+/g, '').toUpperCase()
   const m = compact.match(/^([A-Z]{1,2}\d[A-Z\d]?)/)
@@ -210,20 +215,58 @@ function postcodePlaceForOpener(postcode: string | null): string {
 }
 
 /**
- * v1.8.12 Zai lock: first sentence MUST ground heating + postcode when known.
- * Example: "since you're in sw1a area and have gas heating, you should …"
- * `journey_answers_jsonb` is merged with client payload before this runs.
+ * Optional opener — locality + heating when known (skipped when prose already names the place).
  */
 function mandatoryOpenerPrefix(
   ja: Record<string, Record<string, string>>,
-  postcode: string | null
+  postcode: string | null,
+  localityName?: string | null
 ): string {
   const heat = heatingPhraseForOpener(ja)
-  const place = postcodePlaceForOpener(postcode)
+  const place = localityPlaceForOpener(localityName ?? null, postcode)
   if (place && heat) return `in ${place}, with ${heat},`
   if (heat) return `with ${heat},`
   if (place) return `in ${place},`
   return ''
+}
+
+async function polishZaiReplyAndLearn(args: {
+  text: string
+  sessionUserId?: string
+  question: string
+  journeyAnswersForContext: Record<string, Record<string, string>>
+  impactProfile?: ImpactProfile
+  effectivePostcode: string | null
+  localityName: string | null
+}): Promise<string> {
+  let text = dedupeLocalityInProse(args.text.trim().toLowerCase())
+  if (!text) return ZAI_FALLBACK
+  const opener = mandatoryOpenerPrefix(
+    args.journeyAnswersForContext,
+    args.effectivePostcode,
+    args.localityName
+  )
+  if (
+    opener &&
+    !text.startsWith(opener) &&
+    !textAlreadyHasLocality(text, args.localityName, args.effectivePostcode)
+  ) {
+    text = dedupeLocalityInProse(`${opener} ${text}`)
+  }
+  if (args.sessionUserId) {
+    try {
+      await finalizeZaiChatLearning({
+        userId: args.sessionUserId,
+        userMessage: args.question,
+        assistantMessage: text,
+        journeyAnswers: args.journeyAnswersForContext,
+        profile: args.impactProfile,
+      })
+    } catch {
+      /* non-blocking brain stomach */
+    }
+  }
+  return text
 }
 
 export async function POST(req: Request) {
@@ -362,6 +405,7 @@ export async function POST(req: Request) {
       sentinelGrantContextLine = ` sentinel grant context: ${grantTitle}; claim portal: ${grantUrl}; use the live amount provided in context.`
     }
     const session = await getSessionFromRequest()
+    let userGenomeForPrompt: Record<string, unknown> | null = null
     let journeyAnswersForContext: Record<string, Record<string, string>> = {}
     let profileForContext:
       | {
@@ -401,6 +445,7 @@ export async function POST(req: Request) {
           profileRow && typeof profileRow.user_genome === 'object' && profileRow.user_genome
             ? (profileRow.user_genome as Record<string, unknown>)
             : null
+        userGenomeForPrompt = userGenome
         const sentinelGenome =
           userGenome && typeof userGenome.sentinel === 'object' && userGenome.sentinel
             ? (userGenome.sentinel as Record<string, unknown>)
@@ -449,6 +494,27 @@ export async function POST(req: Request) {
         userContextBlock = `\n\n--- user_context (use for personalisation) ---\n${md}\n---`
       }
     }
+
+    const localityName = council?.trim() || null
+    const genomePrompt = buildZaiGenomeContextPrompt({
+      userGenome: userGenomeForPrompt,
+      journeyAnswers: journeyAnswersForContext,
+      profile: toImpactProfile(
+        profileForContext
+          ? {
+              name: profileForContext.name,
+              postcode: profileForContext.postcode,
+              household: profileForContext.household,
+              home_type: profileForContext.home_type,
+              transport_baseline: profileForContext.transport_baseline,
+              age_group: profileForContext.age,
+              employment_status: profileForContext.employment_status,
+            }
+          : undefined
+      ),
+    })
+    const optimizationPrompt =
+      ' always scan user_genome and user_context before responding. if a domain is AUDIT_COMPLETE, pivot from discovery to optimization — cite their £ and kg stats; do not re-ask postcode, heating, or commute basics you already hold.'
 
     const impactProfile =
       toImpactProfile(
@@ -525,18 +591,22 @@ export async function POST(req: Request) {
         ? ` current journey form question: "${String(expandedContext.journey_question_label).trim().slice(0, 160)}".`
         : ''
     // v1.8.2 production lock: systemInstruction + post-hoc prefix (below) enforce mandatory opener when heating/postcode exists.
-    const mandatoryOpener = mandatoryOpenerPrefix(journeyAnswersForContext, effectivePostcode)
+    const mandatoryOpener = mandatoryOpenerPrefix(
+      journeyAnswersForContext,
+      effectivePostcode,
+      localityName
+    )
     const energyOpenerRule = mandatoryOpener
-      ? ` optional opener: you may start with "${mandatoryOpener} " then continue in a friendly uk voice. do not sound robotic.`
-      : ' if journey answers include home heating or postcode, mention them naturally in the first sentence — warm tone, not technical.'
+      ? ` optional opener: you may start with "${mandatoryOpener} " then continue in a friendly uk voice. never repeat the same place twice in one sentence. do not sound robotic.`
+      : ' if journey answers include home heating or postcode, mention them naturally in the first sentence — warm tone, not technical. never duplicate locality phrases.'
 
     const auditorBlock = ` ${ZAI_PERFORMANCE_AUDITOR_V3_MATRIX}`
     const totalsLine = ` household savings so far: about £${totalMoney}/yr and ${totalCarbon}kg carbon — use these when discussing money or carbon; do not invent zeros.`
     const systemInstruction = isExpandedContext
-      ? `you are zai. the user is in deep dive on [${categoryLabel}]. personal spend signal: ${personalSpend}; regional avg signal: ${regionalAvg}.${scrapedSourceLine}${journeyFormQuestionLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${totalsLine}${energyOpenerRule} answer strictly about this shift and how to close the saving gap.${userContextNote}${editorialBlock}${auditorBlock}${activeShiftBlock}${roleGuard}${userContextBlock}`
-      : `you are zai on the zero zero chat surface.${totalsLine}${locationLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${energyOpenerRule}
+      ? `you are zai. the user is in deep dive on [${categoryLabel}]. personal spend signal: ${personalSpend}; regional avg signal: ${regionalAvg}.${scrapedSourceLine}${journeyFormQuestionLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${totalsLine}${energyOpenerRule}${optimizationPrompt} answer strictly about this shift and how to close the saving gap.${userContextNote}${editorialBlock}${auditorBlock}${activeShiftBlock}${roleGuard}${userContextBlock}${genomePrompt}`
+      : `you are zai on the zero zero chat surface.${totalsLine}${locationLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${energyOpenerRule}${optimizationPrompt}
       open with a lifestyle hook when the user has not asked a narrow question yet.
-      uk context: defra, wrap uk, energy saving trust; april 2026 domestic cap £1,641/yr (ofgem).${userContextNote}${editorialBlock}${auditorBlock}${roleGuard}${userContextBlock}`
+      uk context: defra, wrap uk, energy saving trust; april 2026 domestic cap £1,641/yr (ofgem).${userContextNote}${editorialBlock}${auditorBlock}${roleGuard}${userContextBlock}${genomePrompt}`
 
     const streamRequested = body.stream !== false
     const zaiTopic = routeQuestion(question)
@@ -553,16 +623,19 @@ export async function POST(req: Request) {
           temperature: 0.4,
           models: [...CHAT_GATEWAY_MODEL_CHAIN],
         })
-        text = gwText
-        if (!text) {
+        if (!gwText) {
           return NextResponse.json({ answer: ZAI_FALLBACK }, { status: 200 })
         }
-        text = text.toLowerCase()
-        const opener = mandatoryOpenerPrefix(journeyAnswersForContext, effectivePostcode)
-        if (opener && !text.startsWith(opener)) {
-          text = `${opener} ${text}`.replace(/\s+/g, ' ').trim()
-        }
-        return NextResponse.json({ answer: text })
+        const answer = await polishZaiReplyAndLearn({
+          text: gwText,
+          sessionUserId: session?.userId,
+          question,
+          journeyAnswersForContext,
+          impactProfile: impactProfile ?? undefined,
+          effectivePostcode,
+          localityName,
+        })
+        return NextResponse.json({ answer })
       }
 
       if (!genAI) {
@@ -575,12 +648,19 @@ export async function POST(req: Request) {
       })
 
       if (streamRequested) {
-        const opener = mandatoryOpenerPrefix(journeyAnswersForContext, effectivePostcode)
+        const opener = mandatoryOpenerPrefix(
+          journeyAnswersForContext,
+          effectivePostcode,
+          localityName
+        )
+        const skipOpener = textAlreadyHasLocality(question, localityName, effectivePostcode)
         const stream = new ReadableStream<Uint8Array>({
           start(controller) {
             let started = false
             let sentAny = false
-            if (opener) {
+            let streamedFull = ''
+            if (opener && !skipOpener) {
+              streamedFull = `${opener} `
               controller.enqueue(textEncoder.encode(`${opener} `))
               sentAny = true
             }
@@ -593,7 +673,7 @@ export async function POST(req: Request) {
                     const piece = extractResponseText(chunk).toLowerCase()
                     if (!piece) continue
                     let next = piece
-                    if (!started && opener) {
+                    if (!started && opener && !skipOpener) {
                       started = true
                       if (next.startsWith(opener)) {
                         next = next.slice(opener.length).trimStart()
@@ -601,6 +681,7 @@ export async function POST(req: Request) {
                     }
                     if (!next) continue
                     sentAny = true
+                    streamedFull += next
                     controller.enqueue(textEncoder.encode(next))
                   }
                 } else {
@@ -609,7 +690,7 @@ export async function POST(req: Request) {
                     const piece = extractResponseText(chunk).toLowerCase()
                     if (!piece) continue
                     let next = piece
-                    if (!started && opener) {
+                    if (!started && opener && !skipOpener) {
                       started = true
                       if (next.startsWith(opener)) {
                         next = next.slice(opener.length).trimStart()
@@ -617,11 +698,27 @@ export async function POST(req: Request) {
                     }
                     if (!next) continue
                     sentAny = true
+                    streamedFull += next
                     controller.enqueue(textEncoder.encode(next))
                   }
                 }
                 if (!sentAny) {
                   controller.enqueue(textEncoder.encode(ZAI_FALLBACK))
+                  streamedFull = ZAI_FALLBACK
+                }
+                streamedFull = dedupeLocalityInProse(streamedFull)
+                if (session?.userId && streamedFull.trim()) {
+                  try {
+                    await finalizeZaiChatLearning({
+                      userId: session.userId,
+                      userMessage: question,
+                      assistantMessage: streamedFull,
+                      journeyAnswers: journeyAnswersForContext,
+                      profile: impactProfile ?? undefined,
+                    })
+                  } catch {
+                    /* non-blocking */
+                  }
                 }
                 controller.close()
               } catch (streamErr) {
@@ -657,12 +754,16 @@ export async function POST(req: Request) {
       if (!text) {
         return NextResponse.json({ answer: ZAI_FALLBACK }, { status: 200 })
       }
-      text = text.toLowerCase()
-      const opener = mandatoryOpenerPrefix(journeyAnswersForContext, effectivePostcode)
-      if (opener && !text.startsWith(opener)) {
-        text = `${opener} ${text}`.replace(/\s+/g, ' ').trim()
-      }
-      return NextResponse.json({ answer: text })
+      const answer = await polishZaiReplyAndLearn({
+        text,
+        sessionUserId: session?.userId,
+        question,
+        journeyAnswersForContext,
+        impactProfile: impactProfile ?? undefined,
+        effectivePostcode,
+        localityName,
+      })
+      return NextResponse.json({ answer })
     } catch (geminiError: unknown) {
       const msg = geminiError instanceof Error ? geminiError.message : String(geminiError)
       const status = (geminiError as { status?: number })?.status

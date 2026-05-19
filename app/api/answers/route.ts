@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
-import { isJourneyComplete } from '@/lib/journeys'
+import { isJourneyComplete, QUESTIONS_PER_JOURNEY } from '@/lib/journeys'
 import { isValidLoopOrJourneyQuestion } from '@/lib/zone/loopQuestions'
 import {
   getJourneyAnswersForUser,
@@ -257,6 +257,14 @@ export async function POST(request: NextRequest) {
         }
       : undefined
 
+    const journeyNowComplete = isValidJourneyId(jKey)
+      ? isJourneyComplete(jKey as JourneyId, journeyAnswers as Record<JourneyId, Record<string, string>>)
+      : false
+    const journeyWasComplete =
+      isValidJourneyId(jKey) &&
+      isJourneyComplete(jKey as JourneyId, answersBeforeUpsert as Record<JourneyId, Record<string, string>>)
+    const journeyJustFinished = journeyNowComplete && !journeyWasComplete
+
     const homeNowComplete = isJourneyComplete(
       'home',
       journeyAnswers as Record<JourneyId, Record<string, string>>
@@ -280,7 +288,7 @@ export async function POST(request: NextRequest) {
         /** Pins `research_results.category` + Gemini What/Why/How triplet to this journey. */
         category: jKey,
       }
-      if (homeJustFinished) {
+      if (homeJustFinished || journeyJustFinished) {
         await triggerSupplementalResearch(researchPayload)
       } else {
         void triggerSupplementalResearch(researchPayload)
@@ -465,6 +473,8 @@ export async function POST(request: NextRequest) {
       },
       grid_pulse_card,
       hermesMemory: hermesMemory ?? undefined,
+      journey_just_finished: journeyJustFinished,
+      questions_per_journey: QUESTIONS_PER_JOURNEY,
     })
     if (attachSession) {
       return attachSessionCookieToResponse(res, user_id)

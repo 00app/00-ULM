@@ -27,6 +27,7 @@ export function stripExpandedCardTitleNoise(raw: string): string {
   t = t.replace(UK_POSTCODE_INLINE_RE, ' ')
   t = t.replace(EXPANDED_TITLE_TARIFF_NOISE_RE, ' ')
   t = t.replace(EXPANDED_TITLE_REPORT_PREFIX_RE, ' ')
+  t = t.replace(/\b(?:your\s+)?zone\s+pattern\s+is\s+learned(?:\s+on)?\b/gi, ' ')
   t = t.replace(/\b(?:AUDIT|REPORT|REGULATORY|WINDOW)\b/gi, ' ')
   t = t.replace(/\s*\([^)]*(?:updated|as at|revised)[^)]*\)\s*$/i, '').trim()
   t = t.replace(/\s*\(\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*\d{1,2},?\s*\d{4}\s*\)\s*$/i, '').trim()
@@ -41,7 +42,7 @@ export function stripExpandedCardTitleNoise(raw: string): string {
 }
 
 const ZONE_PREVIEW_NOISE_RE =
-  /\b(?:BN\d|POSTCODE|REGULATORY|AUDIT|REPORT|REGIONAL|PROFILE|DNO|UKPN|APRIL\s*2026|ENERGY\s+AUDIT|LITTLEHAMPTON|ARUN|SOUTH\s+EAST|DISTRIB|STANDING\s+CHARGE|UNIT\s+RATE|KWH|KWH\/|PRICE\s+CAP|OFgem|GOVERNMENT\s+DATA)\b/i
+  /\b(?:BN\d|POSTCODE|REGULATORY|AUDIT|REPORT|REGIONAL|PROFILE|DNO|UKPN|APRIL\s*2026|ENERGY\s+AUDIT|LITTLEHAMPTON|ARUN|SOUTH\s+EAST|DISTRIB|STANDING\s+CHARGE|UNIT\s+RATE|KWH|KWH\/|PRICE\s+CAP|OFgem|GOVERNMENT\s+DATA|ZONE\s+PATTERN|PATTERN\s+IS\s+LEARNED)\b/i
 
 /** True when a headline is still report metadata, not a user-facing insight. */
 export function isZonePreviewHeadlineNoise(text: string): boolean {
@@ -231,17 +232,18 @@ export function humanizeTrueTipParagraph(raw: string): string {
   return clampWords(cleaned, MAX_TRUE_TIP_PARAGRAPH_WORDS)
 }
 
+/** Pad short headlines without robotic fragments (never append bare "ON" / "YOUR ZONE"). */
 const SHORT_HEADLINE_PAD = [
-  'ON',
-  'YOUR',
-  'ZONE',
-  'WALL',
   'RIGHT',
   'NOW',
   'THIS',
   'MONTH',
-  'AT',
-  'HOME',
+  'NEAR',
+  'YOU',
+  'TODAY',
+  'LOCALLY',
+  'IN',
+  'UK',
 ] as const
 
 function padHeadlineToMin(words: string[], minWords: number, maxWords: number): string[] {

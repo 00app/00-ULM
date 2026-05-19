@@ -13,13 +13,15 @@ npm run init-db              # lib/schema.sql + research_snapshot migration (loa
 npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030 / :3001 variants)
 ```
 
-**Canonical Git remote:** `https://github.com/00app/00-ULM.git` — push `main` here; Vercel Git integration (if enabled) builds on push. This repo has **no GitHub Actions workflows**; the production pipeline is **Vercel build + deploy** (`vercel ls` / dashboard for status).
+**Canonical Git remote:** `https://github.com/00app/00-ULM.git` — push `main` here; Vercel Git integration (if enabled) builds on push. **GitHub Actions:** `.github/workflows/ci.yml` runs **lint** + **typecheck** on push/PR (backup to Vercel native checks). Production pipeline is **Vercel build + deploy** (`npm run deploy` / dashboard).
 
 **Neon empty branch / “No roles available”:** In [Neon Console](https://console.neon.tech) → your project → ensure **Roles** exist (create `neondb_owner` or reset password). Paste the **pooler** connection string into `DATABASE_URL`, then run `npm run init-db` again. If auth fails, paste a **fresh** URI from **Connection details** (passwords rotate when reset).
 
 **`.env.local` vs shell:** `npm run init-db`, `npm run db:test`, and `npm run db:log-research` load `.env.local` with **`preferLocal: true`** (`scripts/load-env-local.ts`) so values in the file **override** a stale exported `DATABASE_URL`. Still **save** `.env.local` to disk after edits — the terminal reads the file, not an unsaved editor buffer.
 
-**Build:** `npm run build` (runs `verify` = typecheck + lint before Next build) · **Prep (Neon + clean build):** `npm run prep:live` · **Deploy:** `npm run deploy` or `npm run deploy:force` (runs `scripts/deploy-production.sh` → `vercel deploy --prod` from repo root). Production alias: `https://00-ulm.vercel.app`. **Vercel native Lint/Typecheck:** need `lint` + `typecheck` scripts; repo uses `.npmrc` `production=false` and `engines.node` **24.x** to match the Vercel project Node setting — if checks show “internal error”, align Node in dashboard with `package.json` or **Force Promote** (build already ran verify).
+**Build:** `npm run build` (runs **`verify`** = `typecheck` + `lint:ci` before Next build) · **Typecheck:** `npm run check` / `npm run typecheck` · **Lint:** `npm run lint` · **Prep:** `npm run prep:live` · **Deploy:** `npm run deploy` or `npm run deploy:force` (`scripts/deploy-production.sh` → `vercel deploy --prod`). Production: **`https://00-ulm.vercel.app`**.
+
+**Wake stack (Mac):** `npm run db:test` (Neon) · `npm run hermes:ping` (Vercel auth) · `BASE_URL=https://00-ulm.vercel.app bash scripts/verify-env-and-health.sh` · `npm run hermes:pulse` (full cron smoke, `limit=1`). **VPS Hermes:** `bash scripts/deploy-hermes-to-vps.sh` — see **`docs/HERMES-VPS-SETUP.md`**.
 
 **Full application specification (architecture, APIs, DB, Hermes, mother/child cards):** `docs/FULL-APP-SPEC.md`.
 
@@ -43,12 +45,12 @@ UK-first web app: **postcode** and **profile** drive local context; **Zone** sho
 
 | Step | Route | Notes |
 |------|--------|--------|
-| Intro | `/`, `/intro` | Glitch logo → `IntroWordCycle` (SAVE → MONEY → …) → **CREATE** (`/profile`) only (no SKIP CTA). `?skip=1` / `?step=message` still skips logo via URL. |
+| Intro | `/`, `/intro` | **Style A glitch logo** (`GlitchLogo` / `.app-boot-glitch`) → `IntroWordCycle` (SAVE → MONEY → …) → **CREATE** (`/profile`) only (no SKIP CTA). `?skip=1` / `?step=message` still skips logo via URL. |
 | Profile | `/profile` | Stepped onboarding (`ProfilePageClient`). **Full-sentence fade:** each step’s heading is **one block** (soft **y: 10→0** + opacity, `STACCATO_TWEEN`) — **not** word-by-word. Postcode → `POST /api/local-intelligence`. |
 | Summary | `/profile/summary` | **`SummaryHeader`** → **`IntroWordCycle`** with **`opacityTicker`**: **one word on screen at a time**, opacity **0→1** only (Mechanical Snap ticker — **no** Style A glitch). Words from **`buildSummaryStaccatoWords`**; locality wrap via **`formatSummaryLocalityKineticToken`** + **`fitToViewportPaddingPx`**. Dwell/gap: **`SUMMARY_KINETIC_WORD_*`** in `lib/animations.ts`. Then Zone. **`lib/brains/summaryLogic.ts`**. |
-| Zone | `/zone` | **12 journey tiles** (3×4 bento) always visible; **`LoadingHeartbeat`** + per-card skeleton while `GET /api/scrape-sync` hydrates (`vmResolved`). **Mechanical truth:** no fake £ when Neon is empty — see § Mechanical truth below. Style B: **`STACCATO_*`** assembly (`app/zone/page.tsx`). **`ZoneCard`** export = `JourneyBentoCard`. |
-| Solo Focus | (overlay) | **`ZoneCard`** / `SoloFocusOverlay` + `EmbeddedJourneyQuestion` — **`POST /api/answers`** discovery race → **`injectNewDiscoveryCard`**. **Tier 2:** child answer → **`runTier2MotherChildSwap`** → `GET /api/scrape-sync?postcode&category&answer&question_id` → morph deck refresh. Zip-shut → **fade-open** for next question. |
-| Other | `/zai`, `/likes`, `/settings` | Chat, saved cards, reset/session. **`AppFloatingNav`** on Zone, Likes, Zai, Settings — **40×40px** circles (no button padding), portaled pink bar; routes via `ROUTES` (`likes` → `/likes`, `chat` → `/zai`, `summary` → `/settings`). |
+| Zone | `/zone` | **Ask Zai** pill (anchor) → inline **`GlitchLogo`** loader under pill until first card ready (`revealedCardCount ≥ 1`); bento wall hidden until then, then **staggered** card reveal (`ZONE_GRID_STAGGER_CHILD_DELAY_SEC`). Summary handoff: architectural pulse → punch when `isZoneReady`. **`GET /api/scrape-sync`** hydrates (`vmResolved`). **Mechanical truth:** no fake £ when Neon empty — § below. Style B: **`STACCATO_*`** (`app/zone/page.tsx`). **`ZoneCard`** = `JourneyBentoCard`. |
+| Solo Focus | (overlay) | **`SoloFocusOverlay`** / **`JourneyBentoCard`** + **`EmbeddedJourneyQuestion`**. Expanded **Marvin H3** architect headline (6–12 words). **Ask Zai** Trinity → **`AskZaiDeepDiveSheet`**; **Continue in Zai** → **`setAskZaiContext`** + `/zai`. **`POST /api/answers`** → **`injectNewDiscoveryCard`**. **Tier 2:** **`runTier2MotherChildSwap`**. Zip-shut → fade-open next question. |
+| Other | `/zai`, `/likes`, `/settings` | Chat (consumes ask-handoff context), saved cards, reset/session. **`AppFloatingNav`** on Zone, Likes, Zai, Settings — **40×40px** circles, portaled pink bar; `ROUTES` (`likes`, `chat` → `/zai`, `summary` → `/settings`). |
 
 No `/journeys` or `/expand/*` product routes — journeys live on Zone.
 
@@ -103,9 +105,9 @@ Zone VM blends: **AppContext** + **localStorage** mirror, **journey answers**, *
 | **`journey_answers`** + **`journey_answers_jsonb`** | Normalized MC answers (`upsertJourneyAnswerJsonb`) |
 | **`user_profiles`** | Optional mirror of `journey_answers_jsonb` (Hermes / audit-complete) |
 | **`scraped_summary`** | Legacy hero aggregates when populated |
+| **`guest_sessions`** | Pre-login profile + answers by `zz_sid` cookie |
 
 **`insightReady` (scrape-sync):** true when a category row has prose, headline, £, or offer URL — Zone hides “Computing…” once settled. **`GET ?repair=1`** backfills missing headlines/prose without a full `force` research run.
-| **`guest_sessions`** | Pre-login profile + answers by `zz_sid` cookie |
 
 **Not on the hot path:** `micro_answers` (legacy FK to `cards`), empty discovery tables — safe to ignore for Zone/Solo Focus.
 
@@ -173,8 +175,8 @@ Read this when tracing **profile summary**, **expanded Solo Focus**, or **resear
 | Headline limits | Zone bento **`agent_headline`**: **6–8 words** (`MIN_ZONE_CARD_HEADLINE_WORDS` / `MAX_ZONE_CARD_HEADLINE_WORDS`). Expanded Solo Focus H1: **6–12 words** (`MAX_EXPANDED_VIEW_HEADLINE_WORDS`). Enforced in **`headlineFromTitle`** + Gemini prompt. |
 | Dedupe | **`dedupeZoneTipCards`** — no duplicate ids or normalized headline on the tip rail; inject handler on Zone filters before merge. |
 | Question cap | **3 questions per journey** (`lib/journeys.ts`); Solo Focus session stops after **`SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION` (3)** per category (`EmbeddedJourneyQuestion`). |
-| Layout | Expanded: Marvin H1 + three **Roboto Bold** **`solo-focus-architect-prose`** paragraphs (≤ **`MAX_TRUE_TIP_PARAGRAPH_WORDS` (40)** each). Raw tariff dumps / markdown `**` stripped via **`isRawResearchDump`** → auditor fallback. |
-| Dedupe | **`stripExpandedCardTitleNoise`**, **`stripMarkdownForProseDisplay`**, **`polishTrueTipParagraphsForHeadline`** / **`dedupeTrueTipOpeningParagraph`**. |
+| Layout | Expanded: **Marvin H3** headline (`text-marvin` / `.solo-focus-architect-headline`) + three **Roboto Bold** **`solo-focus-architect-prose`** paragraphs (≤ **`MAX_TRUE_TIP_PARAGRAPH_WORDS` (40)** each). Raw tariff dumps stripped via **`isRawResearchDump`**. |
+| Ask Zai | **`AskZaiDeepDiveSheet`** — chip/submit research; **Continue in Zai** writes **`setAskZaiContext`** and navigates to **`/zai`**. Zone anchor pill still routes to `/zai` on Enter. |
 | Scroll | Single scroll on **`.solo-focus-grow-layer`** (no nested rail clip). |
 | Links | **`offer_url`** / **`verifiedAuditSourceUrl`** / **`pickPrimaryHttpUrl`** — **`IndustrialHandoffButton`** uses **Claim / Buy / Get** via **`resolveRevenueCtaLabel`** (`lib/zone/verifiedRevenue.ts`); always passes a URL ( **`offer_url`** or **`/zai`** fallback). |
 
@@ -207,7 +209,8 @@ Full manifest (Hermes, Neon host token, caps): **`docs/INTELLIGENCE-LOOP-MANIFES
 ## Intelligence Loop (manifest)
 
 - **Neon (London):** Canonical pooler host token is `MANIFEST_NEON_POOLER_HOST` in `lib/intelligence/manifest.ts` — it must match the hostname inside `DATABASE_URL` (set password only via Neon Console / Vercel env; never commit secrets).
-- **Hermes / Oracle VPS:** Step-by-step: **`docs/HERMES-VPS-SETUP.md`**. On the box: **`bash scripts/setup-hermes-vps.sh --install-cron`** (secret in `~/.hermes/cron.secret`, log `~/hermes-pulse.log`). Mac quick check: **`npm run hermes:ping`**. Do not use `/var/log/hermes-cron.log` unless you create it — default log is **`~/hermes-pulse.log`**.
+- **Hermes / Oracle VPS:** **`docs/HERMES-VPS-SETUP.md`**. **Mac:** `npm run hermes:ping` (auth-only), `npm run hermes:pulse` (smoke `zone-research?limit=1`). **Deploy/sync VPS:** `bash scripts/deploy-hermes-to-vps.sh` (rsync scripts + `~/.hermes/cron.secret` from `.env.production.local`). **On box:** crontab `0 5 * * *` → `hermes-pulse.sh` → log **`~/hermes-pulse.log`** (not `/var/log/hermes-cron.log`). Target: **`https://00-ulm.vercel.app/api/cron/zone-research`**.
+- **Neon project:** **`00-ULM`** (London `eu-west-2`); pooler host **`MANIFEST_NEON_POOLER_HOST`**. Wake: `npm run db:test` or any API hit; compute auto-resumes on query.
 - **Twelve categories:** Journey keys in `lib/journeys.ts` (`JOURNEY_ORDER` — 12 domains × 3 questions). Research persistence (`research_results`) requires **`saving_amount_gbp`**, **`offer_url`**, category, and prose fields as implemented in `lib/agents/researchAgent.ts` / `persistResearchResult`. **Carbon (kg)** on cards comes from stream + impact only when `journeyHasStreamData` — no UK placeholder wall figures.
 - **Injection cap:** `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` (**3**) — enforced in `discovery_injections` per user per `journey_key` for both `POST /api/zone/injections` (answer loop → alternate journey) and `POST /api/research/question-card` (free question → same journey).
 - **Locality scrape hints:** `runZeroResearch` prepends extra Firecrawl seeds when user context mentions **Littlehampton** / **Arun** or **Les Azerables** / **Creuse** (`lib/agents/researchAgent.ts`).
@@ -248,7 +251,9 @@ Apply in Neon (or your pipeline) as needed:
 
 | Surface | Animation | Implementation |
 | --- | --- | --- |
-| **`/` + `/intro`** | **Style A — Glitch logo** | `IntroScreen` ~469ms CSS glitch + `IntroWordCycle` with **`WORD_PULSE_APPEAR`** (blur pulse). **Do not** reuse this glitch on `/profile/summary`. |
+| **`/` + `/intro`** | **Style A — Glitch logo** | `IntroScreen` / **`GlitchLogo`** (~469ms CSS glitch, `GLITCH_ANIM_MS`). **Do not** reuse on `/profile/summary`. |
+| **Route loading** | **Boot glitch** | `app/loading.tsx` + `app/zone/loading.tsx` → **`AppBootGlitch`** (fullscreen purple + looping logo). |
+| **Zone hydrate** | **Inline glitch** | Under Ask Zai pill (`.zone-inline-loading-logo`, 40px vertical rhythm) until first bento card reveals. |
 | **`/profile/summary`** | **Staccato word ticker** | `SummaryHeader` → `IntroWordCycle` **`opacityTicker`**: one word at a time, **opacity only** (`STACCATO_*` timing). |
 | **`/profile` questions** | **Full-sentence fade** | `ProfilePageClient`: whole label as one block, **y: 10→0** + opacity, **`STACCATO_TWEEN`**. |
 | **Zone grid** | **Style B — Mechanical assembly** | `STACCATO_CONTAINER_VARIANTS` / **`STACCATO_CHILD_VARIANTS`** in `app/zone/page.tsx`; 20px gap, **60px** card radius, `grid-auto-rows: 1fr` on tablet+. |
@@ -301,14 +306,18 @@ The application UI reflects the Auditor's precision: mechanical, low-latency, an
 |------|------|
 | `app/` | App Router pages, API routes, UI components |
 | `app/components/ZoneCard.tsx` | Zone export + Tier 2 helpers |
-| `app/components/LoadingHeartbeat.tsx` | Inline pulse above Saving Tips while hydrating |
+| `app/components/AppBootGlitch.tsx` | Segment loading — glitch logo (`app/loading.tsx`, `app/zone/loading.tsx`) |
+| `app/components/AppFloatingNav.tsx` | Shared floating nav mount (Zone, Likes, Zai, Settings) |
+| `app/components/AskZaiDeepDiveSheet.tsx` | Expanded Ask Zai sheet + Continue in Zai handoff |
+| `app/components/LoadingHeartbeat.tsx` | Legacy heartbeat component (Zone uses inline `GlitchLogo` gate) |
 | `app/components/ZoneIntelligenceStrip.tsx` | Dev FAB; polls scrape-sync with Gary `user_id` when active |
 | `lib/zone/` | Zone VM, Tier 2, Gary mode, scrape parsers, bento persona |
 | `lib/brains/` | Impact engine, summary, constants, Zai router (**not** `lib/brain/` — single legacy API) |
 | `lib/agents/` | Research, discovery, Firecrawl, Gemini persist |
 | `lib/db/neon.ts` | Answer upserts + research reads |
 | `lib/geocode/resolvePostcodeLocality.ts` | Nominatim label + localStorage cache |
-| `lib/soloFocusCopy.ts` | Expanded copy rules (20-word H1, 3×40-word paragraphs) |
+| `lib/soloFocusCopy.ts` | Headline limits (6–8 bento / 6–12 expanded), dedupe, True Tip prose |
+| `lib/architecturalPulse.ts` | Summary→Zone pulse, font preload, `isZoneReady`, glitch timing |
 | `lib/researchSyncClient.ts` | POST trigger + re-exports Tier 2 fetch |
 | `lib/schema.sql` + `db/migrations/` | Schema reference + Neon SQL history |
 | `scripts/` | Ops only — see **Scripts** below |
@@ -323,8 +332,14 @@ The application UI reflects the Auditor's precision: mechanical, low-latency, an
 | `npm run init-db` | `scripts/init-db.ts` |
 | `npm run db:test` | `scripts/db-test.ts` |
 | `npm run db:log-research` | `scripts/log-latest-research-row.ts` |
+| `npm run verify` | `typecheck` + `lint:ci` (also runs inside `npm run build`) |
+| `npm run typecheck` | `tsc -p tsconfig.typecheck.json` |
+| `npm run lint` / `lint:ci` | ESLint on `app` + `lib` |
 | `npm run deploy` | `scripts/deploy-production.sh` |
 | `npm run verify:env` | `scripts/verify-env-and-health.sh` |
+| `npm run hermes:ping` | `scripts/hermes-pulse.sh --auth-only` |
+| `npm run hermes:pulse` | `scripts/hermes-pulse.sh --smoke` |
+| `bash scripts/deploy-hermes-to-vps.sh` | Rsync Hermes scripts + secret to Oracle VPS |
 | Gary BN17 link | `scripts/link-gary-bn17-research.ts` (manual; `DATABASE_URL` env) |
 
 Other files under `scripts/` are optional one-offs (seed, curl helpers) — not required for production runtime.
@@ -341,15 +356,17 @@ Other files under `scripts/` are optional one-offs (seed, curl helpers) — not 
 
 ## Vercel / Next.js maintenance
 
-- **Pipeline:** Builds run on Vercel when Git integration receives pushes to the connected branch (usually **`main`**) **or** when you run **`npm run deploy`** / **`npm run ship`**. If previews stop updating, confirm the Git link in the Vercel project and run **`vercel link`** locally so the CLI target matches **`gary-lomi-lomicos-projects/00-ulm`** (or your team project). There is **no** `.github/workflows` CI in-repo.
-- **Smoke test:** **`GET /api/health`** on production (`database: connected` ⇒ Neon **`DATABASE_URL`** is valid in Vercel env).
-- **Admin API gate:** Root **`proxy.ts`** (Next.js 16+) runs on `/api/admin/*` — same behaviour as the old `middleware.ts`; do not duplicate auth in two files.
-- **Node version:** **`engines.node`**: **`22.x`**, **`.nvmrc`**: **`22`** — match Vercel **Production → Node.js 22.x**.
-- **Env / redeploy:** **`POST /api/scrape-sync`** responses: **503** + **`API auth not configured`** ⇒ set **`SCRAPER_SECRET`** or **`CRON_SECRET`** (≥16 chars) for **Production**, then **Redeploy** (uncheck build cache once). **503** + **`Scraper not configured`** ⇒ set **`FIRE_CRAWL_KEY_2`** (preferred on Vercel) or legacy **`FIRECRAWL_API_KEY`**. **Bearer** must equal **`SCRAPER_SECRET`** or **`CRON_SECRET`** (**not** the Firecrawl key).
-- **Wrong hostname:** HTML **`Cannot POST /api/scrape-sync`** (e.g. **`00-01.vercel.app`**) means that URL is **not** this Next deployment — use the production domain from the Vercel project (e.g. **`00-ulm.vercel.app`**).
-- **zsh + curl:** **`!`** inside double-quoted **`Authorization`** triggers **history expansion** (`unknown file attribute: h`). Use **single-quoted** Bearer, or run **`bash scripts/curl-scrape-sync-trigger.sh`**, or **`setopt nobanghist`** for the session.
-- **Lines starting with `#`:** In some pastes, **`#` isn’t treated as a comment** and zsh runs **`#` as a command** — run comments on their own line **after** `$` prompt, or omit them.
-- **npm transitive warnings** (e.g. `node-domexception`): usually clear when upstream packages update; run **`npm update`** on a branch when convenient.
+- **Project:** **`gary-lomi-lomicos-projects/00-ulm`** · alias **`https://00-ulm.vercel.app`**. Deploy: **`npm run deploy`** (tolerates CLI timeout if build log shows **Deployment completed** / **Aliased**).
+- **Pipeline:** Push **`main`** (Git integration) or **`npm run deploy`**. **`vercel.json`**: `installCommand: npm ci`, `buildCommand: npm run build` (includes **`verify`**).
+- **Node version:** **`engines.node`**: **`24.x`**, **`.node-version`**: **`24`** — must match Vercel **Project Settings → Node.js Version** (dashboard currently **24.x**). Mismatch can break native Deployment Checks.
+- **Native Deployment Checks (Lint / Typecheck):** Vercel runs **`npm run lint`** and **`npm run typecheck`** in parallel with the build. Repo ensures tools install via **`.npmrc`** (`production=false`) and pins **`eslint`** + **`typescript`** in **`dependencies`**. Scripts invoke binaries with **`node node_modules/...`** for reliability. If checks show **“internal error”** (not a lint/type failure): align Node **24.x**, redeploy, or **Force Promote** — the **build step already ran `verify`**. Optional: disable required native checks in **Build & Deployment → Deployment Checks** if redundant.
+- **GitHub CI:** `.github/workflows/ci.yml` — lint + typecheck on push/PR (Node 24).
+- **Smoke test:** **`GET /api/health`** (`database: connected` ⇒ Neon OK). **`bash scripts/verify-env-and-health.sh`** with **`BASE_URL=https://00-ulm.vercel.app`** for diagnostics.
+- **Stale JS chunks:** After deploy, users may see **Loading chunk … failed** if HTML references an old hash — **`app/error.tsx`** auto-reloads once; hard refresh or clear site data fixes it.
+- **Admin API gate:** **`proxy.ts`** (Next.js 16+) on `/api/admin/*` — do not duplicate auth in `middleware.ts`.
+- **Env / redeploy:** **503** + **`API auth not configured`** ⇒ **`SCRAPER_SECRET`** or **`CRON_SECRET`** (≥16 chars) on Production, then redeploy. **503** + **`Scraper not configured`** ⇒ **`FIRE_CRAWL_KEY_2`** or **`FIRECRAWL_API_KEY`**. Bearer = scraper/cron secret, **not** the Firecrawl key.
+- **Wrong hostname:** **`Cannot POST /api/scrape-sync`** on **`00-01.vercel.app`** etc. — wrong deployment; use **`00-ulm.vercel.app`**.
+- **zsh + curl:** Avoid **`!`** in double-quoted Bearer; use single quotes or **`bash scripts/curl-scrape-sync-trigger.sh`**.
 
 ---
 

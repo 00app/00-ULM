@@ -18,6 +18,9 @@ export const JOURNEY_ORDER = JOURNEY_IDS
 
 export type JourneyId = (typeof JOURNEY_IDS)[number]
 
+/** Hard cap — three questions per journey (Infrastructure / Behaviour / Readiness). */
+export const QUESTIONS_PER_JOURNEY = 3
+
 export interface JourneyQuestion {
   id: string
   label: string
@@ -478,8 +481,16 @@ export function isValidJourneyId(id: string): id is JourneyId {
 
 export function isValidJourneyQuestion(journeyId: string, questionId: string): boolean {
   if (!isValidJourneyId(journeyId)) return false
-  const def = JOURNEYS[journeyId as JourneyId]
-  return def?.questions?.some((q) => q.id === questionId) ?? false
+  return getJourneyQuestionIds(journeyId as JourneyId).includes(questionId)
+}
+
+/** First three question ids for a journey — single registry for Solo Focus + API caps. */
+export function getJourneyQuestionIds(journeyId: JourneyId): string[] {
+  return (JOURNEYS[journeyId]?.questions ?? []).slice(0, QUESTIONS_PER_JOURNEY).map((q) => q.id)
+}
+
+export function getJourneyQuestions(journeyId: JourneyId): JourneyQuestion[] {
+  return (JOURNEYS[journeyId]?.questions ?? []).slice(0, QUESTIONS_PER_JOURNEY)
 }
 
 export function isJourneyComplete(
@@ -487,10 +498,11 @@ export function isJourneyComplete(
   answers: Partial<Record<JourneyId, Record<string, string>>>
 ): boolean {
   const def = JOURNEYS[journeyId]
-  if (!def?.questions?.length) return false
+  const questions = (def?.questions ?? []).slice(0, QUESTIONS_PER_JOURNEY)
+  if (!questions.length) return false
   const row = answers[journeyId]
   if (!row) return false
-  return def.questions.every((q) => {
+  return questions.every((q) => {
     const v = row[q.id]
     return v !== undefined && v !== null && String(v).trim() !== ''
   })

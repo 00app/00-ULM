@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import ZoneBackToZoneLink from '@/app/components/ZoneBackToZoneLink'
+import ZoneModalCloseLink from '@/app/components/ZoneModalCloseLink'
 import { useMemo, useState, useEffect } from 'react'
 import { ROUTES } from '@/lib/routes'
 import { useApp, type ProfileAge } from '@/app/context/AppContext'
@@ -14,7 +14,6 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { motion } from 'framer-motion'
 import { KINETIC_ZIP_PULSE } from '@/lib/animations'
 import { readZaiLikes, removeZaiLike } from '@/lib/zai/zaiLikesStorage'
-import AppFloatingNav from '@/app/components/AppFloatingNav'
 
 const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
 
@@ -117,7 +116,7 @@ export default function LikesPage() {
       }}
       {...KINETIC_ZIP_PULSE}
     >
-      <ZoneBackToZoneLink />
+      <ZoneModalCloseLink />
       <h1 className="zz-page-title zai-page-title">
         LIKES
       </h1>
@@ -308,7 +307,6 @@ export default function LikesPage() {
           })}
         </motion.div>
       )}
-      <AppFloatingNav active="likes" />
     </motion.div>
   )
 }

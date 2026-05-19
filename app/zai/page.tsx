@@ -1,11 +1,14 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import ZoneBackToZoneLink from '@/app/components/ZoneBackToZoneLink'
+import ZoneModalCloseLink from '@/app/components/ZoneModalCloseLink'
+import { renderZaiChatProse } from '@/lib/zai/renderChatProse'
 import { motion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
 import { getAskZaiContext, clearAskZaiContext } from '@/lib/expandStorage'
+import { dedupeLocalityInProse } from '@/lib/brains/zai/prose'
 import { sanitizeText } from '@/lib/sanitize'
+import { dispatchZaiAuditComplete } from '@/lib/zai/zoneSync'
 import { ELASTIC_PING, INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { postZaiChat, readZaiStream } from '@/lib/zai/chatClient'
@@ -14,9 +17,12 @@ import type { ZaiChatMeta } from '@/lib/zai/zaiChatUi'
 import { metaFromAskZaiContext, metaFromZaiReply } from '@/lib/zai/zaiChatUi'
 import { readZaiLikes, removeZaiLike, upsertZaiLike } from '@/lib/zai/zaiLikesStorage'
 import Link from 'next/link'
-import AppFloatingNav from '@/app/components/AppFloatingNav'
 
 const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
+
+function polishZaiDisplayText(text: string): string {
+  return dedupeLocalityInProse(sanitizeText(text))
+}
 const SENTINEL_RECENT_CHAT_KEY = 'zz_recent_chat_history'
 const HERO_TOTALS_KEY = 'heroTotals'
 
@@ -189,7 +195,7 @@ export default function ZaiPage() {
         let streamed = ''
         await readZaiStream(res, (chunk) => {
           streamed += chunk
-          const safe = sanitizeText(streamed)
+          const safe = polishZaiDisplayText(streamed)
           setMessages((m) => {
             const next = [...m]
             if (next[next.length - 1]?.role === 'zai') {
@@ -255,7 +261,7 @@ export default function ZaiPage() {
           return next
         })
       })
-      const finalText = streamed.trim() ? sanitizeText(streamed) : ZAI_FALLBACK
+      const finalText = streamed.trim() ? polishZaiDisplayText(streamed) : ZAI_FALLBACK
       const meta = metaFromZaiReply(finalText, journeyAnswers)
       setMessages((m) => {
         const next = [...m]
@@ -271,6 +277,10 @@ export default function ZaiPage() {
       setLoading(false)
     }
   }
+
+  const handleZaiClose = useCallback(() => {
+    dispatchZaiAuditComplete()
+  }, [])
 
   const handleZaiLike = useCallback(
     (meta: ZaiChatMeta) => {
@@ -288,7 +298,7 @@ export default function ZaiPage() {
       style={{ background: 'transparent' }}
       {...ELASTIC_PING}
     >
-      <ZoneBackToZoneLink />
+      <ZoneModalCloseLink onClose={handleZaiClose} />
       <h1 className="zz-page-title zai-page-title max-w-zone">Ask Zai</h1>
       <motion.div className="zai-intro-bubble max-w-zone">
         <p className="zz-body">your savings mate — money, carbon, and the next step at home.</p>
@@ -321,17 +331,17 @@ export default function ZaiPage() {
                   overflowWrap: 'anywhere',
                 }}
               >
-                {msg.text}
+                {msg.role === 'zai' ? renderZaiChatProse(msg.text, { journey_key: msg.meta?.journeyKey }) : msg.text}
               </span>
               {msg.role === 'zai' && msg.meta ? (
                 <motion.div
-                  className="zai-msg-actions flex flex-col items-start gap-2 mt-2"
+                  className="zai-msg-footer flex flex-wrap items-center gap-3 mt-2"
                   style={{ maxWidth: '85%' }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={INDUSTRIAL_OPACITY_SNAP}
                 >
-                  {msg.meta.answerHref && msg.meta.answerLabel ? (
+                  {msg.meta?.answerHref && msg.meta.answerLabel ? (
                     <Link
                       href={msg.meta.answerHref}
                       className="zz-body underline"
@@ -340,18 +350,30 @@ export default function ZaiPage() {
                       {msg.meta.answerLabel}
                     </Link>
                   ) : null}
-                  {msg.meta.sourceUrl ? (
+                  {msg.meta?.sourceUrl ? (
                     <a
                       href={msg.meta.sourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="zz-body underline"
+                      onClick={() => {
+                        void fetch('/api/likes/track', {
+                          method: 'POST',
+                          credentials: 'include',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            url: msg.meta!.sourceUrl,
+                            title: msg.meta!.likeTitle,
+                            journey_key: msg.meta!.journeyKey,
+                          }),
+                        })
+                      }}
                       style={{ color: 'var(--color-yellow)' }}
                     >
                       source
                     </a>
                   ) : null}
-                  {msg.meta.showLike ? (
+                  {msg.meta?.showLike ? (
                     <motion.button
                       type="button"
                       aria-label={state.likedCards.includes(msg.meta.likeId) ? 'Unlike' : 'Like'}
@@ -407,7 +429,7 @@ export default function ZaiPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask Zai..."
-            className="zone-ask-zai-pill zai-ask-input caret-[var(--color-purple)]"
+            className="zone-ask-zai-pill ask-zai-input border-none outline-none font-bold caret-[var(--color-purple)]"
           />
           <motion.button
             type="button"
@@ -420,7 +442,6 @@ export default function ZaiPage() {
           </motion.button>
         </motion.div>
       </motion.div>
-      <AppFloatingNav active="chat" />
     </motion.div>
   )
 }
