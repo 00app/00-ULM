@@ -354,6 +354,21 @@ body {
   min-height: 0.8em;
 }
 
+/* App / route boot — fullscreen glitch while segments load */
+.app-boot-glitch {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-purple);
+  pointer-events: none;
+}
+.intro-boot-glitch {
+  pointer-events: auto;
+}
+
 /* Inline glitch logo under ASK ZAI — in document flow (not fullscreen overlay) */
 .zone-inline-loading-logo {
   width: 100%;

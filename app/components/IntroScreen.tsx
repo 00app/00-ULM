@@ -154,15 +154,7 @@ export default function IntroScreen() {
 
   if (screen === 'logo') {
     return (
-      <div
-        style={{
-          ...fullScreenStyle,
-          background: 'transparent',
-          opacity: 1,
-          visibility: 'visible',
-          pointerEvents: 'auto',
-        }}
-      >
+      <div className="app-boot-glitch intro-boot-glitch" style={{ ...fullScreenStyle, pointerEvents: 'auto' }}>
         <GlitchLogo width={100} onComplete={() => setScreen('value-message')} />
       </div>
     )
