@@ -39,8 +39,6 @@ import {
   STACCATO_TWEEN,
 } from '@/lib/animations'
 
-import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
-import { ZoneGateWordPulse } from '@/app/components/ZoneGateWordPulse'
 import { parseCoverageFromApi, parseResearchMetaFromApi } from '@/lib/zone/parseScrapeSyncClient'
 import {
   readCachedProfileLocality,
@@ -64,7 +62,7 @@ import {
 import { setExpandCard } from '@/lib/expandStorage'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { DISCOVERY_INJECT_EVENT } from '@/lib/discoveryInject'
-import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
+import { GlitchLogo } from '@/app/components/Logo'
 import { DiscoveryTakeover } from '@/app/components/DiscoveryTakeover'
 import { pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
 import {
@@ -75,6 +73,7 @@ import { spawnAchievementWhenLoopPoolExhausted } from '@/lib/zone/spawnAchieveme
 import {
   SESSION_SUMMARY_TO_ZONE,
   ZONE_READY_MAX_WAIT_MS,
+  buildZoneWelcomeCopy,
   computeIsZoneReady,
 } from '@/lib/architecturalPulse'
 import { scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
@@ -83,7 +82,12 @@ import {
   JOURNEY_BENTO_PERSONA,
   type BentoPersona,
 } from '@/lib/zone/bentoPersona'
-import { headlineFromTitle, MAX_ZONE_CARD_HEADLINE_WORDS } from '@/lib/soloFocusCopy'
+import {
+  headlineFromTitle,
+  MAX_ZONE_CARD_HEADLINE_WORDS,
+  normalizeCardHeadlineKey,
+} from '@/lib/soloFocusCopy'
+import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import { runDiscoveryPulse, readStoredEconomyFingerprint, writeStoredEconomyFingerprint } from '@/lib/agents/heartbeat'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
@@ -109,9 +113,8 @@ import {
 } from '@/lib/zone/bootstrapZoneResearch'
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import {
-  FloatingNav,
+  AppFloatingNav,
   ZoneCard,
-  Logo,
   RockSavingTips,
   SoloFocusOverlay,
 } from '@/lib/visual'
@@ -250,35 +253,6 @@ function neonJourneyResearchFromCoverage(
   return Object.keys(out).length > 0 ? out : undefined
 }
 
-/** Hello {name}. on line 1; punch on line 2 (Marvin / anchor layout). */
-function getZoneGreetingParts(
-  name: string | undefined,
-  completedCount: number,
-  heroMoney: number,
-  heroCarbon: number
-): { line1: string; line2: string } {
-  try {
-    const who = (typeof name === 'string' ? name.trim() : '') || 'Guest'
-    const first = who.split(/\s+/)[0] || 'Guest'
-    const count = Number(completedCount) || 0
-    const money = Number(heroMoney) || 0
-    const carbon = Number(heroCarbon) || 0
-    let punch: string
-    if (count === 0 && money === 0 && carbon === 0) {
-      punch = "Let's fix this."
-    } else if (count >= 4 || money + carbon > 500) {
-      punch = "You're doing groovy."
-    } else if (count >= 1) {
-      punch = "We're doing cool."
-    } else {
-      punch = "You're doing cool."
-    }
-    return { line1: `Hello ${first}.`.trim(), line2: punch.trim() }
-  } catch {
-    return { line1: 'Hello.', line2: "You're doing cool." }
-  }
-}
-
 export default function ZonePage() {
   const router = useRouter()
   const reduceMotion = useReducedMotion()
@@ -318,8 +292,6 @@ export default function ZonePage() {
   const [architecturalPulsePhase, setArchitecturalPulsePhase] = useState<
     'idle' | 'pulse' | 'punch' | 'done'
   >('done')
-  const [pulseFadeOut, setPulseFadeOut] = useState(false)
-  const [pulseWordsComplete, setPulseWordsComplete] = useState(false)
   const architecturalPulsePhaseRef = useRef(architecturalPulsePhase)
   architecturalPulsePhaseRef.current = architecturalPulsePhase
   /** Pink achievement cards pinned directly under profile hero. */
@@ -596,8 +568,6 @@ export default function ZonePage() {
         sessionStorage.removeItem(SESSION_SUMMARY_TO_ZONE)
         setHeroFromSummaryHandoff(true)
         setSummaryGridStaggerKey((k) => k + 1)
-        setPulseWordsComplete(false)
-        setPulseFadeOut(false)
         setArchitecturalPulsePhase('pulse')
       }
     } catch {
@@ -1049,7 +1019,7 @@ export default function ZonePage() {
           for (const c of prev) {
             if (c.id.startsWith('inject-') && !byId.has(c.id)) byId.set(c.id, c)
           }
-          return [...byId.values()]
+          return dedupeZoneTipCards([...byId.values()])
         })
       })
       .catch(() => {
@@ -1065,7 +1035,13 @@ export default function ZonePage() {
       const detail = (e as CustomEvent<unknown>).detail
       if (!isDiscoveryTipPayload(detail)) return
       const isAchievement = Boolean(detail.achievement_discovery)
-      setInjectedTips((prev) => [...prev.filter((c) => c.id !== detail.id), detail])
+      setInjectedTips((prev) => {
+        const titleKey = normalizeCardHeadlineKey(detail.title ?? '')
+        const withoutDupes = prev.filter(
+          (c) => c.id !== detail.id && normalizeCardHeadlineKey(c.title ?? '') !== titleKey
+        )
+        return dedupeZoneTipCards([...withoutDupes, detail])
+      })
       if (isAchievement) {
         setPinnedAchievements((prev) => [...prev.filter((c) => c.id !== detail.id), detail])
         persistPinnedAchievement(detail)
@@ -1529,7 +1505,6 @@ export default function ZonePage() {
   )
   const displayItems: GroovyItem[] = useMemo(() => [...groovyItems], [groovyItems])
 
-  const isDev = process.env.NODE_ENV !== 'production'
   const researchLoading = !vmResolved
   const isZoneReady = useMemo(
     () => computeIsZoneReady({ hydrated, vmResolved, scrapePostcode }),
@@ -1538,26 +1513,24 @@ export default function ZonePage() {
 
   const beginZonePunchThrough = useCallback(() => {
     if (architecturalPulsePhaseRef.current !== 'pulse') return
-    setPulseFadeOut(true)
     setArchitecturalPulsePhase('punch')
     window.setTimeout(() => {
       setArchitecturalPulsePhase('done')
-      setPulseFadeOut(false)
     }, 480)
   }, [])
 
   useEffect(() => {
-    if (architecturalPulsePhase !== 'pulse' || !pulseWordsComplete || !isZoneReady) return
+    if (architecturalPulsePhase !== 'pulse' || !isZoneReady) return
     beginZonePunchThrough()
-  }, [architecturalPulsePhase, pulseWordsComplete, isZoneReady, beginZonePunchThrough])
+  }, [architecturalPulsePhase, isZoneReady, beginZonePunchThrough])
 
   useEffect(() => {
-    if (architecturalPulsePhase !== 'pulse' || !pulseWordsComplete || isZoneReady) return
+    if (architecturalPulsePhase !== 'pulse' || isZoneReady) return
     const safety = window.setTimeout(() => {
       if (architecturalPulsePhaseRef.current === 'pulse') beginZonePunchThrough()
     }, ZONE_READY_MAX_WAIT_MS)
     return () => window.clearTimeout(safety)
-  }, [architecturalPulsePhase, pulseWordsComplete, isZoneReady, beginZonePunchThrough])
+  }, [architecturalPulsePhase, isZoneReady, beginZonePunchThrough])
 
   const zoneInteractable =
     isZoneVisible &&
@@ -1566,13 +1539,8 @@ export default function ZonePage() {
     architecturalPulsePhase === 'done' &&
     !patternShiftJourneyId
   const zoneWallCollapsed =
-    (architecturalPulsePhase === 'pulse' || architecturalPulsePhase === 'punch') &&
-    !patternShiftJourneyId
-  const showZoneGateLoader =
-    isZoneVisible &&
-    !patternShiftJourneyId &&
-    architecturalPulsePhase === 'done' &&
-    !vmResolved
+    isZoneVisible && !patternShiftJourneyId && revealedCardCount < 1
+  const showInlineLoadingLogo = zoneWallCollapsed
   const zoneRevealCount = Math.min(revealedCardCount, displayItems.length)
 
   useEffect(() => {
@@ -1683,10 +1651,6 @@ export default function ZonePage() {
   )
 
   /** Oversized slot-machine numbers: strict journey-sum totals + liked Rock habits. */
-  const vmJourneyTotals = useMemo(
-    () => (viewModel ? sumJourneyGridTotals(viewModel) : { totalMoney: 0, totalCarbon: 0 }),
-    [viewModel]
-  )
   const neonVerifiedMoney = useMemo(() => {
     const fromCov =
       researchCategoryCoverage &&
@@ -1705,25 +1669,59 @@ export default function ZonePage() {
     researchMeta?.verifiedSaving,
     researchMeta?.savingAmountGbp,
   ])
-  const heroMoneyNum = vmJourneyTotals.totalMoney
-  const heroCarbonNum = vmJourneyTotals.totalCarbon
+  const heroWasteTotals = useMemo(
+    () => (viewModel ? sumJourneyGridTotals(viewModel) : { totalMoney: 0, totalCarbon: 0 }),
+    [viewModel]
+  )
   const rockLikedImpact = sumRockLikedImpact(state.likedCards)
-  const heroMoney = (dbConnected ? (state.heroTotals?.totalMoney ?? heroMoneyNum) : 0) + rockLikedImpact.money
-  const heroCarbon = (dbConnected ? (state.heroTotals?.totalCarbon ?? heroCarbonNum) : 0) + rockLikedImpact.carbon
+  /** Profile hero card — waste £/kg summed from journey bento tiles (same as category cards). */
+  const heroMoney = heroWasteTotals.totalMoney + rockLikedImpact.money
+  const heroCarbon = heroWasteTotals.totalCarbon + rockLikedImpact.carbon
+  /** Welcome masthead — sum of £/kg on visible journey + tip bento cells. */
+  const zoneGridSavings = useMemo(() => {
+    let totalMoney = 0
+    let totalCarbon = 0
+    for (const cell of displayItems) {
+      if (cell.type === 'journey') {
+        totalMoney += Math.max(
+          0,
+          Number(cell.item.moneyGbp ?? parseMoneyGbpFromDisplay(cell.item.data?.money ?? '0'))
+        )
+        totalCarbon += Math.max(
+          0,
+          Number(cell.item.carbonKg ?? parseCarbonKgFromDisplay(cell.item.data?.carbon ?? '0'))
+        )
+      } else if (cell.type === 'tip') {
+        totalMoney += parseMoneyGbpFromDisplay(cell.tip.data?.money ?? '0')
+        totalCarbon += parseCarbonKgFromDisplay(cell.tip.data?.carbon ?? '0')
+      }
+    }
+    return { totalMoney, totalCarbon }
+  }, [displayItems])
+  const welcomeJourneyCount = useMemo(() => {
+    const fromStorage = completedJourneys.length
+    const fromCards = viewModel.journeys.filter((j) => {
+      if (!j.id.startsWith('journey-')) return false
+      const m = Number(j.moneyGbp ?? parseMoneyGbpFromDisplay(j.data?.money ?? '0'))
+      const c = Number(j.carbonKg ?? parseCarbonKgFromDisplay(j.data?.carbon ?? '0'))
+      return m > 0 || c > 0
+    }).length
+    return Math.max(fromStorage, fromCards)
+  }, [completedJourneys.length, viewModel.journeys])
   const displayMoney = useCountUp(heroMoney, { duration: 120 })
   const displayCarbon = useCountUp(heroCarbon, { duration: 120 })
   const heroDataSource = dbConnected && neonVerifiedMoney ? 'VERIFIED AUDIT' : 'ESTIMATED AUDIT'
 
-  /** One block (newline between lines), question-text style + lowercase. */
-  const zoneGreetingBlock = useMemo(() => {
-    const { line1, line2 } = getZoneGreetingParts(
-      state?.profile?.name,
-      Array.isArray(completedJourneys) ? completedJourneys.length : 0,
-      heroMoney,
-      heroCarbon
-    )
-    return `${line1}\n${line2}`
-  }, [state?.profile?.name, completedJourneys, heroMoney, heroCarbon])
+  const zoneWelcome = useMemo(
+    () =>
+      buildZoneWelcomeCopy(
+        state?.profile?.name,
+        welcomeJourneyCount,
+        zoneGridSavings.totalMoney,
+        zoneGridSavings.totalCarbon
+      ),
+    [state?.profile?.name, welcomeJourneyCount, zoneGridSavings.totalMoney, zoneGridSavings.totalCarbon]
+  )
 
   return (
     <LayoutGroup>
@@ -1738,37 +1736,59 @@ export default function ZonePage() {
         {/* 1. ZONE ANCHOR — hidden during Clean Birth (question + pulse on empty background) */}
         {isZoneVisible ? (
         <motion.div
-          className="zone-anchor flex flex-col items-center pt-0 pb-0"
+          className="zone-anchor flex flex-col items-start pt-0 pb-0 w-full"
           aria-hidden={false}
           variants={STACCATO_CONTAINER_VARIANTS}
           initial="hidden"
           animate="visible"
         >
-          <header className="zone-masthead flex flex-col items-center w-full px-4 flex-shrink-0 py-0 gap-0">
-            <motion.div variants={STACCATO_CHILD_VARIANTS} className="flex-shrink-0">
-              <Logo width={66} className="zone-logo" style={{ color: 'var(--color-yellow)' }} />
-            </motion.div>
-          </header>
           <motion.div
             variants={STACCATO_CHILD_VARIANTS}
-            className="w-full flex flex-col items-center px-2 py-0"
+            className="w-full flex flex-col items-start px-0 py-0"
             aria-live="polite"
           >
-            <motion.h3
-              className="question-text zone-welcome text-center m-0"
-              style={{ color: 'var(--color-yellow)', lineHeight: 0.8 }}
+            <motion.h2
+              className="zz-h2 zone-welcome zone-welcome-block m-0"
+              style={{ color: 'var(--color-yellow)' }}
               variants={STACCATO_CHILD_VARIANTS}
               initial="hidden"
               animate="visible"
             >
-              {zoneGreetingBlock}
-            </motion.h3>
+              {zoneWelcome.nameLine}
+            </motion.h2>
+            <motion.h2
+              className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+              style={{ color: 'var(--color-yellow)' }}
+              variants={STACCATO_CHILD_VARIANTS}
+              initial="hidden"
+              animate="visible"
+            >
+              {zoneWelcome.savingsLine1}
+            </motion.h2>
+            <motion.h2
+              className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+              style={{ color: 'var(--color-yellow)' }}
+              variants={STACCATO_CHILD_VARIANTS}
+              initial="hidden"
+              animate="visible"
+            >
+              {zoneWelcome.savingsLine2}
+            </motion.h2>
+            <motion.h2
+              className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+              style={{ color: 'var(--color-yellow)' }}
+              variants={STACCATO_CHILD_VARIANTS}
+              initial="hidden"
+              animate="visible"
+            >
+              {zoneWelcome.savingsLine3}
+            </motion.h2>
           </motion.div>
-          <motion.div variants={STACCATO_CHILD_VARIANTS} className="w-[90%] max-w-[400px] relative zone-ask-zai-wrap">
+          <motion.div variants={STACCATO_CHILD_VARIANTS} className="w-full max-w-[400px] relative zone-ask-zai-wrap">
             <input
               type="text"
               placeholder="ASK ZAI..."
-              className="zone-ask-zai-pill w-full h-[54px] rounded-full border-none px-8 text-marvin focus:ring-2 focus:ring-[var(--color-yellow)] focus:ring-offset-2 focus:ring-offset-[var(--color-purple)] uppercase caret-[var(--color-purple)]"
+              className="zone-ask-zai-pill w-full rounded-full border-none text-marvin focus:ring-2 focus:ring-[var(--color-yellow)] focus:ring-offset-2 focus:ring-offset-[var(--color-purple)] uppercase caret-[var(--color-purple)]"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') router.push(ROUTES.ZAI)
               }}
@@ -1776,7 +1796,19 @@ export default function ZonePage() {
               aria-label="Ask Zai — tap or press Enter to open chat"
             />
           </motion.div>
-          <ZoneGateWordPulse active={showZoneGateLoader} />
+          {showInlineLoadingLogo ? (
+            <motion.div
+              variants={STACCATO_CHILD_VARIANTS}
+              initial="hidden"
+              animate="visible"
+              className="zone-inline-loading-logo"
+              role="status"
+              aria-live="polite"
+              aria-label="Loading your savings wall"
+            >
+              <GlitchLogo loop width={100} />
+            </motion.div>
+          ) : null}
           {sentinelPulseLabel ? (
             <motion.p
               key={sentinelPulseLabel}
@@ -1793,15 +1825,7 @@ export default function ZonePage() {
         </motion.div>
         ) : null}
 
-        {(architecturalPulsePhase === 'pulse' || architecturalPulsePhase === 'punch') &&
-        !patternShiftJourneyId ? (
-          <ArchitecturalPulse
-            fadingOut={pulseFadeOut}
-            onComplete={() => setPulseWordsComplete(true)}
-          />
-        ) : null}
-
-        {/* 2. BENTO WALL — hidden until Clean Birth reveal; summary handoff pre-renders under pulse */}
+        {/* 2. BENTO WALL — hidden until first card hydrates; then cards reveal one-by-one */}
         {isZoneVisible ? (
         <motion.div
           className={[
@@ -1936,7 +1960,7 @@ export default function ZonePage() {
                             className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 flex-shrink-0"
                           >
                             <div className="data-stack data-stack--tight">
-                              <span className="data-label" style={{ color: 'var(--color-yellow)' }}>{ENGINE_UI_LABELS.potentialSavings}</span>
+                              <span className="data-label" style={{ color: 'var(--color-yellow)' }}>{ENGINE_UI_LABELS.profileWasteMoney}</span>
                               <span className="data-value data-stamp-metric sentinel-live-countup" style={{ color: 'var(--color-ink)' }}>
                                 {dbConnected ? (
                                   <StampedMoneyGbp gbp={displayMoney} live={heroLiveGrounded} />
@@ -1948,7 +1972,7 @@ export default function ZonePage() {
                               </span>
                             </div>
                             <div className="data-stack data-stack--tight">
-                              <span className="data-label" style={{ color: 'var(--color-yellow)' }}>{ENGINE_UI_LABELS.carbon}</span>
+                              <span className="data-label" style={{ color: 'var(--color-yellow)' }}>{ENGINE_UI_LABELS.profileWasteCarbon}</span>
                               <span className="data-value data-stamp-metric sentinel-live-countup" style={{ color: 'var(--color-ink)' }}>
                                 {dbConnected ? (
                                   <StampedCarbonKg kg={displayCarbon} />
@@ -2292,7 +2316,7 @@ export default function ZonePage() {
                       isLiked={state.likedCards.includes(cell.item.id)}
                       learnUrl={cell.item.actions?.learnUrl}
                       learnActionType={cell.item.actions?.actionType}
-                      onAskZai={() => router.push(ROUTES.ZAI)}
+                      showAskZaiTrinity={zoneInteractable}
                       onJourneyAnswered={() => {
                         setRefreshKey((k) => k + 1)
                         setUnlockedCount((prev) => Math.min(prev + 1, 9))
@@ -2401,7 +2425,6 @@ export default function ZonePage() {
                 architectSuppliedBy={tip.architectSuppliedBy}
                 onClose={closeAnySoloFocus}
                 onPatternShiftClose={launchPatternShiftTakeover}
-                onAskZai={() => router.push(ROUTES.ZAI)}
                 cardId={tip.id}
                 onLike={(id, title, savings) => toggleLike(id, title, savings)}
                 onEmbeddedAnswerSuccess={
@@ -2468,61 +2491,8 @@ export default function ZonePage() {
         ) : null}
 
         {isZoneVisible && !expandedCardId && !expandedTipId && !patternShiftJourneyId && (
-          <FloatingNav
-            active="zone"
-            onNavigate={(key) => {
-              if (key === 'likes') router.push(ROUTES.LIKES)
-              if (key === 'zone') router.push(ROUTES.ZONE)
-              if (key === 'summary') router.push(ROUTES.SETTINGS)
-              if (key === 'chat') router.push(ROUTES.ZAI)
-            }}
-            hasNewTipForZai={!!scraped && Object.keys(scraped).length > 0}
-          />
+          <AppFloatingNav active="zone" />
         )}
-        <ZoneIntelligenceStrip
-          variant="zone"
-          suppressOverlay={Boolean(expandedCardId || expandedTipId)}
-          debugHudLine={
-            isDev
-              ? `grid:${displayItems.length} | journeys:${viewModel.journeys.length} | tips:${viewModel.tips.length} | focus:${expandedCardId ? 'card' : expandedTipId ? 'tip' : 'none'} | appFocus:${state.soloFocus.activeCardId ? 'on' : 'off'}`
-              : undefined
-          }
-          dbHealthHint={dbHealthHint}
-          dbConnected={dbConnected}
-          neonVerifiedMoney={neonVerifiedMoney}
-          verifiedSaving={researchMeta?.verifiedSaving}
-          savingAmountGbp={researchMeta?.savingAmountGbp}
-          localityLabel={displayLocationName.trim() || localData?.council || undefined}
-          gridGPerKwh={
-            typeof localData?.localCarbonG === 'number' ? localData.localCarbonG : undefined
-          }
-          researchCategory={researchMeta?.category ?? null}
-          hasArchitectProse={
-            Boolean(researchMeta?.architectProse?.trim()) ||
-            Object.values(researchCategoryCoverage ?? {}).some(
-              (c) => c.insightReady || Boolean(c.architectProse?.trim()) || Boolean(c.agentHeadline?.trim())
-            )
-          }
-          hasOfferUrl={Boolean(researchMeta?.offerUrl?.trim())}
-          categoryCoverage={researchCategoryCoverage}
-          scrapePostcode={scrapePostcode}
-          rightAside={
-            <span
-              aria-live="polite"
-              style={{
-                fontFamily: 'var(--font-marvin)',
-                fontSize: 11,
-                lineHeight: 1.1,
-                textTransform: 'uppercase',
-                letterSpacing: '0.01em',
-                opacity: 0.9,
-                color: sentinel.pulseColor ?? 'var(--color-yellow)',
-              }}
-            >
-              Sentinel Brain: Active | Skill: Live-Impact v1.0
-            </span>
-          }
-        />
       </motion.main>
     </LayoutGroup>
   )

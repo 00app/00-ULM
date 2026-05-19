@@ -1,6 +1,8 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { useReducedMotion } from 'framer-motion'
+import { GLITCH_ANIM_MS } from '@/lib/architecturalPulse'
 
 export interface LogoProps {
   width?: number
@@ -32,5 +34,51 @@ export function Logo({ width = 51, className = '', style }: LogoProps) {
         fill="currentColor"
       />
     </svg>
+  )
+}
+
+type GlitchLogoProps = {
+  width?: number
+  onComplete?: () => void
+  loop?: boolean
+  className?: string
+}
+
+/** Style A glitch — yellow base + pink overlay (469ms). */
+export function GlitchLogo({ width = 126, onComplete, loop = false, className = '' }: GlitchLogoProps) {
+  const reduceMotion = useReducedMotion()
+  const onCompleteRef = useRef(onComplete)
+  onCompleteRef.current = onComplete
+  const [tick, setTick] = useState(0)
+  const height = Math.round(width * (200 / 126))
+
+  useEffect(() => {
+    if (reduceMotion) {
+      onCompleteRef.current?.()
+      return
+    }
+    const id = window.setInterval(() => {
+      setTick((t) => t + 1)
+      onCompleteRef.current?.()
+      if (!loop) window.clearInterval(id)
+    }, GLITCH_ANIM_MS)
+    return () => window.clearInterval(id)
+  }, [loop, reduceMotion, width])
+
+  if (reduceMotion) {
+    return (
+      <div className={`zz-glitch-wrap ${className}`.trim()} aria-hidden>
+        <Logo width={width} style={{ color: 'var(--color-yellow)' }} />
+      </div>
+    )
+  }
+
+  return (
+    <div className={`zz-glitch-wrap ${className}`.trim()} aria-hidden>
+      <div className="zz-glitch" style={{ width, height }} key={tick}>
+        <Logo width={width} className="glitch-layer base" style={{ color: 'var(--color-yellow)', position: 'absolute', inset: 0 }} />
+        <Logo width={width} className="glitch-layer purple" style={{ color: 'var(--color-pink)', position: 'absolute', inset: 0 }} />
+      </div>
+    </div>
   )
 }

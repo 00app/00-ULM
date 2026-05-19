@@ -8,6 +8,7 @@ import { JOURNEY_IDS } from '@/lib/journeys'
 import type { ZoneTipCard } from './buildZoneViewModel'
 import { isHttpsUrl, trustedUrlForJourney } from './trustedJourneyUrls'
 import { shieldOfferUrl } from '@/lib/zone/urlShield'
+import { normalizeCardHeadlineKey } from '@/lib/soloFocusCopy'
 
 /** Normalize learn/cta/source to a trusted https URL (call for cards that skip validateInjectionCard). */
 export function ensureInjectionCardUrls(card: ZoneTipCard): void {
@@ -155,4 +156,20 @@ export function mergeTipsWithInjections(
   injections: ZoneTipCard[]
 ): ZoneTipCard[] {
   return [...defaultTips, ...injections]
+}
+
+/** Drop duplicate ids and normalized headline matches (first card wins). */
+export function dedupeZoneTipCards(cards: ZoneTipCard[]): ZoneTipCard[] {
+  const seenIds = new Set<string>()
+  const seenTitles = new Set<string>()
+  const out: ZoneTipCard[] = []
+  for (const card of cards) {
+    if (!card?.id || seenIds.has(card.id)) continue
+    const titleKey = normalizeCardHeadlineKey(card.title ?? '')
+    if (titleKey && seenTitles.has(titleKey)) continue
+    seenIds.add(card.id)
+    if (titleKey) seenTitles.add(titleKey)
+    out.push(card)
+  }
+  return out
 }

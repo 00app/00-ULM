@@ -354,6 +354,21 @@ body {
   min-height: 0.8em;
 }
 
+/* Inline glitch logo under ASK ZAI — in document flow (not fullscreen overlay) */
+.zone-inline-loading-logo {
+  width: 100%;
+  max-width: 400px;
+  margin-top: 40px;
+  margin-bottom: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+.zone-inline-loading-logo .zz-glitch-wrap {
+  margin-inline: auto;
+}
+
 /* Zone intelligence-loop hydration — Marvin yellow pulse on gate */
 .zone-engine-hydration-status {
   font-family: var(--font-label);
@@ -1193,7 +1208,7 @@ input[type='number'] {
   grid-auto-flow: dense;
   row-gap: 20px;
   column-gap: 20px;
-  padding: 20px 0 0;
+  padding: 0;
   margin: 0 auto;
   width: 100%;
   max-width: min(1400px, 100%);
@@ -1225,7 +1240,7 @@ input[type='number'] {
     grid-auto-flow: row;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 20px 0 0;
+    padding: 0;
   }
   .groovy-zone-grid > * {
     grid-column: 1 !important;
@@ -1250,7 +1265,7 @@ input[type='number'] {
     max-width: 920px;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 20px 0 0;
+    padding: 0;
   }
   .groovy-zone-grid > * {
     width: auto;
@@ -1277,7 +1292,7 @@ input[type='number'] {
     max-width: 1200px;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 20px 0 0;
+    padding: 0;
   }
   .groovy-zone-grid > .bento-hero-span {
     grid-column: 1 / -1;
@@ -1300,7 +1315,7 @@ input[type='number'] {
     max-width: 1280px;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 20px 0 0;
+    padding: 0;
   }
 }
 
@@ -1491,9 +1506,47 @@ body, p, span, input, button, textarea, select,
   .rock-bento-tile.bento-card-groovy,
   .rock-card.bento-card-groovy,
   .settings-bento-card.bento-card-groovy,
-  .settings-hero-card.settings-bento-card.bento-card-groovy {
-    padding: 20px !important;
+  .settings-hero-card.settings-bento-card.bento-card-groovy,
+  .expanded-solo-focus .solo-focus-shell,
+  .likes-page .bento-card-groovy {
+    padding: 30px !important;
   }
+}
+
+.zone-welcome-block {
+  text-align: left !important;
+  align-self: flex-start;
+  width: 100%;
+  max-width: min(640px, 100%);
+  padding-left: 0 !important;
+  margin-left: 0;
+  line-height: 0.8;
+}
+.zone-welcome-block.zone-welcome-savings {
+  line-height: 1.2;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.settings-intel-panel {
+  width: 100%;
+  max-width: min(520px, 100%);
+  margin: 24px auto 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings-intel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+.settings-intel-row .settings-intel-mark {
+  width: 1.25rem;
+  flex-shrink: 0;
+  text-align: center;
 }
 
 .bento-card-groovy:active {
@@ -2136,13 +2189,8 @@ body, p, span, input, button, textarea, select,
   box-sizing: border-box;
   width: 100%;
   border-radius: 60px !important;
-  padding: 20px !important;
+  padding: 30px !important;
   background-color: transparent !important;
-}
-@media (min-width: 768px) {
-  .expanded-solo-focus .solo-focus-shell {
-    padding: 30px !important;
-  }
 }
 .expanded-solo-focus .solo-focus-impact-hero.solo-focus-impact-grid {
   width: 100%;
@@ -2464,11 +2512,11 @@ h3.solo-focus-question-label.zz-h3 {
 /* Zai Architect — Marvin Visions headline + Roboto bold prose (no section labels) */
 .expanded-solo-focus .solo-focus-architect-headline {
   font-family: var(--font-marvin), sans-serif;
-  font-weight: 400;
+  font-weight: bold;
   line-height: 0.8 !important;
-  font-size: clamp(26px, 5.5vw, 42px) !important;
-  letter-spacing: -0.02em;
-  text-transform: none !important;
+  font-size: var(--zz-h3-mobile) !important;
+  letter-spacing: var(--zz-track-marvin);
+  text-transform: uppercase;
   color: var(--journey-text, var(--color-yellow));
   margin: 0;
   padding: 0;
@@ -2477,6 +2525,11 @@ h3.solo-focus-question-label.zz-h3 {
   display: block;
   overflow-wrap: break-word;
   word-break: break-word;
+}
+@media (min-width: 1024px) {
+  .expanded-solo-focus .solo-focus-architect-headline {
+    font-size: var(--zz-h3-desktop) !important;
+  }
 }
 .expanded-solo-focus .solo-focus-architect-headline + .solo-focus-true-tip-sections {
   margin-top: 10px !important;
@@ -4463,6 +4516,17 @@ h3.solo-focus-question-label.zz-h3 {
 .ask-zai-deep-dive-sheet {
   max-width: 100%;
 }
+.ask-zai-deep-dive-title {
+  font-family: var(--font-marvin), sans-serif;
+  font-size: clamp(22px, 4vw, 32px);
+  line-height: 0.8;
+  font-weight: bold;
+  letter-spacing: 0.02em;
+}
+.ask-zai-deep-dive-continue:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .ask-zai-deep-dive-inner {
   width: 100%;
   max-width: var(--max-w-zone);
@@ -6149,19 +6213,64 @@ h3.solo-focus-question-label.zz-h3 {
   gap: 12px;
   padding: 12px;
   border-radius: 60px;
-  background-color: var(--color-purple);
+  background-color: var(--color-pink);
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
-  z-index: 100;
+  z-index: 120;
+  pointer-events: auto;
+}
+
+/* Mobile: viewport-locked (portaled to body — not trapped by perspective shell). */
+@media (max-width: 1023px) {
+  .floating-nav {
+    position: fixed !important;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    transform: translateX(-50%) !important;
+    margin: 0 !important;
+    z-index: 120 !important;
+  }
 }
 
 .nav-item-circle {
-  width: 60px;
-  height: 60px;
-  min-width: 60px;
-  min-height: 60px;
-  border-radius: 60px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.nav-item-circle-inner {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 9999px;
+  color: var(--color-purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.nav-item-circle-icon {
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6186,7 +6295,7 @@ h3.solo-focus-question-label.zz-h3 {
     transform: none !important;
     flex-direction: row !important;
     border-radius: 60px !important;
-    background-color: var(--color-purple) !important;
+    background-color: var(--color-pink) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
@@ -6360,7 +6469,8 @@ select,
 .zz-glitch-title {
   display: block;
 }
-.zz-glitch img {
+.zz-glitch img,
+.zz-glitch svg.glitch-layer {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -6619,48 +6729,63 @@ select,
   }
 }
 
-/* Zone welcome — same Marvin scale as `.question-text`; one `pre-line` block; no clamp/min-height padding */
-.zone-anchor h3.question-text.zone-welcome {
+/* Zone welcome — canonical H2 (`.zz-h2`); layout only — no custom font-size */
+.zone-anchor h2.zone-welcome,
+.zone-anchor h2.zone-welcome-block {
   text-transform: lowercase !important;
   min-height: 0 !important;
   padding: 0 !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
-  max-width: min(92vw, 22rem) !important;
+  max-width: min(92vw, 28rem) !important;
   display: block !important;
-  -webkit-line-clamp: unset !important;
-  line-clamp: unset !important;
   overflow: visible !important;
-  white-space: pre-line;
+  white-space: normal;
 }
 
 /* Ask Zai pill: flat pill, Marvin + body size token — tap or Enter → /zai */
 .zone-ask-zai-wrap {
   width: 90%;
   max-width: 400px;
-  margin: 12px 0 0 0;
+  margin: 20px 0;
 }
 
-/* Ask Zai pill: pink bg, purple text (legible). Interaction → yellow bg, pink text. */
+@media (max-width: 767px) {
+  .zone-anchor {
+    align-items: stretch !important;
+  }
+  .zone-anchor h2.zone-welcome,
+  .zone-anchor h2.zone-welcome-block {
+    max-width: 100% !important;
+  }
+  .zone-ask-zai-wrap {
+    width: 100% !important;
+    max-width: none !important;
+  }
+}
+
+/* Ask Zai pill: pink bg, yellow Marvin label. Interaction → yellow bg, pink text. */
 .zone-ask-zai-pill {
   width: 100%;
-  height: 54px;
+  min-height: auto;
+  height: auto;
   border-radius: 9999px;
-  
-  padding: 0 24px;
+  padding: 20px 24px !important;
   background-color: var(--color-pink);
   font-family: var(--font-marvin);
   font-weight: bold;
   font-size: var(--zz-body-size);
-  color: var(--color-purple);
+  color: var(--color-yellow) !important;
   text-align: center;
   box-sizing: border-box;
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease;
+  line-height: 0.8;
 }
 
 .zone-ask-zai-pill::placeholder {
-  color: var(--color-purple);
+  color: var(--color-yellow) !important;
+  opacity: 1;
 }
 
 /* Transparent hero — two-column diagnostic stack, 200px Marvin */
@@ -7218,7 +7343,7 @@ p,
 .expanded-solo-focus .solo-focus-supplied-by,
 .expanded-solo-focus .solo-focus-architect-prose,
 .expanded-solo-focus p.solo-focus-architect-prose,
-.expanded-solo-focus .solo-focus-content-text,
+.expanded-solo-focus .solo-focus-content-text:not(.solo-focus-architect-headline),
 .expanded-solo-focus .solo-focus-source-citation-footnote,
 .expanded-solo-focus .solo-focus-price-cap-footnote,
 .expanded-solo-focus a.solo-focus-verified-source-link,
@@ -7228,6 +7353,23 @@ p,
   font-weight: 800 !important;
   letter-spacing: normal !important;
   text-transform: none !important;
+}
+
+/* Expanded architect headline — Marvin H3 (wins over content-text rail above) */
+.expanded-solo-focus h1.solo-focus-architect-headline,
+.expanded-solo-focus .solo-focus-architect-headline {
+  font-family: var(--font-marvin), sans-serif !important;
+  font-size: var(--zz-h3-mobile) !important;
+  line-height: 0.8 !important;
+  font-weight: bold !important;
+  letter-spacing: var(--zz-track-marvin) !important;
+  text-transform: uppercase !important;
+}
+@media (min-width: 1024px) {
+  .expanded-solo-focus h1.solo-focus-architect-headline,
+  .expanded-solo-focus .solo-focus-architect-headline {
+    font-size: var(--zz-h3-desktop) !important;
+  }
 }
 
 /* 3) Stamped data — Natural Kiss + industrial stamp */

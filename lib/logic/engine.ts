@@ -31,9 +31,12 @@ export {
 /** April 2026 typical household cap (£/yr) — single engine export for calculators. */
 export const ENGINE_PRICE_CAP_TYPICAL_GBP = TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP
 
-/** Zone / settings impact column labels (v21 label lock). */
+/** Zone hero + settings — profile/journey-answer waste (not “potential”; that’s Zone welcome). */
 export const ENGINE_UI_LABELS = {
-  potentialSavings: 'Potential',
+  profileWasteMoney: 'Waste',
+  profileWasteCarbon: 'Carbon',
+  /** @deprecated use profileWasteMoney */
+  potentialSavings: 'Waste',
   carbon: 'Carbon',
 } as const
 

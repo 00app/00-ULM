@@ -96,7 +96,6 @@ export interface SoloFocusOverlayProps {
   onClose: () => void
   /** Close chevron → dismiss overlay, then pattern-shift takeover on Zone shell. */
   onPatternShiftClose?: (journeyId: JourneyId) => void
-  onAskZai?: () => void
   cardId?: string
   onLike?: (id: string, title?: string, moneyGbp?: number) => void
   isLiked?: boolean
@@ -149,7 +148,6 @@ export function SoloFocusOverlay({
   architectSuppliedBy = null,
   onClose,
   onPatternShiftClose,
-  onAskZai,
   cardId,
   onLike,
   isLiked = false,
@@ -687,7 +685,7 @@ export function SoloFocusOverlay({
                       {zoneCategoryLabel}
                     </span>
                     <motion.h1
-                      className="solo-focus-architect-headline solo-focus-content-text text-left zz-shimmer-focus"
+                      className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left zz-shimmer-focus"
                       style={{
                         color: 'var(--journey-text)',
                         margin: 0,
@@ -718,7 +716,7 @@ export function SoloFocusOverlay({
                       {zoneCategoryLabel}
                     </span>
                     <motion.h1
-                      className="solo-focus-architect-headline solo-focus-content-text text-left zz-shimmer-focus"
+                      className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left zz-shimmer-focus"
                       style={{
                         color: 'var(--journey-text)',
                         margin: 0,

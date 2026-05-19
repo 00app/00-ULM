@@ -8,13 +8,16 @@
 
 import { JOURNEYS, type JourneyId, type JourneyQuestion } from '@/lib/journeys'
 
+/** Hard cap — 3 questions per journey category (Infrastructure / Behaviour / Readiness). */
+export const QUESTIONS_PER_JOURNEY = 3
+
 /** First unanswered question in the journey queue (options or number). */
 export function getNextQuestion(
   journeyId: JourneyId,
   answers: Record<string, string>
 ): JourneyQuestion | null {
   const def = JOURNEYS[journeyId]
-  const questions = def?.questions ?? []
+  const questions = (def?.questions ?? []).slice(0, QUESTIONS_PER_JOURNEY)
   const q = questions.find((question) => !answers[question.id] || String(answers[question.id]).trim() === '')
   return q ?? null
 }

@@ -2,14 +2,16 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { INDUSTRIAL_OPACITY_SNAP, ZIP_OPEN_Z_TRANSITION } from '@/lib/animations'
 import { postZaiChat, readZaiStream } from '@/lib/zai/chatClient'
 import { triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
-import { buildSoloFocusAskZaiQuestion } from '@/lib/expandStorage'
+import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
 import { sanitizeText } from '@/lib/sanitize'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { useApp } from '@/app/context/AppContext'
+import { ROUTES } from '@/lib/routes'
 
 const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
 
@@ -60,10 +62,12 @@ export function AskZaiDeepDiveSheet({
   postcode: postcodeProp,
   suggestedQuestions,
 }: Props) {
+  const router = useRouter()
   const { state } = useApp()
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [answer, setAnswer] = useState('')
+  const [lastQuestion, setLastQuestion] = useState('')
   const answerRef = useRef<HTMLParagraphElement>(null)
 
   const postcode =
@@ -75,9 +79,36 @@ export function AskZaiDeepDiveSheet({
     if (!open) {
       setDraft('')
       setAnswer('')
+      setLastQuestion('')
       setBusy(false)
     }
   }, [open])
+
+  const continueInZai = useCallback(() => {
+    const journeyAnswers = getJourneyAnswersFromClient()
+    const label = (lastQuestion || draft).trim() || 'How can I close the saving gap for this category?'
+    setAskZaiContext({
+      category: journeyKey,
+      personalSpend,
+      regionalAvg,
+      question: buildSoloFocusAskZaiQuestion(headline, label),
+      journey_question_label: label,
+      scraped_source: scrapedSource,
+      journey_answers_jsonb: journeyAnswers,
+    })
+    onClose()
+    router.push(ROUTES.ZAI)
+  }, [
+    draft,
+    headline,
+    journeyKey,
+    lastQuestion,
+    onClose,
+    personalSpend,
+    regionalAvg,
+    router,
+    scrapedSource,
+  ])
 
   const runLocalizedScrape = useCallback(
     (question: string) => {
@@ -110,6 +141,7 @@ export function AskZaiDeepDiveSheet({
       if (!label || busy) return
       setBusy(true)
       setAnswer('')
+      setLastQuestion(label)
       runLocalizedScrape(label)
 
       const journeyAnswers = getJourneyAnswersFromClient()
@@ -222,11 +254,7 @@ export function AskZaiDeepDiveSheet({
               <p className="zz-label m-0 uppercase" style={{ letterSpacing: '0.08em', opacity: 0.85 }}>
                 {category}
               </p>
-              <h2
-                id="ask-zai-deep-dive-title"
-                className="m-0 text-marvin uppercase"
-                style={{ fontSize: 'clamp(22px, 4vw, 28px)', lineHeight: 0.95 }}
-              >
+              <h2 id="ask-zai-deep-dive-title" className="ask-zai-deep-dive-title m-0 text-marvin uppercase">
                 Deep dive
               </h2>
               <p className="m-0" style={{ fontFamily: 'var(--font-body)', fontSize: '1rem', lineHeight: 1.35 }}>
@@ -284,6 +312,21 @@ export function AskZaiDeepDiveSheet({
                   }}
                 >
                   {busy ? 'Auditing…' : 'Search deeper'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={continueInZai}
+                  className="ask-zai-deep-dive-continue rounded-full border-0 h-12 uppercase text-marvin cursor-pointer"
+                  style={{
+                    background: 'transparent',
+                    color: '#141268',
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                    boxShadow: 'inset 0 0 0 2px #141268',
+                  }}
+                >
+                  Continue in Zai
                 </button>
               </form>
             </motion.div>

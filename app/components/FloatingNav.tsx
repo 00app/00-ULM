@@ -1,6 +1,7 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface FloatingNavProps {
   active: 'likes' | 'zone' | 'summary' | 'chat'
@@ -9,16 +10,16 @@ interface FloatingNavProps {
   hasNewTipForZai?: boolean
 }
 
-/** Visual circle 40px; hit area 60px for tap targets */
-const NAV_VISUAL_SIZE = 40
-const NAV_HIT_SIZE = 60
 const ICON_SIZE = 18
 
 /**
- * Floating Nav Precision Lock — 40px visual circles, 60px hit area, 18px icons, gap 12px.
- * Order: Likes · Zai (centre) · Settings. No tap/hover motion on items.
+ * Floating Nav — 40×40px circles (no button padding), 18px icons, 12px gap.
+ * Order: Likes · Zai (centre) · Settings. Portaled to `document.body`.
  */
 export default function FloatingNav({ active, onNavigate, hasNewTipForZai: _hasNewTipForZai = false }: FloatingNavProps) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   const triggerHaptic = () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5)
   }
@@ -38,35 +39,14 @@ export default function FloatingNav({ active, onNavigate, hasNewTipForZai: _hasN
         triggerHaptic()
         onNavigate(key)
       }}
-      style={{
-        width: NAV_HIT_SIZE,
-        height: NAV_HIT_SIZE,
-        minWidth: NAV_HIT_SIZE,
-        minHeight: NAV_HIT_SIZE,
-        borderRadius: 9999,
-        border: 'none',
-        background: 'transparent',
-        color: 'inherit',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        position: 'relative',
-      }}
     >
       <span
         className={`nav-item-circle-inner floating-nav-item ${isActive ? 'floating-nav-item--active' : ''}`}
-        style={{
-          width: NAV_VISUAL_SIZE,
-          height: NAV_VISUAL_SIZE,
-          borderRadius: 9999,
-          background: variant === 'zai' ? 'transparent' : isActive ? 'var(--color-pink)' : 'var(--color-yellow)',
-          color: 'var(--color-purple)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-        }}
+        style={
+          variant === 'zai'
+            ? { background: 'transparent' }
+            : { background: isActive ? 'var(--color-pink)' : 'var(--color-yellow)' }
+        }
       >
         {variant === 'zai' ? (
           <span className="kinetic-zai-disc" aria-hidden>
@@ -89,16 +69,14 @@ export default function FloatingNav({ active, onNavigate, hasNewTipForZai: _hasN
             </svg>
           </span>
         ) : (
-          <span style={{ width: ICON_SIZE, height: ICON_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {children}
-          </span>
+          <span className="nav-item-circle-icon">{children}</span>
         )}
       </span>
     </button>
   )
 
-  return (
-    <div className="floating-nav">
+  const nav = (
+    <div className="floating-nav" role="navigation" aria-label="Main">
       {navButton(
         'likes',
         active === 'likes',
@@ -132,4 +110,7 @@ export default function FloatingNav({ active, onNavigate, hasNewTipForZai: _hasN
       )}
     </div>
   )
+
+  if (!mounted || typeof document === 'undefined') return null
+  return createPortal(nav, document.body)
 }

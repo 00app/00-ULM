@@ -24,7 +24,8 @@ import { ensureClientResearchUserId } from '@/lib/zone/garyMode'
 import SummaryHeader from '@/app/components/SummaryHeader'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { INDUSTRIAL_OPACITY_SNAP, soloFocusSlamMotionProps } from '@/lib/animations'
-import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
+import { GlitchLogo } from '@/app/components/Logo'
+import { preloadAppFonts } from '@/lib/architecturalPulse'
 import { SESSION_SUMMARY_TO_ZONE } from '@/lib/architecturalPulse'
 
 const REDIRECT_NO_PROFILE_MS = 1800
@@ -114,6 +115,10 @@ export default function ProfileSummaryPage() {
   }, [router, setHeroTotals])
 
   useLayoutEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    preloadAppFonts()
+  }, [])
 
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return
@@ -435,7 +440,17 @@ export default function ProfileSummaryPage() {
         aria-busy="true"
         aria-label="Preparing profile summary"
       >
-        <ArchitecturalPulse onComplete={() => {}} />
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <GlitchLogo loop width={100} />
+        </div>
       </motion.div>
     )
   }

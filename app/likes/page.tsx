@@ -13,52 +13,14 @@ import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { motion } from 'framer-motion'
 import { KINETIC_ZIP_PULSE } from '@/lib/animations'
-import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
 import { readZaiLikes, removeZaiLike } from '@/lib/zai/zaiLikesStorage'
+import AppFloatingNav from '@/app/components/AppFloatingNav'
 
 const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
 
 export default function LikesPage() {
   const { state, toggleLike } = useApp()
   const [actionedIds, setActionedIds] = useState<Set<string>>(new Set())
-  const [dbConnected, setDbConnected] = useState(true)
-  const [dbHealthHint, setDbHealthHint] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/health', { cache: 'no-store' })
-      .then(async (r) => {
-        const body = (await r.json().catch(() => null)) as {
-          status?: string
-          database?: string
-          error?: string
-        } | null
-        if (cancelled) return
-        if (r.ok && body?.status === 'ok' && body?.database === 'connected') {
-          setDbConnected(true)
-          setDbHealthHint(null)
-          return
-        }
-        setDbConnected(false)
-        const hint =
-          r.status === 503
-            ? typeof body?.error === 'string' && body.error.trim()
-              ? body.error.trim()
-              : 'Database unreachable — set DATABASE_URL (Neon) in .env.local or Vercel env.'
-            : `GET /api/health → HTTP ${r.status}`
-        setDbHealthHint(hint)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setDbConnected(false)
-          setDbHealthHint('Network error calling /api/health')
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const viewModel = useMemo(() => {
     const journeyAnswers = {} as Record<JourneyId, Record<string, string>>
     if (typeof window === 'undefined') return null
@@ -346,7 +308,7 @@ export default function LikesPage() {
           })}
         </motion.div>
       )}
-      <ZoneIntelligenceStrip variant="likes" dbConnected={dbConnected} dbHealthHint={dbHealthHint} />
+      <AppFloatingNav active="likes" />
     </motion.div>
   )
 }

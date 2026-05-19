@@ -26,7 +26,9 @@ import {
   headlineFromTitle,
   isZonePreviewHeadlineNoise,
   MAX_ZONE_CARD_HEADLINE_WORDS,
+  normalizeCardHeadlineKey,
 } from '@/lib/soloFocusCopy'
+import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import {
   VERIFIED_SOURCE_DATE,
@@ -410,8 +412,8 @@ function profileDrivenJourneyTitle(
 
 function mergeDiscoveryInjectionsIntoTips(staticTips: ZoneTipCard[], injected?: ZoneTipCard[], goal?: string): ZoneTipCard[] {
   if (!injected?.length) return staticTips.slice(0, 3)
-  
-  const sortedInjected = [...injected]
+
+  const sortedInjected = dedupeZoneTipCards([...injected])
   sortedInjected.sort((a, b) => {
     const aPin = a.achievement_discovery ? 1 : 0
     const bPin = b.achievement_discovery ? 1 : 0
@@ -431,8 +433,15 @@ function mergeDiscoveryInjectionsIntoTips(staticTips: ZoneTipCard[], injected?: 
 
   const topInjected = sortedInjected.slice(0, 3)
   const usedJourneys = new Set(topInjected.map((i) => i.journey_key))
-  const rest = staticTips.filter((t) => !usedJourneys.has(t.journey_key))
-  return [...topInjected, ...rest].slice(0, 3)
+  const injectedTitleKeys = new Set(
+    topInjected.map((c) => normalizeCardHeadlineKey(c.title ?? '')).filter(Boolean)
+  )
+  const rest = staticTips.filter(
+    (t) =>
+      !usedJourneys.has(t.journey_key) &&
+      !injectedTitleKeys.has(normalizeCardHeadlineKey(t.title ?? ''))
+  )
+  return dedupeZoneTipCards([...topInjected, ...rest]).slice(0, 3)
 }
 
 type MarketContext = {
@@ -1077,13 +1086,16 @@ export function buildZoneViewModel({
     const source = getJourneySource(journeyKey, 0)
     
     // Special title for home switching tip
-    let title = buildCompactHeadline({
-      journey: journeyKey,
-      moneyGbp: dynamicJourneyValues[journeyKey].moneyGbp,
-      journeyAnswers,
-    })
+    let title = headlineFromTitle(
+      buildCompactHeadline({
+        journey: journeyKey,
+        moneyGbp: dynamicJourneyValues[journeyKey].moneyGbp,
+        journeyAnswers,
+      }),
+      MAX_ZONE_CARD_HEADLINE_WORDS
+    )
     if (journeyKey === 'home' && needsSwitching) {
-      title = 'switch to a greener tariff'
+      title = headlineFromTitle('switch to a greener tariff', MAX_ZONE_CARD_HEADLINE_WORDS)
     }
     
     // Determine action for tip
@@ -1164,7 +1176,7 @@ export function buildZoneViewModel({
       tips[tips.length - 1] = {
         id: 'tip-home-switching',
         variant: 'card-compact' as const,
-        title: 'switch to a greener tariff',
+        title: headlineFromTitle('switch to a greener tariff', MAX_ZONE_CARD_HEADLINE_WORDS),
         journey_key: 'home',
         category: 'home',
         data: {

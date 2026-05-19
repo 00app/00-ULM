@@ -14,6 +14,7 @@ import type { ZaiChatMeta } from '@/lib/zai/zaiChatUi'
 import { metaFromAskZaiContext, metaFromZaiReply } from '@/lib/zai/zaiChatUi'
 import { readZaiLikes, removeZaiLike, upsertZaiLike } from '@/lib/zai/zaiLikesStorage'
 import Link from 'next/link'
+import AppFloatingNav from '@/app/components/AppFloatingNav'
 
 const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
 const SENTINEL_RECENT_CHAT_KEY = 'zz_recent_chat_history'
@@ -419,6 +420,7 @@ export default function ZaiPage() {
           </motion.button>
         </motion.div>
       </motion.div>
+      <AppFloatingNav active="chat" />
     </motion.div>
   )
 }

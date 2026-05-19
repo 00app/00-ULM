@@ -187,10 +187,14 @@ export function polishTrueTipParagraphsForHeadline(
   ]
 }
 
-/** Zone / bento card face — Marvin stamp stays one line. */
+/** Zone / bento card face — Marvin stamp (6–8 words). */
+export const MIN_ZONE_CARD_HEADLINE_WORDS = 6
 export const MAX_ZONE_CARD_HEADLINE_WORDS = 8
-/** Solo Focus / expanded Zai Architect H1 — up to 12 words before ellipsis. */
-export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 20
+/** Solo Focus / expanded Zai Architect H1 (6–12 words). */
+export const MIN_EXPANDED_VIEW_HEADLINE_WORDS = 6
+export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 12
+/** @deprecated Use {@link MIN_ZONE_CARD_HEADLINE_WORDS} or {@link MIN_EXPANDED_VIEW_HEADLINE_WORDS}. */
+export const MIN_HEADLINE_WORDS = MIN_ZONE_CARD_HEADLINE_WORDS
 /** Each True Tip paragraph — readable auditor copy, not tariff tables. */
 export const MAX_TRUE_TIP_PARAGRAPH_WORDS = 40
 
@@ -227,13 +231,56 @@ export function humanizeTrueTipParagraph(raw: string): string {
   return clampWords(cleaned, MAX_TRUE_TIP_PARAGRAPH_WORDS)
 }
 
-/** Headline = max N words with ellipsis when clipped. */
-export function headlineFromTitle(title: string, maxWords: number = MAX_ZONE_CARD_HEADLINE_WORDS): string {
+const SHORT_HEADLINE_PAD = [
+  'ON',
+  'YOUR',
+  'ZONE',
+  'WALL',
+  'RIGHT',
+  'NOW',
+  'THIS',
+  'MONTH',
+  'AT',
+  'HOME',
+] as const
+
+function padHeadlineToMin(words: string[], minWords: number, maxWords: number): string[] {
+  if (words.length >= minWords) return words.slice(0, maxWords)
+  const out = [...words]
+  for (const w of SHORT_HEADLINE_PAD) {
+    if (out.length >= minWords) break
+    out.push(w)
+  }
+  return out.slice(0, maxWords)
+}
+
+/** Normalize headline text for duplicate card detection on the Zone wall. */
+export function normalizeCardHeadlineKey(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Marvin headline — pads short sources to minWords, clips at maxWords. */
+export function headlineFromTitle(
+  title: string,
+  maxWords: number = MAX_ZONE_CARD_HEADLINE_WORDS,
+  minWords?: number
+): string {
+  const defaultMin =
+    maxWords <= MAX_ZONE_CARD_HEADLINE_WORDS
+      ? MIN_ZONE_CARD_HEADLINE_WORDS
+      : MIN_EXPANDED_VIEW_HEADLINE_WORDS
+  const min = Math.min(minWords ?? defaultMin, maxWords)
   const words = title
     .split(/\s+/)
     .filter(Boolean)
-  if (words.length <= maxWords) return words.join(' ')
-  return `${words.slice(0, maxWords).join(' ')}...`
+    .map((w) => w.replace(/\.{2,}|…$/g, ''))
+  const sized = padHeadlineToMin(words, min, maxWords)
+  if (sized.length <= maxWords) return sized.join(' ')
+  return `${sized.slice(0, maxWords).join(' ')}...`
 }
 
 /** Clean domain for Source link (e.g. gov.uk, ofgem.gov.uk). */

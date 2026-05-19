@@ -48,7 +48,7 @@ UK-first web app: **postcode** and **profile** drive local context; **Zone** sho
 | Summary | `/profile/summary` | **`SummaryHeader`** → **`IntroWordCycle`** with **`opacityTicker`**: **one word on screen at a time**, opacity **0→1** only (Mechanical Snap ticker — **no** Style A glitch). Words from **`buildSummaryStaccatoWords`**; locality wrap via **`formatSummaryLocalityKineticToken`** + **`fitToViewportPaddingPx`**. Dwell/gap: **`SUMMARY_KINETIC_WORD_*`** in `lib/animations.ts`. Then Zone. **`lib/brains/summaryLogic.ts`**. |
 | Zone | `/zone` | **12 journey tiles** (3×4 bento) always visible; **`LoadingHeartbeat`** + per-card skeleton while `GET /api/scrape-sync` hydrates (`vmResolved`). **Mechanical truth:** no fake £ when Neon is empty — see § Mechanical truth below. Style B: **`STACCATO_*`** assembly (`app/zone/page.tsx`). **`ZoneCard`** export = `JourneyBentoCard`. |
 | Solo Focus | (overlay) | **`ZoneCard`** / `SoloFocusOverlay` + `EmbeddedJourneyQuestion` — **`POST /api/answers`** discovery race → **`injectNewDiscoveryCard`**. **Tier 2:** child answer → **`runTier2MotherChildSwap`** → `GET /api/scrape-sync?postcode&category&answer&question_id` → morph deck refresh. Zip-shut → **fade-open** for next question. |
-| Other | `/zai`, `/likes`, `/settings` | Chat, saved cards, reset/session. |
+| Other | `/zai`, `/likes`, `/settings` | Chat, saved cards, reset/session. **`AppFloatingNav`** on Zone, Likes, Zai, Settings — **40×40px** circles (no button padding), portaled pink bar; routes via `ROUTES` (`likes` → `/likes`, `chat` → `/zai`, `summary` → `/settings`). |
 
 No `/journeys` or `/expand/*` product routes — journeys live on Zone.
 
@@ -168,9 +168,11 @@ Read this when tracing **profile summary**, **expanded Solo Focus**, or **resear
 | Piece | Location |
 |-------|-----------|
 | Title cleanup | **`stripExpandedCardTitleNoise`** — strips trailing **(Updated …)** so the H1 does not repeat body dates — **`lib/soloFocusCopy.ts`**; used in **`JourneyBentoCard`**, **`SoloFocusOverlay`** before **`headlineFromTitle`** |
-| Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini triplet in **`lib/agents/researchAgent.ts`** locks **Zai Senior Auditor** persona: **`agent_headline`** (~20 words) + exactly three label-free paragraphs (what / why / how embedded in prose only). |
+| Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini **article-tier** triplet in **`lib/agents/researchAgent.ts`**: **`EDITORIAL_MAGAZINE_CONSTRAINT`** + exactly three label-free paragraphs (what / why / how embedded in prose only; ≤40 words each). |
 | Category label | Same as collapsed tile: **`card-top-label`** / **`formatZoneCategoryLabel`** above expanded H1. |
-| Headline limits | Expanded H1 ≤ **`MAX_EXPANDED_VIEW_HEADLINE_WORDS` (12)**; bento face ≤ **`MAX_ZONE_CARD_HEADLINE_WORDS` (8)**. |
+| Headline limits | Zone bento **`agent_headline`**: **6–8 words** (`MIN_ZONE_CARD_HEADLINE_WORDS` / `MAX_ZONE_CARD_HEADLINE_WORDS`). Expanded Solo Focus H1: **6–12 words** (`MAX_EXPANDED_VIEW_HEADLINE_WORDS`). Enforced in **`headlineFromTitle`** + Gemini prompt. |
+| Dedupe | **`dedupeZoneTipCards`** — no duplicate ids or normalized headline on the tip rail; inject handler on Zone filters before merge. |
+| Question cap | **3 questions per journey** (`lib/journeys.ts`); Solo Focus session stops after **`SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION` (3)** per category (`EmbeddedJourneyQuestion`). |
 | Layout | Expanded: Marvin H1 + three **Roboto Bold** **`solo-focus-architect-prose`** paragraphs (≤ **`MAX_TRUE_TIP_PARAGRAPH_WORDS` (40)** each). Raw tariff dumps / markdown `**` stripped via **`isRawResearchDump`** → auditor fallback. |
 | Dedupe | **`stripExpandedCardTitleNoise`**, **`stripMarkdownForProseDisplay`**, **`polishTrueTipParagraphsForHeadline`** / **`dedupeTrueTipOpeningParagraph`**. |
 | Scroll | Single scroll on **`.solo-focus-grow-layer`** (no nested rail clip). |
@@ -216,7 +218,7 @@ Hermes on the Oracle VPS is the **trigger** for a multi-step pipeline, not an is
 
 1. **Trigger (Hermes):** Scheduled job (e.g. 05:00) calls **`GET /api/cron/zone-research`** on Vercel with **`CRON_SECRET`** → kicks research refresh for queued users/postcodes.
 2. **Extraction:** **Firecrawl** deep-scrapes locality/trust seeds; **Gemini** maps findings into the **twelve journey categories**, producing persistable GBP, prose, `offer_url`, and citations (`lib/agents/researchAgent.ts`, `persistResearchResult`).
-3. **Consumption (Zone):** Dashboard cards surface totals and tips; **Solo Focus** expanded view shows **~20-word architect headline** + **three prose paragraphs** (`architect_prose` when audit matches) + **verified source link**, and a **handoff CTA** (`IndustrialHandoffButton`).
+3. **Consumption (Zone):** Dashboard cards surface totals and tips; **Solo Focus** expanded view shows **6–12 word** architect headline + **three prose paragraphs** (`architect_prose` when audit matches) + **verified source link**, and a **handoff CTA** (`IndustrialHandoffButton`).
 4. **Expansion (user):** **`POST /api/answers`** remains the **canonical** server path that returns discovery payloads for **`injectNewDiscoveryCard`**. **`POST /api/zone/injections`** (trap follow-up) and **`POST /api/research/question-card`** (Ask) are **supplemental** and share the **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`** cap.
 
 **UX:** While injections run after a trap answer, Solo Focus shows **“Targeted scrape running…”** and disables duplicate taps. **£ column** shows a **✓ True data** pill when **`verifiedDataBadge`** (Neon-aligned audit).
@@ -251,6 +253,7 @@ Apply in Neon (or your pipeline) as needed:
 | **`/profile` questions** | **Full-sentence fade** | `ProfilePageClient`: whole label as one block, **y: 10→0** + opacity, **`STACCATO_TWEEN`**. |
 | **Zone grid** | **Style B — Mechanical assembly** | `STACCATO_CONTAINER_VARIANTS` / **`STACCATO_CHILD_VARIANTS`** in `app/zone/page.tsx`; 20px gap, **60px** card radius, `grid-auto-rows: 1fr` on tablet+. |
 | **Solo Focus** | **Zip-shut → fade-open** | `EmbeddedJourneyQuestion`: **`ZIP_SHUTTER_SPRING`** on the question stack when answering; next **`motion.h3`** uses **opacity + y** when **`soloFocusZipShut`** (no `zz-shimmer-focus`). 40px close circle; journey slab colours. |
+| **Floating nav** | **Static precision lock** | `FloatingNav` / `AppFloatingNav`: **40×40px** item circles (`padding: 0`), **18px** icons, **12px** gap, pink bar portaled to `body`. Hidden on Zone when Solo Focus / tip / pattern-shift overlays are open. |
 | **Colours** | — | Yellow `#FDFD00`, pink `#FF00FF`, purple `#7800ce` — `:root` in `app/globals.css`. |
 
 Timers: **`SUMMARY_KINETIC_WORD_*`** and **`SHIMMER_FOCUS_*`** in `lib/animations.ts` (intro/summary/CTA only — Zone sticks to **`STACCATO_*`** + fussy snap).

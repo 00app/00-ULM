@@ -353,7 +353,7 @@ export async function runZeroResearch(params: {
 
 /**
  * Intelligence loop — **Architect (Gemini)** on Vercel: raw Firecrawl markdown → structured JSON for Neon.
- * Output keys align with `research_results`: `category`, `saving_amount_gbp`, `offer_url`, `agent_headline` (~20 words),
+ * Output keys align with `research_results`: `category`, `saving_amount_gbp`, `offer_url`, `agent_headline` (6–8 words zone card),
  * `architect_prose` (exactly three paragraphs, \\n\\n separated, max 40 words each, no UI section labels in text). Carbon kg for Zone
  * cards comes from `buildUserImpact` / scrapes, not a separate `verified_saving_kg` column on this row (see
  * `verified_saving` / impact pipeline elsewhere).
@@ -696,8 +696,8 @@ function parseResearchTripletJson(raw: string): {
     const expandedHeadlineRaw =
       typeof j.expanded_headline === 'string' ? j.expanded_headline : zoneHeadlineRaw
     const agent_headline =
-      normalizeGeminiAgentHeadline(expandedHeadlineRaw, MAX_EXPANDED_VIEW_HEADLINE_WORDS) ??
-      normalizeGeminiAgentHeadline(zoneHeadlineRaw, MAX_ZONE_CARD_HEADLINE_WORDS)
+      normalizeGeminiAgentHeadline(zoneHeadlineRaw, MAX_ZONE_CARD_HEADLINE_WORDS) ??
+      normalizeGeminiAgentHeadline(expandedHeadlineRaw, MAX_ZONE_CARD_HEADLINE_WORDS)
     return { category, saving_amount_gbp, offer_url, agent_headline, architect_prose }
   } catch {
     return null
@@ -761,8 +761,8 @@ From the markdown below, return ONLY valid JSON (no markdown code fence) with ex
 - "category": one of: ${journeyList} — the single best thematic fit for the main opportunity in the text.
 - "saving_amount_gbp": non-negative number with up to two decimal places — annual GBP saving grounded in the scraped text (use 0 only if truly none inferable).
 - "offer_url": one https URL copied verbatim from the markdown or citation context. If no live URL exists, return an empty string.
-- "agent_headline": **Zone card heading** — maximum 7 words, punchy and benefit-driven (e.g. "leapfrog your energy bills this month"). No colons. No section labels.
-- "expanded_headline": **Expanded card heading** — maximum 20 words; high-impact lifestyle hook tying the user's setup to the win. Optional key; if omitted, agent_headline may be reused.
+- "agent_headline": **Zone card heading** — **6 to 8 words**, punchy and benefit-driven (e.g. "leapfrog your energy bills this month"). No colons. No section labels.
+- "expanded_headline": **Expanded Solo Focus heading** — **up to 12 words**; high-impact lifestyle hook tying the user's setup to the win. Optional key; if omitted, agent_headline may be reused.
 - "architect_prose": exactly **THREE** paragraphs for the expanded view only, separated by **two** newlines (blank line between). **Hard cap: each paragraph at most ${MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH} words.** Editorial, lifestyle-first UK English:
   - Paragraph 1 — **The Hook:** connect their current lifestyle setup (profile/postcode) directly to the opportunity.
   - Paragraph 2 — **The Core Deal:** the real-world product or offer; financial and waste-reduction impact, not tech specs.

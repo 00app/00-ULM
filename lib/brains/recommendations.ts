@@ -272,7 +272,7 @@ export function getDiscoveryRecommendation(
 
   if (isLoopQuestionId(questionId)) {
     return {
-      headline: 'PATTERN LEARNED',
+      headline: 'YOUR ZONE PATTERN IS LEARNED',
       body: 'We remember this choice and sharpen grants, tariffs, and lifestyle offers on your Zone wall.',
       gridJourneyKey: journeyId,
       learnUrl: 'https://energysavingtrust.org.uk/',
@@ -282,7 +282,7 @@ export function getDiscoveryRecommendation(
   }
 
   return {
-    headline: 'KEEP DIGGING',
+    headline: 'KEEP DIGGING FOR UK SAVINGS',
     body: 'Small UK-wide moves — tariffs, grants, and habits — still add up in 2026. Tap Get for trusted sources.',
     gridJourneyKey: journeyId,
     learnUrl: 'https://www.gov.uk/',

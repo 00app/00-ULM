@@ -17,6 +17,8 @@ import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { clearLocalStorageExceptProfileAndUser } from '@/lib/utils/migrate'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
+import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
+import AppFloatingNav from '@/app/components/AppFloatingNav'
 
 const PROFILE_LABELS: Record<string, string> = {
   name: "What's your name?",
@@ -153,36 +155,52 @@ export default function SettingsPage() {
   const router = useRouter()
   const [hasMounted, setHasMounted] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [liveTotals, setLiveTotals] = useState<{ savings: number; carbon: number } | null>(null)
   const [activeJourneyEdit, setActiveJourneyEdit] = useState<{ id: JourneyId; title: string } | null>(null)
-  
+  const [dbConnected, setDbConnected] = useState(true)
+  const [dbHealthHint, setDbHealthHint] = useState<string | null>(null)
+
   useEffect(() => setHasMounted(true), [])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/health', { cache: 'no-store' })
+      .then(async (r) => {
+        const body = (await r.json().catch(() => null)) as {
+          status?: string
+          database?: string
+          error?: string
+        } | null
+        if (cancelled) return
+        if (r.ok && body?.status === 'ok' && body?.database === 'connected') {
+          setDbConnected(true)
+          setDbHealthHint(null)
+          return
+        }
+        setDbConnected(false)
+        const hint =
+          r.status === 503
+            ? typeof body?.error === 'string' && body.error.trim()
+              ? body.error.trim()
+              : 'Database unreachable — set DATABASE_URL (Neon) in .env.local or Vercel env.'
+            : `GET /api/health → HTTP ${r.status}`
+        setDbHealthHint(hint)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDbConnected(false)
+          setDbHealthHint('Network error calling /api/health')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
   useEffect(() => {
     if (typeof window === 'undefined') return
     const onMemory = () => setRefreshKey((k) => k + 1)
     window.addEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onMemory)
     return () => window.removeEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onMemory)
   }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/summary?type=profile', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (cancelled) return
-        const savings = Number(d?.savings)
-        const carbon = Number(d?.carbon)
-        if (Number.isFinite(savings) && Number.isFinite(carbon)) {
-          setLiveTotals({ savings: Math.max(0, savings), carbon: Math.max(0, carbon) })
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLiveTotals(null)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [refreshKey, state.profile?.postcode, state.journeyAnswers])
 
   const profileForOverview = useMemo(() => {
     void refreshKey
@@ -289,10 +307,9 @@ export default function SettingsPage() {
       .catch(() => setLocalData(null))
   }, [profileForOverview?.postcode])
 
-  const heroMoney = viewModel?.hero?.data?.money ?? '0'
-  const heroCarbonStr = viewModel?.hero?.data?.carbon ?? '0'
-  const displayMoneyNum = liveTotals?.savings ?? parseMoneyGbpFromDisplay(heroMoney)
-  const carbonNum = liveTotals?.carbon ?? parseCarbonKgFromDisplay(heroCarbonStr)
+  /** Same engine totals as Zone hero — profile + journey-answer waste, not welcome “potential”. */
+  const displayMoneyNum = parseMoneyGbpFromDisplay(viewModel?.hero?.data?.money ?? '0')
+  const carbonNum = parseCarbonKgFromDisplay(viewModel?.hero?.data?.carbon ?? '0')
 
   const animatedMoney = useCountUp(displayMoneyNum, { duration: 900 })
   const animatedCarbon = useCountUp(carbonNum, { duration: 900 })
@@ -311,7 +328,7 @@ export default function SettingsPage() {
         minHeight: '100vh',
         position: 'relative',
         paddingTop: 56,
-        paddingBottom: 40,
+        paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))',
       }}
       {...KINETIC_ZIP_PULSE}
     >
@@ -330,14 +347,14 @@ export default function SettingsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...INDUSTRIAL_OPACITY_SNAP, delay: 0.08 }}
           >
-            <SettingsBentoCard label="Overview" headline="TOTAL ANNUAL" isHero>
+            <SettingsBentoCard label="Overview" headline="YOUR ANNUAL WASTE" isHero>
               <div
                 className="text-left mt-1 settings-overview-data"
                 style={{ color: 'var(--color-yellow)', ['--color-ink' as string]: 'var(--color-yellow)' }}
               >
                 <div className="grid grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-0 items-start settings-overview-impact-grid">
-                  <span className="data-label text-marvin settings-overview-label">{ENGINE_UI_LABELS.potentialSavings}</span>
-                  <span className="data-label text-marvin settings-overview-label">{ENGINE_UI_LABELS.carbon}</span>
+                  <span className="data-label text-marvin settings-overview-label">{ENGINE_UI_LABELS.profileWasteMoney}</span>
+                  <span className="data-label text-marvin settings-overview-label">{ENGINE_UI_LABELS.profileWasteCarbon}</span>
                   <span
                     className="data-value text-marvin font-bold settings-data-value data-stamp-metric"
                     style={{ color: 'var(--color-ink)' }}
@@ -438,6 +455,13 @@ export default function SettingsPage() {
         </h4>
       )}
 
+      <ZoneIntelligenceStrip
+        variant="settings"
+        dbConnected={dbConnected}
+        dbHealthHint={dbHealthHint}
+        scrapePostcode={profileForOverview?.postcode ?? ''}
+      />
+
       {/* Solid circle CTAs — horizontal row, wrap to second line; label clipped to disc */}
       <div className="settings-cta-circles mt-8 z-10 relative">
         <motion.button
@@ -474,6 +498,7 @@ export default function SettingsPage() {
           </span>
         </motion.button>
       </div>
+      <AppFloatingNav active="summary" />
     </motion.div>
   )
 }

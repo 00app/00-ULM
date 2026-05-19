@@ -14,8 +14,10 @@ import {
   INTRO_SHIMMER_WORD_GAP_MS,
   SHIMMER_FOCUS,
 } from '@/lib/animations'
+import { GlitchLogo } from '@/app/components/Logo'
+import { preloadAppFonts } from '@/lib/architecturalPulse'
 
-type IntroScreenState = 'value-message' | 'decision'
+type IntroScreenState = 'logo' | 'value-message' | 'decision'
 
 /**
  * Mechanical sequence (SAVE MONEY CUT CARBON…):
@@ -88,8 +90,12 @@ const ctaCircleStyle = {
 
 export default function IntroScreen() {
   const reduceMotion = useReducedMotion()
-  const [screen, setScreen] = useState<IntroScreenState>('value-message')
+  const [screen, setScreen] = useState<IntroScreenState>('logo')
   const urlHandledRef = useRef(false)
+
+  useEffect(() => {
+    preloadAppFonts()
+  }, [])
 
   useEffect(() => {
     if (urlHandledRef.current) return
@@ -145,6 +151,22 @@ export default function IntroScreen() {
     }, safetyMs)
     return () => window.clearTimeout(tid)
   }, [screen])
+
+  if (screen === 'logo') {
+    return (
+      <div
+        style={{
+          ...fullScreenStyle,
+          background: 'transparent',
+          opacity: 1,
+          visibility: 'visible',
+          pointerEvents: 'auto',
+        }}
+      >
+        <GlitchLogo width={100} onComplete={() => setScreen('value-message')} />
+      </div>
+    )
+  }
 
   if (screen === 'value-message') {
     return (

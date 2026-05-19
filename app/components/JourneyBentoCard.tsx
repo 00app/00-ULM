@@ -151,6 +151,9 @@ export interface JourneyBentoCardProps {
   learnUrl?: string
   /** Zone card actions.actionType when morph deck is empty (switch vs learn). */
   learnActionType?: string | null
+  /** When true, Trinity shows Ask Zai → in-card deep dive sheet (not navigation). */
+  showAskZaiTrinity?: boolean
+  /** @deprecated Use {@link showAskZaiTrinity}. Parent callback is ignored; sheet opens locally. */
   onAskZai?: () => void
   onJourneyAnswered?: () => void
   /** Bento Wall: card is in a Tall (1x2) cell and should fill height */
@@ -232,7 +235,8 @@ export function JourneyBentoCard({
   cardId,
   onLike,
   isLiked = false,
-  onAskZai,
+  showAskZaiTrinity = false,
+  onAskZai: _onAskZai,
   onJourneyAnswered,
   showLocalTag,
   localCarbonG,
@@ -558,11 +562,19 @@ export function JourneyBentoCard({
     })
   }, [])
 
+  const triggerHaptic = useCallback((pattern: 'light' | 'medium' | 'heavy') => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      if (pattern === 'heavy') navigator.vibrate(25)
+      else if (pattern === 'medium') navigator.vibrate(15)
+      else navigator.vibrate(5)
+    }
+  }, [])
+
   const requestClose = useCallback(() => {
     triggerHaptic('medium')
     onPatternShiftClose?.(journeyId)
     onClose?.()
-  }, [journeyId, onPatternShiftClose, onClose])
+  }, [journeyId, onPatternShiftClose, onClose, triggerHaptic])
 
   const handleTrinityLike = useCallback(() => {
     if (!onLike || !(activeCardId || cardId)) return
@@ -572,12 +584,12 @@ export function JourneyBentoCard({
       displayTitle,
       parseMoneyGbpFromImpactDisplay(String(displayMoneyValue))
     )
-  }, [onLike, activeCardId, cardId, displayTitle, displayMoneyValue])
+  }, [onLike, activeCardId, cardId, displayTitle, displayMoneyValue, triggerHaptic])
 
   const handleTrinityAskZai = useCallback(() => {
     triggerHaptic('medium')
     setAskZaiDeepDiveOpen(true)
-  }, [])
+  }, [triggerHaptic])
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && (effectiveOpen || isExiting)) handleCloseStart()
@@ -758,14 +770,6 @@ export function JourneyBentoCard({
     if (isExpanded) return
   }, [isExpanded])
 
-  const triggerHaptic = (pattern: 'light' | 'medium' | 'heavy') => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      if (pattern === 'heavy') navigator.vibrate(25)
-      else if (pattern === 'medium') navigator.vibrate(15)
-      else navigator.vibrate(5)
-    }
-  }
-
   const handleOpenOfferUrl = useCallback(() => {
     triggerHaptic('light')
     const url = pickPrimaryHttpUrl(resolvedOfferUrl)
@@ -775,7 +779,7 @@ export function JourneyBentoCard({
       )
       openOfferUrlInNewTab(fallback)
     }
-  }, [resolvedOfferUrl, journeyResearchCov])
+  }, [resolvedOfferUrl, journeyResearchCov, triggerHaptic])
 
   // —— EXPANDED (Solo Focus): v1.7 Active Intelligence — strict 00-00 Industrial Layout ——
   if (kineticGrid && (effectiveOpen || isExiting)) {
@@ -978,7 +982,7 @@ export function JourneyBentoCard({
                   {zoneCategoryLabel}
                 </span>
                 <motion.h1
-                  className="solo-focus-architect-headline solo-focus-content-text text-left"
+                  className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left"
                   style={{
                     color: 'var(--journey-text)',
                     margin: 0,
@@ -1006,7 +1010,7 @@ export function JourneyBentoCard({
                   {zoneCategoryLabel}
                 </span>
                 <motion.h1
-                  className="solo-focus-architect-headline solo-focus-content-text text-left"
+                  className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left"
                   style={{
                     color: 'var(--journey-text)',
                     margin: 0,
@@ -1036,7 +1040,7 @@ export function JourneyBentoCard({
               ctaSurface={currentMorphData?.high_impact ? 'yellow' : 'pink'}
               isLiked={isLiked}
               onLike={onLike ? handleTrinityLike : undefined}
-              onAskZai={onAskZai ? handleTrinityAskZai : undefined}
+              onAskZai={showAskZaiTrinity || _onAskZai ? handleTrinityAskZai : undefined}
             />
                 </div>
               </div>

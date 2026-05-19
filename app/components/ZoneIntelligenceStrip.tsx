@@ -17,6 +17,23 @@ import { appendResearchUserIdQuery } from '@/lib/zone/garyMode'
 const TICK = '✓'
 const CROSS = '✗'
 
+function SettingsIntelRow({ label, ok }: { label: string; ok: boolean }) {
+  return (
+    <div className="settings-intel-row">
+      <span
+        className="settings-intel-mark zz-h4"
+        style={{ color: ok ? 'var(--color-yellow)' : 'var(--color-pink)' }}
+        aria-hidden
+      >
+        {ok ? TICK : CROSS}
+      </span>
+      <h4 className="zz-h4 m-0 flex-1 min-w-0" style={{ color: 'var(--color-yellow)' }}>
+        {label}
+      </h4>
+    </div>
+  )
+}
+
 function BulletRow({
   ok,
   title,
@@ -64,7 +81,7 @@ function BulletRow({
 }
 
 export type ZoneIntelligenceStripProps = {
-  variant?: 'zone' | 'likes'
+  variant?: 'zone' | 'likes' | 'settings'
   /** Hide FAB + panel while Solo Focus / tip overlay is open (Zone page). */
   suppressOverlay?: boolean
   /** Dev-only line (e.g. grid / focus counts) — shown at bottom of the panel when open. */
@@ -191,7 +208,7 @@ export function ZoneIntelligenceStrip({
   }, [pollApiDiagnostics])
 
   useEffect(() => {
-    if (variant !== 'zone') return
+    if (variant !== 'zone' && variant !== 'settings') return
     void pollScrapeResearch()
     const id = setInterval(() => void pollScrapeResearch(), 15_000)
     return () => clearInterval(id)
@@ -244,6 +261,22 @@ export function ZoneIntelligenceStrip({
       : typeof savingAmountGbp === 'number' && savingAmountGbp > 0
         ? `saving_amount_gbp £${Math.round(savingAmountGbp).toLocaleString('en-GB')}`
         : propsTicks.moneyHint)
+
+  if (variant === 'settings') {
+    return (
+      <section className="settings-intel-panel" aria-label="Intelligence loop status">
+        <SettingsIntelRow label="NEON DATABASE" ok={dbConnected} />
+        <SettingsIntelRow label="GEMINI API" ok={apiDiagReady && apiGemini} />
+        <SettingsIntelRow label="FIRECRAWL API" ok={apiDiagReady && apiFirecrawl} />
+        <SettingsIntelRow label="AI GATEWAY" ok={apiDiagReady && apiAiGateway && apiAiGatewayOk} />
+        <SettingsIntelRow label="RESEARCH £ ROW" ok={moneyOk} />
+        <SettingsIntelRow label="LOCALITY + GRID" ok={localOk} />
+        <SettingsIntelRow label="ARCHITECT PROSE" ok={proseOk} />
+        <SettingsIntelRow label="OFFER URL" ok={offerOk} />
+        <SettingsIntelRow label="TRUE TIP ROW" ok={rowOk} />
+      </section>
+    )
+  }
 
   if (!mounted || typeof document === 'undefined') return null
   if (suppressOverlay) return null
