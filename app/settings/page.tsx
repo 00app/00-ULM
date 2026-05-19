@@ -433,9 +433,9 @@ export default function SettingsPage() {
       </>
 
       {profileRows.length === 0 && journeyCardsData.length === 0 && (
-        <p className="zz-body text-left max-w-[28rem] mx-auto" style={{ color: 'var(--color-yellow)', marginTop: -8, paddingLeft: 20, paddingRight: 20 }}>
+        <h4 className="zz-h4 text-center max-w-[28rem] w-full mx-auto m-0 mt-2" style={{ color: 'var(--color-yellow)' }}>
           Complete your profile and answer questions in the Zone to see cards here.
-        </p>
+        </h4>
       )}
 
       {/* Solid circle CTAs — horizontal row, wrap to second line; label clipped to disc */}

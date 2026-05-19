@@ -132,7 +132,7 @@ export function validateInjectionCard(raw: unknown): ZoneTipCard | null {
   if (o.achievement_discovery === true) {
     card.achievement_discovery = true
     card.high_impact = true
-    if (!card.badge) card.badge = 'NEW DISCOVERY'
+    delete card.badge
   }
   ensureInjectionCardUrls(card)
   return card

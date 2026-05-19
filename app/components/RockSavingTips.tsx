@@ -211,7 +211,7 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
         })}
       </div>
 
-      <div className="w-full max-w-[min(1400px,100%)] mx-auto mt-8 px-[20px] lg:px-[40px] box-border">
+      <div className="w-full max-w-[min(1400px,100%)] mx-auto mt-8 px-0 box-border">
         <div
           className="rock-mobile-signup-card bento-card-groovy rock-bento-tile w-full flex flex-col border-0 text-left box-border px-[20px]"
           style={{

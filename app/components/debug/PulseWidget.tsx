@@ -149,7 +149,7 @@ export default function PulseWidget() {
   const yellow = 'var(--color-yellow)'
 
   return (
-    <div className="pulse-diagnostic-anchor pointer-events-none fixed bottom-8 right-8 z-[240] flex flex-col items-end gap-2">
+    <div className="pulse-diagnostic-anchor pointer-events-none z-[240] flex flex-col items-end gap-2">
       <>
         {open ? (
           <motion.div

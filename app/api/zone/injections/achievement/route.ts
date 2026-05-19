@@ -11,7 +11,8 @@ import {
   upsertJourneyAnswerJsonb,
   upsertUserGenomeFromAnswer,
 } from '@/lib/db/neon'
-import { isValidJourneyQuestion, type JourneyId } from '@/lib/journeys'
+import type { JourneyId } from '@/lib/journeys'
+import { isValidLoopOrJourneyQuestion } from '@/lib/zone/loopQuestions'
 import { validateInjectionCard } from '@/lib/zone/injections'
 import { appendStoredInjections } from '@/lib/zone/injectionStore'
 
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
     card.achievement_discovery = true
     card.high_impact = true
-    if (!card.badge) card.badge = 'NEW DISCOVERY'
+    delete card.badge
 
     const journeyKey = String(body?.journey_key ?? card.journey_key ?? '').trim().toLowerCase()
     const questionId = String(body?.question_id ?? '').trim()
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
     const session = await getSessionFromRequest().catch(() => null)
     if (session?.userId && journeyKey && questionId && answerValue) {
       const jid = journeyKey as JourneyId
-      if (isValidJourneyQuestion(jid, questionId)) {
+      if (isValidLoopOrJourneyQuestion(jid, questionId)) {
         await upsertJourneyAnswerJsonb(session.userId, jid, questionId, answerValue).catch(() => {})
         void upsertUserGenomeFromAnswer(session.userId, jid, questionId, answerValue).catch(() => {})
       }

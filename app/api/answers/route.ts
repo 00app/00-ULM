@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
-import { isJourneyComplete, isValidJourneyQuestion } from '@/lib/journeys'
+import { isJourneyComplete } from '@/lib/journeys'
+import { isValidLoopOrJourneyQuestion } from '@/lib/zone/loopQuestions'
 import {
   getJourneyAnswersForUser,
   getLatestResearchCitation,
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!isValidJourneyQuestion(jKey, qKey)) {
+    if (!isValidLoopOrJourneyQuestion(jKey, qKey)) {
       return NextResponse.json({ error: 'Invalid journey or question' }, { status: 400 })
     }
 

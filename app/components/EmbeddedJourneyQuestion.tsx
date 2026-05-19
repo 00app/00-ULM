@@ -799,7 +799,7 @@ export function EmbeddedJourneyQuestion({
                   key={value}
                   type="button"
                   aria-label={label}
-                  className="solo-focus-answer-option answer-circle-100 circle-btn zz-shimmer-cta"
+                  className="solo-focus-answer-option answer-circle-100 circle-btn zz-h4 zz-shimmer-cta"
                   onClick={() => handleEmbedSubmit(value)}
                   style={{
                     ...ANSWER_CIRCLE_STYLE,
@@ -871,7 +871,7 @@ export function EmbeddedJourneyQuestion({
                 key={opt}
                 type="button"
                 aria-label={opt}
-                className={`solo-focus-answer-option circle-btn zz-shimmer-cta ${circleClass}`}
+                className={`solo-focus-answer-option circle-btn zz-h4 zz-shimmer-cta ${circleClass}`}
                 onClick={() => handleEmbedSubmit(opt)}
                 style={{
                   ...circleStyle,

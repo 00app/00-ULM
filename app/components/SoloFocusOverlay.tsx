@@ -11,7 +11,6 @@ import { motion } from 'framer-motion'
 import { type JourneyId, getOptionFullLabel } from '@/lib/journeys'
 import { formatMoneyImpact, formatCarbonImpact, formatZoneCardMoney } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
-import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
 import {
   INDUSTRIAL_OPACITY_SNAP,
   INTRO_FADE_UP_NO_DELAY,
@@ -618,60 +617,6 @@ export function SoloFocusOverlay({
     setAskZaiDeepDiveOpen(true)
   }, [])
 
-  const submitDeepDiveQuestion = useCallback(
-    async (question: string) => {
-      const allAnswers: Record<string, Record<string, string>> = {}
-      if (typeof window !== 'undefined') {
-        try {
-          const keys = Object.keys(localStorage).filter(
-            (k) => k.startsWith('journey_') && k.endsWith('_answers')
-          )
-          keys.forEach((k) => {
-            const jid = k.replace('journey_', '').replace('_answers', '')
-            allAnswers[jid] = JSON.parse(localStorage.getItem(k) || '{}')
-          })
-        } catch {
-          /* ignore */
-        }
-      }
-      setAskZaiContext({
-        category: displayCategory,
-        personalSpend: String(displayMoneyValue).replace(/^£\s*/, '').trim() || '0',
-        regionalAvg: String(displayCarbonValue).replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0',
-        question: buildSoloFocusAskZaiQuestion(displayTitle, question),
-        journey_question_label: question,
-        userContext: userContextSnap,
-        scraped_source: sourceLabel || sourceUrl || '',
-        journey_answers_jsonb: allAnswers,
-      })
-      await fetch('/api/research/question-card', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          question,
-          category: loopJourneyKey,
-          journey_key: loopJourneyKey,
-          headline: recommendationTitle,
-          postcode: profilePostcode ?? state.profile?.postcode,
-        }),
-      }).catch(() => {})
-    },
-    [
-      displayCategory,
-      displayMoneyValue,
-      displayCarbonValue,
-      displayTitle,
-      userContextSnap,
-      sourceLabel,
-      sourceUrl,
-      loopJourneyKey,
-      recommendationTitle,
-      profilePostcode,
-      state.profile?.postcode,
-    ]
-  )
-
   const discovery =
     discoverySnap != null && journeyId
       ? {
@@ -841,12 +786,16 @@ export function SoloFocusOverlay({
         onClose={() => setAskZaiDeepDiveOpen(false)}
         headline={String(recommendationTitle)}
         category={zoneCategoryLabel}
+        journeyKey={loopJourneyKey}
+        personalSpend={String(displayMoneyValue).replace(/^£\s*/, '').trim() || '0'}
+        regionalAvg={String(displayCarbonValue).replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0'}
+        scrapedSource={sourceLabel || sourceUrl || ''}
+        postcode={profilePostcode ?? state.profile?.postcode}
         suggestedQuestions={[
           'Why this shift saves money',
           'What is the carbon trade-off',
           'What is the next concrete step',
         ]}
-        onSubmitQuestion={submitDeepDiveQuestion}
       />
       {!isZoneMotherChild && (
       <motion.div className="fixed right-5 top-5 z-50">

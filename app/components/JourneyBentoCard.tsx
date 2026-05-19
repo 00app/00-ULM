@@ -10,7 +10,6 @@ import {
   zoneSurfaceStyleProps,
   type ZoneSurfaceKind,
 } from '@/lib/journeyColors'
-import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
 import {
   formatMoneyImpact,
   formatCarbonImpact,
@@ -1073,34 +1072,16 @@ export function JourneyBentoCard({
         onClose={() => setAskZaiDeepDiveOpen(false)}
         headline={String(recommendationTitle)}
         category={zoneCategoryLabel}
+        journeyKey={journeyId}
+        personalSpend={moneyValue.replace(/^£\s*/, '').trim() || '0'}
+        regionalAvg={carbonValue.replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0'}
+        scrapedSource={insightLabel || crawlerTip || localContextBar || ''}
+        postcode={state.profile?.postcode}
         suggestedQuestions={[
           'Why this shift saves money',
           'What is the carbon trade-off',
           'What is the next concrete step',
         ]}
-        onSubmitQuestion={async (question) => {
-          setAskZaiContext({
-            category: journeyId,
-            personalSpend: moneyValue.replace(/^£\s*/, '').trim() || '0',
-            regionalAvg: carbonValue.replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0',
-            question: buildSoloFocusAskZaiQuestion(displayTitle, question),
-            journey_question_label: question,
-            scraped_source: insightLabel || crawlerTip || localContextBar || '',
-            journey_answers_jsonb: {},
-          })
-          await fetch('/api/research/question-card', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              question,
-              category: journeyId,
-              journey_key: journeyId,
-              headline: recommendationTitle,
-              postcode: state.profile?.postcode,
-            }),
-          }).catch(() => {})
-        }}
       />
           </>
       ) : null

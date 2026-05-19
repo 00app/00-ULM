@@ -4,6 +4,7 @@
  */
 
 import type { JourneyId } from '@/lib/journeys'
+import { isLoopQuestionId } from '@/lib/zone/loopQuestions'
 
 export interface DiscoveryRecommendation {
   /** Short shout (card title / H1 energy) */
@@ -266,6 +267,17 @@ export function getDiscoveryRecommendation(
       learnUrl: 'https://www.lovefoodhatewaste.com/',
       ctaLabel: 'Food waste tips',
       ctaUrl: 'https://www.lovefoodhatewaste.com/',
+    }
+  }
+
+  if (isLoopQuestionId(questionId)) {
+    return {
+      headline: 'PATTERN LEARNED',
+      body: 'We remember this choice and sharpen grants, tariffs, and lifestyle offers on your Zone wall.',
+      gridJourneyKey: journeyId,
+      learnUrl: 'https://energysavingtrust.org.uk/',
+      ctaLabel: 'See shift',
+      ctaUrl: 'https://energysavingtrust.org.uk/',
     }
   }
 

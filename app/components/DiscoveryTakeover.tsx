@@ -1,18 +1,18 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import type { JourneyId } from '@/lib/journeys'
-import { pickLoopQuestionForJourney } from '@/lib/zone/loopQuestions'
+import { pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
 import {
   buildAchievementDiscoveryCard,
   injectNewDiscoveryCard,
   persistAchievementCardRemote,
 } from '@/lib/discoveryInject'
+import { persistLoopAnswerLocal } from '@/lib/zone/loopMemory'
 import {
   fetchTier2ScrapeSync,
-  persistTier2AnswerLocal,
   refreshZoneTotalsAfterTier2,
 } from '@/lib/zone/tier2RecursiveSpawner'
 import { triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
@@ -21,6 +21,7 @@ import { headlineFromTitle, MAX_ZONE_CARD_HEADLINE_WORDS } from '@/lib/soloFocus
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
 import { CLEAN_BIRTH_PULSE_MAX_WAIT_MS } from '@/lib/architecturalPulse'
+import type { ZoneTipCard } from '@/lib/logic/zone'
 import {
   STACCATO_DURATION_SEC,
   STACCATO_DROP_PX,
@@ -46,6 +47,8 @@ type Props = {
   }
   /** Question → pulse → pink card ready → Zone punch-through reveal. */
   onRevealComplete: () => void
+  /** Pink achievement pinned on the Zone wall (survives reveal + refresh). */
+  onAchievementCard?: (card: ZoneTipCard) => void
 }
 
 function capTier2Fetch(
@@ -70,14 +73,17 @@ function capTier2Fetch(
   ])
 }
 
-function birthAchievementCard(params: {
-  journeyId: JourneyId
-  questionId: string
-  answerValue: string
-  title: string
-  body: string
-  offerUrl: string | null
-}) {
+function birthAchievementCard(
+  params: {
+    journeyId: JourneyId
+    questionId: string
+    answerValue: string
+    title: string
+    body: string
+    offerUrl: string | null
+  },
+  onAchievementCard?: (card: ZoneTipCard) => void
+) {
   const card = injectNewDiscoveryCard(
     buildAchievementDiscoveryCard({
       journeyId: params.journeyId,
@@ -89,6 +95,7 @@ function birthAchievementCard(params: {
     })
   )
   if (card) {
+    onAchievementCard?.(card)
     persistAchievementCardRemote(card, {
       journeyId: params.journeyId,
       questionId: params.questionId,
@@ -104,9 +111,10 @@ export function DiscoveryTakeover({
   postcode,
   profileData,
   onRevealComplete,
+  onAchievementCard,
 }: Props) {
   const reduceMotion = useReducedMotion()
-  const beat = pickLoopQuestionForJourney(journeyId)
+  const beat = useMemo(() => (open ? pickNextLoopQuestion(journeyId) : null), [open, journeyId])
   const [phase, setPhase] = useState<TakeoverPhase>('question')
   const [answerLocked, setAnswerLocked] = useState(false)
   const [pulseWordsComplete, setPulseWordsComplete] = useState(false)
@@ -121,17 +129,23 @@ export function DiscoveryTakeover({
       setPulseWordsComplete(false)
       setCardReady(false)
       revealFiredRef.current = false
+      return
     }
-  }, [open])
+    if (!beat) {
+      onRevealComplete()
+    }
+  }, [open, beat, onRevealComplete])
 
   const runCleanBirthLabor = useCallback(
     async (answerValue: string) => {
+      if (!beat) return
+      try {
       const pc = String(postcode ?? profileData?.postcode ?? '')
         .replace(/\s+/g, '')
         .trim()
         .toUpperCase()
 
-      persistTier2AnswerLocal({
+      persistLoopAnswerLocal({
         journeyId,
         questionId: beat.questionId,
         answer: answerValue,
@@ -154,14 +168,17 @@ export function DiscoveryTakeover({
         }),
       }).catch(() => {})
 
-      const optimistic = birthAchievementCard({
-        journeyId,
-        questionId: beat.questionId,
-        answerValue,
-        title: fallbackTitle,
-        body: rec.body,
-        offerUrl: fallbackUrl,
-      })
+      const optimistic = birthAchievementCard(
+        {
+          journeyId,
+          questionId: beat.questionId,
+          answerValue,
+          title: fallbackTitle,
+          body: rec.body,
+          offerUrl: fallbackUrl,
+        },
+        onAchievementCard
+      )
       if (optimistic) setCardReady(true)
 
       if (pc.length >= 4) {
@@ -186,18 +203,21 @@ export function DiscoveryTakeover({
             const enrichedTitle =
               tier2.morphCard?.title?.trim() ||
               headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
-            birthAchievementCard({
-              journeyId,
-              questionId: beat.questionId,
-              answerValue,
-              title: enrichedTitle,
-              body: rec.body,
-              offerUrl:
-                tier2.offerUrl ??
-                tier2.morphCard?.cta?.url ??
-                tier2.morphCard?.actions?.learnUrl ??
-                fallbackUrl,
-            })
+            birthAchievementCard(
+              {
+                journeyId,
+                questionId: beat.questionId,
+                answerValue,
+                title: enrichedTitle,
+                body: rec.body,
+                offerUrl:
+                  tier2.offerUrl ??
+                  tier2.morphCard?.cta?.url ??
+                  tier2.morphCard?.actions?.learnUrl ??
+                  fallbackUrl,
+              },
+              onAchievementCard
+            )
           }
           void refreshZoneTotalsAfterTier2(pc)
         } catch {
@@ -206,16 +226,22 @@ export function DiscoveryTakeover({
       }
 
       if (!optimistic) setCardReady(true)
+      } catch (err) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[DiscoveryTakeover] clean birth failed', err)
+        }
+        setCardReady(true)
+      }
     },
-    [postcode, profileData, journeyId, beat.questionId]
+    [postcode, profileData, journeyId, beat, onAchievementCard]
   )
 
   const tryReveal = useCallback(() => {
     if (revealFiredRef.current) return
-    if (!pulseWordsComplete || !cardReady) return
+    if (!cardReady) return
     revealFiredRef.current = true
     onRevealComplete()
-  }, [pulseWordsComplete, cardReady, onRevealComplete])
+  }, [cardReady, onRevealComplete])
 
   useEffect(() => {
     tryReveal()
@@ -224,25 +250,22 @@ export function DiscoveryTakeover({
   useEffect(() => {
     if (phase !== 'pulse') return
     const safety = window.setTimeout(() => {
-      if (!revealFiredRef.current) {
-        setCardReady(true)
-        setPulseWordsComplete(true)
-      }
+      if (!revealFiredRef.current) setCardReady(true)
     }, CLEAN_BIRTH_PULSE_MAX_WAIT_MS)
     return () => window.clearTimeout(safety)
   }, [phase])
 
   const handleAnswer = useCallback(
     (answerValue: string) => {
-      if (answerLocked) return
+      if (answerLocked || !beat) return
       setAnswerLocked(true)
       setPhase('pulse')
       void runCleanBirthLabor(answerValue)
     },
-    [answerLocked, runCleanBirthLabor]
+    [answerLocked, runCleanBirthLabor, beat]
   )
 
-  if (!open || typeof document === 'undefined') return null
+  if (!open || !beat || typeof document === 'undefined') return null
 
   const stepBlockInitial = reduceMotion ? { opacity: 0 } : { opacity: 0, y: STACCATO_DROP_PX }
   const stepBlockAnimate = reduceMotion ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }
@@ -273,7 +296,6 @@ export function DiscoveryTakeover({
         justifyContent: 'center',
         textAlign: 'center',
         gap: 40,
-        background: 'transparent',
       }}
     >
       <AnimatePresence mode="wait">

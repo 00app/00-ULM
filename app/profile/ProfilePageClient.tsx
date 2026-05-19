@@ -116,6 +116,10 @@ export default function ProfilePageClient() {
     if (step < 0 || step >= PROFILE_QUESTIONS.length) setStep(0)
   }, [step])
 
+  useEffect(() => {
+    router.prefetch(ROUTES.PROFILE_SUMMARY)
+  }, [router])
+
   const setValue = useCallback((id: string, value: string) => {
     if (id === 'postcode' && typeof window !== 'undefined') {
       const prev = (values.postcode ?? localStorage.getItem(STORAGE_KEYS.postcode) ?? '')

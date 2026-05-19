@@ -324,7 +324,7 @@ export function ZoneIntelligenceStrip({
             !apiDiagReady
               ? 'Polling…'
               : !apiAiGateway
-                ? 'AI_GATEWAY_API_KEY / VERCEL_AI_GATEWAY_API_KEY unset — direct Gemini only.'
+                ? 'AI gateway env unset — direct GEMINI_API_KEY only (AI_GATEWAY_API_KEY / AI_GATEWAY).'
                 : apiAiGatewayOk
                   ? apiAiGatewayFallback
                     ? 'Switching to fallback — secondary model or direct Gemini active.'
@@ -383,7 +383,7 @@ export function ZoneIntelligenceStrip({
     )
 
   const node = (
-    <div className="pulse-diagnostic-anchor pointer-events-none fixed bottom-8 right-8 z-[99] flex flex-col items-end gap-2">
+    <motion.div className="pulse-diagnostic-anchor pointer-events-none z-[99] flex flex-col items-end gap-2">
       {open ? (
           <motion.div
             id="zz-intelligence-loop-panel"
@@ -442,7 +442,7 @@ export function ZoneIntelligenceStrip({
           <path d="M12 3L22 20H2L12 3z" fill="currentColor" />
         </svg>
       </motion.button>
-    </div>
+    </motion.div>
   )
 
   return createPortal(node, document.body)

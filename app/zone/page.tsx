@@ -40,7 +40,7 @@ import {
 } from '@/lib/animations'
 
 import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
-import { LoadingHeartbeat } from '@/app/components/LoadingHeartbeat'
+import { ZoneGateWordPulse } from '@/app/components/ZoneGateWordPulse'
 import { parseCoverageFromApi, parseResearchMetaFromApi } from '@/lib/zone/parseScrapeSyncClient'
 import {
   readCachedProfileLocality,
@@ -66,6 +66,12 @@ import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { DISCOVERY_INJECT_EVENT } from '@/lib/discoveryInject'
 import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
 import { DiscoveryTakeover } from '@/app/components/DiscoveryTakeover'
+import { pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
+import {
+  persistPinnedAchievement,
+  readPinnedAchievementsFromStorage,
+} from '@/lib/zone/loopMemory'
+import { spawnAchievementWhenLoopPoolExhausted } from '@/lib/zone/spawnAchievementOnClose'
 import {
   SESSION_SUMMARY_TO_ZONE,
   ZONE_READY_MAX_WAIT_MS,
@@ -86,7 +92,6 @@ import {
 import { fetchLivingPulseSnapshot } from '@/lib/logic/pulse'
 import {
   scheduleZoneEngineHydrationPhases,
-  ZONE_ENGINE_HYDRATION_LABELS,
   type ZoneEngineStatus,
 } from '@/lib/zone/engineHydration'
 import { ROCK_BY_SLUG, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/lib/rock/habitsCatalog'
@@ -380,6 +385,19 @@ export default function ZonePage() {
     setLiveProfilePostcode(readProfilePostcode())
     const fromUrl = readPostcodeFromUrl()
     if (fromUrl) safeSetItem('profile_postcode', fromUrl)
+    const storedPins = readPinnedAchievementsFromStorage()
+    if (storedPins.length > 0) {
+      setPinnedAchievements((prev) => {
+        const byId = new Map(prev.map((c) => [c.id, c]))
+        for (const c of storedPins) byId.set(c.id, c)
+        return [...byId.values()]
+      })
+      setInjectedTips((prev) => {
+        const byId = new Map(prev.map((c) => [c.id, c]))
+        for (const c of storedPins) byId.set(c.id, c)
+        return [...byId.values()]
+      })
+    }
   }, [refreshKey])
 
   const isFocusViewOpen = Boolean(expandedCardId || expandedTipId)
@@ -391,22 +409,44 @@ export default function ZonePage() {
     closeSoloFocus()
   }, [closeSoloFocus])
 
+  const pinAchievementCard = useCallback((card: ZoneTipCard) => {
+    if (!card.achievement_discovery) return
+    setInjectedTips((prev) => [...prev.filter((c) => c.id !== card.id), card])
+    setPinnedAchievements((prev) => [...prev.filter((c) => c.id !== card.id), card])
+    persistPinnedAchievement(card)
+    setVmSyncStamp(Date.now())
+  }, [])
+
   const launchPatternShiftTakeover = useCallback(
     (journeyId: JourneyId) => {
       closeAnySoloFocus()
-      setIsZoneVisible(false)
-      setPatternShiftJourneyId(journeyId)
+      const nextBeat = pickNextLoopQuestion(journeyId)
+      if (nextBeat) {
+        setIsZoneVisible(false)
+        setPatternShiftJourneyId(journeyId)
+        return
+      }
+      spawnAchievementWhenLoopPoolExhausted(journeyId, pinAchievementCard)
+      setPatternShiftJourneyId(null)
+      setIsZoneVisible(true)
+      setCleanBirthRevealKey((k) => k + 1)
+      setVmSyncStamp(Date.now())
     },
-    [closeAnySoloFocus]
+    [closeAnySoloFocus, pinAchievementCard]
   )
 
   const completeCleanBirth = useCallback(() => {
     setPatternShiftJourneyId(null)
+    closeAnySoloFocus()
+    setExpandedCardId(null)
+    setExpandedFromTip(null)
+    setExpandedTipId(null)
     setIsZoneVisible(true)
     setCleanBirthRevealKey((k) => k + 1)
+    setRevealedCardCount((n) => Math.max(n, 1 + pinnedAchievements.length))
     setRefreshKey((k) => k + 1)
     setVmSyncStamp(Date.now())
-  }, [])
+  }, [closeAnySoloFocus, pinnedAchievements.length])
 
   // Recovery guard: if global focus state is stale but no local expanded card/tip exists,
   // unhide the Zone wall immediately.
@@ -988,6 +1028,19 @@ export default function ZonePage() {
       .then((data: unknown) => {
         if (cancelled) return
         const server = Array.isArray(data) ? (data as ZoneTipCard[]) : []
+        const achievementFromServer = server.filter((c) => c?.achievement_discovery)
+        if (achievementFromServer.length > 0) {
+          setPinnedAchievements((prev) => {
+            const byId = new Map(prev.map((c) => [c.id, c]))
+            for (const c of achievementFromServer) {
+              if (c?.id) byId.set(c.id, c)
+            }
+            return [...byId.values()]
+          })
+          for (const c of achievementFromServer) {
+            if (c?.id) persistPinnedAchievement(c)
+          }
+        }
         setInjectedTips((prev) => {
           const byId = new Map<string, ZoneTipCard>()
           for (const c of server) {
@@ -1015,26 +1068,24 @@ export default function ZonePage() {
       setInjectedTips((prev) => [...prev.filter((c) => c.id !== detail.id), detail])
       if (isAchievement) {
         setPinnedAchievements((prev) => [...prev.filter((c) => c.id !== detail.id), detail])
-        window.setTimeout(() => {
-          setPinnedAchievements((prev) => prev.filter((c) => c.id !== detail.id))
-        }, 120_000)
+        persistPinnedAchievement(detail)
       }
       setDiscoverySnapTipId(detail.id)
       window.setTimeout(() => setDiscoverySnapTipId((id) => (id === detail.id ? null : id)), 950)
       setVmSyncStamp(Date.now())
-      /* Achievement cards are client-birthed — tips-refresh + refreshKey refetch wiped them. */
+      /* Achievement cards pin under hero — no Solo Focus hijack or tips-refresh wipe. */
       if (!isAchievement) {
         void fetch('/api/zone/tips-refresh', { method: 'POST', credentials: 'include' }).catch(() => {})
         setRefreshKey((k) => k + 1)
+        scheduleSoloFocusRebirthOpen(() => {
+          setExpandedCardId(null)
+          setExpandedFromTip(null)
+          closeSoloFocus()
+          if (openSoloFocus(detail.id, 'discovery')) {
+            setExpandedTipId(detail.id)
+          }
+        })
       }
-      scheduleSoloFocusRebirthOpen(() => {
-        setExpandedCardId(null)
-        setExpandedFromTip(null)
-        closeSoloFocus()
-        if (openSoloFocus(detail.id, 'discovery')) {
-          setExpandedTipId(detail.id)
-        }
-      })
     }
     window.addEventListener(DISCOVERY_INJECT_EVENT, onInject)
     return () => window.removeEventListener(DISCOVERY_INJECT_EVENT, onInject)
@@ -1249,7 +1300,7 @@ export default function ZonePage() {
                 ...vmLive,
                 hero: {
                   ...vmLive.hero,
-                  title: 'RECALCULATING...',
+                  title: 'connect',
                   data: {
                     money: '£0',
                     carbon: '0kg CO₂',
@@ -1478,17 +1529,6 @@ export default function ZonePage() {
   )
   const displayItems: GroovyItem[] = useMemo(() => [...groovyItems], [groovyItems])
 
-  useEffect(() => {
-    if (architecturalPulsePhase !== 'done' && architecturalPulsePhase !== 'punch') return
-    const settle = () => {
-      if (typeof window === 'undefined') return
-      if (window.scrollY > 160) {
-        setPinnedAchievements([])
-      }
-    }
-    window.addEventListener('scroll', settle, { passive: true })
-    return () => window.removeEventListener('scroll', settle)
-  }, [architecturalPulsePhase])
   const isDev = process.env.NODE_ENV !== 'production'
   const researchLoading = !vmResolved
   const isZoneReady = useMemo(
@@ -1526,22 +1566,34 @@ export default function ZonePage() {
     architecturalPulsePhase === 'done' &&
     !patternShiftJourneyId
   const zoneWallCollapsed =
-    (architecturalPulsePhase === 'pulse' && !patternShiftJourneyId) ||
-    (!vmResolved && architecturalPulsePhase === 'done')
-  const showWallLoader =
+    (architecturalPulsePhase === 'pulse' || architecturalPulsePhase === 'punch') &&
+    !patternShiftJourneyId
+  const showZoneGateLoader =
     isZoneVisible &&
     !patternShiftJourneyId &&
-    (zoneWallCollapsed || (!vmResolved && architecturalPulsePhase === 'done'))
+    architecturalPulsePhase === 'done' &&
+    !vmResolved
   const zoneRevealCount = Math.min(revealedCardCount, displayItems.length)
 
   useEffect(() => {
+    const pinFloor = 1 + pinnedAchievements.length
+    const showPinnedWhileLoading = pinnedAchievements.length > 0 && isZoneVisible && architecturalPulsePhase === 'done'
+
     if (!isZoneVisible || architecturalPulsePhase !== 'done') {
       setRevealedCardCount(0)
       return
     }
+    if (!vmResolved) {
+      if (showPinnedWhileLoading) {
+        setRevealedCardCount((n) => Math.max(n, Math.min(pinFloor, displayItems.length)))
+      } else {
+        setRevealedCardCount(0)
+      }
+      return
+    }
     if (displayItems.length === 0) return
-    setRevealedCardCount(1)
-    let n = 1
+    setRevealedCardCount((n) => Math.max(n, 1))
+    let n = Math.max(1, pinFloor)
     const stepMs = Math.max(72, ZONE_GRID_STAGGER_CHILD_DELAY_SEC * 1000 * 3)
     const id = window.setInterval(() => {
       n += 1
@@ -1555,6 +1607,8 @@ export default function ZonePage() {
     displayItems.length,
     cleanBirthRevealKey,
     summaryGridStaggerKey,
+    vmResolved,
+    pinnedAchievements.length,
   ])
 
   const rockOfferByJourney = useMemo(() => {
@@ -1676,11 +1730,8 @@ export default function ZonePage() {
       <motion.main
         className="zone relative min-h-screen overflow-x-hidden pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]"
         style={{
-          background: 'transparent',
           color: 'var(--color-yellow)',
-          boxShadow: sentinel.pulseColor
-            ? `inset 0 0 140px color-mix(in srgb, ${sentinel.pulseColor} 22%, transparent)`
-            : undefined,
+          boxShadow: 'none',
         }}
         {...FADE_IN_UP}
       >
@@ -1725,6 +1776,7 @@ export default function ZonePage() {
               aria-label="Ask Zai — tap or press Enter to open chat"
             />
           </motion.div>
+          <ZoneGateWordPulse active={showZoneGateLoader} />
           {sentinelPulseLabel ? (
             <motion.p
               key={sentinelPulseLabel}
@@ -1739,27 +1791,6 @@ export default function ZonePage() {
             </motion.p>
           ) : null}
         </motion.div>
-        ) : null}
-
-        {showWallLoader ? (
-          <motion.div
-            className="zone-wall-loader"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={STACCATO_TWEEN}
-            aria-live="polite"
-          >
-            <LoadingHeartbeat active />
-            {engineStatus !== 'idle' ? (
-              <p className="zone-engine-hydration-status m-0" style={{ color: 'var(--color-yellow)' }}>
-                {ZONE_ENGINE_HYDRATION_LABELS[engineStatus]}
-              </p>
-            ) : !vmResolved ? (
-              <p className="zone-engine-hydration-status m-0" style={{ color: 'var(--color-yellow)' }}>
-                CONNECTING GEMINI
-              </p>
-            ) : null}
-          </motion.div>
         ) : null}
 
         {(architecturalPulsePhase === 'pulse' || architecturalPulsePhase === 'punch') &&
@@ -1862,7 +1893,7 @@ export default function ZonePage() {
                 >
                   {cell.type === 'hero' && (
                     <motion.div
-                      className="zone-hero-transparent relative flex flex-col items-stretch w-full flex-1 min-h-0 h-full text-left"
+                      className="relative flex flex-col items-stretch w-full flex-1 min-h-0 h-full text-left"
                       style={{ transformOrigin: 'center center' }}
                       {...(heroFromSummaryHandoff
                         ? {
@@ -1911,7 +1942,7 @@ export default function ZonePage() {
                                   <StampedMoneyGbp gbp={displayMoney} live={heroLiveGrounded} />
                                 ) : (
                                   <span className="zz-body-bold uppercase zz-shimmer-focus" aria-live="polite">
-                                    Recalculating...
+                                    connect
                                   </span>
                                 )}
                               </span>
@@ -1923,7 +1954,7 @@ export default function ZonePage() {
                                   <StampedCarbonKg kg={displayCarbon} />
                                 ) : (
                                   <span className="zz-body-bold uppercase zz-shimmer-focus" aria-live="polite">
-                                    Recalculating...
+                                    connect
                                   </span>
                                 )}
                               </span>
@@ -1946,9 +1977,13 @@ export default function ZonePage() {
                     const moneyDisp = (patch?.money ?? tip.data.money ?? '').replace(/^£\s*/, '').trim() || '0'
                     const carbonDisp = patch?.carbon ?? tip.data.carbon ?? '0'
                     const carbonKgNum = parseCarbonKgFromDisplay(carbonDisp)
-                    const greenPulse = isDiscoveryInject && carbonKgNum > 500
+                    const greenPulse = isDiscoveryInject && !tip.achievement_discovery && carbonKgNum > 500
                     const snapBloomIn = discoverySnapTipId === tip.id
-                    const achievementPin = Boolean(tip.achievement_discovery && pinnedAchievements.some((p) => p.id === tip.id))
+                    const isAchievementDiscovery = Boolean(tip.achievement_discovery)
+                    const tipTopLabel = isAchievementDiscovery
+                      ? `${(tip.journey_key || 'TIP').replace(/-/g, ' ').toUpperCase()} +`
+                      : (tip.journey_key || 'TIP').replace(/-/g, ' ').toUpperCase()
+                    const useInjectTypography = isDiscoveryInject && !isAchievementDiscovery
                     /* Expand the matching journey card so user gets full experience (tips, links, questions). */
                     const journeyCell = groovyItems.find((c): c is GroovyItem & { type: 'journey' } => c.type === 'journey' && c.item.journey_key === tip.journey_key)
                     const handleTipClick = () => {
@@ -1991,15 +2026,16 @@ export default function ZonePage() {
                       <motion.button
                         type="button"
                         data-zone-surface="tip"
-                        className={`bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left${greenPulse ? ' discovery-card-green-pulse' : ''}${achievementPin ? ' discovery-achievement-pin' : ''}`}
+                        className={`bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left${greenPulse ? ' discovery-card-green-pulse' : ''}`}
                         style={{
                           borderRadius: 60,
                           boxShadow: 'none',
+                          color: tipTextColor,
                           ['--journey-bg' as string]: tipBg,
                           ['--journey-text' as string]: tipTextColor,
                           ['--color-ink' as string]: tipTextColor,
-                          ['--semantic-money' as string]: semanticWin === 'money' ? 'var(--color-yellow)' : tipTextColor,
-                          ['--semantic-carbon' as string]: semanticWin === 'carbon' ? 'var(--color-pink)' : tipTextColor,
+                          ['--semantic-money' as string]: tipTextColor,
+                          ['--semantic-carbon' as string]: tipTextColor,
                         }}
                         onClick={handleTipClick}
                         initial={snapBloomIn || isDiscoveryInject ? ZIP_OPEN_Z_INITIAL : false}
@@ -2010,9 +2046,9 @@ export default function ZonePage() {
                       >
                         <div className="flex items-center justify-between w-full shrink-0 gap-2">
                           <span className="card-top-label" style={{ color: tipTextColor }}>
-                            {(tip.journey_key || 'TIP').replace(/-/g, ' ').toUpperCase()}
+                            {tipTopLabel}
                           </span>
-                          {tip.badge ? (
+                          {tip.badge && !isAchievementDiscovery ? (
                             <span
                               className="zz-body-bold shrink-0 rounded-full px-3 py-0.5 text-xs uppercase"
                               style={{
@@ -2038,7 +2074,7 @@ export default function ZonePage() {
                             <span className="data-label" style={{ color: tipTextColor }}>{ENGINE_UI_LABELS.potentialSavings}</span>
                             <span
                               className={
-                                isDiscoveryInject
+                                useInjectTypography
                                   ? 'text-data discovery-inject-money-h2 data-value data-stamp-metric'
                                   : 'data-value text-data data-stamp-metric'
                               }
@@ -2055,7 +2091,7 @@ export default function ZonePage() {
                             <span className="data-label" style={{ color: tipTextColor }}>{ENGINE_UI_LABELS.carbon}</span>
                             <span
                               className={
-                                isDiscoveryInject
+                                useInjectTypography
                                   ? 'data-value text-data discovery-inject-carbon-secondary data-stamp-metric'
                                   : 'data-value text-data data-stamp-metric'
                               }
@@ -2426,6 +2462,7 @@ export default function ZonePage() {
               household: state.profile?.livingSituation ?? null,
               employment_status: state.profile?.employmentStatus ?? null,
             }}
+            onAchievementCard={pinAchievementCard}
             onRevealComplete={completeCleanBirth}
           />
         ) : null}

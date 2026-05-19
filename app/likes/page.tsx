@@ -14,6 +14,7 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { motion } from 'framer-motion'
 import { KINETIC_ZIP_PULSE } from '@/lib/animations'
 import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
+import { readZaiLikes, removeZaiLike } from '@/lib/zai/zaiLikesStorage'
 
 const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
 
@@ -104,8 +105,14 @@ export default function LikesPage() {
     return [...journeyCards, ...tipCards] as any[]
   }, [viewModel, state.likedCards, actionedIds])
 
+  const likedZaiPicks = useMemo(() => {
+    const likedIds = new Set(state.likedCards ?? [])
+    return readZaiLikes().filter((z) => likedIds.has(z.id) && !actionedIds.has(z.id))
+  }, [state.likedCards, actionedIds])
+
   const handleUnlike = (id: string) => {
     toggleLike(id)
+    if (id.startsWith('zai-like-')) removeZaiLike(id)
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([12, 60, 12])
     fetch('/api/likes', {
       method: 'POST',
@@ -155,10 +162,64 @@ export default function LikesPage() {
       <p className="zz-body zz-page-intro" style={{ color: 'var(--color-yellow)', textAlign: 'center' }}>
         Cards you’ve liked. Unlike, mark as actioned, or open the link.
       </p>
-      {likedCards.length === 0 ? (
+      {likedCards.length === 0 && likedZaiPicks.length === 0 ? (
         <p className="zz-body" style={{ color: 'var(--color-yellow)', textAlign: 'center' }}>No liked cards yet. Like cards from the Zone to see them here.</p>
       ) : (
-        <div className="groovy-zone-grid mx-auto pb-40">
+        <motion.div className="groovy-zone-grid mx-auto pb-40">
+          {likedZaiPicks.map((pick) => {
+            const textColor = 'var(--color-yellow)'
+            const gbp = parseMoneyGbpFromDisplay(pick.money)
+            const kg = parseCarbonKgFromDisplay(pick.carbon)
+            const isActioned = actionedIds.has(pick.id)
+            return (
+              <article
+                key={pick.id}
+                className="bento-card-groovy"
+                style={{
+                  width: '100%',
+                  borderRadius: 60,
+                  background: 'var(--color-pink)',
+                  color: textColor,
+                  ['--color-ink' as string]: textColor,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 16,
+                }}
+              >
+                <span className="card-top-label" style={{ color: textColor }}>ZAI PICK</span>
+                <h3 className="card-headline m-0 min-w-0" style={{ color: textColor }}>
+                  {pick.title}
+                </h3>
+                <div className="card-impact-grid grid grid-cols-2 gap-x-4 gap-y-0">
+                  <div className="data-stack data-stack--tight">
+                    <span className="data-label text-data" style={{ color: textColor }}>SAVE</span>
+                    <span className="data-value text-data data-stamp-metric" style={{ color: 'var(--color-ink)' }}>
+                      <StampedMoneyGbp gbp={gbp} />
+                    </span>
+                  </div>
+                  <div className="data-stack data-stack--tight">
+                    <span className="data-label text-data" style={{ color: textColor }}>CARBON</span>
+                    <span className="data-value text-data data-stamp-metric" style={{ color: 'var(--color-ink)' }}>
+                      <StampedCarbonKg kg={kg} />
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3 items-center">
+                  {pick.sourceUrl ? (
+                    <a href={pick.sourceUrl} target="_blank" rel="noopener noreferrer" className="zz-body underline" style={{ color: textColor }}>
+                      source
+                    </a>
+                  ) : null}
+                  <button type="button" className="zz-body" onClick={() => handleUnlike(pick.id)} style={{ color: textColor }}>
+                    Unlike
+                  </button>
+                  <button type="button" className="zz-body" onClick={() => handleActioned(pick.id)} style={{ color: textColor, opacity: isActioned ? 0.5 : 1 }}>
+                    {isActioned ? 'Actioned' : 'Mark actioned'}
+                  </button>
+                </div>
+              </article>
+            )
+          })}
           {likedCards.map((card) => {
             const journeyKey = card.journey_key
             const bg = getJourneyColorHex(journeyKey)
@@ -283,7 +344,7 @@ export default function LikesPage() {
               </article>
             )
           })}
-        </div>
+        </motion.div>
       )}
       <ZoneIntelligenceStrip variant="likes" dbConnected={dbConnected} dbHealthHint={dbHealthHint} />
     </motion.div>

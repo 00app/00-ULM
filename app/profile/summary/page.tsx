@@ -5,7 +5,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { motion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
-import { BASELINE_2026_CAP_GBP } from '@/lib/brains/calculations'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import type { Persona } from '@/lib/brains/types'
 import {
@@ -29,11 +28,10 @@ import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
 import { SESSION_SUMMARY_TO_ZONE } from '@/lib/architecturalPulse'
 
 const REDIRECT_NO_PROFILE_MS = 1800
-/** Slack shown in kinetic + reveal: see `lib/brains/summaryLogic.ts` (same cord as Zone — `buildUserImpact`). */
-const WASTE_FACTOR = 0.22
-const PAGE_EXIT_NAV_MS = 800
-const LOCALITY_RESOLVE_TIMEOUT_MS = 3500
-const EXIT_NAV_SAFETY_MS = 8000
+const PAGE_EXIT_NAV_MS = 550
+const LOCALITY_RESOLVE_TIMEOUT_MS = 1800
+const EXIT_NAV_SAFETY_MS = 6000
+const SUMMARY_SETTLE_MS = 500
 
 const SESSION_ZONE_HANDOFF = SESSION_SUMMARY_TO_ZONE
 
@@ -168,14 +166,16 @@ export default function ProfileSummaryPage() {
       resolvedLocationName: string,
       money: number,
       carbon: number,
+      profileWaste: { annualWasteCash: number; annualWasteCarbon: number },
       genomeMoney?: number
     ) => {
-      const annualSpendLikeYou = Math.max(BASELINE_2026_CAP_GBP, money)
+      const modelledCash = money > 0 ? money : profileWaste.annualWasteCash
+      const modelledCarbon = carbon > 0 ? carbon : profileWaste.annualWasteCarbon
       const wastePack = {
-        annualWasteCash: Math.round(annualSpendLikeYou * WASTE_FACTOR),
-        annualWasteCarbon: Math.round(carbon * WASTE_FACTOR),
-        totalsMoney: money,
-        totalsCarbon: carbon,
+        annualWasteCash: Math.round(modelledCash),
+        annualWasteCarbon: Math.round(modelledCarbon),
+        totalsMoney: Math.round(money),
+        totalsCarbon: Math.round(carbon),
       }
       const narrative: ProfileSummaryNarrativeInput = {
         employment_status: profile.employment_status,
@@ -192,7 +192,9 @@ export default function ProfileSummaryPage() {
       return { waste: wastePack, narrative }
     }
 
-    setSummaryPack(buildPack(null, councilImmediate, totalsMoney, totalsCarbon, genomeSavingsMoney))
+    setSummaryPack(
+      buildPack(null, councilImmediate, totalsMoney, totalsCarbon, impact.summaryWaste, genomeSavingsMoney)
+    )
 
     ;(async () => {
       let local: SummaryLocalContext | null = null
@@ -204,7 +206,7 @@ export default function ProfileSummaryPage() {
         )
         try {
           const ac = new AbortController()
-          const tid = setTimeout(() => ac.abort(), 3200)
+          const tid = setTimeout(() => ac.abort(), 1600)
           const r = await fetch('/api/local-intelligence', {
             method: 'POST',
             credentials: 'include',
@@ -276,7 +278,16 @@ export default function ProfileSummaryPage() {
         councilImmediate
 
       if (!cancelled && phaseRef.current === 'cycle') {
-        setSummaryPack(buildPack(local, resolvedLocationName, totalsMoney, totalsCarbon, genomeSavingsMoney))
+        setSummaryPack(
+          buildPack(
+            local,
+            resolvedLocationName,
+            totalsMoney,
+            totalsCarbon,
+            impact.summaryWaste,
+            genomeSavingsMoney
+          )
+        )
       }
       if (resolvedLocationName && resolvedLocationName !== 'the UK') {
         setLocationState({
@@ -298,7 +309,7 @@ export default function ProfileSummaryPage() {
       if (postcode.length >= 4) {
         const researchUserId = ensureClientResearchUserId(postcode)
         const handshakeAbort = new AbortController()
-        const handshakeAbortTimer = window.setTimeout(() => handshakeAbort.abort(), 12_000)
+        const handshakeAbortTimer = window.setTimeout(() => handshakeAbort.abort(), 5000)
         handshakePromiseRef.current = (async () => {
           try {
             const [scrapeRes, tipsRefreshRes] = await Promise.allSettled([
@@ -408,7 +419,7 @@ export default function ProfileSummaryPage() {
     setPhase('settle')
     setTimeout(() => {
       setPhase('exit')
-    }, 1500)
+    }, SUMMARY_SETTLE_MS)
   }
 
   if (!summaryPack) {

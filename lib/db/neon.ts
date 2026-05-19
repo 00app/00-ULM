@@ -4,7 +4,7 @@
  */
 
 import { getDbPool } from '@/lib/db'
-import { isValidJourneyQuestion } from '@/lib/journeys'
+import { isValidLoopOrJourneyQuestion } from '@/lib/zone/loopQuestions'
 import type { JourneyId } from '@/lib/journeys'
 
 const MAX_ANSWER_LENGTH = 500
@@ -331,7 +331,7 @@ export async function upsertJourneyAnswerJsonb(
   answerValue: string
 ): Promise<void> {
   const pool = getDbPool()
-  if (!isValidJourneyQuestion(journeyId, answerKey)) return
+  if (!isValidLoopOrJourneyQuestion(journeyId, answerKey)) return
   const safeValue = String(answerValue).slice(0, MAX_ANSWER_LENGTH)
 
   try {

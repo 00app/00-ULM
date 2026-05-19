@@ -1,3 +1,5 @@
+import { clearLearningCacheLocal } from '@/lib/zone/loopMemory'
+
 /**
  * Data version for Zero Zero — when this changes in production, local data is reset
  * and returning users load from session/IP-based storage.
@@ -85,6 +87,7 @@ export function clearLocalDataAndSetVersion(version: string): void {
   if (typeof window === 'undefined') return
   getLocalDataKeysToReset().forEach((k) => localStorage.removeItem(k))
   clearExtraLocalKeysForReset()
+  clearLearningCacheLocal()
   clearSessionStorageForReset()
   localStorage.setItem(LOCAL_STORAGE_KEYS.VERSION, version)
 }

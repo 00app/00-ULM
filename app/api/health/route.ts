@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import pool from '@/lib/db'
+import { pingDatabase } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -14,11 +14,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await pool.query('SELECT NOW() as time')
+    const ping = await pingDatabase()
+    if (!ping.ok) {
+      throw new Error('Database ping failed')
+    }
     return NextResponse.json({
       status: 'ok',
       database: 'connected',
-      time: result.rows[0].time,
+      latencyMs: ping.latencyMs,
     })
   } catch (error) {
     console.error('Health check failed:', error)

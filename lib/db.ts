@@ -142,6 +142,25 @@ export function getDbPool(): DbPool {
  * (e.g. cron) so the invocation does not hold idle backends. Safe to call when
  * idle; the next `getDbPool()` creates a fresh pool.
  */
+/** Health / diagnostics — one-shot ping with optional Neon HTTP fallback after pool flake. */
+export async function pingDatabase(): Promise<{ ok: boolean; latencyMs: number | null }> {
+  const t0 = Date.now()
+  try {
+    await ensurePool().query('SELECT 1')
+    return { ok: true, latencyMs: Math.max(0, Date.now() - t0) }
+  } catch (first) {
+    if (shouldUseNeonServerless(resolveConnectionString())) {
+      try {
+        await ensureSql()`SELECT 1`
+        return { ok: true, latencyMs: Math.max(0, Date.now() - t0) }
+      } catch {
+        console.warn('[db] ping failed (pool + neon):', first)
+      }
+    }
+    return { ok: false, latencyMs: null }
+  }
+}
+
 export async function shutdownDbPool(): Promise<void> {
   const store = dbGlobal()
   if (store.pool) {

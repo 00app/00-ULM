@@ -1,13 +1,12 @@
 /** Post–profile-summary handoff: one-word rhythmic pulse before Zone grid punch-through. */
 
 export const ARCHITECTURAL_PULSE_WORDS = [
-  'CONNECTING...',
-  'SCRAPING...',
-  'AUDITING...',
-  'ANALYSING...',
-  'SHIFTING...',
-  'BIRTHING...',
-  'DONE.',
+  'connect',
+  'search',
+  'scape',
+  'analyse',
+  'audit',
+  'done.',
 ] as const
 
 /** Mechanical lock: 1.2s per beat (Marvin opacity ticker). */
@@ -17,7 +16,7 @@ export const ARCHITECTURAL_PULSE_DWELL_MS = 1200
 export const ZONE_READY_MAX_WAIT_MS = 14_000
 
 /** Clean Birth: max wait on post-answer pulse before Zone reveal (card + words). */
-export const CLEAN_BIRTH_PULSE_MAX_WAIT_MS = 14_000
+export const CLEAN_BIRTH_PULSE_MAX_WAIT_MS = 4_500
 
 export const SESSION_SUMMARY_TO_ZONE = 'zz_summary_to_zone'
 

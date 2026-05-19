@@ -174,6 +174,8 @@ nextjs-portal > * {
   --zz-body-size: 16px;
   --zz-body-size-desktop: 16px;
   --zz-body-weight: 700;
+  /* Zai + Deep Dive chat column — matches Zone content rail (~720px) */
+  --max-w-zone: min(720px, 100%);
   /* v2.5 — typography rhythm lock (Marvin / Roboto / Marvin track) — canonical only */
   --zz-lh-heading: 0.8 !important;
   --zz-lh-body: 1.2 !important;
@@ -342,6 +344,14 @@ body {
 
 .zone-loading-heartbeat-logo {
   filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-yellow) 40%, transparent));
+}
+
+/* Zone gate — H3 hydration ticker; 40px breathing room above bento stream */
+.zone-gate-word-pulse {
+  margin-top: 40px !important;
+  margin-bottom: 40px !important;
+  line-height: 0.8 !important;
+  min-height: 0.8em;
 }
 
 /* Zone intelligence-loop hydration — Marvin yellow pulse on gate */
@@ -1183,8 +1193,7 @@ input[type='number'] {
   grid-auto-flow: dense;
   row-gap: 20px;
   column-gap: 20px;
-  padding: 20px;
-  padding-bottom: 0;
+  padding: 20px 0 0;
   margin: 0 auto;
   width: 100%;
   max-width: min(1400px, 100%);
@@ -1216,8 +1225,7 @@ input[type='number'] {
     grid-auto-flow: row;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 20px;
-    padding-bottom: 0;
+    padding: 20px 0 0;
   }
   .groovy-zone-grid > * {
     grid-column: 1 !important;
@@ -1242,8 +1250,7 @@ input[type='number'] {
     max-width: 920px;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 20px;
-    padding-bottom: 0;
+    padding: 20px 0 0;
   }
   .groovy-zone-grid > * {
     width: auto;
@@ -1270,8 +1277,7 @@ input[type='number'] {
     max-width: 1200px;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 20px;
-    padding-bottom: 0;
+    padding: 20px 0 0;
   }
   .groovy-zone-grid > .bento-hero-span {
     grid-column: 1 / -1;
@@ -1294,8 +1300,7 @@ input[type='number'] {
     max-width: 1280px;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 20px;
-    padding-bottom: 0;
+    padding: 20px 0 0;
   }
 }
 
@@ -1478,10 +1483,16 @@ body, p, span, input, button, textarea, select,
 }
 
 @media (max-width: 767px) {
+  .bento-card-groovy,
   .groovy-zone-grid .bento-card-groovy,
   .groovy-zone-grid .zone-hero-card,
-  .groovy-zone-grid button.bento-card-groovy {
-    padding: clamp(20px, 5vw, 30px) !important;
+  .groovy-zone-grid button.bento-card-groovy,
+  .rock-saving-tips-grid button.bento-card-groovy,
+  .rock-bento-tile.bento-card-groovy,
+  .rock-card.bento-card-groovy,
+  .settings-bento-card.bento-card-groovy,
+  .settings-hero-card.settings-bento-card.bento-card-groovy {
+    padding: 20px !important;
   }
 }
 
@@ -1495,7 +1506,6 @@ body, p, span, input, button, textarea, select,
   appearance: none;
   -webkit-appearance: none;
   margin: 0;
-  padding: 30px !important;
 }
 
 /* Rock strip: two-column tips — shorter than full-grid cells, same bento tokens */
@@ -1885,8 +1895,8 @@ body, p, span, input, button, textarea, select,
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* v4.1 — fixed viewport gutter: 20px mobile / 40px desktop (+ safe areas) */
-  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px env(safe-area-inset-bottom, 0px) 20px;
+  /* v4.1 — fixed viewport gutter: 10px mobile / 40px desktop (+ safe areas) */
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 10px calc(10px + env(safe-area-inset-bottom, 0px)) 10px;
   background-color: transparent;
   background: transparent !important;
   backdrop-filter: none !important;
@@ -2126,8 +2136,13 @@ body, p, span, input, button, textarea, select,
   box-sizing: border-box;
   width: 100%;
   border-radius: 60px !important;
-  padding: 40px !important;
+  padding: 20px !important;
   background-color: transparent !important;
+}
+@media (min-width: 768px) {
+  .expanded-solo-focus .solo-focus-shell {
+    padding: 30px !important;
+  }
 }
 .expanded-solo-focus .solo-focus-impact-hero.solo-focus-impact-grid {
   width: 100%;
@@ -2174,8 +2189,11 @@ body, p, span, input, button, textarea, select,
   color: var(--color-pink);
 }
 
-/* Pulse anchor: flush machine corner — no outer padding */
+/* Pulse anchor — 20px from bottom-right (safe-area aware on mobile) */
 .pulse-diagnostic-anchor {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   padding: 0;
   margin: 0;
 }
@@ -2726,20 +2744,6 @@ h3.solo-focus-question-label.zz-h3 {
   min-height: 80px !important;
 }
 
-/* Pink achievement — subtle arrival glow when pinned under hero. */
-.discovery-achievement-pin {
-  animation: discovery-achievement-glow 2.4s ease-in-out 2;
-}
-@keyframes discovery-achievement-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-yellow) 0%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 28px 4px color-mix(in srgb, var(--color-yellow) 55%, transparent);
-  }
-}
-
 .architectural-pulse-overlay .intro-summary-opacity-ticker {
   color: #ffff00 !important;
   font-family: var(--font-marvin), sans-serif !important;
@@ -2777,7 +2781,7 @@ h3.solo-focus-question-label.zz-h3 {
 }
 
 .discovery-clean-birth {
-  background: transparent !important;
+  background-color: transparent;
 }
 
 /* Top bar sticks to top while rest of page scrolls */
@@ -3443,6 +3447,7 @@ h3.solo-focus-question-label.zz-h3 {
   font-weight: 700 !important;
   text-transform: uppercase;
   text-align: center;
+  white-space: nowrap;
   box-sizing: border-box;
 }
 @media (min-width: 1024px) {
@@ -3579,11 +3584,25 @@ h3.solo-focus-question-label.zz-h3 {
   -webkit-backdrop-filter: none !important;
 }
 
+.max-w-zone {
+  width: 100%;
+  max-width: var(--max-w-zone);
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
 /* Zai: transparent page shell; yellow text; bubbles/cards stay solid */
 .zai-interface {
   position: relative;
   background-color: transparent !important;
   color: var(--color-yellow);
+}
+.zai-interface .zai-chat-wrap,
+.zai-interface .zai-intro-bubble,
+.zai-interface .zai-input-row {
+  width: 100%;
+  max-width: var(--max-w-zone);
+  margin-inline: auto;
 }
 .zai-interface .zz-page-back,
 .zai-interface .zz-page-title,
@@ -3612,17 +3631,29 @@ h3.solo-focus-question-label.zz-h3 {
   border-radius: var(--radius-groovy);
   font-family: var(--font-roboto), sans-serif;
   font-weight: 800;
+  font-size: 1.125rem;
+  line-height: 1.45;
+}
+@media (min-width: 768px) {
+  .zai-interface .zai-bubble-chat {
+    font-size: 1.25rem;
+  }
 }
 .zai-interface .zone-ask-zai-pill,
 .zai-interface .ask-zai-input {
   background-color: var(--color-yellow);
   color: var(--color-purple);
-  
   border-radius: 9999px;
-  padding: 14px 24px;
+  padding: 12px 24px;
   font-weight: 800;
-  
+  font-size: 1.125rem;
   caret-color: var(--color-purple);
+}
+@media (min-width: 768px) {
+  .zai-interface .zone-ask-zai-pill,
+  .zai-interface .ask-zai-input {
+    font-size: 1.25rem;
+  }
 }
 .zai-interface .zone-ask-zai-pill:focus,
 .zai-interface .ask-zai-input:focus,
@@ -4425,7 +4456,48 @@ h3.solo-focus-question-label.zz-h3 {
 @media (min-width: 1024px) {
   .zai-interface .zai-page-title,
   .settings-page .zai-page-title,
-  .likes-page .zai-page-title { font-size: 90px; }
+  .likes-page .zai-page-title { font-size: clamp(36px, 5vw, 48px); }
+}
+
+/* Ask Zai Deep Dive sheet — Zone-proportioned input + answer */
+.ask-zai-deep-dive-sheet {
+  max-width: 100%;
+}
+.ask-zai-deep-dive-inner {
+  width: 100%;
+  max-width: var(--max-w-zone);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+}
+.ask-zai-deep-dive-answer {
+  font-family: var(--font-roboto), sans-serif;
+  font-weight: 800;
+  font-size: 1.125rem;
+  line-height: 1.45;
+  margin: 0;
+  overflow-y: auto;
+  max-height: 28dvh;
+}
+@media (min-width: 768px) {
+  .ask-zai-deep-dive-answer { font-size: 1.25rem; }
+}
+.ask-zai-deep-dive-input {
+  width: 100%;
+  height: 48px;
+  border-radius: 9999px;
+  border: 0;
+  padding: 0 24px;
+  font-family: var(--font-marvin);
+  font-size: 1rem;
+  text-transform: uppercase;
+  box-sizing: border-box;
+}
+@media (min-width: 768px) {
+  .ask-zai-deep-dive-input { font-size: 1.125rem; }
 }
 
 .expanded-view--solid {
@@ -6065,7 +6137,7 @@ h3.solo-focus-question-label.zz-h3 {
 
 .floating-nav {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   width: auto;
@@ -6106,8 +6178,8 @@ h3.solo-focus-question-label.zz-h3 {
 @media (min-width: 1024px) {
   .floating-nav {
     position: fixed !important;
-    top: 40px !important;
-    right: 40px !important;
+    top: calc(20px + env(safe-area-inset-top, 0px)) !important;
+    right: 20px !important;
     bottom: auto !important;
     left: auto !important;
     width: auto !important;
@@ -6593,7 +6665,6 @@ select,
 
 /* Transparent hero — two-column diagnostic stack, 200px Marvin */
 .zone-hero-transparent {
-  background: transparent !important;
   padding: 0 !important;
 }
 
@@ -7133,19 +7204,30 @@ h1, h2, h3, h4, h5, h6,
   text-transform: none !important;
 }
 
-/* 2) Roboto body / instruction lock (do not blanket `span` — stamps use .data-symbol-unit) */
+/* 2) Roboto Bold — expanded Solo Focus prose + Zai chat only (headlines/stamps stay Marvin) */
 body,
 p,
 .zz-body,
 .zz-body-bold,
-.solo-focus-insight,
-.solo-focus-description,
-.solo-focus-supplied-by,
-.zai-bubble-chat {
+.zai-interface .zai-bubble-chat,
+.zai-interface .zai-intro-bubble,
+.expanded-solo-focus .solo-focus-insight,
+.expanded-solo-focus .solo-focus-description,
+.expanded-solo-focus .solo-focus-action-line,
+.expanded-solo-focus .solo-focus-tip-source-url,
+.expanded-solo-focus .solo-focus-supplied-by,
+.expanded-solo-focus .solo-focus-architect-prose,
+.expanded-solo-focus p.solo-focus-architect-prose,
+.expanded-solo-focus .solo-focus-content-text,
+.expanded-solo-focus .solo-focus-source-citation-footnote,
+.expanded-solo-focus .solo-focus-price-cap-footnote,
+.expanded-solo-focus a.solo-focus-verified-source-link,
+.expanded-solo-focus .journey-card-raw-saving {
   font-family: var(--font-roboto) !important;
   line-height: 1.2 !important;
   font-weight: 800 !important;
   letter-spacing: normal !important;
+  text-transform: none !important;
 }
 
 /* 3) Stamped data — Natural Kiss + industrial stamp */

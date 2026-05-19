@@ -6,7 +6,7 @@
  * `app/profile/summary` loads all `journey_*_answers` from localStorage and the same profile fields as Zone,
  * then runs **`buildUserImpact({ profile, journeyAnswers })`** (`lib/brains/buildUserImpact.ts`).
  * - **Spend anchor:** `max(BASELINE_2026_CAP_GBP, impact.totals.totalMoney)` — not below the 2026 cap baseline.
- * - **“Waste” slack shown in the pulse:** `round(spendAnchor × WASTE_FACTOR)` for £ and `round(impact.totals.totalCarbon × WASTE_FACTOR)` for kg CO₂e/yr (`WASTE_FACTOR = 0.22` on the summary page). Same framing as “typical slack left on the table” in **`buildSummaryRevealCopy`**.
+ * - **Kinetic £ / kg:** modelled from **`buildUserImpact`** (`totals` when journey answers exist, else **`summaryWaste`** profile baseline). Neon **`genomeSavingsMoney`** wins for £ when `/api/summary` returns it.
  * These are **modelled** totals from answers + UK defaults, not the Neon **`research_results`** row (that path is scrape-sync / Hermes / Gemini “Architect” on Zone).
  */
 
@@ -162,7 +162,7 @@ export function formatSummaryLocalityKineticToken(areaLabel: string): string {
  * Profile summary — one beat at a time (`IntroWordCycle` + 40px horizontal inset on the summary page).
  * On-screen sequence: **HELLO → first name → locality** (long tokens scaled / wrapped — Littlehampton fix) →
  * bridge phrase → waste → £… → and → …kg CO₂e (one beat) → per → year.
- * £ / CO₂: see file header — `buildUserImpact` × `WASTE_FACTOR`.
+ * £ / CO₂: see file header — `buildUserImpact` totals / `summaryWaste`.
  */
 export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): string[] {
   const area = purgeYourAreaCopy(resolveSummaryAreaLabel(input))
@@ -199,7 +199,12 @@ export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): 
     input.genomeSavingsMoney != null && Number.isFinite(input.genomeSavingsMoney) && input.genomeSavingsMoney > 0
       ? Math.round(input.genomeSavingsMoney)
       : null
-  const cashForTicker = genomeMoney != null ? genomeMoney : wasteCash
+  const modelledMoney =
+    input.totalsMoney > 0 ? Math.round(input.totalsMoney) : wasteCash
+  const modelledCarbon =
+    input.totalsCarbon > 0 ? Math.round(input.totalsCarbon) : wasteKg
+  const cashForTicker = genomeMoney != null ? genomeMoney : modelledMoney
+  const carbonForTicker = modelledCarbon
   const rawName = (input.displayName ?? '').trim().split(/\s+/)[0] ?? ''
   const greetName = rawName || 'there'
 
@@ -219,11 +224,11 @@ export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): 
       : `£${cashForTicker.toLocaleString('en-GB')}`
   out.push(gbp, 'and')
 
-  const tCo2 = wasteKg / 1000
+  const tCo2 = carbonForTicker / 1000
   const carbonStr =
     tCo2 >= 1
       ? `${tCo2 >= 10 ? Math.round(tCo2) : Number(tCo2.toFixed(1))}t CO2`
-      : `${wasteKg}kg CO2e`
+      : `${carbonForTicker}kg CO2e`
   out.push(carbonStr, 'per', 'year.')
 
   return out

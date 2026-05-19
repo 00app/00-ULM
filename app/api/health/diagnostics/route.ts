@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import pool from '@/lib/db'
+import pool, { pingDatabase } from '@/lib/db'
 import { ROCK_HABIT_COUNT, ROCK_HABITS } from '@/lib/rock/habitsCatalog'
 import { getSessionFromRequest } from '@/lib/auth'
 import {
@@ -31,15 +31,9 @@ export async function GET(request: NextRequest) {
   let dbLatencyMs: number | null = null
   let lastResearchScrapedAt: string | null = null
 
-  try {
-    const t0 = Date.now()
-    await pool.query('SELECT 1')
-    neonOk = true
-    dbLatencyMs = Math.max(0, Date.now() - t0)
-  } catch {
-    neonOk = false
-    dbLatencyMs = null
-  }
+  const dbPing = await pingDatabase()
+  neonOk = dbPing.ok
+  dbLatencyMs = dbPing.latencyMs
 
   try {
     const r = await pool.query<{ t: Date | string | null }>(
@@ -88,9 +82,14 @@ export async function GET(request: NextRequest) {
   const aiGatewayKey = hasAiGatewayApiKey()
   const aiGatewayConfigured = isAiGatewayConfigured()
   const gatewaySnap = getGatewayHealthSnapshot()
+  const researchForceDirect = process.env.RESEARCH_FORCE_DIRECT_GEMINI?.trim().toLowerCase() !== 'false'
   const wantLiveProbe = authed && request.nextUrl.searchParams.get('probe') === '1'
   const gatewayProbe =
     wantLiveProbe && aiGatewayKey ? await probeAiGatewayConnection() : null
+  const gatewayLiveOk = Boolean(gatewayProbe?.ok ?? gatewaySnap.ok)
+  /** Research defaults to direct Gemini; gateway is optional failover for Zai / when forced off direct. */
+  const gatewayOperational =
+    gemini && (!aiGatewayConfigured || gatewayLiveOk || researchForceDirect)
 
   /** Zone Intelligence Strip polls this without a session — expose capability booleans only. */
   if (!authed) {
@@ -99,12 +98,14 @@ export async function GET(request: NextRequest) {
       dbLatencyMs,
       gemini,
       firecrawl,
-      aiGateway: aiGatewayKey,
-      aiGatewayOk: aiGatewayKey,
+      aiGateway: aiGatewayConfigured,
+      aiGatewayOk: gatewayOperational,
       aiGatewayFallback: gatewaySnap.usingFallback,
-      aiGatewayDetail: aiGatewayKey
-        ? null
-        : 'Set VERCEL_AI_GATEWAY_API_KEY or AI_GATEWAY_API_KEY on this deployment.',
+      aiGatewayDetail: !aiGatewayConfigured
+        ? 'Set AI_GATEWAY_API_KEY, VERCEL_AI_GATEWAY_API_KEY, or AI_GATEWAY — or use direct GEMINI_API_KEY.'
+        : researchForceDirect && !gatewayLiveOk
+          ? 'Research uses direct Gemini; gateway reserved for Zai / failover.'
+          : null,
       public: true,
     })
   }
@@ -116,10 +117,16 @@ export async function GET(request: NextRequest) {
     dbLatencyMs,
     gemini,
     firecrawl,
-    aiGateway: aiGatewayKey,
-    aiGatewayOk: gatewayProbe?.ok ?? (aiGatewayKey && gatewaySnap.ok),
+    aiGateway: aiGatewayConfigured,
+    aiGatewayOk: gatewayProbe ? gatewayProbe.ok : gatewayOperational,
     aiGatewayFallback: gatewaySnap.usingFallback || Boolean(gatewayProbe?.usingFallback),
-    aiGatewayDetail: gatewayProbe?.detail ?? gatewaySnap.lastError,
+    aiGatewayDetail:
+      gatewayProbe?.detail ??
+      (gatewayOperational
+        ? researchForceDirect && !gatewayLiveOk
+          ? 'Research uses direct Gemini; gateway reserved for Zai / failover.'
+          : null
+        : gatewaySnap.lastError),
     aiGatewayLastModel: gatewaySnap.lastModel,
     lastResearchScrapedAt,
     researchProvenanceUrl,

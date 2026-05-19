@@ -38,7 +38,6 @@ export function buildAchievementDiscoveryCard(params: {
     ...(prose ? { explanation: [prose] } : {}),
     high_impact: true,
     achievement_discovery: true,
-    badge: 'NEW DISCOVERY',
     dominant_win: 'money' as const,
     ...(url
       ? {
@@ -52,7 +51,7 @@ export function buildAchievementDiscoveryCard(params: {
   if (validated) {
     validated.achievement_discovery = true
     validated.high_impact = true
-    validated.badge = 'NEW DISCOVERY'
+    delete validated.badge
     return validated
   }
   return {
@@ -68,7 +67,6 @@ export function buildAchievementDiscoveryCard(params: {
     ...(prose ? { explanation: [prose] } : {}),
     high_impact: true,
     achievement_discovery: true,
-    badge: 'NEW DISCOVERY',
     dominant_win: 'money',
   }
 }

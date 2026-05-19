@@ -2,9 +2,9 @@
 export type ZoneEngineStatus = 'idle' | 'scraping' | 'structuring' | 'saving'
 
 export const ZONE_ENGINE_HYDRATION_LABELS: Record<Exclude<ZoneEngineStatus, 'idle'>, string> = {
-  scraping: 'SCRAPING FIRECRAWL',
-  structuring: 'CONNECTING GEMINI',
-  saving: 'ACCESSING NEON DB',
+  scraping: 'search',
+  structuring: 'scape',
+  saving: 'audit',
 }
 
 /** Timed phase hints while the server runs Firecrawl → Gemini → Neon (single request). */

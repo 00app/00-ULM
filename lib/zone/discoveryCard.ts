@@ -12,27 +12,19 @@ import {
 } from '@/lib/brains/calculations'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { validateInjectionCard } from '@/lib/zone/injections'
+import { decodeUtf8Base64Url, encodeUtf8Base64Url } from '@/lib/zone/base64url'
 
 /** Reversible token for answer text (pulse can decode back to full option string). */
 function discoveryAnswerToken(answerValue: string): string {
+  const encoded = encodeUtf8Base64Url(answerValue, 36)
+  if (encoded) return encoded
   const t = answerValue.trim()
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.from(t, 'utf8').toString('base64url').replace(/=+$/, '').slice(0, 36)
-  }
   return t.replace(/[^a-zA-Z0-9]+/g, '').slice(0, 20).toUpperCase() || 'ANS'
 }
 
 export function decodeDiscoveryAnswerToken(token: string): string {
-  if (typeof Buffer !== 'undefined') {
-    try {
-      const pad = token.length % 4 === 0 ? '' : '='.repeat(4 - (token.length % 4))
-      const decoded = Buffer.from(token + pad, 'base64url').toString('utf8')
-      if (decoded) return decoded
-    } catch {
-      // fall through
-    }
-  }
-  return token
+  const decoded = decodeUtf8Base64Url(token)
+  return decoded || token
 }
 
 /** Stable id for pulse recompute: inject-{journey}__{questionId}__{token}__{timestamp} */
