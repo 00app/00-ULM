@@ -198,6 +198,8 @@ export default function ProfilePageClient() {
             transport_baseline: values.transport ?? undefined,
             household: values.livingSituation ?? undefined,
             employment_status: values.employmentStatus ?? undefined,
+            goal: values.goal ?? undefined,
+            primary_goal: values.goal ?? undefined,
           },
         }),
       }).catch(() => {})
@@ -209,6 +211,7 @@ export default function ProfilePageClient() {
     values.transport,
     values.livingSituation,
     values.employmentStatus,
+    values.goal,
   ])
 
   const submitProfile = useCallback(

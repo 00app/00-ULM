@@ -12,6 +12,7 @@ import {
 } from '@/lib/brains/calculations'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { validateInjectionCard } from '@/lib/zone/injections'
+import { zoneCardHeadlineFromRaw } from '@/lib/soloFocusCopy'
 import { decodeUtf8Base64Url, encodeUtf8Base64Url } from '@/lib/zone/base64url'
 
 /** Reversible token for answer text (pulse can decode back to full option string). */
@@ -92,7 +93,8 @@ export async function buildDiscoveryInjectionCardAsync(
   const id = forcedId ?? buildDiscoveryInjectionId(journeyId, questionId, answerValue)
 
   const ctx = `journey=${journeyId} question=${questionId} answer=${answerValue} benchmark £${saving.gbp}`
-  const title = await geminiDiscoveryHeadline(ctx, rec.headline)
+  const geminiTitle = await geminiDiscoveryHeadline(ctx, rec.headline)
+  const title = zoneCardHeadlineFromRaw(geminiTitle, rec.headline)
 
   const raw = {
     id,

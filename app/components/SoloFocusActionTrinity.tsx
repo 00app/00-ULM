@@ -19,7 +19,7 @@ type Props = {
 
 export function SoloFocusActionTrinity({
   ctaUrl,
-  ctaLabel = 'BUY / DO',
+  ctaLabel = 'BUY',
   journeyId,
   moneyGbp = 0,
   ctaSurface = 'pink',

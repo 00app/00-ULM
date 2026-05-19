@@ -1,12 +1,11 @@
 'use client'
 
 /**
- * Single shell for every route: session → page transition wrapper → pulse widget.
+ * Single shell for every route: session → page transition wrapper.
  * Registry below maps each App Router `page.tsx` (audit / spec sync — no page imports).
  */
 import { useEffect, useMemo } from 'react'
 import SessionStateRehydrate from '@/app/components/SessionStateRehydrate'
-import PulseWidget from '@/app/components/debug/PulseWidget'
 import { PulseExpandedDiagnosticsProvider } from '@/app/context/PulseExpandedDiagnosticsContext'
 import { ROUTES } from '@/lib/routes'
 import { usePathname } from 'next/navigation'
@@ -20,15 +19,6 @@ function normalizeAppPath(p: string | null): string {
 export function GlobalAppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const path = normalizeAppPath(pathname)
-
-  const hidePulse =
-    path === ROUTES.SETTINGS ||
-    path.startsWith(`${ROUTES.SETTINGS}/`) ||
-    path === ROUTES.HOME ||
-    path === ROUTES.INTRO ||
-    path === ROUTES.PROFILE_SUMMARY ||
-    path.startsWith(`${ROUTES.PROFILE_SUMMARY}/`) ||
-    path.startsWith('/admin')
 
   /** Intro, onboarding, summary — single viewport, no page scroll (same shell lock as intro). */
   const fixedViewportStage = useMemo(
@@ -45,21 +35,31 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
     const html = document.documentElement
     const body = document.body
     const onZone = path === ROUTES.ZONE || path.startsWith(`${ROUTES.ZONE}/`)
+    const onZai = path === ROUTES.ZAI || path.startsWith(`${ROUTES.ZAI}/`)
 
     if (fixedViewportStage) {
       html.classList.add('zz-intro-document-lock')
       html.style.overflowY = 'hidden'
       body.style.overflowY = 'hidden'
       html.classList.remove('zz-zone-document')
+      html.classList.remove('zz-zai-document')
     } else if (onZone) {
       html.style.overflowY = 'auto'
       body.style.overflowY = 'auto'
       html.classList.add('zz-zone-document')
+      html.classList.remove('zz-zai-document')
+    } else if (onZai) {
+      html.style.overflowY = 'auto'
+      body.style.overflowY = 'auto'
+      html.classList.add('zz-zai-document')
+      html.classList.remove('zz-zone-document')
+      html.classList.remove('zz-intro-document-lock')
     } else {
       html.classList.remove('zz-intro-document-lock')
       html.style.overflowY = ''
       body.style.overflowY = ''
       html.classList.remove('zz-zone-document')
+      html.classList.remove('zz-zai-document')
     }
 
     return () => {
@@ -67,6 +67,7 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
       html.style.overflowY = ''
       body.style.overflowY = ''
       html.classList.remove('zz-zone-document')
+      html.classList.remove('zz-zai-document')
     }
   }, [path, fixedViewportStage])
 
@@ -77,13 +78,13 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
         className={`zz-main-perspective-shell${fixedViewportStage ? ' zz-intro-stage-lock' : ''}`}
         style={{
           position: 'relative',
+          zIndex: 1,
           width: '100%',
           minHeight: fixedViewportStage ? '100dvh' : '100vh',
         }}
       >
         {children}
       </div>
-      {!hidePulse ? <PulseWidget /> : null}
     </PulseExpandedDiagnosticsProvider>
   )
 }

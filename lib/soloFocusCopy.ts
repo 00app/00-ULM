@@ -42,7 +42,23 @@ export function stripExpandedCardTitleNoise(raw: string): string {
 }
 
 const ZONE_PREVIEW_NOISE_RE =
-  /\b(?:BN\d|POSTCODE|REGULATORY|AUDIT|REPORT|REGIONAL|PROFILE|DNO|UKPN|APRIL\s*2026|ENERGY\s+AUDIT|LITTLEHAMPTON|ARUN|SOUTH\s+EAST|DISTRIB|STANDING\s+CHARGE|UNIT\s+RATE|KWH|KWH\/|PRICE\s+CAP|OFgem|GOVERNMENT\s+DATA|ZONE\s+PATTERN|PATTERN\s+IS\s+LEARNED)\b/i
+  /\b(?:BN\d|POSTCODE|REGULATORY|AUDIT|REPORT|REGIONAL|PROFILE|DNO|UKPN|APRIL\s*2026|ENERGY\s+AUDIT|LITTLEHAMPTON|ARUN|SOUTH\s+EAST|DISTRIB|STANDING\s+CHARGE|UNIT\s+RATE|KWH|KWH\/|PRICE\s+CAP|OFgem|GOVERNMENT\s+DATA|ZONE\s+PATTERN|PATTERN\s+IS\s+LEARNED|PATTERN\s+LEARNED)\b/i
+
+const ZONE_HEADLINE_JARGON_RE =
+  /\b(?:your\s+)?(?:zone\s+)?pattern\s+(?:is\s+)?learned\b/i
+
+const ZONE_HEADLINE_FILLER_WORDS = new Set([
+  'right',
+  'now',
+  'this',
+  'month',
+  'near',
+  'you',
+  'today',
+  'locally',
+  'in',
+  'uk',
+])
 
 /** True when a headline is still report metadata, not a user-facing insight. */
 export function isZonePreviewHeadlineNoise(text: string): boolean {
@@ -232,28 +248,52 @@ export function humanizeTrueTipParagraph(raw: string): string {
   return clampWords(cleaned, MAX_TRUE_TIP_PARAGRAPH_WORDS)
 }
 
-/** Pad short headlines without robotic fragments (never append bare "ON" / "YOUR ZONE"). */
-const SHORT_HEADLINE_PAD = [
-  'RIGHT',
-  'NOW',
-  'THIS',
-  'MONTH',
-  'NEAR',
-  'YOU',
-  'TODAY',
-  'LOCALLY',
-  'IN',
-  'UK',
-] as const
+function splitHeadlineWords(title: string): string[] {
+  return title
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.replace(/\.{2,}|…$/g, ''))
+}
 
-function padHeadlineToMin(words: string[], minWords: number, maxWords: number): string[] {
-  if (words.length >= minWords) return words.slice(0, maxWords)
-  const out = [...words]
-  for (const w of SHORT_HEADLINE_PAD) {
-    if (out.length >= minWords) break
-    out.push(w)
+/** True when a headline is agent jargon or only generic filler tokens. */
+export function isLowQualityZoneHeadline(text: string): boolean {
+  const words = splitHeadlineWords(text)
+  if (words.length === 0) return true
+  const joined = words.join(' ')
+  if (ZONE_HEADLINE_JARGON_RE.test(joined)) return true
+  if (isZonePreviewHeadlineNoise(joined)) return true
+  if (words.every((w) => ZONE_HEADLINE_FILLER_WORDS.has(w.toLowerCase()))) return true
+  if (words.length <= 2 && /^(?:pattern|learned|zone|your)$/i.test(words[0] ?? '')) return true
+  return false
+}
+
+function prepareZoneHeadlineSource(raw: string): string {
+  let t = stripExpandedCardTitleNoise(raw.trim())
+  const cleaned = cleanZonePreviewHeadline(t)
+  if (cleaned && !isZonePreviewHeadlineNoise(cleaned)) t = cleaned
+  return t.replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Zone bento / tip face — strip jargon, never pad with "RIGHT NOW THIS MONTH", fall back when empty.
+ */
+export function zoneCardHeadlineFromRaw(
+  raw: string,
+  fallback: string,
+  maxWords: number = MAX_ZONE_CARD_HEADLINE_WORDS
+): string {
+  const candidates = [prepareZoneHeadlineSource(raw), prepareZoneHeadlineSource(fallback), fallback.trim()]
+  for (const candidate of candidates) {
+    if (!candidate || isLowQualityZoneHeadline(candidate)) continue
+    const words = splitHeadlineWords(candidate)
+    if (words.length === 0) continue
+    if (words.length <= maxWords) return words.join(' ')
+    return `${words.slice(0, maxWords).join(' ')}...`
   }
-  return out.slice(0, maxWords)
+  const words = splitHeadlineWords(fallback)
+  if (words.length === 0) return 'SAVE MONEY LOCALLY'
+  if (words.length <= maxWords) return words.join(' ')
+  return `${words.slice(0, maxWords).join(' ')}...`
 }
 
 /** Normalize headline text for duplicate card detection on the Zone wall. */
@@ -265,24 +305,24 @@ export function normalizeCardHeadlineKey(title: string): string {
     .trim()
 }
 
-/** Marvin headline — pads short sources to minWords, clips at maxWords. */
+/** Marvin headline — strips jargon, clips at maxWords (no filler padding). */
 export function headlineFromTitle(
   title: string,
   maxWords: number = MAX_ZONE_CARD_HEADLINE_WORDS,
-  minWords?: number
+  _minWords?: number
 ): string {
-  const defaultMin =
-    maxWords <= MAX_ZONE_CARD_HEADLINE_WORDS
-      ? MIN_ZONE_CARD_HEADLINE_WORDS
-      : MIN_EXPANDED_VIEW_HEADLINE_WORDS
-  const min = Math.min(minWords ?? defaultMin, maxWords)
-  const words = title
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((w) => w.replace(/\.{2,}|…$/g, ''))
-  const sized = padHeadlineToMin(words, min, maxWords)
-  if (sized.length <= maxWords) return sized.join(' ')
-  return `${sized.slice(0, maxWords).join(' ')}...`
+  const prepared = prepareZoneHeadlineSource(title)
+  if (!prepared || isLowQualityZoneHeadline(prepared)) {
+    const words = splitHeadlineWords(title)
+    if (words.length > 0 && !isLowQualityZoneHeadline(words.join(' '))) {
+      if (words.length <= maxWords) return words.join(' ')
+      return `${words.slice(0, maxWords).join(' ')}...`
+    }
+    return ''
+  }
+  const words = splitHeadlineWords(prepared)
+  if (words.length <= maxWords) return words.join(' ')
+  return `${words.slice(0, maxWords).join(' ')}...`
 }
 
 /** Clean domain for Source link (e.g. gov.uk, ofgem.gov.uk). */

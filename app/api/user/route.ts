@@ -3,6 +3,8 @@ import pool from '@/lib/db'
 import { createSession, getSessionCookieAttributes, getSessionFromRequest } from '@/lib/auth'
 import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
 import { getLocalData } from '@/lib/local/getLocalData'
+import { mirrorUlmGenomeToUserProfiles } from '@/lib/db/userProfilesMirror'
+import { mapProfileGoalToPrimaryGoal } from '@/lib/zone/affluenceCheck'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,9 +72,20 @@ export async function POST(request: NextRequest) {
       typeof body?.goal === 'string' ? body.goal.trim().toLowerCase().slice(0, 32) : ''
     const profile_goal =
       goalRaw === 'money' || goalRaw === 'carbon' || goalRaw === 'balanced' ? goalRaw : null
+    const incomeRaw =
+      typeof body?.household_income_bracket === 'string'
+        ? body.household_income_bracket.trim().slice(0, 50)
+        : ''
+    const household_income_bracket =
+      incomeRaw === '<31k' || incomeRaw === '31k-50k' || incomeRaw === '50k+'
+        ? incomeRaw
+        : null
+    const primary_goal = profile_goal ? mapProfileGoalToPrimaryGoal(profile_goal) : null
     const genomeObj: Record<string, unknown> = {}
     if (raw.employment_status != null) genomeObj.employment_status = raw.employment_status
     if (profile_goal) genomeObj.profile_goal = profile_goal
+    if (primary_goal) genomeObj.primary_goal = primary_goal
+    if (household_income_bracket) genomeObj.household_income_bracket = household_income_bracket
     const genome = JSON.stringify(genomeObj)
 
     const insertParams = [
@@ -109,6 +122,12 @@ export async function POST(request: NextRequest) {
       getLocalData(raw.postcode).catch(() => null),
     ])
     const user = result.rows[0]
+    void mirrorUlmGenomeToUserProfiles(String(user.id), {
+      employment_status: raw.employment_status,
+      household_income_bracket,
+      primary_goal,
+      goal: profile_goal ?? undefined,
+    })
     const token = await createSession(user.id, PROFILE_ONLY_SESSION_DAYS)
     const { name: cookieName, options } = getSessionCookieAttributes(PROFILE_ONLY_SESSION_DAYS * 24 * 60 * 60)
     const res = NextResponse.json({ id: user.id, user, location: local ?? undefined })

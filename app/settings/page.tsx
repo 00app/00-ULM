@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useApp, type ProfileAge } from '@/app/context/AppContext'
 import { motion } from 'framer-motion'
 import { JOURNEY_ORDER, JOURNEYS, getFunkyOptionDisplay, type JourneyId } from '@/lib/journeys'
+import { readLoopAnswersForSettings } from '@/lib/zone/loopQuestions'
 import { ROUTES } from '@/lib/routes'
 import { ENGINE_UI_LABELS } from '@/lib/logic/engine'
 import { INDUSTRIAL_OPACITY_SNAP, KINETIC_ZIP_PULSE } from '@/lib/animations'
@@ -18,7 +19,7 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { clearLocalStorageExceptProfileAndUser } from '@/lib/utils/migrate'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
-import AppFloatingNav from '@/app/components/AppFloatingNav'
+import { readCachedProfileLocality } from '@/lib/geocode/resolvePostcodeLocality'
 
 const PROFILE_LABELS: Record<string, string> = {
   name: "What's your name?",
@@ -218,6 +219,12 @@ export default function SettingsPage() {
     return { name, postcode, livingSituation, homeType, transport, age, employmentStatus }
   }, [state.profile, hasMounted, refreshKey])
 
+  const cachedLocalityLabel = useMemo(() => {
+    const pc = (profileForOverview?.postcode ?? '').replace(/\s+/g, '').trim()
+    if (pc.length < 4) return undefined
+    return readCachedProfileLocality(pc) ?? undefined
+  }, [profileForOverview?.postcode])
+
   const profileRows = useMemo(() => {
     if (!profileForOverview) return []
     const rows: { id: string; question: string; answer: string }[] = []
@@ -235,6 +242,12 @@ export default function SettingsPage() {
     })
     return rows
   }, [profileForOverview])
+
+  const loopRows = useMemo(() => {
+    void refreshKey
+    if (!hasMounted) return []
+    return readLoopAnswersForSettings()
+  }, [hasMounted, refreshKey])
 
   const journeyCardsData = useMemo(() => {
     void refreshKey
@@ -390,6 +403,25 @@ export default function SettingsPage() {
               </motion.div>
             ))}
 
+            {loopRows.map((row, i) => (
+              <motion.div
+                key={`loop-${row.questionId}`}
+                className="settings-card-cell"
+                initial={{ opacity: 0, y: 2 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  ...INDUSTRIAL_OPACITY_SNAP,
+                  delay: 0.05 + (profileRows.length + i) * 0.05,
+                }}
+              >
+                <SettingsBentoCard
+                  label={row.question}
+                  headline={row.answer}
+                  editHref={ROUTES.ZONE}
+                />
+              </motion.div>
+            ))}
+
             {journeyCardsData.map((card, j) => (
               <motion.div
                 key={`journey-${card.journey}`}
@@ -399,7 +431,7 @@ export default function SettingsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
                   ...INDUSTRIAL_OPACITY_SNAP,
-                  delay: 0.05 + (profileRows.length + j) * 0.05,
+                  delay: 0.05 + (profileRows.length + loopRows.length + j) * 0.05,
                 }}
               >
                 <div
@@ -449,18 +481,21 @@ export default function SettingsPage() {
         )}
       </>
 
-      {profileRows.length === 0 && journeyCardsData.length === 0 && (
+      {profileRows.length === 0 && loopRows.length === 0 && journeyCardsData.length === 0 && (
         <h4 className="zz-h4 text-center max-w-[28rem] w-full mx-auto m-0 mt-2" style={{ color: 'var(--color-yellow)' }}>
-          Complete your profile and answer questions in the Zone to see cards here.
+          Complete your profile, answer journey questions, and close Solo Focus loop beats in the Zone to see cards here.
         </h4>
       )}
 
-      <ZoneIntelligenceStrip
-        variant="settings"
-        dbConnected={dbConnected}
-        dbHealthHint={dbHealthHint}
-        scrapePostcode={profileForOverview?.postcode ?? ''}
-      />
+      <section className="settings-intel-section" aria-label="Intelligence loop">
+        <ZoneIntelligenceStrip
+          variant="settings"
+          dbConnected={dbConnected}
+          dbHealthHint={dbHealthHint}
+          scrapePostcode={profileForOverview?.postcode ?? ''}
+          localityLabel={cachedLocalityLabel}
+        />
+      </section>
 
       {/* Solid circle CTAs — horizontal row, wrap to second line; label clipped to disc */}
       <div className="settings-cta-circles mt-8 z-10 relative">
@@ -498,7 +533,6 @@ export default function SettingsPage() {
           </span>
         </motion.button>
       </div>
-      <AppFloatingNav active="summary" />
     </motion.div>
   )
 }

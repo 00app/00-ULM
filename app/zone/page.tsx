@@ -10,6 +10,15 @@ import { useApp } from '../context/AppContext'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { buildZoneViewModel } from '@/lib/logic/zone'
 import { ZAI_AUDIT_COMPLETE_EVENT } from '@/lib/zai/zoneSync'
+import { buildGroovyGridItems, type GroovyGridCell } from '@/lib/zone/gridOrder'
+import {
+  markCardVisited,
+  readDeepDiveInProgressCardId,
+  readVisitedCardIds,
+  setDeepDiveInProgress,
+} from '@/lib/zone/visitedCards'
+import { rememberSoloFocusOpen, readSessionMemory } from '@/lib/zone/sessionMemory'
+import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import type { ZoneViewModel, ZoneJourneyCard, ZoneTipCard, NeonJourneyResearchRow } from '@/lib/logic/zone'
 import {
   applyArchitectEnrichment,
@@ -84,9 +93,9 @@ import {
   type BentoPersona,
 } from '@/lib/zone/bentoPersona'
 import {
-  headlineFromTitle,
   MAX_ZONE_CARD_HEADLINE_WORDS,
   normalizeCardHeadlineKey,
+  zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import { runDiscoveryPulse, readStoredEconomyFingerprint, writeStoredEconomyFingerprint } from '@/lib/agents/heartbeat'
@@ -114,6 +123,7 @@ import {
 } from '@/lib/zone/bootstrapZoneResearch'
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import ZoneDesktopNavRail from '@/app/components/ZoneDesktopNavRail'
+import ZoneAskZaiDock from '@/app/components/ZoneAskZaiDock'
 import {
   AppFloatingNav,
   ZoneCard,
@@ -136,26 +146,7 @@ function isDiscoveryTipPayload(x: unknown): x is ZoneTipCard {
   )
 }
 
-/** Twelve-domain bento wall — asymmetric personas + dense flow (see `lib/zone/bentoPersona.ts`). */
-const WALL_JOURNEY_ORDER: JourneyId[] = [
-  'home',
-  'grants',
-  'solar',
-  'travel',
-  'holidays',
-  'food',
-  'shopping',
-  'money',
-  'tech',
-  'water',
-  'waste',
-  'carbon',
-]
-
-type GroovyItem =
-  | { type: 'hero'; hero: ZoneViewModel['hero'] }
-  | { type: 'tip'; tip: ZoneTipCard }
-  | { type: 'journey'; item: ZoneJourneyCard; index: number; persona: BentoPersona }
+type GroovyItem = GroovyGridCell
 
 const UNLOCKED_COUNT_KEY = 'zoneUnlockedCount'
 const SENTINEL_RECENT_CHAT_KEY = 'zz_recent_chat_history'
@@ -205,25 +196,6 @@ function readRecentChatHistoryFromStorage(): Array<{ role: 'user' | 'zai'; text:
   } catch {
     return []
   }
-}
-
-/** Zone wall: hero + optional pinned achievements + twelve journey domains. */
-function getGroovyGridItems(
-  viewModel: ZoneViewModel,
-  pinnedAchievements: ZoneTipCard[] = []
-): GroovyItem[] {
-  const journeyCardsOnly = viewModel.journeys.filter((j) => j.id.startsWith('journey-'))
-  const byId = new Map(journeyCardsOnly.map((j) => [j.journey_key, j]))
-  const items: GroovyItem[] = []
-  items.push({ type: 'hero', hero: viewModel.hero })
-  for (const tip of pinnedAchievements) {
-    items.push({ type: 'tip', tip })
-  }
-  WALL_JOURNEY_ORDER.forEach((jid, index) => {
-    const item = byId.get(jid)
-    if (item) items.push({ type: 'journey', item, index, persona: JOURNEY_BENTO_PERSONA[jid] })
-  })
-  return items
 }
 
 /** Placeholder VM — shown at skeleton opacity until scrape-sync / Neon research hydrates. */
@@ -473,7 +445,6 @@ export default function ZonePage() {
         sourceLabel: 'SENTINEL',
         source: '/zai',
         dominant_win: 'money',
-        badge: 'fresh',
         actions: { actionType: 'learn', learnUrl: '/zai', actionUrl: '/zai' },
       }
     })
@@ -518,12 +489,13 @@ export default function ZonePage() {
   ])
   /** Keep live discovery injections first so newly generated cards always surface. */
   const effectiveInjectedTips = useMemo(
-    () => [
-      ...(sentinelSupportTipCard ? [sentinelSupportTipCard] : []),
-      ...remoteBehavioralTipCards,
-      ...injectedTips,
-      ...sentinelTipCards,
-    ],
+    () =>
+      dedupeZoneTipCards([
+        ...(sentinelSupportTipCard ? [sentinelSupportTipCard] : []),
+        ...remoteBehavioralTipCards,
+        ...injectedTips,
+        ...sentinelTipCards,
+      ]),
     [sentinelSupportTipCard, remoteBehavioralTipCards, injectedTips, sentinelTipCards]
   )
 
@@ -671,7 +643,7 @@ export default function ZonePage() {
         }
       })
       .catch(() => {})
-  }, [liveProfilePostcode, state.profile?.postcode, setLocationState])
+  }, [hydrated, liveProfilePostcode, state.profile?.postcode, setLocationState])
 
   useEffect(() => {
     if (!localJustLoaded) return
@@ -812,7 +784,7 @@ export default function ZonePage() {
           (savingAmountGbp != null && savingAmountGbp > 0) ||
           Boolean(architectProse?.trim()) ||
           (Array.isArray(data?.scraped) && data.scraped.length > 0 && src !== 'pending')
-        if (feedReady) setVmResolved(true)
+        if (feedReady || src === 'pending') setVmResolved(true)
 
         if (data?.scraped && Array.isArray(data.scraped)) {
           type ScrapedJourneyRow = {
@@ -847,6 +819,7 @@ export default function ZonePage() {
       .finally(() => {
         clearHydrationPhases?.()
         setEngineStatus('idle')
+        setVmResolved(true)
       })
   }, [scrapePostcode, hydrated])
 
@@ -1074,7 +1047,7 @@ export default function ZonePage() {
     }
     window.addEventListener(DISCOVERY_INJECT_EVENT, onInject)
     return () => window.removeEventListener(DISCOVERY_INJECT_EVENT, onInject)
-  }, [closeAnySoloFocus, openSoloFocus])
+  }, [closeSoloFocus, openSoloFocus])
 
   useEffect(() => {
     const onAnswerCommitted = (e: Event) => {
@@ -1148,6 +1121,8 @@ export default function ZonePage() {
       age: state.profile?.age ?? profileFromStorage.age,
       employment_status:
         state.profile?.employmentStatus?.trim() || profileFromStorage.employment_status,
+      goal: state.profile?.goal?.trim() || profileFromStorage.goal,
+      household_income_bracket: profileFromStorage.household_income_bracket,
     }
     const hasResearchFeed =
       scraped != null ||
@@ -1175,6 +1150,8 @@ export default function ZonePage() {
         transport_baseline: profile.transport_baseline,
         age: profile.age,
         employment_status: profile.employment_status,
+        goal: profile.goal,
+        household_income_bracket: profile.household_income_bracket,
       },
       journeyAnswers,
       scraped: scraped ? Object.fromEntries(
@@ -1232,6 +1209,8 @@ export default function ZonePage() {
           transport_baseline: profile.transport_baseline,
           age: profile.age,
           employment_status: profile.employment_status,
+          goal: profile.goal,
+          household_income_bracket: profile.household_income_bracket,
         },
         journeyAnswers,
         scraped: scraped
@@ -1352,6 +1331,8 @@ export default function ZonePage() {
       age: state.profile?.age ?? profileFromStorage.age,
       employment_status:
         state.profile?.employmentStatus?.trim() || profileFromStorage.employment_status,
+      goal: state.profile?.goal?.trim() || profileFromStorage.goal,
+      household_income_bracket: profileFromStorage.household_income_bracket,
     }
 
     const effectiveMarketArchitect = {
@@ -1370,6 +1351,8 @@ export default function ZonePage() {
         transport_baseline: profile.transport_baseline,
         age: profile.age,
         employment_status: profile.employment_status,
+        goal: profile.goal,
+        household_income_bracket: profile.household_income_bracket,
       },
       journeyAnswers,
       scraped: scraped
@@ -1506,11 +1489,88 @@ export default function ZonePage() {
     liveResearchData,
     researchCategoryCoverage,
     hydrated,
+    scrapePostcode,
   ])
 
+  const { achievementTips, discoveryTips, baselineTips } = useMemo(() => {
+    const achievements: ZoneTipCard[] = [...pinnedAchievements]
+    const discovery: ZoneTipCard[] = []
+    const onGrid = new Set<string>()
+    for (const tip of effectiveInjectedTips) {
+      if (tip.achievement_discovery && !achievements.some((a) => a.id === tip.id)) {
+        achievements.push(tip)
+        onGrid.add(tip.id)
+      } else if (tip.id.startsWith('inject-')) {
+        discovery.push(tip)
+        onGrid.add(tip.id)
+      }
+    }
+    const baseline: ZoneTipCard[] = []
+    for (const tip of viewModel.tips) {
+      if (onGrid.has(tip.id)) continue
+      if (tip.id.startsWith('inject-')) continue
+      if (tip.achievement_discovery) continue
+      baseline.push(tip)
+    }
+    return {
+      achievementTips: achievements,
+      discoveryTips: discovery,
+      baselineTips: dedupeZoneTipCards(baseline),
+    }
+  }, [pinnedAchievements, effectiveInjectedTips, viewModel.tips])
+
+  const [visitedCardIds, setVisitedCardIds] = useState<Set<string>>(() => readVisitedCardIds())
+  const [deepDivePendingId, setDeepDivePendingId] = useState<string | null>(() =>
+    readDeepDiveInProgressCardId()
+  )
+  useEffect(() => {
+    const syncVisited = () => setVisitedCardIds(readVisitedCardIds())
+    const syncDeepDive = () => setDeepDivePendingId(readDeepDiveInProgressCardId())
+    syncVisited()
+    syncDeepDive()
+    window.addEventListener('zz-visited-cards-changed', syncVisited)
+    window.addEventListener('zz-deep-dive-progress-changed', syncDeepDive)
+    return () => {
+      window.removeEventListener('zz-visited-cards-changed', syncVisited)
+      window.removeEventListener('zz-deep-dive-progress-changed', syncDeepDive)
+    }
+  }, [])
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        setDeepDiveInProgress(null)
+        setDeepDivePendingId(readDeepDiveInProgressCardId())
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
+
+  const sessionRestoreDone = useRef(false)
+  useEffect(() => {
+    if (!hydrated || sessionRestoreDone.current) return
+    const mem = readSessionMemory()
+    const focus = mem?.last_solo_focus
+    if (!focus?.cardId) return
+    sessionRestoreDone.current = true
+    if (openSoloFocus(focus.cardId, 'journey')) {
+      setExpandedCardId(focus.cardId)
+      setExpandedFromTip(null)
+    }
+  }, [hydrated, openSoloFocus])
+
   const groovyItems = useMemo(
-    () => getGroovyGridItems(viewModel, pinnedAchievements),
-    [viewModel, pinnedAchievements]
+    () =>
+      buildGroovyGridItems({
+        viewModel,
+        achievementTips,
+        discoveryTips,
+        baselineTips,
+        personaForJourney: (jid) => JOURNEY_BENTO_PERSONA[jid],
+        profileGoal: state.profile?.goal,
+      }),
+    [viewModel, achievementTips, discoveryTips, baselineTips, state.profile?.goal]
   )
   const displayItems: GroovyItem[] = useMemo(() => [...groovyItems], [groovyItems])
 
@@ -1611,9 +1671,9 @@ export default function ZonePage() {
 
   const openNextJourneyFromExpanded = useCallback(
     (jid: JourneyId) => {
-      const idx = WALL_JOURNEY_ORDER.indexOf(jid)
-      for (let step = idx + 1; step < WALL_JOURNEY_ORDER.length; step++) {
-        const nextKey = WALL_JOURNEY_ORDER[step]
+      const idx = JOURNEY_ORDER.indexOf(jid)
+      for (let step = idx + 1; step < JOURNEY_ORDER.length; step++) {
+        const nextKey = JOURNEY_ORDER[step]
         for (const c of displayItems) {
           if (c.type === 'journey' && c.item.journey_key === nextKey) {
             if (!openSoloFocus(c.item.id, 'journey')) return
@@ -1644,9 +1704,9 @@ export default function ZonePage() {
 
   const advanceToNextJourneyAfterAnswer = useCallback(
     ({ fromJourneyId, offerLine }: { fromJourneyId: JourneyId; offerLine: string }) => {
-      const idx = WALL_JOURNEY_ORDER.indexOf(fromJourneyId)
+      const idx = JOURNEY_ORDER.indexOf(fromJourneyId)
       const nextKey =
-        idx >= 0 && idx < WALL_JOURNEY_ORDER.length - 1 ? WALL_JOURNEY_ORDER[idx + 1] : null
+        idx >= 0 && idx < JOURNEY_ORDER.length - 1 ? JOURNEY_ORDER[idx + 1] : null
       closeAnySoloFocus()
       if (nextKey) {
         setAnswerHandoffOffer({ journeyKey: nextKey, line: offerLine })
@@ -1745,7 +1805,7 @@ export default function ZonePage() {
         {/* 1. ZONE ANCHOR — hidden during Clean Birth (question + pulse on empty background) */}
         {isZoneVisible ? (
         <motion.div
-          className="zone-anchor flex flex-col items-start pt-0 pb-0 w-full"
+          className={`zone-anchor flex flex-col pt-0 pb-0 w-full${showInlineLoadingLogo ? ' zone-anchor--wall-loading' : ' items-start'}`}
           aria-hidden={false}
           variants={STACCATO_CONTAINER_VARIANTS}
           initial="hidden"
@@ -1773,7 +1833,7 @@ export default function ZonePage() {
                 initial="hidden"
                 animate="visible"
               >
-                {zoneWelcome.savingsLine1}
+                {zoneWelcome.savingsLeadLine}
               </motion.h2>
               <motion.h2
                 className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
@@ -1782,16 +1842,7 @@ export default function ZonePage() {
                 initial="hidden"
                 animate="visible"
               >
-                {zoneWelcome.savingsLine2}
-              </motion.h2>
-              <motion.h2
-                className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
-                style={{ color: 'var(--color-yellow)' }}
-                variants={STACCATO_CHILD_VARIANTS}
-                initial="hidden"
-                animate="visible"
-              >
-                {zoneWelcome.savingsLine3}
+                {zoneWelcome.savingsImpactLine}
               </motion.h2>
             </div>
             <ZoneDesktopNavRail />
@@ -1928,7 +1979,7 @@ export default function ZonePage() {
                           }
                         : {})}
                     >
-                      <div className="w-full flex-1 min-h-0 flex flex-col">
+                      <div className="w-full flex-1 min-h-0 flex flex-col pt-5">
                         <Link
                           href={ROUTES.SETTINGS}
                           data-testid="zone-hero-card"
@@ -1991,12 +2042,22 @@ export default function ZonePage() {
                   {cell.type === 'tip' && (() => {
                     const tip = cell.tip
                     const isDiscoveryInject = tip.id.startsWith('inject-')
-                    const tipBg = 'var(--color-pink)'
+                    const tipVisited = visitedCardIds.has(tip.id)
+                    const tipDeepDive = deepDivePendingId === tip.id
+                    const tipBg = tipVisited
+                      ? 'var(--color-pink)'
+                      : isDiscoveryInject
+                        ? 'var(--color-pink)'
+                        : 'var(--color-purple)'
                     const tipTextColor = 'var(--color-yellow)'
                     const semanticWin = tip.dominant_win ?? 'money'
                     const tipLabelH = 14
                     const tipArrowSz = tipLabelH * 3
-                    const tipHeadline = headlineFromTitle(tip.title, MAX_ZONE_CARD_HEADLINE_WORDS)
+                    const tipHeadline = zoneCardHeadlineFromRaw(
+                      tip.title,
+                      `${(tip.journey_key || 'tip').replace(/-/g, ' ').toUpperCase()} SAVING`,
+                      MAX_ZONE_CARD_HEADLINE_WORDS
+                    )
                     const patch = tipDataPatches[tip.id]
                     const moneyDisp = (patch?.money ?? tip.data.money ?? '').replace(/^£\s*/, '').trim() || '0'
                     const carbonDisp = patch?.carbon ?? tip.data.carbon ?? '0'
@@ -2011,13 +2072,16 @@ export default function ZonePage() {
                     /* Expand the matching journey card so user gets full experience (tips, links, questions). */
                     const journeyCell = groovyItems.find((c): c is GroovyItem & { type: 'journey' } => c.type === 'journey' && c.item.journey_key === tip.journey_key)
                     const handleTipClick = () => {
+                      markCardVisited(tip.id)
                       /* Discovery injections: own Solo Focus + context trap; do not hijack journey tile expand. */
                       if (tip.id.startsWith('inject-')) {
+                        rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
                         if (!openSoloFocus(tip.id, 'discovery')) return
                         setExpandedTipId(tip.id)
                         return
                       }
                       if (journeyCell) {
+                        rememberSoloFocusOpen(journeyCell.item.id, journeyCell.item.journey_key)
                         if (!openSoloFocus(journeyCell.item.id, 'journey')) return
                         setExpandCard(
                           {
@@ -2050,7 +2114,14 @@ export default function ZonePage() {
                       <motion.button
                         type="button"
                         data-zone-surface="tip"
-                        className={`bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left${greenPulse ? ' discovery-card-green-pulse' : ''}`}
+                        className={[
+                          'bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left',
+                          greenPulse ? 'discovery-card-green-pulse' : '',
+                          tipVisited ? 'zone-card--visited' : '',
+                          tipDeepDive ? 'zone-card--deep-dive-pending' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
                         style={{
                           borderRadius: 60,
                           boxShadow: 'none',
@@ -2093,6 +2164,11 @@ export default function ZonePage() {
                         <h3 className="card-headline m-0 min-w-0" lang="en">
                           {tipHeadline}
                         </h3>
+                        {tipDeepDive ? (
+                          <p className="zz-body-bold m-0 mt-2 uppercase" style={{ color: tipTextColor }}>
+                            Deep dive in progress...
+                          </p>
+                        ) : null}
                         <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
                           <div className="data-stack data-stack--tight">
                             <span className="data-label" style={{ color: tipTextColor }}>{ENGINE_UI_LABELS.potentialSavings}</span>
@@ -2134,7 +2210,10 @@ export default function ZonePage() {
                       id={`zone-journey-${cell.item.journey_key}`}
                     >
                     <ZoneCard
+                      cardId={cell.item.id}
                       journeyId={cell.item.journey_key}
+                      isVisited={visitedCardIds.has(cell.item.id)}
+                      deepDiveInProgress={deepDivePendingId === cell.item.id}
                       auditState={cell.item.auditState ?? null}
                       title={
                         expandedFromTip?.journey_key === cell.item.journey_key
@@ -2153,6 +2232,8 @@ export default function ZonePage() {
                       onRefineQuestions={undefined}
                       onActionClick={() => {
                         if (!zoneInteractable) return
+                        markCardVisited(cell.item.id)
+                        rememberSoloFocusOpen(cell.item.id, cell.item.journey_key)
                         if (!openSoloFocus(cell.item.id, 'journey')) return
                         setExpandCard(
                           {
@@ -2311,7 +2392,6 @@ export default function ZonePage() {
                         closeAnySoloFocus()
                         setAnswerHandoffOffer(null)
                       }}
-                      cardId={cell.item.id}
                       onLike={(id, title, savings) => toggleLike(id, title, savings)}
                       isLiked={state.likedCards.includes(cell.item.id)}
                       learnUrl={cell.item.actions?.learnUrl}
@@ -2396,9 +2476,7 @@ export default function ZonePage() {
             needsSwitching: tipNeedsSwitching,
             isPriorityHome: tip.journey_key === 'home' && !!localData?.council,
           })
-          const tipCtaLabel = isBehavioralTip
-            ? `RECLAIM £${Math.max(0, Math.round(tipMoneyGbp)).toLocaleString('en-GB')} NOW`
-            : resolveRevenueCtaLabel(tipCtaKind, tipMoneyGbp)
+          const tipCtaLabel = resolveRevenueCtaLabel(tipCtaKind, tipMoneyGbp)
           const tipAuditMatches =
             Boolean(liveResearchData && researchMeta?.category === tip.journey_key)
           const tipAuditMoney =
@@ -2491,23 +2569,7 @@ export default function ZonePage() {
         ) : null}
 
         {isZoneVisible && !expandedCardId && !expandedTipId && !patternShiftJourneyId ? (
-          <motion.div
-            className="zone-ask-zai-dock"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={STACCATO_TWEEN}
-          >
-            <input
-              type="text"
-              placeholder="ASK ZAI..."
-              className="zone-ask-zai-pill zone-ask-zai-pill--dock w-full rounded-full border-none text-marvin focus:ring-2 focus:ring-[var(--color-yellow)] focus:ring-offset-2 focus:ring-offset-[var(--color-purple)] uppercase caret-[var(--color-purple)]"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') router.push(ROUTES.ZAI)
-              }}
-              onClick={() => router.push(ROUTES.ZAI)}
-              aria-label="Ask Zai — persistent brain of the Zone"
-            />
-          </motion.div>
+          <ZoneAskZaiDock onActivate={() => router.push(ROUTES.ZAI)} />
         ) : null}
 
         {isZoneVisible && !expandedCardId && !expandedTipId && !patternShiftJourneyId && (

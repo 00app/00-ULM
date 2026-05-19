@@ -12,6 +12,7 @@ import {
 } from '@/lib/intelligence/aiGateway'
 import {
   buildCategoryFirecrawlSeedUrls,
+  buildEmploymentAwareResearchSeeds,
   buildLocalizedResearchPrefix,
 } from '@/lib/intelligence/researchProfilePayload'
 import { isDeepLinkedUkOfferUrl } from '@/lib/zone/urlShield'
@@ -30,12 +31,17 @@ import { getLocalData } from '@/lib/local/getLocalData'
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
 import { APRIL_2026_TRUTH_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
 import { JOURNEY_IDS } from '@/lib/journeys'
-import { GRANTS_AND_BILLS_CATEGORY_PROTOCOL, isAllowedResearchCategory } from '@/lib/intelligence/researchCategories'
 import {
-  headlineFromTitle,
+  AFFLUENCE_AUDITOR_PROTOCOL,
+  GRANTS_AND_BILLS_CATEGORY_PROTOCOL,
+  isAllowedResearchCategory,
+} from '@/lib/intelligence/researchCategories'
+import { buildAffluenceAuditorPromptBlock } from '@/lib/zone/affluenceCheck'
+import {
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   MAX_ZONE_CARD_HEADLINE_WORDS,
   stripExpandedCardTitleNoise,
+  zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
 
 export interface ResearchCitation {
@@ -61,6 +67,8 @@ export interface ResearchProfileData {
   heating?: string | null
   tenure?: string | null
   employment_status?: string | null
+  household_income_bracket?: string | null
+  primary_goal?: string | null
   [key: string]: string | null | undefined
 }
 
@@ -72,6 +80,8 @@ export type DynamicResearchProfileRow = {
   name?: string | null
   age_group?: string | null
   employment_status?: string | null
+  household_income_bracket?: string | null
+  primary_goal?: string | null
   user_genome?: Record<string, unknown> | null
   goal?: string | null
 }
@@ -128,9 +138,15 @@ function normalizeDynamicResearchProfile(
     employment_status:
       readStringProfileField(profileRow, ['employment_status', 'employmentStatus']) ??
       readStringProfileField(usersRow, ['employment_status', 'employmentStatus']),
+    household_income_bracket:
+      readStringProfileField(profileRow, ['household_income_bracket', 'householdIncomeBracket']) ??
+      readStringProfileField(usersRow, ['household_income_bracket', 'householdIncomeBracket']),
+    primary_goal:
+      readStringProfileField(profileRow, ['primary_goal', 'primaryGoal']) ??
+      readStringProfileField(usersRow, ['primary_goal', 'primaryGoal']),
     goal:
-      readStringProfileField(profileRow, ['goal', 'profile_goal']) ??
-      readStringProfileField(usersRow, ['goal', 'profile_goal']),
+      readStringProfileField(profileRow, ['goal', 'profile_goal', 'primary_goal']) ??
+      readStringProfileField(usersRow, ['goal', 'profile_goal', 'primary_goal']),
     user_genome: userGenome,
   }
 }
@@ -264,14 +280,18 @@ export async function runZeroResearch(params: {
   postcode?: string | null
   region?: string | null
   userContext?: string
+  profileData?: ResearchProfileData | null
 }): Promise<ZeroResearchResult> {
-  const { region, userContext } = params
+  const { region, userContext, profileData } = params
   const postcode = params.postcode?.replace(/\s+/g, '').toUpperCase() || ''
   if (!postcode) return { markdown: 'No outcode detected', citations: [], error: 'No outcode detected' }
   const citations: ResearchCitation[] = []
   const sections: string[] = []
 
   const seedUrls = [...UK_2026_SEED_URLS]
+  for (const url of buildEmploymentAwareResearchSeeds(profileData ?? null)) {
+    if (!seedUrls.includes(url)) seedUrls.unshift(url)
+  }
   const dynamicSeeds = await buildDynamicLocalitySeedUrls(postcode, userContext)
   for (const url of dynamicSeeds) {
     if (!seedUrls.includes(url)) seedUrls.unshift(url)
@@ -596,7 +616,7 @@ function normalizeGeminiAgentHeadline(
 ): string | undefined {
   if (!raw?.trim()) return undefined
   const cleaned = stripExpandedCardTitleNoise(raw.trim())
-  const clipped = headlineFromTitle(cleaned, maxWords)
+  const clipped = zoneCardHeadlineFromRaw(cleaned, cleaned, maxWords)
   return clipped.length > 0 ? clipped.slice(0, 600) : undefined
 }
 
@@ -706,6 +726,12 @@ function parseResearchTripletJson(raw: string): {
 
 function buildResearchProfileAuditorContext(data: ResearchProfileData | null | undefined): string {
   if (!data || typeof data !== 'object') return ''
+  const affluence = buildAffluenceAuditorPromptBlock({
+    employment_status: data.employment_status,
+    postcode: data.postcode,
+    household_income_bracket: data.household_income_bracket,
+    primary_goal: data.primary_goal ?? data.goal,
+  })
   const rows: string[] = []
   for (const [key, raw] of Object.entries(data)) {
     if (raw == null) continue
@@ -714,8 +740,8 @@ function buildResearchProfileAuditorContext(data: ResearchProfileData | null | u
     rows.push(`- ${key}: ${s.length > 280 ? `${s.slice(0, 280)}…` : s}`)
     if (rows.length >= 24) break
   }
-  if (!rows.length) return ''
-  return `Household auditing context (treat as ground truth — interrogate the markdown through this lens, not generic “grants” SEO):\n${rows.join('\n')}\n\n`
+  if (!rows.length) return affluence
+  return `${affluence}Household auditing context (treat as ground truth — interrogate the markdown through this lens, not generic “grants” SEO):\n${rows.join('\n')}\n\n`
 }
 
 function researchTripletNeedsRecovery(triplet: {
@@ -754,6 +780,8 @@ async function extractResearchTripletWithGemini(
   const prompt = `${pc}${profileBlock}${categoryBias}You are an expert editorial writer for Zero Zero — sustainable lifestyle and smart UK consumer choices. Transform the scraped evidence into a compelling, human-centric feature. No dashboard speak, API jargon, or robotic summaries.
 
 ${EDITORIAL_MAGAZINE_CONSTRAINT}
+
+${AFFLUENCE_AUDITOR_PROTOCOL}
 
 ${GRANTS_AND_BILLS_CATEGORY_PROTOCOL}
 
@@ -1332,6 +1360,7 @@ export async function runZeroResearchWithProfile(params: {
     postcode: params.postcode ?? params.profileData?.postcode ?? null,
     region: params.region,
     userContext: userContext.length > 0 ? userContext : undefined,
+    profileData: params.profileData ?? null,
   })
   if (params.persistToNeon && (result.markdown || result.citations.length > 0)) {
     const parsed = await parseApril2026UnitRatesFromMarkdown(result.markdown)

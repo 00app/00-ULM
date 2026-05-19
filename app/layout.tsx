@@ -1,7 +1,6 @@
 import { AppProvider } from '@/app/context/AppContext'
 import { GlobalAppShell } from '@/app/global-layout'
 import InteractiveBackground from '@/app/components/ui/InteractiveBackground'
-import ClientOnly from '@/app/components/ClientOnly'
 import { getSiteUrl } from '@/lib/site'
 import './globals.css'
 
@@ -102,7 +101,7 @@ export default function RootLayout({
   }
 
   return (
-    <html lang="en-GB" className={roboto.variable} style={{ backgroundColor: 'transparent' }}>
+    <html lang="en-GB" className={roboto.variable} style={{ backgroundColor: '#2a004a' }}>
       <head>
         {/* Display: Marvin Visions (`@font-face` in globals.css). Body: Roboto via next/font on <html>/<body>. */}
         <link
@@ -120,12 +119,11 @@ export default function RootLayout({
           backgroundColor: 'transparent',
           minHeight: '100vh',
           margin: 0,
+          position: 'relative',
         }}
       >
-        {/* Momentum Lock: atmospheric layer at z-index −10 (.zz-background-env); grain 18% soft-light in CSS */}
-        <ClientOnly fallback={null}>
-          <InteractiveBackground />
-        </ClientOnly>
+        {/* Liquid mesh + grain — always mounted (no ClientOnly gate); see .zz-background-env in globals.css */}
+        <InteractiveBackground />
         <AppProvider>
           <GlobalAppShell>{children}</GlobalAppShell>
         </AppProvider>

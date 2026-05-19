@@ -13,23 +13,19 @@ import {
   researchTicksFromPayload,
 } from '@/lib/zone/parseScrapeSyncClient'
 import { appendResearchUserIdQuery } from '@/lib/zone/garyMode'
+import { formatLocationDisplayName } from '@/lib/locationIdentity'
+import type { LocalIntelligence } from '@/lib/local/getLocalData'
 
 const TICK = '✓'
 const CROSS = '✗'
 
 function SettingsIntelRow({ label, ok }: { label: string; ok: boolean }) {
   return (
-    <div className="settings-intel-row">
-      <span
-        className="settings-intel-mark zz-h4"
-        style={{ color: ok ? 'var(--color-yellow)' : 'var(--color-pink)' }}
-        aria-hidden
-      >
+    <div className={`settings-intel-row${ok ? ' settings-intel-row--ok' : ' settings-intel-row--fail'}`}>
+      <span className="settings-intel-mark zz-h4" aria-hidden>
         {ok ? TICK : CROSS}
       </span>
-      <h4 className="zz-h4 m-0 flex-1 min-w-0" style={{ color: 'var(--color-yellow)' }}>
-        {label}
-      </h4>
+      <h4 className="zz-h4 m-0 flex-1 min-w-0 settings-intel-label">{label}</h4>
     </div>
   )
 }
@@ -142,6 +138,35 @@ export function ZoneIntelligenceStrip({
     offerOk: boolean
     moneyHint: string | null
   } | null>(null)
+  const [liveLocal, setLiveLocal] = useState<{
+    localityLabel: string
+    gridGPerKwh?: number
+  } | null>(null)
+
+  const pollLocalIntelligence = useCallback(async () => {
+    const pc = (scrapePostcode ?? '').replace(/\s+/g, '').trim()
+    if (pc.length < 4) {
+      setLiveLocal(null)
+      return
+    }
+    try {
+      const res = await fetch(`/api/local-intelligence?postcode=${encodeURIComponent(pc)}`, {
+        cache: 'no-store',
+      })
+      if (!res.ok) return
+      const data = (await res.json()) as LocalIntelligence
+      const localityLabel = formatLocationDisplayName(data, pc)
+      const gridGPerKwh =
+        typeof data.localCarbonG === 'number' && Number.isFinite(data.localCarbonG)
+          ? data.localCarbonG
+          : undefined
+      if (localityLabel.trim() || gridGPerKwh != null) {
+        setLiveLocal({ localityLabel, gridGPerKwh })
+      }
+    } catch {
+      /* non-blocking */
+    }
+  }, [scrapePostcode])
 
   const pollScrapeResearch = useCallback(async () => {
     const pc = (scrapePostcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
@@ -214,6 +239,13 @@ export function ZoneIntelligenceStrip({
     return () => clearInterval(id)
   }, [pollScrapeResearch, variant])
 
+  useEffect(() => {
+    if (variant !== 'zone' && variant !== 'settings') return
+    void pollLocalIntelligence()
+    const id = setInterval(() => void pollLocalIntelligence(), 15_000)
+    return () => clearInterval(id)
+  }, [pollLocalIntelligence, variant])
+
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
@@ -233,9 +265,14 @@ export function ZoneIntelligenceStrip({
     }
   }, [suppressOverlay])
 
+  const resolvedLocalityLabel = (localityLabel ?? liveLocal?.localityLabel ?? '').trim()
+  const resolvedGridGPerKwh =
+    typeof gridGPerKwh === 'number' && Number.isFinite(gridGPerKwh)
+      ? gridGPerKwh
+      : liveLocal?.gridGPerKwh
   const localOk =
-    Boolean((localityLabel ?? '').trim()) ||
-    (typeof gridGPerKwh === 'number' && Number.isFinite(gridGPerKwh))
+    Boolean(resolvedLocalityLabel) ||
+    (typeof resolvedGridGPerKwh === 'number' && Number.isFinite(resolvedGridGPerKwh))
   const covRows = categoryCoverage ? Object.values(categoryCoverage) : []
   const covInsight = covRows.some((c) => c.insightReady)
   const covOffer = covRows.some((c) => c.hasOffer)
@@ -264,7 +301,10 @@ export function ZoneIntelligenceStrip({
 
   if (variant === 'settings') {
     return (
-      <section className="settings-intel-panel" aria-label="Intelligence loop status">
+      <section
+        className="settings-intel-panel bento-card-groovy settings-intel-card"
+        aria-label="Intelligence loop status"
+      >
         <SettingsIntelRow label="NEON DATABASE" ok={dbConnected} />
         <SettingsIntelRow label="GEMINI API" ok={apiDiagReady && apiGemini} />
         <SettingsIntelRow label="FIRECRAWL API" ok={apiDiagReady && apiFirecrawl} />
@@ -381,8 +421,8 @@ export function ZoneIntelligenceStrip({
           title="LOCALITY + GRID"
           source={
             localOk
-              ? `POST /api/local-intelligence${localityLabel ? ` · ${localityLabel}` : ''}${typeof gridGPerKwh === 'number' && Number.isFinite(gridGPerKwh) ? ` · ~${Math.round(gridGPerKwh)} gCO₂/kWh` : ''}`
-              : 'POST /api/local-intelligence (+ Postcodes.io)'
+              ? `GET /api/local-intelligence${resolvedLocalityLabel ? ` · ${resolvedLocalityLabel}` : ''}${typeof resolvedGridGPerKwh === 'number' && Number.isFinite(resolvedGridGPerKwh) ? ` · ~${Math.round(resolvedGridGPerKwh)} gCO₂/kWh` : ''}`
+              : 'GET /api/local-intelligence (+ Postcodes.io / carbon intensity)'
           }
         />
         <BulletRow

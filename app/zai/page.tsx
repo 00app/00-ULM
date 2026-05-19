@@ -16,6 +16,7 @@ import type { HeroTotals } from '@/app/context/AppContext'
 import type { ZaiChatMeta } from '@/lib/zai/zaiChatUi'
 import { metaFromAskZaiContext, metaFromZaiReply } from '@/lib/zai/zaiChatUi'
 import { readZaiLikes, removeZaiLike, upsertZaiLike } from '@/lib/zai/zaiLikesStorage'
+import { ZAI_CHAT_SUGGESTED_PROMPTS, ZAI_INTRO_LINES } from '@/lib/zai/chatPrompts'
 import Link from 'next/link'
 
 const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
@@ -82,14 +83,14 @@ function triggerHaptic(pattern: 'light' | 'medium') {
 }
 
 function buildColdStartHook(totals: HeroTotals, locality: string | null): string {
-  const place = locality?.trim() || 'your area'
+  const place = locality?.trim() || 'your patch'
   if (totals.totalMoney > 0 || totals.totalCarbon > 0) {
     return sanitizeText(
-      `you're on about £${totals.totalMoney}/yr savings and ${totals.totalCarbon}kg carbon in ${place} — what do you want to tackle first?`
+      `i've got £${totals.totalMoney}/yr and ${totals.totalCarbon}kg on your board in ${place}. pick a lane — bills, travel, or grants — and i'll narrow it to one move.`
     )
   }
   return sanitizeText(
-    `hi — i'm zai. tell me what you spend on at home or travel in ${place} and i'll find a real uk saving.`
+    `i'm zai — your uk savings mate. tell me one bill or trip that nags you in ${place}; i'll find a real lever.`
   )
 }
 
@@ -220,8 +221,8 @@ export default function ZaiPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount when context exists
   }, [])
 
-  const handleSend = async () => {
-    const q = input.trim()
+  const sendQuestion = useCallback(async (rawQ: string) => {
+    const q = rawQ.trim()
     if (!q || loading) return
     triggerHaptic('medium')
     setInput('')
@@ -276,7 +277,11 @@ export default function ZaiPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [loading, messages, postcode, state.heroTotals])
+
+  const handleSend = useCallback(() => {
+    void sendQuestion(input)
+  }, [input, sendQuestion])
 
   const handleZaiClose = useCallback(() => {
     dispatchZaiAuditComplete()
@@ -300,36 +305,28 @@ export default function ZaiPage() {
     >
       <ZoneModalCloseLink onClose={handleZaiClose} />
       <h1 className="zz-page-title zai-page-title max-w-zone">Ask Zai</h1>
-      <motion.div className="zai-intro-bubble max-w-zone">
-        <p className="zz-body">your savings mate — money, carbon, and the next step at home.</p>
-        <p className="zz-body">plain uk advice. short answers. one thing to try.</p>
-      </motion.div>
+      <motion.div className="zai-page-content max-w-zone">
+        <motion.div className="zai-intro-bubble">
+          {ZAI_INTRO_LINES.map((line) => (
+            <p key={line} className="zz-body">
+              {line}
+            </p>
+          ))}
+        </motion.div>
 
-      <motion.div className="zai-chat-wrap" style={{ minHeight: 200, flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <motion.div className="max-w-zone" style={{ flex: 1, overflow: 'auto', paddingBottom: 24, width: '100%' }}>
+        <div className="zai-chat-thread">
           {messages.map((msg, i) => (
             <motion.div
               key={`${msg.role}-${i}`}
+              className={`zai-chat-msg${msg.role === 'user' ? ' zai-chat-msg--user' : ''}`}
               initial={{ opacity: 0, y: 2 }}
               animate={{ opacity: 1, y: 0 }}
               transition={INDUSTRIAL_OPACITY_SNAP}
-              style={{
-                marginBottom: 16,
-                textAlign: msg.role === 'user' ? 'right' : 'left',
-              }}
             >
               <span
-                className="zz-body zai-bubble zai-bubble-chat"
-                style={{
-                  display: 'inline-block',
-                  padding: 'var(--padding-bento)',
-                  borderRadius: 60,
-                  background: msg.role === 'zai' ? 'var(--color-pink)' : 'var(--color-purple)',
-                  color: 'var(--color-yellow)',
-                  maxWidth: '85%',
-                  textWrap: 'balance',
-                  overflowWrap: 'anywhere',
-                }}
+                className={`zz-body zai-bubble zai-bubble-chat inline-block max-w-[85%] ${
+                  msg.role === 'zai' ? 'zai-bubble-chat--zai' : 'zai-bubble-chat--user'
+                }`}
               >
                 {msg.role === 'zai' ? renderZaiChatProse(msg.text, { journey_key: msg.meta?.journeyKey }) : msg.text}
               </span>
@@ -342,11 +339,7 @@ export default function ZaiPage() {
                   transition={INDUSTRIAL_OPACITY_SNAP}
                 >
                   {msg.meta?.answerHref && msg.meta.answerLabel ? (
-                    <Link
-                      href={msg.meta.answerHref}
-                      className="zz-body underline"
-                      style={{ color: 'var(--color-yellow)' }}
-                    >
+                    <Link href={msg.meta.answerHref} className="zz-body underline">
                       {msg.meta.answerLabel}
                     </Link>
                   ) : null}
@@ -368,7 +361,6 @@ export default function ZaiPage() {
                           }),
                         })
                       }}
-                      style={{ color: 'var(--color-yellow)' }}
                     >
                       source
                     </a>
@@ -405,7 +397,7 @@ export default function ZaiPage() {
           ))}
           {loading && (
             <motion.p
-              className="zz-body m-0 mt-2"
+              className="zz-body zai-connecting m-0 mt-2"
               animate={{ opacity: [0.45, 1, 0.45] }}
               transition={{
                 type: 'tween',
@@ -414,34 +406,54 @@ export default function ZaiPage() {
                 repeatType: 'reverse',
                 ease: 'linear',
               }}
-              style={{ color: 'var(--color-yellow)' }}
             >
               connect
             </motion.p>
           )}
           <motion.div ref={bottomRef} />
-        </motion.div>
+        </div>
+      </motion.div>
 
-        <motion.div className="zai-input-row max-w-zone">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask Zai..."
-            className="zone-ask-zai-pill ask-zai-input border-none outline-none font-bold caret-[var(--color-purple)]"
-          />
-          <motion.button
-            type="button"
-            onClick={handleSend}
-            disabled={!input.trim() || loading}
-            className="zai-go-btn"
+      <div className="zai-composer-dock zai-composer-dock--fixed max-w-zone">
+          <motion.div
+            className="zai-suggest-row"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={INDUSTRIAL_OPACITY_SNAP}
           >
-            Go
-          </motion.button>
-        </motion.div>
-      </motion.div>
+            {ZAI_CHAT_SUGGESTED_PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                disabled={loading}
+                className="zai-suggest-pill"
+                onClick={() => void sendQuestion(prompt)}
+              >
+                {prompt}
+              </button>
+            ))}
+          </motion.div>
+
+          <motion.div className="zai-input-row">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              placeholder="Ask Zai..."
+              className="zone-ask-zai-pill ask-zai-input border-none outline-none font-bold"
+            />
+            <motion.button
+              type="button"
+              onClick={handleSend}
+              disabled={!input.trim() || loading}
+              className="zai-go-btn"
+              transition={INDUSTRIAL_OPACITY_SNAP}
+            >
+              Go
+            </motion.button>
+          </motion.div>
+      </div>
     </motion.div>
   )
 }

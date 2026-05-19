@@ -115,6 +115,13 @@ nextjs-portal > * {
   --color-pink: #FF00FF;
   --color-intro-type: var(--color-yellow);
 
+  /* Ask Zai + deep-dive — yellow field, deep navy ink (#141268), not brand purple */
+  --zai-deep-blue: #141268;
+  --zai-field-bg: var(--color-yellow);
+  --zai-ink: var(--zai-deep-blue);
+  --zai-pill-bg: var(--zai-deep-blue);
+  --zai-pill-text: var(--color-yellow);
+
   --color-purple-dark: var(--color-purple);
   --color-on-accent: var(--color-yellow);
   --color-yellow-accessible: var(--color-yellow);
@@ -204,18 +211,25 @@ nextjs-portal > * {
 /* ==========================================================================
    GLOBAL ENVIRONMENT — interactive grainy gradient (liquid mesh + sand)
    ========================================================================== */
+html {
+  background-color: #2a004a;
+}
+
 html,
 body {
   background: transparent !important;
 }
 
+/* Fixed stack: env (purple base + blobs) → grain → app shell (z-index 1 on .zz-main-perspective-shell) */
 .zz-background-env {
   position: fixed;
   inset: 0;
-  z-index: -10;
+  z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background-color: color-mix(in srgb, #2a004a 42%, transparent);
+  background-color: #2a004a;
+  opacity: 1;
+  visibility: visible;
 }
 
 .zz-blob {
@@ -272,7 +286,7 @@ body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: -5;
+  z-index: 1;
   opacity: 0.18;
   mix-blend-mode: soft-light;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
@@ -354,7 +368,7 @@ body {
   min-height: 0.8em;
 }
 
-/* App / route boot — fullscreen glitch while segments load */
+/* App / route boot + intro logo — transparent so liquid mesh + grain show through */
 .app-boot-glitch {
   position: fixed;
   inset: 0;
@@ -362,25 +376,41 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-purple);
+  background: transparent !important;
+  background-color: transparent !important;
   pointer-events: none;
 }
 .intro-boot-glitch {
   pointer-events: auto;
 }
 
-/* Inline glitch logo under ASK ZAI — in document flow (not fullscreen overlay) */
+/* Inline glitch logo under ASK ZAI — transparent; same mesh as app shell */
 .zone-inline-loading-logo {
   width: 100%;
-  max-width: 400px;
+  max-width: min(400px, calc(100vw - 32px));
   margin-top: 40px;
   margin-bottom: 40px;
+  margin-inline: auto;
+  align-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 120px;
+  background: transparent;
 }
 .zone-inline-loading-logo .zz-glitch-wrap {
+  margin-inline: auto;
+}
+
+/* Wall hydrating — centre anchor cluster; no panel behind glitch */
+.zone-anchor.zone-anchor--wall-loading {
+  align-items: center;
+  width: 100%;
+  background: transparent !important;
+}
+.zone-anchor.zone-anchor--wall-loading .zone-hero-grid {
+  width: 100%;
+  max-width: min(400px, calc(100vw - 32px));
   margin-inline: auto;
 }
 
@@ -1532,7 +1562,7 @@ body, p, span, input, button, textarea, select,
   text-align: left !important;
   align-self: flex-start;
   width: 100%;
-  max-width: min(640px, 100%);
+  max-width: 100%;
   padding-left: 0 !important;
   margin-left: 0;
   line-height: 0.8;
@@ -1543,20 +1573,45 @@ body, p, span, input, button, textarea, select,
   letter-spacing: normal;
 }
 
-.settings-intel-panel {
+.settings-intel-section {
   width: 100%;
-  max-width: min(520px, 100%);
+  max-width: min(1240px, 100%);
   margin: 24px auto 0;
-  padding: 0;
+  padding-left: 0;
+  padding-right: 0;
+  box-sizing: border-box;
+}
+.settings-intel-panel.settings-intel-card {
+  width: 100%;
+  margin: 0 auto;
+  padding: 30px !important;
+  border-radius: var(--radius-groovy) !important;
+  background-color: var(--zai-field-bg) !important;
+  color: var(--color-purple) !important;
+  --journey-text: var(--color-purple);
+  --color-ink: var(--color-purple);
+  box-shadow: none !important;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-sizing: border-box;
 }
 .settings-intel-row {
   display: flex;
   align-items: center;
   gap: 12px;
   margin: 0;
+}
+.settings-intel-panel .settings-intel-row .settings-intel-mark,
+.settings-intel-panel .settings-intel-row .settings-intel-label,
+.settings-intel-panel .settings-intel-row .zz-h4 {
+  color: var(--color-purple) !important;
+  -webkit-text-fill-color: var(--color-purple);
+}
+.settings-intel-row--fail .settings-intel-mark {
+  color: var(--color-purple) !important;
+  -webkit-text-fill-color: var(--color-purple);
+  opacity: 0.55;
 }
 .settings-intel-row .settings-intel-mark {
   width: 1.25rem;
@@ -2178,7 +2233,7 @@ body, p, span, input, button, textarea, select,
 .solo-focus-mother-columns .solo-focus-mother-copy {
   flex: 1 1 auto;
   min-width: 0;
-  padding-right: 56px; /* 40px controls + gutter vs absolute strip */
+  padding-right: 56px; /* 40px control column + gutter vs absolute strip */
   box-sizing: border-box;
 }
 .solo-focus-mother-columns .solo-focus-utility-strip {
@@ -2186,6 +2241,7 @@ body, p, span, input, button, textarea, select,
   top: 0;
   right: 0;
   z-index: 501;
+  gap: 20px;
 }
 
 /* Solo Focus structural lock — all expanded paths use the same A/B shell contract. */
@@ -2252,13 +2308,25 @@ body, p, span, input, button, textarea, select,
   color: var(--color-pink);
 }
 
-/* Pulse anchor — 20px from bottom-right (safe-area aware on mobile) */
+/* Pulse anchor — fixed dock (Zone intelligence strip only) */
 .pulse-diagnostic-anchor {
   position: fixed;
   right: 20px;
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   padding: 0;
   margin: 0;
+}
+
+/* Solo Focus utility strip — stacked under close, same 40px disc */
+.pulse-diagnostic-anchor--solo-focus {
+  position: static;
+  z-index: auto;
+}
+.solo-focus-utility-strip .pulse-triangle-fab {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
 }
 
 /* Pulse diagnostic — system purple panel, yellow type, groovy radius + 40px inset */
@@ -3170,6 +3238,9 @@ h3.solo-focus-question-label.zz-h3 {
   text-transform: uppercase;
   text-align: center;
 }
+.expanded-solo-focus .circle-btn .circle-btn-label-stack > span {
+  line-height: 0.8 !important;
+}
 @media (min-width: 1024px) {
   .expanded-solo-focus .circle-btn .circle-btn-label-stack {
     font-size: var(--zz-h4-desktop) !important;
@@ -3659,38 +3730,89 @@ h3.solo-focus-question-label.zz-h3 {
   box-sizing: border-box;
 }
 
-/* Zai: transparent page shell; yellow text; bubbles/cards stay solid */
+/* Zai: page scrolls as one column; composer dock fixed at bottom */
 .zai-interface {
   position: relative;
+  min-height: 100dvh;
   background-color: transparent !important;
   color: var(--color-yellow);
+  box-sizing: border-box;
+  --zai-composer-clearance: calc(220px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--zai-composer-clearance);
 }
-.zai-interface .zai-chat-wrap,
-.zai-interface .zai-intro-bubble,
-.zai-interface .zai-input-row {
+.zai-interface .zai-page-content {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-md);
+}
+.zai-interface .zai-chat-thread {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: visible;
+}
+.zai-interface .zai-chat-msg {
+  margin-bottom: 20px;
+  text-align: left;
+}
+.zai-interface .zai-chat-msg--user {
+  text-align: right;
+}
+.zai-interface .zai-composer-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.zai-interface .zai-composer-dock--fixed {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 195;
+  width: min(var(--max-w-zone), calc(100vw - 32px));
   max-width: var(--max-w-zone);
-  margin-inline: auto;
+  padding-inline: 0;
+  pointer-events: none;
+}
+.zai-interface .zai-composer-dock--fixed > * {
+  pointer-events: auto;
+}
+.zai-interface .zai-intro-bubble {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .zai-interface .zz-page-back,
 .zai-interface .zz-page-title,
 .zai-interface .zz-body,
 .zai-interface .zai-bubble,
 .zai-interface p { color: var(--color-yellow); }
-.zai-interface .zz-page-title { text-align: center; }
-/* Intro copy in a speech bubble: pink bg, yellow text */
+.zai-interface .zz-page-title {
+  text-align: center;
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+/* Intro + chat — Ask Zai palette (--zai-field-bg / --zai-ink) */
 .zai-interface .zai-intro-bubble {
-  background: var(--color-pink);
-  color: var(--color-yellow);
+  background: var(--zai-field-bg);
+  color: var(--zai-ink);
   border-radius: var(--radius-groovy);
   padding: var(--padding-bento);
-  margin-bottom: var(--gap-lg);
+  margin-bottom: var(--gap-md);
   max-width: 100%;
   box-sizing: border-box;
 }
 .zai-interface .zai-intro-bubble .zz-body {
-  color: var(--color-yellow);
+  color: var(--zai-ink) !important;
   margin: 0;
+  font-family: var(--font-roboto), sans-serif;
+  font-weight: 800;
+  line-height: 1.35;
+  text-transform: none;
 }
 .zai-interface .zai-intro-bubble .zz-body + .zz-body { margin-top: 12px; }
 
@@ -3701,6 +3823,57 @@ h3.solo-focus-question-label.zz-h3 {
   font-weight: 800;
   font-size: 1.125rem;
   line-height: 1.45;
+  padding: var(--padding-bento);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.zai-interface .zai-bubble-chat--zai {
+  background: var(--zai-field-bg) !important;
+  color: var(--zai-ink) !important;
+}
+.zai-interface .zai-bubble-chat--user {
+  background: var(--zai-ink) !important;
+  color: var(--zai-pill-text) !important;
+}
+.zai-interface .zai-msg-footer a,
+.zai-interface .zai-msg-footer .zz-body {
+  color: var(--zai-ink) !important;
+}
+.zai-interface .zai-connecting {
+  color: var(--zai-ink) !important;
+}
+
+/* Deep-dive quick prompts — deep navy pills, yellow Marvin label */
+.zai-interface .zai-suggest-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+}
+.zai-interface .zai-suggest-pill {
+  border: 0;
+  border-radius: 9999px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-family: var(--font-marvin) !important;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 0.8;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: var(--zai-pill-bg);
+  color: var(--zai-pill-text);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.zai-interface .zai-suggest-pill:hover:not(:disabled),
+.zai-interface .zai-suggest-pill:focus-visible {
+  opacity: 0.92;
+  transform: scale(1.02);
+}
+.zai-interface .zai-suggest-pill:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 @media (min-width: 768px) {
   .zai-interface .zai-bubble-chat {
@@ -3709,15 +3882,15 @@ h3.solo-focus-question-label.zz-h3 {
 }
 .zai-interface .zone-ask-zai-pill,
 .zai-interface .ask-zai-input {
-  background-color: #fdfd00;
-  color: #7800ce;
+  background-color: var(--zai-field-bg);
+  color: var(--zai-ink);
   border: none;
   outline: none;
   border-radius: 9999px;
   padding: 12px 24px;
   font-weight: 800;
   font-size: 1.125rem;
-  caret-color: #7800ce;
+  caret-color: var(--zai-ink);
 }
 @media (min-width: 768px) {
   .zai-interface .zone-ask-zai-pill,
@@ -3729,36 +3902,36 @@ h3.solo-focus-question-label.zz-h3 {
 .zai-interface .ask-zai-input:focus,
 .zai-interface .zone-ask-zai-pill:hover,
 .zai-interface .ask-zai-input:hover {
-  background-color: var(--color-yellow);
-  color: var(--color-purple);
-  
-  
+  background-color: var(--zai-field-bg);
+  color: var(--zai-ink);
 }
 .zai-interface .zone-ask-zai-pill::placeholder,
 .zai-interface .ask-zai-input::placeholder {
-  color: var(--color-purple);
+  color: color-mix(in srgb, var(--zai-ink) 72%, transparent);
 }
-/* Zai input row: input + Go button aligned on the same row, button on the side */
+/* Zai input row — inside fixed composer dock */
 .zai-interface .zai-input-row {
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
   max-width: 100%;
+  margin: 0;
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--zai-ink) 28%, transparent);
 }
 .zai-interface .zai-ask-input {
   flex: 1;
   min-width: 0;
   height: 54px;
   box-sizing: border-box;
-  background: #fdfd00 !important;
-  color: #7800ce !important;
+  background: var(--zai-field-bg) !important;
+  color: var(--zai-ink) !important;
   font-weight: 800 !important;
   border: none !important;
   outline: none !important;
 }
 .zai-interface .zai-ask-input::placeholder {
-  color: color-mix(in srgb, #7800ce 55%, transparent);
+  color: color-mix(in srgb, var(--zai-ink) 55%, transparent);
 }
 /* Go button: pink default, yellow text; hover yellow bg, purple text; bounce (match other CTAs) */
 .zai-interface .zai-go-btn {
@@ -3779,13 +3952,13 @@ h3.solo-focus-question-label.zz-h3 {
   transition: background-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .zai-interface .zai-go-btn:not(:disabled) {
-  background-color: var(--color-pink);
-  color: var(--color-yellow);
+  background-color: var(--zai-pill-bg);
+  color: var(--zai-pill-text);
 }
 @media (hover: hover) {
   .zai-interface .zai-go-btn:not(:disabled):hover {
-    background-color: var(--color-yellow);
-    color: var(--color-purple);
+    background-color: var(--zai-field-bg);
+    color: var(--zai-ink);
   }
   .zai-interface .zai-go-btn:not(:disabled):active {
     transform: scale(0.96);
@@ -3838,11 +4011,9 @@ h3.solo-focus-question-label.zz-h3 {
    Arrow: down-left glyph (BackArrowDownLeft). Hover: yellow bg, purple arrow.
    ========================================================================== */
 .zz-back-btn {
-  /* Fixed to viewport so Settings (position: relative shell) matches Zai/Likes */
   position: fixed;
   top: 20px;
   right: 20px;
-  /* Above nextjs-portal (100) and page chrome */
   z-index: 200;
   width: 64px !important;
   height: 64px !important;
@@ -3888,6 +4059,13 @@ h3.solo-focus-question-label.zz-h3 {
   min-width: 80px !important;
   min-height: 80px !important;
 }
+/* Portaled to body — Settings / Zai / Likes close (escapes perspective shell) */
+.zz-back-btn.zz-back-btn--viewport-lock {
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  z-index: 250;
+}
+
 /* Optional: nested fixed UI — stay above nextjs-portal (100) and base .zz-back-btn stacking */
 .zz-back-btn.zz-back-btn--overlay {
   z-index: 250;
@@ -4008,8 +4186,8 @@ h3.solo-focus-question-label.zz-h3 {
   width: 100%;
   max-width: min(1240px, 100%);
   margin: 0 auto;
-  padding-left: clamp(12px, 4vw, 24px);
-  padding-right: clamp(12px, 4vw, 24px);
+  padding-left: 0;
+  padding-right: 0;
   padding-bottom: 32px;
   box-sizing: border-box;
 }
@@ -4537,9 +4715,17 @@ h3.solo-focus-question-label.zz-h3 {
   .likes-page .zai-page-title { font-size: clamp(36px, 5vw, 48px); }
 }
 
-/* Ask Zai Deep Dive sheet — Zone-proportioned input + answer */
+/* Ask Zai Deep Dive sheet — same palette tokens as /zai */
+.ask-zai-deep-dive-scrim {
+  background: color-mix(in srgb, var(--zai-ink) 55%, transparent) !important;
+}
 .ask-zai-deep-dive-sheet {
   max-width: 100%;
+  background: var(--zai-field-bg) !important;
+  color: var(--zai-ink) !important;
+}
+.ask-zai-deep-dive-sheet .zz-label {
+  color: color-mix(in srgb, var(--zai-ink) 85%, transparent);
 }
 .ask-zai-deep-dive-title {
   font-family: var(--font-marvin), sans-serif;
@@ -4547,6 +4733,20 @@ h3.solo-focus-question-label.zz-h3 {
   line-height: 0.8;
   font-weight: bold;
   letter-spacing: 0.02em;
+  color: var(--zai-ink);
+}
+.ask-zai-deep-dive-headline {
+  font-family: var(--font-roboto), sans-serif;
+  font-size: 1rem;
+  line-height: 1.35;
+  color: var(--zai-ink);
+}
+.ask-zai-deep-dive-pill {
+  background: var(--zai-pill-bg);
+  color: var(--zai-pill-text);
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 700;
 }
 .ask-zai-deep-dive-continue:disabled {
   opacity: 0.45;
@@ -4570,6 +4770,7 @@ h3.solo-focus-question-label.zz-h3 {
   margin: 0;
   overflow-y: auto;
   max-height: 28dvh;
+  color: var(--zai-ink);
 }
 @media (min-width: 768px) {
   .ask-zai-deep-dive-answer { font-size: 1.25rem; }
@@ -4584,6 +4785,27 @@ h3.solo-focus-question-label.zz-h3 {
   font-size: 1rem;
   text-transform: uppercase;
   box-sizing: border-box;
+  background: var(--zai-pill-bg) !important;
+  color: var(--zai-pill-text) !important;
+}
+.ask-zai-deep-dive-submit {
+  background: var(--zai-pill-bg);
+  color: var(--zai-pill-text);
+  font-weight: 700;
+  font-size: 1rem;
+}
+.ask-zai-deep-dive-submit:not(:disabled):hover {
+  background: color-mix(in srgb, var(--zai-pill-bg) 88%, var(--zai-field-bg));
+}
+.ask-zai-deep-dive-submit:disabled {
+  background: color-mix(in srgb, var(--zai-pill-bg) 60%, var(--zai-field-bg));
+}
+.ask-zai-deep-dive-continue {
+  background: transparent;
+  color: var(--zai-ink);
+  font-weight: 700;
+  font-size: 1rem;
+  box-shadow: inset 0 0 0 2px var(--zai-ink);
 }
 @media (min-width: 768px) {
   .ask-zai-deep-dive-input { font-size: 1.125rem; }
@@ -5178,8 +5400,14 @@ h3.solo-focus-question-label.zz-h3 {
 }
 
 .zz-page.zai-page {
-  /* Room above the home indicator / edge; global mesh shows through transparent shell */
-  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  min-height: 100dvh;
+  overflow: visible;
+}
+
+html.zz-zai-document,
+html.zz-zai-document body {
+  overflow-y: auto !important;
+  overflow-x: hidden;
 }
 
 /* Links: purple background, yellow text */
@@ -6224,6 +6452,14 @@ h3.solo-focus-question-label.zz-h3 {
    FLOATING NAV (single global bundle — was app/floating-nav.css)
    ========================================================================== */
 
+/* Settings / Zai / Likes — modal exit only (no pink nav; kills stale portaled instances). */
+body:has(.settings-page) .floating-nav,
+body:has(.zai-page) .floating-nav,
+body:has(.likes-page) .floating-nav {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 .floating-nav {
   position: fixed;
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
@@ -6246,17 +6482,21 @@ h3.solo-focus-question-label.zz-h3 {
   pointer-events: auto;
 }
 
-/* Mobile: viewport-locked (portaled to body — not trapped by perspective shell). */
+/* Mobile: top-right vertical stack (Likes · Zai · Settings). */
 @media (max-width: 1023px) {
   .floating-nav {
     position: fixed !important;
-    bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
-    left: 50% !important;
-    right: auto !important;
-    top: auto !important;
-    transform: translateX(-50%) !important;
+    top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    right: calc(12px + env(safe-area-inset-right, 0px)) !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: none !important;
     margin: 0 !important;
-    z-index: 120 !important;
+    z-index: 200 !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 10px !important;
+    border-radius: 48px !important;
   }
 }
 
@@ -6309,9 +6549,15 @@ h3.solo-focus-question-label.zz-h3 {
   transition: none;
 }
 
+/* Zone rail: icon stack only — no pink dock pill */
+.floating-nav.floating-nav--zone-rail-desktop {
+  background-color: transparent;
+}
+
 @media (min-width: 1024px) {
   .floating-nav.floating-nav--zone-rail-desktop {
     display: none !important;
+    background-color: transparent !important;
   }
 
   .floating-nav {
@@ -6583,6 +6829,7 @@ select,
   padding-bottom: 0;
   box-sizing: border-box;
   overflow-x: clip;
+  background: transparent;
 }
 /* Three-colour lock: solid text only (no tints) */
 .zone,
@@ -6670,6 +6917,10 @@ select,
 .zone-hero-copy {
   width: 100%;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.06em;
 }
 .zone-desktop-nav-rail {
   display: none;
@@ -6677,9 +6928,30 @@ select,
 @media (min-width: 1024px) {
   .zone-hero-grid {
     display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(120px, 2fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
     gap: clamp(24px, 4vw, 48px);
+  }
+  .zone-hero-copy {
+    max-width: none;
+    width: 100%;
+    min-width: 0;
+    gap: 0.1em;
+    overflow: visible;
+  }
+  .zone-anchor .zone-hero-copy h2.zone-welcome,
+  .zone-anchor .zone-hero-copy h2.zone-welcome-block {
+    max-width: none !important;
+    width: max-content;
+    white-space: nowrap;
+    font-size: clamp(3.25rem, 5.5vw, var(--zz-h2-desktop)) !important;
+    overflow: visible;
+  }
+  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy h2.zone-welcome,
+  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy h2.zone-welcome-block {
+    white-space: normal;
+    width: 100%;
+    max-width: min(92vw, 28rem) !important;
   }
   .zone-desktop-nav-rail {
     display: flex;
@@ -6711,19 +6983,61 @@ select,
   }
 }
 
-/* Ask Zai — fixed above floating nav (persistent Zone brain) */
+/* Visited audit trail — pink tile, yellow ink */
+.zone-card--visited.bento-card-groovy,
+.bento-card-groovy.zone-card--visited {
+  background-color: var(--color-pink) !important;
+  color: var(--color-yellow) !important;
+}
+.zone-card--visited .card-top-label,
+.zone-card--visited .card-headline,
+.zone-card--visited .data-label,
+.zone-card--visited .data-value,
+.zone-card--visited .text-data {
+  color: var(--color-yellow) !important;
+}
+.bento-card-groovy[data-journey].zone-card--deep-dive-pending::after {
+  content: 'DEEP DIVE IN PROGRESS...';
+  display: block;
+  font-family: var(--font-marvin);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  margin-top: 8px;
+  color: var(--color-yellow);
+  opacity: 0.92;
+}
+
+/* Ask Zai — floating dock: viewport bottom centre (portaled), 20px from bottom */
 .zone-ask-zai-dock {
   position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  inset-inline: 0;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   z-index: 195;
-  width: min(400px, calc(100vw - 32px));
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-inline: 16px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.zone-ask-zai-dock > .zone-ask-zai-pill {
   pointer-events: auto;
+  width: min(400px, 100%);
+  max-width: min(400px, calc(100vw - 32px));
 }
 .zone-ask-zai-pill--dock {
-  width: 100%;
   box-shadow: 0 8px 32px color-mix(in srgb, var(--color-purple) 35%, transparent);
+  font-family: var(--font-marvin) !important;
+  font-size: var(--zz-h4-mobile) !important;
+  font-weight: bold !important;
+  letter-spacing: var(--zz-track-marvin) !important;
+  line-height: 0.8 !important;
+  text-transform: uppercase !important;
+}
+@media (min-width: 1024px) {
+  .zone-ask-zai-pill--dock {
+    font-size: var(--zz-h4-desktop) !important;
+  }
 }
 
 .zz-modal-close-btn .zz-modal-close-glyph {
@@ -6835,6 +7149,10 @@ select,
 /* Zone welcome — canonical H2 (`.zz-h2`); layout only — no custom font-size */
 .zone-anchor h2.zone-welcome,
 .zone-anchor h2.zone-welcome-block {
+  font-family: var(--font-marvin) !important;
+  font-weight: bold !important;
+  letter-spacing: -0.02em !important;
+  line-height: 0.8 !important;
   text-transform: lowercase !important;
   min-height: 0 !important;
   padding: 0 !important;
@@ -6844,6 +7162,11 @@ select,
   display: block !important;
   overflow: visible !important;
   white-space: normal;
+}
+.zone-anchor.zone-anchor--wall-loading h2.zone-welcome,
+.zone-anchor.zone-anchor--wall-loading h2.zone-welcome-block {
+  text-align: center;
+  margin-inline: auto;
 }
 
 /* Ask Zai pill: flat pill, Marvin + body size token — tap or Enter → /zai */
@@ -6867,27 +7190,29 @@ select,
   }
 }
 
-/* Ask Zai pill: pink bg, yellow Marvin label. Interaction → yellow bg, pink text. */
+/* Ask Zai pill — deep-dive: yellow field, purple Marvin ink */
 .zone-ask-zai-pill {
   width: 100%;
   min-height: auto;
   height: auto;
   border-radius: 9999px;
   padding: 20px 24px !important;
-  background-color: var(--color-pink);
+  background-color: var(--zai-field-bg);
   font-family: var(--font-marvin);
   font-weight: bold;
   font-size: var(--zz-body-size);
-  color: var(--color-yellow) !important;
+  color: var(--zai-ink) !important;
+  -webkit-text-fill-color: var(--zai-ink);
   text-align: center;
   box-sizing: border-box;
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease;
   line-height: 0.8;
+  text-transform: uppercase;
 }
 
 .zone-ask-zai-pill::placeholder {
-  color: var(--color-yellow) !important;
+  color: color-mix(in srgb, var(--zai-ink) 72%, transparent) !important;
   opacity: 1;
 }
 
@@ -6939,14 +7264,17 @@ select,
 .zone-ask-zai-pill:hover,
 .zone-ask-zai-pill:focus,
 .zone-ask-zai-pill:focus-visible {
-  
-  background-color: var(--color-yellow);
-  color: var(--color-pink);
+  background-color: var(--zai-field-bg);
+  color: var(--zai-ink) !important;
+  -webkit-text-fill-color: var(--zai-ink);
+  outline: none;
 }
 
 .zone-ask-zai-pill:hover::placeholder,
-.zone-ask-zai-pill:focus::placeholder {
-  color: var(--color-pink);
+.zone-ask-zai-pill:focus::placeholder,
+.zone-ask-zai-pill:focus-visible::placeholder {
+  color: color-mix(in srgb, var(--zai-ink) 55%, transparent) !important;
+  opacity: 1;
 }
 
 /* =========================
@@ -7621,8 +7949,9 @@ p,
    ========================================================================== */
 
 body {
-  background-color: #2a004a !important;
+  background-color: transparent !important;
   padding: 20px !important;
+  position: relative;
 }
 
 @media (min-width: 1024px) {

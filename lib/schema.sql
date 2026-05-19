@@ -206,6 +206,10 @@ ALTER TABLE research_results
 
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS is_high_impact BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS carbon_impact_kg NUMERIC(12, 2);
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS last_visited_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_research_results_last_visited
+  ON research_results (user_id, last_visited_at DESC NULLS LAST)
+  WHERE user_id IS NOT NULL;
 
 -- Optional question bank — query with WHERE journey_key = $1 only (no cross-category leak).
 CREATE TABLE IF NOT EXISTS journey_questions (
@@ -287,6 +291,12 @@ CREATE INDEX IF NOT EXISTS idx_scraped_summary_scraped_at ON scraped_summary(scr
 CREATE TABLE IF NOT EXISTS user_profiles (
   user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   journey_answers_jsonb JSONB NOT NULL DEFAULT '{}'::jsonb,
+  employment_status VARCHAR(50),
+  household_income_bracket VARCHAR(50),
+  primary_goal VARCHAR(20) DEFAULT 'both',
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS employment_status VARCHAR(50);
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS household_income_bracket VARCHAR(50);
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS primary_goal VARCHAR(20) DEFAULT 'both';
 CREATE INDEX IF NOT EXISTS idx_user_profiles_updated_at ON user_profiles (updated_at DESC);

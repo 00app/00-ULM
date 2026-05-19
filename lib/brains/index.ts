@@ -12,11 +12,6 @@ export * from './geo/postcode'
 export * from './geo/openstreetmap'
 export * from './geo/localOffers'
 
-// Content management
-export * from './content/images'
-export * from './content/sources'
-export * from './content/copy'
-
 // Zai chat logic
 export * from './zai/boundaries'
 export * from './zai/prompts'

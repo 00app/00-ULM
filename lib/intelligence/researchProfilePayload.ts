@@ -2,6 +2,8 @@
  * Localized profile prefix for Firecrawl + Gemini — keeps scrape/synthesis tied to household context.
  */
 
+import { isActiveEmployed, isLowIncomeBracket } from '@/lib/zone/affluenceCheck'
+
 /** Mirrors `ResearchProfileData` — kept local to avoid circular imports with researchAgent. */
 export type LocalizedProfileInput = {
   postcode?: string | null
@@ -10,9 +12,11 @@ export type LocalizedProfileInput = {
   transport_baseline?: string | null
   heating?: string | null
   employment_status?: string | null
+  household_income_bracket?: string | null
   tenure?: string | null
   household_size?: string | null
   goal?: string | null
+  primary_goal?: string | null
 }
 
 const GENERIC_UK_RESEARCH_SEEDS = [
@@ -81,6 +85,8 @@ export function buildLocalizedResearchPrefix(params: {
   if (p?.transport_baseline) lines.push(`transport_baseline: ${p.transport_baseline}`)
   if (p?.heating) lines.push(`heating: ${p.heating}`)
   if (p?.employment_status) lines.push(`employment_status: ${p.employment_status}`)
+  if (p?.household_income_bracket) lines.push(`household_income_bracket: ${p.household_income_bracket}`)
+  if (p?.primary_goal) lines.push(`primary_goal: ${p.primary_goal}`)
   if (p?.tenure) lines.push(`tenure: ${p.tenure}`)
   if (p?.household_size) lines.push(`household_size: ${p.household_size}`)
   if (p?.goal) lines.push(`goal: ${p.goal}`)
@@ -96,6 +102,28 @@ export function buildLocalizedResearchPrefix(params: {
     'Synthesis rules: use only £/year figures and https URLs present in scraped markdown below; if absent, state uncertainty — never fabricate grant amounts or retailer deals.'
   )
   return lines.join('\n')
+}
+
+/** Employed / affluent → solar + smart tariff seeds; low income / unemployed → grant SOI seeds. */
+export function buildEmploymentAwareResearchSeeds(profile?: LocalizedProfileInput | null): string[] {
+  const employed = isActiveEmployed(profile?.employment_status)
+  const lowIncome = isLowIncomeBracket(profile?.household_income_bracket)
+  if (employed && !lowIncome) {
+    return [
+      'https://energysavingtrust.org.uk/energy-at-home/generating-your-own-energy/solar-panels/',
+      'https://energysavingtrust.org.uk/energy-at-home/generating-your-own-energy/getting-paid-exporting/',
+      'https://octopus.energy/smart/',
+      'https://octopus.energy/smart/export/',
+    ]
+  }
+  if (!employed || lowIncome) {
+    return [
+      'https://www.gov.uk/apply-warm-homes-local-grant',
+      'https://www.gov.uk/energy-company-obligation',
+      'https://energysavingtrust.org.uk/advice/grants-and-loans/',
+    ]
+  }
+  return []
 }
 
 export function buildCategoryFirecrawlSeedUrls(params: {
@@ -115,6 +143,7 @@ export function buildCategoryFirecrawlSeedUrls(params: {
   }
 
   for (const u of JOURNEY_FIRECRAWL_SEEDS[journeyKey] ?? []) add(u)
+  for (const u of buildEmploymentAwareResearchSeeds(params.profileData ?? null)) add(u)
   add(trustedUrlForJourney(journeyKey))
   for (const u of GENERIC_UK_RESEARCH_SEEDS) add(u)
   if (pc.length >= 4) {

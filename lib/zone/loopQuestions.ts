@@ -1,6 +1,13 @@
 import type { JourneyId } from '@/lib/journeys'
-import { JOURNEY_IDS, isValidJourneyId, isValidJourneyQuestion } from '@/lib/journeys'
+import {
+  JOURNEY_IDS,
+  JOURNEY_ORDER,
+  getFunkyOptionDisplay,
+  isValidJourneyId,
+  isValidJourneyQuestion,
+} from '@/lib/journeys'
 import { readAnsweredLoopQuestionIds } from '@/lib/zone/loopMemory'
+import { safeGetItem } from '@/lib/zone/safeProfileStorage'
 
 export type LoopQuestionOption = {
   label: string
@@ -237,4 +244,80 @@ export function pickLoopQuestionForJourney(journeyId: JourneyId | null | undefin
 
 export function loopQuestionsAnsweredCount(): number {
   return readAnsweredLoopQuestionIds().size
+}
+
+export type LoopAnswerSettingsRow = {
+  questionId: string
+  question: string
+  answer: string
+  journeyId?: JourneyId
+}
+
+function loopQuestionLabel(beat: LoopQuestionBeat): string {
+  const q = beat.question.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!q) return beat.questionId.replace(/_/g, ' ')
+  return q.charAt(0).toUpperCase() + q.slice(1)
+}
+
+function loopAnswerDisplay(beat: LoopQuestionBeat, raw: string): string {
+  const t = raw.trim()
+  const hit = beat.options.find((o) => o.value === t)
+  if (hit) return hit.label
+  return getFunkyOptionDisplay(t) || t
+}
+
+/** Answered loop beats for Settings bento grid (`zz_loop_answers_log` + journey_* loop ids). */
+export function readLoopAnswersForSettings(): LoopAnswerSettingsRow[] {
+  if (typeof window === 'undefined') return []
+  const bankById = new Map(LOOP_QUESTION_BANK.map((b) => [b.questionId, b]))
+  const rows: LoopAnswerSettingsRow[] = []
+  const seen = new Set<string>()
+
+  const push = (questionId: string, answer: string, journeyId?: JourneyId) => {
+    const qid = questionId.trim()
+    const a = answer.trim()
+    if (!qid || !a || seen.has(qid)) return
+    const beat = bankById.get(qid)
+    if (!beat) return
+    seen.add(qid)
+    rows.push({
+      questionId: qid,
+      question: loopQuestionLabel(beat),
+      answer: loopAnswerDisplay(beat, a),
+      journeyId,
+    })
+  }
+
+  try {
+    const logRaw = safeGetItem('zz_loop_answers_log')
+    const log = logRaw ? (JSON.parse(logRaw) as Record<string, string>) : {}
+    for (const [compound, answer] of Object.entries(log)) {
+      if (typeof answer !== 'string') continue
+      const sep = compound.indexOf('::')
+      if (sep < 0) continue
+      const jid = compound.slice(0, sep)
+      const qid = compound.slice(sep + 2)
+      push(qid, answer, isValidJourneyId(jid) ? jid : undefined)
+    }
+  } catch {
+    /* ignore */
+  }
+
+  for (const jid of JOURNEY_ORDER) {
+    try {
+      const raw = safeGetItem(`journey_${jid}_answers`)
+      if (!raw) continue
+      const map = JSON.parse(raw) as Record<string, string>
+      for (const [qid, answer] of Object.entries(map)) {
+        if (!isLoopQuestionId(qid) || typeof answer !== 'string') continue
+        push(qid, answer, jid)
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const order = new Map(LOOP_QUESTION_BANK.map((b, i) => [b.questionId, i]))
+  rows.sort((a, b) => (order.get(a.questionId) ?? 999) - (order.get(b.questionId) ?? 999))
+  return rows
 }

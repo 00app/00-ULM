@@ -66,6 +66,8 @@ export function readProfileFieldsFromStorage(): {
   transport_baseline?: string
   age?: string
   employment_status?: string
+  goal?: string
+  household_income_bracket?: string
 } {
   return {
     name: safeGetItem('profile_name') ?? undefined,
@@ -75,5 +77,7 @@ export function readProfileFieldsFromStorage(): {
     transport_baseline: safeGetItem('profile_transport') ?? undefined,
     age: safeGetItem('profile_age') ?? undefined,
     employment_status: safeGetItem('profile_employment_status') ?? undefined,
+    goal: safeGetItem('profile_goal') ?? undefined,
+    household_income_bracket: safeGetItem('profile_household_income_bracket') ?? undefined,
   }
 }

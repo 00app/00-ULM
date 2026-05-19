@@ -6,7 +6,6 @@
  * Hidden on `/settings`. System purple / yellow type (see `.pulse-diagnostic-panel`).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { usePulseExpandedDiagnostics } from '@/app/context/PulseExpandedDiagnosticsContext'
 import {
@@ -38,8 +37,8 @@ type DiagnosticsPayload = {
   rockHabitCount?: number
 }
 
-export default function PulseWidget() {
-  const pathname = usePathname()
+/** Triangle FAB + diagnostic panel — lives in Solo Focus utility strip under close. */
+export function PulseDiagnosticFab() {
   const cardMeta = usePulseExpandedDiagnostics()
   const [open, setOpen] = useState(false)
   const [neonOk, setNeonOk] = useState(false)
@@ -143,13 +142,12 @@ export default function PulseWidget() {
   )
 
   if (!showPulseWidget()) return null
-  if (pathname === '/settings' || pathname?.startsWith('/settings/')) return null
   if (!cardMeta) return null
 
   const yellow = 'var(--color-yellow)'
 
   return (
-    <div className="pulse-diagnostic-anchor pointer-events-none z-[240] flex flex-col items-end gap-2">
+    <motion.div className="pulse-diagnostic-anchor pulse-diagnostic-anchor--solo-focus pointer-events-none flex flex-col items-end gap-2">
       <>
         {open ? (
           <motion.div
@@ -225,10 +223,15 @@ export default function PulseWidget() {
         animate={{ opacity: 1, y: 0 }}
         transition={INDUSTRIAL_OPACITY_SNAP}
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden style={{ color: yellow }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden style={{ color: yellow }}>
           <path d="M12 3L22 20H2L12 3z" fill="currentColor" />
         </svg>
       </motion.button>
-    </div>
+    </motion.div>
   )
+}
+
+/** @deprecated Global fixed dock removed — use {@link PulseDiagnosticFab} in Solo Focus toolbar. */
+export default function PulseWidget() {
+  return null
 }

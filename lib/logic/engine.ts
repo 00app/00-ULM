@@ -35,8 +35,8 @@ export const ENGINE_PRICE_CAP_TYPICAL_GBP = TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYP
 export const ENGINE_UI_LABELS = {
   profileWasteMoney: 'Waste',
   profileWasteCarbon: 'Carbon',
-  /** @deprecated use profileWasteMoney */
-  potentialSavings: 'Waste',
+  /** Zone tip / discovery cards — per-journey savings (not profile waste totals). */
+  potentialSavings: 'Save',
   carbon: 'Carbon',
 } as const
 

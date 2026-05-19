@@ -21,6 +21,7 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { Logo } from '@/app/components/Logo'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
+import { PulseDiagnosticFab } from '@/app/components/debug/PulseWidget'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
@@ -44,6 +45,7 @@ import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/
 import {
   headlineFromTitle,
   formatZoneCategoryLabel,
+  zoneCardHeadlineFromRaw,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   MAX_ZONE_CARD_HEADLINE_WORDS,
   formatAuditSourceLinkDisplay,
@@ -76,6 +78,9 @@ import {
   openOfferUrlInNewTab,
   runTier2MotherChildSwap,
 } from '@/lib/zone/tier2RecursiveSpawner'
+import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
+import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
+import { setDeepDiveInProgress } from '@/lib/zone/visitedCards'
 import { runSoloFocusAuditCompletionClient } from '@/lib/soloFocusAuditCompleteClient'
 import {
   SOLO_FOCUS_SNAPSHOT_V,
@@ -196,6 +201,10 @@ export interface JourneyBentoCardProps {
   researchCategoryCoverage?: Record<string, ResearchCategoryCoverageRow> | null
   /** Zone: optimistic “generating” after answer until refetch shows insight. */
   insightGenerationPending?: boolean
+  /** Zone audit trail — pink tile / yellow type after external handoff. */
+  isVisited?: boolean
+  /** External link opened — show deep-dive-in-progress strip until return. */
+  deepDiveInProgress?: boolean
 }
 
 /** Bento card / Solo Focus — same northeast “open” stroke as `card-top-arrow` tiles. */
@@ -267,6 +276,8 @@ export function JourneyBentoCard({
   researchCategoryCoverage = null,
   insightGenerationPending = false,
   fromScraper = false,
+  isVisited = false,
+  deepDiveInProgress = false,
 }: JourneyBentoCardProps) {
   const { state } = useApp()
   const profilePostcode =
@@ -322,7 +333,11 @@ export function JourneyBentoCard({
     cardId,
   })
   const surfaceVars = zoneSurfaceStyleProps(surfaceKind)
-  const headline = headlineFromTitle(title || String(journeyId ?? ''), MAX_ZONE_CARD_HEADLINE_WORDS)
+  const headline = zoneCardHeadlineFromRaw(
+    title || String(journeyId ?? ''),
+    formatZoneCategoryLabel(String(journeyId ?? 'home')),
+    MAX_ZONE_CARD_HEADLINE_WORDS
+  )
 
   const [morphDeck, setMorphDeck] = useState<any[]>(
     () => (readHydrationSnap(soloFocusSnapKey, journeyId)?.morphDeck as any[]) ?? []
@@ -572,6 +587,8 @@ export function JourneyBentoCard({
 
   const requestClose = useCallback(() => {
     triggerHaptic('medium')
+    clearSoloFocusMemory()
+    setDeepDiveInProgress(null)
     onPatternShiftClose?.(journeyId)
     onClose?.()
   }, [journeyId, onPatternShiftClose, onClose, triggerHaptic])
@@ -773,13 +790,18 @@ export function JourneyBentoCard({
   const handleOpenOfferUrl = useCallback(() => {
     triggerHaptic('light')
     const url = pickPrimaryHttpUrl(resolvedOfferUrl)
-    if (!openOfferUrlInNewTab(url)) {
-      const fallback = pickPrimaryHttpUrl(
-        journeyResearchCov?.latestOfferUrl ?? journeyResearchCov?.latestSourceUrl ?? ''
-      )
+    const fallback = pickPrimaryHttpUrl(
+      journeyResearchCov?.latestOfferUrl ?? journeyResearchCov?.latestSourceUrl ?? ''
+    )
+    const target = url || fallback
+    const handoffId = cardId ?? `journey-${journeyId}`
+    if (target && openZoneExternalHandoff({ cardId: handoffId, url: target, title, journeyKey: journeyId })) {
+      return
+    }
+    if (!openOfferUrlInNewTab(target)) {
       openOfferUrlInNewTab(fallback)
     }
-  }, [resolvedOfferUrl, journeyResearchCov, triggerHaptic])
+  }, [resolvedOfferUrl, journeyResearchCov, triggerHaptic, cardId, journeyId, title])
 
   // —— EXPANDED (Solo Focus): v1.7 Active Intelligence — strict 00-00 Industrial Layout ——
   if (kineticGrid && (effectiveOpen || isExiting)) {
@@ -1064,6 +1086,7 @@ export function JourneyBentoCard({
                 >
                   <BackArrowDownLeft size={24} />
                 </motion.button>
+                <PulseDiagnosticFab />
               </div>
             </div>
             </motion.div>
@@ -1109,9 +1132,22 @@ export function JourneyBentoCard({
           triggerHaptic('medium')
           onExpand?.()
         }}
-        className={`bento-card-groovy cursor-pointer w-full h-full flex flex-col min-h-0 ${isTall ? 'span-tall-block' : ''}`.trim()}
+        className={[
+          'bento-card-groovy cursor-pointer w-full h-full flex flex-col min-h-0',
+          isTall ? 'span-tall-block' : '',
+          isVisited ? 'zone-card--visited' : '',
+          deepDiveInProgress ? 'zone-card--deep-dive-pending' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         style={{
-          ...surfaceVars,
+          ...(isVisited
+            ? {
+                '--journey-bg': 'var(--color-pink)',
+                '--journey-text': 'var(--color-yellow)',
+                '--color-ink': 'var(--color-yellow)',
+              }
+            : surfaceVars),
           height: '100%',
           ...(isTall && { minHeight: '100%' }),
         }}

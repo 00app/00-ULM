@@ -34,7 +34,7 @@ test.describe('Zone — Groovy Grid + Solo Focus', () => {
     await page.getByTestId('zone-grid-mounted').locator('[data-journey="home"]').first().click()
     await page.waitForTimeout(900)
     const primaryCta = page.getByRole('button', {
-      name: /^(RECLAIM £[\d,]+ NOW|Get|Claim|Buy)$/i,
+      name: /^(Get|Claim|Buy|Zai)$/i,
     })
     await expect(primaryCta).toBeVisible()
     await primaryCta.click()
@@ -46,7 +46,7 @@ test.describe('Zone — Groovy Grid + Solo Focus', () => {
     await page.getByTestId('zone-grid-mounted').locator('[data-journey="home"]').first().click()
     await page.waitForTimeout(900)
     const primaryCta = page.getByRole('button', {
-      name: /^(RECLAIM £[\d,]+ NOW|Get|Claim|Buy)$/i,
+      name: /^(Get|Claim|Buy|Zai)$/i,
     })
     await expect(primaryCta).toBeVisible()
     const popupPromise = context.waitForEvent('page')

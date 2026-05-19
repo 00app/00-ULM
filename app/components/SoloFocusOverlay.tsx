@@ -59,6 +59,7 @@ import {
 import { normalizeCategoryToJourneyKey, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { resolveZoneSurfaceKind, zoneSurfaceStyleProps } from '@/lib/journeyColors'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
+import { PulseDiagnosticFab } from '@/app/components/debug/PulseWidget'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
@@ -769,6 +770,7 @@ export function SoloFocusOverlay({
                 >
                   <BackArrowDownLeft size={24} />
                 </motion.button>
+                <PulseDiagnosticFab />
               </div>
             </div>
               </motion.div>

@@ -176,6 +176,23 @@ export interface IndustrialHandoffButtonProps {
   surface?: 'pink' | 'yellow'
 }
 
+/** Solo Focus 80px circle — one Marvin word on the face; full phrase stays on aria-label. */
+export function compactCircleCtaDisplay(label: string): string {
+  const words = label.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return 'GO'
+  if (words.length === 1) return words[0]!.toUpperCase()
+
+  const first = words[0]!.toUpperCase()
+  if (first === 'ASK' && words[1]?.toUpperCase() === 'ZAI') return 'ZAI'
+  if (first === 'RECLAIM') return 'BUY'
+  if (first === 'BUY' || first === 'GET' || first === 'CLAIM') return first
+
+  const verb = words.find(
+    (w) => /^[A-Za-z/]+$/.test(w) && !/^(NOW|THE|AND|OR)$/i.test(w) && !/^£?[\d,.]+$/.test(w),
+  )
+  return (verb ?? words[0]!).toUpperCase()
+}
+
 export function IndustrialHandoffButton({
   url,
   journeyId,
@@ -184,10 +201,7 @@ export function IndustrialHandoffButton({
   className = '',
   surface = 'pink',
 }: IndustrialHandoffButtonProps) {
-  const words = ctaLabel.trim().split(/\s+/).filter(Boolean)
-  const line1 = words[0] ?? ''
-  const line2 = words.length <= 2 ? (words[1] ?? '') : words.slice(1, -1).join(' ')
-  const line3 = words.length >= 3 ? words[words.length - 1] : ''
+  const displayWord = compactCircleCtaDisplay(ctaLabel)
 
   const handleClick = () => {
     try {
@@ -220,14 +234,12 @@ export function IndustrialHandoffButton({
         fontFamily: 'var(--font-roboto), sans-serif',
         fontWeight: 800,
         fontSize: 16,
-        lineHeight: 1.2,
+        lineHeight: 0.8,
         boxShadow: 'none',
       }}
     >
       <span className="circle-btn-label-stack" aria-hidden="true">
-        <span>{line1}</span>
-        <span>{line2}</span>
-        <span>{line3}</span>
+        <span>{displayWord}</span>
       </span>
     </motion.button>
   )

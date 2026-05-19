@@ -19,6 +19,14 @@ export function isAllowedResearchCategory(raw: string | null | undefined): boole
   return (JOURNEY_IDS as readonly string[]).includes(s)
 }
 
+/** Employment / postcode affluence — appended with profile context in researchAgent. */
+export const AFFLUENCE_AUDITOR_PROTOCOL = `
+Affluence auditor (when profile includes employment_status):
+- If employment_status is employed or self-employed and the household is not low-income (<31k bracket), and the postcode is not in a deprived area, DEPRIORITIZE ECO4 and HUG2 grants in prose and category choice unless scraped evidence proves eligibility.
+- For employed / affluent postcodes, pivot to Section 136PJ logic: solar ROI, EV salary sacrifice, smart/agile export tariffs — Asset Optimization tone, not Bill Survival.
+- For unemployed, retired, or <31k income bracket, lead with Warm Homes, ECO4/BUS, and council Statement-of-Intent pathways when markdown supports them.
+`.trim()
+
 /** Short block appended to research triplet prompts — not raw data, routing rules only. */
 export const GRANTS_AND_BILLS_CATEGORY_PROTOCOL = `
 Category routing (mandatory):

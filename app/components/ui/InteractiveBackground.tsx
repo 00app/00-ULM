@@ -48,7 +48,7 @@ export default function InteractiveBackground() {
 
   return (
     <>
-      {/* v1.9.6: global mesh — `.zz-background-env` is z-index −10 in globals.css */}
+      {/* v1.9.6: global mesh — `.zz-background-env` z-index 0; grain z-index 1; app shell z-index 1+ */}
       <div className="zz-background-env" aria-hidden>
         <motion.div className="zz-blob zz-blob--yellow" style={{ x: yellowX, y: yellowY }} />
         <motion.div className="zz-blob zz-blob--pink" style={{ x: pinkX, y: pinkY }} />

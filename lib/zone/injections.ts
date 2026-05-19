@@ -8,7 +8,7 @@ import { JOURNEY_IDS } from '@/lib/journeys'
 import type { ZoneTipCard } from './buildZoneViewModel'
 import { isHttpsUrl, trustedUrlForJourney } from './trustedJourneyUrls'
 import { shieldOfferUrl } from '@/lib/zone/urlShield'
-import { normalizeCardHeadlineKey } from '@/lib/soloFocusCopy'
+import { normalizeCardHeadlineKey, zoneCardHeadlineFromRaw } from '@/lib/soloFocusCopy'
 
 /** Normalize learn/cta/source to a trusted https URL (call for cards that skip validateInjectionCard). */
 export function ensureInjectionCardUrls(card: ZoneTipCard): void {
@@ -72,13 +72,18 @@ export function validateInjectionCard(raw: unknown): ZoneTipCard | null {
   const o = raw as Record<string, unknown>
   const id = typeof o.id === 'string' ? o.id.trim() : null
   if (!id) return null
-  const title = (typeof o.headline === 'string' ? o.headline.trim() : null) ?? (typeof o.title === 'string' ? o.title.trim() : null)
-  if (!title) return null
+  const rawTitle =
+    (typeof o.headline === 'string' ? o.headline.trim() : null) ??
+    (typeof o.title === 'string' ? o.title.trim() : null)
+  if (!rawTitle) return null
   const jkey = (o.journey_key as JourneyId) ?? 'home'
+  if (!JOURNEY_IDS.includes(jkey)) return null
   const category = (JOURNEY_IDS as readonly string[]).includes(String(o.category ?? o.journey_key ?? 'home'))
     ? ((o.category as JourneyId) ?? jkey)
     : jkey
-  if (!JOURNEY_IDS.includes(jkey)) return null
+  const journeyFallback = `${String(jkey).replace(/-/g, ' ').toUpperCase()} SAVING`
+  const title = zoneCardHeadlineFromRaw(rawTitle, journeyFallback)
+  if (!title) return null
   const data = o.data as Record<string, unknown> | undefined
   const moneyStr = typeof data?.money === 'string' ? data.money : typeof data?.cash === 'string' ? data.cash : null
   const carbonStr = typeof data?.carbon === 'string' ? data.carbon : null

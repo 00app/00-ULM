@@ -44,9 +44,8 @@ export type ZoneReadinessInput = {
 
 export type ZoneWelcomeCopy = {
   nameLine: string
-  savingsLine1: string
-  savingsLine2: string
-  savingsLine3: string
+  savingsLeadLine: string
+  savingsImpactLine: string
 }
 
 /** Zone welcome — savings potential from grid journey + tip cards (≥1k → K/T shorthand). */
@@ -63,14 +62,13 @@ export function buildZoneWelcomeCopy(
   const carbonCompact = compactAuditValue(carbon, 'carbon')
   const carbonLabel =
     carbonCompact.suffix === 't'
-      ? `${carbonCompact.figure} t co2`
-      : `${carbonCompact.figure} kg co2`
+      ? `${carbonCompact.figure}t co2`
+      : `${carbonCompact.figure}kg co2`
 
   return {
     nameLine: `${first}.`,
-    savingsLine1: 'we can save',
-    savingsLine2: `you ${moneyLabel}`,
-    savingsLine3: `and ${carbonLabel}/year.`,
+    savingsLeadLine: 'we can save you',
+    savingsImpactLine: `${moneyLabel} and ${carbonLabel}/year.`,
   }
 }
 

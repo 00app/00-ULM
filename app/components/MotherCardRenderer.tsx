@@ -40,7 +40,7 @@ export function MotherCardRenderer({
   impactPulse = false,
   ctaUrl,
   ctaJourneyId,
-  ctaLabel = 'CLAIM SAVING',
+  ctaLabel = 'CLAIM',
   ctaSurface = 'pink',
   isLiked = false,
   onLike,

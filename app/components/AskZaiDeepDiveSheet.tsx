@@ -219,7 +219,6 @@ export function AskZaiDeepDiveSheet({
               position: 'fixed',
               inset: 0,
               zIndex: 240,
-              background: 'color-mix(in srgb, #141268 55%, transparent)',
               border: 'none',
               cursor: 'pointer',
             }}
@@ -242,8 +241,6 @@ export function AskZaiDeepDiveSheet({
               maxHeight: 'min(80dvh, 560px)',
               borderTopLeftRadius: 40,
               borderTopRightRadius: 40,
-              background: '#FFFF00',
-              color: '#141268',
               padding: 'clamp(20px, 4vw, 32px)',
               boxSizing: 'border-box',
               display: 'flex',
@@ -257,9 +254,7 @@ export function AskZaiDeepDiveSheet({
               <h2 id="ask-zai-deep-dive-title" className="ask-zai-deep-dive-title m-0 text-marvin uppercase">
                 Deep dive
               </h2>
-              <p className="m-0" style={{ fontFamily: 'var(--font-body)', fontSize: '1rem', lineHeight: 1.35 }}>
-                {headline}
-              </p>
+              <p className="ask-zai-deep-dive-headline m-0">{headline}</p>
               <div className="flex flex-wrap gap-3" style={{ gap: 12 }}>
                 {suggestedQuestions.map((q) => (
                   <button
@@ -267,14 +262,7 @@ export function AskZaiDeepDiveSheet({
                     type="button"
                     disabled={busy}
                     onClick={() => void submit(q)}
-                    className="rounded-full border-0 cursor-pointer uppercase text-marvin"
-                    style={{
-                      background: '#141268',
-                      color: '#FFFF00',
-                      padding: '10px 16px',
-                      fontSize: 11,
-                      fontWeight: 700,
-                    }}
+                    className="ask-zai-deep-dive-pill rounded-full border-0 cursor-pointer uppercase text-marvin"
                   >
                     {q}
                   </button>
@@ -297,19 +285,13 @@ export function AskZaiDeepDiveSheet({
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="Ask about this shift…"
                   className="ask-zai-deep-dive-input"
-                  style={{ background: '#141268', color: '#FFFF00' }}
                   disabled={busy}
                 />
                 <button
                   type="submit"
                   disabled={busy || !draft.trim()}
-                  className="rounded-full border-0 h-12 uppercase text-marvin cursor-pointer"
-                  style={{
-                    background: busy ? 'color-mix(in srgb, #141268 60%, #FFFF00)' : '#141268',
-                    color: '#FFFF00',
-                    fontWeight: 700,
-                    fontSize: '1rem',
-                  }}
+                  className="ask-zai-deep-dive-submit rounded-full border-0 h-12 uppercase text-marvin cursor-pointer"
+                  aria-busy={busy}
                 >
                   {busy ? 'Auditing…' : 'Search deeper'}
                 </button>
@@ -318,13 +300,6 @@ export function AskZaiDeepDiveSheet({
                   disabled={busy}
                   onClick={continueInZai}
                   className="ask-zai-deep-dive-continue rounded-full border-0 h-12 uppercase text-marvin cursor-pointer"
-                  style={{
-                    background: 'transparent',
-                    color: '#141268',
-                    fontWeight: 700,
-                    fontSize: '1rem',
-                    boxShadow: 'inset 0 0 0 2px #141268',
-                  }}
                 >
                   Continue in Zai
                 </button>

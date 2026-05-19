@@ -21,12 +21,18 @@ import {
   hasAnyStreamData,
   journeyHasStreamData,
 } from '@/lib/zone/mechanicalTruth'
+import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
+import {
+  filterTipsForEmployment,
+  grantsJourneyTitleForProfile,
+} from '@/lib/zone/zoneEligibility'
 import {
   cleanZonePreviewHeadline,
   headlineFromTitle,
   isZonePreviewHeadlineNoise,
   MAX_ZONE_CARD_HEADLINE_WORDS,
   normalizeCardHeadlineKey,
+  zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
@@ -345,14 +351,15 @@ function teaserTitleFromOffer(input?: string | null): string | null {
   return preview.length >= 3 ? preview : null
 }
 
-function previewTitleFromNeon(neon?: NeonJourneyResearchRow | null): string | null {
-  if (neon?.agentHeadline?.trim()) {
-    const t = cleanZonePreviewHeadline(neon.agentHeadline)
-    if (t.length >= 6 && !isZonePreviewHeadlineNoise(t)) {
-      return headlineFromTitle(t, MAX_ZONE_CARD_HEADLINE_WORDS)
-    }
-  }
-  return null
+function previewTitleFromNeon(
+  neon: NeonJourneyResearchRow | null | undefined,
+  fallback: string
+): string | null {
+  if (!neon?.agentHeadline?.trim()) return null
+  const t = cleanZonePreviewHeadline(neon.agentHeadline)
+  if (t.length < 6 || isZonePreviewHeadlineNoise(t)) return null
+  const resolved = zoneCardHeadlineFromRaw(t, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
+  return resolved.length >= 6 ? resolved : null
 }
 
 function profileDrivenJourneyTitle(
@@ -575,6 +582,7 @@ export function buildZoneViewModel({
     age?: ProfileAge | string
     goal?: string
     employment_status?: string
+    household_income_bracket?: string
   }
   journeyAnswers: Record<JourneyId, Record<string, string>>
   /** S UPDATE: optional scraped data from 001 Scraper (`scraped_summary` / DB). Partial = only some journeys may have data. */
@@ -791,7 +799,15 @@ export function buildZoneViewModel({
         ? `${hasLocalGridData ? `Your local grid is running at ${Math.round(localCarbonG)}g CO₂e/kWh` : ''}${hasLocalGridData && council && grantCtx?.primary_scheme_label ? '. ' : ''}${council && grantCtx?.primary_scheme_label ? `In ${council} your live pathway is ${grantCtx.primary_scheme_label}${typeof grantCtx.primary_max_gbp === 'number' ? ` (up to £${grantCtx.primary_max_gbp.toLocaleString('en-GB')})` : ''}.` : ''}`
         : undefined
 
-    const baselineTitle = profileDrivenJourneyTitle(journeyKey, profile, journeyAnswers)
+    const baselineTitleRaw = profileDrivenJourneyTitle(journeyKey, profile, journeyAnswers)
+    const baselineTitle =
+      journeyKey === 'grants'
+        ? grantsJourneyTitleForProfile({
+            employmentStatus: profile?.employment_status,
+            postcode: profile?.postcode,
+            defaultTitle: baselineTitleRaw,
+          })
+        : baselineTitleRaw
     const insightLabel = impact.insightLabel ?? impact.insight ?? undefined
     const neon = neonJourneyResearch?.[journeyKey]
     let moneyGbp = dynamicJourneyValues[journeyKey].moneyGbp
@@ -809,18 +825,23 @@ export function buildZoneViewModel({
       teaserTitleFromOffer(impact.insight) ?? teaserTitleFromOffer(localCouncilTip)
     const offerTeaserTitle =
       offerTeaserRaw && !isZonePreviewHeadlineNoise(offerTeaserRaw) ? offerTeaserRaw : null
+    const compactFallback = buildCompactHeadline({
+      journey: journeyKey,
+      moneyGbp,
+      journeyAnswers,
+    })
+    const titleFallback = baselineTitle || compactFallback
     const title = !hasStream
       ? computingJourneyTitle(journeyKey)
-      : (previewTitleFromNeon(neon) ??
+      : (previewTitleFromNeon(neon, titleFallback) ??
         (offerTeaserTitle
-          ? headlineFromTitle(cleanZonePreviewHeadline(offerTeaserTitle), MAX_ZONE_CARD_HEADLINE_WORDS)
+          ? zoneCardHeadlineFromRaw(
+              cleanZonePreviewHeadline(offerTeaserTitle),
+              titleFallback,
+              MAX_ZONE_CARD_HEADLINE_WORDS
+            )
           : null) ??
-        (baselineTitle ||
-          buildCompactHeadline({
-            journey: journeyKey,
-            moneyGbp,
-            journeyAnswers,
-          })))
+        zoneCardHeadlineFromRaw(titleFallback, compactFallback, MAX_ZONE_CARD_HEADLINE_WORDS))
     const learnUrl =
       !isGenericHomepageUrl(claimOfferUrl) ? claimOfferUrl! :
       !isGenericHomepageUrl(source.url) ? source.url :
@@ -1052,16 +1073,29 @@ export function buildZoneViewModel({
   // Pink tips — MVP pillars (home / travel / food) from Pulse 0 Firecrawl+Neon, then carbon-ranked fill.
   const MVP_INTAKE_TIP_JOURNEYS: JourneyId[] = ['home', 'travel', 'food']
   const age = profile?.age ?? 'MID'
+  const sortGoal = normalizePrimaryGoal(profile?.goal)
   const personaBoost: Partial<Record<JourneyId, number>> =
     age === 'JUNIOR'
       ? { tech: 600, food: 600 }
       : age === 'RETIRED'
         ? { home: 600 }
         : {}
+  const journeySortScore = (journeyKey: JourneyId) => {
+    const boost = personaBoost[journeyKey] ?? 0
+    const neonSave = neonJourneyResearch?.[journeyKey]?.savingGbp
+    const moneyScore =
+      (typeof neonSave === 'number' && Number.isFinite(neonSave) && neonSave > 0
+        ? neonSave
+        : dynamicJourneyValues[journeyKey].moneyGbp) + boost
+    const carbonScore = dynamicJourneyValues[journeyKey].carbonKg + boost
+    if (sortGoal === 'money') return moneyScore
+    if (sortGoal === 'carbon') return carbonScore
+    return carbonScore * 0.55 + moneyScore * 0.45
+  }
   const rankedJourneys = JOURNEY_ORDER.map((journeyKey) => ({
     journeyKey,
     impact: journeyImpacts[journeyKey],
-    score: dynamicJourneyValues[journeyKey].carbonKg + (personaBoost[journeyKey] ?? 0),
+    score: journeySortScore(journeyKey),
   })).sort((a, b) => b.score - a.score)
   const intakeReady = MVP_INTAKE_TIP_JOURNEYS.filter((j) => {
     const neon = neonJourneyResearch?.[j]
@@ -1079,23 +1113,32 @@ export function buildZoneViewModel({
   const sortedJourneys = tipJourneyKeys.map((journeyKey) => ({
     journeyKey,
     impact: journeyImpacts[journeyKey],
-    score: dynamicJourneyValues[journeyKey].carbonKg + (personaBoost[journeyKey] ?? 0),
+    score: journeySortScore(journeyKey),
   }))
 
   let tips: ZoneTipCard[] = sortedJourneys.map(({ journeyKey }) => {
     const source = getJourneySource(journeyKey, 0)
-    
-    // Special title for home switching tip
-    let title = headlineFromTitle(
-      buildCompactHeadline({
-        journey: journeyKey,
-        moneyGbp: dynamicJourneyValues[journeyKey].moneyGbp,
-        journeyAnswers,
-      }),
-      MAX_ZONE_CARD_HEADLINE_WORDS
-    )
+    const neon = neonJourneyResearch?.[journeyKey]
+    const compactFallback = buildCompactHeadline({
+      journey: journeyKey,
+      moneyGbp: dynamicJourneyValues[journeyKey].moneyGbp,
+      journeyAnswers,
+    })
+    const profileTitle = profileDrivenJourneyTitle(journeyKey, profile, journeyAnswers)
+    const titleFallback = profileTitle || compactFallback
+    let title =
+      previewTitleFromNeon(neon, titleFallback) ??
+      zoneCardHeadlineFromRaw(titleFallback, compactFallback, MAX_ZONE_CARD_HEADLINE_WORDS)
     if (journeyKey === 'home' && needsSwitching) {
-      title = headlineFromTitle('switch to a greener tariff', MAX_ZONE_CARD_HEADLINE_WORDS)
+      title = zoneCardHeadlineFromRaw(
+        'switch to a greener tariff',
+        'switch to a greener tariff',
+        MAX_ZONE_CARD_HEADLINE_WORDS
+      )
+    }
+    let tipMoneyGbp = dynamicJourneyValues[journeyKey].moneyGbp
+    if (neon?.savingGbp != null && Number.isFinite(neon.savingGbp) && neon.savingGbp > 0) {
+      tipMoneyGbp = Math.round(neon.savingGbp)
     }
     
     // Determine action for tip
@@ -1135,7 +1178,7 @@ export function buildZoneViewModel({
       category: journeyKey,
       data: {
         carbon: formatCarbon(dynamicJourneyValues[journeyKey].carbonKg),
-        money: formatZoneCardMoney(dynamicJourneyValues[journeyKey].moneyGbp),
+        money: formatZoneCardMoney(tipMoneyGbp),
       },
       source: source.url,
       sourceLabel: tipSourceLabel,
@@ -1146,7 +1189,7 @@ export function buildZoneViewModel({
         userPostcode: tipPc,
         sourceName: tipNameV35,
         journey: journeyKey,
-        moneyGbp: dynamicJourneyValues[journeyKey].moneyGbp,
+        moneyGbp: tipMoneyGbp,
         carbonKg: dynamicJourneyValues[journeyKey].carbonKg,
         locality: tipLocality,
       }),
@@ -1176,12 +1219,22 @@ export function buildZoneViewModel({
       tips[tips.length - 1] = {
         id: 'tip-home-switching',
         variant: 'card-compact' as const,
-        title: headlineFromTitle('switch to a greener tariff', MAX_ZONE_CARD_HEADLINE_WORDS),
+        title: zoneCardHeadlineFromRaw(
+          'switch to a greener tariff',
+          'switch to a greener tariff',
+          MAX_ZONE_CARD_HEADLINE_WORDS
+        ),
         journey_key: 'home',
         category: 'home',
         data: {
           carbon: formatCarbon(dynamicJourneyValues.home.carbonKg),
-          money: formatZoneCardMoney(dynamicJourneyValues.home.moneyGbp),
+          money: formatZoneCardMoney(
+            neonJourneyResearch?.home?.savingGbp != null &&
+              Number.isFinite(neonJourneyResearch.home.savingGbp) &&
+              neonJourneyResearch.home.savingGbp > 0
+              ? Math.round(neonJourneyResearch.home.savingGbp)
+              : dynamicJourneyValues.home.moneyGbp
+          ),
         },
         source: source.url,
         sourceLabel: swLabel,
@@ -1219,7 +1272,11 @@ export function buildZoneViewModel({
     }
   }
 
-  tips = mergeDiscoveryInjectionsIntoTips(tips, injectedTips, profile?.goal)
+  tips = mergeDiscoveryInjectionsIntoTips(
+    tips,
+    filterTipsForEmployment(injectedTips ?? [], profile?.employment_status),
+    normalizePrimaryGoal(profile?.goal)
+  )
 
   // VALIDATION — 12-domain bento wall (one tile per JOURNEY_ORDER key)
   if (journeys.length !== JOURNEY_ORDER.length) {

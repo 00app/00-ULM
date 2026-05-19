@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDbPool, shutdownDbPool } from '@/lib/db'
 import { runZeroResearchWithProfile } from '@/lib/agents/researchAgent'
 import { profileGoalFromGenome } from '@/lib/agents/auditor'
+import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
 import { normalizeSecret } from '@/lib/intelligence/normalizeSecret'
 
 export const runtime = 'nodejs'
@@ -25,11 +26,14 @@ type UserResearchSeedRow = {
   age_group: string | null
   employment_status: string | null
   user_genome: unknown
+  profile_primary_goal: string | null
+  profile_income_bracket: string | null
+  profile_employment_status: string | null
 }
 
 /**
  * Hermes / Vercel Cron: Firecrawl-backed `runZeroResearchWithProfile` per `users` row (postcode + profile seeds → Neon).
- * `users` holds the same onboarding answers as the client profile (`user_genome.profile_goal`, transport, etc.).
+ * Pulls `primary_goal` / income bracket from `user_profiles` when present, else `users.user_genome`.
  *
  * `GET` or `POST` /api/cron/zone-research?limit=20 — `Authorization: Bearer <CRON_SECRET>` or `x-cron-secret: <CRON_SECRET>`.
  */
@@ -49,13 +53,17 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
 
   try {
     const res = await getDbPool().query<UserResearchSeedRow>(
-      `SELECT id, postcode, home_type, household, transport_baseline,
-              age_group, employment_status, user_genome
-       FROM users
-       WHERE postcode IS NOT NULL
-         AND TRIM(postcode) <> ''
-         AND LENGTH(TRIM(REPLACE(postcode, ' ', ''))) >= 4
-       ORDER BY created_at DESC NULLS LAST
+      `SELECT u.id, u.postcode, u.home_type, u.household, u.transport_baseline,
+              u.age_group, u.employment_status, u.user_genome,
+              up.primary_goal AS profile_primary_goal,
+              up.household_income_bracket AS profile_income_bracket,
+              up.employment_status AS profile_employment_status
+       FROM users u
+       LEFT JOIN user_profiles up ON up.user_id = u.id
+       WHERE u.postcode IS NOT NULL
+         AND TRIM(u.postcode) <> ''
+         AND LENGTH(TRIM(REPLACE(u.postcode, ' ', ''))) >= 4
+       ORDER BY u.created_at DESC NULLS LAST
        LIMIT $1`,
       [limit]
     )
@@ -70,7 +78,18 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
         row.user_genome && typeof row.user_genome === 'object' && !Array.isArray(row.user_genome)
           ? (row.user_genome as Record<string, unknown>)
           : null
-      const goal = profileGoalFromGenome(genome)
+      const goalFromGenome = profileGoalFromGenome(genome)
+      const goal = normalizePrimaryGoal(
+        row.profile_primary_goal?.trim() ||
+          (typeof genome?.primary_goal === 'string' ? genome.primary_goal : goalFromGenome)
+      )
+      const householdIncomeBracket =
+        row.profile_income_bracket?.trim() ||
+        (typeof genome?.household_income_bracket === 'string'
+          ? genome.household_income_bracket
+          : undefined)
+      const employmentStatus =
+        row.profile_employment_status?.trim() || row.employment_status?.trim() || undefined
       try {
         await runZeroResearchWithProfile({
           postcode: pc,
@@ -79,7 +98,9 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
             home_type: row.home_type,
             household: row.household,
             transport_baseline: row.transport_baseline,
-            employment_status: row.employment_status,
+            employment_status: employmentStatus,
+            household_income_bracket: householdIncomeBracket,
+            primary_goal: goal,
             goal,
             age_group: row.age_group ?? undefined,
           },
