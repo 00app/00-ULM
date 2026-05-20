@@ -32,9 +32,11 @@ import {
   isZonePreviewHeadlineNoise,
   MAX_ZONE_CARD_HEADLINE_WORDS,
   normalizeCardHeadlineKey,
+  headlineFromArchitectProse,
   zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
+import { getTipVerificationFollowUp } from '@/lib/zone/tipVerification'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import {
   VERIFIED_SOURCE_DATE,
@@ -355,11 +357,18 @@ function previewTitleFromNeon(
   neon: NeonJourneyResearchRow | null | undefined,
   fallback: string
 ): string | null {
-  if (!neon?.agentHeadline?.trim()) return null
-  const t = cleanZonePreviewHeadline(neon.agentHeadline)
-  if (t.length < 6 || isZonePreviewHeadlineNoise(t)) return null
-  const resolved = zoneCardHeadlineFromRaw(t, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
-  return resolved.length >= 6 ? resolved : null
+  const fromHeadline = (() => {
+    if (!neon?.agentHeadline?.trim()) return null
+    const t = cleanZonePreviewHeadline(neon.agentHeadline)
+    if (t.length < 6 || isZonePreviewHeadlineNoise(t)) return null
+    const resolved = zoneCardHeadlineFromRaw(t, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
+    return resolved.length >= 6 ? resolved : null
+  })()
+  if (fromHeadline) return fromHeadline
+  if (!neon?.architectProse?.trim()) return null
+  const fromProse = headlineFromArchitectProse(neon.architectProse)
+  if (!fromProse || fromProse.length < 6) return null
+  return zoneCardHeadlineFromRaw(fromProse, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
 }
 
 function profileDrivenJourneyTitle(
@@ -371,6 +380,7 @@ function profileDrivenJourneyTitle(
     age?: ProfileAge | string
     employment_status?: string
     goal?: string
+    postcode?: string
   } | undefined,
   journeyAnswers: Record<JourneyId, Record<string, string>>
 ): string {
@@ -383,13 +393,21 @@ function profileDrivenJourneyTitle(
   const employment = norm(profile?.employment_status)
   const tenure = norm(home.tenure ?? home.housing_tenure)
   const fuel = norm(travel.fuel_type)
+  const outward = outwardFromPostcode(profile?.postcode)
 
   switch (journeyKey) {
+    case 'solar':
+      return outward ? `solar ROI for your ${outward} roof` : JOURNEY_TITLES.solar
+    case 'water':
+      return outward ? `water and hot use in ${outward}` : JOURNEY_TITLES.water
     case 'home':
       if (homeType === 'FLAT') return 'lower flat energy spend'
       if (tenure === 'RENT' || tenure === 'RENTER') return 'cut bills as a renter'
       return 'reduce home energy costs'
     case 'travel':
+      if (fuel === 'ELECTRIC' || fuel === 'EV') {
+        return outward ? `EV tariffs saving in ${outward}` : 'claim agile EV tariffs'
+      }
       if (transport === 'CAR' && fuel === 'PETROL') return 'cut petrol travel costs'
       if (transport === 'CAR' && fuel === 'DIESEL') return 'cut diesel travel costs'
       if (transport === 'PUBLIC') return 'lower commute travel impact'
@@ -572,6 +590,7 @@ export function buildZoneViewModel({
   injectedTips,
   marketContext,
   neonJourneyResearch,
+  categoryIntentWeights,
 }: {
   profile?: {
     name?: string
@@ -603,6 +622,8 @@ export function buildZoneViewModel({
   marketContext?: MarketContext
   /** Neon `research_results`: per-journey `saving_amount_gbp` + `architect_prose` (Trinity when 3 paragraphs). */
   neonJourneyResearch?: Partial<Record<JourneyId, NeonJourneyResearchRow>>
+  /** HIGH_INTENT — boosts hero journey_key toward top-left hero tile. */
+  categoryIntentWeights?: Partial<Record<JourneyId, number>>
 }): ZoneViewModel {
   const scrapedWithGrant = scraped
 
@@ -694,14 +715,16 @@ export function buildZoneViewModel({
     { totalMoney: 0, totalCarbon: 0 }
   )
 
-  // HERO CARD - Sum of all journey impacts
-  // Hero journey = highest impact journey (for image resolution)
+  // HERO CARD — highest impact + HIGH_INTENT weight (link clicks / likes / chat pins)
+  const intentWeights = categoryIntentWeights ?? {}
+  const heroScoreFor = (key: JourneyId) => {
+    const impact = journeyImpacts[key]
+    const base = impact.carbonKg * 0.6 + impact.moneyGbp * 0.4
+    const intentBoost = (intentWeights[key] ?? 0) * 120
+    return base + intentBoost
+  }
   const heroJourney = JOURNEY_ORDER.reduce((max, key) => {
-    const maxImpact = journeyImpacts[max]
-    const currentImpact = journeyImpacts[key]
-    const maxScore = (maxImpact.carbonKg * 0.6) + (maxImpact.moneyGbp * 0.4)
-    const currentScore = (currentImpact.carbonKg * 0.6) + (currentImpact.moneyGbp * 0.4)
-    return currentScore > maxScore ? key : max
+    return heroScoreFor(key) > heroScoreFor(max) ? key : max
   }, JOURNEY_ORDER[0])
 
   const heroImpact = journeyImpacts[heroJourney]
@@ -1203,6 +1226,7 @@ export function buildZoneViewModel({
         sourceUrl: source.url,
       }),
       auditState: vmAuditLive(dynamicJourneyValues[journeyKey].estimatedAudit),
+      followUp: getTipVerificationFollowUp(journeyKey),
     }
   })
 

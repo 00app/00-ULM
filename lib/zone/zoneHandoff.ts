@@ -1,3 +1,4 @@
+import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
 import { recordCardVisitHandoff } from '@/lib/zone/visitedCards'
 
 export type ZoneExternalHandoff = {
@@ -11,6 +12,7 @@ export type ZoneExternalHandoff = {
 export function openZoneExternalHandoff(handoff: ZoneExternalHandoff): boolean {
   const url = handoff.url.trim()
   if (!url.startsWith('http')) return false
+  bumpCategoryIntent(handoff.journeyKey, 'link')
   void recordCardVisitHandoff({
     cardId: handoff.cardId,
     url,

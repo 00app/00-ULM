@@ -8,6 +8,7 @@ import {
   EDITORIAL_MAGAZINE_CONSTRAINT,
   GEMINI_DIRECT_ARTICLE,
   GEMINI_DIRECT_ZONE,
+  GEMINI_PRECISION_TEMPERATURE,
   generateResearchText,
 } from '@/lib/intelligence/aiGateway'
 import {
@@ -15,6 +16,12 @@ import {
   buildEmploymentAwareResearchSeeds,
   buildLocalizedResearchPrefix,
 } from '@/lib/intelligence/researchProfilePayload'
+import {
+  buildLaneLockPromptBlock,
+  buildPostcodeDnaBlock,
+  resolveSurgicalJourneyKey,
+  SURGICAL_FIRECRAWL_MAX_URLS,
+} from '@/lib/intelligence/topicShield'
 import { isDeepLinkedUkOfferUrl } from '@/lib/zone/urlShield'
 import {
   normalizeCategoryToJourneyKey,
@@ -29,7 +36,12 @@ import {
 } from '@/lib/agents/researcher'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
-import { APRIL_2026_TRUTH_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
+import {
+  APRIL_2026_TRUTH_PENCE,
+  MARCH_2026_ECONOMY,
+  PRICE_CAP_SOURCE_URL,
+  TRUTH_2026_MARCH,
+} from '@/lib/brains/constants'
 import { JOURNEY_IDS } from '@/lib/journeys'
 import {
   AFFLUENCE_AUDITOR_PROTOCOL,
@@ -378,11 +390,35 @@ export async function runZeroResearch(params: {
  * cards comes from `buildUserImpact` / scrapes, not a separate `verified_saving_kg` column on this row (see
  * `verified_saving` / impact pipeline elsewhere).
  */
-const RESEARCH_TRIPLET_MODEL =
-  process.env.GEMINI_RESEARCH_MODEL?.trim() || GEMINI_DIRECT_ARTICLE
+/** Map retired direct-API ids → current Flash (see Google “no longer available to new users”). */
+function resolveGeminiResearchModel(
+  envVal: string | undefined,
+  fallback: string,
+  label: string
+): string {
+  const v = envVal?.trim()
+  if (!v) return fallback
+  if (/gemini-1\.5|gemini-2\.0|flash-lite/i.test(v)) {
+    const canonical = fallback.includes('gemini-2.5') ? fallback : 'gemini-2.5-flash'
+    console.warn(
+      `[researchAgent] ${label}=${v} unavailable on direct API; using ${canonical}`
+    )
+    return canonical
+  }
+  return v
+}
+
+const RESEARCH_TRIPLET_MODEL = resolveGeminiResearchModel(
+  process.env.GEMINI_RESEARCH_MODEL,
+  GEMINI_DIRECT_ARTICLE,
+  'GEMINI_RESEARCH_MODEL'
+)
 /** Recovery / backfill when triplet fields are missing — user-facing “Deep Gemini Search”. */
-const RESEARCH_RECOVERY_MODEL =
-  process.env.GEMINI_RESEARCH_RECOVERY_MODEL?.trim() || GEMINI_DIRECT_ZONE
+const RESEARCH_RECOVERY_MODEL = resolveGeminiResearchModel(
+  process.env.GEMINI_RESEARCH_RECOVERY_MODEL,
+  GEMINI_DIRECT_ZONE,
+  'GEMINI_RESEARCH_RECOVERY_MODEL'
+)
 
 async function buildDynamicLocalitySeedUrls(
   postcode: string,
@@ -438,6 +474,7 @@ async function fetchCategoryFirecrawlResearch(params: {
   category: string
   profileData?: ResearchProfileData | null
   userContext?: string | null
+  surgical?: boolean
 }): Promise<{ markdown: string; citations: ResearchCitation[] }> {
   const { getFirecrawlApiKey } = await import('@/lib/agents/scraper')
   if (!getFirecrawlApiKey()?.trim()) return { markdown: '', citations: [] }
@@ -450,15 +487,20 @@ async function fetchCategoryFirecrawlResearch(params: {
     category: cat,
     userContext: params.userContext ?? null,
   })
+  const surgical = params.surgical === true
   const seeds = buildCategoryFirecrawlSeedUrls({
     postcode: pc,
     category: cat,
     profileData: params.profileData ?? null,
+    surgical,
   })
   const { fetchFirecrawlMarkdownForUrls } = await import('@/lib/agents/scraper')
+  const maxUrls = surgical
+    ? Math.min(SURGICAL_FIRECRAWL_MAX_URLS, seeds.length)
+    : Math.min(6, seeds.length)
   const scraped = await fetchFirecrawlMarkdownForUrls(seeds, {
     minChars: 120,
-    maxUrls: Math.min(6, seeds.length),
+    maxUrls,
   })
   if (!scraped.length) return { markdown: '', citations: [] }
 
@@ -498,6 +540,16 @@ export async function deepGeminiSearchUkEnergyMarkdown(params: {
       .filter(Boolean)
       .join('\n'),
   })
+  const journeyKey = resolveSurgicalJourneyKey(cat ?? '') ?? normalizeCategoryToJourneyKey(cat ?? 'home')
+  const postcodeDna = buildPostcodeDnaBlock({
+    postcode: pc,
+    localityContext: locality ?? null,
+    journeyKey,
+  })
+  const laneLock = buildLaneLockPromptBlock(journeyKey, {
+    employment_status: params.profileData?.employment_status,
+    household_income_bracket: params.profileData?.household_income_bracket,
+  })
   const categoryLine = cat
     ? params.lifestyleShift
       ? `Lifestyle shift / pattern arbitrage for **${cat}**: rail vs flight, EV swap, local vs long-haul holidays, meal shifts — not generic grant homepages. One concrete £/year trade-off and one deep-linked https application or booking URL copied from live UK sources.`
@@ -505,7 +557,12 @@ export async function deepGeminiSearchUkEnergyMarkdown(params: {
     : ''
   const prompt = `${localizedPrefix}
 
+${postcodeDna}
+
+${laneLock}
+
 You are a UK household savings researcher (April 2026). Write markdown for postcode **${pc}**${locality ? ` (${locality})` : ''}.
+CURRENT_DOMAIN: ${cat}. Do not reference other journey domains.
 ${categoryLine}
 Pull real localized deals from the profile context — no placeholder £0 rows. Include one numeric **£/year** saving and at least one **https://** deep link to a live UK offer or scheme page.
 Use UK English, editorial and direct (not dashboard/API jargon). Reference sources inline.
@@ -519,16 +576,16 @@ Return markdown only (no JSON, no code fences).`
       prompt,
       tag,
       tier: 'zone',
-      maxOutputTokens: 2048,
-      temperature: 0.35,
+      maxOutputTokens: journeyKey ? 1536 : 2048,
+      temperature: GEMINI_PRECISION_TEMPERATURE,
     })
     const text = raw.trim()
     if (text.length < 80) return null
-    const journeyKey = normalizeCategoryToJourneyKey(cat ?? 'home')
+    const trustedJourney = journeyKey ?? normalizeCategoryToJourneyKey(cat ?? 'home')
     const parsed = extractHttpsCitationsFromMarkdown(text, 'Gemini deep search')
     const deepCites = parsed.filter((c) => isDeepLinkedUkOfferUrl(c.url))
     const citationUrl = params.lifestyleShift
-      ? trustedUrlForJourney(journeyKey)
+      ? trustedUrlForJourney(trustedJourney)
       : PRICE_CAP_SOURCE_URL
     const citations =
       deepCites.length > 0
@@ -807,7 +864,7 @@ ${markdown.slice(0, 28_000)}`
       tag,
       tier: 'article',
       maxOutputTokens: 1536,
-      temperature: 0.25,
+      temperature: GEMINI_PRECISION_TEMPERATURE,
       models: options?.model?.trim()
         ? [`google/${options.model.trim().replace(/^google\//, '')}`, ...ARTICLE_GATEWAY_MODEL_CHAIN]
         : undefined,
@@ -914,15 +971,22 @@ async function resolveResearchTripletWithRecovery(params: {
  * Backfill Neon rows where `agent_headline` is null — Firecrawl + Gemini recovery.
  */
 export async function repairResearchResultsMissingHeadlines(params: {
+  rowId?: number | null
   userId?: string | null
   postcode?: string | null
   profileData?: ResearchProfileData | null
   limit?: number
+  /** Cron/Hermes: BUS + Ofgem mechanical only — skip slow Gemini per row. Pass `deep=1` on cron to enable Gemini. */
+  mechanicalOnly?: boolean
 }): Promise<number> {
   const pool = getDbPool()
   const limit = Math.min(Math.max(params.limit ?? 6, 1), 20)
   const pc = params.postcode?.replace(/\s+/g, '').trim() ?? ''
   const uid = params.userId?.trim() ?? ''
+  const rowId =
+    params.rowId != null && Number.isFinite(params.rowId) && params.rowId > 0
+      ? Math.floor(params.rowId)
+      : null
   type Row = {
     id: string
     markdown: string
@@ -930,15 +994,28 @@ export async function repairResearchResultsMissingHeadlines(params: {
     profile_snapshot: unknown
     postcode: string | null
     category: string | null
+    offer_url: string | null
+    locality_context: string | null
   }
   let rows: Row[] = []
   try {
     const incomplete = `(agent_headline IS NULL OR TRIM(agent_headline) = '')
            OR architect_prose IS NULL OR TRIM(architect_prose) = ''
            OR saving_amount_gbp IS NULL OR COALESCE(saving_amount_gbp, 0) <= 0`
-    if (uid) {
+    if (rowId != null) {
       const r = await pool.query<Row>(
-        `SELECT id::text, markdown, citations, profile_snapshot, postcode, category
+        `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
+                offer_url, locality_context
+         FROM research_results
+         WHERE id = $1
+           AND (${incomplete})`,
+        [rowId]
+      )
+      rows = r.rows
+    } else if (uid) {
+      const r = await pool.query<Row>(
+        `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
+                offer_url, locality_context
          FROM research_results
          WHERE user_id = $1::uuid
            AND (${incomplete})
@@ -949,13 +1026,25 @@ export async function repairResearchResultsMissingHeadlines(params: {
       rows = r.rows
     } else if (pc.length >= 4) {
       const r = await pool.query<Row>(
-        `SELECT id::text, markdown, citations, profile_snapshot, postcode, category
+        `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
+                offer_url, locality_context
          FROM research_results
          WHERE REPLACE(COALESCE(postcode, ''), ' ', '') = $1
            AND (${incomplete})
          ORDER BY created_at DESC NULLS LAST
          LIMIT $2`,
         [pc, limit]
+      )
+      rows = r.rows
+    } else {
+      const r = await pool.query<Row>(
+        `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
+                offer_url, locality_context
+         FROM research_results
+         WHERE (${incomplete})
+         ORDER BY created_at DESC NULLS LAST
+         LIMIT $1`,
+        [limit]
       )
       rows = r.rows
     }
@@ -966,6 +1055,40 @@ export async function repairResearchResultsMissingHeadlines(params: {
 
   let repaired = 0
   for (const row of rows) {
+    const mechanical = mechanicalCategoryTripletFallback({
+      category: row.category,
+      offerUrl: row.offer_url,
+      localityContext: row.locality_context,
+      postcode: row.postcode,
+    })
+    if (mechanical) {
+      try {
+        await pool.query(
+          `UPDATE research_results
+           SET agent_headline = $2,
+               architect_prose = $3,
+               saving_amount_gbp = COALESCE($4::numeric, saving_amount_gbp),
+               category = COALESCE($5, category)
+           WHERE id::text = $1`,
+          [
+            row.id,
+            normalizeGeminiAgentHeadline(mechanical.agent_headline) ?? mechanical.agent_headline,
+            mechanical.architect_prose,
+            mechanical.saving_amount_gbp,
+            row.offer_url?.includes('ofgem')
+              ? 'bills'
+              : normalizeResearchCategory(row.category),
+          ]
+        )
+        repaired += 1
+        continue
+      } catch (e) {
+        console.warn('[researchAgent] repair mechanical fallback failed:', e)
+      }
+    }
+
+    if (params.mechanicalOnly) continue
+
     const citations = Array.isArray(row.citations) ? (row.citations as ResearchCitation[]) : []
     const profileFromRow =
       row.profile_snapshot && typeof row.profile_snapshot === 'object' && !Array.isArray(row.profile_snapshot)
@@ -999,7 +1122,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
              offer_url = COALESCE($6, offer_url),
              markdown = $7,
              citations = $8::jsonb
-         WHERE id = $1::uuid`,
+         WHERE id::text = $1`,
         [
           row.id,
           headline,
@@ -1017,6 +1140,74 @@ export async function repairResearchResultsMissingHeadlines(params: {
     }
   }
   return repaired
+}
+
+function outwardFromPostcode(postcode?: string | null): string {
+  const pc = (postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
+  return pc.match(/^[A-Z]{1,2}\d[A-Z\d]?/)?.[0] ?? ''
+}
+
+/**
+ * When Firecrawl/Gemini leave only `offer_url` (e.g. BUS gov.uk), still persist mechanical truth
+ * so Zone does not fall back to "pattern learned" placeholders.
+ */
+function mechanicalCategoryTripletFallback(params: {
+  category: string | null
+  offerUrl: string | null
+  localityContext: string | null
+  postcode: string | null
+}): {
+  saving_amount_gbp: number
+  agent_headline: string
+  architect_prose: string
+} | null {
+  const url = (params.offerUrl ?? '').trim()
+  if (!url.startsWith('http')) return null
+  let cat = normalizeResearchCategory(params.category)
+  if (!cat) {
+    if (url.includes('boiler-upgrade')) cat = 'grants'
+    else if (url.includes('ofgem') && /price-cap|energy-advice/i.test(url)) cat = 'bills'
+    else return null
+  }
+  const town =
+    params.localityContext?.split(',')[0]?.trim() ||
+    outwardFromPostcode(params.postcode) ||
+    'your area'
+  const areaTag = town.length <= 28 ? town.toUpperCase() : town.slice(0, 28).toUpperCase()
+
+  if (cat === 'grants' && url.includes('boiler-upgrade')) {
+    const gbp = MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP
+    const agent_headline =
+      zoneCardHeadlineFromRaw(
+        `BUS heat pump grant in ${areaTag}`,
+        `HEAT PUMP GRANT IN ${areaTag}`,
+        MAX_ZONE_CARD_HEADLINE_WORDS
+      ) || `HEAT PUMP GRANT IN ${areaTag}`
+    const architect_prose =
+      normalizeArchitectProseThreeParagraphs(
+        `${town} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — the grant pays up to £${gbp.toLocaleString('en-GB')} toward an air-source or ground-source heat pump.\n\nWe stack that £${gbp.toLocaleString('en-GB')} against April dual-fuel cap maths (~£${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr typical) so you see grant cash plus lower running costs, not generic SEO.\n\nOpen the verified BUS application link below while installers still have MCS slots — confirm eligibility before you sign a quote.`
+      ) ?? ''
+    if (!architect_prose) return null
+    return { saving_amount_gbp: gbp, agent_headline, architect_prose }
+  }
+
+  if (url.includes('ofgem') && /price-cap|energy-advice/i.test(url)) {
+    const gbp = TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP
+    const agent_headline =
+      zoneCardHeadlineFromRaw(
+        `April cap signal ${town}`,
+        `APRIL CAP SIGNAL ${areaTag}`,
+        MAX_ZONE_CARD_HEADLINE_WORDS
+      ) || `APRIL CAP SIGNAL ${areaTag}`
+    const architect_prose =
+      normalizeArchitectProseThreeParagraphs(
+        `${town} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£${gbp} green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nOpen the verified Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`
+      ) ?? ''
+    if (!architect_prose) return null
+    return { saving_amount_gbp: gbp, agent_headline, architect_prose }
+  }
+
+  return null
 }
 
 function researchTripletExplicitFromParams(p: {
@@ -1147,20 +1338,39 @@ export async function persistResearchResult(params: {
       (citationFallback ? citationFallback.slice(0, 2048) : null) ??
       (mergedOffer?.startsWith('http') ? mergedOffer : null)
 
-    const savingForDb = mergedSaving ?? null
+    let savingForDb = mergedSaving ?? null
     const verifiedForDb = savingForDb
 
-    const mergedArchitectProse =
+    let mergedArchitectProse =
       normalizeArchitectProseThreeParagraphs(params.architectProse?.trim()) ??
       normalizeArchitectProseThreeParagraphs(markdownTriplet?.architect_prose?.trim()) ??
       normalizeArchitectProseThreeParagraphs(geminiTriplet?.architect_prose?.trim()) ??
       null
 
-    const mergedAgentHeadline =
+    let mergedAgentHeadline =
       normalizeGeminiAgentHeadline(params.agentHeadline ?? undefined) ??
       normalizeGeminiAgentHeadline(markdownTriplet?.agent_headline) ??
       normalizeGeminiAgentHeadline(geminiTriplet?.agent_headline) ??
       null
+
+    const tripletEmpty =
+      (savingForDb == null || savingForDb <= 0) &&
+      !mergedAgentHeadline &&
+      !mergedArchitectProse
+    if (tripletEmpty && mergedOffer) {
+      const mechanical = mechanicalCategoryTripletFallback({
+        category: mergedCategory,
+        offerUrl: mergedOffer,
+        localityContext: params.localityContext ?? null,
+        postcode: params.postcode ?? null,
+      })
+      if (mechanical) {
+        savingForDb = mechanical.saving_amount_gbp
+        mergedAgentHeadline =
+          normalizeGeminiAgentHeadline(mechanical.agent_headline) ?? mechanical.agent_headline
+        mergedArchitectProse = mechanical.architect_prose
+      }
+    }
 
     const highImpact = params.isHighImpact === true
     const carbonKg =
@@ -1200,6 +1410,19 @@ export async function persistResearchResult(params: {
         carbonKg,
       ]
     )
+
+    const stillIncomplete =
+      (savingForDb == null || savingForDb <= 0) &&
+      !mergedAgentHeadline &&
+      !mergedArchitectProse
+    if (stillIncomplete && workingMarkdown.trim().length > 80) {
+      await repairResearchResultsMissingHeadlines({
+        userId: params.userId,
+        postcode: params.postcode,
+        profileData: params.profileData ?? null,
+        limit: 1,
+      })
+    }
   } catch (e) {
     console.warn('[researchAgent] persistResearchResult failed:', e)
   }
@@ -1248,23 +1471,34 @@ export async function runTriggerResearchForCategory(params: {
 }): Promise<ZeroResearchResult> {
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
   const cat = normalizeResearchCategory(params.category) ?? 'home'
+  const journeyKey = resolveSurgicalJourneyKey(cat) ?? normalizeCategoryToJourneyKey(cat)
   const local = await getLocalData(pc).catch(() => null)
   const localityContext = local
     ? [local.locality, local.council, local.region].filter(Boolean).join(', ')
     : null
 
+  const laneLock = buildLaneLockPromptBlock(journeyKey, {
+    employment_status: params.profileData?.employment_status,
+    household_income_bracket: params.profileData?.household_income_bracket,
+  })
+  const postcodeDna = buildPostcodeDnaBlock({
+    postcode: pc,
+    localityContext,
+    journeyKey,
+  })
+
   const profilePrefix = buildLocalizedResearchPrefix({
     postcode: pc,
     profileData: params.profileData ?? null,
     category: cat,
-    userContext: params.userContext ?? null,
+    userContext: [postcodeDna, laneLock, params.userContext ?? ''].filter(Boolean).join('\n\n'),
   })
 
   let markdown = [
     profilePrefix,
     `## Location\nPostcode: ${pc}`,
     localityContext ? `## Locality\n${localityContext}` : '',
-    `Target journey category: ${cat}`,
+    `CURRENT_DOMAIN: ${cat}`,
   ]
     .filter(Boolean)
     .join('\n\n---\n\n')
@@ -1275,6 +1509,7 @@ export async function runTriggerResearchForCategory(params: {
     category: cat,
     profileData: params.profileData ?? null,
     userContext: params.userContext ?? null,
+    surgical: true,
   })
   if (firecrawl.markdown.length > 80) {
     markdown = `${markdown}\n\n---\n\n${firecrawl.markdown}`

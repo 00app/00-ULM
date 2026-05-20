@@ -1,27 +1,33 @@
 /**
- * May 2026 model split — Flash-Lite for zone + chat, Flash for 3-paragraph articles.
+ * Ulm / JIT model split — **gemini-2.5-flash** for all tiers (direct API + gateway).
  * Override via env without code changes (see `.env.example`).
  */
 
 export type GeminiModelTier = 'zone' | 'article' | 'chat'
 
+/** Forensic triplet + Zai — low temperature, minimal token waste. */
+export const GEMINI_PRECISION_TEMPERATURE = 0.2
+
+/** Direct API model id (v1beta). 1.5 / 2.0 / flash-lite are unavailable for new API keys. */
+export const FLASH_DEFAULT = 'gemini-2.5-flash'
+
 /** Direct `@google/generative-ai` model IDs (no `google/` prefix). */
 export const GEMINI_DIRECT_ZONE =
-  process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-2.5-flash-lite'
+  process.env.GEMINI_ZONE_MODEL?.trim() || FLASH_DEFAULT
 export const GEMINI_DIRECT_ARTICLE =
-  process.env.GEMINI_ARTICLE_MODEL?.trim() || 'gemini-2.5-flash'
+  process.env.GEMINI_ARTICLE_MODEL?.trim() || FLASH_DEFAULT
 export const GEMINI_DIRECT_CHAT =
-  process.env.GEMINI_CHAT_MODEL?.trim() || 'gemini-2.5-flash-lite'
+  process.env.GEMINI_CHAT_MODEL?.trim() || FLASH_DEFAULT
 
 /** Vercel AI Gateway slugs (`google/…`). */
 export const GEMINI_GATEWAY_ZONE =
-  process.env.AI_GATEWAY_MODEL_ZONE?.trim() || 'google/gemini-2.5-flash-lite'
+  process.env.AI_GATEWAY_MODEL_ZONE?.trim() || `google/${FLASH_DEFAULT}`
 export const GEMINI_GATEWAY_ARTICLE =
-  process.env.AI_GATEWAY_MODEL_ARTICLE?.trim() || 'google/gemini-2.5-flash'
+  process.env.AI_GATEWAY_MODEL_ARTICLE?.trim() || `google/${FLASH_DEFAULT}`
 export const GEMINI_GATEWAY_CHAT =
-  process.env.AI_GATEWAY_MODEL_CHAT?.trim() || 'google/gemini-2.5-flash-lite'
+  process.env.AI_GATEWAY_MODEL_CHAT?.trim() || `google/${FLASH_DEFAULT}`
 
-/** iChat / Zai — lite only (no Pro; avoids 429 credit caps). */
+/** iChat / Zai — Flash only (no Pro; avoids 429 credit caps). */
 export const CHAT_GATEWAY_MODEL_CHAIN = [
   GEMINI_GATEWAY_CHAT,
   GEMINI_GATEWAY_ZONE,
@@ -42,7 +48,16 @@ export const ARTICLE_GATEWAY_MODEL_CHAIN = [
 /** @deprecated Use {@link ZONE_GATEWAY_MODEL_CHAIN} — kept for imports; no Pro/Claude. */
 export const RESEARCH_GATEWAY_MODEL_CHAIN = ZONE_GATEWAY_MODEL_CHAIN
 
-export const EDITORIAL_MAGAZINE_CONSTRAINT = `CRITICAL: Write as a forensic auditor for Monocle — UK English, human benefit first. No bullet points. Never open with "Here is your advice", "As an AI", or repeat the postcode twice in one sentence (e.g. avoid "in BN17 area, in the BN17 area"). No dashboard field names, API jargon, or lines like "your zone pattern is learned". Exactly three paragraphs in architect_prose when requested: (1) localized why for the user's town, (2) the £ and kg logic, (3) one concrete next step.`
+/** Lead Auditor — Monocle editorial DNA for Zai + research synthesis. */
+export const ULM_LEAD_AUDITOR_SYSTEM = `You are the Lead Auditor. Voice: Monocle Editorial. Tone: lowercase, forensic.
+Logic: 12k/1t.
+Constraints: Exactly 3 paragraphs. Heading max 7 words.
+Boundaries: If the user drifts, respond "signal noise. back to the audit."
+Learning: Every clicked link is a Suggestion saved to the DB.`
+
+export const EDITORIAL_MAGAZINE_CONSTRAINT = `${ULM_LEAD_AUDITOR_SYSTEM}
+
+CRITICAL: Write as a forensic auditor for Monocle — UK English, human benefit first. No bullet points. Never open with "Here is your advice", "As an AI", or repeat the postcode twice in one sentence (e.g. avoid "in BN17 area, in the BN17 area"). No dashboard field names, API jargon, or lines like "your zone pattern is learned". Exactly three paragraphs in architect_prose when requested: (1) localized why for the user's town, (2) the £ and kg logic, (3) one concrete next step.`
 
 export function resolveGeminiTier(tag?: string | null): GeminiModelTier {
   const t = (tag ?? '').toLowerCase()

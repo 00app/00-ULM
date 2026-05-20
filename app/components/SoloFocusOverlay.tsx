@@ -5,7 +5,7 @@
  * Tips use this overlay; journey cards use JourneyBentoCard.
  * v1.8.3: portaled to `document.body`; QUESTION ↔ RESULT (140ms), source footer, insight/RESULT asterisk lock.
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { type JourneyId, getOptionFullLabel } from '@/lib/journeys'
@@ -18,8 +18,10 @@ import {
   SHIMMER_FOCUS,
   soloFocusSlamMotionProps,
   SOLO_FOCUS_ZIP_SHUT_SEC,
+  STACCATO_DROP_PX,
   STACCATO_DURATION_SEC,
   STACCATO_EASE,
+  STACCATO_TWEEN,
 } from '@/lib/animations'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import {
@@ -65,9 +67,8 @@ import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
-import { runSoloFocusAuditCompletionClient } from '@/lib/soloFocusAuditCompleteClient'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
-import { getNextQuestion } from '@/lib/zone/questionHandler'
+import { getSoloFocusNextQuestion } from '@/lib/zone/questionHandler'
 import {
   VERIFIED_SOURCE_DATE,
   formatVerifiedCitation,
@@ -76,11 +77,15 @@ import {
   resolveRevenueCtaLabel,
 } from '@/lib/zone/verifiedRevenue'
 import {
-  triggerScrapeSyncForCategory,
   journeyResearchSettled,
   type ResearchCategoryCoverageRow,
 } from '@/lib/researchSyncClient'
 import { resolveBirthedCardId, scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
+import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
+import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
+import { getTipVerificationFollowUp } from '@/lib/zone/tipVerification'
+import { runTipVerificationDeepScrape } from '@/lib/zone/tipVerificationDeepScrape'
+import { isCardVisited, markCardVisited, recordCardVisitHandoff } from '@/lib/zone/visitedCards'
 
 export interface SoloFocusOverlayProps {
   category: string
@@ -125,6 +130,16 @@ export interface SoloFocusOverlayProps {
   verifiedArchitectProse?: string | null
   /** Zone: per-journey `research_results` coverage from GET /api/scrape-sync. */
   researchCategoryCoverage?: Record<string, ResearchCategoryCoverageRow> | null
+  /** True Tip / discovery card — show +1 verification question before handoff. */
+  tipVerificationMode?: boolean
+  /** Pink lock — deep scrape already earned; block re-spend. */
+  isCardVisited?: boolean
+  /** After verification scrape-sync + repair. */
+  onTipVerificationComplete?: (detail: {
+    moneyGbp: number
+    carbonKg: number
+    coverage: Record<string, ResearchCategoryCoverageRow> | null
+  }) => void
 }
 
 function triggerHaptic(p: 'light' | 'medium' | 'heavy') {
@@ -172,13 +187,31 @@ export function SoloFocusOverlay({
   verifiedAuditCategory = null,
   verifiedArchitectProse = null,
   researchCategoryCoverage = null,
+  tipVerificationMode = false,
+  isCardVisited: isCardVisitedProp = false,
+  onTipVerificationComplete,
 }: SoloFocusOverlayProps) {
+  const cardVisitedLock =
+    isCardVisitedProp || (cardId?.trim() ? isCardVisited(cardId) : false)
   const { setHeroTotals, state, toggleLike } = useApp()
   const profilePostcode = state.profile?.postcode ?? null
   const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(title ?? ''))
   const useEstimated =
     auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
-  const [trapComplete, setTrapComplete] = useState(() => !discoveryFollowUp)
+  const activeFollowUp = useMemo(
+    () =>
+      tipVerificationMode && journeyId && !cardVisitedLock
+        ? getTipVerificationFollowUp(journeyId, discoveryFollowUp ?? undefined)
+        : cardVisitedLock
+          ? undefined
+          : discoveryFollowUp,
+    [tipVerificationMode, journeyId, discoveryFollowUp, cardVisitedLock]
+  )
+  const [trapComplete, setTrapComplete] = useState(
+    () => cardVisitedLock || !activeFollowUp
+  )
+  const [verificationPending, setVerificationPending] = useState(false)
+  const [tipVerified, setTipVerified] = useState(false)
   const sfStorageKey = `zz_sf_view_${cardId ?? 'solo-overlay'}`
   const [viewState, setViewState] = useState<OverlayViewState>(() => {
     if (typeof window === 'undefined') return 'QUESTION'
@@ -539,8 +572,9 @@ export function SoloFocusOverlay({
   }, [])
 
   useEffect(() => {
-    setTrapComplete(!discoveryFollowUp)
-  }, [discoveryFollowUp])
+    setTrapComplete(!activeFollowUp)
+    if (!activeFollowUp) setTipVerified(false)
+  }, [activeFollowUp])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -549,7 +583,7 @@ export function SoloFocusOverlay({
     try {
       const raw = localStorage.getItem(`journey_${journeyId}_answers`) || '{}'
       const parsed = JSON.parse(raw) as Record<string, string>
-      const hasPendingQuestion = getNextQuestion(journeyId, parsed) != null
+      const hasPendingQuestion = getSoloFocusNextQuestion(journeyId, parsed) != null
       if (hasPendingQuestion) {
         persistViewState('QUESTION')
       }
@@ -607,9 +641,74 @@ export function SoloFocusOverlay({
     triggerHaptic('medium')
     const id = String(activeCardId || cardId || '')
     if (!id) return
+    bumpCategoryIntent(loopJourneyKey, 'like')
     const likeFn = onLike ?? toggleLike
     likeFn(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
-  }, [activeCardId, cardId, onLike, toggleLike, displayTitle, displayMoneyValue])
+  }, [activeCardId, cardId, onLike, toggleLike, displayTitle, displayMoneyValue, loopJourneyKey])
+
+  const handleVerificationAnswer = useCallback(
+    async (answerRaw: string) => {
+      if (cardVisitedLock || !activeFollowUp || verificationPending || !journeyId) return
+      const answer = answerRaw.trim()
+      if (!answer) return
+      const pc = (profilePostcode ?? state.profile?.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
+      if (pc.length < 4) return
+      triggerHaptic('medium')
+      setVerificationPending(true)
+      setLoopZipCollapsing(true)
+      try {
+        const result = await runTipVerificationDeepScrape({
+          postcode: pc,
+          journeyKey: loopJourneyKey,
+          questionId: activeFollowUp.targetField,
+          answer,
+        })
+        const morphMoney = result.morphCard?.data?.money
+        const sav =
+          result.meta?.savingAmountGbp ??
+          result.meta?.verifiedSaving ??
+          (morphMoney ? parseMoneyGbpFromImpactDisplay(String(morphMoney)) : null)
+        if (sav != null && sav > 0) {
+          setHeroTotalsOverride({ money: Math.round(sav), carbon: carbonTargetKg })
+          setTipVerified(true)
+        }
+        if (result.coverage) {
+          onTipVerificationComplete?.({
+            moneyGbp: sav ?? motherMoneyTargetGbp,
+            carbonKg: carbonTargetKg,
+            coverage: result.coverage,
+          })
+        }
+        setDiscoverySnap({ questionId: activeFollowUp.targetField, answerValue: answer })
+        setTrapComplete(true)
+        const visitId = String(cardId ?? '').trim()
+        if (visitId) {
+          markCardVisited(visitId)
+          void recordCardVisitHandoff({
+            cardId: visitId,
+            journeyKey: loopJourneyKey,
+            title: displayTitle,
+          })
+        }
+        onDiscoveryTrapComplete?.()
+      } finally {
+        setVerificationPending(false)
+        setLoopZipCollapsing(false)
+      }
+    },
+    [
+      activeFollowUp,
+      verificationPending,
+      journeyId,
+      profilePostcode,
+      state.profile?.postcode,
+      loopJourneyKey,
+      carbonTargetKg,
+      motherMoneyTargetGbp,
+      onTipVerificationComplete,
+      onDiscoveryTrapComplete,
+    ]
+  )
 
   const handleTrinityAskZai = useCallback(() => {
     triggerHaptic('medium')
@@ -739,7 +838,7 @@ export function SoloFocusOverlay({
                   narrative={null}
                   sourceFooter={sourceFooter}
                   verifiedSourceCitation={verifiedOverlayCitation}
-                  verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
+                  verifiedDataBadge={Boolean(dbVerifiedFromResearchTable) || tipVerified}
                   moneyGbp={animatedMoneyGbp}
                   carbonKg={animatedCarbonKg}
                   impactPulse={impactAnswerPulse}
@@ -774,6 +873,52 @@ export function SoloFocusOverlay({
               </div>
             </div>
               </motion.div>
+
+              {activeFollowUp && !trapComplete ? (
+                <motion.div
+                  className="solo-focus-shell solo-focus-child solo-focus-content-stack w-full min-w-0 rounded-[60px] p-[40px] relative mt-4"
+                  initial={reducePagerMotion ? false : { opacity: 0, y: STACCATO_DROP_PX }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={reducePagerMotion ? { duration: 0.12 } : STACCATO_TWEEN}
+                >
+                  <div className="solo-focus-loop question-container w-full min-w-0 flex flex-col items-center">
+                    <h3
+                      className="question-text solo-focus-question-label text-marvin text-center m-0"
+                      style={{ color: 'var(--journey-text)', maxWidth: 'min(92vw, 28rem)' }}
+                    >
+                      {activeFollowUp.question}
+                    </h3>
+                    <div
+                      className="flex flex-wrap justify-center w-full"
+                      style={{ gap: 16, maxWidth: 400, marginTop: 24 }}
+                    >
+                      {activeFollowUp.options.map((opt, optionIndex) => (
+                        <ProfileAnswerBtn
+                          key={opt}
+                          reduceMotion={reducePagerMotion}
+                          optionIndex={optionIndex}
+                          className=""
+                          disabled={verificationPending || cardVisitedLock}
+                          onClick={() => void handleVerificationAnswer(opt)}
+                          aria-label={opt.replace(/_/g, ' ')}
+                        >
+                          <span className="profile-answer-btn__text zz-h4">
+                            {opt.replace(/_/g, '\n')}
+                          </span>
+                        </ProfileAnswerBtn>
+                      ))}
+                    </div>
+                    {verificationPending ? (
+                      <p
+                        className="zz-label m-0 mt-6 opacity-80 text-center"
+                        style={{ color: 'var(--journey-text)' }}
+                      >
+                        Verifying your audit…
+                      </p>
+                    ) : null}
+                  </div>
+                </motion.div>
+              ) : null}
           </>
           )}
 

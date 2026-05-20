@@ -2568,7 +2568,11 @@ export default function ZonePage() {
                 discoveryFollowUp={getTipVerificationFollowUp(tip.journey_key, tip.followUp)}
                 tipVerificationMode={isTrueTipCardId(tip.id)}
                 isCardVisited={isZoneCardVisited(tip.id, tip.journey_key)}
-                onTipVerificationComplete={(detail) => {
+                onTipVerificationComplete={(detail: {
+                  moneyGbp: number
+                  carbonKg: number
+                  coverage: Record<string, ResearchCategoryCoverageRow> | null
+                }) => {
                   if (detail.coverage) {
                     setResearchCategoryCoverage(foldCoverageRowsForZone(detail.coverage))
                   }

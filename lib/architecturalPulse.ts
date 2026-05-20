@@ -45,7 +45,8 @@ export type ZoneReadinessInput = {
 export type ZoneWelcomeCopy = {
   nameLine: string
   savingsLeadLine: string
-  savingsImpactLine: string
+  savingsMoneyLine: string
+  savingsCarbonLine: string
 }
 
 /** Zone welcome — savings potential from grid journey + tip cards (≥1k → K/T shorthand). */
@@ -55,7 +56,8 @@ export function buildZoneWelcomeCopy(
   gridSavingsMoneyGbp: number,
   gridSavingsCarbonKg: number
 ): ZoneWelcomeCopy {
-  const first = ((name ?? '').trim().split(/\s+/)[0] || 'guest').toLowerCase()
+  const raw = ((name ?? '').trim().split(/\s+/)[0] || 'guest').toLowerCase()
+  const first = raw ? `${raw.charAt(0).toUpperCase()}${raw.slice(1)}` : 'Guest'
   const money = Math.max(0, Math.round(gridSavingsMoneyGbp))
   const carbon = Math.max(0, Math.round(gridSavingsCarbonKg))
   const moneyLabel = `£${formatMoneyValue(money)}`
@@ -67,8 +69,9 @@ export function buildZoneWelcomeCopy(
 
   return {
     nameLine: `${first}.`,
-    savingsLeadLine: 'we can save you',
-    savingsImpactLine: `${moneyLabel} and ${carbonLabel}/year.`,
+    savingsLeadLine: 'we could save',
+    savingsMoneyLine: `you ${moneyLabel} and`,
+    savingsCarbonLine: `${carbonLabel}/year.`,
   }
 }
 

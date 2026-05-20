@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDbPool, shutdownDbPool } from '@/lib/db'
-import { runZeroResearchWithProfile } from '@/lib/agents/researchAgent'
+import { repairResearchResultsMissingHeadlines, runZeroResearchWithProfile } from '@/lib/agents/researchAgent'
 import { profileGoalFromGenome } from '@/lib/agents/auditor'
 import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
 import { normalizeSecret } from '@/lib/intelligence/normalizeSecret'
@@ -35,15 +35,23 @@ type UserResearchSeedRow = {
  * Hermes / Vercel Cron: Firecrawl-backed `runZeroResearchWithProfile` per `users` row (postcode + profile seeds → Neon).
  * Pulls `primary_goal` / income bracket from `user_profiles` when present, else `users.user_genome`.
  *
- * `GET` or `POST` /api/cron/zone-research?limit=20 — `Authorization: Bearer <CRON_SECRET>` or `x-cron-secret: <CRON_SECRET>`.
+ * `GET` or `POST` /api/cron/zone-research?limit=3 — weekly Hermes pulse (full scrape, keep limit ≤5).
+ * `?repair=1&limit=6` — mechanical BUS/Ofgem backfill (fast). `&deep=1` adds Gemini per row.
+ * `Authorization: Bearer <CRON_SECRET>` or `x-cron-secret: <CRON_SECRET>`.
  */
 async function runZoneResearchCron(request: NextRequest): Promise<Response> {
   if (!authorizeCron(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const raw = request.nextUrl.searchParams.get('limit') ?? '20'
-  const limit = Math.min(50, Math.max(1, parseInt(raw, 10) || 20))
+  const repairOnly = ['1', 'true', 'yes'].includes(
+    String(request.nextUrl.searchParams.get('repair') ?? '').toLowerCase()
+  )
+  const deepRepair = ['1', 'true', 'yes'].includes(
+    String(request.nextUrl.searchParams.get('deep') ?? '').toLowerCase()
+  )
+  const raw = request.nextUrl.searchParams.get('limit') ?? (repairOnly ? '6' : '3')
+  const limit = Math.min(50, Math.max(1, parseInt(raw, 10) || (repairOnly ? 6 : 3)))
   const lifestyleShift =
     request.nextUrl.searchParams.get('lifestyle_shift') === '1' ||
     request.nextUrl.searchParams.get('lifestyle_mode') === 'lifestyle_shift'
@@ -52,6 +60,22 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
     : undefined
 
   try {
+    if (repairOnly) {
+      const repaired = await repairResearchResultsMissingHeadlines({
+        limit,
+        mechanicalOnly: !deepRepair,
+      })
+      return NextResponse.json({
+        ok: true,
+        mode: deepRepair ? 'repair_deep' : 'repair_mechanical',
+        repaired,
+        limit,
+        note: deepRepair
+          ? 'repair+deep: Gemini per row (slow). Default repair is mechanical-only (BUS + Ofgem).'
+          : 'repair: mechanical BUS/Ofgem triplets only — fast Hermes pulse. JIT scrapes handle the rest.',
+      })
+    }
+
     const res = await getDbPool().query<UserResearchSeedRow>(
       `SELECT u.id, u.postcode, u.home_type, u.household, u.transport_baseline,
               u.age_group, u.employment_status, u.user_genome,

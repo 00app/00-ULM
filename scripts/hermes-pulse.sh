@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Hermes → Vercel bridge: daily zone-research cron (Oracle VPS or local smoke test).
+# Hermes → Vercel bridge: weekly zone-research pulse (Oracle VPS or Mac smoke test).
+# Ulm JIT: day-to-day scrapes are earned in-app (Tip +1); Hermes only does a small weekly batch or repair backfill.
 #
 # Usage:
-#   bash scripts/hermes-pulse.sh                    # production URL, limit=20
+#   bash scripts/hermes-pulse.sh --weekly             # limit=3 (Monday cron default)
+#   bash scripts/hermes-pulse.sh --repair-only      # ?repair=1&limit=12 — no full Firecrawl loop
 #   bash scripts/hermes-pulse.sh --smoke            # limit=1 (~2–5 min; proves full pipeline)
 #   bash scripts/hermes-pulse.sh --auth-only        # fast: liveness + diagnostics only (~2s)
 #   bash scripts/hermes-pulse.sh --mode=lifestyle_shift --postcode BN17 --category travel \
@@ -40,7 +42,9 @@ SECRET_FILE=""
 SMOKE=0
 AUTH_ONLY=0
 HOST="${NEXT_PUBLIC_APP_URL:-https://00-ulm.vercel.app}"
-LIMIT=20
+LIMIT=3
+REPAIR_ONLY=0
+WEEKLY=0
 MODE=""
 POSTCODE=""
 CATEGORY="home"
@@ -106,6 +110,16 @@ while [[ $# -gt 0 ]]; do
       AUTH_ONLY=1
       shift
       ;;
+    --repair-only)
+      REPAIR_ONLY=1
+      LIMIT=6
+      shift
+      ;;
+    --weekly)
+      WEEKLY=1
+      LIMIT=3
+      shift
+      ;;
     --limit)
       LIMIT="${2:-20}"
       shift 2
@@ -116,7 +130,8 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown arg: $1" >&2
-      echo "Usage: bash scripts/hermes-pulse.sh [--smoke|--auth-only|--mode=lifestyle_shift] ..." >&2
+      echo "Usage: bash scripts/hermes-pulse.sh [--weekly|--repair-only|--smoke|--auth-only] [--env-file PATH] [--secret-file PATH]" >&2
+      echo "  npm: run scripts without inline comments (npm passes # to bash)." >&2
       exit 1
       ;;
   esac
@@ -212,13 +227,25 @@ if [[ "$AUTH_ONLY" -eq 1 ]]; then
   exit 0
 fi
 
-echo ""
-echo "  → GET /api/cron/zone-research?limit=${LIMIT}"
-echo "  (Firecrawl + Gemini per user — may take several minutes; do not interrupt)"
+CRON_PATH="/api/cron/zone-research"
+CRON_QUERY="limit=${LIMIT}"
+CRON_MAX_TIME=600
+if [[ "$REPAIR_ONLY" -eq 1 ]]; then
+  CRON_PATH="/api/cron/repair-mechanical"
+  CRON_QUERY="limit=${LIMIT}"
+  CRON_MAX_TIME=90
+  echo ""
+  echo "  → GET ${CRON_PATH}?${CRON_QUERY} (max ${CRON_MAX_TIME}s)"
+  echo "  (mechanical only — BUS + Ofgem; no Gemini. Requires deploy of repair-mechanical route.)"
+else
+  echo ""
+  echo "  → GET ${CRON_PATH}?${CRON_QUERY}"
+  echo "  (Ulm weekly: max ${LIMIT} full user scrapes — JIT handles the rest in-app)"
+fi
 CRON_TMP="$(mktemp)"
-CRON_CODE="$(curl -sS --max-time 600 -o "$CRON_TMP" -w '%{http_code}' \
+CRON_CODE="$(curl -sS --max-time "${CRON_MAX_TIME}" -o "$CRON_TMP" -w '%{http_code}' \
   -H "Authorization: Bearer ${TOKEN}" \
-  "${HOST}/api/cron/zone-research?limit=${LIMIT}" || printf '000')"
+  "${HOST}${CRON_PATH}?${CRON_QUERY}" || printf '000')"
 echo "  HTTP ${CRON_CODE}"
 if [[ -s "$CRON_TMP" ]]; then
   if command -v jq >/dev/null 2>&1; then
@@ -231,8 +258,19 @@ echo ""
 rm -f "$CRON_TMP"
 
 if [[ "$CRON_CODE" != "200" ]]; then
+  if [[ "$REPAIR_ONLY" -eq 1 && "$CRON_CODE" == "404" ]]; then
+    echo "  ✗ repair-mechanical not on production yet — deploy 00-ulm, then retry." >&2
+    echo "  Local backfill now: npm run db:repair-mechanical" >&2
+  elif [[ "$REPAIR_ONLY" -eq 1 && "$CRON_CODE" == "504" ]]; then
+    echo "  ✗ Timed out — production still on old zone-research?repair=1 (Gemini). Deploy repair-mechanical route." >&2
+    echo "  Local backfill now: npm run db:repair-mechanical" >&2
+  fi
   echo "✗ Cron failed (HTTP ${CRON_CODE})." >&2
   exit 1
 fi
 
-echo "✓ Hermes pulse complete (zone-research limit=${LIMIT})."
+if [[ "$REPAIR_ONLY" -eq 1 ]]; then
+  echo "✓ Hermes repair pulse complete (repair-mechanical limit=${LIMIT})."
+else
+  echo "✓ Hermes pulse complete (zone-research limit=${LIMIT}${WEEKLY:+, weekly mode})."
+fi

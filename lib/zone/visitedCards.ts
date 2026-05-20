@@ -1,5 +1,7 @@
 /** Zone bento — visited / deep-dive handoff memory (client). */
 
+import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
+
 export const VISITED_CARDS_KEY = 'visited_cards'
 export const DEEP_DIVE_IN_PROGRESS_KEY = 'zz_deep_dive_in_progress'
 
@@ -65,6 +67,9 @@ export async function recordCardVisitHandoff(args: {
 }): Promise<void> {
   markCardVisited(args.cardId)
   setDeepDiveInProgress(args.cardId)
+  if (args.journeyKey?.trim()) {
+    bumpCategoryIntent(args.journeyKey, 'visited')
+  }
   if (typeof window === 'undefined') return
   try {
     await fetch('/api/likes/track', {
