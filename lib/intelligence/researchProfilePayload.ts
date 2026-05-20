@@ -24,6 +24,21 @@ const GENERIC_UK_RESEARCH_SEEDS = [
   'https://www.gov.uk/apply-boiler-upgrade-scheme',
   'https://energysavingtrust.org.uk/',
 ]
+
+const GRANT_HEAVY_URL_MARKERS = [
+  'apply-boiler-upgrade',
+  'energy-company-obligation',
+  'apply-warm-home',
+  'apply-warm-homes',
+  'find-energy-grants',
+  'grants-and-loans',
+  'warm-home-discount',
+] as const
+
+function isGrantHeavyUrl(url: string): boolean {
+  const u = url.trim().toLowerCase()
+  return GRANT_HEAVY_URL_MARKERS.some((m) => u.includes(m))
+}
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_IDS } from '@/lib/journeys'
 import { trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
@@ -90,7 +105,10 @@ export function buildLocalizedResearchPrefix(params: {
   if (p?.tenure) lines.push(`tenure: ${p.tenure}`)
   if (p?.household_size) lines.push(`household_size: ${p.household_size}`)
   if (p?.goal) lines.push(`goal: ${p.goal}`)
-  if (params.category) lines.push(`target_journey: ${params.category}`)
+  if (params.category) {
+    lines.push(`current_domain: ${params.category}`)
+    lines.push(`target_journey: ${params.category}`)
+  }
   if (params.loopQuestionId && params.loopAnswer) {
     lines.push(`loop_question_id: ${params.loopQuestionId}`)
     lines.push(`loop_answer: ${params.loopAnswer}`)
@@ -104,7 +122,7 @@ export function buildLocalizedResearchPrefix(params: {
   return lines.join('\n')
 }
 
-/** Employed / affluent → solar + smart tariff seeds; low income / unemployed → grant SOI seeds. */
+/** Employed / affluent → SEG, agile tariffs, salary sacrifice; low income → ECO4, social tariffs, council grants. */
 export function buildEmploymentAwareResearchSeeds(profile?: LocalizedProfileInput | null): string[] {
   const employed = isActiveEmployed(profile?.employment_status)
   const lowIncome = isLowIncomeBracket(profile?.household_income_bracket)
@@ -114,13 +132,19 @@ export function buildEmploymentAwareResearchSeeds(profile?: LocalizedProfileInpu
       'https://energysavingtrust.org.uk/energy-at-home/generating-your-own-energy/getting-paid-exporting/',
       'https://octopus.energy/smart/',
       'https://octopus.energy/smart/export/',
+      'https://octopus.energy/agile/',
+      'https://www.gov.uk/guidance/cycle-to-work-scheme',
+      'https://www.moneysavingexpert.com/utilities/',
+      'https://www.which.co.uk/money/saving-energy',
     ]
   }
   if (!employed || lowIncome) {
     return [
       'https://www.gov.uk/apply-warm-homes-local-grant',
       'https://www.gov.uk/energy-company-obligation',
+      'https://www.gov.uk/apply-warm-home-discount-scheme',
       'https://energysavingtrust.org.uk/advice/grants-and-loans/',
+      'https://www.gov.uk/find-energy-grants-help-pay-bills',
     ]
   }
   return []
@@ -130,23 +154,35 @@ export function buildCategoryFirecrawlSeedUrls(params: {
   postcode: string
   category: string
   profileData?: LocalizedProfileInput | null
+  /** JIT surgical pass — fewer URLs, skip cross-domain grant seeds when employed. */
+  surgical?: boolean
 }): string[] {
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
   const journeyKey = normalizeCategoryToJourneyKey(params.category)
+  const employed = isActiveEmployed(params.profileData?.employment_status)
+  const lowIncome = isLowIncomeBracket(params.profileData?.household_income_bracket)
+  const skipGrantSeeds = employed && !lowIncome && journeyKey !== 'grants'
   const seen = new Set<string>()
   const out: string[] = []
   const add = (url: string) => {
     const u = url.trim()
     if (!u.startsWith('https://') || seen.has(u)) return
+    if (skipGrantSeeds && isGrantHeavyUrl(u)) return
     seen.add(u)
     out.push(u)
   }
 
   for (const u of JOURNEY_FIRECRAWL_SEEDS[journeyKey] ?? []) add(u)
-  for (const u of buildEmploymentAwareResearchSeeds(params.profileData ?? null)) add(u)
+  for (const u of buildEmploymentAwareResearchSeeds(params.profileData ?? null)) {
+    if (!skipGrantSeeds || !isGrantHeavyUrl(u)) add(u)
+  }
   add(trustedUrlForJourney(journeyKey))
-  for (const u of GENERIC_UK_RESEARCH_SEEDS) add(u)
-  if (pc.length >= 4) {
+  if (!params.surgical) {
+    for (const u of GENERIC_UK_RESEARCH_SEEDS) add(u)
+  } else if (journeyKey === 'money' || journeyKey === 'carbon' || journeyKey === 'home') {
+    add('https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap')
+  }
+  if (pc.length >= 4 && !params.surgical) {
     add(`https://www.gov.uk/find-local-council/${encodeURIComponent(pc)}`)
   }
 
@@ -154,11 +190,12 @@ export function buildCategoryFirecrawlSeedUrls(params: {
   if (journeyKey === 'travel' || transport.includes('train') || transport.includes('rail')) {
     add('https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/')
   }
-  if (journeyKey === 'home' || journeyKey === 'grants') {
+  if (!skipGrantSeeds && (journeyKey === 'home' || journeyKey === 'grants')) {
     add('https://www.gov.uk/apply-boiler-upgrade-scheme')
   }
 
-  return out.slice(0, 8)
+  const cap = params.surgical ? 4 : 8
+  return out.slice(0, cap)
 }
 
 export function isAllowedJourneyCategory(cat: string): cat is JourneyId {

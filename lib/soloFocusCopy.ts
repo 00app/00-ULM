@@ -275,6 +275,34 @@ function prepareZoneHeadlineSource(raw: string): string {
 }
 
 /**
+ * Forensic bento headline from Neon `architect_prose` when `agent_headline` is empty or jargon.
+ * Prefers the first sentence with a £ figure; otherwise the first clean sentence of paragraph 1.
+ */
+export function headlineFromArchitectProse(
+  prose: string,
+  maxWords: number = MAX_ZONE_CARD_HEADLINE_WORDS
+): string | null {
+  const trimmed = prose.trim()
+  if (trimmed.length < 24) return null
+  const firstPara =
+    trimmed
+      .split(/\n\s*\n/)
+      .map((p) => stripProseReportLead(p))
+      .find((p) => p.length >= 24) ?? stripProseReportLead(trimmed)
+  const sentences = firstPara
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 12)
+  const pick =
+    sentences.find((s) => /£\s*[\d,.]+[km]?/i.test(s) && !isZonePreviewHeadlineNoise(s)) ??
+    sentences.find((s) => !isZonePreviewHeadlineNoise(s) && !isLowQualityZoneHeadline(s)) ??
+    (firstPara.length >= 12 && !isZonePreviewHeadlineNoise(firstPara) ? firstPara : null)
+  if (!pick) return null
+  const resolved = zoneCardHeadlineFromRaw(pick, pick, maxWords)
+  return resolved && !isLowQualityZoneHeadline(resolved) ? resolved : null
+}
+
+/**
  * Zone bento / tip face — strip jargon, never pad with "RIGHT NOW THIS MONTH", fall back when empty.
  */
 export function zoneCardHeadlineFromRaw(

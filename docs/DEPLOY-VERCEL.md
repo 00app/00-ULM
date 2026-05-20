@@ -92,4 +92,14 @@ Both must pass locally; if they do and Vercel only shows *internal error* on Lin
 - `lib/zone/buildZoneViewModel.ts` (`categoryIntentWeights` param)
 - `app/components/SoloFocusOverlay.tsx` (`tipVerificationMode`, `onTipVerificationComplete`)
 
+If `researchAgent.ts` is on `main`, also push in the **same commit**:
+
+- `lib/intelligence/topicShield.ts`
+- `lib/intelligence/aiGateway.ts` (`GEMINI_PRECISION_TEMPERATURE` re-export)
+- `lib/intelligence/researchProfilePayload.ts` (`surgical` on seed URLs)
+- `lib/soloFocusCopy.ts` (`headlineFromArchitectProse`)
+- `lib/zone/questionHandler.ts` (`getSoloFocusNextQuestion`)
+- `lib/zone/tier2RecursiveSpawner.ts` (`repair` on `fetchTier2ScrapeSync`)
+- `lib/journeys.ts` (`getSoloFocusQuestions`)
+
 Commit **verify + build green locally**, then push the full set — not `zone/page.tsx` alone.

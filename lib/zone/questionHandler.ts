@@ -8,12 +8,14 @@
 
 import {
   QUESTIONS_PER_JOURNEY,
+  SOLO_FOCUS_QUESTIONS_PER_JOURNEY,
   getJourneyQuestions,
+  getSoloFocusQuestions,
   type JourneyId,
   type JourneyQuestion,
 } from '@/lib/journeys'
 
-export { QUESTIONS_PER_JOURNEY }
+export { QUESTIONS_PER_JOURNEY, SOLO_FOCUS_QUESTIONS_PER_JOURNEY }
 
 /** First unanswered question in the journey queue (options or number). */
 export function getNextQuestion(
@@ -21,6 +23,16 @@ export function getNextQuestion(
   answers: Record<string, string>
 ): JourneyQuestion | null {
   const questions = getJourneyQuestions(journeyId)
+  const q = questions.find((question) => !answers[question.id] || String(answers[question.id]).trim() === '')
+  return q ?? null
+}
+
+/** Solo Focus MVP — at most one embedded journey question before earned scrape. */
+export function getSoloFocusNextQuestion(
+  journeyId: JourneyId,
+  answers: Record<string, string>
+): JourneyQuestion | null {
+  const questions = getSoloFocusQuestions(journeyId)
   const q = questions.find((question) => !answers[question.id] || String(answers[question.id]).trim() === '')
   return q ?? null
 }

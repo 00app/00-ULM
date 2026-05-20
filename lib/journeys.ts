@@ -18,8 +18,11 @@ export const JOURNEY_ORDER = JOURNEY_IDS
 
 export type JourneyId = (typeof JOURNEY_IDS)[number]
 
-/** Hard cap — three questions per journey (Infrastructure / Behaviour / Readiness). */
+/** Profile onboarding — three questions per journey (Infrastructure / Behaviour / Readiness). */
 export const QUESTIONS_PER_JOURNEY = 3
+
+/** Solo Focus MVP — one high-leverage question before earned surgical scrape. */
+export const SOLO_FOCUS_QUESTIONS_PER_JOURNEY = 1
 
 export interface JourneyQuestion {
   id: string
@@ -491,6 +494,11 @@ export function getJourneyQuestionIds(journeyId: JourneyId): string[] {
 
 export function getJourneyQuestions(journeyId: JourneyId): JourneyQuestion[] {
   return (JOURNEYS[journeyId]?.questions ?? []).slice(0, QUESTIONS_PER_JOURNEY)
+}
+
+/** Solo Focus chamber — first question only (Tip +1 may add verification before scrape). */
+export function getSoloFocusQuestions(journeyId: JourneyId): JourneyQuestion[] {
+  return (JOURNEYS[journeyId]?.questions ?? []).slice(0, SOLO_FOCUS_QUESTIONS_PER_JOURNEY)
 }
 
 export function isJourneyComplete(

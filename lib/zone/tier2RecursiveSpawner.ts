@@ -166,6 +166,8 @@ export async function fetchTier2ScrapeSync(params: {
   answer: string
   questionId?: string | null
   userId?: string | null
+  /** Force repair pass on research_results (headline / prose / £) after Tier 2 research. */
+  repair?: boolean
 }): Promise<Tier2ScrapeSyncResult> {
   const pc = params.postcode.replace(/\s+/g, '').trim().toUpperCase()
   const category = String(params.category ?? '').trim().toLowerCase()
@@ -180,9 +182,10 @@ export async function fetchTier2ScrapeSync(params: {
   }
   if (pc.length < 4 || !category || !answer) return empty
 
-  const qs = new URLSearchParams({ postcode: pc, category, answer })
+  const qs = new URLSearchParams({ postcode: pc, category, journey_key: category, answer })
   const qid = String(params.questionId ?? '').trim()
   if (qid) qs.set('question_id', qid)
+  if (params.repair) qs.set('repair', '1')
   const uid = params.userId ?? readBrowserResearchUserId()
   if (uid && isValidUuid(uid)) qs.set('user_id', uid)
 

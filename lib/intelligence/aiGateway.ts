@@ -13,6 +13,7 @@ import {
   directModelForTier,
   gatewayModelsForTier,
   GEMINI_GATEWAY_CHAT,
+  GEMINI_PRECISION_TEMPERATURE,
   resolveGeminiTier,
   type GeminiModelTier,
   ZONE_GATEWAY_MODEL_CHAIN,
@@ -30,6 +31,7 @@ export {
   RESEARCH_GATEWAY_MODEL_CHAIN,
   ZONE_GATEWAY_MODEL_CHAIN,
   EDITORIAL_MAGAZINE_CONSTRAINT,
+  GEMINI_PRECISION_TEMPERATURE,
   directModelForTier,
   gatewayModelsForTier,
   resolveGeminiTier,
@@ -145,7 +147,7 @@ export async function generateGatewayText(params: GatewayGenerateParams): Promis
         model: gateway(modelId),
         prompt: params.prompt,
         maxOutputTokens: params.maxOutputTokens ?? 1536,
-        temperature: params.temperature ?? 0.25,
+        temperature: params.temperature ?? GEMINI_PRECISION_TEMPERATURE,
         headers: {
           'x-gateway-tag': tags[0] ?? 'research',
         },
@@ -210,7 +212,7 @@ async function generateViaDirectGemini(
     model: modelName,
     generationConfig: {
       maxOutputTokens: params.maxOutputTokens ?? 1536,
-      temperature: params.temperature ?? 0.25,
+      temperature: params.temperature ?? GEMINI_PRECISION_TEMPERATURE,
     },
   })
   const text = (await model.generateContent(params.prompt)).response.text()?.trim() ?? ''
