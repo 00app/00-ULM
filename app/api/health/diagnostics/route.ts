@@ -3,6 +3,8 @@ import pool, { pingDatabase } from '@/lib/db'
 import { ROCK_HABIT_COUNT, ROCK_HABITS } from '@/lib/rock/habitsCatalog'
 import { getSessionFromRequest } from '@/lib/auth'
 import {
+  bucketFailoverStatus,
+  listConfiguredBucketProviders,
   getGatewayHealthSnapshot,
   hasAiGatewayApiKey,
   isAiGatewayConfigured,
@@ -90,6 +92,8 @@ export async function GET(request: NextRequest) {
   /** Research defaults to direct Gemini; gateway is optional failover for Zai / when forced off direct. */
   const gatewayOperational =
     gemini && (!aiGatewayConfigured || gatewayLiveOk || researchForceDirect)
+  const bucket = bucketFailoverStatus()
+  const bucketProviders = listConfiguredBucketProviders()
 
   /** Zone Intelligence Strip polls this without a session — expose capability booleans only. */
   if (!authed) {
@@ -98,6 +102,9 @@ export async function GET(request: NextRequest) {
       dbLatencyMs,
       gemini,
       firecrawl,
+      bucket_failover: bucket.enabled,
+      bucket_providers: bucketProviders,
+      bucket_broad_scrape: bucket.broadScrapeAllowed,
       aiGateway: aiGatewayConfigured,
       aiGatewayOk: gatewayOperational,
       aiGatewayFallback: gatewaySnap.usingFallback,
@@ -117,6 +124,8 @@ export async function GET(request: NextRequest) {
     dbLatencyMs,
     gemini,
     firecrawl,
+    bucket_failover: bucket,
+    bucket_providers: bucketProviders,
     aiGateway: aiGatewayConfigured,
     aiGatewayOk: gatewayProbe ? gatewayProbe.ok : gatewayOperational,
     aiGatewayFallback: gatewaySnap.usingFallback || Boolean(gatewayProbe?.usingFallback),

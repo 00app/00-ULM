@@ -73,7 +73,7 @@ export async function researchLocalGrantsToDiscovery(
     const { GoogleGenerativeAI } = await import('@google/generative-ai')
     const genAI = new GoogleGenerativeAI(key)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash',
       generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
     })
     const prompt = `UK March 2026. User postcode (context only): "${postcode}". Topic: "${topic}".

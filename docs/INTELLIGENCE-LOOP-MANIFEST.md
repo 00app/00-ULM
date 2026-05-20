@@ -10,7 +10,7 @@ Operational contract for infra, data flow, UX, and verification. **Secrets belon
 
 | Piece | Detail |
 |--------|--------|
-| **Hermes (Oracle VPS)** | Daily trigger (e.g. **05:00**) → **`GET /api/cron/zone-research`** with header **`Authorization: Bearer <CRON_SECRET>`** (same value as Vercel `CRON_SECRET`). |
+| **Hermes (Oracle VPS) / Vercel Cron** | **Weekly** Monday **05:00** (`0 5 * * 1`) → **`GET /api/cron/zone-research`** with **`Authorization: Bearer <CRON_SECRET>`**. Per-category JIT scrape still fires on Solo Focus Tip +1 answer. |
 | **Neon (London)** | Canonical pooler hostname is **`MANIFEST_NEON_POOLER_HOST`** in `lib/intelligence/manifest.ts`. It **must** match the host inside `DATABASE_URL` (password only via Neon Console / `vercel env`). |
 | **Credentials** | Set `DATABASE_URL` (full URI). Do **not** commit real passwords; rotate immediately if exposed. |
 | **Firecrawl** | API key: `FIRE_CRAWL_KEY_2` **or** `FIRECRAWL_API_KEY` — both read by `lib/sentinel/api-config.ts` (primary name wins). |

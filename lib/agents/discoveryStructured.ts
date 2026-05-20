@@ -88,10 +88,10 @@ export async function runDiscoveryStructuredPipeline(params: {
     const { GoogleGenerativeAI } = await import('@google/generative-ai')
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash',
       generationConfig: {
         responseMimeType: 'application/json',
-        temperature: 0.35,
+        temperature: 0.2,
       },
     })
 

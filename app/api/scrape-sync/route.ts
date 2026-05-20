@@ -14,6 +14,7 @@ import {
   upsertUserGenomeFromAnswer,
 } from '@/lib/db/neon'
 import { JOURNEY_ORDER, type JourneyId, isValidJourneyQuestion } from '@/lib/journeys'
+import { resolveSurgicalJourneyKey } from '@/lib/intelligence/topicShield'
 import {
   loadDynamicUserProfileForResearch,
   repairResearchResultsMissingHeadlines,
@@ -36,6 +37,10 @@ import { foldCoverageRowsForZone, researchCategoryToJourneyKey } from '@/lib/zon
 import { GARY_RESEARCH_USER_ID } from '@/lib/zone/garyMode'
 import { ensureGaryDemoUser } from '@/lib/db/ensureGaryDemoUser'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
+import {
+  assertBroadResearchBlocked,
+  validateSurgicalScrapeContext,
+} from '@/lib/intelligence/scrapeBoundaries'
 import {
   isLifestyleShiftMode,
   maybeBirthAchievementFromScrapeSync,
@@ -178,6 +183,24 @@ async function loadResearchCategoryCoverageResolved(
   const byPc = await loadResearchCategoryCoverageByPostcode(pc)
   if (Object.keys(byUser).length === 0) return byPc
   return { ...byPc, ...byUser }
+}
+
+/** Neon `last_visited_at` — pink lock from DB (weekly pulse may refresh data; client won't re-scrape). */
+async function loadVisitedJourneyKeys(userId: string | null): Promise<string[]> {
+  if (!userId) return []
+  try {
+    const res = await pool.query<{ cat: string }>(
+      `SELECT DISTINCT lower(trim(category)) AS cat
+       FROM research_results
+       WHERE user_id = $1::uuid
+         AND last_visited_at IS NOT NULL
+         AND category IS NOT NULL AND btrim(category) <> ''`,
+      [userId]
+    )
+    return res.rows.map((r) => r.cat).filter((c) => c.length > 0)
+  } catch {
+    return []
+  }
 }
 
 async function loadResearchCategoryCoverageByPostcode(
@@ -337,13 +360,15 @@ export async function GET(request: NextRequest) {
           : {}),
         postcode,
       }
+      const tier2JourneyKey =
+        resolveSurgicalJourneyKey(
+          request.nextUrl.searchParams.get('journey_key')?.trim() || tier2Category
+        ) ?? researchCategoryToJourneyKey(tier2Category) ?? tier2Category
       const userContext = [
         `postcode: ${postcode}`,
-        `Solo Focus Tier 2 category: ${tier2Category}`,
-        `Child answer: ${tier2Answer.slice(0, 800)}`,
+        `Solo Focus JIT scrape — journey_key: ${tier2JourneyKey}`,
+        `Tip +1 answer: ${tier2Answer.slice(0, 800)}`,
       ].join('\n')
-
-      const tier2JourneyKey = researchCategoryToJourneyKey(tier2Category) ?? tier2Category
       if (
         researchUserId &&
         tier2QuestionId &&
@@ -358,16 +383,19 @@ export async function GET(request: NextRequest) {
 
       await runTriggerResearchForCategory({
         postcode,
-        category: tier2Category,
+        category: tier2JourneyKey,
         profileData: Object.keys(profileData).length > 0 ? profileData : undefined,
         userId: researchUserId,
         userContext,
       })
+      const tier2Repair = ['1', 'true', 'yes'].includes(
+        String(request.nextUrl.searchParams.get('repair') ?? '').toLowerCase()
+      )
       await repairResearchResultsMissingHeadlines({
         userId: researchUserId,
         postcode,
         profileData: Object.keys(profileData).length > 0 ? profileData : null,
-        limit: 4,
+        limit: tier2Repair ? 8 : 4,
       })
       const tier2Coverage = await loadResearchCategoryCoverageResolved(researchUserId, postcode)
       const folded = tier2Coverage ? foldCoverageRowsForZone(tier2Coverage) : {}
@@ -445,6 +473,10 @@ export async function GET(request: NextRequest) {
 
     /** GET without `force=true` must stay fast (Zone load, Vercel deployment checks). Heavy research: POST trigger or GET `?force=true`. */
     if (postcode && forceResearch) {
+      const broadBlock = assertBroadResearchBlocked('GET scrape-sync ?force=true (multi-category ZeroResearch)')
+      if (broadBlock.blocked) {
+        return NextResponse.json({ error: broadBlock.message, bucket_failover: true }, { status: 403 })
+      }
       const fcErr = firecrawlMissingResponse()
       if (fcErr) return fcErr
       const profileData: ResearchProfileData = {
@@ -624,6 +656,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const visitedJourneyKeys = await loadVisitedJourneyKeys(researchUserId)
+    const visitedExtra =
+      visitedJourneyKeys.length > 0 ? { visited_journey_keys: visitedJourneyKeys } : {}
+
     const result = await pool.query(
       `SELECT journey_key, carbon_value, money_value, deep_content_tip, high_saving, scraped_at
        FROM scraped_summary
@@ -645,6 +681,7 @@ export async function GET(request: NextRequest) {
             ? { research_category_coverage: researchCategoryCoverage }
             : {}),
           ...ratesExtra,
+          ...visitedExtra,
         }
         return NextResponse.json(research ? { ...payload, research } : payload)
       }
@@ -657,6 +694,7 @@ export async function GET(request: NextRequest) {
             ? { research_category_coverage: researchCategoryCoverage }
             : {}),
           ...ratesExtra,
+          ...visitedExtra,
         }
         return NextResponse.json(research ? { ...pending, research } : pending)
       }
@@ -672,6 +710,7 @@ export async function GET(request: NextRequest) {
                 ? { research_category_coverage: researchCategoryCoverage }
                 : {}),
               ...ratesExtra,
+              ...visitedExtra,
             }
           : {
               scraped: defaults,
@@ -681,6 +720,7 @@ export async function GET(request: NextRequest) {
                 ? { research_category_coverage: researchCategoryCoverage }
                 : {}),
               ...ratesExtra,
+              ...visitedExtra,
             }
       )
     }
@@ -703,6 +743,7 @@ export async function GET(request: NextRequest) {
           ? { research_category_coverage: researchCategoryCoverage }
           : {}),
         ...ratesExtra,
+        ...visitedExtra,
       }
       return NextResponse.json(research ? { ...payload, research } : payload)
     }
@@ -717,6 +758,7 @@ export async function GET(request: NextRequest) {
               ? { research_category_coverage: researchCategoryCoverage }
               : {}),
             ...ratesExtra,
+            ...visitedExtra,
           }
         : {
             scraped,
@@ -726,6 +768,7 @@ export async function GET(request: NextRequest) {
               ? { research_category_coverage: researchCategoryCoverage }
               : {}),
             ...ratesExtra,
+            ...visitedExtra,
           }
     )
   } catch (e) {
@@ -833,9 +876,19 @@ export async function POST(request: NextRequest) {
       if (fcErr) return fcErr
       const profileData =
         body?.profileData && typeof body.profileData === 'object' ? (body.profileData as ResearchProfileData) : undefined
-      const categoryRaw = typeof body?.category === 'string' ? body.category.trim().toLowerCase() : ''
-      /** Postcode-only triggers need a journey category or Zone coverage stays `{}`. */
-      const category = categoryRaw.length > 0 ? categoryRaw : 'home'
+      const journeyRaw =
+        (typeof body?.journey_key === 'string' ? body.journey_key.trim() : '') ||
+        (typeof body?.category === 'string' ? body.category.trim() : '')
+      const category = resolveSurgicalJourneyKey(journeyRaw)
+      if (!category) {
+        return NextResponse.json(
+          {
+            error:
+              'journey_key required for JIT scrape-sync trigger (e.g. solar, water, grants)',
+          },
+          { status: 400 }
+        )
+      }
       const bestOfferHint =
         typeof body?.best_offer_hint === 'string' ? body.best_offer_hint.trim().slice(0, 1200) : ''
       const session = await getSessionFromRequest().catch(() => null)
@@ -856,6 +909,14 @@ export async function POST(request: NextRequest) {
         ...(sessionResearchProfile?.goal ? { goal: sessionResearchProfile.goal } : {}),
         ...(profileData ?? {}),
         postcode,
+      }
+      const surgicalCheck = validateSurgicalScrapeContext({
+        postcode,
+        journeyKey: category,
+        profileData: pd,
+      })
+      if (!surgicalCheck.ok) {
+        return NextResponse.json({ error: surgicalCheck.error }, { status: 400 })
       }
       const hermesRaw = sessionResearchProfile?.user_genome?.hermes_memory
       if (hermesRaw && typeof hermesRaw === 'object' && !Array.isArray(hermesRaw)) {
@@ -891,9 +952,7 @@ export async function POST(request: NextRequest) {
       if (loopQuestionId && loopAnswer) {
         userContext = `${userContext}\n\nLoop answer spawn:\nquestion_id: ${loopQuestionId}\nanswer: ${loopAnswer}`
       }
-      if (category) {
-        userContext = `${userContext}\n\nSolo Focus scrape-sync category: ${category}`
-      }
+      userContext = `${userContext}\n\nJIT Topic Shield — journey_key: ${category} (exclusive domain; stop at triplet)`
       if (bestOfferHint.length > 0) {
         userContext = `${userContext}\n\nBEST OFFER / ACTION URL PRIORITY:\n${bestOfferHint}`
       }

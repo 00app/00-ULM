@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
 
 const FIRECRAWL_SCRAPE_URL = 'https://api.firecrawl.dev/v1/scrape'
 /** Matches {@link app/api/zai/route.ts} primary model for a real key/network check. */
-const GEMINI_PULSE_MODEL = 'gemini-2.5-flash-lite'
+const GEMINI_PULSE_MODEL = process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash'
 
 function hasGatewayAuth(request: NextRequest): boolean {
   const expected =

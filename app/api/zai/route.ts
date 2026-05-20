@@ -620,7 +620,7 @@ export async function POST(req: Request) {
           tag: `zai-${zaiTopic}`,
           tier: 'chat',
           maxOutputTokens: 512,
-          temperature: 0.4,
+          temperature: 0.2,
           models: [...CHAT_GATEWAY_MODEL_CHAIN],
         })
         if (!gwText) {

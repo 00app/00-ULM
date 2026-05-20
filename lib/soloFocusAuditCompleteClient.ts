@@ -9,6 +9,7 @@ import {
 } from '@/lib/unifiedProfileMemory'
 import { buildSoloFocusBestOfferHint } from '@/lib/soloFocusBestOfferHint'
 import { triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
+import { isCardVisited } from '@/lib/zone/visitedCards'
 import type { MemoryFlushPayload } from '@/lib/memory/userContext'
 
 async function flushMemoryBridgeFromUnifiedStorage(): Promise<void> {
@@ -50,6 +51,9 @@ export function runSoloFocusAuditCompletionClient(opts: {
   postcode: string | null | undefined
   profileData: ResearchProfileData | null | undefined
   journeyAnswers: Record<string, Record<string, string>> | null | undefined
+  /** Tip +1 earned research already ran — do not double-spend scrape credits. */
+  skipResearchScrape?: boolean
+  cardId?: string | null
 }): void {
   persistUnifiedUserProfileMemory()
   void flushMemoryBridgeFromUnifiedStorage()
@@ -61,10 +65,13 @@ export function runSoloFocusAuditCompletionClient(opts: {
     journeyAnswers: opts.journeyAnswers ?? undefined,
   })
   const jid = opts.journeyId
-  if (jid) {
+  const cardId = typeof opts.cardId === 'string' ? opts.cardId.trim() : ''
+  const visited = cardId.length > 0 && isCardVisited(cardId)
+  if (jid && !opts.skipResearchScrape && !visited) {
     triggerScrapeSyncForCategory({
       postcode: opts.postcode,
       category: jid,
+      cardId: cardId || undefined,
       profileData: opts.profileData ?? undefined,
       bestOfferHint: hint,
     })

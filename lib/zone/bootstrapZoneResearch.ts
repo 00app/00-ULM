@@ -2,11 +2,11 @@ import type { ResearchProfileData } from '@/lib/agents/researchAgent'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import {
   journeyResearchSettled,
-  triggerScrapeSyncForCategory,
   type ResearchCategoryCoverageRow,
 } from '@/lib/researchSyncClient'
 
-const BOOTSTRAP_JOURNEYS: JourneyId[] = ['home', 'grants', 'travel', 'food']
+/** JIT model — no background bootstrap journeys; research fires on card open (+1 answer). */
+const BOOTSTRAP_JOURNEYS: JourneyId[] = []
 
 export function countSettledJourneys(
   cov: Record<string, ResearchCategoryCoverageRow> | null | undefined
@@ -22,6 +22,7 @@ export function zoneNeedsResearchBootstrap(params: {
   verifiedSaving?: number | null
   minSettled?: number
 }): boolean {
+  if (BOOTSTRAP_JOURNEYS.length === 0) return false
   const min = params.minSettled ?? 4
   const settled = countSettledJourneys(params.coverage)
   const hasMoney =
@@ -29,22 +30,11 @@ export function zoneNeedsResearchBootstrap(params: {
   return settled < min && !hasMoney
 }
 
-/** Fire-and-forget POST scrape-sync triggers for core journeys. */
-export function bootstrapZoneCategoryResearch(params: {
+/** Fire-and-forget POST scrape-sync triggers for core journeys (disabled under JIT). */
+export function bootstrapZoneCategoryResearch(_params: {
   postcode: string
   profileData?: ResearchProfileData | null
   lifestyleShift?: boolean
 }): void {
-  const pc = params.postcode.replace(/\s+/g, '').trim().toUpperCase()
-  if (pc.length < 4) return
-  BOOTSTRAP_JOURNEYS.forEach((category, i) => {
-    window.setTimeout(() => {
-      triggerScrapeSyncForCategory({
-        postcode: pc,
-        category,
-        profileData: params.profileData,
-        lifestyleShift: params.lifestyleShift,
-      })
-    }, 600 + i * 2800)
-  })
+  /* Earned research only — see Tip +1 in SoloFocusOverlay. */
 }

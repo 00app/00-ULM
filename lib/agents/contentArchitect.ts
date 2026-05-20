@@ -5,6 +5,7 @@
 
 import type { JourneyId } from '@/lib/journeys'
 import type { ZoneViewModel } from '@/lib/logic/zone'
+import { isLowQualityZoneHeadline } from '@/lib/soloFocusCopy'
 import {
   MARCH_2026_ECONOMY,
   PRICE_CAP_SAVING_APRIL_1,
@@ -205,9 +206,9 @@ export async function generateCardContextsBatch(
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(key)
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: process.env.GEMINI_ARTICLE_MODEL?.trim() || 'gemini-1.5-flash',
     generationConfig: {
-      temperature: 0.22,
+      temperature: 0.2,
       maxOutputTokens: 2048,
     },
   })
@@ -287,9 +288,14 @@ export function applyArchitectEnrichment(
         rawUrl && /^https:\/\//i.test(rawUrl) ? rawUrl : undefined
       let next = j
       if (arch) {
+        const archHeadline = clampArchitectHeadline(arch.headline)
+        const keepNeonTitle =
+          !archHeadline ||
+          isLowQualityZoneHeadline(archHeadline) ||
+          /^COMPUTING\s+—/i.test(j.title)
         next = {
           ...j,
-          title: arch.headline,
+          title: keepNeonTitle ? j.title : archHeadline,
           insightLabel: arch.insight,
           architectSuppliedBy: arch.suppliedBy,
           architectActionLine: arch.actionLine,

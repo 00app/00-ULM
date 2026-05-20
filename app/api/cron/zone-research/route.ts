@@ -3,6 +3,7 @@ import { getDbPool, shutdownDbPool } from '@/lib/db'
 import { repairResearchResultsMissingHeadlines, runZeroResearchWithProfile } from '@/lib/agents/researchAgent'
 import { profileGoalFromGenome } from '@/lib/agents/auditor'
 import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
+import { isBucketFailoverMode } from '@/lib/intelligence/scrapeBoundaries'
 import { normalizeSecret } from '@/lib/intelligence/normalizeSecret'
 
 export const runtime = 'nodejs'
@@ -44,9 +45,10 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const repairOnly = ['1', 'true', 'yes'].includes(
-    String(request.nextUrl.searchParams.get('repair') ?? '').toLowerCase()
-  )
+  const repairOnly =
+    ['1', 'true', 'yes'].includes(String(request.nextUrl.searchParams.get('repair') ?? '').toLowerCase()) ||
+    (isBucketFailoverMode() &&
+      !['1', 'true', 'yes'].includes(String(request.nextUrl.searchParams.get('full') ?? '').toLowerCase()))
   const deepRepair = ['1', 'true', 'yes'].includes(
     String(request.nextUrl.searchParams.get('deep') ?? '').toLowerCase()
   )
@@ -70,9 +72,12 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
         mode: deepRepair ? 'repair_deep' : 'repair_mechanical',
         repaired,
         limit,
+        bucket_failover: isBucketFailoverMode(),
         note: deepRepair
           ? 'repair+deep: Gemini per row (slow). Default repair is mechanical-only (BUS + Ofgem).'
-          : 'repair: mechanical BUS/Ofgem triplets only — fast Hermes pulse. JIT scrapes handle the rest.',
+          : isBucketFailoverMode()
+            ? 'bucket_failover: full multi-user scrape disabled — mechanical repair only. Use POST scrape-sync (journey_key + profile) or ?full=1 for one-off audit.'
+            : 'repair: mechanical BUS/Ofgem triplets only — fast Hermes pulse. JIT scrapes handle the rest.',
       })
     }
 

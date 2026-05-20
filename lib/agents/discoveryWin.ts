@@ -56,8 +56,8 @@ export async function generateDiscoveryWinWithGemini(params: {
     const { GoogleGenerativeAI } = await import('@google/generative-ai')
     const genAI = new GoogleGenerativeAI(key)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      generationConfig: { temperature: 0.35, maxOutputTokens: 120 },
+      model: process.env.GEMINI_CHAT_MODEL?.trim() || 'gemini-1.5-flash',
+      generationConfig: { temperature: 0.2, maxOutputTokens: 120 },
     })
     const ctx = JSON.stringify({
       journey: params.journeyId,

@@ -5,13 +5,13 @@
 # Usage:
 #   bash scripts/install-hermes-crontab.sh              # print line for your machine
 #   bash scripts/install-hermes-crontab.sh --install    # append to user crontab (Mac or Linux)
-#   bash scripts/install-hermes-crontab.sh --install --smoke-schedule  # every day 05:00
+#   bash scripts/install-hermes-crontab.sh --install --schedule "0 5 * * 1"  # weekly (default)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PULSE="${ROOT}/scripts/hermes-pulse.sh"
 INSTALL=0
-SCHEDULE="0 5 * * *"
+SCHEDULE="0 5 * * 1"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -28,7 +28,7 @@ LOG="${HOME}/hermes-pulse.log"
 # Expand to absolute paths
 PULSE="$(cd "$(dirname "$PULSE")" && pwd)/$(basename "$PULSE")"
 
-LINE="${SCHEDULE} /usr/bin/bash ${PULSE} --secret-file=${SECRET} >> ${LOG} 2>&1"
+LINE="${SCHEDULE} /usr/bin/bash ${PULSE} --secret-file=${SECRET} --repair-only >> ${LOG} 2>&1"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo " Hermes crontab (one line)"

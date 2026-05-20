@@ -16,6 +16,7 @@ import {
   buildEmploymentAwareResearchSeeds,
   buildLocalizedResearchPrefix,
 } from '@/lib/intelligence/researchProfilePayload'
+import { shouldSkipDeepGeminiSearch } from '@/lib/intelligence/scrapeBoundaries'
 import {
   buildLaneLockPromptBlock,
   buildPostcodeDnaBlock,
@@ -527,6 +528,7 @@ export async function deepGeminiSearchUkEnergyMarkdown(params: {
   lifestyleShift?: boolean
   userContext?: string | null
 }): Promise<{ markdown: string; citations: ResearchCitation[] } | null> {
+  if (shouldSkipDeepGeminiSearch()) return null
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
   if (pc.length < 4) return null
   const profileBlock = buildResearchProfileAuditorContext(params.profileData ?? null)

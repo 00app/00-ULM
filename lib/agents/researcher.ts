@@ -97,8 +97,8 @@ export async function parseApril2026UnitRatesFromMarkdown(markdown: string): Pro
     const { GoogleGenerativeAI } = await import('@google/generative-ai')
     const genAI = new GoogleGenerativeAI(key)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      generationConfig: { temperature: 0.1, maxOutputTokens: 256 },
+      model: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash',
+      generationConfig: { temperature: 0.2, maxOutputTokens: 256 },
     })
     const prompt = `You extract UK household energy **unit rates** from the markdown below.
 Return **only** valid JSON, no markdown fences: {"electricity_gbp_per_kwh": number or null, "gas_gbp_per_kwh": number or null}

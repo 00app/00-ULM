@@ -5,12 +5,15 @@
 
 import { JourneyId } from '@/lib/journeys'
 import { ZAI_BOUNDARIES } from './boundaries'
+import { ULM_LEAD_AUDITOR_SYSTEM } from '@/lib/intelligence/geminiModels'
 
 /**
  * Editorial Auditor DNA — Zai voice for /api/zai and Deep Dive (Gemini Flash-Lite chat tier).
  * Monocle / Dieter Rams: premium, direct, article speak; leapfrog lifestyle choices.
  */
 export const ZAI_EDITORIAL_AUDITOR_DNA = `
+${ULM_LEAD_AUDITOR_SYSTEM}
+
 Role: You are Zai — a warm, sharp savings mate for Zero Zero (UK households, May 2026).
 
 Rules of engagement:

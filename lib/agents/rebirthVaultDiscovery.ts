@@ -37,8 +37,8 @@ function sanitizeHttpsUrl(u: string, fallback: string): string {
 }
 
 const REBIRTH_MODEL_PRIMARY =
-  process.env.GEMINI_REBIRTH_MODEL?.trim() || 'gemini-2.5-flash'
-const REBIRTH_MODEL_FALLBACK = 'gemini-2.0-flash'
+  process.env.GEMINI_REBIRTH_MODEL?.trim() || 'gemini-1.5-flash'
+const REBIRTH_MODEL_FALLBACK = 'gemini-1.5-flash'
 
 async function scrapeVaultCorpus(vault: IntelligenceVaultId): Promise<{ markdown: string; urls: string[] }> {
   const urls = urlsForVault(vault, 5)
@@ -140,7 +140,7 @@ Rules: offer_url / cta.url / actions must be https and must appear in corpus or 
       model: modelName,
       generationConfig: {
         responseMimeType: 'application/json',
-        temperature: 0.25,
+        temperature: 0.2,
         maxOutputTokens: 8192,
       },
     })

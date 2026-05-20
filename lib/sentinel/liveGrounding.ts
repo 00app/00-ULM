@@ -128,7 +128,7 @@ export async function runLiveGrounding(params: {
 
   try {
     const response = await gemini.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: process.env.GEMINI_ARTICLE_MODEL?.trim() || 'gemini-1.5-flash',
       contents: buildGroundingPrompt({
         postcode: compact,
         tenureType: params.tenureType,

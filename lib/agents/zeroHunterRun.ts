@@ -57,7 +57,7 @@ export async function runZeroHunterForUserProfile(params: {
     const { GoogleGenerativeAI } = await import('@google/generative-ai')
     const genAI = new GoogleGenerativeAI(key)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash-lite',
+      model: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash',
       generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
     })
     const prompt = `UK energy assistant. User postcode=${params.postcode ?? 'unknown'}, home_type=${params.homeType ?? 'unknown'}, heating=${params.heatingType ?? 'unknown'}.

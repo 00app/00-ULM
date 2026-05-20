@@ -64,7 +64,9 @@ async function geminiDiscoveryHeadline(context: string, fallback: string): Promi
   try {
     const { GoogleGenerativeAI } = await import('@google/generative-ai')
     const genAI = new GoogleGenerativeAI(key)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const model = genAI.getGenerativeModel({
+      model: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash',
+    })
     const prompt = `You name UK sustainability savings cards. Return ONE headline only: max 6 words, SCREAMING SNAKE style with spaces (e.g. EV CHARGEPOINT SAVING). No quotes. Context: ${context}`
     const result = await model.generateContent(prompt)
     const text = result.response

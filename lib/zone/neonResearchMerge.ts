@@ -1,6 +1,11 @@
 import type { NeonJourneyResearchRow } from '@/lib/zone/buildZoneViewModel'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
+import {
+  cleanZonePreviewHeadline,
+  headlineFromArchitectProse,
+  isLowQualityZoneHeadline,
+} from '@/lib/soloFocusCopy'
 
 function mergeCoverageRow(
   a: ResearchCategoryCoverageRow | undefined,
@@ -25,7 +30,15 @@ export function coverageRowToNeon(row: ResearchCategoryCoverageRow): NeonJourney
         ? row.latestVerifiedGbp
         : 0
   const ap = row.architectProse?.trim() ?? null
-  const hl = row.agentHeadline?.trim() ?? null
+  let hl = row.agentHeadline?.trim() ?? null
+  if (hl) {
+    const cleaned = cleanZonePreviewHeadline(hl)
+    if (!cleaned || isLowQualityZoneHeadline(cleaned)) hl = null
+    else hl = cleaned
+  }
+  if (!hl && ap) {
+    hl = headlineFromArchitectProse(ap) ?? null
+  }
   if (sav > 0 || (ap != null && ap.length > 0) || (hl != null && hl.length > 0)) {
     return { savingGbp: sav, architectProse: ap, agentHeadline: hl }
   }
@@ -41,6 +54,12 @@ export function mergeNeonJourneyResearch(
   if (!b) return a
   if (b.savingGbp > a.savingGbp) return b
   if (b.savingGbp < a.savingGbp) return a
+  const aHl = a.agentHeadline?.trim() ?? ''
+  const bHl = b.agentHeadline?.trim() ?? ''
+  const aGood = aHl.length > 0 && !isLowQualityZoneHeadline(aHl)
+  const bGood = bHl.length > 0 && !isLowQualityZoneHeadline(bHl)
+  if (bGood && !aGood) return b
+  if (aGood && !bGood) return a
   const al = a.architectProse?.length ?? 0
   const bl = b.architectProse?.length ?? 0
   return bl > al ? b : a

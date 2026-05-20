@@ -1,5 +1,6 @@
 import type { ResearchProfileData } from '@/lib/agents/researchAgent'
 import { ensureClientResearchUserId, resolveClientResearchUserId } from '@/lib/zone/garyMode'
+import { isCardVisited } from '@/lib/zone/visitedCards'
 
 /** Latest row per `research_results.category` from GET /api/scrape-sync. */
 export type ResearchCategoryCoverageRow = {
@@ -39,6 +40,8 @@ export function journeyResearchSettled(
 export function triggerScrapeSyncForCategory(params: {
   postcode: string | null | undefined
   category: string
+  /** Pink persistence — skip Firecrawl/Gemini if this card already earned a deep scrape. */
+  cardId?: string | null
   profileData?: ResearchProfileData | null
   /** Appended to scrape-sync user context for best-offer / action URL pivots (solo focus completion). */
   bestOfferHint?: string | null
@@ -53,6 +56,8 @@ export function triggerScrapeSyncForCategory(params: {
     .trim()
     .toUpperCase()
   if (pc.length < 4) return
+  const cardId = typeof params.cardId === 'string' ? params.cardId.trim() : ''
+  if (cardId && isCardVisited(cardId)) return
   const cat = String(params.category ?? '')
     .trim()
     .toLowerCase()
@@ -61,6 +66,7 @@ export function triggerScrapeSyncForCategory(params: {
   const body: Record<string, unknown> = {
     trigger: true,
     postcode: pc,
+    journey_key: cat,
     category: cat,
     profileData: params.profileData && Object.keys(params.profileData).length > 0 ? params.profileData : undefined,
     ...(researchUserId ? { user_id: researchUserId } : {}),

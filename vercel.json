@@ -4,5 +4,11 @@
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
   "framework": "nextjs",
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/zone-research",
+      "schedule": "0 5 * * 1"
+    }
+  ]
 }

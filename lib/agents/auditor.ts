@@ -13,11 +13,12 @@ import { getJourneyAnswersForUser } from '@/lib/db/neon'
 import { UK_2026_SEED_URLS, persistResearchResult } from '@/lib/agents/researchAgent'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
 import { JOURNEY_IDS } from '@/lib/journeys'
+import { GEMINI_DIRECT_ZONE, GEMINI_PRECISION_TEMPERATURE } from '@/lib/intelligence/geminiModels'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-const AUDIT_MODEL = 'gemini-2.5-flash-lite'
+const AUDIT_MODEL = GEMINI_DIRECT_ZONE
 const MAX_SCRAPE_CHARS_PER_URL = 4500
 const MAX_SEED_URLS = 5
 
@@ -202,7 +203,7 @@ export async function runPersonalAudit(userId: string): Promise<PersonalAuditRes
   const genAI = new GoogleGenerativeAI(geminiKey)
   const model = genAI.getGenerativeModel({
     model: AUDIT_MODEL,
-    generationConfig: { maxOutputTokens: 1024, temperature: 0.25 },
+    generationConfig: { maxOutputTokens: 1024, temperature: GEMINI_PRECISION_TEMPERATURE },
   })
 
   const prompt = buildAuditPrompt({

@@ -9,6 +9,11 @@
 
 import { generateText, gateway } from 'ai'
 import {
+  generateWithBucketFailover,
+  isBucketFailoverEnabled,
+  listConfiguredBucketProviders,
+} from '@/lib/intelligence/bucketFailover'
+import {
   CHAT_GATEWAY_MODEL_CHAIN,
   directModelForTier,
   gatewayModelsForTier,
@@ -18,6 +23,9 @@ import {
   type GeminiModelTier,
   ZONE_GATEWAY_MODEL_CHAIN,
 } from '@/lib/intelligence/geminiModels'
+
+export { isBucketFailoverEnabled, listConfiguredBucketProviders } from '@/lib/intelligence/bucketFailover'
+export { bucketFailoverStatus, isBucketFailoverMode, isBroadResearchAllowed } from '@/lib/intelligence/scrapeBoundaries'
 
 export {
   ARTICLE_GATEWAY_MODEL_CHAIN,
@@ -113,6 +121,17 @@ export async function generateResearchText(params: GatewayGenerateParams): Promi
   modelId: string
   viaGateway: boolean
 }> {
+  if (isBucketFailoverEnabled()) {
+    const bucket = await generateWithBucketFailover(params)
+    touchHealth({
+      ok: bucket.text.length > 0,
+      usingFallback: bucket.usedFallback,
+      lastModel: `${bucket.provider}:${bucket.modelId}`,
+      lastError: bucket.usedFallback ? `Recovered via ${bucket.provider}` : null,
+      lastTag: params.tag ?? null,
+    })
+    return { text: bucket.text, modelId: bucket.modelId, viaGateway: bucket.viaGateway }
+  }
   const tier = params.tier ?? resolveGeminiTier(params.tag)
   const forceDirect = process.env.RESEARCH_FORCE_DIRECT_GEMINI?.trim().toLowerCase() !== 'false'
   if (forceDirect) {
@@ -129,6 +148,17 @@ export async function generateGatewayText(params: GatewayGenerateParams): Promis
   modelId: string
   viaGateway: boolean
 }> {
+  if (isBucketFailoverEnabled()) {
+    const bucket = await generateWithBucketFailover(params)
+    touchHealth({
+      ok: bucket.text.length > 0,
+      usingFallback: bucket.usedFallback,
+      lastModel: `${bucket.provider}:${bucket.modelId}`,
+      lastError: bucket.usedFallback ? `Recovered via ${bucket.provider}` : null,
+      lastTag: params.tag ?? null,
+    })
+    return { text: bucket.text, modelId: bucket.modelId, viaGateway: bucket.viaGateway }
+  }
   const tier = params.tier ?? resolveGeminiTier(params.tag)
   const models = (params.models?.length ? params.models : gatewayModelsForTier(tier)).filter(Boolean)
   const primary = models[0] ?? GEMINI_GATEWAY_CHAT

@@ -141,7 +141,7 @@ These are **not** four separate services talking past each other. They meet insi
 | Layer | What it does | Contract |
 |-------|----------------|----------|
 | **Neon** | PostgreSQL: users, `journey_answers_jsonb`, **`research_results`** (includes **`research_snapshot`** JSONB for invoke metadata). | `DATABASE_URL` must use the **pooler** host; canonical hostname check: **`MANIFEST_NEON_POOLER_HOST`** in `lib/intelligence/manifest.ts`. |
-| **Gemini** | Models for `/api/zai`, research triplet (`agent_headline`, `architect_prose`), auditor JSON, discovery. | **`GEMINI_API_KEY`** (server-only). |
+| **Gemini** | Models for `/api/zai`, research triplet (`agent_headline`, `architect_prose`), auditor JSON, discovery. | **`GEMINI_API_KEY`** (server-only). Default model **`gemini-2.5-flash`** (`GEMINI_*_MODEL`). Set **`MODEL_STRATEGY=bucket_failover`** for Gemini → Groq → Mistral → OpenRouter failover; JIT scrapes stay **category + profile** (POST scrape-sync with `journey_key`); broad **`?force=true`** and cron full batch blocked unless **`ALLOW_BROAD_SCRAPE=1`** / **`?full=1`**. |
 | **Firecrawl** | Scrapes UK-trusted seeds for research, sentinel, and cron-driven refresh. | **`FIRE_CRAWL_KEY_2`** or **`FIRECRAWL_API_KEY`** — both are read in **`lib/sentinel/api-config.ts`** (`FIRE_CRAWL_KEY_2` wins when set). Same value must be present on Vercel if production scrapes run. |
 | **Hermes** | Name for the **Oracle VPS cron** — it only **HTTP-triggers** the app; it does not hold DB credentials itself. | **`GET` or `POST`** `/api/cron/zone-research?limit=…` with **`Authorization: Bearer <CRON_SECRET>`** (same secret as Vercel). The **app** then uses **`DATABASE_URL`** + API keys to run the pipeline. |
 
