@@ -98,6 +98,13 @@ import {
   zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
+import {
+  CATEGORY_INTENT_CHANGED_EVENT,
+  bumpCategoryIntent,
+  readCategoryIntentWeights,
+} from '@/lib/zone/categoryIntent'
+import { foldCoverageRowsForZone } from '@/lib/zone/neonResearchMerge'
+import { getTipVerificationFollowUp, isTrueTipCardId } from '@/lib/zone/tipVerification'
 import { runDiscoveryPulse, readStoredEconomyFingerprint, writeStoredEconomyFingerprint } from '@/lib/agents/heartbeat'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
@@ -114,7 +121,6 @@ import { useRockVisibleHabits } from '@/lib/rock/useRockVisibleHabits'
 import { useSentinel } from '@/app/hooks/useSentinel'
 import {
   journeyResearchSettled,
-  triggerScrapeSyncForCategory,
   type ResearchCategoryCoverageRow,
 } from '@/lib/researchSyncClient'
 import {
@@ -246,6 +252,28 @@ export default function ZonePage() {
   const [expandedTipId, setExpandedTipId] = useState<string | null>(null)
   /** S Update: bump to re-read localStorage after embedded question submit */
   const [refreshKey, setRefreshKey] = useState(0)
+  const [categoryIntentWeights, setCategoryIntentWeights] = useState(() =>
+    typeof window !== 'undefined' ? readCategoryIntentWeights() : {}
+  )
+
+  useEffect(() => {
+    const syncIntent = () => setCategoryIntentWeights(readCategoryIntentWeights())
+    window.addEventListener(CATEGORY_INTENT_CHANGED_EVENT, syncIntent)
+    return () => window.removeEventListener(CATEGORY_INTENT_CHANGED_EVENT, syncIntent)
+  }, [])
+
+  const trackZoneLike = useCallback(
+    (id: string, title?: string, moneyGbp?: number) => {
+      const tip = viewModel.tips.find((t) => t.id === id)
+      const journey = viewModel.journeys.find((j) => j.id === id)
+      const jid = tip?.journey_key ?? journey?.journey_key
+      if (jid) bumpCategoryIntent(jid, 'like')
+      toggleLike(id, title, moneyGbp)
+      setCategoryIntentWeights(readCategoryIntentWeights())
+      setRefreshKey((k) => k + 1)
+    },
+    [toggleLike, viewModel.tips, viewModel.journeys]
+  )
 
   useEffect(() => {
     const onZaiAuditComplete = () => setRefreshKey((k) => k + 1)
@@ -698,6 +726,9 @@ export default function ZonePage() {
     return formatLocationDisplayName(localData ?? undefined, scrapePostcode)
   }, [localData, scrapePostcode])
 
+  const [visitedCardIds, setVisitedCardIds] = useState<Set<string>>(() => readVisitedCardIds())
+  const [dbVisitedJourneyKeys, setDbVisitedJourneyKeys] = useState<Set<string>>(() => new Set())
+
   useEffect(() => {
     if (!hydrated) return
     if (scrapePostcode.length < 4) return
@@ -729,6 +760,14 @@ export default function ZonePage() {
         const savingAmountGbp = parsedMeta?.savingAmountGbp
         const architectProse = parsedMeta?.architectProse
         setResearchMeta(parsedMeta)
+        const vjkRaw = Array.isArray((data as { visited_journey_keys?: unknown })?.visited_journey_keys)
+          ? (data as { visited_journey_keys: unknown[] }).visited_journey_keys
+          : []
+        const vjk = vjkRaw.filter((j): j is string => typeof j === 'string' && j.length > 0)
+        if (vjk.length > 0) {
+          setDbVisitedJourneyKeys(new Set(vjk))
+          for (const j of vjk) bumpCategoryIntent(j, 'visited')
+        }
         const next = parseCoverageFromApi(data)
         if (next) {
           setResearchCategoryCoverage(next)
@@ -824,8 +863,6 @@ export default function ZonePage() {
   }, [scrapePostcode, hydrated])
 
   const proseRepairRequestedRef = useRef(false)
-  const zoneResearchSeedRef = useRef(false)
-
   /** When GET scrape-sync returns empty £ rows, seed core categories in the background. */
   useEffect(() => {
     if (!hydrated || scrapePostcode.length < 4 || zoneBootstrapRef.current) return
@@ -864,31 +901,7 @@ export default function ZonePage() {
     researchMeta?.verifiedSaving,
   ])
 
-  useEffect(() => {
-    if (!hydrated || scrapePostcode.length < 4 || zoneResearchSeedRef.current) return
-    const cov = researchCategoryCoverage
-    if (!cov) return
-    const missing = JOURNEY_ORDER.filter((jid) => !journeyResearchSettled(cov[jid]))
-    if (missing.length === 0) return
-    zoneResearchSeedRef.current = true
-    const profileFields = readProfileFieldsFromStorage()
-    const batch = missing.slice(0, 4)
-    batch.forEach((category, i) => {
-      window.setTimeout(() => {
-        triggerScrapeSyncForCategory({
-          postcode: scrapePostcode,
-          category,
-          profileData: {
-            postcode: scrapePostcode,
-            home_type: profileFields.home_type,
-            transport_baseline: profileFields.transport_baseline,
-            household: profileFields.household,
-            employment_status: profileFields.employment_status,
-          },
-        })
-      }, 1200 + i * 2500)
-    })
-  }, [hydrated, scrapePostcode, researchCategoryCoverage])
+  /* JIT: no batch POST scrape-sync for unsettled journeys — Tip +1 earns each scrape. */
 
   useEffect(() => {
     if (!hydrated || scrapePostcode.length < 4 || proseRepairRequestedRef.current) return
@@ -1170,6 +1183,7 @@ export default function ZonePage() {
       injectedTips: effectiveInjectedTips,
       marketContext: Object.keys(effectiveMarket).length > 0 ? effectiveMarket : undefined,
       neonJourneyResearch: neonJourneyResearchFromCoverage(researchCategoryCoverage),
+      categoryIntentWeights,
     })
     setViewModel(vm)
     setVmSyncStamp(Date.now())
@@ -1238,6 +1252,7 @@ export default function ZonePage() {
         injectedTips: effectiveInjectedTips,
         marketContext: nextMarketContext,
         neonJourneyResearch: neonJourneyResearchFromCoverage(researchCategoryCoverage),
+        categoryIntentWeights,
       })
 
       const gridTotals = sumJourneyGridTotals(vmLive)
@@ -1294,6 +1309,7 @@ export default function ZonePage() {
     researchMeta,
     homeUnitRates,
     researchCategoryCoverage,
+    categoryIntentWeights,
     hydrated,
     scrapePostcode,
   ])
@@ -1375,6 +1391,7 @@ export default function ZonePage() {
       marketContext:
         Object.keys(effectiveMarketArchitect).length > 0 ? effectiveMarketArchitect : undefined,
       neonJourneyResearch: neonJourneyResearchFromCoverage(researchCategoryCoverage),
+      categoryIntentWeights,
     })
 
     const nine = vm.journeys.filter((j) => j.id.startsWith('journey-'))
@@ -1488,6 +1505,7 @@ export default function ZonePage() {
     researchMeta,
     liveResearchData,
     researchCategoryCoverage,
+    categoryIntentWeights,
     hydrated,
     scrapePostcode,
   ])
@@ -1519,7 +1537,12 @@ export default function ZonePage() {
     }
   }, [pinnedAchievements, effectiveInjectedTips, viewModel.tips])
 
-  const [visitedCardIds, setVisitedCardIds] = useState<Set<string>>(() => readVisitedCardIds())
+  const isZoneCardVisited = useCallback(
+    (cardId: string, journeyKey?: JourneyId) =>
+      visitedCardIds.has(cardId) ||
+      (journeyKey != null && dbVisitedJourneyKeys.has(journeyKey)),
+    [visitedCardIds, dbVisitedJourneyKeys]
+  )
   const [deepDivePendingId, setDeepDivePendingId] = useState<string | null>(() =>
     readDeepDiveInProgressCardId()
   )
@@ -1818,7 +1841,7 @@ export default function ZonePage() {
           >
             <div className="zone-hero-copy">
               <motion.h2
-                className="zz-h2 zone-welcome zone-welcome-block m-0"
+                className="zz-h2 zone-welcome zone-welcome-block zone-welcome-name m-0"
                 style={{ color: 'var(--color-yellow)' }}
                 variants={STACCATO_CHILD_VARIANTS}
                 initial="hidden"
@@ -1842,7 +1865,16 @@ export default function ZonePage() {
                 initial="hidden"
                 animate="visible"
               >
-                {zoneWelcome.savingsImpactLine}
+                {zoneWelcome.savingsMoneyLine}
+              </motion.h2>
+              <motion.h2
+                className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+                style={{ color: 'var(--color-yellow)' }}
+                variants={STACCATO_CHILD_VARIANTS}
+                initial="hidden"
+                animate="visible"
+              >
+                {zoneWelcome.savingsCarbonLine}
               </motion.h2>
             </div>
             <ZoneDesktopNavRail />
@@ -2042,7 +2074,7 @@ export default function ZonePage() {
                   {cell.type === 'tip' && (() => {
                     const tip = cell.tip
                     const isDiscoveryInject = tip.id.startsWith('inject-')
-                    const tipVisited = visitedCardIds.has(tip.id)
+                    const tipVisited = isZoneCardVisited(tip.id, tip.journey_key)
                     const tipDeepDive = deepDivePendingId === tip.id
                     const tipBg = tipVisited
                       ? 'var(--color-pink)'
@@ -2212,7 +2244,7 @@ export default function ZonePage() {
                     <ZoneCard
                       cardId={cell.item.id}
                       journeyId={cell.item.journey_key}
-                      isVisited={visitedCardIds.has(cell.item.id)}
+                      isVisited={isZoneCardVisited(cell.item.id, cell.item.journey_key)}
                       deepDiveInProgress={deepDivePendingId === cell.item.id}
                       auditState={cell.item.auditState ?? null}
                       title={
@@ -2392,7 +2424,7 @@ export default function ZonePage() {
                         closeAnySoloFocus()
                         setAnswerHandoffOffer(null)
                       }}
-                      onLike={(id, title, savings) => toggleLike(id, title, savings)}
+                      onLike={trackZoneLike}
                       isLiked={state.likedCards.includes(cell.item.id)}
                       learnUrl={cell.item.actions?.learnUrl}
                       learnActionType={cell.item.actions?.actionType}
@@ -2504,7 +2536,7 @@ export default function ZonePage() {
                 onClose={closeAnySoloFocus}
                 onPatternShiftClose={launchPatternShiftTakeover}
                 cardId={tip.id}
-                onLike={(id, title, savings) => toggleLike(id, title, savings)}
+                onLike={trackZoneLike}
                 onEmbeddedAnswerSuccess={
                   isRockTip && tip.id.startsWith('rock-')
                     ? () => {
@@ -2533,7 +2565,16 @@ export default function ZonePage() {
                   })
                 }}
                 title={tip.title}
-                discoveryFollowUp={tip.followUp}
+                discoveryFollowUp={getTipVerificationFollowUp(tip.journey_key, tip.followUp)}
+                tipVerificationMode={isTrueTipCardId(tip.id)}
+                isCardVisited={isZoneCardVisited(tip.id, tip.journey_key)}
+                onTipVerificationComplete={(detail) => {
+                  if (detail.coverage) {
+                    setResearchCategoryCoverage(foldCoverageRowsForZone(detail.coverage))
+                  }
+                  markCardVisited(tip.id)
+                  setRefreshKey((k) => k + 1)
+                }}
                 onDiscoveryTrapComplete={() => setRefreshKey((k) => k + 1)}
                 ctaLabel={tipCtaLabel}
                 partnerLink={tip.partner_link}
