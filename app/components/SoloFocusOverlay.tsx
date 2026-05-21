@@ -717,6 +717,9 @@ export function SoloFocusOverlay({
       motherMoneyTargetGbp,
       onTipVerificationComplete,
       onDiscoveryTrapComplete,
+      cardId,
+      cardVisitedLock,
+      displayTitle,
     ]
   )
 
