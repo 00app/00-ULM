@@ -139,6 +139,7 @@ import {
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import ZoneDesktopNavRail from '@/app/components/ZoneDesktopNavRail'
 import ZoneAskZaiDock from '@/app/components/ZoneAskZaiDock'
+import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
 import {
   AppFloatingNav,
   ZoneCard,
@@ -310,6 +311,7 @@ export default function ZonePage() {
   const [architecturalPulsePhase, setArchitecturalPulsePhase] = useState<
     'idle' | 'pulse' | 'punch' | 'done'
   >('done')
+  const [pulseWordsComplete, setPulseWordsComplete] = useState(false)
   const architecturalPulsePhaseRef = useRef(architecturalPulsePhase)
   architecturalPulsePhaseRef.current = architecturalPulsePhase
   /** Pink achievement cards pinned directly under profile hero. */
@@ -330,7 +332,8 @@ export default function ZonePage() {
   const [sentinelPulseLabel, setSentinelPulseLabel] = useState<string | null>(null)
   const [dbConnected, setDbConnected] = useState(true)
   const [dbHealthHint, setDbHealthHint] = useState<string | null>(null)
-  const [vmResolved, setVmResolved] = useState(false)
+  const [vmResolved, setVmResolved] = useState(true)
+  const scrapeSyncGenRef = useRef(0)
   const [revealedCardCount, setRevealedCardCount] = useState(0)
   const [engineStatus, setEngineStatus] = useState<ZoneEngineStatus>('idle')
   const zoneBootstrapRef = useRef(false)
@@ -591,6 +594,7 @@ export default function ZonePage() {
         sessionStorage.removeItem(SESSION_SUMMARY_TO_ZONE)
         setHeroFromSummaryHandoff(true)
         setSummaryGridStaggerKey((k) => k + 1)
+        setPulseWordsComplete(false)
         setArchitecturalPulsePhase('pulse')
       }
     } catch {
@@ -782,11 +786,13 @@ export default function ZonePage() {
       return
     }
     const url = appendResearchUserIdQuery(`/api/scrape-sync?postcode=${encodeURIComponent(postcode)}`)
+    const syncGen = ++scrapeSyncGenRef.current
     let clearHydrationPhases: (() => void) | null = null
-    setVmResolved(false)
+    const controller = new AbortController()
+    const abortTimer = window.setTimeout(() => controller.abort(), ZONE_READY_MAX_WAIT_MS)
     setEngineStatus('scraping')
     clearHydrationPhases = scheduleZoneEngineHydrationPhases((phase) => setEngineStatus(phase))
-    fetch(url)
+    fetch(url, { signal: controller.signal })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         const parsedMeta = parseResearchMetaFromApi(data)
@@ -890,10 +896,17 @@ export default function ZonePage() {
         setVmResolved(true)
       })
       .finally(() => {
+        window.clearTimeout(abortTimer)
         clearHydrationPhases?.()
+        if (syncGen !== scrapeSyncGenRef.current) return
         setEngineStatus('idle')
         setVmResolved(true)
       })
+    return () => {
+      controller.abort()
+      window.clearTimeout(abortTimer)
+      clearHydrationPhases?.()
+    }
   }, [scrapePostcode, hydrated])
 
   const proseRepairRequestedRef = useRef(false)
@@ -1197,8 +1210,6 @@ export default function ZonePage() {
       Boolean(researchMeta?.architectProse?.trim()) ||
       (researchMeta?.savingAmountGbp != null && researchMeta.savingAmountGbp > 0) ||
       (researchMeta?.verifiedSaving != null && researchMeta.verifiedSaving > 0)
-
-    if (!hasResearchFeed) return
 
     const effectiveMarket = {
       ...(marketContext ?? {}),
@@ -1622,17 +1633,6 @@ export default function ZonePage() {
   }, [])
 
   const sessionRestoreDone = useRef(false)
-  useEffect(() => {
-    if (!hydrated || sessionRestoreDone.current) return
-    const mem = readSessionMemory()
-    const focus = mem?.last_solo_focus
-    if (!focus?.cardId) return
-    sessionRestoreDone.current = true
-    if (openSoloFocus(focus.cardId, 'journey')) {
-      setExpandedCardId(focus.cardId)
-      setExpandedFromTip(null)
-    }
-  }, [hydrated, openSoloFocus])
 
   const groovyItems = useMemo(
     () =>
@@ -1647,6 +1647,24 @@ export default function ZonePage() {
     [viewModel, achievementTips, discoveryTips, baselineTips, state.profile?.goal]
   )
   const displayItems: GroovyItem[] = useMemo(() => [...groovyItems], [groovyItems])
+
+  useEffect(() => {
+    if (!hydrated || sessionRestoreDone.current || displayItems.length === 0) return
+    const mem = readSessionMemory()
+    const focus = mem?.last_solo_focus
+    if (!focus?.cardId) return
+    const hasCard = displayItems.some(
+      (c) =>
+        (c.type === 'journey' && c.item.id === focus.cardId) ||
+        (c.type === 'tip' && c.tip.id === focus.cardId)
+    )
+    sessionRestoreDone.current = true
+    if (!hasCard) return
+    if (openSoloFocus(focus.cardId, 'journey')) {
+      setExpandedCardId(focus.cardId)
+      setExpandedFromTip(null)
+    }
+  }, [hydrated, displayItems, openSoloFocus])
 
   const researchLoading = !vmResolved
   const isZoneReady = useMemo(
@@ -1663,14 +1681,17 @@ export default function ZonePage() {
   }, [])
 
   useEffect(() => {
-    if (architecturalPulsePhase !== 'pulse' || !isZoneReady) return
+    if (architecturalPulsePhase !== 'pulse' || !isZoneReady || !pulseWordsComplete) return
     beginZonePunchThrough()
-  }, [architecturalPulsePhase, isZoneReady, beginZonePunchThrough])
+  }, [architecturalPulsePhase, isZoneReady, pulseWordsComplete, beginZonePunchThrough])
 
   useEffect(() => {
     if (architecturalPulsePhase !== 'pulse' || isZoneReady) return
     const safety = window.setTimeout(() => {
-      if (architecturalPulsePhaseRef.current === 'pulse') beginZonePunchThrough()
+      if (architecturalPulsePhaseRef.current !== 'pulse') return
+      setPulseWordsComplete(true)
+      setVmResolved(true)
+      beginZonePunchThrough()
     }, ZONE_READY_MAX_WAIT_MS)
     return () => window.clearTimeout(safety)
   }, [architecturalPulsePhase, isZoneReady, beginZonePunchThrough])
@@ -1678,7 +1699,6 @@ export default function ZonePage() {
   const zoneInteractable =
     isZoneVisible &&
     hydrated &&
-    vmResolved &&
     architecturalPulsePhase === 'done' &&
     !patternShiftJourneyId
   const zoneWallCollapsed =
@@ -1692,14 +1712,6 @@ export default function ZonePage() {
 
     if (!isZoneVisible || architecturalPulsePhase !== 'done') {
       setRevealedCardCount(0)
-      return
-    }
-    if (!vmResolved) {
-      if (showPinnedWhileLoading) {
-        setRevealedCardCount((n) => Math.max(n, Math.min(pinFloor, displayItems.length)))
-      } else {
-        setRevealedCardCount(0)
-      }
       return
     }
     if (displayItems.length === 0) return
@@ -1718,7 +1730,6 @@ export default function ZonePage() {
     displayItems.length,
     cleanBirthRevealKey,
     summaryGridStaggerKey,
-    vmResolved,
     pinnedAchievements.length,
   ])
 
@@ -1749,7 +1760,8 @@ export default function ZonePage() {
         const nextKey = JOURNEY_ORDER[step]
         for (const c of displayItems) {
           if (c.type === 'journey' && c.item.journey_key === nextKey) {
-            if (!openSoloFocus(c.item.id, 'journey')) return
+            setExpandedTipId(null)
+            openSoloFocus(c.item.id, 'journey')
             setExpandCard(
               {
                 id: c.item.id,
@@ -2127,11 +2139,11 @@ export default function ZonePage() {
                     const tipVisited = isZoneCardVisited(tip.id, tip.journey_key)
                     const tipDeepDive = deepDivePendingId === tip.id
                     const tipBg = tipVisited
-                      ? 'var(--color-yellow)'
+                      ? 'var(--color-pink)'
                       : isDiscoveryInject
                         ? 'var(--color-pink)'
                         : 'var(--color-purple)'
-                    const tipInk = tipVisited ? 'var(--color-purple)' : 'var(--color-yellow)'
+                    const tipInk = tipVisited ? 'var(--color-yellow)' : 'var(--color-yellow)'
                     const tipTextColor = tipInk
                     const semanticWin = tip.dominant_win ?? 'money'
                     const tipLabelH = 14
@@ -2665,6 +2677,10 @@ export default function ZonePage() {
             onAchievementCard={pinAchievementCard}
             onRevealComplete={completeCleanBirth}
           />
+        ) : null}
+
+        {architecturalPulsePhase === 'pulse' && !patternShiftJourneyId ? (
+          <ArchitecturalPulse onComplete={() => setPulseWordsComplete(true)} />
         ) : null}
 
         {isZoneVisible && !expandedCardId && !expandedTipId && !patternShiftJourneyId ? (

@@ -289,16 +289,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const openSoloFocus = useCallback((cardId: string, type: 'journey' | 'tip' | 'discovery'): boolean => {
-    let accepted = false
-    setSoloFocus((prev) => {
-      // Anti-double-focus guard: once open, block second mount attempts.
-      if (prev.activeCardId && prev.activeCardId !== cardId) {
-        return prev
-      }
-      accepted = true
-      return { activeCardId: cardId, activeType: type }
-    })
-    return accepted
+    setSoloFocus({ activeCardId: cardId, activeType: type })
+    return true
   }, [])
 
   const closeSoloFocus = useCallback(() => {

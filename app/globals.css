@@ -7182,12 +7182,23 @@ select,
   }
 }
 
-/* Visited audit trail — pink tile, yellow ink */
+/* Visited audit trail — pink tile, yellow ink (beats groovy-zone-grid purple default) */
+.groovy-zone-grid .bento-card-groovy.zone-card--visited,
+.groovy-zone-grid .zone-card--visited.bento-card-groovy,
 .zone-card--visited.bento-card-groovy,
 .bento-card-groovy.zone-card--visited {
+  background: var(--color-pink) !important;
   background-color: var(--color-pink) !important;
   color: var(--color-yellow) !important;
+  --journey-bg: var(--color-pink);
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
 }
+.groovy-zone-grid .zone-card--visited .card-top-label,
+.groovy-zone-grid .zone-card--visited .card-headline,
+.groovy-zone-grid .zone-card--visited .data-label,
+.groovy-zone-grid .zone-card--visited .data-value,
+.groovy-zone-grid .zone-card--visited .text-data,
 .zone-card--visited .card-top-label,
 .zone-card--visited .card-headline,
 .zone-card--visited .data-label,
@@ -7195,17 +7206,27 @@ select,
 .zone-card--visited .text-data {
   color: var(--color-yellow) !important;
 }
-/* Saving tips start pink — visited flips to yellow ink on yellow tile */
+/* Visited tips — same pink / yellow lock as journey tiles */
+.groovy-zone-grid .bento-card-groovy[data-zone-surface='tip'].zone-card--visited,
 .bento-card-groovy[data-zone-surface='tip'].zone-card--visited {
-  background-color: var(--color-yellow) !important;
-  color: var(--color-purple) !important;
+  background: var(--color-pink) !important;
+  background-color: var(--color-pink) !important;
+  color: var(--color-yellow) !important;
+  --journey-bg: var(--color-pink);
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
 }
+.groovy-zone-grid .bento-card-groovy[data-zone-surface='tip'].zone-card--visited .card-top-label,
+.groovy-zone-grid .bento-card-groovy[data-zone-surface='tip'].zone-card--visited .card-headline,
+.groovy-zone-grid .bento-card-groovy[data-zone-surface='tip'].zone-card--visited .data-label,
+.groovy-zone-grid .bento-card-groovy[data-zone-surface='tip'].zone-card--visited .data-value,
+.groovy-zone-grid .bento-card-groovy[data-zone-surface='tip'].zone-card--visited .text-data,
 .bento-card-groovy[data-zone-surface='tip'].zone-card--visited .card-top-label,
 .bento-card-groovy[data-zone-surface='tip'].zone-card--visited .card-headline,
 .bento-card-groovy[data-zone-surface='tip'].zone-card--visited .data-label,
 .bento-card-groovy[data-zone-surface='tip'].zone-card--visited .data-value,
 .bento-card-groovy[data-zone-surface='tip'].zone-card--visited .text-data {
-  color: var(--color-purple) !important;
+  color: var(--color-yellow) !important;
 }
 .bento-card-groovy[data-journey].zone-card--deep-dive-pending::after {
   content: 'DEEP DIVE IN PROGRESS...';
