@@ -32,6 +32,14 @@ export function resolveMaxIterations(): number {
   return Math.min(12, Math.max(1, n))
 }
 
+/** Skip Firecrawl HTTP (402 / no key / explicit opt-out) — use mechanical + Neon fallbacks. */
+export function shouldSkipFirecrawlScrape(): boolean {
+  const v = process.env.SKIP_FIRECRAWL?.trim().toLowerCase() ?? ''
+  if (v === '1' || v === 'true' || v === 'yes') return true
+  const key = process.env.FIRE_CRAWL_KEY_2?.trim() ?? ''
+  return key.length === 0
+}
+
 /** Skip second-pass Gemini deep search when on bucket mode (Firecrawl surgical + triplet extraction only). */
 export function shouldSkipDeepGeminiSearch(): boolean {
   if (isBucketFailoverMode()) return true

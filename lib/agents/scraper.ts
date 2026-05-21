@@ -3,6 +3,7 @@
  */
 
 import Firecrawl from '@mendable/firecrawl-js'
+import { shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
 
 /** Ofgem: check if energy price cap is rising or falling (households). */
 export const OFGEM_LIVE_PRICE_CAP_URL =
@@ -42,6 +43,7 @@ function extractMarkdown(res: unknown): string {
  * If the first response is shorter than 500 characters, logs a Bot Block warning and retries with `waitFor: 3000`.
  */
 export async function fetchLiveEnergyData(): Promise<string> {
+  if (shouldSkipFirecrawlScrape()) return ''
   const client = getClient()
   if (!client) return ''
 
@@ -76,6 +78,7 @@ export async function fetchLiveEnergyData(): Promise<string> {
  * Firecrawl markdown from BBC Energy + PetrolPrices (UK). Concatenates for supplemental research / architect.
  */
 export async function fetchUkEconomicSeedMarkdown(): Promise<string> {
+  if (shouldSkipFirecrawlScrape()) return ''
   const client = getClient()
   if (!client) return ''
 
@@ -108,6 +111,7 @@ export async function fetchFirecrawlMarkdownForUrls(
   urls: string[],
   params?: { minChars?: number; maxUrls?: number }
 ): Promise<Array<{ url: string; markdown: string; title?: string }>> {
+  if (shouldSkipFirecrawlScrape()) return []
   const client = getClient()
   if (!client) return []
 

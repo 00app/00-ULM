@@ -7,6 +7,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { z } from 'zod'
 import { getUserContextMarkdown } from '@/lib/memory/store'
 import { triggerSupplementalResearch } from '@/lib/agents/researchAgent'
+import { shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
 import { isGeminiQuotaExceeded, setGeminiQuotaExceeded } from '@/lib/geminiQuota'
 import { validateInjectionCards } from '@/lib/zone/injections'
 import { setStoredInjections } from '@/lib/zone/injectionStore'
@@ -70,7 +71,7 @@ const GeminiCardSchema = z.object({
 })
 const GeminiCardsSchema = z.array(GeminiCardSchema)
 
-function fallbackZoneTips(postcodeNorm: string | null): unknown[] {
+export function fallbackZoneTips(postcodeNorm: string | null): unknown[] {
   const locality = postcodeNorm ? ` ${postcodeNorm}` : ''
   const OFGEM_CAP_URL = 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap'
   return [
@@ -175,16 +176,18 @@ export async function POST() {
 
   let supplementalMarkdown = ''
   const postcode = postcodeNorm
-  try {
-    const research = await triggerSupplementalResearch({
-      postcode: postcode ?? undefined,
-      persistToNeon: false,
-    })
-    if (research?.markdown) {
-      supplementalMarkdown = research.markdown.slice(0, 5000)
+  if (!shouldSkipFirecrawlScrape()) {
+    try {
+      const research = await triggerSupplementalResearch({
+        postcode: postcode ?? undefined,
+        persistToNeon: false,
+      })
+      if (research?.markdown) {
+        supplementalMarkdown = research.markdown.slice(0, 5000)
+      }
+    } catch {
+      /* continue without gateway markdown */
     }
-  } catch {
-    /* continue without gateway markdown */
   }
 
   const genAI = new GoogleGenerativeAI(apiKey)

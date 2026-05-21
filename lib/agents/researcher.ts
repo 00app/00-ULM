@@ -12,6 +12,7 @@ import {
   OFGEM_LIVE_PRICE_CAP_URL,
 } from '@/lib/agents/scraper'
 import { APRIL_2026_TRUTH_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
+import { shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { NINE_DOMAIN_GRID_SEED_URLS } from '@/lib/agents/nineDomainResearchSeeds'
 
@@ -237,7 +238,7 @@ export async function triggerSupplementalResearch(params: {
   let citations: ResearchCitation[] = []
   let localityContext: string | null = null
 
-  if (markdown.length < 200 && hasFirecrawlApiKey()) {
+  if (markdown.length < 200 && hasFirecrawlApiKey() && !shouldSkipFirecrawlScrape()) {
     const fallbackMd = await fetchLiveEnergyData()
     if (fallbackMd.length > markdown.length) {
       markdown = fallbackMd

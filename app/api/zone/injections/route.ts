@@ -6,9 +6,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { getSessionFromRequest } from '@/lib/auth'
 import { appendStoredInjections, getStoredInjections } from '@/lib/zone/injectionStore'
-import { POST as refreshZoneTips } from '@/app/api/zone/tips-refresh/route'
+import { POST as refreshZoneTips, fallbackZoneTips } from '@/app/api/zone/tips-refresh/route'
+import { setStoredInjections } from '@/lib/zone/injectionStore'
+import { shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
 import type { ResearchProfileData } from '@/lib/agents/researchAgent'
-import { enforceTrueWinRails, passesBoundaryGuard } from '@/lib/zone/trueWinRails'
+import { enforceTrueWinRails, passesBoundaryGuard, validateAndRailCards } from '@/lib/zone/trueWinRails'
+import { validateInjectionCards } from '@/lib/zone/injections'
 import { persistZoneTipInjectBody } from '@/lib/zone/persistZoneTipInject'
 import {
   countDiscoveryInjectionsForUserJourney,
@@ -23,7 +26,12 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   let cards = getStoredInjections()
   if (cards.length === 0) {
-    await refreshZoneTips()
+    if (shouldSkipFirecrawlScrape()) {
+      const fallback = validateAndRailCards(validateInjectionCards(fallbackZoneTips(null)), null)
+      setStoredInjections(fallback)
+    } else {
+      await refreshZoneTips()
+    }
     cards = getStoredInjections()
   }
   return NextResponse.json(cards)

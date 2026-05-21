@@ -897,6 +897,8 @@ export default function ZonePage() {
   }, [scrapePostcode, hydrated])
 
   const proseRepairRequestedRef = useRef(false)
+  /** One content-architect batch per profile/answers fingerprint — stops 20s×N Gemini on refreshKey bumps. */
+  const architectBatchKeyRef = useRef<string | null>(null)
   /** When GET scrape-sync returns empty £ rows, seed core categories in the background. */
   useEffect(() => {
     if (!hydrated || scrapePostcode.length < 4 || zoneBootstrapRef.current) return
@@ -1461,6 +1463,10 @@ export default function ZonePage() {
         : null,
     }
     const cacheKey = `zz_architect_${architectCacheFingerprint(cachePayload)}`
+    if (architectBatchKeyRef.current === cacheKey) {
+      return
+    }
+    architectBatchKeyRef.current = cacheKey
     const skip = new Set<JourneyId>()
     if ((profile.postcode ?? '').replace(/\s+/g, '').toUpperCase().startsWith('KW')) {
       skip.add('home')
@@ -1543,20 +1549,14 @@ export default function ZonePage() {
     return () => {
       cancelled = true
     }
+    // Intentionally omit refreshKey / discovery tips — one architect batch per cacheKey only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- credit guard
   }, [
     state.profile,
     liveProfilePostcode,
-    scraped,
-    localData,
-    refreshKey,
-    effectiveInjectedTips,
-    marketContext,
     homeUnitRates,
     ratesSourceUrl,
-    researchMeta,
-    liveResearchData,
     researchCategoryCoverage,
-    categoryIntentWeights,
     hydrated,
     scrapePostcode,
   ])

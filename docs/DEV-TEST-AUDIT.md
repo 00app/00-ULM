@@ -219,6 +219,15 @@ Optional: `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` with `OPENROUTER_MODEL=meta-ll
 |---------|-----|
 | `password authentication failed` | Neon console → reset password → paste new pooler URL into `.env.local` + Vercel |
 | `verify` ESLint warning only | Pre-existing `SoloFocusOverlay` hooks — not a build blocker |
+
+### Local dev — stop credit burn
+
+| Symptom | Fix |
+|--------|-----|
+| `[scraper] Ofgem Firecrawl scrape failed: 402` | Add `SKIP_FIRECRAWL=1` to `.env.local` (no Firecrawl calls) |
+| Many `POST /api/zone/content-architect` ~20s | One batch per profile fingerprint; clear `sessionStorage` keys `zz_architect_*` to force refresh |
+| `npm run hermes:repair-pulse # comment` → `Unknown arg: #` | Run **one command per line** — npm passes `#` to bash |
+| `vercel promote <deployment-url> --yes` | Use a real URL: `vercel promote https://00-no8wcw8hh-….vercel.app --yes` or `vercel inspect 00-ulm.vercel.app` |
 | Zone stale cards | Clear localStorage; check `NEXT_PUBLIC_DATA_VERSION` in `.env.local` |
 | Hermes 401 | `CRON_SECRET` in `.env.local` must match VPS secret file |
 | `Unknown arg: #` after npm | Remove inline `# comments` on npm lines |
