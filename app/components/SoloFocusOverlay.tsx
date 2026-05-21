@@ -85,7 +85,13 @@ import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
 import { getTipVerificationFollowUp } from '@/lib/zone/tipVerification'
 import { runTipVerificationDeepScrape } from '@/lib/zone/tipVerificationDeepScrape'
-import { isCardVisited, markCardVisited, recordCardVisitHandoff } from '@/lib/zone/visitedCards'
+import {
+  isCardVisited,
+  markCardVisited,
+  recordCardVisitHandoff,
+  shouldSkipInjectionOnCardClose,
+} from '@/lib/zone/visitedCards'
+import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
 
 export interface SoloFocusOverlayProps {
   category: string
@@ -101,7 +107,7 @@ export interface SoloFocusOverlayProps {
   architectSuppliedBy?: string | null
   onClose: () => void
   /** Close chevron → dismiss overlay, then pattern-shift takeover on Zone shell. */
-  onPatternShiftClose?: (journeyId: JourneyId) => void
+  onPatternShiftClose?: PatternShiftCloseHandler
   cardId?: string
   onLike?: (id: string, title?: string, moneyGbp?: number) => void
   isLiked?: boolean
@@ -633,9 +639,13 @@ export function SoloFocusOverlay({
 
   const requestClose = useCallback(() => {
     triggerHaptic('medium')
-    onPatternShiftClose?.(loopJourneyKey)
+    const visitId = String(cardId ?? activeCardId ?? '').trim()
+    onPatternShiftClose?.(loopJourneyKey, {
+      cardId: visitId || undefined,
+      visitedClose: visitId ? shouldSkipInjectionOnCardClose(visitId) : false,
+    })
     onClose()
-  }, [loopJourneyKey, onPatternShiftClose, onClose])
+  }, [loopJourneyKey, onPatternShiftClose, onClose, cardId, activeCardId])
 
   const handleTrinityLike = useCallback(() => {
     triggerHaptic('medium')

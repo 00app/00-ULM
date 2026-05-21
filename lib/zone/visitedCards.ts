@@ -34,6 +34,13 @@ export function isCardVisited(cardId: string): boolean {
   return readVisitedCardIds().has(cardId.trim())
 }
 
+/** Visited (pink) cards: close must not spawn injections, loop takeovers, or tips-refresh. */
+export function shouldSkipInjectionOnCardClose(cardId: string | null | undefined): boolean {
+  const id = cardId?.trim()
+  if (!id) return false
+  return isCardVisited(id)
+}
+
 export function setDeepDiveInProgress(cardId: string | null): void {
   if (typeof window === 'undefined') return
   try {

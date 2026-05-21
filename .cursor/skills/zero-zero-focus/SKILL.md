@@ -53,6 +53,13 @@ Replace `<SKILL_ID>` with e.g. `ce-work`, `ce-debug`, `ce-plan`, `ce-brainstorm`
 - **Region** is derived from **postcode** and APIs — do not reintroduce a manual region onboarding step.
 - **Profile summary** (`app/profile/summary`): staccato **opacity ticker** (`IntroWordCycle` + `opacityTicker`); do not add glitch / count-up graphics there unless the user explicitly asks.
 
-## 5. If skills still feel “broken”
+## 5. Ulm JIT — use less, more
+
+- **Models:** `gemini-1.5-flash` for zone, article, and chat (`lib/intelligence/geminiModels.ts`). Temperature **0.2** for research triplets (`GEMINI_PRECISION_TEMPERATURE`).
+- **Earned research:** Firecrawl/Gemini only after Tip +1 in Solo Focus (`runTipVerificationDeepScrape`). `POST /api/scrape-sync` trigger **requires** `journey_key` (Topic Shield).
+- **Pink lock:** Visited cards must not re-trigger `triggerScrapeSyncForCategory`.
+- **Lead Auditor:** `ULM_LEAD_AUDITOR_SYSTEM` in `geminiModels.ts` — Monocle forensic, 3 paragraphs, heading max 7 words.
+
+## 6. If skills still feel “broken”
 
 Ask the user to confirm in **Cursor Settings → Rules / Skills** that project skills are enabled and the workspace is the `00-00` repo root (not a parent folder). Reload the window after adding new `.cursor/skills/` directories.

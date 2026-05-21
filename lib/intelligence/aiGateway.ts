@@ -25,7 +25,12 @@ import {
 } from '@/lib/intelligence/geminiModels'
 
 export { isBucketFailoverEnabled, listConfiguredBucketProviders } from '@/lib/intelligence/bucketFailover'
-export { bucketFailoverStatus, isBucketFailoverMode, isBroadResearchAllowed } from '@/lib/intelligence/scrapeBoundaries'
+export {
+  bucketFailoverStatus,
+  isBucketFailoverMode,
+  isBroadResearchAllowed,
+  shouldSkipGeminiInBucket,
+} from '@/lib/intelligence/scrapeBoundaries'
 
 export {
   ARTICLE_GATEWAY_MODEL_CHAIN,

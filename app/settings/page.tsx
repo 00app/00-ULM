@@ -18,7 +18,8 @@ import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { clearLocalStorageExceptProfileAndUser } from '@/lib/utils/migrate'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
-import { ZoneIntelligenceStrip } from '@/app/components/ZoneIntelligenceStrip'
+import DiagnosticsFlightDeckButton from '@/app/components/DiagnosticsFlightDeckButton'
+import DiagnosticsSheet from '@/app/components/DiagnosticsSheet'
 import { readCachedProfileLocality } from '@/lib/geocode/resolvePostcodeLocality'
 
 const PROFILE_LABELS: Record<string, string> = {
@@ -159,6 +160,7 @@ export default function SettingsPage() {
   const [activeJourneyEdit, setActiveJourneyEdit] = useState<{ id: JourneyId; title: string } | null>(null)
   const [dbConnected, setDbConnected] = useState(true)
   const [dbHealthHint, setDbHealthHint] = useState<string | null>(null)
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
 
   useEffect(() => setHasMounted(true), [])
 
@@ -340,16 +342,16 @@ export default function SettingsPage() {
         color: 'var(--color-yellow)',
         minHeight: '100vh',
         position: 'relative',
-        paddingTop: 56,
+        paddingTop: 20,
         paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))',
       }}
       {...KINETIC_ZIP_PULSE}
     >
       <ZoneBackToZoneLink />
 
-      {/* Heading centred in the middle (horizontal centre) */}
+      {/* Page title — H3, left-aligned (matches Ask Zai / Likes) */}
       <div className="settings-heading-wrap">
-        <h1 className="zz-page-title zai-page-title">Settings</h1>
+        <h3 className="zz-page-title">Settings</h3>
       </div>
 
       <div className="settings-grid-wrap">
@@ -487,15 +489,14 @@ export default function SettingsPage() {
         </h4>
       )}
 
-      <section className="settings-intel-section" aria-label="Intelligence loop">
-        <ZoneIntelligenceStrip
-          variant="settings"
-          dbConnected={dbConnected}
-          dbHealthHint={dbHealthHint}
-          scrapePostcode={profileForOverview?.postcode ?? ''}
-          localityLabel={cachedLocalityLabel}
-        />
-      </section>
+      <DiagnosticsSheet
+        open={diagnosticsOpen}
+        onClose={() => setDiagnosticsOpen(false)}
+        dbConnected={dbConnected}
+        dbHealthHint={dbHealthHint}
+        scrapePostcode={profileForOverview?.postcode ?? ''}
+        localityLabel={cachedLocalityLabel}
+      />
 
       {/* Solid circle CTAs — horizontal row, wrap to second line; label clipped to disc */}
       <div className="settings-cta-circles mt-8 z-10 relative">
@@ -519,19 +520,25 @@ export default function SettingsPage() {
             LOCATION
           </span>
         </Link>
-        <motion.button
-          type="button"
-          onClick={handleReset}
-          className="settings-circle-cta settings-circle-cta--pink"
-          transition={INDUSTRIAL_OPACITY_SNAP}
-          aria-label="Reset all data"
-        >
-          <span className="settings-circle-cta__label zz-h4">
-            RESET
-            <br />
-            DATA
-          </span>
-        </motion.button>
+        <div className="settings-reset-flight-deck flex items-center justify-center gap-3">
+          <motion.button
+            type="button"
+            onClick={handleReset}
+            className="settings-circle-cta settings-circle-cta--pink"
+            transition={INDUSTRIAL_OPACITY_SNAP}
+            aria-label="Reset all data"
+          >
+            <span className="settings-circle-cta__label zz-h4">
+              RESET
+              <br />
+              DATA
+            </span>
+          </motion.button>
+          <DiagnosticsFlightDeckButton
+            active={diagnosticsOpen}
+            onClick={() => setDiagnosticsOpen((v) => !v)}
+          />
+        </div>
       </div>
     </motion.div>
   )

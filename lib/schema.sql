@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS cards (
 );
 
 -- =========================
--- CARD VIEWS (FRESHNESS)
+-- CARD VIEWS (LEGACY — dropped in db/migrations/20260521_drop_legacy_unused_tables.sql)
 -- =========================
 CREATE TABLE IF NOT EXISTS card_views (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -245,7 +245,7 @@ CREATE INDEX IF NOT EXISTS idx_discovery_injections_created_at ON discovery_inje
 -- journey_key / question_id indexes: db/migrations/018_discovery_injections_pattern_shift.sql (existing DBs may lack columns until 018 runs)
 
 -- =========================
--- ZAI MESSAGES (Gemini real-time Q&A per session)
+-- ZAI MESSAGES (LEGACY — dropped in 20260521; chat uses /api/zai + client state)
 -- =========================
 CREATE TABLE IF NOT EXISTS zai_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -258,7 +258,7 @@ CREATE INDEX IF NOT EXISTS idx_zai_messages_session_id ON zai_messages(session_i
 CREATE INDEX IF NOT EXISTS idx_zai_messages_created_at ON zai_messages(created_at DESC);
 
 -- =========================
--- MICRO ANSWERS
+-- MICRO ANSWERS (LEGACY — dropped in 20260521 migration; not on Zone hot path)
 -- =========================
 CREATE TABLE IF NOT EXISTS micro_answers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

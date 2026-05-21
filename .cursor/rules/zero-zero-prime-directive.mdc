@@ -21,10 +21,11 @@ alwaysApply: true
 
 ## 2. Intelligence Loop (Handbook Alignment)
 
-- **Trigger:** Oracle VPS (Hermes) hits **`GET` or `POST`** `/api/cron/zone-research` at 05:00 (Bearer **`CRON_SECRET`**).
+- **Trigger:** Oracle VPS (Hermes) or Vercel Cron hits **`GET` or `POST`** `/api/cron/zone-research` **weekly Monday 05:00** (`0 5 * * 1`, Bearer **`CRON_SECRET`**). Per-category JIT scrape still fires on Tip +1 answer.
 - **Birth (Zone discovery cards from the embedded journey):** **`POST /api/answers`** → discovery race → `discovery.new_card_data` / `grid_pulse_card` → **`injectNewDiscoveryCard`**. This is the **canonical** birth path for MC answers in Solo Focus / bento.
 - **Supplemental (capped):** **`POST /api/zone/injections`** (trap follow-up) and **`POST /api/research/question-card`** (free-form Ask) — not the primary answer-loop birth; all respect **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`**.
 - **Neon:** Persisted invoke metadata column is **`research_snapshot`** (JSONB).
+- **ULM ceilings:** 24 bento cells, 3 discovery injects/journey, Rock rail 6→12 — `lib/zone/ulmLimits.ts`, `docs/ULM-APPLICATION-LOOP.md`.
 - **Reasoning:** Gemini emits **`agent_headline`** (~20 words) + **`architect_prose`** as exactly three paragraphs (what / why / how embedded in prose — no structural labels in the text).
 - **Persona:** Zai Senior Auditor (industrial, direct, zero-fluff; lowercase where natural).
 

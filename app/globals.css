@@ -171,6 +171,7 @@ nextjs-portal > * {
   --zz-h1-mobile: 90px;
   --zz-h1-desktop: 200px;
   --zz-h2-mobile: 70px;
+  --zz-h2-tablet: clamp(3.25rem, 5.5vw, 120px);
   --zz-h2-desktop: 120px;
   --zz-h3-mobile: 36px;
   --zz-h3-desktop: 56px;
@@ -1567,9 +1568,13 @@ body, p, span, input, button, textarea, select,
   margin-left: 0;
   line-height: 0.8;
 }
+.zone-welcome-block.zone-welcome-name {
+  text-transform: none !important;
+  letter-spacing: normal;
+}
 .zone-welcome-block.zone-welcome-savings {
   line-height: 1.2;
-  text-transform: none;
+  text-transform: lowercase !important;
   letter-spacing: normal;
 }
 
@@ -3730,15 +3735,34 @@ h3.solo-focus-question-label.zz-h3 {
   box-sizing: border-box;
 }
 
-/* Zai: page scrolls as one column; composer dock fixed at bottom */
+/* Zai: scrollable thread + fixed composer (input + connect) */
 .zai-interface {
+  --zai-bubble-radius: 30px;
+  --zai-bubble-padding: 15px;
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   background-color: transparent !important;
   color: var(--color-yellow);
   box-sizing: border-box;
-  --zai-composer-clearance: calc(220px + env(safe-area-inset-bottom, 0px));
-  padding-bottom: var(--zai-composer-clearance);
+  padding-bottom: 0;
+}
+.zai-interface .zai-page-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  margin-inline: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
 }
 .zai-interface .zai-page-content {
   width: 100%;
@@ -3751,7 +3775,6 @@ h3.solo-focus-question-label.zz-h3 {
   display: flex;
   flex-direction: column;
   gap: 0;
-  overflow: visible;
 }
 .zai-interface .zai-chat-msg {
   margin-bottom: 20px;
@@ -3760,10 +3783,14 @@ h3.solo-focus-question-label.zz-h3 {
 .zai-interface .zai-chat-msg--user {
   text-align: right;
 }
+.zai-interface .zai-thread-end {
+  height: 1px;
+  flex-shrink: 0;
+}
 .zai-interface .zai-composer-dock {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -3771,15 +3798,21 @@ h3.solo-focus-question-label.zz-h3 {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  bottom: 0;
   z-index: 195;
   width: min(var(--max-w-zone), calc(100vw - 32px));
   max-width: var(--max-w-zone);
   padding-inline: 0;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
+  background: transparent;
 }
 .zai-interface .zai-composer-dock--fixed > * {
   pointer-events: auto;
+}
+.zai-interface .zai-composer-dock--fixed .zai-connecting {
+  text-align: center;
+  min-height: 1.25rem;
 }
 .zai-interface .zai-intro-bubble {
   width: 100%;
@@ -3791,17 +3824,16 @@ h3.solo-focus-question-label.zz-h3 {
 .zai-interface .zz-body,
 .zai-interface .zai-bubble,
 .zai-interface p { color: var(--color-yellow); }
-.zai-interface .zz-page-title {
-  text-align: center;
+.zai-interface h3.zz-page-title {
+  text-align: left;
   flex-shrink: 0;
-  margin-bottom: 12px;
 }
 /* Intro + chat — Ask Zai palette (--zai-field-bg / --zai-ink) */
 .zai-interface .zai-intro-bubble {
   background: var(--zai-field-bg);
   color: var(--zai-ink);
-  border-radius: var(--radius-groovy);
-  padding: var(--padding-bento);
+  border-radius: var(--zai-bubble-radius);
+  padding: var(--zai-bubble-padding);
   margin-bottom: var(--gap-md);
   max-width: 100%;
   box-sizing: border-box;
@@ -3816,14 +3848,14 @@ h3.solo-focus-question-label.zz-h3 {
 }
 .zai-interface .zai-intro-bubble .zz-body + .zz-body { margin-top: 12px; }
 
-/* Zai chat bubbles — Roboto body, groovy radius */
+/* Zai chat bubbles — Roboto body; 30px radius / 15px pad (intro + user + zai) */
 .zai-interface .zai-bubble-chat {
-  border-radius: var(--radius-groovy);
+  border-radius: var(--zai-bubble-radius);
   font-family: var(--font-roboto), sans-serif;
   font-weight: 800;
   font-size: 1.125rem;
   line-height: 1.45;
-  padding: var(--padding-bento);
+  padding: var(--zai-bubble-padding);
   text-wrap: balance;
   overflow-wrap: anywhere;
 }
@@ -3843,13 +3875,25 @@ h3.solo-focus-question-label.zz-h3 {
   color: var(--zai-ink) !important;
 }
 
-/* Deep-dive quick prompts — deep navy pills, yellow Marvin label */
+/* Zai voice — organic lowercase prose (model-led; no forced transform on user bubbles) */
+.zai-interface .zai-prose-voice {
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+
+/* Quick prompts — inline in thread under Zai (not in fixed dock) */
 .zai-interface .zai-suggest-row {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   width: 100%;
   margin: 0;
+}
+.zai-interface .zai-suggest-row--inline {
+  margin-top: 4px;
+  margin-bottom: 20px;
+  max-width: 100%;
 }
 .zai-interface .zai-suggest-pill {
   border: 0;
@@ -3917,7 +3961,10 @@ h3.solo-focus-question-label.zz-h3 {
   width: 100%;
   max-width: 100%;
   margin: 0;
-  box-shadow: 0 8px 32px color-mix(in srgb, var(--zai-ink) 28%, transparent);
+}
+.zai-interface .zai-input-row .ask-zai-input,
+.zai-interface .zai-input-row .zone-ask-zai-pill {
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--zai-ink) 24%, transparent);
 }
 .zai-interface .zai-ask-input {
   flex: 1;
@@ -4549,6 +4596,141 @@ h3.solo-focus-question-label.zz-h3 {
   letter-spacing: var(--zz-track-circle-marvin) !important;
 }
 
+/* Flight Deck — diagnostics trigger (next to Reset) */
+.settings-flight-deck-btn {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-purple);
+  background: transparent;
+  color: var(--color-purple);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background-color 0.12s linear, color 0.12s linear, border-color 0.12s linear;
+}
+.settings-flight-deck-btn:hover,
+.settings-flight-deck-btn--active {
+  background: var(--color-yellow);
+  color: var(--color-purple);
+  border-color: var(--color-yellow);
+}
+.settings-reset-flight-deck {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Mechanical Truth diagnostics sheet — Solo Focus / Zai yellow field */
+.mechanical-diagnostics-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  border: none;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--color-purple) 72%, transparent) !important;
+}
+.mechanical-diagnostics-sheet {
+  position: fixed;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 251;
+  width: min(100vw - 32px, 520px);
+  max-height: min(78dvh, 640px);
+  overflow-y: auto;
+  border-radius: 40px;
+  padding: clamp(20px, 4vw, 28px);
+  box-sizing: border-box;
+  background: var(--zai-field-bg, var(--color-yellow)) !important;
+  color: var(--zai-ink, var(--color-purple)) !important;
+  box-shadow: 0 24px 64px color-mix(in srgb, var(--color-purple) 35%, transparent);
+}
+.mechanical-diagnostics-sheet__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.mechanical-diagnostics-sheet__title {
+  color: var(--zai-ink, var(--color-purple));
+  font-family: var(--font-marvin), sans-serif;
+  line-height: 0.85;
+  letter-spacing: 0.02em;
+}
+.mechanical-diagnostics-sheet__close {
+  border: none;
+  background: transparent;
+  color: var(--zai-ink, var(--color-purple));
+  font-family: var(--font-marvin), sans-serif;
+  font-size: 2rem;
+  line-height: 0.8;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.mechanical-diagnostics-sheet__lead {
+  font-family: var(--font-roboto), sans-serif;
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: color-mix(in srgb, var(--zai-ink, var(--color-purple)) 88%, transparent);
+  margin-bottom: 16px !important;
+}
+.mechanical-diagnostics-sheet__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 20px;
+}
+@media (max-width: 480px) {
+  .mechanical-diagnostics-sheet__grid {
+    grid-template-columns: 1fr;
+  }
+}
+.mechanical-diagnostics-sheet__row {
+  min-width: 0;
+}
+.mechanical-diagnostics-sheet__row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.mechanical-diagnostics-sheet__status {
+  font-family: var(--font-marvin), sans-serif;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--zai-ink, var(--color-purple));
+}
+.mechanical-diagnostics-sheet__component {
+  font-family: var(--font-marvin), sans-serif;
+  font-size: clamp(11px, 2.8vw, 13px);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--zai-ink, var(--color-purple));
+}
+.mechanical-diagnostics-sheet__detail {
+  font-family: var(--font-roboto), sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--zai-ink, var(--color-purple)) 82%, transparent);
+  word-break: break-word;
+}
+.mechanical-diagnostics-sheet__footer {
+  margin-top: 20px !important;
+  font-family: var(--font-marvin), sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: color-mix(in srgb, var(--zai-ink, var(--color-purple)) 70%, transparent);
+}
+
 .settings-section-title {
   font-family: var(--font-marvin);
   font-weight: 700;
@@ -4695,24 +4877,18 @@ h3.solo-focus-question-label.zz-h3 {
   text-align: left;
 }
 
-/* Shared page title: Marvin, centred (Zai + Settings + Likes) */
-.zai-interface .zai-page-title,
-.settings-page .zai-page-title,
-.likes-page .zai-page-title {
-  text-align: center;
-  font-family: var(--font-marvin);
-  font-weight: bold;
-  font-size: 50px;
-  line-height: 0.8;
-  text-transform: uppercase;
-  color: var(--color-yellow);
-  margin-top: 56px;
-  margin-bottom: var(--gap-lg);
+.zz-page.likes-page {
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
 }
-@media (min-width: 1024px) {
-  .zai-interface .zai-page-title,
-  .settings-page .zai-page-title,
-  .likes-page .zai-page-title { font-size: clamp(36px, 5vw, 48px); }
+
+/* Ask Zai / Settings / Likes — typography from h3 + .zz-page-title only; layout here */
+.zai-interface h3.zz-page-title,
+.settings-page h3.zz-page-title,
+.likes-page h3.zz-page-title {
+  text-align: left;
+  color: var(--color-yellow);
+  margin-top: 0;
+  margin-bottom: var(--gap-lg);
 }
 
 /* Ask Zai Deep Dive sheet — same palette tokens as /zai */
@@ -4761,6 +4937,23 @@ h3.solo-focus-question-label.zz-h3 {
   gap: 20px;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+}
+.ask-zai-deep-dive-thread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  -webkit-overflow-scrolling: touch;
+}
+.ask-zai-deep-dive-user-turn {
+  font-family: var(--font-marvin), sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--zai-ink) 72%, transparent);
 }
 .ask-zai-deep-dive-answer {
   font-family: var(--font-roboto), sans-serif;
@@ -4768,8 +4961,6 @@ h3.solo-focus-question-label.zz-h3 {
   font-size: 1.125rem;
   line-height: 1.45;
   margin: 0;
-  overflow-y: auto;
-  max-height: 28dvh;
   color: var(--zai-ink);
 }
 @media (min-width: 768px) {
@@ -5401,7 +5592,13 @@ h3.solo-focus-question-label.zz-h3 {
 
 .zz-page.zai-page {
   min-height: 100dvh;
-  overflow: visible;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 html.zz-zai-document,
@@ -6925,10 +7122,20 @@ select,
 .zone-desktop-nav-rail {
   display: none;
 }
+@media (min-width: 768px) {
+  .zone-anchor .zone-hero-copy h2.zone-welcome,
+  .zone-anchor .zone-hero-copy h2.zone-welcome-block {
+    font-size: var(--zz-h2-tablet) !important;
+    max-width: none !important;
+    width: max-content;
+    white-space: nowrap;
+    overflow: visible;
+  }
+}
 @media (min-width: 1024px) {
   .zone-hero-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
     align-items: start;
     gap: clamp(24px, 4vw, 48px);
   }
@@ -6937,14 +7144,6 @@ select,
     width: 100%;
     min-width: 0;
     gap: 0.1em;
-    overflow: visible;
-  }
-  .zone-anchor .zone-hero-copy h2.zone-welcome,
-  .zone-anchor .zone-hero-copy h2.zone-welcome-block {
-    max-width: none !important;
-    width: max-content;
-    white-space: nowrap;
-    font-size: clamp(3.25rem, 5.5vw, var(--zz-h2-desktop)) !important;
     overflow: visible;
   }
   .zone-anchor.zone-anchor--wall-loading .zone-hero-copy h2.zone-welcome,
@@ -7168,6 +7367,9 @@ select,
   text-align: center;
   margin-inline: auto;
 }
+.zone-anchor h2.zone-welcome.zone-welcome-name {
+  text-transform: none !important;
+}
 
 /* Ask Zai pill: flat pill, Marvin + body size token — tap or Enter → /zai */
 .zone-ask-zai-wrap {
@@ -7180,9 +7382,12 @@ select,
   .zone-anchor {
     align-items: stretch !important;
   }
-  .zone-anchor h2.zone-welcome,
-  .zone-anchor h2.zone-welcome-block {
+  .zone-anchor .zone-hero-copy h2.zone-welcome,
+  .zone-anchor .zone-hero-copy h2.zone-welcome-block {
+    font-size: var(--zz-h2-mobile) !important;
     max-width: 100% !important;
+    width: 100%;
+    white-space: normal;
   }
   .zone-ask-zai-wrap {
     width: 100% !important;

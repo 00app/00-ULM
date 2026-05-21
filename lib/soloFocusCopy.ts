@@ -204,8 +204,8 @@ export function polishTrueTipParagraphsForHeadline(
   ]
 }
 
-/** Zone / bento card face — Marvin stamp (6–8 words). */
-export const MIN_ZONE_CARD_HEADLINE_WORDS = 6
+/** Zone / bento card face — Marvin stamp (5–8 words). */
+export const MIN_ZONE_CARD_HEADLINE_WORDS = 5
 export const MAX_ZONE_CARD_HEADLINE_WORDS = 8
 /** Solo Focus / expanded Zai Architect H1 (6–12 words). */
 export const MIN_EXPANDED_VIEW_HEADLINE_WORDS = 6
@@ -305,6 +305,26 @@ export function headlineFromArchitectProse(
 /**
  * Zone bento / tip face — strip jargon, never pad with "RIGHT NOW THIS MONTH", fall back when empty.
  */
+/**
+ * Programmatic headline contract — Zone 5–8 words; expanded Solo Focus 6–12 words.
+ * @param expanded — when true, uses expanded view bounds (6–12).
+ */
+export function enforceHeadlineWordLimits(text: string, expanded = false): string {
+  const min = expanded ? MIN_EXPANDED_VIEW_HEADLINE_WORDS : MIN_ZONE_CARD_HEADLINE_WORDS
+  const max = expanded ? MAX_EXPANDED_VIEW_HEADLINE_WORDS : MAX_ZONE_CARD_HEADLINE_WORDS
+  const fallback = expanded
+    ? 'close your saving gap with one uk move this week'
+    : 'save money on home bills near you'
+  const resolved = zoneCardHeadlineFromRaw(text, fallback, max)
+  const words = splitHeadlineWords(resolved)
+  if (words.length < min) {
+    const fb = splitHeadlineWords(zoneCardHeadlineFromRaw(fallback, fallback, max))
+    return fb.length >= min ? fb.join(' ') : resolved
+  }
+  if (words.length > max) return `${words.slice(0, max).join(' ')}...`
+  return words.join(' ')
+}
+
 export function zoneCardHeadlineFromRaw(
   raw: string,
   fallback: string,

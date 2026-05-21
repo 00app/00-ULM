@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from 'react'
 import ZoneModalCloseLink from '@/app/components/ZoneModalCloseLink'
+import ZaiSuggestPills from '@/app/components/ZaiSuggestPills'
 import { renderZaiChatProse } from '@/lib/zai/renderChatProse'
 import { motion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
@@ -16,13 +17,19 @@ import type { HeroTotals } from '@/app/context/AppContext'
 import type { ZaiChatMeta } from '@/lib/zai/zaiChatUi'
 import { metaFromAskZaiContext, metaFromZaiReply } from '@/lib/zai/zaiChatUi'
 import { readZaiLikes, removeZaiLike, upsertZaiLike } from '@/lib/zai/zaiLikesStorage'
-import { ZAI_CHAT_SUGGESTED_PROMPTS, ZAI_INTRO_LINES } from '@/lib/zai/chatPrompts'
+import { ZAI_INTRO_LINES } from '@/lib/zai/chatPrompts'
+import {
+  lastZaiMessageIndex,
+  shouldShowZaiSuggestedPills,
+  zaiPillsBelongAfterIntro,
+} from '@/lib/zai/chatRules'
+import { stripZaiChatMarkdown } from '@/lib/zai/chatBoundaries'
 import Link from 'next/link'
 
 const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
 
 function polishZaiDisplayText(text: string): string {
-  return dedupeLocalityInProse(sanitizeText(text))
+  return stripZaiChatMarkdown(dedupeLocalityInProse(sanitizeText(text)))
 }
 const SENTINEL_RECENT_CHAT_KEY = 'zz_recent_chat_history'
 const HERO_TOTALS_KEY = 'heroTotals'
@@ -255,8 +262,8 @@ export default function ZaiPage() {
       let streamed = ''
       await readZaiStream(res, (chunk) => {
         streamed += chunk
-        const safe = sanitizeText(streamed)
-        setMessages((m) => {
+        const safe = polishZaiDisplayText(streamed)
+          setMessages((m) => {
           const next = [...m]
           if (next[next.length - 1]?.role === 'zai') next[next.length - 1] = { role: 'zai', text: safe }
           return next
@@ -287,6 +294,16 @@ export default function ZaiPage() {
     dispatchZaiAuditComplete()
   }, [])
 
+  const lastZaiIdx = useMemo(() => lastZaiMessageIndex(messages), [messages])
+  const showSuggestedPills = shouldShowZaiSuggestedPills(messages, loading)
+  const pillsAfterIntro = showSuggestedPills && zaiPillsBelongAfterIntro(messages)
+
+  useEffect(() => {
+    const el = bottomRef.current
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [messages, loading])
+
   const handleZaiLike = useCallback(
     (meta: ZaiChatMeta) => {
       triggerHaptic('medium')
@@ -304,155 +321,151 @@ export default function ZaiPage() {
       {...ELASTIC_PING}
     >
       <ZoneModalCloseLink onClose={handleZaiClose} />
-      <h1 className="zz-page-title zai-page-title max-w-zone">Ask Zai</h1>
-      <motion.div className="zai-page-content max-w-zone">
-        <motion.div className="zai-intro-bubble">
-          {ZAI_INTRO_LINES.map((line) => (
-            <p key={line} className="zz-body">
-              {line}
-            </p>
-          ))}
-        </motion.div>
 
-        <div className="zai-chat-thread">
-          {messages.map((msg, i) => (
-            <motion.div
-              key={`${msg.role}-${i}`}
-              className={`zai-chat-msg${msg.role === 'user' ? ' zai-chat-msg--user' : ''}`}
-              initial={{ opacity: 0, y: 2 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={INDUSTRIAL_OPACITY_SNAP}
-            >
-              <span
-                className={`zz-body zai-bubble zai-bubble-chat inline-block max-w-[85%] ${
-                  msg.role === 'zai' ? 'zai-bubble-chat--zai' : 'zai-bubble-chat--user'
-                }`}
-              >
-                {msg.role === 'zai' ? renderZaiChatProse(msg.text, { journey_key: msg.meta?.journeyKey }) : msg.text}
-              </span>
-              {msg.role === 'zai' && msg.meta ? (
-                <motion.div
-                  className="zai-msg-footer flex flex-wrap items-center gap-3 mt-2"
-                  style={{ maxWidth: '85%' }}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={INDUSTRIAL_OPACITY_SNAP}
-                >
-                  {msg.meta?.answerHref && msg.meta.answerLabel ? (
-                    <Link href={msg.meta.answerHref} className="zz-body underline">
-                      {msg.meta.answerLabel}
-                    </Link>
-                  ) : null}
-                  {msg.meta?.sourceUrl ? (
-                    <a
-                      href={msg.meta.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="zz-body underline"
-                      onClick={() => {
-                        void fetch('/api/likes/track', {
-                          method: 'POST',
-                          credentials: 'include',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            url: msg.meta!.sourceUrl,
-                            title: msg.meta!.likeTitle,
-                            journey_key: msg.meta!.journeyKey,
-                          }),
-                        })
-                      }}
-                    >
-                      source
-                    </a>
-                  ) : null}
-                  {msg.meta?.showLike ? (
-                    <motion.button
-                      type="button"
-                      aria-label={state.likedCards.includes(msg.meta.likeId) ? 'Unlike' : 'Like'}
-                      className="circle-btn zai-like-btn"
-                      onClick={() => handleZaiLike(msg.meta!)}
-                      style={{
-                        width: 60,
-                        height: 60,
-                        minWidth: 60,
-                        minHeight: 60,
-                        borderRadius: '50%',
-                        backgroundColor: state.likedCards.includes(msg.meta.likeId)
-                          ? 'var(--color-yellow)'
-                          : 'var(--color-purple)',
-                        color: state.likedCards.includes(msg.meta.likeId)
-                          ? 'var(--color-purple)'
-                          : 'var(--color-yellow)',
-                        border: '2px solid var(--color-yellow)',
-                      }}
-                    >
-                      <span className="zz-h4" style={{ lineHeight: 1 }}>
-                        {state.likedCards.includes(msg.meta.likeId) ? '♥' : '♡'}
-                      </span>
-                    </motion.button>
-                  ) : null}
-                </motion.div>
-              ) : null}
-            </motion.div>
-          ))}
-          {loading && (
-            <motion.p
-              className="zz-body zai-connecting m-0 mt-2"
-              animate={{ opacity: [0.45, 1, 0.45] }}
-              transition={{
-                type: 'tween',
-                duration: 0.36,
-                repeat: Infinity,
-                repeatType: 'reverse',
-                ease: 'linear',
-              }}
-            >
-              connect
-            </motion.p>
-          )}
-          <motion.div ref={bottomRef} />
-        </div>
-      </motion.div>
-
-      <div className="zai-composer-dock zai-composer-dock--fixed max-w-zone">
-          <motion.div
-            className="zai-suggest-row"
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={INDUSTRIAL_OPACITY_SNAP}
-          >
-            {ZAI_CHAT_SUGGESTED_PROMPTS.map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                disabled={loading}
-                className="zai-suggest-pill"
-                onClick={() => void sendQuestion(prompt)}
-              >
-                {prompt}
-              </button>
+      <div className="zai-page-scroll max-w-zone">
+        <h3 className="zz-page-title">zai chat</h3>
+        <motion.div className="zai-page-content">
+          <motion.div className="zai-intro-bubble">
+            {ZAI_INTRO_LINES.map((line) => (
+              <p key={line} className="zz-body">
+                {line}
+              </p>
             ))}
           </motion.div>
 
-          <motion.div className="zai-input-row">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask Zai..."
-              className="zone-ask-zai-pill ask-zai-input border-none outline-none font-bold"
-            />
-            <motion.button
-              type="button"
-              onClick={handleSend}
-              disabled={!input.trim() || loading}
-              className="zai-go-btn"
-              transition={INDUSTRIAL_OPACITY_SNAP}
-            >
-              Go
-            </motion.button>
-          </motion.div>
+          {pillsAfterIntro ? (
+            <ZaiSuggestPills disabled={loading} onPick={(p) => void sendQuestion(p)} />
+          ) : null}
+
+          <div className="zai-chat-thread">
+            {messages.map((msg, i) => (
+              <Fragment key={`${msg.role}-${i}-${msg.text.slice(0, 24)}`}>
+                <motion.div
+                  className={`zai-chat-msg${msg.role === 'user' ? ' zai-chat-msg--user' : ''}`}
+                  initial={{ opacity: 0, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={INDUSTRIAL_OPACITY_SNAP}
+                >
+                  <span
+                    className={`zz-body zai-bubble zai-bubble-chat inline-block max-w-[85%] ${
+                      msg.role === 'zai'
+                        ? 'zai-bubble-chat--zai zai-prose-voice'
+                        : 'zai-bubble-chat--user'
+                    }`}
+                  >
+                    {msg.role === 'zai'
+                      ? renderZaiChatProse(msg.text, { journey_key: msg.meta?.journeyKey })
+                      : msg.text}
+                  </span>
+                  {msg.role === 'zai' && msg.meta ? (
+                    <motion.div
+                      className="zai-msg-footer flex flex-wrap items-center gap-3 mt-2"
+                      style={{ maxWidth: '85%' }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={INDUSTRIAL_OPACITY_SNAP}
+                    >
+                      {msg.meta?.answerHref && msg.meta.answerLabel ? (
+                        <Link href={msg.meta.answerHref} className="zz-body underline">
+                          {msg.meta.answerLabel}
+                        </Link>
+                      ) : null}
+                      {msg.meta?.sourceUrl ? (
+                        <a
+                          href={msg.meta.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="zz-body underline"
+                          onClick={() => {
+                            void fetch('/api/likes/track', {
+                              method: 'POST',
+                              credentials: 'include',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                url: msg.meta!.sourceUrl,
+                                title: msg.meta!.likeTitle,
+                                journey_key: msg.meta!.journeyKey,
+                              }),
+                            })
+                          }}
+                        >
+                          source
+                        </a>
+                      ) : null}
+                      {msg.meta?.showLike ? (
+                        <motion.button
+                          type="button"
+                          aria-label={state.likedCards.includes(msg.meta.likeId) ? 'Unlike' : 'Like'}
+                          className="circle-btn zai-like-btn"
+                          onClick={() => handleZaiLike(msg.meta!)}
+                          style={{
+                            width: 60,
+                            height: 60,
+                            minWidth: 60,
+                            minHeight: 60,
+                            borderRadius: '50%',
+                            backgroundColor: state.likedCards.includes(msg.meta.likeId)
+                              ? 'var(--color-yellow)'
+                              : 'var(--color-purple)',
+                            color: state.likedCards.includes(msg.meta.likeId)
+                              ? 'var(--color-purple)'
+                              : 'var(--color-yellow)',
+                            border: '2px solid var(--color-yellow)',
+                          }}
+                        >
+                          <span className="zz-h4" style={{ lineHeight: 1 }}>
+                            {state.likedCards.includes(msg.meta.likeId) ? '♥' : '♡'}
+                          </span>
+                        </motion.button>
+                      ) : null}
+                    </motion.div>
+                  ) : null}
+                </motion.div>
+                {showSuggestedPills && i === lastZaiIdx ? (
+                  <ZaiSuggestPills disabled={loading} onPick={(p) => void sendQuestion(p)} />
+                ) : null}
+              </Fragment>
+            ))}
+            <div ref={bottomRef} className="zai-thread-end" aria-hidden />
+          </div>
+        </motion.div>
+      </div>
+
+      <div className="zai-composer-dock zai-composer-dock--fixed max-w-zone">
+        {loading ? (
+          <motion.p
+            className="zz-body zai-connecting m-0 zai-prose-voice"
+            animate={{ opacity: [0.45, 1, 0.45] }}
+            transition={{
+              type: 'tween',
+              duration: 0.36,
+              repeat: Infinity,
+              repeatType: 'reverse',
+              ease: 'linear',
+            }}
+          >
+            zai is auditing user metrics from neon...
+          </motion.p>
+        ) : null}
+        <motion.div className="zai-input-row">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="ask about a specific shift..."
+            className="zone-ask-zai-pill ask-zai-input border-none outline-none font-bold"
+          />
+          <motion.button
+            type="button"
+            onClick={handleSend}
+            disabled={!input.trim() || loading}
+            className="zai-go-btn"
+            transition={INDUSTRIAL_OPACITY_SNAP}
+          >
+            Go
+          </motion.button>
+        </motion.div>
       </div>
     </motion.div>
   )

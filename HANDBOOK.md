@@ -21,6 +21,8 @@ npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030
 
 **Build:** `npm run build` (runs **`verify`** = `typecheck` + `lint:ci` before Next build) · **Typecheck:** `npm run check` / `npm run typecheck` · **Lint:** `npm run lint` · **Prep:** `npm run prep:live` · **Deploy:** `npm run deploy` or `npm run deploy:force` (`scripts/deploy-production.sh` → `vercel deploy --prod`). Production: **`https://00-ulm.vercel.app`**.
 
+**Dev / test / audit runbook:** `docs/DEV-TEST-AUDIT.md` (SQL + Hermes + clean build + local smoke).
+
 **Wake stack (Mac):** `npm run db:test` (Neon) · `npm run hermes:ping` (Vercel auth) · `BASE_URL=https://00-ulm.vercel.app bash scripts/verify-env-and-health.sh` · `npm run hermes:pulse` (full cron smoke, `limit=1`). **VPS Hermes:** `bash scripts/deploy-hermes-to-vps.sh` — see **`docs/HERMES-VPS-SETUP.md`**.
 
 **Full application specification (architecture, APIs, DB, Hermes, mother/child cards):** `docs/FULL-APP-SPEC.md`.
@@ -85,6 +87,86 @@ After a clean DB, expect an **empty honest Zone** until pulse — then tiles pop
 
 ---
 
+## Enforced loop & credit boundaries
+
+Locked product contract for **use less, more** (Ulm JIT) and multi-tester safety. Code: `lib/intelligence/scrapeBoundaries.ts`, `lib/intelligence/bucketFailover.ts`, `lib/zone/bootstrapZoneResearch.ts` (bootstrap disabled).
+
+### Onboarding → true baseline
+
+| Rule | Implementation |
+|------|----------------|
+| Profile questions feed **real £ / kg** | **`buildUserImpact`** (`lib/brains/buildUserImpact.ts`) on **`POST /api/answers`**, **`/api/summary`**, **`buildZoneViewModel`** |
+| Postcode + locality | **`POST /api/local-intelligence`** (`ProfilePageClient`, intro) |
+| Persist answers | **`journey_answers_jsonb`** via **`POST /api/answers`** |
+| Summary motion | Full-sentence fade (`STACCATO_TWEEN`); **`IntroWordCycle`** + **`opacityTicker`** on `/profile/summary` (one word at a time, no glitch) |
+| Tile headlines before scrape | **Mechanical truth** still applies per journey until Neon stream exists → **`COMPUTING — JOURNEY`**, metrics **`—`** (`lib/zone/mechanicalTruth.ts`) |
+
+### Zone grid (12 domains)
+
+| Rule | Implementation |
+|------|----------------|
+| **12 domains** | **`JOURNEY_ORDER`** in `lib/journeys.ts` — `home`, `grants`, `solar`, `travel`, `holidays`, `food`, `shopping`, `money`, `tech`, `water`, `waste`, `carbon` |
+| **One question per card** | **`getNextQuestion`** / **`getSoloFocusNextQuestion`** (`lib/zone/questionHandler.ts`) |
+| **Visited lock** | **`visited_cards`** (localStorage) + **`isCardVisited`** → pink **`#FF00FF`** / yellow **`#FDFD00`** (`.zone-card--visited`); no re-scrape on re-open (`SoloFocusOverlay` **`cardVisitedLock`**) |
+| **24-card ceiling** | *Design target* — enforce in `buildGroovyGridItems` when grid grows (hero + journeys + tips + discovery) |
+| **No fake £ on empty Neon** | See **Mechanical truth** above |
+
+### Saving tips & Rock rail
+
+| Rule | Implementation |
+|------|----------------|
+| Tips styling | Deep navy + yellow on tip/rock surfaces (`lib/journeyColors.ts`, Rock + injection components) |
+| Baseline ranked tips | VM expects **3** category tips (`buildZoneViewModel`); **Rock** habits are a separate rail (`RockSavingTips`) |
+| Tip +1 earned scrape | **`runTipVerificationDeepScrape`** → scoped **`POST /api/scrape-sync`** with **`journey_key`** + repair pass |
+| Close without re-burn | Visited tips: **`cardVisitedLock`** disables follow-up scrape; do not call broad cron/`?force=true` on close |
+
+### Discovery birth (canonical path)
+
+```
+POST /api/answers → buildUserImpact + Neon JSONB
+       → (optional) triggerSupplementalResearch / discovery race
+       → new_card_data / grid_pulse_card → injectNewDiscoveryCard
+       → ZIP_SHUTTER_SPRING → next single question (fade-open)
+```
+
+- **Caps:** **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** (`lib/intelligence/manifest.ts`); **24** bento cells (`lib/zone/ulmLimits.ts`); Rock rail **6→12**; grid shows **1** earned discovery tip per category on wall (`perCategoryCardCap`).
+- **Supplemental only:** **`POST /api/zone/injections`**, **`POST /api/research/question-card`** (not the MC answer-loop birth).
+
+### API bucket failover (credit protection)
+
+Set on **Vercel Production** (and `.env.local` for dev):
+
+| Variable | Value |
+|----------|--------|
+| `MODEL_STRATEGY` | `bucket_failover` (must be exact — empty string disables bucket) |
+| `MAX_ITERATIONS` | `5` |
+| `GEMINI_*_MODEL` | `gemini-2.5-flash` |
+| `GROQ_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` | Optional fallbacks after Gemini quota errors |
+
+**Blocked in bucket mode (unless `ALLOW_BROAD_SCRAPE=1`):** `GET /api/scrape-sync?force=true`, full multi-user **`/api/cron/zone-research`** batch (use **`?repair=1`** or **`/api/cron/repair-mechanical`**).
+
+**Verify:**
+
+```bash
+export CRON_SECRET="$(grep '^CRON_SECRET=' .env.local | cut -d= -f2-)"
+curl -sS -H "Authorization: Bearer ${CRON_SECRET}" \
+  'https://00-ulm.vercel.app/api/health/diagnostics' | jq '.bucket_failover'
+```
+
+Expect **`enabled: true`**, **`broadScrapeAllowed: false`**, **`skipDeepGemini: true`**.
+
+### Hermes (VPS)
+
+Hermes only holds **`CRON_SECRET`** — not Groq/Mistral keys. **Recommended crontab:** Monday 05:00 UTC → **`repair-mechanical?limit=6`** (or `hermes-pulse.sh --repair-only`). Remove any daily **`hermes-pulse.sh`** line without repair. See **`docs/HERMES-VPS-SETUP.md`**.
+
+### Multi-user testing
+
+- Each tester: **own signup** / browser profile (do not share one demo UUID).
+- Concurrent sessions: supported (serverless + per-route rate limits).
+- **Neon tables:** keep all — storage is cheap; API calls cost credits.
+
+---
+
 ## Data & view model
 
 Zone VM blends: **AppContext** + **localStorage** mirror, **journey answers**, **`GET /api/scrape-sync`** (`scraped_summary` + `research_category_coverage`), **`/api/local-intelligence`**, pulse snapshot, zone injections, content-architect prose. Cards use **`LIVE_AUDIT`** vs **`ESTIMATED_AUDIT`** when genome inputs are incomplete vs research-backed (`lib/zone/buildZoneViewModel.ts`). **`streamPending`** on journey cards drives the “Computing…” strip on the bento face.
@@ -109,7 +191,15 @@ Zone VM blends: **AppContext** + **localStorage** mirror, **journey answers**, *
 
 **`insightReady` (scrape-sync):** true when a category row has prose, headline, £, or offer URL — Zone hides “Computing…” once settled. **`GET ?repair=1`** backfills missing headlines/prose without a full `force` research run.
 
-**Not on the hot path:** `micro_answers` (legacy FK to `cards`), empty discovery tables — safe to ignore for Zone/Solo Focus.
+**Also required:** `discovery_injections`, `likes`, `journey_questions`, `journey_state`.
+
+**Legacy (safe to drop after `npm run db:audit` shows 0 rows):** `card_views`, `micro_answers`, `zai_messages` — see `db/migrations/20260521_drop_legacy_unused_tables.sql`. **`cards`** + **`/api/cards`** have no UI callers; keep or drop later.
+
+**Hermes:** VPS cron only HTTP-triggers **`/api/cron/zone-research`** (`repair=1`, weekly). Zai read-only and Deep Dive JIT scrape do **not** require a Hermes config change — see `docs/HERMES-ULM-JIT-BRIEF.md`.
+
+**Audit:** `npm run db:audit` · **Verify Zai tables:** `npm run db:verify-discovery`
+
+**ULM loop (canonical spec):** `docs/ULM-APPLICATION-LOOP.md` · **Hybrid pipeline:** `docs/HYBRID-DATA-PIPELINE.md` · `lib/zone/engineDataRouter.ts` · ceilings in `lib/zone/ulmLimits.ts`
 
 ---
 
@@ -176,7 +266,7 @@ Read this when tracing **profile summary**, **expanded Solo Focus**, or **resear
 | Dedupe | **`dedupeZoneTipCards`** — no duplicate ids or normalized headline on the tip rail; inject handler on Zone filters before merge. |
 | Question cap | **3 questions per journey** (`lib/journeys.ts`); Solo Focus session stops after **`SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION` (3)** per category (`EmbeddedJourneyQuestion`). |
 | Layout | Expanded: **Marvin H3** headline (`text-marvin` / `.solo-focus-architect-headline`) + three **Roboto Bold** **`solo-focus-architect-prose`** paragraphs (≤ **`MAX_TRUE_TIP_PARAGRAPH_WORDS` (40)** each). Raw tariff dumps stripped via **`isRawResearchDump`**. |
-| Ask Zai | **`AskZaiDeepDiveSheet`** — chip/submit research; **Continue in Zai** writes **`setAskZaiContext`** and navigates to **`/zai`**. Zone anchor pill still routes to `/zai` on Enter. |
+| Ask Zai | **`AskZaiDeepDiveSheet`** → **Continue in Zai** → `/zai`; chat is read-only (scrape only on **Search deeper**). Zone answers birth cards via **`POST /api/answers`**; Zai interprets stored state. **Integrated flow + all questions:** `docs/ZAI-AND-QUESTIONS-RULES.md` (Part 0 boundaries + **How it all works together**). Code: `lib/zai/chatBoundaries.ts`. |
 | Scroll | Single scroll on **`.solo-focus-grow-layer`** (no nested rail clip). |
 | Links | **`offer_url`** / **`verifiedAuditSourceUrl`** / **`pickPrimaryHttpUrl`** — **`IndustrialHandoffButton`** uses **Claim / Buy / Get** via **`resolveRevenueCtaLabel`** (`lib/zone/verifiedRevenue.ts`); always passes a URL ( **`offer_url`** or **`/zai`** fallback). |
 
@@ -209,10 +299,10 @@ Full manifest (Hermes, Neon host token, caps): **`docs/INTELLIGENCE-LOOP-MANIFES
 ## Intelligence Loop (manifest)
 
 - **Neon (London):** Canonical pooler host token is `MANIFEST_NEON_POOLER_HOST` in `lib/intelligence/manifest.ts` — it must match the hostname inside `DATABASE_URL` (set password only via Neon Console / Vercel env; never commit secrets).
-- **Hermes / Oracle VPS:** **`docs/HERMES-VPS-SETUP.md`**. **Mac:** `npm run hermes:ping` (auth-only), `npm run hermes:pulse` (smoke `zone-research?limit=1`). **Deploy/sync VPS:** `bash scripts/deploy-hermes-to-vps.sh` (rsync scripts + `~/.hermes/cron.secret` from `.env.production.local`). **On box:** crontab `0 5 * * *` → `hermes-pulse.sh` → log **`~/hermes-pulse.log`** (not `/var/log/hermes-cron.log`). Target: **`https://00-ulm.vercel.app/api/cron/zone-research`**.
+- **Hermes / Oracle VPS:** **`docs/HERMES-VPS-SETUP.md`**. **Mac:** `npm run hermes:ping` (auth-only), `npm run hermes:repair-pulse` (mechanical backfill). **Deploy/sync VPS:** `bash scripts/deploy-hermes-to-vps.sh`. **On box:** crontab **`0 5 * * 1`** → **`repair-mechanical`** or `hermes-pulse.sh --repair-only` → **`~/hermes-pulse.log`**. Do **not** run full `zone-research?limit=12` on a schedule. Target: **`https://00-ulm.vercel.app/api/cron/repair-mechanical`**.
 - **Neon project:** **`00-ULM`** (London `eu-west-2`); pooler host **`MANIFEST_NEON_POOLER_HOST`**. Wake: `npm run db:test` or any API hit; compute auto-resumes on query.
 - **Twelve categories:** Journey keys in `lib/journeys.ts` (`JOURNEY_ORDER` — 12 domains × 3 questions). Research persistence (`research_results`) requires **`saving_amount_gbp`**, **`offer_url`**, category, and prose fields as implemented in `lib/agents/researchAgent.ts` / `persistResearchResult`. **Carbon (kg)** on cards comes from stream + impact only when `journeyHasStreamData` — no UK placeholder wall figures.
-- **Injection cap:** `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` (**3**) — enforced in `discovery_injections` per user per `journey_key` for both `POST /api/zone/injections` (answer loop → alternate journey) and `POST /api/research/question-card` (free question → same journey).
+- **Injection cap:** `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` (**1**) — enforced in `discovery_injections` per user per `journey_key` for both `POST /api/zone/injections` (answer loop → alternate journey) and `POST /api/research/question-card` (free question → same journey). Main grid keeps ranked `tip-*` off the bento wall (`SHOW_BASELINE_TIPS_ON_MAIN_GRID`).
 - **Locality scrape hints:** `runZeroResearch` prepends extra Firecrawl seeds when user context mentions **Littlehampton** / **Arun** or **Les Azerables** / **Creuse** (`lib/agents/researchAgent.ts`).
 
 ### Four-step loop (Hermes as orchestrator, not “just a timer”)

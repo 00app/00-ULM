@@ -117,9 +117,7 @@ export default function LikesPage() {
       {...KINETIC_ZIP_PULSE}
     >
       <ZoneModalCloseLink />
-      <h1 className="zz-page-title zai-page-title">
-        LIKES
-      </h1>
+      <h3 className="zz-page-title">Likes</h3>
       <p className="zz-body zz-page-intro" style={{ color: 'var(--color-yellow)', textAlign: 'center' }}>
         Cards you’ve liked. Unlike, mark as actioned, or open the link.
       </p>

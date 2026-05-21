@@ -34,9 +34,9 @@ export async function POST(request: NextRequest) {
     }
 
     await pool.query(
-      `INSERT INTO journeys (user_id, journey_id, state, updated_at)
+      `INSERT INTO journeys (user_id, journey_key, state, updated_at)
        VALUES ($1, $2, $3, NOW())
-       ON CONFLICT (user_id, journey_id)
+       ON CONFLICT (user_id, journey_key)
        DO UPDATE SET state = $3, updated_at = NOW()`,
       [user_id, journey_id, state]
     )

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import { motion } from 'framer-motion'
 import { type JourneyId } from '@/lib/journeys'
-import { getNextQuestion } from '@/lib/zone/questionHandler'
+import { getSoloFocusNextQuestion } from '@/lib/zone/questionHandler'
 import {
   resolveZoneSurfaceKind,
   zoneSurfaceStyleProps,
@@ -80,7 +80,8 @@ import {
 } from '@/lib/zone/tier2RecursiveSpawner'
 import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
-import { setDeepDiveInProgress } from '@/lib/zone/visitedCards'
+import { setDeepDiveInProgress, shouldSkipInjectionOnCardClose } from '@/lib/zone/visitedCards'
+import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
 import { runSoloFocusAuditCompletionClient } from '@/lib/soloFocusAuditCompleteClient'
 import {
   SOLO_FOCUS_SNAPSHOT_V,
@@ -149,7 +150,7 @@ export interface JourneyBentoCardProps {
   onExpand?: () => void
   onClose?: () => void
   /** Close chevron → dismiss Solo Focus, then full-screen pattern-shift question (Zone shell). */
-  onPatternShiftClose?: (journeyId: JourneyId) => void
+  onPatternShiftClose?: PatternShiftCloseHandler
   cardId?: string
   onLike?: (id: string, title?: string, moneyGbp?: number) => void
   isLiked?: boolean
@@ -531,7 +532,7 @@ export function JourneyBentoCard({
       try {
         const raw = localStorage.getItem(`journey_${journeyId}_answers`) || '{}'
         const parsed = JSON.parse(raw) as Record<string, string>
-        const stillHasQuestion = getNextQuestion(journeyId, parsed) != null
+        const stillHasQuestion = getSoloFocusNextQuestion(journeyId, parsed) != null
         if (stillHasQuestion) {
           setViewState('QUESTION')
           sessionStorage.setItem(soloFocusViewKey, 'QUESTION')
@@ -589,9 +590,13 @@ export function JourneyBentoCard({
     triggerHaptic('medium')
     clearSoloFocusMemory()
     setDeepDiveInProgress(null)
-    onPatternShiftClose?.(journeyId)
+    const visitId = String(activeCardId || cardId || '').trim()
+    onPatternShiftClose?.(journeyId, {
+      cardId: visitId || undefined,
+      visitedClose: visitId ? shouldSkipInjectionOnCardClose(visitId) : false,
+    })
     onClose?.()
-  }, [journeyId, onPatternShiftClose, onClose, triggerHaptic])
+  }, [journeyId, onPatternShiftClose, onClose, triggerHaptic, activeCardId, cardId])
 
   const handleTrinityLike = useCallback(() => {
     if (!onLike || !(activeCardId || cardId)) return

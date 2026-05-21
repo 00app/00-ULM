@@ -31,9 +31,9 @@ const INTRO_KINETIC_WORDS = [
   'CARBON',
   'FEEL',
   'GOOD',
-  'USE',
-  'LESS',
-  'MORE',
+  'use',
+  'less,',
+  'more.',
 ] as const
 
 const INTRO_KINETIC_WORDS_ARRAY = [...INTRO_KINETIC_WORDS]

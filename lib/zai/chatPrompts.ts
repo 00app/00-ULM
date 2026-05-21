@@ -1,3 +1,12 @@
+/**
+ * Zai system voice — canonical export for routing docs; implementation in `lib/brains/zai/prompts.ts`.
+ */
+export {
+  ZAI_PERFORMANCE_AUDITOR_V3_MATRIX,
+  ZAI_EDITORIAL_AUDITOR_DNA,
+  buildSystemPrompt,
+} from '@/lib/brains/zai/prompts'
+
 /** Quick prompts on /zai — same beat as Solo Focus deep-dive pills. */
 export const ZAI_CHAT_SUGGESTED_PROMPTS = [
   'where should i start?',

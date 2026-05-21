@@ -34,7 +34,8 @@ export function journeyResearchSettled(
 }
 
 /**
- * Fire-and-forget POST /api/scrape-sync (trigger mode) for a single journey category
+ * Fire-and-forget POST /api/scrape-sync (trigger mode) for a single journey category.
+ * **Not** for `/zai` chat turns — see `lib/zai/chatBoundaries.ts` (JIT allowed: answers, tip +1, deep-dive Search deeper, Zone GET).
  * after Solo Focus answers — Hermes / ZeroResearch persists `research_results` scoped by category.
  */
 export function triggerScrapeSyncForCategory(params: {

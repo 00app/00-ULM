@@ -1,6 +1,7 @@
 /**
- * Ulm / JIT model split — **gemini-2.5-flash** for all tiers (direct API + gateway).
+ * Ulm / JIT model split — Flash / Flash-Lite for direct API + gateway.
  * Override via env without code changes (see `.env.example`).
+ * Set GEMINI_FREE_TIER=1 for cheaper Google models (still counts toward AI Studio cap if key is paid).
  */
 
 export type GeminiModelTier = 'zone' | 'article' | 'chat'
@@ -8,8 +9,13 @@ export type GeminiModelTier = 'zone' | 'article' | 'chat'
 /** Forensic triplet + Zai — low temperature, minimal token waste. */
 export const GEMINI_PRECISION_TEMPERATURE = 0.2
 
-/** Direct API model id (v1beta). 1.5 / 2.0 / flash-lite are unavailable for new API keys. */
-export const FLASH_DEFAULT = 'gemini-2.5-flash'
+function isGeminiFreeTierEnv(): boolean {
+  const v = process.env.GEMINI_FREE_TIER?.trim().toLowerCase() ?? ''
+  return v === '1' || v === 'true' || v === 'yes'
+}
+
+/** Direct API model id (v1beta). Free-tier env uses Flash-Lite; else 2.5 Flash. */
+export const FLASH_DEFAULT = isGeminiFreeTierEnv() ? 'gemini-2.0-flash-lite' : 'gemini-2.5-flash'
 
 /** Direct `@google/generative-ai` model IDs (no `google/` prefix). */
 export const GEMINI_DIRECT_ZONE =

@@ -8,6 +8,8 @@ import { validateInjectionCard } from '@/lib/zone/injections'
 import type { ZoneTipCard } from '@/lib/logic/zone'
 import { buildDiscoveryInjectionCardAsync, buildDiscoveryInjectionId } from '@/lib/zone/discoveryCard'
 import { enforceTrueWinRails, TRUE_WIN_RAILS } from '@/lib/zone/trueWinRails'
+import { generateResearchText } from '@/lib/intelligence/aiGateway'
+import { isBucketFailoverMode } from '@/lib/intelligence/scrapeBoundaries'
 
 export interface DiscoveryStructuredResponse {
   recommendation_copy: string
@@ -76,7 +78,8 @@ export async function runDiscoveryStructuredPipeline(params: {
     'check gov.uk and energy saving trust for 2026 grants and tariffs that match your answer.'
 
   const apiKey = process.env.GEMINI_API_KEY?.trim()
-  if (!apiKey) {
+  const useBucketOnly = isBucketFailoverMode()
+  if (!apiKey && !useBucketOnly) {
     return {
       recommendation_copy: defaultCopy,
       source_url: defaultSource,
@@ -84,18 +87,7 @@ export async function runDiscoveryStructuredPipeline(params: {
     }
   }
 
-  try {
-    const { GoogleGenerativeAI } = await import('@google/generative-ai')
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({
-      model: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash',
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.2,
-      },
-    })
-
-    const prompt = `You are Zai, the Zero Zero UK savings engine (production March 2026). Output ONE JSON object only.
+  const prompt = `You are Zai, the Zero Zero UK savings engine (production March 2026). Output ONE JSON object only.
 
 User: journey="${journeyId}", question="${questionId}", answer="${answerValue}", postcode="${postcode ?? 'unknown'}".
 
@@ -123,8 +115,29 @@ Required JSON shape:
 
 Optional followUp: include for gas/heating paths (nested loop — insulation, tariff, parking, etc.). Use journey_key exactly "${journeyId}". Set new_card_data.id exactly to "${stableId}". If live data is ambiguous, fall back to March 2026 rails (£${TRUE_WIN_RAILS.energyCapGbp} cap, ${TRUE_WIN_RAILS.avgTariffPencePerKwh}p/kWh tariff). No markdown, no extra keys beyond followUp inside new_card_data.`
 
-    const result = await model.generateContent(prompt)
-    const rawText = result.response.text()
+  try {
+    let rawText = ''
+    if (useBucketOnly) {
+      const bucket = await generateResearchText({
+        prompt,
+        tag: `discovery-${journeyId}`,
+        tier: 'zone',
+        maxOutputTokens: 1536,
+        temperature: 0.2,
+      })
+      rawText = bucket.text
+    } else {
+      const { GoogleGenerativeAI } = await import('@google/generative-ai')
+      const genAI = new GoogleGenerativeAI(apiKey!)
+      const model = genAI.getGenerativeModel({
+        model: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-2.5-flash',
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+        },
+      })
+      rawText = (await model.generateContent(prompt)).response.text()
+    }
     const parsed = parseJsonObject(rawText)
     if (!parsed) throw new Error('gemini json parse')
 

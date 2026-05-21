@@ -3,6 +3,11 @@ import type { BentoPersona } from '@/lib/zone/bentoPersona'
 import type { ZoneJourneyCard, ZoneTipCard, ZoneViewModel } from '@/lib/logic/zone'
 import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
+import {
+  capDiscoveryTipsForGrid,
+  SHOW_BASELINE_TIPS_ON_MAIN_GRID,
+} from '@/lib/zone/perCategoryCardCap'
+import { MAX_ZONE_BENTO_CELLS } from '@/lib/zone/ulmLimits'
 
 export type GroovyGridCell =
   | { type: 'hero'; hero: ZoneViewModel['hero'] }
@@ -43,7 +48,7 @@ export function buildGroovyGridItems(args: {
   const seenTipIds = new Set<string>()
 
   const discoveryByJourney = new Map<JourneyId, ZoneTipCard[]>()
-  for (const tip of dedupeZoneTipCards(args.discoveryTips ?? [])) {
+  for (const tip of capDiscoveryTipsForGrid(dedupeZoneTipCards(args.discoveryTips ?? []))) {
     const jid = (tip.journey_key ?? 'home') as JourneyId
     if (seenTipIds.has(tip.id)) continue
     seenTipIds.add(tip.id)
@@ -53,13 +58,15 @@ export function buildGroovyGridItems(args: {
   }
 
   const baselineByJourney = new Map<JourneyId, ZoneTipCard[]>()
-  for (const tip of dedupeZoneTipCards(args.baselineTips ?? [])) {
-    const jid = (tip.journey_key ?? 'home') as JourneyId
-    if (seenTipIds.has(tip.id)) continue
-    seenTipIds.add(tip.id)
-    const bucket = baselineByJourney.get(jid) ?? []
-    bucket.push(tip)
-    baselineByJourney.set(jid, bucket)
+  if (SHOW_BASELINE_TIPS_ON_MAIN_GRID) {
+    for (const tip of dedupeZoneTipCards(args.baselineTips ?? [])) {
+      const jid = (tip.journey_key ?? 'home') as JourneyId
+      if (seenTipIds.has(tip.id)) continue
+      seenTipIds.add(tip.id)
+      const bucket = baselineByJourney.get(jid) ?? []
+      bucket.push(tip)
+      baselineByJourney.set(jid, bucket)
+    }
   }
 
   const items: GroovyGridCell[] = [{ type: 'hero', hero: args.viewModel.hero }]
@@ -90,5 +97,19 @@ export function buildGroovyGridItems(args: {
     }
   })
 
-  return items
+  return clipGroovyGridToCeiling(items)
+}
+
+/** ULM — hard ceiling on journey + tip cells (hero excluded). */
+export function clipGroovyGridToCeiling(items: GroovyGridCell[]): GroovyGridCell[] {
+  const hero = items.filter((i) => i.type === 'hero')
+  const rest = items.filter((i) => i.type !== 'hero')
+  if (rest.length <= MAX_ZONE_BENTO_CELLS) return items
+
+  const clipped: GroovyGridCell[] = []
+  for (const cell of rest) {
+    if (clipped.length >= MAX_ZONE_BENTO_CELLS) break
+    clipped.push(cell)
+  }
+  return [...hero, ...clipped]
 }

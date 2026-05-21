@@ -2,18 +2,23 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { INDUSTRIAL_OPACITY_SNAP, ZIP_OPEN_Z_TRANSITION } from '@/lib/animations'
-import { postZaiChat, readZaiStream } from '@/lib/zai/chatClient'
+import { postZaiChat, readZaiStream, type ZaiChatMessage } from '@/lib/zai/chatClient'
 import { triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
-import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
+import { buildSoloFocusAskZaiQuestion } from '@/lib/expandStorage'
 import { sanitizeText } from '@/lib/sanitize'
+import { dedupeLocalityInProse } from '@/lib/brains/zai/prose'
+import { stripZaiChatMarkdown } from '@/lib/zai/chatBoundaries'
+import { renderZaiChatProse } from '@/lib/zai/renderChatProse'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { useApp } from '@/app/context/AppContext'
-import { ROUTES } from '@/lib/routes'
 
 const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
+
+function polishZaiDisplayText(text: string): string {
+  return stripZaiChatMarkdown(dedupeLocalityInProse(sanitizeText(text)))
+}
 
 function getJourneyAnswersFromClient(): Record<string, Record<string, string>> | undefined {
   if (typeof window === 'undefined') return undefined
@@ -62,13 +67,11 @@ export function AskZaiDeepDiveSheet({
   postcode: postcodeProp,
   suggestedQuestions,
 }: Props) {
-  const router = useRouter()
   const { state } = useApp()
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
-  const [answer, setAnswer] = useState('')
-  const [lastQuestion, setLastQuestion] = useState('')
-  const answerRef = useRef<HTMLParagraphElement>(null)
+  const [messages, setMessages] = useState<ZaiChatMessage[]>([])
+  const threadEndRef = useRef<HTMLDivElement>(null)
 
   const postcode =
     postcodeProp ??
@@ -78,37 +81,15 @@ export function AskZaiDeepDiveSheet({
   useEffect(() => {
     if (!open) {
       setDraft('')
-      setAnswer('')
-      setLastQuestion('')
+      setMessages([])
       setBusy(false)
     }
   }, [open])
 
-  const continueInZai = useCallback(() => {
-    const journeyAnswers = getJourneyAnswersFromClient()
-    const label = (lastQuestion || draft).trim() || 'How can I close the saving gap for this category?'
-    setAskZaiContext({
-      category: journeyKey,
-      personalSpend,
-      regionalAvg,
-      question: buildSoloFocusAskZaiQuestion(headline, label),
-      journey_question_label: label,
-      scraped_source: scrapedSource,
-      journey_answers_jsonb: journeyAnswers,
-    })
-    onClose()
-    router.push(ROUTES.ZAI)
-  }, [
-    draft,
-    headline,
-    journeyKey,
-    lastQuestion,
-    onClose,
-    personalSpend,
-    regionalAvg,
-    router,
-    scrapedSource,
-  ])
+  useEffect(() => {
+    if (!open) return
+    threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [messages, busy, open])
 
   const runLocalizedScrape = useCallback(
     (question: string) => {
@@ -140,8 +121,13 @@ export function AskZaiDeepDiveSheet({
       const label = q.trim()
       if (!label || busy) return
       setBusy(true)
-      setAnswer('')
-      setLastQuestion(label)
+      setDraft('')
+
+      const prior = messages
+      const userTurn: ZaiChatMessage = { role: 'user', text: label }
+      const transcript = [...prior, userTurn]
+      setMessages([...transcript, { role: 'zai', text: '' }])
+
       runLocalizedScrape(label)
 
       const journeyAnswers = getJourneyAnswersFromClient()
@@ -152,6 +138,7 @@ export function AskZaiDeepDiveSheet({
         const res = await postZaiChat({
           question: questionForApi,
           stream: true,
+          messages: prior,
           journey_answers: journeyAnswers,
           postcode: postcode ?? undefined,
           expandedContext: {
@@ -170,19 +157,46 @@ export function AskZaiDeepDiveSheet({
         })
 
         if (!res.ok) {
-          setAnswer(ZAI_FALLBACK)
+          setMessages((m) => {
+            const next = [...m]
+            if (next[next.length - 1]?.role === 'zai') {
+              next[next.length - 1] = { role: 'zai', text: ZAI_FALLBACK }
+            }
+            return next
+          })
           return
         }
 
         let streamed = ''
         await readZaiStream(res, (chunk) => {
           streamed += chunk
-          setAnswer(sanitizeText(streamed))
+          const safe = polishZaiDisplayText(streamed)
+          setMessages((m) => {
+            const next = [...m]
+            if (next[next.length - 1]?.role === 'zai') {
+              next[next.length - 1] = { role: 'zai', text: safe }
+            }
+            return next
+          })
         })
-        if (!streamed.trim()) setAnswer(ZAI_FALLBACK)
-        requestAnimationFrame(() => answerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+        const finalText = streamed.trim() ? polishZaiDisplayText(streamed) : ZAI_FALLBACK
+        setMessages((m) => {
+          const next = [...m]
+          if (next[next.length - 1]?.role === 'zai') {
+            next[next.length - 1] = { role: 'zai', text: finalText }
+          }
+          return next
+        })
       } catch {
-        setAnswer(ZAI_FALLBACK)
+        setMessages((m) => {
+          const next = [...m]
+          if (next[next.length - 1]?.role === 'zai') {
+            next[next.length - 1] = { role: 'zai', text: ZAI_FALLBACK }
+          } else {
+            next.push({ role: 'zai', text: ZAI_FALLBACK })
+          }
+          return next
+        })
       } finally {
         setBusy(false)
       }
@@ -191,6 +205,7 @@ export function AskZaiDeepDiveSheet({
       busy,
       headline,
       journeyKey,
+      messages,
       personalSpend,
       regionalAvg,
       postcode,
@@ -238,7 +253,7 @@ export function AskZaiDeepDiveSheet({
               right: 0,
               bottom: 0,
               zIndex: 241,
-              maxHeight: 'min(80dvh, 560px)',
+              maxHeight: 'min(85dvh, 640px)',
               borderTopLeftRadius: 40,
               borderTopRightRadius: 40,
               padding: 'clamp(20px, 4vw, 32px)',
@@ -268,11 +283,24 @@ export function AskZaiDeepDiveSheet({
                   </button>
                 ))}
               </div>
-              {answer ? (
-                <p ref={answerRef} className="ask-zai-deep-dive-answer">
-                  {answer}
-                </p>
-              ) : null}
+              <div className="ask-zai-deep-dive-thread" aria-live="polite">
+                {messages.map((msg, i) =>
+                  msg.role === 'user' ? (
+                    <p key={`u-${i}`} className="ask-zai-deep-dive-user-turn m-0 uppercase">
+                      {msg.text}
+                    </p>
+                  ) : (
+                    <p key={`z-${i}`} className="ask-zai-deep-dive-answer m-0">
+                      {msg.text
+                        ? renderZaiChatProse(msg.text, { journey_key: journeyKey, source: 'zai_chat' })
+                        : busy && i === messages.length - 1
+                          ? 'Auditing…'
+                          : null}
+                    </p>
+                  )
+                )}
+                <div ref={threadEndRef} />
+              </div>
               <form
                 className="flex flex-col gap-3 mt-auto max-w-zone w-full"
                 onSubmit={(e) => {
@@ -294,14 +322,6 @@ export function AskZaiDeepDiveSheet({
                   aria-busy={busy}
                 >
                   {busy ? 'Auditing…' : 'Search deeper'}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={continueInZai}
-                  className="ask-zai-deep-dive-continue rounded-full border-0 h-12 uppercase text-marvin cursor-pointer"
-                >
-                  Continue in Zai
                 </button>
               </form>
             </motion.div>

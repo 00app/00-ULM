@@ -9,7 +9,11 @@ import {
   resolveGeminiTier,
   type GeminiModelTier,
 } from '@/lib/intelligence/geminiModels'
-import { isBucketFailoverMode, resolveMaxIterations } from '@/lib/intelligence/scrapeBoundaries'
+import {
+  isBucketFailoverMode,
+  resolveMaxIterations,
+  shouldSkipGeminiInBucket,
+} from '@/lib/intelligence/scrapeBoundaries'
 
 export type BucketGenerateParams = {
   prompt: string
@@ -163,9 +167,12 @@ type BucketStep = {
   run: (params: BucketGenerateParams, tier: GeminiModelTier) => Promise<BucketGenerateResult>
 }
 
-/** Order: free-tier friendly providers after Gemini primary. */
+/** Order: Gemini primary unless BUCKET_SKIP_GEMINI / GEMINI_FREE_TIER — then Groq → Mistral → OpenRouter. */
 function bucketSteps(): BucketStep[] {
-  const steps: BucketStep[] = [{ id: 'gemini', run: generateGeminiBucket }]
+  const steps: BucketStep[] = []
+  if (!shouldSkipGeminiInBucket() && process.env.GEMINI_API_KEY?.trim()) {
+    steps.push({ id: 'gemini', run: generateGeminiBucket })
+  }
   if (process.env.GROQ_API_KEY?.trim()) {
     steps.push({ id: 'groq', run: (_p) => generateGroqBucket(_p) })
   }
@@ -187,7 +194,9 @@ export async function generateWithBucketFailover(
   const tier = params.tier ?? resolveGeminiTier(params.tag)
   const steps = bucketSteps()
   if (steps.length === 0) {
-    throw new Error('bucket_failover: no providers configured (set GEMINI_API_KEY minimum)')
+    throw new Error(
+      'bucket_failover: no providers configured (set GROQ_API_KEY, MISTRAL_API_KEY, OPENROUTER_API_KEY, or enable Gemini)'
+    )
   }
   const maxAttempts = Math.min(resolveMaxIterations(), steps.length * 2)
   let lastErr: unknown = null

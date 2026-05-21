@@ -9,6 +9,7 @@
 import { track } from '@vercel/analytics'
 import { motion } from 'framer-motion'
 import type { JourneyId } from '@/lib/journeys'
+import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
 
 import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 
@@ -204,6 +205,7 @@ export function IndustrialHandoffButton({
   const displayWord = compactCircleCtaDisplay(ctaLabel)
 
   const handleClick = () => {
+    if (journeyId) bumpCategoryIntent(journeyId, 'link')
     try {
       track('handoff_click', { journey: journeyId || 'unknown', target: url, value: moneyValue || 0 })
     } catch {

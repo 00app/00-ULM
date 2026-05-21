@@ -56,6 +56,19 @@ export function buildZaiGenomeContextPrompt(args: {
     }
   }
 
+  const openAnchor = genome.open_data_anchor
+  if (openAnchor && typeof openAnchor === 'object' && !Array.isArray(openAnchor)) {
+    const anchor = openAnchor as Record<string, unknown>
+    const epc = anchor.epc as Record<string, unknown> | undefined
+    const grid = anchor.grid as Record<string, unknown> | undefined
+    if (epc?.found === true && typeof epc.description === 'string') {
+      lines.push(`epc anchor: ${epc.description.slice(0, 160)}.`)
+    }
+    if (grid && typeof grid.intensityG === 'number') {
+      lines.push(`live grid intensity: ${Math.round(grid.intensityG)} gCO2/kWh (${String(grid.source ?? 'regional')}).`)
+    }
+  }
+
   return lines.length
     ? `\n\n--- user_genome (read before answering; never repeat postcode twice in one sentence) ---\n${lines.join('\n')}\n---`
     : ''

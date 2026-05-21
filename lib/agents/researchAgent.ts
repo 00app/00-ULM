@@ -1228,6 +1228,40 @@ function researchTripletExplicitFromParams(p: {
 }
 
 /**
+ * Hybrid pipeline — Gemini editorial only; £ locked in markdown (no AI arithmetic).
+ */
+export async function extractHybridEditorialTriplet(params: {
+  markdown: string
+  postcode: string
+  profileData?: ResearchProfileData | null
+  category: string
+  lockedSavingGbp: number
+}): Promise<{
+  agent_headline: string
+  architect_prose: string
+  offer_url: string
+} | null> {
+  const locked = Math.max(0, Math.round(params.lockedSavingGbp))
+  const anchored = `${params.markdown.trim()}\n\nLOCKED saving_amount_gbp: ${locked} (do not change).`
+  const triplet = await extractResearchTripletWithGemini(anchored, params.postcode, params.profileData, {
+    categoryHint: params.category,
+  })
+  if (!triplet?.architect_prose) return null
+  const prose = normalizeArchitectProseThreeParagraphs(triplet.architect_prose)
+  if (!prose) return null
+  return {
+    agent_headline:
+      normalizeGeminiAgentHeadline(triplet.agent_headline) ??
+      triplet.agent_headline ??
+      'shift your spend this year',
+    architect_prose: prose,
+    offer_url: triplet.offer_url?.trim().startsWith('https')
+      ? triplet.offer_url.trim()
+      : 'https://www.gov.uk/',
+  }
+}
+
+/**
  * Persist research result to Neon (research_results table).
  * Call after runZeroResearch or triggerSupplementalResearch to store for returning users.
  */

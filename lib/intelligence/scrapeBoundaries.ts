@@ -10,6 +10,14 @@ export function isBucketFailoverMode(): boolean {
   return process.env.MODEL_STRATEGY?.trim().toLowerCase() === 'bucket_failover'
 }
 
+/** Skip paid Gemini in the provider chain — use Groq / Mistral / OpenRouter only. */
+export function shouldSkipGeminiInBucket(): boolean {
+  const skip = process.env.BUCKET_SKIP_GEMINI?.trim().toLowerCase() ?? ''
+  if (skip === '1' || skip === 'true' || skip === 'yes') return true
+  const free = process.env.GEMINI_FREE_TIER?.trim().toLowerCase() ?? ''
+  return free === '1' || free === 'true' || free === 'yes'
+}
+
 /** Broad multi-category Firecrawl+Gemini (GET ?force=true, cron full batch). Off by default in bucket mode. */
 export function isBroadResearchAllowed(): boolean {
   if (!isBucketFailoverMode()) return true
@@ -95,7 +103,8 @@ export function bucketFailoverStatus(): {
     broadScrapeAllowed: isBroadResearchAllowed(),
     skipDeepGemini: shouldSkipDeepGeminiSearch(),
     providers: {
-      gemini: Boolean(process.env.GEMINI_API_KEY?.trim()),
+      gemini:
+        Boolean(process.env.GEMINI_API_KEY?.trim()) && !shouldSkipGeminiInBucket(),
       groq: Boolean(process.env.GROQ_API_KEY?.trim()),
       mistral: Boolean(process.env.MISTRAL_API_KEY?.trim()),
       openrouter: Boolean(process.env.OPENROUTER_API_KEY?.trim()),

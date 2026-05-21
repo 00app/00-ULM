@@ -45,6 +45,8 @@ import { advanceHomeJourneySentinelAfterAnswer } from '@/lib/sentinel/runner'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import { attachSessionCookieToResponse, resolveAnswersUser } from '@/lib/answers/resolveAnswersUser'
+import { processCalculatedLoopSpawn } from '@/lib/zone/engineDataRouter'
+import { isBucketFailoverMode } from '@/lib/intelligence/scrapeBoundaries'
 
 /** v1.8.14 — Production lock: answers route must not initiate third-party messaging. */
 const DISALLOW_OUTBOUND = true
@@ -186,6 +188,25 @@ export async function POST(request: NextRequest) {
       } | null = null
       try {
         payload = await raceDiscoveryBirth({
+          hybrid:
+            soloFocus && isBucketFailoverMode() && postcodeNorm && postcodeNorm.length >= 4
+              ? async () => {
+                  const h = await processCalculatedLoopSpawn({
+                    userId: user_id,
+                    postcode: postcodeNorm!,
+                    journeyKey: jKey,
+                    questionId: qKey,
+                    userAnswer: String(value),
+                    profileData,
+                  })
+                  if (!h) return null
+                  return {
+                    recommendation_copy: h.architectProse.split(/\n\s*\n/)[0] ?? h.agentHeadline,
+                    source_url: h.offerUrl,
+                    new_card_data: h.zoneCard,
+                  }
+                }
+              : undefined,
           structured: async () => {
             const s = await runDiscoveryStructuredPipeline({
               journeyId: jKey as JourneyId,

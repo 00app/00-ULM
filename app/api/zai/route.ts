@@ -19,6 +19,7 @@ import { generateDiscoveryWinWithGemini } from "@/lib/agents/discoveryWin";
 import {
   generateGatewayText,
   isAiGatewayConfigured,
+  isBucketFailoverEnabled,
   CHAT_GATEWAY_MODEL_CHAIN,
   GEMINI_DIRECT_CHAT,
 } from "@/lib/intelligence/aiGateway";
@@ -34,11 +35,31 @@ import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import type { ImpactProfile } from '@/lib/brains/types'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
+import {
+  getZaiDeclineForQuestion,
+  lacksGroundedZaiContext,
+  stripZaiChatMarkdown,
+  ZAI_FALLBACK_UNCERTAIN,
+} from '@/lib/zai/chatBoundaries'
 
 export const runtime = 'nodejs';
 export const maxDuration = 60
 const textEncoder = new TextEncoder()
 const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
+
+function formatBucketChatHistory(
+  history: Array<{ role: string; parts: Array<{ text: string }> }>
+): string {
+  if (history.length === 0) return ''
+  const lines = history
+    .map((h) => {
+      const label = h.role === 'model' ? 'zai' : 'user'
+      const text = h.parts[0]?.text?.trim() ?? ''
+      return text ? `${label}: ${text}` : ''
+    })
+    .filter(Boolean)
+  return lines.length > 0 ? `\n\nPrevious turns:\n${lines.join('\n')}` : ''
+}
 
 function toImpactProfile(row: Record<string, unknown> | undefined): ImpactProfile | undefined {
   if (!row) return undefined
@@ -239,7 +260,7 @@ async function polishZaiReplyAndLearn(args: {
   effectivePostcode: string | null
   localityName: string | null
 }): Promise<string> {
-  let text = dedupeLocalityInProse(args.text.trim().toLowerCase())
+  let text = stripZaiChatMarkdown(dedupeLocalityInProse(args.text.trim().toLowerCase()))
   if (!text) return ZAI_FALLBACK
   const opener = mandatoryOpenerPrefix(
     args.journeyAnswersForContext,
@@ -340,6 +361,13 @@ export async function POST(req: Request) {
     if (!question) {
       return NextResponse.json({ answer: "what do you want to know?" }, { status: 400 })
     }
+
+    const topicDecline = getZaiDeclineForQuestion(question)
+    if (topicDecline) {
+      return NextResponse.json({ answer: topicDecline }, { status: 200 })
+    }
+
+    // Mechanical Truth: Zai chat is read-only — no Firecrawl / scrape-sync on this route.
 
     // Optional conversation history for multi-turn chat (client sends previous messages)
     const rawMessages = Array.isArray(body.messages) ? body.messages : []
@@ -609,12 +637,73 @@ export async function POST(req: Request) {
       uk context: defra, wrap uk, energy saving trust; april 2026 domestic cap £1,641/yr (ofgem).${userContextNote}${editorialBlock}${auditorBlock}${roleGuard}${userContextBlock}${genomePrompt}`
 
     const streamRequested = body.stream !== false
+    const journeyAnswerKeyCount = Object.values(journeyAnswersForContext).reduce(
+      (n, row) => n + Object.keys(row ?? {}).length,
+      0
+    )
+    if (
+      !isExpandedContext &&
+      lacksGroundedZaiContext({
+        postcode: effectivePostcode,
+        journeyAnswerKeys: journeyAnswerKeyCount,
+        totalMoney,
+        totalCarbon,
+      })
+    ) {
+      const thin = stripZaiChatMarkdown(ZAI_FALLBACK_UNCERTAIN)
+      if (!streamRequested) {
+        return NextResponse.json({ answer: thin }, { status: 200 })
+      }
+      return new Response(textEncoder.encode(thin), {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      })
+    }
+
     const zaiTopic = routeQuestion(question)
+    const gatewayPrompt = `${systemInstruction}\n\nUser question:\n${question}${formatBucketChatHistory(history)}`
 
     let text: string
     try {
+      if (isBucketFailoverEnabled()) {
+        const { text: bucketRaw } = await generateGatewayText({
+          prompt: gatewayPrompt,
+          tag: `zai-${zaiTopic}`,
+          tier: 'chat',
+          maxOutputTokens: 512,
+          temperature: 0.2,
+        })
+        const bucketText = bucketRaw?.trim() ? bucketRaw : ZAI_FALLBACK
+        if (streamRequested) {
+          const polished = await polishZaiReplyAndLearn({
+            text: bucketText,
+            sessionUserId: session?.userId,
+            question,
+            journeyAnswersForContext,
+            impactProfile: impactProfile ?? undefined,
+            effectivePostcode,
+            localityName,
+          })
+          const out = stripZaiChatMarkdown(dedupeLocalityInProse(polished ?? bucketText))
+          return new Response(textEncoder.encode(out), {
+            headers: {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Cache-Control': 'no-cache, no-transform',
+            },
+          })
+        }
+        const answer = await polishZaiReplyAndLearn({
+          text: bucketText,
+          sessionUserId: session?.userId,
+          question,
+          journeyAnswersForContext,
+          impactProfile: impactProfile ?? undefined,
+          effectivePostcode,
+          localityName,
+        })
+        return NextResponse.json({ answer })
+      }
+
       if (!streamRequested && isAiGatewayConfigured()) {
-        const gatewayPrompt = `${systemInstruction}\n\nUser question:\n${question}`
         const { text: gwText } = await generateGatewayText({
           prompt: gatewayPrompt,
           tag: `zai-${zaiTopic}`,
@@ -706,7 +795,7 @@ export async function POST(req: Request) {
                   controller.enqueue(textEncoder.encode(ZAI_FALLBACK))
                   streamedFull = ZAI_FALLBACK
                 }
-                streamedFull = dedupeLocalityInProse(streamedFull)
+                streamedFull = stripZaiChatMarkdown(dedupeLocalityInProse(streamedFull))
                 if (session?.userId && streamedFull.trim()) {
                   try {
                     await finalizeZaiChatLearning({

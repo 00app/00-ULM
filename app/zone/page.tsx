@@ -99,6 +99,14 @@ import {
 } from '@/lib/soloFocusCopy'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import {
+  capDiscoveryTipsForGrid,
+  capRockHabitsPerJourney,
+  capTipsPerJourney,
+  isUserDiscoveryInjectTip,
+  journeyKeyFromTip,
+} from '@/lib/zone/perCategoryCardCap'
+import { MAX_ROCK_SAVING_TIPS_RAIL } from '@/lib/zone/ulmLimits'
+import {
   CATEGORY_INTENT_CHANGED_EVENT,
   bumpCategoryIntent,
   readCategoryIntentWeights,
@@ -399,8 +407,13 @@ export default function ZonePage() {
   }, [])
 
   const launchPatternShiftTakeover = useCallback(
-    (journeyId: JourneyId) => {
+    (journeyId: JourneyId, meta?: { visitedClose?: boolean }) => {
       closeAnySoloFocus()
+      if (meta?.visitedClose) {
+        setPatternShiftJourneyId(null)
+        setIsZoneVisible(true)
+        return
+      }
       const nextBeat = pickNextLoopQuestion(journeyId)
       if (nextBeat) {
         setIsZoneVisible(false)
@@ -1014,7 +1027,16 @@ export default function ZonePage() {
           for (const c of prev) {
             if (c.id.startsWith('inject-') && !byId.has(c.id)) byId.set(c.id, c)
           }
-          return dedupeZoneTipCards([...byId.values()])
+          const merged = dedupeZoneTipCards([...byId.values()])
+          const achievements = merged.filter((c) => c.achievement_discovery)
+          const userDiscovery = capTipsPerJourney(
+            merged.filter(isUserDiscoveryInjectTip),
+            1
+          )
+          const rest = merged.filter(
+            (c) => !c.achievement_discovery && !isUserDiscoveryInjectTip(c)
+          )
+          return dedupeZoneTipCards([...achievements, ...userDiscovery, ...rest])
         })
       })
       .catch(() => {
@@ -1032,9 +1054,15 @@ export default function ZonePage() {
       const isAchievement = Boolean(detail.achievement_discovery)
       setInjectedTips((prev) => {
         const titleKey = normalizeCardHeadlineKey(detail.title ?? '')
-        const withoutDupes = prev.filter(
-          (c) => c.id !== detail.id && normalizeCardHeadlineKey(c.title ?? '') !== titleKey
-        )
+        const jid = journeyKeyFromTip(detail)
+        const withoutDupes = prev.filter((c) => {
+          if (c.id === detail.id) return false
+          if (normalizeCardHeadlineKey(c.title ?? '') === titleKey) return false
+          if (!isAchievement && isUserDiscoveryInjectTip(c) && journeyKeyFromTip(c) === jid) {
+            return false
+          }
+          return true
+        })
         return dedupeZoneTipCards([...withoutDupes, detail])
       })
       if (isAchievement) {
@@ -1518,7 +1546,7 @@ export default function ZonePage() {
       if (tip.achievement_discovery && !achievements.some((a) => a.id === tip.id)) {
         achievements.push(tip)
         onGrid.add(tip.id)
-      } else if (tip.id.startsWith('inject-')) {
+      } else if (isUserDiscoveryInjectTip(tip)) {
         discovery.push(tip)
         onGrid.add(tip.id)
       }
@@ -1532,7 +1560,7 @@ export default function ZonePage() {
     }
     return {
       achievementTips: achievements,
-      discoveryTips: discovery,
+      discoveryTips: capDiscoveryTipsForGrid(discovery),
       baselineTips: dedupeZoneTipCards(baseline),
     }
   }, [pinnedAchievements, effectiveInjectedTips, viewModel.tips])
@@ -1683,14 +1711,13 @@ export default function ZonePage() {
     return out
   }, [researchCategoryCoverage])
 
-  const rockHabitsWithOffers = useMemo(
-    () =>
-      rockVisibleHabits.map((h) => {
-        const url = rockOfferByJourney[h.journey_key]
-        return url ? { ...h, learn_url: url } : h
-      }),
-    [rockVisibleHabits, rockOfferByJourney]
-  )
+  const rockHabitsWithOffers = useMemo(() => {
+    const capped = capRockHabitsPerJourney(rockVisibleHabits).slice(0, MAX_ROCK_SAVING_TIPS_RAIL)
+    return capped.map((h) => {
+      const url = rockOfferByJourney[h.journey_key]
+      return url ? { ...h, learn_url: url } : h
+    })
+  }, [rockVisibleHabits, rockOfferByJourney])
 
   const openNextJourneyFromExpanded = useCallback(
     (jid: JourneyId) => {

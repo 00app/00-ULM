@@ -16,6 +16,8 @@ export interface DiscoveryBirthPayload {
  * Outer `timeoutMs` resolves `null` if neither produces in time.
  */
 export async function raceDiscoveryBirth(params: {
+  /** Hybrid pipeline — free anchors + locked £/kg + optional Gemini prose (runs first when set). */
+  hybrid?: () => Promise<DiscoveryBirthPayload | null>
   structured: () => Promise<DiscoveryBirthPayload | null>
   zeroHunter: () => Promise<DiscoveryBirthPayload | null>
   rebirthVault?: () => Promise<DiscoveryBirthPayload | null>
@@ -28,6 +30,12 @@ export async function raceDiscoveryBirth(params: {
       if (settled || !p?.new_card_data) return
       settled = true
       resolve(p)
+    }
+    if (params.hybrid) {
+      Promise.resolve()
+        .then(() => params.hybrid!())
+        .then(win)
+        .catch(() => {})
     }
     Promise.resolve()
       .then(() => params.structured())

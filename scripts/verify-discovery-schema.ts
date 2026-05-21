@@ -1,8 +1,11 @@
 /**
  * Verify discovery_injections + journey_answers_jsonb exist for Zai pinned suggestions.
- * Run: npx tsx scripts/verify-discovery-schema.ts
+ * Run: npm run db:verify-discovery
  */
+import { loadEnvLocal } from './load-env-local'
 import pool from '../lib/db'
+
+loadEnvLocal({ preferLocal: true })
 
 const REQUIRED_TABLES = ['discovery_injections', 'journey_answers_jsonb', 'journey_answers', 'likes'] as const
 

@@ -36,15 +36,16 @@ export const ZAI_BOUNDARIES = {
   /**
    * Default response when unsure
    */
-  defaultUncertainResponse: "I don't have enough information to be confident.",
+  defaultUncertainResponse:
+    "i don't have enough information to be confident on that one. let's stick to your bills or travel moves.",
 
   /**
    * Safety phrases to use when declining
    */
   declinePhrases: [
-    "I don't have enough information to be confident.",
-    "That's outside my scope. I focus on sustainability actions.",
-    "I can help you with sustainability, but not with that.",
+    "i don't have enough information to be confident.",
+    "that's outside my scope — let's stay on home energy or travel moves.",
+    "i can't help with that here. try a savings or carbon question.",
   ],
 }
 

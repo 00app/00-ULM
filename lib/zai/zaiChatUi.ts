@@ -1,3 +1,6 @@
+/**
+ * Like/source metadata for Zai replies — layout turn rules live in `lib/zai/chatRules.ts`.
+ */
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'

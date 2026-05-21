@@ -1,0 +1,77 @@
+/**
+ * Per-journey card ceiling on Zone: one journey bento at boot, at most one earned
+ * discovery tip after a loop answer (2 cells per category on the main grid).
+ */
+
+import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
+import type { ZoneTipCard } from '@/lib/logic/zone'
+
+/** Ranked `tip-*` from the view model do not nest on the main grid (journey tile is the starter card). */
+export const SHOW_BASELINE_TIPS_ON_MAIN_GRID = false
+
+/** Max discovery / inject tips nested under each journey on the bento wall. */
+export const MAX_DISCOVERY_TIPS_PER_JOURNEY_ON_GRID = 1
+
+/** Max saving-tip habits per journey on The Rock rail. */
+export const MAX_SAVING_TIPS_PER_JOURNEY = 2
+
+export function journeyKeyFromTip(tip: ZoneTipCard): JourneyId {
+  const raw = (tip.journey_key ?? tip.category ?? 'home').trim().toLowerCase()
+  return (JOURNEY_ORDER.includes(raw as JourneyId) ? raw : 'home') as JourneyId
+}
+
+/** Loop-answer / API birth only — not sentinel, fallback, or ranked `tip-*` baselines. */
+export function isUserDiscoveryInjectTip(tip: ZoneTipCard): boolean {
+  if (tip.achievement_discovery) return false
+  const id = tip.id
+  if (!id.startsWith('inject-')) return false
+  if (id.startsWith('inject-sentinel-') || id.startsWith('inject-fallback-')) return false
+  return true
+}
+
+/** Keep the last `maxPerJourney` tips per journey_key (stable JOURNEY_ORDER). */
+export function capTipsPerJourney(tips: ZoneTipCard[], maxPerJourney: number): ZoneTipCard[] {
+  if (maxPerJourney < 1) return []
+  const byJourney = new Map<JourneyId, ZoneTipCard[]>()
+  for (const tip of tips) {
+    const jid = journeyKeyFromTip(tip)
+    const bucket = byJourney.get(jid) ?? []
+    bucket.push(tip)
+    byJourney.set(jid, bucket)
+  }
+  const out: ZoneTipCard[] = []
+  for (const jid of JOURNEY_ORDER) {
+    const bucket = byJourney.get(jid) ?? []
+    if (bucket.length > maxPerJourney) {
+      out.push(...bucket.slice(bucket.length - maxPerJourney))
+    } else {
+      out.push(...bucket)
+    }
+  }
+  for (const [jid, bucket] of byJourney) {
+    if (JOURNEY_ORDER.includes(jid)) continue
+    out.push(...bucket.slice(-maxPerJourney))
+  }
+  return out
+}
+
+export function capDiscoveryTipsForGrid(tips: ZoneTipCard[]): ZoneTipCard[] {
+  return capTipsPerJourney(
+    tips.filter(isUserDiscoveryInjectTip),
+    MAX_DISCOVERY_TIPS_PER_JOURNEY_ON_GRID
+  )
+}
+
+export function capRockHabitsPerJourney<T extends { journey_key: JourneyId }>(
+  habits: T[]
+): T[] {
+  const byJourney = new Map<JourneyId, T[]>()
+  for (const h of habits) {
+    const bucket = byJourney.get(h.journey_key) ?? []
+    if (bucket.length < MAX_SAVING_TIPS_PER_JOURNEY) {
+      bucket.push(h)
+      byJourney.set(h.journey_key, bucket)
+    }
+  }
+  return JOURNEY_ORDER.flatMap((jid) => byJourney.get(jid) ?? [])
+}

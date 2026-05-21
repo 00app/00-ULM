@@ -7,6 +7,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
+import { getSessionFromRequest } from '@/lib/auth'
+import {
+  hydrateFreeStructuralContext,
+  persistOpenDataAnchors,
+} from '@/lib/intelligence/freeTierHydration'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -31,7 +36,15 @@ export async function GET(req: NextRequest) {
   if (!data) {
     return NextResponse.json({ error: 'Could not resolve postcode' }, { status: 404 })
   }
-  return NextResponse.json(data)
+  const session = await getSessionFromRequest()
+  const anchor = await hydrateFreeStructuralContext(postcode)
+  if (session?.userId && anchor) {
+    void persistOpenDataAnchors(session.userId, anchor)
+  }
+  return NextResponse.json({
+    ...data,
+    openDataAnchor: anchor ?? undefined,
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -53,5 +66,13 @@ export async function POST(req: NextRequest) {
   if (!data) {
     return NextResponse.json({ error: 'Could not resolve postcode' }, { status: 404 })
   }
-  return NextResponse.json(data)
+  const session = await getSessionFromRequest()
+  const anchor = await hydrateFreeStructuralContext(postcode)
+  if (session?.userId && anchor) {
+    void persistOpenDataAnchors(session.userId, anchor)
+  }
+  return NextResponse.json({
+    ...data,
+    openDataAnchor: anchor ?? undefined,
+  })
 }
