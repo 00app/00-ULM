@@ -137,6 +137,20 @@ export async function POST() {
   const apiKey = process.env.GEMINI_API_KEY?.trim()
   const userContext = getUserContextMarkdown()
   const postcodeNorm = postcodeFromContext(userContext)
+  const freeTier =
+    process.env.GEMINI_FREE_TIER === '1' || process.env.BUCKET_SKIP_GEMINI === '1'
+
+  if (freeTier) {
+    const fallback = validateAndRailCards(validateInjectionCards(fallbackZoneTips(postcodeNorm)), postcodeNorm)
+    setStoredInjections(fallback)
+    return NextResponse.json({
+      ok: true,
+      source: 'fallback',
+      count: fallback.length,
+      degraded: true,
+      geminiError: 'free_tier',
+    })
+  }
 
   if (!apiKey) {
     return NextResponse.json(

@@ -36,6 +36,7 @@ import {
   zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
+import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { getTipVerificationFollowUp } from '@/lib/zone/tipVerification'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import {
@@ -813,6 +814,7 @@ export function buildZoneViewModel({
           ? 'https://www.gov.uk/ev-chargepoint-grant'
           : undefined
     let claimOfferUrl = marketDeepLink || impact.claimOfferUrl || fallbackClaimUrl
+    if (claimOfferUrl) claimOfferUrl = sanitizeZoneOfferUrl(claimOfferUrl, journeyKey)
 
     const isPriorityAlert = journeyKey === 'home' && !!council
 
@@ -865,9 +867,10 @@ export function buildZoneViewModel({
             )
           : null) ??
         zoneCardHeadlineFromRaw(titleFallback, compactFallback, MAX_ZONE_CARD_HEADLINE_WORDS))
+    const sourceUrl = sanitizeZoneOfferUrl(source.url, journeyKey)
     const learnUrl =
       !isGenericHomepageUrl(claimOfferUrl) ? claimOfferUrl! :
-      !isGenericHomepageUrl(source.url) ? source.url :
+      !isGenericHomepageUrl(sourceUrl) ? sourceUrl :
       buildZaiAuditDeepLink({
         journey: journeyKey,
         title,
@@ -1176,7 +1179,7 @@ export function buildZoneViewModel({
       journeyKey === 'home' && tipNeedsSwitching
         ? 'source. energy saving trust'
         : formatSourceLabel(source)
-    const tipLearn = source.url
+    const tipLearn = sanitizeZoneOfferUrl(source.url, journeyKey)
     const tipAction = tipNeedsSwitching
       ? 'https://www.energysavingtrust.org.uk/advice/switching-energy-supplier/'
       : undefined

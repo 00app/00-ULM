@@ -6,6 +6,7 @@
  */
 import type { RockHabit } from '@/lib/rock/types'
 import { trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
+import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 import { defaultVerifiedArchitectSuppliedBy } from '@/lib/soloFocusSuppliedBy'
 import { VERIFIED_SOURCE_DATE, resolvePartnerLink, formatVerifiedSourceNameFromLabel } from '@/lib/zone/verifiedRevenue'
@@ -18,28 +19,31 @@ export const ROCK_HABITS: RockHabit[] = [
     journey_key: 'food',
     title: 'the fridge gap',
     insight:
-      'Ensure 10cm of space behind your fridge so heat can escape efficiently.',
+      'Leave a finger-width gap behind the fridge so the motor can breathe — your kitchen stays cooler and the bill eases.',
     money_gbp: 18,
     carbon_kg: 12,
-    provider_name: 'Samsung',
+    provider_name: 'Love Food Hate Waste',
+    learn_url: 'https://www.lovefoodhatewaste.com',
   },
   {
     slug: 'loft-hatch-seal',
     journey_key: 'home',
     title: 'loft hatch seal',
-    insight: 'An unsealed loft hatch acts like a chimney for heat. Seal it to save ~5% on gas.',
+    insight: 'Tape a foam strip round the loft hatch — stops warm air whistling up into the roof space.',
     money_gbp: 35,
     carbon_kg: 40,
     provider_name: 'EST',
+    learn_url: 'https://www.energysavingtrust.org.uk/advice/reducing-home-heat-loss/',
   },
   {
     slug: 'router-sleep',
     journey_key: 'tech',
     title: 'router sleep',
-    insight: 'Use a timer to turn off your router at night — it can use as much as a small fridge.',
+    insight: 'Put the broadband box on a timer so it sleeps when the house does — quiet nights, smaller standby bill.',
     money_gbp: 22,
     carbon_kg: 15,
-    provider_name: 'TP-Link',
+    provider_name: 'Energy Saving Trust',
+    learn_url: 'https://www.energysavingtrust.org.uk/advice/electrical-appliances/',
   },
   {
     slug: 'water-butt',
@@ -581,7 +585,10 @@ export function sumRockLikedImpact(likedCardIds: readonly string[]): { money: nu
 }
 
 export function habitToTipCard(h: RockHabit): import('@/lib/logic/zone').ZoneTipCard {
-  const learnUrl = (h.learn_url?.trim() || trustedUrlForJourney(h.journey_key)).trim()
+  const learnUrl = sanitizeZoneOfferUrl(
+    h.learn_url?.trim() || trustedUrlForJourney(h.journey_key),
+    h.journey_key
+  )
   const sourceLabel = `source. ${h.provider_name}`
   const source_name = formatVerifiedSourceNameFromLabel(h.provider_name)
   const partner_link = resolvePartnerLink({

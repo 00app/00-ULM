@@ -80,7 +80,7 @@ import {
 } from '@/lib/zone/tier2RecursiveSpawner'
 import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
-import { setDeepDiveInProgress, shouldSkipInjectionOnCardClose } from '@/lib/zone/visitedCards'
+import { markCardVisited, setDeepDiveInProgress, shouldSkipInjectionOnCardClose } from '@/lib/zone/visitedCards'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
 import { runSoloFocusAuditCompletionClient } from '@/lib/soloFocusAuditCompleteClient'
 import {
@@ -475,6 +475,7 @@ export function JourneyBentoCard({
       ? true
       : journeyResearchCov == null
   const soloHandoff = resolveSoloFocusHandoffUrls({
+    journeyKey: journeyId,
     coverageOfferUrl: journeyResearchCov?.latestOfferUrl,
     coverageSourceUrl: journeyResearchCov?.latestSourceUrl,
     fallbackOfferUrl: pickPrimaryHttpUrl(liveDiscoveryUrl, partnerHttp),
@@ -513,6 +514,13 @@ export function JourneyBentoCard({
   }, [])
 
   const wasExpandedRef = useRef(false)
+  useEffect(() => {
+    if (isExpanded) {
+      const visitId = cardId?.trim() || `journey-${journeyId}`
+      markCardVisited(visitId)
+    }
+  }, [isExpanded, cardId, journeyId])
+
   useEffect(() => {
     if (isExpanded && !prevIsExpandedRef.current) {
       const core = cardId ?? journeyId

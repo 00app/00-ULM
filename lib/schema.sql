@@ -146,6 +146,8 @@ CREATE TABLE IF NOT EXISTS guest_sessions (
   profile JSONB DEFAULT '{}',
   journey_answers JSONB DEFAULT '{}',
   completed_journeys JSONB DEFAULT '[]',
+  visited_card_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+  visited_journey_keys JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_guest_sessions_session_id ON guest_sessions(session_id);

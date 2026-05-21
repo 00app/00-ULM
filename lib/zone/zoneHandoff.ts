@@ -1,4 +1,6 @@
+import type { JourneyId } from '@/lib/journeys'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
+import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { recordCardVisitHandoff } from '@/lib/zone/visitedCards'
 
 export type ZoneExternalHandoff = {
@@ -10,8 +12,12 @@ export type ZoneExternalHandoff = {
 
 /** Open external audit link in a new tab after marking visited (local + Neon). */
 export function openZoneExternalHandoff(handoff: ZoneExternalHandoff): boolean {
-  const url = handoff.url.trim()
-  if (!url.startsWith('http')) return false
+  const raw = handoff.url.trim()
+  if (!raw.startsWith('http')) return false
+  const url =
+    handoff.journeyKey?.trim()
+      ? sanitizeZoneOfferUrl(raw, handoff.journeyKey.trim() as JourneyId)
+      : raw
   bumpCategoryIntent(handoff.journeyKey, 'link')
   void recordCardVisitHandoff({
     cardId: handoff.cardId,

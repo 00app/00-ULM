@@ -7,17 +7,17 @@ export interface JourneySource {
 
 const SOURCES: Record<JourneyId, JourneySource[]> = {
   home: [
-    { url: 'https://www.gov.uk', label: 'uk government data' },
     { url: 'https://www.energysavingtrust.org.uk', label: 'energy saving trust' },
+    { url: 'https://www.gov.uk/improve-energy-efficiency', label: 'gov.uk home efficiency' },
   ],
   grants: [{ url: 'https://www.gov.uk/apply-boiler-upgrade-scheme', label: 'gov.uk grants' }],
   solar: [{ url: 'https://mcscertified.com', label: 'mcs solar uk' }],
   travel: [
-    { url: 'https://www.gov.uk', label: 'uk government data' },
+    { url: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/', label: 'national rail railcards' },
     { url: 'https://www.gov.uk/guidance/greenhouse-gas-reporting-conversion-factors', label: 'defra transport factors' },
   ],
   food: [{ url: 'https://wrap.org.uk', label: 'wrap uk' }],
-  shopping: [{ url: 'https://www.gov.uk', label: 'uk retail emissions' }],
+  shopping: [{ url: 'https://wrap.org.uk', label: 'wrap uk' }],
   money: [{ url: 'https://www.ons.gov.uk', label: 'uk household spending' }],
   carbon: [{ url: 'https://www.carbontrust.com', label: 'carbon trust uk' }],
   tech: [{ url: 'https://www.gov.uk', label: 'uk tech emissions' }],

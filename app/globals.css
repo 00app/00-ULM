@@ -7195,6 +7195,18 @@ select,
 .zone-card--visited .text-data {
   color: var(--color-yellow) !important;
 }
+/* Saving tips start pink — visited flips to yellow ink on yellow tile */
+.bento-card-groovy[data-zone-surface='tip'].zone-card--visited {
+  background-color: var(--color-yellow) !important;
+  color: var(--color-purple) !important;
+}
+.bento-card-groovy[data-zone-surface='tip'].zone-card--visited .card-top-label,
+.bento-card-groovy[data-zone-surface='tip'].zone-card--visited .card-headline,
+.bento-card-groovy[data-zone-surface='tip'].zone-card--visited .data-label,
+.bento-card-groovy[data-zone-surface='tip'].zone-card--visited .data-value,
+.bento-card-groovy[data-zone-surface='tip'].zone-card--visited .text-data {
+  color: var(--color-purple) !important;
+}
 .bento-card-groovy[data-journey].zone-card--deep-dive-pending::after {
   content: 'DEEP DIVE IN PROGRESS...';
   display: block;

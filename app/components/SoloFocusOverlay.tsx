@@ -403,6 +403,7 @@ export function SoloFocusOverlay({
       ? true
       : journeyResearchCov == null
   const soloHandoff = resolveSoloFocusHandoffUrls({
+    journeyKey: String(displayJourneyId || journeyId || 'home'),
     coverageOfferUrl: journeyResearchCov?.latestOfferUrl,
     coverageSourceUrl: journeyResearchCov?.latestSourceUrl,
     fallbackOfferUrl: pickPrimaryHttpUrl(offerUrl, liveDiscoveryUrl, partnerHttp),

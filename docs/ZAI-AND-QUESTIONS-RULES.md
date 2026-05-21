@@ -70,7 +70,9 @@ Hermes cron unchanged (repair backfill only). See `docs/HYBRID-DATA-PIPELINE.md`
 | **1 card = 1 question** | One active `EmbeddedJourneyQuestion` or loop beat per card surface; no stacked inputs. |
 | **Single spawn** | User answers → targeted state → `POST /api/answers` → exactly **one** discovery card per answer → `injectNewDiscoveryCard`. |
 | **Injection budget** | Up to **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** per domain (`lib/intelligence/manifest.ts`). |
-| **Visited flip** | `markCardVisited` → `.zone-card--visited` (pink / yellow). |
+| **Visited flip** | `markCardVisited` on grid open (`onExpand` / tip click) → `.zone-card--visited`: journey tiles **purple→pink**, tips **pink→yellow** (or purple baseline tips → yellow when visited). |
+| **Offer URLs** | `sanitizeZoneOfferUrl` (`lib/zone/offerUrlGuard.ts`): block 404 gov paths (e.g. great-british-insulation-scheme), bare `gov.uk` homepages, home↔grants cross-landing; fall back to `TRUSTED_JOURNEY_URLS` (EST, MSE, WRAP, railcards — not regulator homepages). |
+| **Copy voice** | Content architect + True Tip: family kitchen-table tone; **home ≠ grants** mechanism; `collapseDuplicateProseParagraphs` + `isRawResearchDump` strip tariff/policy dumps. |
 | **Close credit guard** | If card already visited, close calls `onPatternShiftClose` with `visitedClose: true` → **no** loop takeover, **no** `spawnAchievementWhenLoopPoolExhausted`, **no** `/api/zone/injections` path from close (`lib/zone/patternShiftClose.ts`). |
 
 ### Zai chat sandbox

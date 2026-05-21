@@ -53,6 +53,8 @@
     "db:log-research:prod": "tsx scripts/log-latest-research-row.ts --env-file .env.production.local",
     "db:repair-research": "tsx scripts/repair-latest-research-row.ts",
     "db:repair-research:prod": "tsx scripts/repair-latest-research-row.ts --env-file .env.production.local",
+    "db:clean-zone": "tsx scripts/clean-zone-research-data.ts",
+    "db:clean-zone:prod": "tsx scripts/clean-zone-research-data.ts --env-file .env.production.local",
     "env:merge": "node scripts/merge-env-local.mjs",
     "verify:env": "bash scripts/verify-env-and-health.sh",
     "curl:scrape-sync": "bash scripts/curl-scrape-sync-trigger.sh",

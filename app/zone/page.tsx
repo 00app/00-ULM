@@ -13,6 +13,7 @@ import { ZAI_AUDIT_COMPLETE_EVENT } from '@/lib/zai/zoneSync'
 import { buildGroovyGridItems, type GroovyGridCell } from '@/lib/zone/gridOrder'
 import {
   markCardVisited,
+  mergeVisitedFromServer,
   readDeepDiveInProgressCardId,
   readVisitedCardIds,
   setDeepDiveInProgress,
@@ -750,6 +751,26 @@ export default function ZonePage() {
     void resolveProfileLocalityForPostcode(scrapePostcode)
   }, [hydrated, scrapePostcode])
 
+  useEffect(() => {
+    if (!hydrated) return
+    void fetch('/api/session-state', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data || typeof data !== 'object') return
+        const ids = Array.isArray((data as { visitedCardIds?: unknown }).visitedCardIds)
+          ? ((data as { visitedCardIds: string[] }).visitedCardIds ?? [])
+          : []
+        const jks = Array.isArray((data as { visitedJourneyKeys?: unknown }).visitedJourneyKeys)
+          ? ((data as { visitedJourneyKeys: string[] }).visitedJourneyKeys ?? [])
+          : []
+        if (ids.length > 0) mergeVisitedFromServer(ids, jks)
+        if (jks.length > 0) {
+          setDbVisitedJourneyKeys((prev) => new Set([...prev, ...jks]))
+        }
+      })
+      .catch(() => {})
+  }, [hydrated])
+
   const inPlacePhrase = displayLocationName.trim() ? `in ${displayLocationName.trim()}` : 'near you'
 
   useEffect(() => {
@@ -912,6 +933,7 @@ export default function ZonePage() {
     researchCategoryCoverage,
     researchMeta?.savingAmountGbp,
     researchMeta?.verifiedSaving,
+    dbVisitedJourneyKeys,
   ])
 
   /* JIT: no batch POST scrape-sync for unsettled journeys — Tip +1 earns each scrape. */
@@ -920,8 +942,9 @@ export default function ZonePage() {
     if (!hydrated || scrapePostcode.length < 4 || proseRepairRequestedRef.current) return
     const cov = researchCategoryCoverage
     if (!cov) return
-    const needsProse = Object.values(cov).some(
-      (r) =>
+    const needsProse = Object.entries(cov).some(
+      ([jid, r]) =>
+        !dbVisitedJourneyKeys.has(jid) &&
         ((r.latestSavingGbp ?? 0) > 0 || (r.latestVerifiedGbp ?? 0) > 0) &&
         !r.architectProse?.trim() &&
         !r.agentHeadline?.trim()
@@ -992,7 +1015,7 @@ export default function ZonePage() {
       .catch(() => {
         proseRepairRequestedRef.current = false
       })
-  }, [hydrated, scrapePostcode, researchCategoryCoverage])
+  }, [hydrated, scrapePostcode, researchCategoryCoverage, dbVisitedJourneyKeys])
 
   useEffect(() => {
     if (!hydrated) return
@@ -2104,11 +2127,12 @@ export default function ZonePage() {
                     const tipVisited = isZoneCardVisited(tip.id, tip.journey_key)
                     const tipDeepDive = deepDivePendingId === tip.id
                     const tipBg = tipVisited
-                      ? 'var(--color-pink)'
+                      ? 'var(--color-yellow)'
                       : isDiscoveryInject
                         ? 'var(--color-pink)'
                         : 'var(--color-purple)'
-                    const tipTextColor = 'var(--color-yellow)'
+                    const tipInk = tipVisited ? 'var(--color-purple)' : 'var(--color-yellow)'
+                    const tipTextColor = tipInk
                     const semanticWin = tip.dominant_win ?? 'money'
                     const tipLabelH = 14
                     const tipArrowSz = tipLabelH * 3
@@ -2140,6 +2164,7 @@ export default function ZonePage() {
                         return
                       }
                       if (journeyCell) {
+                        markCardVisited(journeyCell.item.id)
                         rememberSoloFocusOpen(journeyCell.item.id, journeyCell.item.journey_key)
                         if (!openSoloFocus(journeyCell.item.id, 'journey')) return
                         setExpandCard(
@@ -2419,6 +2444,7 @@ export default function ZonePage() {
                       }
                       isExpanded={expandedCardId === cell.item.id}
                       onExpand={() => {
+                        markCardVisited(cell.item.id)
                         if (!openSoloFocus(cell.item.id, 'journey')) return
                         if (answerHandoffOffer && answerHandoffOffer.journeyKey !== cell.item.journey_key) {
                           setAnswerHandoffOffer(null)
@@ -2490,6 +2516,7 @@ export default function ZonePage() {
               likedCardIds={state.likedCards}
               onOpenTip={(id) => {
                 if (!zoneInteractable) return
+                markCardVisited(id)
                 if (!openSoloFocus(id, 'tip')) return
                 setExpandedTipId(id)
               }}

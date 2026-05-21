@@ -5,33 +5,18 @@ import { generateCardContextsBatch, type ContentArchitectCardInput } from '@/lib
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { trustedUrlForJourney, isHttpsUrl } from '@/lib/zone/trustedJourneyUrls'
+import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
+import pool from '@/lib/db'
+import {
+  normaliseVisitedJourneyKeys,
+  resolveGuestSessionId,
+} from '@/lib/zone/guestSession'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 const ALLOWED = new Set<JourneyId>(JOURNEY_ORDER)
-
-async function fetchDuckDuckGoOfferUrl(query: string): Promise<string | null> {
-  try {
-    const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`
-    const res = await fetch(url, {
-      headers: {
-        Accept: 'text/html,application/xhtml+xml',
-        'User-Agent': 'zero-zero-content-architect/1.0',
-      },
-      cache: 'no-store',
-    })
-    if (!res.ok) return null
-    const html = await res.text()
-    const m = html.match(/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"/i)
-    if (!m?.[1]) return null
-    const href = m[1].trim()
-    return /^https?:\/\//i.test(href) ? href : null
-  } catch {
-    return null
-  }
-}
 
 function resolveAppBaseUrl(req: Request): string | null {
   const configured =
@@ -161,6 +146,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ byJourney: {} })
   }
 
+  const guestSid = resolveGuestSessionId(req)
+  const visitedSkip = new Set<string>()
+  try {
+    const g = await pool.query<{ visited_journey_keys: unknown }>(
+      `SELECT visited_journey_keys FROM guest_sessions WHERE session_id = $1`,
+      [guestSid]
+    )
+    for (const j of normaliseVisitedJourneyKeys(g.rows[0]?.visited_journey_keys)) {
+      visitedSkip.add(j)
+    }
+  } catch {
+    /* migration */
+  }
+
   const session = await getSessionFromRequest().catch(() => null)
   const serverAnswers = session ? await getJourneyAnswersForUser(session.userId) : null
   if (serverAnswers) {
@@ -175,9 +174,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const cardsToEnrich = cards.filter((c) => !visitedSkip.has(c.journey_key))
+  if (cardsToEnrich.length === 0) {
+    return NextResponse.json({ byJourney: {}, resolvedLinks: {}, skippedVisited: [...visitedSkip] })
+  }
+
   const cardsWithLiveSource = await Promise.all(
-    cards.map(async (c) => {
-      if (c.journey_key === 'home') {
+    cardsToEnrich.map(async (c) => {
+      if (c.journey_key === 'home' && !visitedSkip.has('home')) {
         const pc = c.postcode?.replace(/\s+/g, '').trim()
         if (pc && (!c.live_elec_gbp_per_kwh || !c.live_gas_gbp_per_kwh)) {
           const row = await getLatestResearchUnitRates(pc, session?.userId)
@@ -188,32 +192,26 @@ export async function POST(req: NextRequest) {
               live_gas_gbp_per_kwh: row.gas_unit_rate_gbp_per_kwh,
               rates_citation_url: c.rates_citation_url ?? row.source_url ?? undefined,
             }
-          } else {
+          } else if (!visitedSkip.has('home')) {
             await triggerImmediateScrapeFallback(req, pc)
           }
         }
       }
       const preferredDeepLink = c.deep_link_url?.trim()
       if (preferredDeepLink && isHttpsUrl(preferredDeepLink)) {
-        return { ...c, source_url: preferredDeepLink }
+        return { ...c, source_url: sanitizeZoneOfferUrl(preferredDeepLink, c.journey_key) }
       }
-      if (c.source_url?.trim() && isHttpsUrl(c.source_url)) return c
-      const locality = c.locality?.trim() || 'UK'
-      const postcode = c.postcode?.trim()
-      const query = `${c.journey_key} grants ${locality}${postcode ? ` ${postcode}` : ''} site:gov.uk 2026`
-      const ddg = await fetchDuckDuckGoOfferUrl(query)
-      const trusted = trustedUrlForJourney(c.journey_key)
-      if (ddg && isHttpsUrl(ddg) && /gov\.uk|ofgem\.gov\.uk|nhs\.uk|scotland\.gov\.uk/i.test(ddg)) {
-        return { ...c, source_url: ddg }
+      if (c.source_url?.trim() && isHttpsUrl(c.source_url)) {
+        return { ...c, source_url: sanitizeZoneOfferUrl(c.source_url, c.journey_key) }
       }
-      return { ...c, source_url: trusted }
+      return { ...c, source_url: trustedUrlForJourney(c.journey_key) }
     })
   )
 
   const resolvedLinks: Partial<Record<JourneyId, string>> = {}
   for (const c of cardsWithLiveSource) {
     const u = c.source_url?.trim()
-    if (u && isHttpsUrl(u)) resolvedLinks[c.journey_key] = u
+    if (u && isHttpsUrl(u)) resolvedLinks[c.journey_key] = sanitizeZoneOfferUrl(u, c.journey_key)
   }
 
   const byJourney = await generateCardContextsBatch(cardsWithLiveSource)

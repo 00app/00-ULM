@@ -27,6 +27,7 @@ import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
+import { normaliseVisitedJourneyKeys, resolveGuestSessionId } from '@/lib/zone/guestSession'
 import {
   applyScrapeSyncTriggerFlags,
   scrapeSyncAuthDeniedResponse,
@@ -185,22 +186,44 @@ async function loadResearchCategoryCoverageResolved(
   return { ...byPc, ...byUser }
 }
 
-/** Neon `last_visited_at` — pink lock from DB (weekly pulse may refresh data; client won't re-scrape). */
-async function loadVisitedJourneyKeys(userId: string | null): Promise<string[]> {
-  if (!userId) return []
-  try {
-    const res = await pool.query<{ cat: string }>(
-      `SELECT DISTINCT lower(trim(category)) AS cat
-       FROM research_results
-       WHERE user_id = $1::uuid
-         AND last_visited_at IS NOT NULL
-         AND category IS NOT NULL AND btrim(category) <> ''`,
-      [userId]
-    )
-    return res.rows.map((r) => r.cat).filter((c) => c.length > 0)
-  } catch {
-    return []
+/** Neon `last_visited_at` + guest `zz_sid` visits — pink lock without re-scrape / repair burn. */
+async function loadVisitedJourneyKeys(
+  userId: string | null,
+  guestSessionId?: string | null
+): Promise<string[]> {
+  const keys = new Set<string>()
+  if (userId) {
+    try {
+      const res = await pool.query<{ cat: string }>(
+        `SELECT DISTINCT lower(trim(category)) AS cat
+         FROM research_results
+         WHERE user_id = $1::uuid
+           AND last_visited_at IS NOT NULL
+           AND category IS NOT NULL AND btrim(category) <> ''`,
+        [userId]
+      )
+      for (const r of res.rows) {
+        if (r.cat) keys.add(r.cat)
+      }
+    } catch {
+      /* column may not exist until migration */
+    }
   }
+  const sid = guestSessionId?.trim()
+  if (sid) {
+    try {
+      const g = await pool.query<{ visited_journey_keys: unknown }>(
+        `SELECT visited_journey_keys FROM guest_sessions WHERE session_id = $1`,
+        [sid]
+      )
+      for (const j of normaliseVisitedJourneyKeys(g.rows[0]?.visited_journey_keys)) {
+        keys.add(j)
+      }
+    } catch {
+      /* guest_sessions migration */
+    }
+  }
+  return [...keys]
 }
 
 async function loadResearchCategoryCoverageByPostcode(
@@ -440,6 +463,10 @@ export async function GET(request: NextRequest) {
 
     /** Lightweight backfill — rows with £ but missing agent_headline / architect_prose (no full Firecrawl loop). */
     if (postcode.length >= 4 && repairHeadlines && !forceResearch) {
+      const visitedForRepair = await loadVisitedJourneyKeys(
+        researchUserId,
+        resolveGuestSessionId(request)
+      )
       const profileData: ResearchProfileData = {
         ...(sessionResearchProfile?.home_type ? { home_type: sessionResearchProfile.home_type } : {}),
         ...(sessionResearchProfile?.transport_baseline
@@ -453,6 +480,7 @@ export async function GET(request: NextRequest) {
         postcode,
         profileData: Object.keys(profileData).length > 0 ? profileData : null,
         limit: 8,
+        skipVisitedCategories: visitedForRepair,
       })
       researchCategoryCoverage = await loadResearchCategoryCoverageResolved(researchUserId, postcode)
       if (researchCategoryCoverage) {
@@ -656,7 +684,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const visitedJourneyKeys = await loadVisitedJourneyKeys(researchUserId)
+    const guestSid = resolveGuestSessionId(request)
+    const visitedJourneyKeys = await loadVisitedJourneyKeys(researchUserId, guestSid)
     const visitedExtra =
       visitedJourneyKeys.length > 0 ? { visited_journey_keys: visitedJourneyKeys } : {}
 

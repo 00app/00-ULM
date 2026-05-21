@@ -14,6 +14,8 @@ import {
   PRICE_CAP_SOURCE_URL,
 } from '@/lib/brains/constants'
 import { TRUSTED_JOURNEY_URLS } from '@/lib/zone/trustedJourneyUrls'
+import { collapseDuplicateProseParagraphs } from '@/lib/soloFocusCopy'
+import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 
 export type ArchitectJourneyPayload = {
   headline: string
@@ -164,7 +166,7 @@ function normaliseInsightEditorialSandwich(raw: string): string {
     deDuped[1] ?? 'April 2026 market conditions keep this waste expensive if left untouched.',
     deDuped[2] ?? 'Tap RECLAIM now to convert this audit finding into a live action.',
   ]
-  return padded.slice(0, 3).join('\n\n').slice(0, 1200)
+  return collapseDuplicateProseParagraphs(padded.slice(0, 3).join('\n\n')).slice(0, 1200)
 }
 
 function paddedUniqueParagraphs(paragraphs: string[]): string[] {
@@ -219,10 +221,12 @@ export async function generateCardContextsBatch(
 Lifestyle shift / pattern arbitrage: prioritise behavioural shifts (rail vs flight, EV swap, local holidays, meal patterns) over generic grant homepages. Paragraph 3 must reference a deep-linked https portal — never a site root or 404 page.`
     : ''
 
-  const system = `You are the Performance Auditor for a UK climate/savings product (2026).
+  const system = `You are Zai — a warm UK family savings mate (2026). Write like a sharp friend at the kitchen table, not a regulator bulletin.
 Market accuracy beats creative writing. If any value is uncertain, stay conservative and tie claims to provided source_url/source_hint.
 ${lifestyleBlock}
-Format raw savings into precise instructions. No marketing fluff, no emojis, no "you could save".
+Format raw savings into plain next steps. No emojis. No "you could save". No repeated sentences across paragraphs.
+Category rules: home = insulation, draughts, heating habits (never copy grants/BUS wording). grants = BUS, ECO, heat pump funding only (never copy home insulation tips). travel/food/shopping/water/waste must each use a distinct mechanism — never reuse the same opening sentence.
+Never invent gov.uk paths (no "great british insulation scheme" URLs). Paragraph 3 must name one concrete action at home this week, not "visit gov.uk".
 Absolute voice constraints:
 - No dev-speak words: tile, lane, anchored, component, card rail.
 - No bullet points or numbered list formatting.
@@ -284,8 +288,7 @@ export function applyArchitectEnrichment(
       if (skip.has(key)) return j
       const arch = byJourney[key]
       const rawUrl = claimUrls[key]?.trim()
-      const https =
-        rawUrl && /^https:\/\//i.test(rawUrl) ? rawUrl : undefined
+      const https = rawUrl ? sanitizeZoneOfferUrl(rawUrl, key) : undefined
       let next = j
       if (arch) {
         const archHeadline = clampArchitectHeadline(arch.headline)

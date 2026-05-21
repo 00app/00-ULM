@@ -7,6 +7,7 @@ import { JOURNEY_ORDER } from '@/lib/journeys'
 import { sanitizeAgentMarkdown, stripMarkdownForProseDisplay } from '@/lib/agents/zeroHunterMarkdown'
 import { bridgeSentence, buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
+import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 
 function coerceJourneyId(id: string): JourneyId {
   return (JOURNEY_ORDER.includes(id as JourneyId) ? id : 'home') as JourneyId
@@ -172,6 +173,56 @@ function compactAlnumKey(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '')
 }
 
+function dedupeSentencesWithinParagraph(paragraph: string): string {
+  const sentences = paragraph
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (sentences.length <= 1) return paragraph.trim()
+  const kept: string[] = []
+  for (const s of sentences) {
+    const key = compactAlnumKey(s.slice(0, Math.min(120, s.length)))
+    if (key.length < 14) {
+      kept.push(s)
+      continue
+    }
+    const dup = kept.some((prev) => {
+      const pk = compactAlnumKey(prev.slice(0, Math.min(120, prev.length)))
+      if (pk.length < 14) return false
+      const n = Math.min(40, pk.length, key.length)
+      return pk.slice(0, n) === key.slice(0, n) || pk.includes(key) || key.includes(pk)
+    })
+    if (!dup) kept.push(s)
+  }
+  return kept.join(' ')
+}
+
+/** Drop paragraphs that repeat earlier copy (Gemini often echoes sentence 1 mid-body). */
+export function collapseDuplicateProseParagraphs(text: string): string {
+  const parts = text
+    .split(/\n\s*\n/)
+    .map((p) => dedupeSentencesWithinParagraph(p.trim()))
+    .filter(Boolean)
+  if (parts.length <= 1) return (parts[0] ?? text).trim()
+
+  const kept: string[] = []
+  for (const p of parts) {
+    const key = compactAlnumKey(p.slice(0, Math.min(160, p.length)))
+    if (key.length < 12) {
+      kept.push(p)
+      continue
+    }
+    const dup = kept.some((prev) => {
+      const pk = compactAlnumKey(prev.slice(0, Math.min(160, prev.length)))
+      if (pk.length < 12) return false
+      const n = Math.min(48, pk.length, key.length)
+      return pk.slice(0, n) === key.slice(0, n) || pk.includes(key) || key.includes(pk)
+    })
+    if (!dup) kept.push(p)
+  }
+  return kept.join('\n\n')
+}
+
 /**
  * When paragraph 1 only repeats the headline (common with architect_prose), swap in additive copy.
  */
@@ -240,7 +291,10 @@ export function isRawResearchDump(prose: string): boolean {
       /\*\*/.test(t) ||
       /^\s*\d+\.\s/m.test(t))
   const tabley = (t.match(/\d+\.\d+/g) ?? []).length >= 4 && /april 2026|bn\d{2}/i.test(t)
-  return tariffSignals || tabley
+  const policyDump =
+    /green-levy|standing-charge maths|dual-fuel around £\d/i.test(t) &&
+    /price[- ]?cap|ofgem|april 2026/i.test(lower)
+  return tariffSignals || tabley || policyDump
 }
 
 export function humanizeTrueTipParagraph(raw: string): string {
@@ -392,14 +446,16 @@ export function formatAuditSourceLinkDisplay(url: string, maxLen = 96): string {
 
 /** CTA uses offer_url; Source link uses source_url; CTA falls back to Ask Zai when no offer. */
 export function resolveSoloFocusHandoffUrls(args: {
+  journeyKey: string
   coverageOfferUrl?: string | null
   coverageSourceUrl?: string | null
   fallbackOfferUrl?: string | null
   fallbackSourceUrl?: string | null
   buildZaiUrl: () => string
 }): { ctaUrl: string; offerUrl: string; sourceLinkUrl: string; ctaIsZai: boolean } {
+  const j = coerceJourneyId(args.journeyKey)
   const pick = (u?: string | null) =>
-    typeof u === 'string' && u.trim().startsWith('http') ? u.trim() : ''
+    typeof u === 'string' && u.trim().startsWith('http') ? sanitizeZoneOfferUrl(u, j) : ''
   const offerUrl = pick(args.coverageOfferUrl) || pick(args.fallbackOfferUrl)
   const sourceUrl = pick(args.coverageSourceUrl) || pick(args.fallbackSourceUrl)
   const ctaIsZai = !offerUrl
@@ -612,7 +668,7 @@ export function buildResearchResultsTrueTipBody(params: {
   const c = Math.max(0, Math.round(params.carbonKg))
   const whyLine = `At today’s pathway numbers you are looking at about £${formatMoneyValue(m)} a year back in the pocket and roughly ${formatCarbonValue(c)} CO₂e — grounded in your stored audit and research row, not a filler estimate.`
   if (blocks.length >= 3) {
-    return blocks.slice(0, 3).join('\n\n')
+    return collapseDuplicateProseParagraphs(blocks.slice(0, 3).join('\n\n'))
   }
   if (blocks.length === 2) {
     return [blocks[0]!, blocks[1]!, bridgeSentence(j)].join('\n\n')
@@ -684,7 +740,7 @@ export function toThreeTrueTipParagraphs(text: string): [string, string, string]
       humanizeTrueTipParagraph(stripAuditorFluffParagraph(c)),
     ]
 
-  const t = stripProseReportLead(text.trim())
+  const t = collapseDuplicateProseParagraphs(stripProseReportLead(text.trim()))
   if (!t) {
     return ['', '', '']
   }

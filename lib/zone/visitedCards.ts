@@ -18,6 +18,22 @@ export function readVisitedCardIds(): Set<string> {
   }
 }
 
+/** Merge server-side visit breadcrumbs (guest zz_sid) into localStorage. */
+export function mergeVisitedFromServer(cardIds: string[], journeyKeys?: string[]): void {
+  if (typeof window === 'undefined') return
+  const set = readVisitedCardIds()
+  for (const id of cardIds) {
+    if (id.trim()) set.add(id.trim())
+  }
+  try {
+    localStorage.setItem(VISITED_CARDS_KEY, JSON.stringify([...set]))
+    window.dispatchEvent(new CustomEvent('zz-visited-cards-changed'))
+  } catch {
+    /* quota */
+  }
+  void journeyKeys
+}
+
 export function markCardVisited(cardId: string): void {
   if (typeof window === 'undefined' || !cardId.trim()) return
   const set = readVisitedCardIds()
@@ -79,16 +95,14 @@ export async function recordCardVisitHandoff(args: {
   }
   if (typeof window === 'undefined') return
   try {
-    await fetch('/api/likes/track', {
+    await fetch('/api/zone/visit', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         card_id: args.cardId,
         url: args.url ?? undefined,
-        title: args.title ?? 'Visited audit',
         journey_key: args.journeyKey,
-        type: 'visited',
       }),
     })
   } catch {

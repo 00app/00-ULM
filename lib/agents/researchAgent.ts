@@ -980,6 +980,8 @@ export async function repairResearchResultsMissingHeadlines(params: {
   limit?: number
   /** Cron/Hermes: BUS + Ofgem mechanical only — skip slow Gemini per row. Pass `deep=1` on cron to enable Gemini. */
   mechanicalOnly?: boolean
+  /** Pink-lock categories — do not spend Gemini repairing visited journeys. */
+  skipVisitedCategories?: string[]
 }): Promise<number> {
   const pool = getDbPool()
   const limit = Math.min(Math.max(params.limit ?? 6, 1), 20)
@@ -1055,8 +1057,14 @@ export async function repairResearchResultsMissingHeadlines(params: {
     return 0
   }
 
+  const skipVisited = new Set(
+    (params.skipVisitedCategories ?? []).map((c) => c.trim().toLowerCase()).filter(Boolean)
+  )
+
   let repaired = 0
   for (const row of rows) {
+    const cat = (row.category ?? '').trim().toLowerCase()
+    if (cat && skipVisited.has(cat)) continue
     const mechanical = mechanicalCategoryTripletFallback({
       category: row.category,
       offerUrl: row.offer_url,

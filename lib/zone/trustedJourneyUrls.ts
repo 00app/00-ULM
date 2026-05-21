@@ -6,18 +6,18 @@ import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_IDS } from '@/lib/journeys'
 
 export const TRUSTED_JOURNEY_URLS: Record<JourneyId, string> = {
-  home: 'https://www.gov.uk/government/publications/warm-homes-plan',
+  home: 'https://www.energysavingtrust.org.uk/advice/reducing-home-heat-loss/',
   grants: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
-  solar: 'https://www.gov.uk/government/publications/solar-energy-uk',
+  solar: 'https://mcscertified.com/find-an-installer/',
   travel: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
-  holidays: 'https://www.eurostar.com',
+  holidays: 'https://www.eurostar.com/uk-en/deals',
   food: 'https://www.lovefoodhatewaste.com',
-  shopping: 'https://ellenmacarthurfoundation.org',
-  money: 'https://www.gov.uk/apply-warm-home-discount-scheme',
+  shopping: 'https://wrap.org.uk/taking-action/food-waste',
+  money: 'https://www.moneysavingexpert.com/utilities/how-to-switch-gas-electricity/',
   tech: 'https://www.backmarket.co.uk',
-  water: 'https://www.waterwise.org.uk',
-  waste: 'https://www.gov.uk/recycling-collections',
-  carbon: 'https://www.ofgem.gov.uk',
+  water: 'https://www.waterwise.org.uk/save-water/',
+  waste: 'https://www.recyclenow.com',
+  carbon: 'https://www.carbontrust.com/resources',
 }
 
 export const DEFAULT_TRUSTED_URL = 'https://www.gov.uk/'
