@@ -2520,7 +2520,7 @@ export default function ZonePage() {
         </motion.div>
         ) : null}
 
-        {/* The Rock — heartbeat above Saving Tips while master wall hydrates */}
+        {/* The Rock — heartbeat above Today's Tips while master wall hydrates */}
         {isZoneVisible && !expandedCardId && !expandedTipId && (
           <motion.div className="w-full mt-3 mb-10 px-0">
             <RockSavingTips

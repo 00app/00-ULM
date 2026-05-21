@@ -115,14 +115,14 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
   if (six.length === 0) return null
 
   return (
-    <section className="rock-saving-tips-section w-full text-left pb-16 pt-2 box-border" aria-label="Saving tips">
+    <section className="rock-saving-tips-section w-full text-left pb-16 pt-2 box-border" aria-label="Today's tips">
       <h2
         className="zz-anchor-greeting m-0 mb-[20px] text-center w-full px-[20px] lg:px-[40px] box-border tracking-wide"
         style={{
           color: 'var(--color-yellow)',
         }}
       >
-        Saving Tips
+        Today&apos;s Tips
       </h2>
       <div className="groovy-zone-grid mx-auto w-full rock-saving-tips-grid">
         {six.map((h) => {
