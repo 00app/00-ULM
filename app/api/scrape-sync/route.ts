@@ -91,7 +91,7 @@ function buildSessionResearchProfileData(
 }
 
 /** Hermes bearer may supply explicit user_id; browser clients must match session cookie. */
-export function resolveResearchUserId(
+function resolveResearchUserId(
   sessionUserId: string | null,
   request: NextRequest,
   opts?: { bodyUserId?: string | null; allowExplicitUserId?: boolean }
