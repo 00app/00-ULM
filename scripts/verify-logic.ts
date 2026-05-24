@@ -8,7 +8,10 @@ import {
   GREEN_LEVY_SHIFT_APRIL_2026_GBP,
   PRICE_CAP_SAVING_APRIL_1,
 } from '../lib/brains/constants'
-import { sumPolicySavingsGbp } from '../lib/brains/policySavingsEligibility'
+import {
+  sumPolicySavingsGbp,
+  type PolicySavingId,
+} from '../lib/brains/policySavingsEligibility'
 import { JOURNEY_ORDER, type JourneyId } from '../lib/journeys'
 
 const CAP = PRICE_CAP_SAVING_APRIL_1
@@ -18,7 +21,7 @@ type Scenario = {
   label: string
   answers: Record<string, string>
   expectPolicyGbp: number
-  expectPolicyIds: string[]
+  expectPolicyIds: PolicySavingId[]
 }
 
 const SCENARIOS: Scenario[] = [
