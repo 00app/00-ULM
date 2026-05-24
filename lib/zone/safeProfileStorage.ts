@@ -63,6 +63,7 @@ export function readProfileFieldsFromStorage(): {
   postcode?: string
   household?: string
   home_type?: string
+  home_power?: string
   transport_baseline?: string
   age?: string
   employment_status?: string
@@ -74,6 +75,7 @@ export function readProfileFieldsFromStorage(): {
     postcode: safeGetItem('profile_postcode') ?? undefined,
     household: safeGetItem('profile_household') ?? undefined,
     home_type: safeGetItem('profile_home_type') ?? undefined,
+    home_power: safeGetItem('profile_home_power') ?? undefined,
     transport_baseline: safeGetItem('profile_transport') ?? undefined,
     age: safeGetItem('profile_age') ?? undefined,
     employment_status: safeGetItem('profile_employment_status') ?? undefined,

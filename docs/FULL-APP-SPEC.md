@@ -2,7 +2,7 @@
 
 Operational architecture for the UK postcode-driven energy auditor: what talks to what, where data lives, and how Profile, Zone, Solo Focus, and Neon research fit together.
 
-**Related docs:** `HANDBOOK.md` · `docs/INTELLIGENCE-LOOP-MANIFEST.md` · `docs/PROFILE-ANSWERS-ZONE-TECH.md`
+**Related docs:** [HANDBOOK.md](HANDBOOK.md) · [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) · [SENTINEL.md](SENTINEL.md) · [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) · [INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md) · [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) · [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md)
 
 **Production:** https://00-ulm.vercel.app · **Repo:** https://github.com/00app/00-ULM
 
@@ -736,4 +736,4 @@ npm run deploy:force       # vercel deploy --prod (scripts/deploy-production.sh)
 
 ---
 
-*Last updated: conversation spec consolidation. For motion and product rules, see `.cursor/rules/zero-zero-prime-directive.mdc` and `HANDBOOK.md`.*
+*Last updated: conversation spec consolidation. For motion and product rules, see `.cursor/rules/zero-zero-prime-directive.mdc` and [HANDBOOK.md](HANDBOOK.md).*

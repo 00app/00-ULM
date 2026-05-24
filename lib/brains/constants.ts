@@ -3,16 +3,15 @@
  * Electricity **24.67p/kWh**, gas **5.74p/kWh**, typical cap **£1,641** (`APRIL_2026_TRUTH_PENCE`, `TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP`).
  * Unit £/kWh for calculators: `MARCH_2026_ECONOMY` (locked to the same April reference rates).
  *
- * Live DB-backed rates: `lib/brains/liveEconomy.ts` — not imported here (keeps client bundles free of `pg`).
+ * Live DB-backed rates: `lib/brains/liveUnitRates.ts` — not imported here (keeps client bundles free of `pg`).
  */
 
 /**
- * Verified baseline — grid intensity and April cap headline (**v6.4**).
+ * Verified baseline — April cap headline (**v6.4**).
  * April typical cap **£1,641** (`APRIL_PRICE_CAP_TYPICAL_GBP`); green-levy shift **£150** (`GREEN_LEVY_SAVING_GBP`).
- * All spend-to-carbon paths use `GRID_INTENSITY` → **0.129 kg CO₂e/kWh** via `MARCH_2026_ECONOMY.CARBON_FACTOR_ELEC`.
+ * Grid carbon intensity: **`lib/brains/liveGridCarbonFactor.ts`** (NESO live + tier fallback) — not a static constant here.
  */
 export const TRUTH_2026_MARCH = {
-  GRID_INTENSITY_G_PER_KWH: 129,
   APRIL_PRICE_CAP_TYPICAL_GBP: 1641,
   PRICE_CAP_DROP_GBP: 117,
   GREEN_LEVY_SAVING_GBP: 150,
@@ -53,8 +52,7 @@ export const MARCH_2026_ECONOMY = {
   ELEC_STANDING_CHARGE: APRIL_2026_STANDING_PENCE.ELECTRICITY_PER_DAY / 100,
   GAS_STANDING_CHARGE: APRIL_2026_STANDING_PENCE.GAS_PER_DAY / 100,
 
-  /** kg CO₂e per kWh — locked to TRUTH_2026_MARCH.GRID_INTENSITY (129 g) */
-  CARBON_FACTOR_ELEC: TRUTH_2026_MARCH.GRID_INTENSITY_G_PER_KWH / 1000,
+  /** Gas kg CO₂e per kWh — grid electricity uses `liveGridCarbonFactor.ts` */
   CARBON_FACTOR_GAS: 0.183,
 
   /** National grants (March 2026) */

@@ -10,6 +10,10 @@ const SOURCES: Record<JourneyId, JourneySource[]> = {
     { url: 'https://www.energysavingtrust.org.uk', label: 'energy saving trust' },
     { url: 'https://www.gov.uk/improve-energy-efficiency', label: 'gov.uk home efficiency' },
   ],
+  utilities: [
+    { url: 'https://www.moneysavingexpert.com/utilities/', label: 'mse utilities' },
+    { url: 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap', label: 'ofgem price cap' },
+  ],
   grants: [{ url: 'https://www.gov.uk/apply-boiler-upgrade-scheme', label: 'gov.uk grants' }],
   solar: [{ url: 'https://mcscertified.com', label: 'mcs solar uk' }],
   travel: [

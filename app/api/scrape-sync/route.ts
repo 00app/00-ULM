@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
+import { readGuestSessionId } from '@/lib/requestAuth'
 import {
   getJourneyAnswersForUser,
   upsertJourneyAnswerJsonb,
@@ -20,6 +21,7 @@ import {
   repairResearchResultsMissingHeadlines,
   runTriggerResearchForCategory,
   runZeroResearchWithProfile,
+  type DynamicResearchProfileRow,
   type ResearchProfileData,
 } from '@/lib/agents/researchAgent'
 import { mirrorJourneyAnswersToUserProfilesIfAvailable } from '@/lib/db/userProfilesMirror'
@@ -35,8 +37,6 @@ import {
   scrapeSyncTriggerRequested,
 } from '@/lib/intelligence/scrapeSyncAuth'
 import { foldCoverageRowsForZone, researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
-import { GARY_RESEARCH_USER_ID } from '@/lib/zone/garyMode'
-import { ensureGaryDemoUser } from '@/lib/db/ensureGaryDemoUser'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import {
   assertBroadResearchBlocked,
@@ -47,6 +47,10 @@ import {
   maybeBirthAchievementFromScrapeSync,
   urlShieldForAchievement,
 } from '@/lib/zone/scrapeSyncLifestyle'
+import {
+  fetchUtilitiesPublicSnapshot,
+  readHomePowerFromGenome,
+} from '@/lib/data/utilitiesFreeApis'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -57,12 +61,43 @@ function isValidResearchUserId(v: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.trim())
 }
 
-function resolveResearchUserId(
+/** Shared Neon profile slice for tier2, force, repair, and POST JIT — keeps Gemini/Firecrawl context aligned. */
+function buildSessionResearchProfileData(
+  session: DynamicResearchProfileRow | null | undefined,
+  opts?: { postcode?: string }
+): ResearchProfileData {
+  const profileData: ResearchProfileData = {
+    ...(session?.home_type ? { home_type: session.home_type } : {}),
+    ...(session?.transport_baseline
+      ? { transport_baseline: session.transport_baseline }
+      : {}),
+    ...(session?.household ? { household: session.household } : {}),
+    ...(session?.employment_status
+      ? { employment_status: session.employment_status }
+      : {}),
+    ...(session?.home_power ? { home_power: session.home_power } : {}),
+    ...(session?.goal ? { goal: session.goal } : {}),
+    ...(session?.primary_goal ? { primary_goal: session.primary_goal } : {}),
+    ...(opts?.postcode ? { postcode: opts.postcode } : {}),
+  }
+  const hermesRaw = session?.user_genome?.hermes_memory
+  if (hermesRaw && typeof hermesRaw === 'object' && !Array.isArray(hermesRaw)) {
+    const skillFile = (hermesRaw as Record<string, unknown>).skill_file
+    if (typeof skillFile === 'string' && skillFile.trim()) {
+      profileData.hermes_skill_file = skillFile.slice(0, 6000)
+    }
+  }
+  return profileData
+}
+
+/** Hermes bearer may supply explicit user_id; browser clients must match session cookie. */
+export function resolveResearchUserId(
   sessionUserId: string | null,
   request: NextRequest,
-  opts?: { bodyUserId?: string | null }
+  opts?: { bodyUserId?: string | null; allowExplicitUserId?: boolean }
 ): string | null {
   if (sessionUserId && isValidResearchUserId(sessionUserId)) return sessionUserId
+  if (!opts?.allowExplicitUserId) return null
   const fromBody = opts?.bodyUserId?.trim() ?? ''
   if (fromBody && isValidResearchUserId(fromBody)) return fromBody
   const fromQuery = request.nextUrl.searchParams.get('user_id')?.trim() ?? ''
@@ -351,7 +386,10 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getSessionFromRequest().catch(() => null)
     const sessionUserId = session?.userId ?? null
-    const researchUserId = resolveResearchUserId(sessionUserId, request)
+    const serviceBearer = scrapeSyncBearerMatches(request)
+    const researchUserId = resolveResearchUserId(sessionUserId, request, {
+      allowExplicitUserId: serviceBearer,
+    })
     const sessionResearchProfile =
       researchUserId != null
         ? await loadDynamicUserProfileForResearch(researchUserId).catch(() => null)
@@ -361,28 +399,18 @@ export async function GET(request: NextRequest) {
       sessionResearchProfile?.postcode?.trim() ||
       ''
     const postcode = postcodeRaw.replace(/\s+/g, '').toUpperCase()
-    if (researchUserId === GARY_RESEARCH_USER_ID && postcode.length >= 4) {
-      await ensureGaryDemoUser(postcode).catch(() => null)
-    }
     const tier2Category = request.nextUrl.searchParams.get('category')?.trim().toLowerCase() ?? ''
     const tier2Answer = request.nextUrl.searchParams.get('answer')?.trim() ?? ''
     const tier2QuestionId = request.nextUrl.searchParams.get('question_id')?.trim() ?? ''
 
     /** Tier 2 mother/child swap — scoped category re-research after Solo Focus answer. */
     if (postcode.length >= 4 && tier2Category && tier2Answer) {
+      if (!sessionUserId && !serviceBearer && !readGuestSessionId(request)) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
       const fcErr = firecrawlMissingResponse()
       if (fcErr) return fcErr
-      const profileData: ResearchProfileData = {
-        ...(sessionResearchProfile?.home_type ? { home_type: sessionResearchProfile.home_type } : {}),
-        ...(sessionResearchProfile?.transport_baseline
-          ? { transport_baseline: sessionResearchProfile.transport_baseline }
-          : {}),
-        ...(sessionResearchProfile?.household ? { household: sessionResearchProfile.household } : {}),
-        ...(sessionResearchProfile?.employment_status
-          ? { employment_status: sessionResearchProfile.employment_status }
-          : {}),
-        postcode,
-      }
+      const profileData = buildSessionResearchProfileData(sessionResearchProfile, { postcode })
       const tier2JourneyKey =
         resolveSurgicalJourneyKey(
           request.nextUrl.searchParams.get('journey_key')?.trim() || tier2Category
@@ -467,14 +495,7 @@ export async function GET(request: NextRequest) {
         researchUserId,
         resolveGuestSessionId(request)
       )
-      const profileData: ResearchProfileData = {
-        ...(sessionResearchProfile?.home_type ? { home_type: sessionResearchProfile.home_type } : {}),
-        ...(sessionResearchProfile?.transport_baseline
-          ? { transport_baseline: sessionResearchProfile.transport_baseline }
-          : {}),
-        ...(sessionResearchProfile?.household ? { household: sessionResearchProfile.household } : {}),
-        postcode,
-      }
+      const profileData = buildSessionResearchProfileData(sessionResearchProfile, { postcode })
       await repairResearchResultsMissingHeadlines({
         userId: researchUserId,
         postcode,
@@ -501,30 +522,16 @@ export async function GET(request: NextRequest) {
 
     /** GET without `force=true` must stay fast (Zone load, Vercel deployment checks). Heavy research: POST trigger or GET `?force=true`. */
     if (postcode && forceResearch) {
+      if (!sessionUserId && !serviceBearer) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
       const broadBlock = assertBroadResearchBlocked('GET scrape-sync ?force=true (multi-category ZeroResearch)')
       if (broadBlock.blocked) {
         return NextResponse.json({ error: broadBlock.message, bucket_failover: true }, { status: 403 })
       }
       const fcErr = firecrawlMissingResponse()
       if (fcErr) return fcErr
-      const profileData: ResearchProfileData = {
-        ...(sessionResearchProfile?.home_type ? { home_type: sessionResearchProfile.home_type } : {}),
-        ...(sessionResearchProfile?.transport_baseline
-          ? { transport_baseline: sessionResearchProfile.transport_baseline }
-          : {}),
-        ...(sessionResearchProfile?.household ? { household: sessionResearchProfile.household } : {}),
-        ...(sessionResearchProfile?.employment_status
-          ? { employment_status: sessionResearchProfile.employment_status }
-          : {}),
-        ...(sessionResearchProfile?.goal ? { goal: sessionResearchProfile.goal } : {}),
-      }
-      const hermesRaw = sessionResearchProfile?.user_genome?.hermes_memory
-      if (hermesRaw && typeof hermesRaw === 'object' && !Array.isArray(hermesRaw)) {
-        const skillFile = (hermesRaw as Record<string, unknown>).skill_file
-        if (typeof skillFile === 'string' && skillFile.trim()) {
-          profileData.hermes_skill_file = skillFile.slice(0, 6000)
-        }
-      }
+      const profileData = buildSessionResearchProfileData(sessionResearchProfile)
       const homeType = request.nextUrl.searchParams.get('home_type')?.trim()
       const transport = request.nextUrl.searchParams.get('transport')?.trim()
       const household = request.nextUrl.searchParams.get('household')?.trim()
@@ -678,9 +685,17 @@ export async function GET(request: NextRequest) {
     if (postcode) {
       const homeUnitRates = await resolveLiveUnitRatesForPostcode(postcode)
       const ratesRow = await getLatestResearchUnitRates(postcode)
+      const homePower =
+        sessionResearchProfile?.home_power?.trim() ||
+        readHomePowerFromGenome(sessionResearchProfile?.user_genome ?? null)
+      const utilitiesPublicFeed = await fetchUtilitiesPublicSnapshot({
+        postcode,
+        homePower: homePower || null,
+      }).catch(() => null)
       ratesExtra = {
         home_unit_rates: homeUnitRates,
         rates_source_url: ratesRow?.source_url ?? null,
+        ...(utilitiesPublicFeed ? { utilities_public_feed: utilitiesPublicFeed } : {}),
       }
     }
 
@@ -810,7 +825,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Bearer, signed-in session, or browser trigger (`postcode` + valid `user_id`) for POST trigger. */
+/** Bearer, signed-in session, or server guest cookie (`zz_sid`) for POST trigger. */
 async function scrapeSyncPostAuthDenied(
   request: NextRequest,
   opts: { allowSessionTrigger: boolean; body?: Record<string, unknown> }
@@ -820,14 +835,7 @@ async function scrapeSyncPostAuthDenied(
   if (opts.allowSessionTrigger) {
     const session = await getSessionFromRequest().catch(() => null)
     if (session?.userId) return null
-
-    const body = opts.body ?? {}
-    const postcode =
-      typeof body.postcode === 'string' ? body.postcode.replace(/\s+/g, '').trim() : ''
-    const researchUserId = resolveResearchUserId(null, request, {
-      bodyUserId: typeof body.user_id === 'string' ? body.user_id : null,
-    })
-    if (postcode.length >= 4 && researchUserId) return null
+    if (readGuestSessionId(request)) return null
   }
 
   const { status, body } = scrapeSyncAuthDeniedResponse()
@@ -923,19 +931,12 @@ export async function POST(request: NextRequest) {
       const session = await getSessionFromRequest().catch(() => null)
       const userId = resolveResearchUserId(session?.userId ?? null, request, {
         bodyUserId: typeof body?.user_id === 'string' ? body.user_id : null,
+        allowExplicitUserId: scrapeSyncBearerMatches(request),
       })
       const sessionResearchProfile =
         userId != null ? await loadDynamicUserProfileForResearch(userId).catch(() => null) : null
       const pd: ResearchProfileData = {
-        ...(sessionResearchProfile?.home_type ? { home_type: sessionResearchProfile.home_type } : {}),
-        ...(sessionResearchProfile?.transport_baseline
-          ? { transport_baseline: sessionResearchProfile.transport_baseline }
-          : {}),
-        ...(sessionResearchProfile?.household ? { household: sessionResearchProfile.household } : {}),
-        ...(sessionResearchProfile?.employment_status
-          ? { employment_status: sessionResearchProfile.employment_status }
-          : {}),
-        ...(sessionResearchProfile?.goal ? { goal: sessionResearchProfile.goal } : {}),
+        ...buildSessionResearchProfileData(sessionResearchProfile),
         ...(profileData ?? {}),
         postcode,
       }
@@ -946,13 +947,6 @@ export async function POST(request: NextRequest) {
       })
       if (!surgicalCheck.ok) {
         return NextResponse.json({ error: surgicalCheck.error }, { status: 400 })
-      }
-      const hermesRaw = sessionResearchProfile?.user_genome?.hermes_memory
-      if (hermesRaw && typeof hermesRaw === 'object' && !Array.isArray(hermesRaw)) {
-        const skillFile = (hermesRaw as Record<string, unknown>).skill_file
-        if (typeof skillFile === 'string' && skillFile.trim()) {
-          pd.hermes_skill_file = skillFile.slice(0, 6000)
-        }
       }
       let loopGenomeSummary: string | undefined
       if (userId) {

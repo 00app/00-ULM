@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getEconomyFingerprint } from '@/lib/brains/economyFingerprint'
 import { PRICE_CAP_SAVING_APRIL_1 } from '@/lib/brains/constants'
+import { requireAiRouteAuth } from '@/lib/requestAuth'
 import { parseDiscoveryInjectionId } from '@/lib/zone/discoveryCard'
 import { isValidJourneyQuestion } from '@/lib/journeys'
 import type { JourneyId } from '@/lib/journeys'
@@ -36,6 +37,9 @@ async function geminiPulseNote(): Promise<string | null> {
 
 export async function POST(request: NextRequest) {
   try {
+    const authDenied = await requireAiRouteAuth(request)
+    if (authDenied) return authDenied
+
     const body = await request.json().catch(() => ({}))
     const rawIds = Array.isArray(body?.injectionIds) ? body.injectionIds : []
     const injectionIds = rawIds.filter((x: unknown): x is string => typeof x === 'string')

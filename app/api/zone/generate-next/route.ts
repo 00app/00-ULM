@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { requireAiRouteAuth } from '@/lib/requestAuth'
 import {
   DEFAULT_TRUSTED_URL,
   isHttpsUrl,
@@ -86,6 +87,9 @@ function normalizeGenerateNextCard(raw: Record<string, unknown>): Record<string,
 
 export async function POST(request: NextRequest) {
   try {
+    const authDenied = await requireAiRouteAuth(request)
+    if (authDenied) return authDenied
+
     const body = (await request.json()) as {
       /** Explicit journey category (e.g. from Solo Focus) — anchors Gemini output to that Zone lane. */
       category?: string

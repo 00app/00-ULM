@@ -23,6 +23,7 @@ export interface JourneyColorEntry {
 /** Card background: MVP purple flip */
 export const EMOTION_GRID_HEX: Record<JourneyId, string> = {
   home: COLOR_PURPLE,
+  utilities: COLOR_PURPLE,
   grants: COLOR_PURPLE,
   solar: COLOR_PURPLE,
   travel: COLOR_PURPLE,
@@ -39,6 +40,7 @@ export const EMOTION_GRID_HEX: Record<JourneyId, string> = {
 /** Body copy on card: yellow surface → purple; pink surface → yellow */
 export const EMOTION_TEXT_HEX: Record<JourneyId, string> = {
   home: COLOR_YELLOW,
+  utilities: COLOR_YELLOW,
   grants: COLOR_YELLOW,
   solar: COLOR_YELLOW,
   travel: COLOR_YELLOW,
@@ -55,6 +57,7 @@ export const EMOTION_TEXT_HEX: Record<JourneyId, string> = {
 /** CTA fill (contrasts card surface) */
 export const EMOTION_CTA_BG_HEX: Record<JourneyId, string> = {
   home: COLOR_YELLOW,
+  utilities: COLOR_YELLOW,
   grants: COLOR_YELLOW,
   solar: COLOR_YELLOW,
   travel: COLOR_YELLOW,
@@ -71,6 +74,7 @@ export const EMOTION_CTA_BG_HEX: Record<JourneyId, string> = {
 /** CTA label on CTA fill */
 export const EMOTION_CTA_TEXT_HEX: Record<JourneyId, string> = {
   home: COLOR_PURPLE,
+  utilities: COLOR_PURPLE,
   grants: COLOR_PURPLE,
   solar: COLOR_PURPLE,
   travel: COLOR_PURPLE,
@@ -87,6 +91,7 @@ export const EMOTION_CTA_TEXT_HEX: Record<JourneyId, string> = {
 /** @deprecated Use EMOTION_CTA_BG_HEX — kept for callers still on “accent” naming */
 export const EMOTION_ACCENT_HEX: Record<JourneyId, string> = {
   home: EMOTION_CTA_BG_HEX.home,
+  utilities: EMOTION_CTA_BG_HEX.utilities,
   grants: EMOTION_CTA_BG_HEX.grants,
   solar: EMOTION_CTA_BG_HEX.solar,
   travel: EMOTION_CTA_BG_HEX.travel,
@@ -107,6 +112,14 @@ export const GENERAL_ACCENT_HEX = COLOR_YELLOW
 
 export const JOURNEY_COLOR_MAP: Record<JourneyId, JourneyColorEntry> = {
   home: { journey: 'home', keyword: 'solar-panels', name: 'Home', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
+  utilities: {
+    journey: 'utilities',
+    keyword: 'gas-electric-meter',
+    name: 'Utilities',
+    hex: COLOR_PURPLE,
+    textHex: COLOR_YELLOW,
+    usage: '',
+  },
   grants: { journey: 'grants', keyword: 'government-grant', name: 'Grants', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
   solar: { journey: 'solar', keyword: 'roof-solar', name: 'Solar', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
   travel: { journey: 'travel', keyword: 'electric-car', name: 'Travel', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },

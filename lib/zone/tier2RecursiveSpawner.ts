@@ -1,7 +1,7 @@
 import type { JourneyId } from '@/lib/journeys'
 import { isValidJourneyQuestion } from '@/lib/journeys'
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
-import { appendResearchUserIdQuery, resolveClientResearchUserId } from '@/lib/zone/garyMode'
+import { resolveClientResearchUserId } from '@/lib/zone/garyMode'
 import { safeGetItem, safeSetItem } from '@/lib/zone/safeProfileStorage'
 import { persistUnifiedUserProfileMemory, UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import {
@@ -18,8 +18,6 @@ import {
   isZonePreviewHeadlineNoise,
   MAX_ZONE_CARD_HEADLINE_WORDS,
 } from '@/lib/soloFocusCopy'
-
-export { GARY_RESEARCH_USER_ID } from '@/lib/zone/garyMode'
 
 export type Tier2ScrapeSyncResult = {
   ok: boolean
@@ -72,7 +70,7 @@ export async function refreshZoneTotalsAfterTier2(postcode: string): Promise<voi
   const pc = postcode.replace(/\s+/g, '').trim().toUpperCase()
   if (pc.length < 4) return
   try {
-    const url = appendResearchUserIdQuery(`/api/scrape-sync?postcode=${encodeURIComponent(pc)}`)
+    const url = `/api/scrape-sync?postcode=${encodeURIComponent(pc)}`
     const res = await fetch(url, { credentials: 'include', cache: 'no-store' })
     if (!res.ok) return
     const data = await res.json()
@@ -190,7 +188,7 @@ export async function fetchTier2ScrapeSync(params: {
   if (uid && isValidUuid(uid)) qs.set('user_id', uid)
 
   try {
-    const res = await fetch(appendResearchUserIdQuery(`/api/scrape-sync?${qs.toString()}`), {
+    const res = await fetch(`/api/scrape-sync?${qs.toString()}`, {
       credentials: 'include',
       cache: 'no-store',
     })

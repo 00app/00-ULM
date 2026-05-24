@@ -17,7 +17,11 @@ import {
 } from '@/lib/zone/tier2RecursiveSpawner'
 import { triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
-import { headlineFromTitle, MAX_ZONE_CARD_HEADLINE_WORDS } from '@/lib/soloFocusCopy'
+import {
+  formatZoneCategoryLabel,
+  headlineFromTitle,
+  MAX_ZONE_CARD_HEADLINE_WORDS,
+} from '@/lib/soloFocusCopy'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
 import { CLEAN_BIRTH_PULSE_MAX_WAIT_MS } from '@/lib/architecturalPulse'
@@ -267,6 +271,8 @@ export function DiscoveryTakeover({
 
   if (!open || !beat || typeof document === 'undefined') return null
 
+  const zoneCategoryLabel = formatZoneCategoryLabel(String(journeyId || 'home'))
+
   const stepBlockInitial = reduceMotion ? { opacity: 0 } : { opacity: 0, y: STACCATO_DROP_PX }
   const stepBlockAnimate = reduceMotion ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }
   const stepBlockTransition = reduceMotion
@@ -275,7 +281,7 @@ export function DiscoveryTakeover({
 
   return createPortal(
     <main
-      className="zz-profile-page discovery-clean-birth"
+      className="discovery-clean-birth zone-loop-takeover"
       role="dialog"
       aria-modal
       aria-labelledby="discovery-takeover-question"
@@ -302,13 +308,19 @@ export function DiscoveryTakeover({
         {phase === 'question' ? (
           <motion.div
             key="clean-birth-question"
-            className="profile-step-slam w-full flex flex-col items-center"
+            className="zone-loop-question profile-step-slam w-full flex flex-col items-center"
             style={{ gap: 40, maxWidth: 520 }}
             initial={stepBlockInitial}
             animate={stepBlockAnimate}
             exit={{ opacity: 0, y: -6, transition: INDUSTRIAL_OPACITY_SNAP }}
             transition={stepBlockTransition}
           >
+            <span
+              className="card-top-label solo-focus-zone-category m-0 text-center w-full block"
+              style={{ color: 'var(--color-yellow)' }}
+            >
+              {zoneCategoryLabel}
+            </span>
             <motion.div
               id="discovery-takeover-question"
               className="text-marvin profile-question-headline"
@@ -330,15 +342,7 @@ export function DiscoveryTakeover({
               <span style={{ whiteSpace: 'pre-line', display: 'block' }}>{beat.question}</span>
             </motion.div>
 
-            <motion.div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 16,
-                justifyContent: 'center',
-                maxWidth: 360,
-              }}
-            >
+            <div className="profile-step-controls profile-step-controls--options w-full">
               {beat.options.map((opt, optionIndex) => (
                 <ProfileAnswerBtn
                   key={opt.value}
@@ -358,7 +362,7 @@ export function DiscoveryTakeover({
                   </span>
                 </ProfileAnswerBtn>
               ))}
-            </motion.div>
+            </div>
           </motion.div>
         ) : (
           <motion.div

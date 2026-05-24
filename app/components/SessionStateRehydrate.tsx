@@ -39,6 +39,12 @@ export default function SessionStateRehydrate() {
           if (profile.employment_status != null) {
             localStorage.setItem(LOCAL_STORAGE_KEYS.PROFILE_EMPLOYMENT_STATUS, String(profile.employment_status))
           }
+          if (profile.home_power != null) {
+            localStorage.setItem(LOCAL_STORAGE_KEYS.PROFILE_HOME_POWER, String(profile.home_power))
+          }
+          if (profile.goal != null && String(profile.goal).trim()) {
+            localStorage.setItem('profile_goal', String(profile.goal).trim())
+          }
         }
         if (journeyAnswers && typeof journeyAnswers === 'object') {
           JOURNEY_ORDER.forEach((jid) => {

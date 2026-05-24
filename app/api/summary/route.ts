@@ -6,6 +6,7 @@ import type { ImpactProfile } from '@/lib/brains/types'
 import { getJourneyAnswersForUser } from '@/lib/db/neon'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
+import { resolveGridCarbonContextForPostcode } from '@/lib/brains/liveGridCarbonFactor'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { sumSavingsFromUserGenome } from '@/lib/brains/genomeTotals'
 
@@ -35,13 +36,21 @@ async function calculateProfileSummary(
   profile: ImpactProfile
 ) {
   const journeyAnswers = await getJourneyAnswersForUser(userId)
-  const homeUnitRates = await resolveLiveUnitRatesForPostcode(profile.postcode ?? null)
+    const [homeUnitRates, gridCarbon] = await Promise.all([
+      resolveLiveUnitRatesForPostcode(profile.postcode ?? null, {
+        tariffType: journeyAnswers.utilities?.tariff_type ?? null,
+      }),
+      resolveGridCarbonContextForPostcode(profile.postcode ?? null),
+    ])
 
   // SINGLE SOURCE OF TRUTH: buildUserImpact (brain) — same as Zone and profile/summary page
-  const userImpact = buildUserImpact({
-    profile,
-    journeyAnswers,
-  }, { homeUnitRates })
+  const userImpact = buildUserImpact(
+    {
+      profile,
+      journeyAnswers,
+    },
+    { homeUnitRates, gridIntensityGPerKwh: gridCarbon.intensityGPerKwh }
+  )
 
   return {
     savings: userImpact.totals.totalMoney,
@@ -59,13 +68,19 @@ export async function GET(request: NextRequest) {
       const postcodeParam = searchParams.get('postcode')?.replace(/\s+/g, '').trim().toUpperCase() ?? ''
       if (type === 'profile' && postcodeParam.length >= 4) {
         const profile: ImpactProfile = { postcode: postcodeParam }
-        const homeUnitRates = await resolveLiveUnitRatesForPostcode(postcodeParam).catch(() => undefined)
+        const [homeUnitRates, gridCarbon] = await Promise.all([
+          resolveLiveUnitRatesForPostcode(postcodeParam, { tariffType: null }).catch(() => undefined),
+          resolveGridCarbonContextForPostcode(postcodeParam).catch(() => null),
+        ])
         const emptyAnswers = Object.fromEntries(
           JOURNEY_ORDER.map((jid) => [jid, {}])
         ) as Record<JourneyId, Record<string, string>>
         const userImpact = buildUserImpact(
           { profile, journeyAnswers: emptyAnswers },
-          homeUnitRates ? { homeUnitRates } : undefined
+          {
+            ...(homeUnitRates ? { homeUnitRates } : {}),
+            ...(gridCarbon ? { gridIntensityGPerKwh: gridCarbon.intensityGPerKwh } : {}),
+          }
         )
         const savings = userImpact.totals.totalMoney
         const carbon = userImpact.totals.totalCarbon

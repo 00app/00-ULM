@@ -18,9 +18,6 @@ export {
   TIER2_PROFILE_REFRESH_EVENT,
 } from '@/lib/zone/tier2RecursiveSpawner'
 export {
-  GARY_RESEARCH_USER_ID,
-  ensureGaryModeForPostcode,
-  isGaryModeActive,
   resolveClientResearchUserId,
   appendResearchUserIdQuery,
 } from '@/lib/zone/garyMode'

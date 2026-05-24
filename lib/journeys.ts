@@ -1,6 +1,7 @@
-/** Twelve-domain intelligence loop — 3 questions per category (Infrastructure / Behaviour / Readiness). */
+/** Thirteen-domain intelligence loop — 3 questions per category (Infrastructure / Behaviour / Readiness). */
 export const JOURNEY_IDS = [
   'home',
+  'utilities',
   'grants',
   'solar',
   'travel',
@@ -60,6 +61,31 @@ export const JOURNEYS: Record<JourneyId, JourneyDefinition> = {
         label: 'Double or triple glazed?',
         type: 'options',
         options: ['TRIPLE', 'DOUBLE', 'SINGLE', 'UNKNOWN'],
+      },
+    ],
+  },
+  utilities: {
+    id: 'utilities',
+    name: 'utilities',
+    questions: [
+      /* power type (GAS / ELECTRIC / MIX / OTHER) — profile only; unlocks this journey on the Zone wall */
+      {
+        id: 'tariff_type',
+        label: 'Fixed or variable energy tariff?',
+        type: 'options',
+        options: ['FIXED', 'VARIABLE', 'TRACKER', 'UNKNOWN'],
+      },
+      {
+        id: 'supplier_switch',
+        label: 'Open to switching supplier?',
+        type: 'options',
+        options: ['YES', 'COMPARE', 'NO'],
+      },
+      {
+        id: 'monthly_energy_band',
+        label: 'Rough monthly energy spend?',
+        type: 'options',
+        options: ['UNDER_100', '100_TO_200', 'OVER_200', 'UNKNOWN'],
       },
     ],
   },
@@ -341,6 +367,7 @@ export function getNextJourney(currentJourneyId: JourneyId | null, completedJour
 
 export const JOURNEY_LABELS: Record<JourneyId, string> = {
   home: 'Home',
+  utilities: 'Utilities',
   grants: 'Grants',
   solar: 'Solar',
   travel: 'Travel',
@@ -356,6 +383,7 @@ export const JOURNEY_LABELS: Record<JourneyId, string> = {
 
 export const JOURNEY_COLORS: Record<JourneyId, string> = {
   home: 'var(--color-j-home)',
+  utilities: 'var(--color-j-utilities)',
   grants: 'var(--color-j-grants)',
   solar: 'var(--color-j-solar)',
   travel: 'var(--color-j-travel)',
@@ -369,20 +397,10 @@ export const JOURNEY_COLORS: Record<JourneyId, string> = {
   carbon: 'var(--color-j-carbon)',
 }
 
-export const FUNKY_QUESTION_LABEL: Record<string, string> = {
-  home: JOURNEYS.home.questions[0].label,
-  grants: JOURNEYS.grants.questions[0].label,
-  solar: JOURNEYS.solar.questions[0].label,
-  travel: JOURNEYS.travel.questions[0].label,
-  holidays: JOURNEYS.holidays.questions[0].label,
-  food: JOURNEYS.food.questions[0].label,
-  shopping: JOURNEYS.shopping.questions[0].label,
-  money: JOURNEYS.money.questions[0].label,
-  tech: JOURNEYS.tech.questions[0].label,
-  water: JOURNEYS.water.questions[0].label,
-  waste: JOURNEYS.waste.questions[0].label,
-  carbon: JOURNEYS.carbon.questions[0].label,
-}
+/** First question label per journey — built from `JOURNEY_ORDER` so keys never drift. */
+export const FUNKY_QUESTION_LABEL: Record<string, string> = Object.fromEntries(
+  JOURNEY_ORDER.map((id) => [id, JOURNEYS[id].questions[0]?.label ?? id])
+)
 
 const FUNKY_OPTION_DISPLAY: Record<string, string> = {
   DETACHED: 'DET',
@@ -497,8 +515,10 @@ export function getJourneyQuestions(journeyId: JourneyId): JourneyQuestion[] {
 }
 
 /** Solo Focus chamber — first question only (Tip +1 may add verification before scrape). */
+/** Legacy: first registry slot only. Prefer `getSoloFocusNextQuestion` (first unanswered). */
 export function getSoloFocusQuestions(journeyId: JourneyId): JourneyQuestion[] {
-  return (JOURNEYS[journeyId]?.questions ?? []).slice(0, SOLO_FOCUS_QUESTIONS_PER_JOURNEY)
+  const first = JOURNEYS[journeyId]?.questions?.[0]
+  return first ? [first] : []
 }
 
 export function isJourneyComplete(

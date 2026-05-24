@@ -134,7 +134,7 @@ function getRegionFromOutcode(outcode: string): string {
   return 'United Kingdom'
 }
 
-function getEmergencyPostcodeFallback(cleanPostcode: string): LocalIntelligence {
+export function getEmergencyPostcodeFallback(cleanPostcode: string): LocalIntelligence {
   const outcode = cleanPostcode.slice(0, Math.max(2, Math.min(4, cleanPostcode.length)))
   const region = getRegionFromOutcode(outcode)
   const inferredLocality = region === 'London' ? 'London' : outcode

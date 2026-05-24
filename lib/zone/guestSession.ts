@@ -1,12 +1,34 @@
 /**
- * Anonymous session (`zz_sid` cookie) — profile, answers, and visit breadcrumbs without login.
+ * Anonymous server session (`zz_sid` HTTP-only cookie) — profile, answers, visit breadcrumbs without login.
+ * Audit alias: server "zz_session" identity; never use localStorage for this.
  */
 
 import type { NextRequest } from 'next/server'
+import type { NextResponse } from 'next/server'
 import crypto from 'crypto'
+import { sealGuestSessionId, unsealGuestSessionId } from '@/lib/sessionCookieSign'
 
 export const GUEST_SESSION_COOKIE = 'zz_sid'
 export const GUEST_SESSION_MAX_AGE = 60 * 60 * 24 * 365
+
+export function getGuestSessionCookieOptions(maxAge = GUEST_SESSION_MAX_AGE) {
+  return {
+    path: '/',
+    maxAge,
+    sameSite: 'lax' as const,
+    httpOnly: true,
+    secure: process.env.NODE_ENV !== 'development',
+  }
+}
+
+export function setGuestSessionCookie(res: NextResponse, sessionId: string): void {
+  res.cookies.set(GUEST_SESSION_COOKIE, sealGuestSessionId(sessionId), getGuestSessionCookieOptions())
+}
+
+export function parseGuestSessionCookie(raw: string | undefined | null): string | null {
+  if (!raw?.trim()) return null
+  return unsealGuestSessionId(raw.trim())
+}
 
 export function hashGuestIp(ip: string): string {
   let h = 0
@@ -20,7 +42,8 @@ export function hashGuestIp(ip: string): string {
 
 export function resolveGuestSessionId(request: NextRequest): string {
   const cookie = request.cookies.get(GUEST_SESSION_COOKIE)?.value?.trim()
-  if (cookie && cookie.length >= 16 && cookie.length <= 128) return cookie
+  const unsealed = cookie ? unsealGuestSessionId(cookie) : null
+  if (unsealed) return unsealed
   return `sess_${crypto.randomBytes(24).toString('hex')}`
 }
 

@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     const postcode = normalizeString(body.postcode ?? body.profileData?.postcode) || null
     const profileData = (body.profileData ?? null) as ResearchProfileData | null
 
-    await refreshZoneTips()
+    await refreshZoneTips(request)
 
     const loopQuestionId = normalizeString(body.question_id) || 'user_question'
     const loopAnswer = normalizeString(body.answer_value) || question.slice(0, 2000)

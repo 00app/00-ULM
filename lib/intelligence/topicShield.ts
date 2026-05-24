@@ -6,6 +6,7 @@ import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_IDS } from '@/lib/journeys'
 import { normalizeCategoryToJourneyKey } from '@/lib/zone/trustedJourneyUrls'
 import { isActiveEmployed, isLowIncomeBracket } from '@/lib/zone/affluenceCheck'
+import { buildUtilitiesLaneLockBlock } from '@/lib/intelligence/utilitiesLaneRules'
 
 export function resolveSurgicalJourneyKey(raw: string | null | undefined): JourneyId | null {
   const jk = normalizeCategoryToJourneyKey(String(raw ?? '').trim().toLowerCase())
@@ -50,8 +51,12 @@ export function buildLaneLockPromptBlock(
   opts?: {
     employment_status?: string | null
     household_income_bracket?: string | null
+    home_power?: string | null
   }
 ): string {
+  if (journeyKey === 'utilities') {
+    return buildUtilitiesLaneLockBlock(opts?.home_power)
+  }
   const employed = isActiveEmployed(opts?.employment_status)
   const lowIncome = isLowIncomeBracket(opts?.household_income_bracket)
   const skipLowIncomePath = employed && !lowIncome

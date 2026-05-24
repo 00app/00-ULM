@@ -416,7 +416,9 @@ export async function upsertUserGenomeFromAnswer(
   }
   if (qUpper === 'FUEL_TYPE') derivedPatch.fuel_type = value
   if (qUpper === 'PHONE_CYCLE' || qUpper === 'DEVICE_CYCLE') derivedPatch.phone_cycle = value
-  if (qUpper === 'ENERGY_TYPE') derivedPatch.energy_type = value
+  if (qUpper === 'ENERGY_TYPE' || qUpper === 'HOME_POWER') {
+    derivedPatch.energy_type = value.trim().toUpperCase() === 'MIX' ? 'MIXED' : value
+  }
 
   try {
     await pool.query(

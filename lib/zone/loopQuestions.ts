@@ -117,6 +117,16 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
     ],
   },
   {
+    questionId: 'utilities_supplier_switch',
+    question: 'switch gas or\nelectric supplier?',
+    journeyKeys: ['utilities', 'money', 'home'],
+    options: [
+      { label: 'YES', value: 'YES — SWITCH', ariaLabel: 'Yes — switch supplier' },
+      { label: 'COMPARE', value: 'COMPARE', ariaLabel: 'Compare tariffs' },
+      { label: 'NO', value: 'STAY PUT', ariaLabel: 'Stay on current supplier' },
+    ],
+  },
+  {
     questionId: 'home_heat_pump',
     question: 'heat pump\nnot gas?',
     journeyKeys: ['home'],
@@ -221,7 +231,7 @@ export function isValidLoopOrJourneyQuestion(journeyId: string, questionId: stri
   )
 }
 
-function beatsForJourney(journeyId: JourneyId): LoopQuestionBeat[] {
+export function beatsForJourney(journeyId: JourneyId): LoopQuestionBeat[] {
   return LOOP_QUESTION_BANK.filter(
     (b) => b.journeyKeys.length === 0 || b.journeyKeys.includes(journeyId)
   )

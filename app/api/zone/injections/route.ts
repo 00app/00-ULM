@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { getSessionFromRequest } from '@/lib/auth'
+import { requireAiRouteAuth } from '@/lib/requestAuth'
 import { appendStoredInjections, getStoredInjections } from '@/lib/zone/injectionStore'
 import { POST as refreshZoneTips } from '@/app/api/zone/tips-refresh/route'
 import { fallbackZoneTips } from '@/lib/zone/fallbackZoneTips'
@@ -24,14 +25,17 @@ import { MAX_DISCOVERY_INJECTIONS_PER_JOURNEY } from '@/lib/intelligence/manifes
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authDenied = await requireAiRouteAuth(request)
+  if (authDenied) return authDenied
+
   let cards = getStoredInjections()
   if (cards.length === 0) {
     if (shouldSkipFirecrawlScrape()) {
       const fallback = validateAndRailCards(validateInjectionCards(fallbackZoneTips(null)), null)
       setStoredInjections(fallback)
     } else {
-      await refreshZoneTips()
+      await refreshZoneTips(request)
     }
     cards = getStoredInjections()
   }
@@ -79,6 +83,9 @@ function pickDifferentJourney(currentJourney: JourneyId): JourneyId {
  */
 export async function POST(request: NextRequest) {
   try {
+    const authDenied = await requireAiRouteAuth(request)
+    if (authDenied) return authDenied
+
     const body = (await request.json().catch(() => ({}))) as BirthRequestBody
     const journeyRaw = normalizeString(body.journey_key ?? body.journey_id)
     const questionId = normalizeString(body.question_key ?? body.question_id)
@@ -120,7 +127,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 1: Refresh tips deck so the loop always has fresh rails-backed cards.
-    await refreshZoneTips()
+    await refreshZoneTips(request)
 
     // Step 2–3: Firecrawl/Gemini race + injection fallback (different journey than the one answered).
     const discoveryPayload = await resolveDiscoveryBirthPayload({

@@ -42,6 +42,7 @@ import { runRebirthVaultDiscovery } from '@/lib/agents/rebirthVaultDiscovery'
 import { FIRECRAWL_API_KEY as resolvedFirecrawlKey } from '@/lib/sentinel/api-config'
 import { runHybridLiveZoneTipForAnswer } from '@/lib/agents/scraperAgent'
 import { advanceHomeJourneySentinelAfterAnswer } from '@/lib/sentinel/runner'
+import { resolveGridCarbonContextForPostcode } from '@/lib/brains/liveGridCarbonFactor'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import { attachSessionCookieToResponse, resolveAnswersUser } from '@/lib/answers/resolveAnswersUser'
@@ -316,10 +317,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const homeUnitRates = await resolveLiveUnitRatesForPostcode(profileRow?.postcode ?? null)
+    const [homeUnitRates, gridCarbon] = await Promise.all([
+      resolveLiveUnitRatesForPostcode(profileRow?.postcode ?? null, {
+        tariffType:
+          (journeyAnswers as Record<string, Record<string, string>>).utilities?.tariff_type ?? null,
+      }),
+      resolveGridCarbonContextForPostcode(profileRow?.postcode ?? null),
+    ])
     const userImpact = buildUserImpact(
       { profile, journeyAnswers: journeyAnswers as Record<JourneyId, Record<string, string>> },
-      { homeUnitRates }
+      { homeUnitRates, gridIntensityGPerKwh: gridCarbon.intensityGPerKwh }
     )
     const hermesMemoryPromise = updateHermesMemoryAfterAnswer({
       userId: user_id,

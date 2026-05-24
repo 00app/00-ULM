@@ -127,17 +127,19 @@ export async function runLiveGrounding(params: {
   if (!scrapedMarkdown.trim()) return fallback
 
   try {
-    const response = await gemini.models.generateContent({
+    const model = gemini.getGenerativeModel({
       model: process.env.GEMINI_ARTICLE_MODEL?.trim() || 'gemini-1.5-flash',
-      contents: buildGroundingPrompt({
+    })
+    const response = await model.generateContent(
+      buildGroundingPrompt({
         postcode: compact,
         tenureType: params.tenureType,
         local: params.local,
         genome: params.genome,
         scrapedMarkdown,
-      }),
-    })
-    const text = response.text?.trim() ?? ''
+      })
+    )
+    const text = response.response.text()?.trim() ?? ''
     if (!text) return fallback
     const parsed = JSON.parse(text) as Partial<LiveGroundingResult>
     return {

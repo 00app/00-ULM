@@ -22,6 +22,7 @@ function readProfileKeys(): Record<string, string> {
     ['postcode', 'profile_postcode'],
     ['household', 'profile_household'],
     ['home_type', 'profile_home_type'],
+    ['home_power', 'profile_home_power'],
     ['transport', 'profile_transport'],
     ['age', 'profile_age'],
     ['employment_status', 'profile_employment_status'],

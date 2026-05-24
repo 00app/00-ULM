@@ -1,6 +1,10 @@
 /** Zone bento — visited / deep-dive handoff memory (client). */
 
+import type { JourneyId } from '@/lib/journeys'
+import { isValidJourneyId } from '@/lib/journeys'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
+import { readAnsweredLoopQuestionIds } from '@/lib/zone/loopMemory'
+import { beatsForJourney } from '@/lib/zone/loopQuestions'
 
 export const VISITED_CARDS_KEY = 'visited_cards'
 export const DEEP_DIVE_IN_PROGRESS_KEY = 'zz_deep_dive_in_progress'
@@ -50,11 +54,22 @@ export function isCardVisited(cardId: string): boolean {
   return readVisitedCardIds().has(cardId.trim())
 }
 
-/** Visited (pink) cards: close must not spawn injections, loop takeovers, or tips-refresh. */
-export function shouldSkipInjectionOnCardClose(cardId: string | null | undefined): boolean {
+/**
+ * Close credit guard — visited card or completed loop → close only (no loop takeover).
+ */
+export function shouldSkipInjectionOnCardClose(
+  cardId: string | null | undefined,
+  journeyId?: JourneyId | string | null
+): boolean {
   const id = cardId?.trim()
   if (!id) return false
-  return isCardVisited(id)
+  if (isCardVisited(id)) return true
+  const jid = typeof journeyId === 'string' && isValidJourneyId(journeyId) ? journeyId : null
+  if (jid) {
+    const answered = readAnsweredLoopQuestionIds()
+    return beatsForJourney(jid).some((b) => answered.has(b.questionId))
+  }
+  return false
 }
 
 export function setDeepDiveInProgress(cardId: string | null): void {

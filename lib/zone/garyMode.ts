@@ -1,70 +1,31 @@
 /**
- * Gary / demo research identity — links BN17 postcode rows to a stable UUID for scrape-sync + Neon.
- * Hot path tables: `research_results`, `journey_answers`, `journey_answers_jsonb`, `user_profiles` mirror.
- * Legacy `micro_answers` (FK → cards) is unused in the intelligence loop — do not write there.
+ * Client research identity — session-backed user id only.
+ * Legacy demo UUID blocked; session init at /profile.
  */
 
-import { safeGetItem, safeSetItem } from '@/lib/zone/safeProfileStorage'
+import { safeGetItem } from '@/lib/zone/safeProfileStorage'
 
-export const GARY_RESEARCH_USER_ID = '00000000-0000-4000-a000-000000000000'
-
-export const GARY_MODE_STORAGE_KEY = 'zz_gary_mode'
 export const RESEARCH_USER_ID_STORAGE_KEY = 'zz_research_user_id'
+export const LEGACY_DEMO_USER_ID = '00000000-0000-4000-a000-000000000000'
+export const SESSION_INIT_PATH = '/profile'
 
 export function isValidResearchUserId(v: string | null | undefined): boolean {
   const raw = String(v ?? '').trim()
+  if (isLegacyDemoUserId(raw)) return false
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw)
 }
 
-export function isGaryModeActive(): boolean {
-  if (typeof window === 'undefined') return false
-  try {
-    if (safeGetItem(GARY_MODE_STORAGE_KEY) === '1') return true
-    const pc = (safeGetItem('profile_postcode') ?? '').replace(/\s+/g, '').toUpperCase()
-    if (pc.startsWith('BN17')) return true
-    const uid = safeGetItem(RESEARCH_USER_ID_STORAGE_KEY)
-    return uid === GARY_RESEARCH_USER_ID
-  } catch {
-    return false
-  }
+export function isLegacyDemoUserId(id: string | null | undefined): boolean {
+  return String(id ?? '').trim().toLowerCase() === LEGACY_DEMO_USER_ID.toLowerCase()
 }
 
-/** Pin Gary UUID + mode flag when demo postcode is in play. */
-export function ensureGaryModeForPostcode(postcode: string | null | undefined): void {
-  if (typeof window === 'undefined') return
-  const pc = String(postcode ?? '')
-    .replace(/\s+/g, '')
-    .toUpperCase()
-  if (!pc.startsWith('BN17')) return
-  safeSetItem(RESEARCH_USER_ID_STORAGE_KEY, GARY_RESEARCH_USER_ID)
-  safeSetItem(GARY_MODE_STORAGE_KEY, '1')
-}
-
-/**
- * Stable browser research UUID for scrape-sync POST triggers (no session required).
- * BN17 → Gary demo id; otherwise reuse session id or mint `crypto.randomUUID()`.
- */
-export function ensureClientResearchUserId(postcode?: string | null): string | null {
-  if (typeof window === 'undefined') return null
-  ensureGaryModeForPostcode(postcode ?? safeGetItem('profile_postcode'))
-  const existing = resolveClientResearchUserId()
-  if (existing) return existing
-  try {
-    const id = crypto.randomUUID()
-    safeSetItem(RESEARCH_USER_ID_STORAGE_KEY, id)
-    return id
-  } catch {
-    return null
-  }
-}
-
-/** Session user wins; else Gary mode UUID; else explicit browser research id. */
+/** User id persisted after POST /api/user — never mints a new UUID. */
 export function resolveClientResearchUserId(): string | null {
   if (typeof window === 'undefined') return null
-  if (isGaryModeActive()) return GARY_RESEARCH_USER_ID
   try {
-    for (const key of [RESEARCH_USER_ID_STORAGE_KEY, 'user_id', 'profile_user_id']) {
+    for (const key of [RESEARCH_USER_ID_STORAGE_KEY, 'user_id', 'profile_user_id', 'userId']) {
       const raw = safeGetItem(key)?.trim()
+      if (isLegacyDemoUserId(raw)) continue
       if (isValidResearchUserId(raw)) return raw!
     }
   } catch {
@@ -73,9 +34,42 @@ export function resolveClientResearchUserId(): string | null {
   return null
 }
 
+/** @deprecated No client UUID minting — returns session-persisted id only. */
+export function ensureClientResearchUserId(_postcode?: string | null): string | null {
+  return resolveClientResearchUserId()
+}
+
+/** Server derives identity from session / zz_sid — do not append spoofable user_id. */
 export function appendResearchUserIdQuery(url: string): string {
-  const uid = resolveClientResearchUserId()
-  if (!uid) return url
-  const sep = url.includes('?') ? '&' : '?'
-  return `${url}${sep}user_id=${encodeURIComponent(uid)}`
+  return url
+}
+
+/**
+ * Clear legacy demo UUID from storage; redirect to profile session init when detected.
+ * Returns true if a redirect was triggered.
+ */
+export function guardLegacyDemoIdentityOnClient(): boolean {
+  if (typeof window === 'undefined') return false
+  let hadLegacy = false
+  try {
+    for (const key of [RESEARCH_USER_ID_STORAGE_KEY, 'user_id', 'profile_user_id', 'userId']) {
+      const raw = safeGetItem(key)?.trim()
+      if (isLegacyDemoUserId(raw)) {
+        localStorage.removeItem(key)
+        hadLegacy = true
+      }
+    }
+    localStorage.removeItem('zz_gary_mode')
+  } catch {
+    /* ignore */
+  }
+  if (
+    hadLegacy &&
+    !window.location.pathname.startsWith(SESSION_INIT_PATH) &&
+    !window.location.pathname.startsWith('/intro')
+  ) {
+    window.location.href = SESSION_INIT_PATH
+    return true
+  }
+  return hadLegacy
 }

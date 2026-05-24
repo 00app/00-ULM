@@ -3,7 +3,7 @@
 Production blueprint: **free API intercept → deterministic engine → surgical premium tier**.  
 Zai is the **only** product bot (no secondary chat widget).
 
-**Code map:** `lib/zone/ulmLimits.ts`, `lib/zone/engineDataRouter.ts`, `lib/intelligence/freeTierHydration.ts`, `docs/HYBRID-DATA-PIPELINE.md`, `docs/ZAI-AND-QUESTIONS-RULES.md`.
+**Code map:** `lib/zone/ulmLimits.ts`, `lib/zone/engineDataRouter.ts`, `lib/intelligence/freeTierHydration.ts`, [HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md), [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md), [SENTINEL.md](SENTINEL.md), [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md), [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md).
 
 ---
 
@@ -66,6 +66,8 @@ Grid discovery tips on wall: still **1 earned inject per category** via `perCate
 | Zone bento | **5–8** — `enforceHeadlineWordLimits(text, false)` |
 | Solo Focus / expanded | **6–12** — `enforceHeadlineWordLimits(text, true)` |
 | Prose beats | ≤ **40** words / paragraph |
+
+Full scrape → copy → presentation pipeline: **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)**.
 
 ---
 

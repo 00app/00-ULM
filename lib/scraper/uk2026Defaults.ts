@@ -32,6 +32,7 @@ function emptyLead(journey_key: JourneyId): JourneyMoneyLead {
 /** Shape-only defaults (all zero) — used when scrape-sync has no DB rows yet. */
 export const UK_2026_MONEY_LEAD: Record<JourneyId, JourneyMoneyLead> = {
   home: emptyLead('home'),
+  utilities: emptyLead('utilities'),
   grants: emptyLead('grants'),
   solar: emptyLead('solar'),
   travel: emptyLead('travel'),

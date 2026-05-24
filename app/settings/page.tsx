@@ -16,7 +16,7 @@ import { buildZoneViewModel } from '@/lib/logic/zone'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
-import { clearLocalStorageExceptProfileAndUser } from '@/lib/utils/migrate'
+import { clearAllAppUserData } from '@/lib/utils/migrate'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import DiagnosticsFlightDeckButton from '@/app/components/DiagnosticsFlightDeckButton'
 import DiagnosticsSheet from '@/app/components/DiagnosticsSheet'
@@ -29,11 +29,6 @@ const PROFILE_LABELS: Record<string, string> = {
   homeType: 'Your home?',
   transport: 'How do you get around?',
   age: 'How old are you?',
-}
-
-/** v1.8.3 — purge cached client state; keep `userId` / `user_id` and `profile_*` keys. */
-function clearMachineStorage() {
-  clearLocalStorageExceptProfileAndUser()
 }
 
 /** Pencil icon for edit — same slot as card-top-arrow */
@@ -330,7 +325,7 @@ export default function SettingsPage() {
   const animatedCarbon = useCountUp(carbonNum, { duration: 900 })
 
   const handleReset = () => {
-    clearMachineStorage()
+    clearAllAppUserData()
     router.push(ROUTES.INTRO)
     window.location.href = ROUTES.INTRO
   }

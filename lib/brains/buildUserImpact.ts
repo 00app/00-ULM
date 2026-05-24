@@ -7,8 +7,8 @@
  * Rules:
  * - Money and carbon are NEVER calculated in UI
  * - All calculations use lib/brains/calculations.ts (annualized: monthly × 12 where applicable)
- * - Electricity → carbon uses **TRUTH_2026_MARCH.GRID_INTENSITY** (129 g/kWh) as **0.129 kg CO₂e/kWh**
- *   via `MARCH_2026_ECONOMY.CARBON_FACTOR_ELEC` inside `lib/carbonCashCalculator` FACTORS_2026.
+ * - Electricity → carbon uses NESO live grid intensity via `gridIntensityGPerKwh` in options
+ *   (`lib/brains/liveGridCarbonFactor.ts`) — tier fallback when live API unavailable.
  * - Persona (profile.age) is used by buildZoneViewModel for tips, not here
  * - S UPDATE: Optional scraped data is applied via applyScrapedOverlay (≤20% delta).
  */
@@ -16,6 +16,7 @@
 import { JourneyId, JOURNEY_ORDER } from '@/lib/journeys'
 import {
   calculateHome,
+  calculateUtilities,
   calculateTravel,
   calculateFood,
   calculateShopping,
@@ -37,6 +38,12 @@ import {
 import { applyScrapedOverlay, type ScrapedOverlayResult } from './scrapedOverlay'
 import type { ScrapedDataPoint } from '@/lib/scraper/sources'
 import type { Persona, ImpactProfile, UserData, EmploymentStatus } from './types'
+import type { LiveUnitRateSnapshot } from '@/lib/brains/liveUnitRates'
+import {
+  gridCarbonContextForPostcode,
+  gridCarbonContextFromIntensityG,
+  type GridCarbonContext,
+} from './liveGridCarbonFactor'
 
 export type { Persona, ImpactProfile, UserData } from './types'
 export type { ScrapedOverlayResult } from './scrapedOverlay'
@@ -63,8 +70,10 @@ export interface UserImpact {
 export interface BuildUserImpactOptions {
   /** S UPDATE: scraped data from 001 Scraper (e.g. from scraped_summary table). Partial = only some journeys may have data. */
   scraped?: Partial<Record<JourneyId, ScrapedDataPoint>>
-  /** Live £/kWh from `research_results` (Neon) — applied to home journey only. */
-  homeUnitRates?: { elecGbpPerKwh: number; gasGbpPerKwh: number }
+  /** Live £/kWh — Neon, pulse/Ofgem, or Octopus Agile (home + utilities journeys). */
+  homeUnitRates?: LiveUnitRateSnapshot | Pick<LiveUnitRateSnapshot, 'elecGbpPerKwh' | 'gasGbpPerKwh'>
+  /** NESO / regional gCO₂/kWh — drives electricity carbon across home + utilities journeys. */
+  gridIntensityGPerKwh?: number
 }
 
 /**
@@ -82,12 +91,17 @@ export function buildUserImpact(user: UserData, options?: BuildUserImpactOptions
   const scraped = options?.scraped
   const profile = user.profile
   const employment = normalizeEmploymentStatus(profile?.employment_status)
+  const gridCarbon: GridCarbonContext =
+    typeof options?.gridIntensityGPerKwh === 'number' && options.gridIntensityGPerKwh > 0
+      ? gridCarbonContextFromIntensityG(options.gridIntensityGPerKwh)
+      : gridCarbonContextForPostcode(profile?.postcode)
 
   // Calculate impact for each journey; apply scraped overlay when available
   JOURNEY_ORDER.forEach((journeyKey) => {
     const answers = user.journeyAnswers[journeyKey] || {}
-    const homeRates = journeyKey === 'home' ? options?.homeUnitRates : undefined
-    const base = calculateJourneyImpact(journeyKey, answers, profile, homeRates)
+    const homeRates =
+      journeyKey === 'home' || journeyKey === 'utilities' ? options?.homeUnitRates : undefined
+    const base = calculateJourneyImpact(journeyKey, answers, profile, homeRates, gridCarbon)
     let result = applyScrapedOverlay(base, scraped?.[journeyKey], journeyKey)
     // Mechanical truth: no UK_2026 back-fill — empty stays 0 until scrape-sync / Neon stream.
     result = applyEmploymentFinancialPhysics(result, employment, journeyKey)
@@ -161,7 +175,8 @@ function calculateJourneyImpact(
   journeyKey: JourneyId,
   answers: Record<string, string> | undefined,
   profile?: ImpactProfile,
-  homeUnitRates?: { elecGbpPerKwh: number; gasGbpPerKwh: number }
+  homeUnitRates?: LiveUnitRateSnapshot | Pick<LiveUnitRateSnapshot, 'elecGbpPerKwh' | 'gasGbpPerKwh'>,
+  gridCarbon?: GridCarbonContext
 ): ImpactResult {
   if (!answers || Object.keys(answers).length === 0) {
     return {
@@ -174,7 +189,9 @@ function calculateJourneyImpact(
 
   switch (journeyKey) {
     case 'home':
-      return calculateHome(answers, homeUnitRates)
+      return calculateHome(answers, homeUnitRates, gridCarbon)
+    case 'utilities':
+      return calculateUtilities(answers, homeUnitRates, gridCarbon)
     case 'grants':
       return calculateGrants(answers)
     case 'solar':

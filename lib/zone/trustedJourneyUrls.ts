@@ -7,6 +7,7 @@ import { JOURNEY_IDS } from '@/lib/journeys'
 
 export const TRUSTED_JOURNEY_URLS: Record<JourneyId, string> = {
   home: 'https://www.energysavingtrust.org.uk/advice/reducing-home-heat-loss/',
+  utilities: 'https://www.moneysavingexpert.com/utilities/how-to-switch-gas-electricity/',
   grants: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
   solar: 'https://mcscertified.com/find-an-installer/',
   travel: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',

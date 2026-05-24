@@ -26,6 +26,13 @@ export const SCRAPER_SOURCE_MATRIX: Record<JourneyId, ScraperSourceConfig> = {
     moneyMetric: 'unit rates £/kWh',
     insightLabel: 'Current UK unit rates and heat pump grants',
   },
+  utilities: {
+    journey: 'utilities',
+    primaryTarget: 'Ofgem & MoneySavingExpert',
+    carbonMetric: 'gas vs electric carbon per kWh',
+    moneyMetric: 'dual-fuel tariff and cap savings',
+    insightLabel: 'How you power your home and switch routes',
+  },
   grants: {
     journey: 'grants',
     primaryTarget: 'GOV.UK BUS & ECO4',

@@ -16,6 +16,8 @@ import {
   buildEmploymentAwareResearchSeeds,
   buildLocalizedResearchPrefix,
 } from '@/lib/intelligence/researchProfilePayload'
+import { readHomePowerFromGenome } from '@/lib/data/utilitiesFreeApis'
+import { buildUtilitiesResearchContext } from '@/lib/intelligence/utilitiesLaneRules'
 import { shouldSkipDeepGeminiSearch } from '@/lib/intelligence/scrapeBoundaries'
 import {
   buildLaneLockPromptBlock,
@@ -75,6 +77,7 @@ export interface ZeroResearchResult {
 export interface ResearchProfileData {
   postcode?: string | null
   home_type?: string | null
+  home_power?: string | null
   household?: string | null
   transport_baseline?: string | null
   heating?: string | null
@@ -95,6 +98,7 @@ export type DynamicResearchProfileRow = {
   employment_status?: string | null
   household_income_bracket?: string | null
   primary_goal?: string | null
+  home_power?: string | null
   user_genome?: Record<string, unknown> | null
   goal?: string | null
 }
@@ -160,6 +164,10 @@ function normalizeDynamicResearchProfile(
     goal:
       readStringProfileField(profileRow, ['goal', 'profile_goal', 'primary_goal']) ??
       readStringProfileField(usersRow, ['goal', 'profile_goal', 'primary_goal']),
+    home_power:
+      readStringProfileField(profileRow, ['home_power', 'homePower', 'profile_home_power']) ??
+      readStringProfileField(usersRow, ['home_power', 'homePower', 'profile_home_power']) ??
+      readHomePowerFromGenome(userGenome),
     user_genome: userGenome,
   }
 }
@@ -551,6 +559,7 @@ export async function deepGeminiSearchUkEnergyMarkdown(params: {
   const laneLock = buildLaneLockPromptBlock(journeyKey, {
     employment_status: params.profileData?.employment_status,
     household_income_bracket: params.profileData?.household_income_bracket,
+    home_power: params.profileData?.home_power,
   })
   const categoryLine = cat
     ? params.lifestyleShift
@@ -1521,9 +1530,16 @@ export async function runTriggerResearchForCategory(params: {
     ? [local.locality, local.council, local.region].filter(Boolean).join(', ')
     : null
 
+  const homePower =
+    params.profileData?.home_power?.trim() ||
+    readHomePowerFromGenome(
+      (params.profileData as { user_genome?: Record<string, unknown> } | null)?.user_genome ?? null
+    )
+
   const laneLock = buildLaneLockPromptBlock(journeyKey, {
     employment_status: params.profileData?.employment_status,
     household_income_bracket: params.profileData?.household_income_bracket,
+    home_power: homePower || params.profileData?.home_power,
   })
   const postcodeDna = buildPostcodeDnaBlock({
     postcode: pc,
@@ -1531,11 +1547,26 @@ export async function runTriggerResearchForCategory(params: {
     journeyKey,
   })
 
+  const utilitiesCtx =
+    journeyKey === 'utilities'
+      ? await buildUtilitiesResearchContext({
+          postcode: pc,
+          homePower: homePower || null,
+          journeyKey,
+        })
+      : { promptBlock: '' }
+
   const profilePrefix = buildLocalizedResearchPrefix({
     postcode: pc,
-    profileData: params.profileData ?? null,
+    profileData: params.profileData?.home_power
+      ? params.profileData
+      : homePower
+        ? { ...(params.profileData ?? {}), home_power: homePower }
+        : (params.profileData ?? null),
     category: cat,
-    userContext: [postcodeDna, laneLock, params.userContext ?? ''].filter(Boolean).join('\n\n'),
+    userContext: [postcodeDna, laneLock, utilitiesCtx.promptBlock, params.userContext ?? '']
+      .filter(Boolean)
+      .join('\n\n'),
   })
 
   let markdown = [

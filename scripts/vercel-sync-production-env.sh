@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sync Production env on Vercel from the current shell (values never echoed).
 # Usage:
-#   export DATABASE_URL='…' GEMINI_API_KEY='…' FIRE_CRAWL_KEY_2='…' CRON_SECRET='…' ADMIN_AUTH_HEADER='…'
+#   export DATABASE_URL='…' GEMINI_API_KEY='…' FIRE_CRAWL_KEY_2='…' CRON_SECRET='…' ADMIN_PASSWORD='…'
 #   bash scripts/vercel-sync-production-env.sh
 # Then: vercel --prod --force
 set -euo pipefail
@@ -26,6 +26,6 @@ add_or_replace VERCEL_AI_GATEWAY_API_KEY
 add_or_replace FIRE_CRAWL_KEY_2
 add_or_replace CRON_SECRET
 add_or_replace SCRAPER_SECRET
-add_or_replace ADMIN_AUTH_HEADER
+add_or_replace ADMIN_PASSWORD
 add_or_replace GATEWAY_TOKEN
 echo "Done. Redeploy: vercel --prod --force"

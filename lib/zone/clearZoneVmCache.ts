@@ -3,13 +3,7 @@
  * from the previous location does not bleed into the new VM.
  */
 import { clearProfileLocalityCache } from '@/lib/geocode/resolvePostcodeLocality'
-import {
-  GARY_MODE_STORAGE_KEY,
-  GARY_RESEARCH_USER_ID,
-  RESEARCH_USER_ID_STORAGE_KEY,
-  ensureGaryModeForPostcode,
-} from '@/lib/zone/garyMode'
-import { safeGetItem } from '@/lib/zone/safeProfileStorage'
+import { RESEARCH_USER_ID_STORAGE_KEY } from '@/lib/zone/garyMode'
 
 const ZONE_VM_AGGREGATE_KEYS = ['heroTotals', 'zoneUnlockedCount', 'completedJourneys'] as const
 
@@ -56,10 +50,9 @@ export function clearZoneVmLocalCache(opts?: { preservePostcode?: string }): voi
     clearProfileLocalityCache()
 
     if (preservePc.length >= 4) {
-      ensureGaryModeForPostcode(preservePc)
-    } else if (safeGetItem(RESEARCH_USER_ID_STORAGE_KEY) === GARY_RESEARCH_USER_ID) {
+      /* postcode preserved — research identity comes from session cookie only */
+    } else {
       localStorage.removeItem(RESEARCH_USER_ID_STORAGE_KEY)
-      localStorage.removeItem(GARY_MODE_STORAGE_KEY)
     }
 
     window.dispatchEvent(

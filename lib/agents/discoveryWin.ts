@@ -23,7 +23,11 @@ export function deterministicDiscoveryWin(params: {
   const pc = postcode?.replace(/\s+/g, '').trim().toUpperCase() ?? ''
   const heat = heatingLower(journeyAnswers)
 
-  if (journeyId === 'home' && questionId === 'energy_type' && raw === 'gas') {
+  if (
+    ((journeyId === 'home' && questionId === 'energy_type') ||
+      (journeyId === 'utilities' && questionId === 'home_power')) &&
+    raw === 'gas'
+  ) {
     return `since you have gas, you're eligible for up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString()} toward a heat pump via the boiler upgrade scheme — and the april price cap shift saves a typical home ~£${PRICE_CAP_SAVING_APRIL_1}/yr.`
   }
   if (journeyId === 'home' && heat === 'gas') {

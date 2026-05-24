@@ -6,12 +6,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 import {
-  GUEST_SESSION_COOKIE,
-  GUEST_SESSION_MAX_AGE,
   guestIpHashFromRequest,
   normaliseVisitedCardIds,
   normaliseVisitedJourneyKeys,
   resolveGuestSessionId,
+  setGuestSessionCookie,
 } from '@/lib/zone/guestSession'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import type { JourneyId } from '@/lib/journeys'
@@ -131,13 +130,7 @@ export async function POST(request: NextRequest) {
       visited_journey_keys,
       user_id: session?.userId ?? null,
     })
-    res.cookies.set(GUEST_SESSION_COOKIE, guestSessionId, {
-      path: '/',
-      maxAge: GUEST_SESSION_MAX_AGE,
-      sameSite: 'lax',
-      httpOnly: true,
-      secure: process.env.NODE_ENV !== 'development',
-    })
+    setGuestSessionCookie(res, guestSessionId)
     return res
   } catch (error) {
     console.error('[zone/visit]', error)

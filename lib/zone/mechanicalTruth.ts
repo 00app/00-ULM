@@ -1,5 +1,6 @@
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import type { ScrapedDataPoint } from '@/lib/scraper/sources'
+import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
 
 export type NeonJourneyResearchRow = {
   savingGbp?: number
@@ -40,4 +41,18 @@ export function hasAnyStreamData(opts: {
 
 export function computingJourneyTitle(journeyKey: JourneyId): string {
   return `COMPUTING — ${journeyKey.replace(/-/g, ' ').toUpperCase()}`
+}
+
+/** Profile power type seeds utilities tile — formula £ before Neon stream. */
+export function journeyHasProfileSeed(
+  journeyKey: JourneyId,
+  profile?: { home_power?: string; homePower?: string },
+  journeyAnswers?: Partial<Record<JourneyId, Record<string, string>>>
+): boolean {
+  if (journeyKey !== 'utilities') return false
+  if (isUtilitiesZoneCardUnlocked(profile)) return true
+  const hp =
+    String(journeyAnswers?.utilities?.home_power ?? '').trim() ||
+    String(journeyAnswers?.home?.energy_type ?? '').trim()
+  return hp.length > 0
 }

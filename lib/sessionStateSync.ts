@@ -4,18 +4,18 @@
  */
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 
-const isProduction = typeof process !== 'undefined' && process.env.NODE_ENV === 'production'
-
 export function syncSessionState(): void {
-  if (typeof window === 'undefined' || !isProduction) return
+  if (typeof window === 'undefined') return
   const profile = {
     name: localStorage.getItem('profile_name') ?? '',
     postcode: localStorage.getItem('profile_postcode') ?? '',
     household: localStorage.getItem('profile_household') ?? '',
     home_type: localStorage.getItem('profile_home_type') ?? '',
+    home_power: localStorage.getItem('profile_home_power') ?? '',
     transport: localStorage.getItem('profile_transport') ?? '',
     age: localStorage.getItem('profile_age') ?? '',
     employment_status: localStorage.getItem('profile_employment_status') ?? '',
+    goal: localStorage.getItem('profile_goal') ?? '',
   }
   const journeyAnswers: Record<string, Record<string, string>> = {}
   JOURNEY_ORDER.forEach((jid) => {

@@ -1,5 +1,4 @@
 import type { ResearchProfileData } from '@/lib/agents/researchAgent'
-import { ensureClientResearchUserId, resolveClientResearchUserId } from '@/lib/zone/garyMode'
 import { isCardVisited } from '@/lib/zone/visitedCards'
 
 /** Latest row per `research_results.category` from GET /api/scrape-sync. */
@@ -63,14 +62,12 @@ export function triggerScrapeSyncForCategory(params: {
     .trim()
     .toLowerCase()
   if (!cat) return
-  const researchUserId = ensureClientResearchUserId(pc) ?? resolveClientResearchUserId()
   const body: Record<string, unknown> = {
     trigger: true,
     postcode: pc,
     journey_key: cat,
     category: cat,
     profileData: params.profileData && Object.keys(params.profileData).length > 0 ? params.profileData : undefined,
-    ...(researchUserId ? { user_id: researchUserId } : {}),
   }
   const hint = typeof params.bestOfferHint === 'string' ? params.bestOfferHint.trim() : ''
   if (hint.length > 0) {

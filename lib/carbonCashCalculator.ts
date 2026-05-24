@@ -6,10 +6,14 @@
  */
 
 import { MARCH_2026_ECONOMY, ELEC_PENCE_PER_KWH, GAS_PENCE_PER_KWH } from '@/lib/brains/constants'
+import {
+  electricityCarbonFactorKgFromIntensityG,
+  GB_GRID_FALLBACK_G_PER_KWH,
+} from '@/lib/brains/liveGridCarbonFactor'
 
-/** March 2026 factors — derived from MARCH_2026_ECONOMY (v1.4 Spec) */
+/** March 2026 factors — electricity carbon is runtime via NESO (`liveGridCarbonFactor.ts`). */
 export const FACTORS_2026 = {
-  ELECTRICITY_CARBON_KG_PER_KWH: MARCH_2026_ECONOMY.CARBON_FACTOR_ELEC,
+  ELECTRICITY_CARBON_KG_PER_KWH: electricityCarbonFactorKgFromIntensityG(GB_GRID_FALLBACK_G_PER_KWH),
   ELECTRICITY_PENCE_PER_KWH: ELEC_PENCE_PER_KWH,
   GAS_CARBON_KG_PER_KWH: MARCH_2026_ECONOMY.CARBON_FACTOR_GAS,
   GAS_PENCE_PER_KWH,
@@ -48,14 +52,13 @@ export function annualCarbonKg(usageKwh: number, carbonFactorKgPerKwh: number): 
 export function electricitySaving2026(
   currentUsageKwh: number,
   optimizedUsageKwh: number,
-  unitPencePerKwh?: number
+  unitPencePerKwh?: number,
+  elecCarbonKgPerKwh?: number
 ): { moneyGbp: number; carbonKg: number } {
   const pence = unitPencePerKwh ?? FACTORS_2026.ELECTRICITY_PENCE_PER_KWH
+  const carbonFactor = elecCarbonKgPerKwh ?? FACTORS_2026.ELECTRICITY_CARBON_KG_PER_KWH
   const moneyGbp = annualSavingGbp(currentUsageKwh, optimizedUsageKwh, pence)
-  const carbonKg = annualCarbonKg(
-    currentUsageKwh - optimizedUsageKwh,
-    FACTORS_2026.ELECTRICITY_CARBON_KG_PER_KWH
-  )
+  const carbonKg = annualCarbonKg(currentUsageKwh - optimizedUsageKwh, carbonFactor)
   return { moneyGbp: Math.max(0, moneyGbp), carbonKg: Math.max(0, carbonKg) }
 }
 

@@ -2,12 +2,11 @@
  * ZERO ZERO — Impact calculations (UK annualized).
  *
  * v42.8 — April–June 2026 lock: electricity **24.67p/kWh**, gas **5.74p/kWh** (`MARCH_2026_ECONOMY`),
- * typical cap **£1,641/yr**, automatic **~£150** green-levy shift off bills + cap-step savings (`PRICE_CAP_SAVING_APRIL_1`).
+ * Policy savings (cap step / green levy) are conditional on tariff + energy type — see `policySavingsEligibility.ts`.
  * Re-exported aliases: `BASELINE_2026_CAP_GBP`, `ELEC_UNIT_RATE_PENCE`, `GAS_UNIT_RATE_PENCE`.
  * Scraped/live rates: `buildUserImpact` + `scrapedOverlay`.
  */
 import {
-  FACTORS_2026,
   electricitySaving2026,
   gasSaving2026,
   annualCarbonKg,
@@ -15,29 +14,47 @@ import {
   petrolCost2026,
 } from '@/lib/carbonCashCalculator'
 import {
+  gridCarbonContextForPostcode,
+  type GridCarbonContext,
+} from '@/lib/brains/liveGridCarbonFactor'
+import type { UnitRateSource } from '@/lib/brains/liveUnitRates'
+import {
+  evaluateApril2026PolicySavings,
+  sumPolicySavingsGbp,
+  type AppliedPolicySaving,
+} from '@/lib/brains/policySavingsEligibility'
+
+import {
   MARCH_2026_ECONOMY,
-  GREEN_LEVY_SHIFT_APRIL_2026_GBP,
   PRICE_CAP_APRIL_2026,
-  PRICE_CAP_SAVING_APRIL_1,
   TRUTH_2026_MARCH,
   APRIL_2026_TRUTH_PENCE,
+  PRICE_CAP_SAVING_APRIL_1,
 } from '@/lib/brains/constants'
+import type { JourneyId } from '@/lib/journeys'
+import type { EmploymentStatus } from '@/lib/brains/types'
+import { formatZoneCardMoney } from '@/lib/format'
 
 /** April 2026 typical household cap (£/yr) — single import for summary + calculators. */
 export const BASELINE_2026_CAP_GBP = TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP
 export const ELEC_UNIT_RATE_PENCE = APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH
 export const GAS_UNIT_RATE_PENCE = APRIL_2026_TRUTH_PENCE.GAS_PER_KWH
-import type { JourneyId } from '@/lib/journeys'
-import type { EmploymentStatus } from '@/lib/brains/types'
-import { formatZoneCardMoney } from '@/lib/format'
 
 export { formatMoneyValue, formatCarbonValue, getMoneyStampParts, getCarbonStampParts } from '@/lib/format'
+
+export type { AppliedPolicySaving }
 
 export interface ImpactResult {
   carbonKg: number
   moneyGbp: number
   source: string
   explanation: string[]
+  /** April 2026 policy lines included in moneyGbp — UI can explain each reduction */
+  policySavings?: AppliedPolicySaving[]
+  /** Where elec/gas unit rates came from for this calculation */
+  unitRateSource?: UnitRateSource
+  /** Verified unit rates used (p/kWh) when live feed supplied */
+  unitRatesPence?: { elec: number; gas: number }
   /** Boiler Upgrade Scheme / EV grant link when eligible */
   claimOfferUrl?: string | null
   /** One-line tip for Zone card (e.g. eligibility, EV switch) */
@@ -62,16 +79,26 @@ function annualKwhFromSpend(
 
 export function calculateHome(
   a: Record<string, string>,
-  unitRates?: { elecGbpPerKwh: number; gasGbpPerKwh: number }
+  unitRates?: {
+    elecGbpPerKwh: number
+    gasGbpPerKwh: number
+    source?: UnitRateSource
+    elecPPerKwh?: number
+    gasPPerKwh?: number
+  },
+  gridCarbon?: GridCarbonContext
 ): ImpactResult {
+  const elecCarbonKg = gridCarbon?.elecCarbonKgPerKwh ?? gridCarbonContextForPostcode().elecCarbonKgPerKwh
+  const gasCarbonKg = MARCH_2026_ECONOMY.CARBON_FACTOR_GAS
   const elecR = unitRates?.elecGbpPerKwh ?? MARCH_2026_ECONOMY.ELEC_UNIT_RATE
   const gasR = unitRates?.gasGbpPerKwh ?? MARCH_2026_ECONOMY.GAS_UNIT_RATE
+  const elecPence = unitRates?.elecPPerKwh ?? elecR * 100
+  const gasPence = unitRates?.gasPPerKwh ?? gasR * 100
+  const unitRateSource: UnitRateSource = unitRates?.source ?? 'april_2026_reference'
   const monthly = Number(a.monthly_cost ?? 120)
   const { elecKwh, gasKwh } = annualKwhFromSpend(monthly, elecR, gasR)
-  const elecPence = elecR * 100
-  const gasPence = gasR * 100
-  const carbonElec = annualCarbonKg(elecKwh, FACTORS_2026.ELECTRICITY_CARBON_KG_PER_KWH)
-  const carbonGas = annualCarbonKg(gasKwh, FACTORS_2026.GAS_CARBON_KG_PER_KWH)
+  const carbonElec = annualCarbonKg(elecKwh, elecCarbonKg)
+  const carbonGas = annualCarbonKg(gasKwh, gasCarbonKg)
   let carbon = carbonElec + carbonGas
   if (a.energy_type === 'ELECTRIC') carbon = Math.max(0, carbon - 600)
   let money = 0
@@ -83,32 +110,70 @@ export function calculateHome(
   ) {
     const optElec = elecKwh * 0.85
     const optGas = gasKwh * 0.9
-    const saved = electricitySaving2026(elecKwh, optElec, elecPence)
+    const saved = electricitySaving2026(elecKwh, optElec, elecPence, elecCarbonKg)
     const savedGas = gasSaving2026(gasKwh, optGas, gasPence)
     money += Math.round(saved.moneyGbp + savedGas.moneyGbp)
   }
-  /** April 2026: Ofgem cap step (~£117) + green levies moved to taxation (~£150) — both automatic bill effects from April 1. */
-  money += PRICE_CAP_SAVING_APRIL_1
-  money += GREEN_LEVY_SHIFT_APRIL_2026_GBP
+
+  const policySavings = evaluateApril2026PolicySavings(a)
+  money += sumPolicySavingsGbp(policySavings)
+
   const hasLeakOpportunity = a.energy_type === 'GAS'
   const isSolar = String(a.energy_type ?? '').toUpperCase() === 'SOLAR'
-  const capLead = `April 1–June 30 2026: typical direct-debit cap £${PRICE_CAP_APRIL_2026.toLocaleString('en-GB')}/yr (~6.6% vs Q1) — automatic £${PRICE_CAP_SAVING_APRIL_1} cap step plus £${GREEN_LEVY_SHIFT_APRIL_2026_GBP} green-levy shift off bills.`
-  const unitLead = `Verified unit rates: ${ELEC_UNIT_RATE_PENCE}p/kWh electricity, ${GAS_UNIT_RATE_PENCE}p/kWh gas (April 2026).`
+  const capLead =
+    policySavings.length > 0
+      ? `April 2026 policy savings applied: ${policySavings.map((p) => `${p.label} (~£${p.amountGbp})`).join('; ')}.`
+      : `No automatic April 2026 cap or green-levy savings applied — fixed/unknown tariff or supply type out of policy scope.`
+  const unitLead = `Unit rates (${unitRateSource.replace(/_/g, ' ')}): ${elecPence.toFixed(2)}p/kWh electricity, ${gasPence.toFixed(2)}p/kWh gas.`
   const warmHomesLead =
     isSolar || String(a.energy_type ?? '').toUpperCase() === 'ELECTRIC'
       ? `£15bn Warm Homes Plan: low-interest loans for solar/batteries and street-level upgrades — stack with your audit.`
       : `£15bn Warm Homes Plan backs fabric and clean heat — check eligibility alongside tariff moves.`
-  const capLeadHome = [capLead, unitLead, warmHomesLead]
+  const capLeadHome = [capLead, unitLead, warmHomesLead, ...policySavings.map((p) => p.reason)]
   return {
     carbonKg: Math.round(Math.max(0, carbon)),
     moneyGbp: Math.round(Math.max(0, money)),
     source: 'energy saving trust uk (2026 factors)',
     explanation: capLeadHome,
+    policySavings: policySavings.length > 0 ? policySavings : undefined,
+    unitRateSource,
+    unitRatesPence: { elec: elecPence, gas: gasPence },
     claimOfferUrl: hasLeakOpportunity ? 'https://octopus.energy/tracker/' : null,
     insight: hasLeakOpportunity
       ? 'Your current heating profile is above the efficient regional baseline; optimise tariff and controls first.'
       : 'Your home is running efficiently.',
   }
+}
+
+function resolveHomeEnergyType(a: Record<string, string>): string {
+  const raw = (a.home_power ?? a.energy_type ?? '').trim().toUpperCase()
+  if (raw === 'MIX') return 'MIXED'
+  return raw
+}
+
+/** Utilities tile — same bill physics as home, keyed on profile / `home_power`. */
+export function calculateUtilities(
+  a: Record<string, string>,
+  unitRates?: {
+    elecGbpPerKwh: number
+    gasGbpPerKwh: number
+    source?: UnitRateSource
+    elecPPerKwh?: number
+    gasPPerKwh?: number
+  },
+  gridCarbon?: GridCarbonContext
+): ImpactResult {
+  const energy_type = resolveHomeEnergyType(a)
+  return calculateHome(
+    {
+      ...a,
+      energy_type: energy_type || a.energy_type,
+      monthly_cost: a.monthly_cost ?? a.monthly_energy_bill ?? '120',
+      green_tariff: a.green_tariff ?? (a.tariff_type === 'TRACKER' ? 'YES' : 'NO'),
+    },
+    unitRates,
+    gridCarbon
+  )
 }
 
 const MILES_TO_KM = 1.60934
@@ -392,14 +457,20 @@ export function ukAverageSavingForDiscoveryAnswer(
   const a = answerRaw.toUpperCase().trim()
   const labelFrom = (s: string) => s.toLowerCase().replace(/_/g, ' ')
 
-  if (journeyId === 'home' && questionId === 'energy_type') {
+  if (
+    (journeyId === 'home' && questionId === 'energy_type') ||
+    (journeyId === 'utilities' && questionId === 'home_power')
+  ) {
     if (a === 'GAS')
       return { gbp: MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP, answerLabel: 'gas heating' }
     if (a === 'ELECTRIC')
       return { gbp: PRICE_CAP_SAVING_APRIL_1, answerLabel: 'electric heating' }
-    if (a === 'WOOD' || a === 'MIXED')
+    if (a === 'MIX' || a === 'MIXED')
+      return { gbp: 420, answerLabel: 'dual-fuel heating' }
+    if (a === 'WOOD')
       return { gbp: 420, answerLabel: labelFrom(a) + ' heating' }
     if (a === 'SOLAR') return { gbp: 380, answerLabel: 'solar-assisted heating' }
+    if (a === 'OTHER') return { gbp: PRICE_CAP_SAVING_APRIL_1, answerLabel: 'your heating setup' }
     return { gbp: PRICE_CAP_SAVING_APRIL_1, answerLabel: 'your heating setup' }
   }
 
@@ -436,7 +507,14 @@ export function estimateDiscoveryCarbonKg(
   try {
     if (journeyId === 'home' && questionId === 'energy_type') {
       return calculateHome({
-        energy_type: a,
+        energy_type: a === 'MIX' ? 'MIXED' : a,
+        monthly_cost: '120',
+        green_tariff: 'NO',
+      }).carbonKg
+    }
+    if (journeyId === 'utilities' && questionId === 'home_power') {
+      return calculateUtilities({
+        home_power: a,
         monthly_cost: '120',
         green_tariff: 'NO',
       }).carbonKg

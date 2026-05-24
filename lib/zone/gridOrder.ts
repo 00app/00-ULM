@@ -1,6 +1,7 @@
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import type { BentoPersona } from '@/lib/zone/bentoPersona'
 import type { ZoneJourneyCard, ZoneTipCard, ZoneViewModel } from '@/lib/logic/zone'
+import { goalSortWeights } from '@/lib/profile/goalWeighting'
 import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import {
@@ -8,6 +9,7 @@ import {
   SHOW_BASELINE_TIPS_ON_MAIN_GRID,
 } from '@/lib/zone/perCategoryCardCap'
 import { MAX_ZONE_BENTO_CELLS } from '@/lib/zone/ulmLimits'
+import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
 
 export type GroovyGridCell =
   | { type: 'hero'; hero: ZoneViewModel['hero'] }
@@ -16,19 +18,22 @@ export type GroovyGridCell =
 
 function sortTipsWithinJourney(tips: ZoneTipCard[], goal?: string): ZoneTipCard[] {
   const sortGoal = normalizePrimaryGoal(goal)
+  const weights = goalSortWeights(goal)
   const list = [...tips]
   list.sort((a, b) => {
     if (a.achievement_discovery && !b.achievement_discovery) return -1
     if (!a.achievement_discovery && b.achievement_discovery) return 1
-    if (sortGoal === 'money' || sortGoal === 'carbon') {
-      const parseMoney = (t: ZoneTipCard) =>
-        parseFloat(t.data?.money?.replace(/[^\d.]/g, '') || '0') || 0
-      const parseCarbon = (t: ZoneTipCard) =>
-        parseFloat(t.data?.carbon?.replace(/[^\d.]/g, '') || '0') || 0
-      if (sortGoal === 'money') return parseMoney(b) - parseMoney(a)
-      return parseCarbon(b) - parseCarbon(a)
-    }
-    return 0
+    const parseMoney = (t: ZoneTipCard) =>
+      parseFloat(t.data?.money?.replace(/[^\d.]/g, '') || '0') || 0
+    const parseCarbon = (t: ZoneTipCard) =>
+      parseFloat(t.data?.carbon?.replace(/[^\d.]/g, '') || '0') || 0
+    if (sortGoal === 'money') return parseMoney(b) - parseMoney(a)
+    if (sortGoal === 'carbon') return parseCarbon(b) - parseCarbon(a)
+    return (
+      parseCarbon(b) * weights.carbon +
+      parseMoney(b) * weights.money -
+      (parseCarbon(a) * weights.carbon + parseMoney(a) * weights.money)
+    )
   })
   return list
 }
@@ -42,6 +47,8 @@ export function buildGroovyGridItems(args: {
   baselineTips?: ZoneTipCard[]
   personaForJourney: (jid: JourneyId) => BentoPersona
   profileGoal?: string
+  /** Profile power type — when set, UTILITIES becomes the 13th journey cell on the wall. */
+  profile?: { home_power?: string; homePower?: string }
 }): GroovyGridCell[] {
   const journeyCardsOnly = args.viewModel.journeys.filter((j) => j.id.startsWith('journey-'))
   const byJourney = new Map(journeyCardsOnly.map((j) => [j.journey_key, j]))
@@ -78,6 +85,7 @@ export function buildGroovyGridItems(args: {
   }
 
   JOURNEY_ORDER.forEach((jid, index) => {
+    if (jid === 'utilities' && !isUtilitiesZoneCardUnlocked(args.profile)) return
     const item = byJourney.get(jid)
     if (item) {
       items.push({

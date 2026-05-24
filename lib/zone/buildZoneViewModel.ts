@@ -16,11 +16,15 @@ import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 import { defaultVerifiedArchitectSuppliedBy } from '@/lib/soloFocusSuppliedBy'
 import { getJourneySource, formatSourceLabel } from '@/lib/content/sources'
 import { PRICE_CAP_APRIL_2026, PRICE_CAP_SOURCE_URL, PRICE_CAP_SOURCE_LABEL } from '@/lib/brains/constants'
+import { syncFallbackGridIntensityGPerKwh } from '@/lib/brains/liveGridCarbonFactor'
 import {
   computingJourneyTitle,
   hasAnyStreamData,
   journeyHasStreamData,
+  journeyHasProfileSeed,
 } from '@/lib/zone/mechanicalTruth'
+import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
+import { goalSortWeights } from '@/lib/profile/goalWeighting'
 import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
 import {
   filterTipsForEmployment,
@@ -29,6 +33,7 @@ import {
 import {
   cleanZonePreviewHeadline,
   headlineFromTitle,
+  isAcceptableZoneJourneyHeadline,
   isZonePreviewHeadlineNoise,
   MAX_ZONE_CARD_HEADLINE_WORDS,
   normalizeCardHeadlineKey,
@@ -37,7 +42,6 @@ import {
 } from '@/lib/soloFocusCopy'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
-import { getTipVerificationFollowUp } from '@/lib/zone/tipVerification'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import {
   VERIFIED_SOURCE_DATE,
@@ -179,6 +183,7 @@ export interface ZoneViewModel {
 // Journey-specific recommendation titles (deterministic)
 const JOURNEY_TITLES: Record<JourneyId, string> = {
   home: 'reduce home energy costs',
+  utilities: 'trim gas and electric bills',
   grants: 'unlock government grants',
   solar: 'size rooftop solar yield',
   travel: 'cut travel emissions',
@@ -287,6 +292,8 @@ function reasonForJourney(journey: JourneyId, journeyAnswers: Record<JourneyId, 
   switch (journey) {
     case 'home':
       return tenure === 'RENT' || tenure === 'RENTER' ? 'RENTAL EFFICIENCY LEAK' : 'HEATING EFFICIENCY LEAK'
+    case 'utilities':
+      return 'TARIFF DRIFT'
     case 'travel':
       return fuel === 'PETROL' || fuel === 'DIESEL' ? 'FUEL-COST PRESSURE' : 'COMMUTE LEAK'
     case 'food':
@@ -321,6 +328,8 @@ function buildCompactHeadline(params: {
       return 'OPTIMIZE TRAVEL'
     case 'home':
       return 'CUT HOME COST LEAKS'
+    case 'utilities':
+      return 'TRIM UTILITY BILLS'
     case 'travel':
       return 'TRIM COMMUTE SPEND'
     case 'food':
@@ -356,12 +365,14 @@ function teaserTitleFromOffer(input?: string | null): string | null {
 
 function previewTitleFromNeon(
   neon: NeonJourneyResearchRow | null | undefined,
-  fallback: string
+  fallback: string,
+  journeyKey: JourneyId
 ): string | null {
   const fromHeadline = (() => {
     if (!neon?.agentHeadline?.trim()) return null
     const t = cleanZonePreviewHeadline(neon.agentHeadline)
     if (t.length < 6 || isZonePreviewHeadlineNoise(t)) return null
+    if (!isAcceptableZoneJourneyHeadline(journeyKey, t)) return null
     const resolved = zoneCardHeadlineFromRaw(t, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
     return resolved.length >= 6 ? resolved : null
   })()
@@ -369,6 +380,7 @@ function previewTitleFromNeon(
   if (!neon?.architectProse?.trim()) return null
   const fromProse = headlineFromArchitectProse(neon.architectProse)
   if (!fromProse || fromProse.length < 6) return null
+  if (!isAcceptableZoneJourneyHeadline(journeyKey, fromProse)) return null
   return zoneCardHeadlineFromRaw(fromProse, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
 }
 
@@ -377,6 +389,7 @@ function profileDrivenJourneyTitle(
   profile: {
     household?: string
     home_type?: string
+    home_power?: string
     transport_baseline?: string
     age?: ProfileAge | string
     employment_status?: string
@@ -386,6 +399,7 @@ function profileDrivenJourneyTitle(
   journeyAnswers: Record<JourneyId, Record<string, string>>
 ): string {
   const home = journeyAnswers.home ?? {}
+  const utilities = journeyAnswers.utilities ?? {}
   const travel = journeyAnswers.travel ?? {}
   const homeType = norm(profile?.home_type)
   const household = norm(profile?.household)
@@ -405,6 +419,15 @@ function profileDrivenJourneyTitle(
       if (homeType === 'FLAT') return 'lower flat energy spend'
       if (tenure === 'RENT' || tenure === 'RENTER') return 'cut bills as a renter'
       return 'reduce home energy costs'
+    case 'utilities': {
+      const power = norm(
+        profile?.home_power ?? utilities.home_power ?? home.energy_type ?? home.heating
+      )
+      if (power === 'GAS') return 'cut gas and tariff drift'
+      if (power === 'ELECTRIC') return 'optimise electric heat and tariff'
+      if (power === 'MIX' || power === 'MIXED') return 'balance dual-fuel bills'
+      return JOURNEY_TITLES.utilities
+    }
     case 'travel':
       if (fuel === 'ELECTRIC' || fuel === 'EV') {
         return outward ? `EV tariffs saving in ${outward}` : 'claim agile EV tariffs'
@@ -515,6 +538,7 @@ function resolveBaselineMarketRate(args: {
 }): { moneyBaseline: number; carbonBaseline: number } {
   const moneyShare: Record<JourneyId, number> = {
     home: 0.2,
+    utilities: 0.14,
     grants: 0.12,
     solar: 0.1,
     travel: 0.12,
@@ -529,6 +553,7 @@ function resolveBaselineMarketRate(args: {
   }
   const carbonWeight: Record<JourneyId, number> = {
     home: 2.4,
+    utilities: 2.0,
     grants: 1.4,
     solar: 1.6,
     travel: 2.2,
@@ -598,6 +623,7 @@ export function buildZoneViewModel({
     postcode?: string
     household?: string
     home_type?: string
+    home_power?: string
     transport_baseline?: string
     age?: ProfileAge | string
     goal?: string
@@ -642,21 +668,26 @@ export function buildZoneViewModel({
         employment_status: normalizeEmploymentStatus(profile.employment_status),
       }
     : undefined
+  const impactOptsBase = {
+    ...(scrapedWithGrant ? { scraped: scrapedWithGrant } : {}),
+    ...(marketContext?.homeUnitRates ? { homeUnitRates: marketContext.homeUnitRates } : {}),
+  }
+  const regionalGridIntensityGPerKwh = Math.max(
+    1,
+    Number(
+      marketContext?.regionalGridIntensityGPerKwh ??
+        localData?.localCarbonG ??
+        syncFallbackGridIntensityGPerKwh(profile?.postcode)
+    )
+  )
   const impactOpts =
-    scrapedWithGrant || marketContext?.homeUnitRates
-      ? {
-          ...(scrapedWithGrant ? { scraped: scrapedWithGrant } : {}),
-          ...(marketContext?.homeUnitRates ? { homeUnitRates: marketContext.homeUnitRates } : {}),
-        }
-      : undefined
+    Object.keys(impactOptsBase).length > 0 || regionalGridIntensityGPerKwh > 0
+      ? { ...impactOptsBase, gridIntensityGPerKwh: regionalGridIntensityGPerKwh }
+      : { gridIntensityGPerKwh: regionalGridIntensityGPerKwh }
   const userImpact = buildUserImpact({ profile: impactProfile, journeyAnswers }, impactOpts)
 
   const journeyImpacts = userImpact.perJourneyResults
   const capGbp = Math.max(1, Number(marketContext?.april2026PriceCapGbp ?? PRICE_CAP_APRIL_2026))
-  const regionalGridIntensityGPerKwh = Math.max(
-    1,
-    Number(marketContext?.regionalGridIntensityGPerKwh ?? localData?.localCarbonG ?? 129)
-  )
   const livePostcode = (marketContext?.liveProfilePostcode ?? profile?.postcode ?? '').trim() || undefined
   const hasVerifiedSaving = Number.isFinite(marketContext?.verifiedSaving) && Number(marketContext?.verifiedSaving) > 0
   const savingAmt = marketContext?.savingAmountGbp
@@ -670,7 +701,14 @@ export function buildZoneViewModel({
   const streamOpts = { neonJourneyResearch, scraped }
   const dynamicJourneyValues = JOURNEY_ORDER.reduce(
     (acc, journeyKey) => {
-      if (!journeyHasStreamData(journeyKey, streamOpts)) {
+      if (journeyKey === 'utilities' && !isUtilitiesZoneCardUnlocked(profile)) {
+        acc[journeyKey] = { moneyGbp: 0, carbonKg: 0, estimatedAudit: true }
+        return acc
+      }
+      if (
+        !journeyHasStreamData(journeyKey, streamOpts) &&
+        !journeyHasProfileSeed(journeyKey, profile, journeyAnswers)
+      ) {
         acc[journeyKey] = { moneyGbp: 0, carbonKg: 0, estimatedAudit: true }
         return acc
       }
@@ -786,10 +824,14 @@ export function buildZoneViewModel({
 
   const council = localData?.council
 
-  // JOURNEY CARDS — one tile per domain (12), in JOURNEY_ORDER
-  const journeyCards: ZoneJourneyCard[] = JOURNEY_ORDER.map((journeyKey) => {
+  // JOURNEY CARDS — 13 domains; UTILITIES tile only after profile power type (12 visible before)
+  const journeyCards: ZoneJourneyCard[] = JOURNEY_ORDER.filter(
+    (journeyKey) => journeyKey !== 'utilities' || isUtilitiesZoneCardUnlocked(profile)
+  ).map((journeyKey) => {
     const impact = journeyImpacts[journeyKey] as ScrapedOverlayResult
-    const hasStream = journeyHasStreamData(journeyKey, streamOpts)
+    const hasStream =
+      journeyHasStreamData(journeyKey, streamOpts) ||
+      journeyHasProfileSeed(journeyKey, profile, journeyAnswers)
     const source = getJourneySource(journeyKey, 0)
 
     // Special case: home journey with provider switching
@@ -858,8 +900,9 @@ export function buildZoneViewModel({
     const titleFallback = baselineTitle || compactFallback
     const title = !hasStream
       ? computingJourneyTitle(journeyKey)
-      : (previewTitleFromNeon(neon, titleFallback) ??
-        (offerTeaserTitle
+      : (previewTitleFromNeon(neon, titleFallback, journeyKey) ??
+        (offerTeaserTitle &&
+        isAcceptableZoneJourneyHeadline(journeyKey, offerTeaserTitle)
           ? zoneCardHeadlineFromRaw(
               cleanZonePreviewHeadline(offerTeaserTitle),
               titleFallback,
@@ -1100,6 +1143,7 @@ export function buildZoneViewModel({
   const MVP_INTAKE_TIP_JOURNEYS: JourneyId[] = ['home', 'travel', 'food']
   const age = profile?.age ?? 'MID'
   const sortGoal = normalizePrimaryGoal(profile?.goal)
+  const goalWeights = goalSortWeights(profile?.goal)
   const personaBoost: Partial<Record<JourneyId, number>> =
     age === 'JUNIOR'
       ? { tech: 600, food: 600 }
@@ -1116,7 +1160,7 @@ export function buildZoneViewModel({
     const carbonScore = dynamicJourneyValues[journeyKey].carbonKg + boost
     if (sortGoal === 'money') return moneyScore
     if (sortGoal === 'carbon') return carbonScore
-    return carbonScore * 0.55 + moneyScore * 0.45
+    return carbonScore * goalWeights.carbon + moneyScore * goalWeights.money
   }
   const rankedJourneys = JOURNEY_ORDER.map((journeyKey) => ({
     journeyKey,
@@ -1153,7 +1197,7 @@ export function buildZoneViewModel({
     const profileTitle = profileDrivenJourneyTitle(journeyKey, profile, journeyAnswers)
     const titleFallback = profileTitle || compactFallback
     let title =
-      previewTitleFromNeon(neon, titleFallback) ??
+      previewTitleFromNeon(neon, titleFallback, journeyKey) ??
       zoneCardHeadlineFromRaw(titleFallback, compactFallback, MAX_ZONE_CARD_HEADLINE_WORDS)
     if (journeyKey === 'home' && needsSwitching) {
       title = zoneCardHeadlineFromRaw(
@@ -1229,7 +1273,6 @@ export function buildZoneViewModel({
         sourceUrl: source.url,
       }),
       auditState: vmAuditLive(dynamicJourneyValues[journeyKey].estimatedAudit),
-      followUp: getTipVerificationFollowUp(journeyKey),
     }
   })
 
@@ -1305,10 +1348,12 @@ export function buildZoneViewModel({
     normalizePrimaryGoal(profile?.goal)
   )
 
-  // VALIDATION — 12-domain bento wall (one tile per JOURNEY_ORDER key)
-  if (journeys.length !== JOURNEY_ORDER.length) {
+  const expectedJourneyTiles = JOURNEY_ORDER.filter(
+    (journeyKey) => journeyKey !== 'utilities' || isUtilitiesZoneCardUnlocked(profile)
+  ).length
+  if (journeys.length !== expectedJourneyTiles) {
     console.warn(
-      `[Zone] Expected ${JOURNEY_ORDER.length} journey tiles, got ${journeys.length}`
+      `[Zone] Expected ${expectedJourneyTiles} journey tiles, got ${journeys.length}`
     )
   }
   if (tips.length !== 3) {

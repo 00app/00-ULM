@@ -2,7 +2,7 @@
 
 Operational contract for infra, data flow, UX, and verification. **Secrets belong only in `.env.local` / Vercel** — never commit passwords or paste them into docs or chat.
 
-**Profile, journey questions, answers, and Zone mechanical truth:** `docs/PROFILE-ANSWERS-ZONE-TECH.md`.
+**Profile, journey questions, answers, and Zone mechanical truth:** [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md). **Zone scrape → copy → presentation:** [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md). **Sentinel (parallel):** [SENTINEL.md](SENTINEL.md). **Gary / rebirth / inject paths:** [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md). **Index:** [HANDBOOK.md](HANDBOOK.md).
 
 ---
 
@@ -28,6 +28,8 @@ Operational contract for infra, data flow, UX, and verification. **Secrets belon
 ---
 
 ## 3. UX / UI
+
+Presentation contract (bento headlines, three-paragraph Solo Focus, Today's Tips rail, offer URL guards, tone): **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)** §6–10.
 
 - **Mobile locality:** Long placenames use **`formatSummaryLocalityKineticToken`** (`lib/brains/summaryLogic.ts`) + **`IntroWordCycle`** with **`opacityTicker`** on `/profile/summary` (word-by-word opacity only — no intro glitch). **`/` + `/intro`** keep the logo glitch (Style A). Kinetic order is **HELLO → name → locality** then bridge + waste beats; single-word towns **over seven characters** get Marvin clamp + squeeze (Littlehampton path).
 - **Expanded Solo Focus:** **Zai Architect** layout — **Marvin Visions** H1 (**6–12 words** expanded / **6–8 words** zone bento via **`headlineFromTitle`**) + three **Roboto Bold** paragraphs from Neon **`architect_prose`** (≤40 words each, no UI labels; trinity lives only in prose). **`JourneyBentoCard`** + **`SoloFocusOverlay`** + **`lib/soloFocusCopy.ts`**. Gemini **article-tier** triplet in **`lib/agents/researchAgent.ts`** emits **`agent_headline`** + label-free three paragraphs on new research rows (profile-aware editorial framing).
@@ -60,4 +62,4 @@ bash scripts/curl-scrape-sync-trigger.sh https://00-ulm.vercel.app BN17
 
 Logs the latest **`research_results`** row (including **`saving_amount_gbp`**, **`verified_saving`**, **`architect_prose`**, **`offer_url`**) via **`npm run db:log-research`**.
 
-See also: **`npm run db:columns`**, **`docs/PROFILE-ANSWERS-ZONE-TECH.md`**.
+See also: **`npm run db:columns`**, **[PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md)**.

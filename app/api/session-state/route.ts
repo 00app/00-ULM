@@ -9,12 +9,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDbPool } from '@/lib/db'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import {
-  GUEST_SESSION_COOKIE,
-  GUEST_SESSION_MAX_AGE,
   guestIpHashFromRequest,
   normaliseVisitedCardIds,
   normaliseVisitedJourneyKeys,
   resolveGuestSessionId,
+  setGuestSessionCookie,
 } from '@/lib/zone/guestSession'
 
 export const dynamic = 'force-dynamic'
@@ -83,9 +82,11 @@ export async function GET(request: NextRequest) {
         postcode: profile.postcode ?? '',
         household: profile.household ?? '',
         home_type: profile.home_type ?? '',
+        home_power: profile.home_power ?? '',
         transport: profile.transport ?? '',
         age: profile.age ?? '',
         employment_status: profile.employment_status ?? '',
+        goal: profile.goal ?? '',
       },
       journeyAnswers: JOURNEY_ORDER.reduce<Record<string, Record<string, string>>>((acc, jid) => {
         const a = journeyAnswers[jid]
@@ -94,13 +95,7 @@ export async function GET(request: NextRequest) {
       }, {}),
       completedJourneys,
     })
-    res.cookies.set(GUEST_SESSION_COOKIE, setCookieValue, {
-      path: '/',
-      maxAge: GUEST_SESSION_MAX_AGE,
-      sameSite: 'lax',
-      httpOnly: true,
-      secure: process.env.NODE_ENV !== 'development',
-    })
+    setGuestSessionCookie(res, setCookieValue)
     return res
   } catch (e) {
     console.error('[session-state] GET error:', e)
@@ -133,13 +128,7 @@ export async function POST(request: NextRequest) {
     )
 
     const res = NextResponse.json({ ok: true })
-    res.cookies.set(GUEST_SESSION_COOKIE, sessionId, {
-      path: '/',
-      maxAge: GUEST_SESSION_MAX_AGE,
-      sameSite: 'lax',
-      httpOnly: true,
-      secure: process.env.NODE_ENV !== 'development',
-    })
+    setGuestSessionCookie(res, sessionId)
     return res
   } catch (e) {
     console.error('[session-state] POST error:', e)

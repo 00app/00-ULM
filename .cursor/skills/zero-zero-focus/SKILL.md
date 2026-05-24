@@ -14,7 +14,10 @@ description: >-
 
 When editing `app/**`, `lib/**`, or user-facing copy, **read** (Read tool):
 
-- `HANDBOOK.md` (single project reference: flow, APIs, env, migrations — includes **Intelligence Loop**, mechanical truth, Hermes → Firecrawl/Gemini → Zone)
+- `docs/HANDBOOK.md` (single project reference: flow, APIs, env, migrations — includes **Intelligence Loop**, mechanical truth, Hermes → Firecrawl/Gemini → Zone)
+- `docs/ZONE-CONTENT-AND-DATA.md` (scrape triggers, Neon fields, bento + Solo Focus copy, tone, offer URLs)
+- `docs/SENTINEL.md` (Sentinel live layer — not main research copy path)
+- `docs/SUPPLEMENTAL-SYSTEMS.md` (Gary mode, pattern shift, rebirth vault, research path matrix)
 - `docs/PROFILE-ANSWERS-ZONE-TECH.md` (12×3 questions, profile/answers API, scrape-sync pending vs stream-filled Zone)
 - `.cursor/rules/mechanical-pulse.mdc`
 - `lib/logic/engine.ts` (economic truth, regional grid tiers, audit placeholders)

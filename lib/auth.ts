@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers'
 import pool from '@/lib/db'
 import crypto from 'crypto'
+import type { NextResponse } from 'next/server'
+import { sealSessionToken, unsealSessionToken } from '@/lib/sessionCookieSign'
 
 /** v1.8.14 — Hard kill; sessions never gate on third-party messaging env. */
 const DISALLOW_OUTBOUND = true
@@ -26,7 +28,8 @@ export async function createSession(userId: string, sessionDays: number = SESSIO
 
 export async function getSessionFromRequest(): Promise<{ userId: string } | null> {
   const cookieStore = await cookies()
-  const token = cookieStore.get(SESSION_COOKIE)?.value ?? null
+  const raw = cookieStore.get(SESSION_COOKIE)?.value ?? null
+  const token = raw ? unsealSessionToken(raw) : null
   if (!token) return null
 
   const result = await pool.query(
@@ -36,6 +39,23 @@ export async function getSessionFromRequest(): Promise<{ userId: string } | null
   const row = result.rows[0]
   if (!row) return null
   return { userId: String(row.user_id) }
+}
+
+/** Set signed session cookie on an API response. */
+export function setSessionCookieOnResponse(
+  res: NextResponse,
+  token: string,
+  maxAgeSeconds?: number
+): void {
+  const { name, options } = getSessionCookieAttributes(maxAgeSeconds)
+  res.cookies.set(name, sealSessionToken(token), options)
+}
+
+/** Read raw session token from cookie store (for logout invalidation). */
+export async function readSessionTokenFromCookies(): Promise<string | null> {
+  const cookieStore = await cookies()
+  const raw = cookieStore.get(SESSION_COOKIE)?.value ?? null
+  return raw ? unsealSessionToken(raw) : null
 }
 
 export async function deleteSession(token: string): Promise<void> {

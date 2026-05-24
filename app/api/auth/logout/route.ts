@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { deleteSession, SESSION_COOKIE, getSessionCookieAttributes } from '@/lib/auth'
+import { deleteSession, getSessionCookieAttributes, readSessionTokenFromCookies } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 /** POST /api/auth/logout — invalidate session and clear cookie. */
 export async function POST() {
   try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get(SESSION_COOKIE)?.value
+    const token = await readSessionTokenFromCookies()
     if (token) {
       await deleteSession(token)
     }

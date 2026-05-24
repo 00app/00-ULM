@@ -4,7 +4,7 @@ Single reference for **Ask Zai chat**, **Ask Zai Deep Dive**, **profile onboardi
 
 **Code sources:** `lib/zai/chatRules.ts`, `lib/zai/chatBoundaries.ts`, `lib/zai/chatPrompts.ts`, `app/zai/page.tsx`, `app/components/AskZaiDeepDiveSheet.tsx`, `app/profile/ProfilePageClient.tsx`, `lib/journeys.ts`, `lib/zone/loopQuestions.ts`, `lib/zone/tipVerification.ts`, `lib/zone/visitedCards.ts`, `lib/brains/zai/prompts.ts`, `lib/brains/zai/boundaries.ts`.
 
-Related: `HANDBOOK.md`, `docs/ULM-APPLICATION-LOOP.md`, `docs/PROFILE-ANSWERS-ZONE-TECH.md`, `docs/HYBRID-DATA-PIPELINE.md`.
+Related: [HANDBOOK.md](HANDBOOK.md), [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) (scrape, card copy, Solo Focus, tone), [SENTINEL.md](SENTINEL.md), [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md), [ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md), [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md), [HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md), [INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md).
 
 ---
 
@@ -19,7 +19,7 @@ Related: `HANDBOOK.md`, `docs/ULM-APPLICATION-LOOP.md`, `docs/PROFILE-ANSWERS-ZO
 | C | Solo Focus answer | **Hybrid spawn** when `MODEL_STRATEGY=bucket_failover` — `lib/zone/engineDataRouter.ts` locks £/kg, Gemini prose only |
 | D | `/zai` | **None** — read-only matrix |
 
-Hermes cron unchanged (repair backfill only). See `docs/HYBRID-DATA-PIPELINE.md`.
+Hermes cron unchanged (repair backfill only). See [HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md).
 
 ### Global data matrix — who owns what
 
@@ -54,6 +54,7 @@ Hermes cron unchanged (repair backfill only). See `docs/HYBRID-DATA-PIPELINE.md`
 | **Zone** | Journey + loop answers, card visit state, discovery inject (capped), GET scrape-sync hydrate | Duplicate questions on one card; inject on visited close |
 | **Zai chat** | Interpret verified context + transcript (max 20 turns) | Broad Firecrawl, cron, `triggerScrapeSyncForCategory` |
 | **Deep dive sheet** | In-card audit; **Search deeper** = only Zai-adjacent JIT scrape | Scrape on **Continue in Zai** (handoff only) |
+| **Sentinel** | Live grid + home deck + `inject-sentinel-*` tips on Zone | **Not** Zai chat — see [SENTINEL.md](SENTINEL.md) |
 
 **Enforced in code:** `lib/zai/chatBoundaries.ts`, `lib/zone/visitedCards.ts` (`shouldSkipInjectionOnCardClose`), `app/api/zai/route.ts` (read-only comment + no scrape calls), `lib/researchSyncClient.ts` (doc guard).
 
@@ -72,7 +73,7 @@ Hermes cron unchanged (repair backfill only). See `docs/HYBRID-DATA-PIPELINE.md`
 | **Injection budget** | Up to **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** per domain (`lib/intelligence/manifest.ts`). |
 | **Visited flip** | `markCardVisited` on grid open (`onExpand` / tip click) → `.zone-card--visited`: journey tiles **purple→pink**, tips **pink→yellow** (or purple baseline tips → yellow when visited). |
 | **Offer URLs** | `sanitizeZoneOfferUrl` (`lib/zone/offerUrlGuard.ts`): block 404 gov paths (e.g. great-british-insulation-scheme), bare `gov.uk` homepages, home↔grants cross-landing; fall back to `TRUSTED_JOURNEY_URLS` (EST, MSE, WRAP, railcards — not regulator homepages). |
-| **Copy voice** | Content architect + True Tip: family kitchen-table tone; **home ≠ grants** mechanism; `collapseDuplicateProseParagraphs` + `isRawResearchDump` strip tariff/policy dumps. |
+| **Copy voice** | Content architect + True Tip: family kitchen-table tone; **home ≠ grants** mechanism; `collapseDuplicateProseParagraphs` + `isRawResearchDump` strip tariff/policy dumps. Full pipeline: **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)**. |
 | **Close credit guard** | If card already visited, close calls `onPatternShiftClose` with `visitedClose: true` → **no** loop takeover, **no** `spawnAchievementWhenLoopPoolExhausted`, **no** `/api/zone/injections` path from close (`lib/zone/patternShiftClose.ts`). |
 
 ### Zai chat sandbox
@@ -211,13 +212,15 @@ Handoff question shape (`lib/expandStorage.ts`):
 ### Close behaviour (visited vs fresh)
 
 ```
-User taps close on Solo Focus
+User taps close on Solo Focus (journey tile)
         │
-        ├─ card ID in visited_cards? ──YES──► close only (no loop, no achievement inject)
+        ├─ loop beat already answered for this journey? ──YES──► close only (visitedClose)
         │
         └─ NO ──► pickNextLoopQuestion(journey)
-                    ├─ beat available ──► DiscoveryTakeover (loop UI)
+                    ├─ beat available ──► DiscoveryTakeover (loop UI) → injectNewDiscoveryCard
                     └─ bank exhausted ──► spawnAchievementWhenLoopPoolExhausted (pink hero card)
+
+inject-* tips: visited_cards contains tip id ──► close only (no loop)
 ```
 
 Visited cards on the grid stay **pink/yellow**; re-open does not call `/api/zone/injections` on close.
@@ -590,4 +593,4 @@ flowchart TB
 
 ---
 
-*Last synced with repo registry files — update **How it all works together** when changing handoff, inject caps, or scrape gates. Update question tables when editing `journeys.ts`, `loopQuestions.ts`, or `chatPrompts.ts`.*
+*Last synced with repo registry files — update **How it all works together** when changing handoff, inject caps, or scrape gates. Update question tables when editing `journeys.ts`, `loopQuestions.ts`, or `chatPrompts.ts`. Zone content: **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)** · Sentinel: **[SENTINEL.md](SENTINEL.md)** · Gary/rebirth/pattern shift: **[SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md)**.*

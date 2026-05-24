@@ -1,6 +1,6 @@
 'use client'
 
-import React, { KeyboardEvent, FocusEvent } from 'react'
+import React, { forwardRef, KeyboardEvent, FocusEvent } from 'react'
 
 interface InputFieldProps {
   value?: string
@@ -10,30 +10,41 @@ interface InputFieldProps {
   type?: 'text' | 'number' | 'email' | 'password' | 'tel'
   width?: string | number
   className?: string
-  /** Focus this input when mounted (e.g. first field in a form) */
   autoFocus?: boolean
+  onBlurViewportReset?: () => void
 }
 
-export default function InputField({
-  value = '',
-  placeholder,
-  onChange,
-  onAdvance,
-  type = 'text',
-  width,
-  className,
-  autoFocus = false,
-}: InputFieldProps) {
+const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function InputField(
+  {
+    value = '',
+    placeholder,
+    onChange,
+    onAdvance,
+    type = 'text',
+    width,
+    className,
+    autoFocus = false,
+    onBlurViewportReset,
+  },
+  ref
+) {
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && value?.trim() && onAdvance) onAdvance()
+    const live = (e.currentTarget.value ?? '').trim()
+    if (e.key === 'Enter' && live && onAdvance) onAdvance()
   }
 
   const handleFocus = (e: FocusEvent<HTMLInputElement>) => {
     e.target.select()
   }
 
+  const handleBlur = (e: FocusEvent<HTMLInputElement>) => {
+    onChange?.(e.target.value)
+    onBlurViewportReset?.()
+  }
+
   return (
     <input
+      ref={ref}
       type={
         type === 'number'
           ? 'text'
@@ -46,11 +57,13 @@ export default function InputField({
                 : 'text'
       }
       inputMode={type === 'tel' ? 'tel' : undefined}
-      autoComplete={type === 'tel' ? 'tel-national' : undefined}
+      autoComplete={type === 'tel' ? 'tel-national' : type === 'text' ? 'name' : undefined}
       value={value}
       onChange={(e) => onChange?.(e.target.value)}
+      onInput={(e) => onChange?.((e.target as HTMLInputElement).value)}
       onKeyDown={handleKeyDown}
       onFocus={handleFocus}
+      onBlur={handleBlur}
       placeholder={placeholder}
       autoFocus={autoFocus}
       className={`zz-input ${className ?? ''}`.trim()}
@@ -61,4 +74,6 @@ export default function InputField({
       }}
     />
   )
-}
+})
+
+export default InputField

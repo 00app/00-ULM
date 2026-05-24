@@ -61,6 +61,53 @@ const ZONE_HEADLINE_FILLER_WORDS = new Set([
   'uk',
 ])
 
+const ENERGY_AUDIT_DEBRIS_WORDS = new Set([
+  'electricity',
+  'electric',
+  'energy',
+  'gas',
+  'kwh',
+  'tariff',
+  'audit',
+  'report',
+  'regulatory',
+  'household',
+])
+
+/** Headlines that are only stripped energy-audit tokens (e.g. "ELECTRICITY" after noise removal). */
+export function isEnergyAuditDebrisHeadline(text: string): boolean {
+  const words = splitHeadlineWords(text).map((w) => w.replace(/^\*+|\*+$/g, '').toLowerCase())
+  if (words.length === 0) return true
+  if (words.length <= 2 && words.every((w) => ENERGY_AUDIT_DEBRIS_WORDS.has(w))) return true
+  return false
+}
+
+/** Non-home journeys must not show home-energy audit fragments on the bento face. */
+const JOURNEY_HEADLINE_TOPIC_CONFLICT: Partial<Record<JourneyId, RegExp>> = {
+  water: /\b(?:electric(?:ity)?|gas\b|kwh|tariff|boiler|heat\s*pump|solar\s+panel|ofgem|octopus|grid\s+intensity)\b/i,
+  food: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump|loft\s+insulation)\b/i,
+  shopping: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump)\b/i,
+  waste: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump)\b/i,
+  holidays: /\b(?:loft|insulation|boiler|kwh|tariff|heat\s*pump)\b/i,
+  tech: /\b(?:shower|bath|rainwater|water\s+meter|flush)\b/i,
+  travel: /\b(?:shower|bath|rainwater|water\s+meter)\b/i,
+  money: /\b(?:shower|bath|rainwater|loft\s+insulation)\b/i,
+}
+
+export function headlineConflictsWithJourney(journey: JourneyId, headline: string): boolean {
+  const re = JOURNEY_HEADLINE_TOPIC_CONFLICT[journey]
+  return re ? re.test(headline) : false
+}
+
+/** Bento / Neon title gate — journey topic + debris + existing quality checks. */
+export function isAcceptableZoneJourneyHeadline(journey: JourneyId, headline: string): boolean {
+  const prepared = prepareZoneHeadlineSource(headline)
+  if (!prepared || isLowQualityZoneHeadline(prepared)) return false
+  if (isEnergyAuditDebrisHeadline(prepared)) return false
+  if (headlineConflictsWithJourney(journey, prepared)) return false
+  return true
+}
+
 /** True when a headline is still report metadata, not a user-facing insight. */
 export function isZonePreviewHeadlineNoise(text: string): boolean {
   const t = text.replace(/\s+/g, ' ').trim()
@@ -79,7 +126,7 @@ export function isZonePreviewHeadlineNoise(text: string): boolean {
  * e.g. "ELECTRICITY AUDIT: BN17 7DW" → tighter insight label.
  */
 export function cleanZonePreviewHeadline(raw: string): string {
-  let t = raw.replace(/\*{2,3}/g, '').replace(/\s+/g, ' ').trim()
+  let t = raw.replace(/\*{2,3}/g, '').replace(/^\*+\s*|\s*\*+$/g, '').replace(/\s+/g, ' ').trim()
   if (!t) return ''
   t = t.replace(/\b[A-Z]{1,2}\d[A-Z0-9]?\s?\d[A-Z]{2}\b/gi, '')
   t = t.replace(
@@ -87,7 +134,7 @@ export function cleanZonePreviewHeadline(raw: string): string {
     ''
   )
   t = t.replace(
-    /\b(?:AUDIT|RESULT|REPORT|OUTLOOK|ENERGY|REGULATORY|WINDOW|HOUSEHOLD|POSTCODE|REGIONAL|PROFILE|SOURCE)\b:?/gi,
+    /\b(?:AUDIT|RESULT|REPORT|OUTLOOK|ENERGY|ELECTRIC(?:ITY)?|REGULATORY|WINDOW|HOUSEHOLD|POSTCODE|REGIONAL|PROFILE|SOURCE)\b:?/gi,
     ''
   )
   if (t.includes(':')) {
@@ -97,6 +144,7 @@ export function cleanZonePreviewHeadline(raw: string): string {
     else if (parts.length > 0) t = parts[parts.length - 1]!
   }
   t = t.replace(/\s+/g, ' ').trim()
+  if (isEnergyAuditDebrisHeadline(t)) return ''
   if (isZonePreviewHeadlineNoise(t)) {
     const action = t.match(
       /\b(loft|solar|tariff|radiator|boiler|grant|insulation|commute|kwh|seal|foil|switch|upgrade|ev|heat pump)[^.!?]{0,36}/i
@@ -274,6 +322,13 @@ export function formatZoneCategoryLabel(journeyId: string): string {
     .toUpperCase()
 }
 
+/** Profile / Solo Focus / loop — lowercase Marvin prompts (registry labels may be Title Case). */
+export function formatProfileStyleQuestion(raw: string): string {
+  return String(raw ?? '')
+    .trim()
+    .toLowerCase()
+}
+
 export function clampWords(text: string, maxWords: number): string {
   const words = text.split(/\s+/).filter(Boolean)
   if (words.length <= maxWords) return words.join(' ')
@@ -314,6 +369,7 @@ export function isLowQualityZoneHeadline(text: string): boolean {
   const words = splitHeadlineWords(text)
   if (words.length === 0) return true
   const joined = words.join(' ')
+  if (isEnergyAuditDebrisHeadline(joined)) return true
   if (ZONE_HEADLINE_JARGON_RE.test(joined)) return true
   if (isZonePreviewHeadlineNoise(joined)) return true
   if (words.every((w) => ZONE_HEADLINE_FILLER_WORDS.has(w.toLowerCase()))) return true

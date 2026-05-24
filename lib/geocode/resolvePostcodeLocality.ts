@@ -1,7 +1,6 @@
-/**
- * UK postcode → human locality via OpenStreetMap Nominatim (server-side fetch only).
- * @see https://operations.osmfoundation.org/policies/nominatim/
- */
+import { type LocalIntelligence } from '@/lib/local/getLocalData'
+import { formatLocationDisplayName } from '@/lib/locationIdentity'
+import { isRealLocalityLabel } from '@/lib/brains/summaryLogic'
 
 export const PROFILE_LOCALITY_NAME_KEY = 'profile_locality_name'
 export const PROFILE_LOCALITY_POSTCODE_KEY = 'profile_locality_postcode'
@@ -95,6 +94,11 @@ export function readCachedProfileLocality(postcode: string): string | null {
     const name = localStorage.getItem(PROFILE_LOCALITY_NAME_KEY)?.trim()
     if (!name || !cachedPc) return null
     if (compactUkPostcode(cachedPc) !== compactUkPostcode(postcode)) return null
+    if (!isRealLocalityLabel(name)) {
+      localStorage.removeItem(PROFILE_LOCALITY_NAME_KEY)
+      localStorage.removeItem(PROFILE_LOCALITY_POSTCODE_KEY)
+      return null
+    }
     return name
   } catch {
     return null
@@ -151,4 +155,54 @@ export async function resolveProfileLocalityForPostcode(
   }
 
   return { label: fallback, source: 'postcode' }
+}
+
+export type ProfileLocalityHandoff = {
+  label: string
+  local: LocalIntelligence | null
+}
+
+/** Profile → summary handoff: server locality API (Postcodes.io + parish/council). */
+export async function prefetchProfileLocalityForHandoff(
+  postcode: string
+): Promise<ProfileLocalityHandoff> {
+  const pc = compactUkPostcode(postcode)
+  if (pc.length < 4) return { label: '', local: null }
+
+  const cached = readCachedProfileLocality(pc)
+  if (cached && isRealLocalityLabel(cached)) return { label: cached, local: null }
+
+  try {
+    const res = await fetch(`/api/profile/locality?postcode=${encodeURIComponent(pc)}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    if (res.ok) {
+      const body = (await res.json()) as {
+        label?: string
+        local?: LocalIntelligence | null
+      }
+      const local = body.local ?? null
+      const label = (body.label ?? '').trim()
+      if (isRealLocalityLabel(label)) {
+        persistProfileLocality(pc, label)
+        return { label, local }
+      }
+      if (local) {
+        const fromLocal = formatLocationDisplayName(local, pc).trim()
+        const fromCouncil = local.council?.trim() ?? ''
+        const resolved =
+          (isRealLocalityLabel(fromLocal) ? fromLocal : '') ||
+          (isRealLocalityLabel(fromCouncil) ? fromCouncil : '')
+        if (isRealLocalityLabel(resolved)) {
+          persistProfileLocality(pc, resolved)
+          return { label: resolved, local }
+        }
+      }
+    }
+  } catch {
+    /* offline */
+  }
+
+  return { label: '', local: null }
 }

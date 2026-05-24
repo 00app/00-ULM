@@ -6,6 +6,7 @@ import { ROCK_HABITS, habitToTipCard } from '@/lib/rock/habitsCatalog'
 import InputField from '@/app/components/InputField'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
+import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import {
   cleanZonePreviewHeadline,
   headlineFromTitle,
@@ -26,9 +27,6 @@ type Props = {
   likedCardIds: readonly string[]
   onOpenTip: (tipId: string) => void
 }
-
-const TIP_LABEL_H = 14
-const TIP_ARROW_SZ = TIP_LABEL_H * 3
 
 function InstagramGlyph({ className }: { className?: string }) {
   return (
@@ -116,14 +114,6 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
 
   return (
     <section className="rock-saving-tips-section w-full text-left pb-16 pt-2 box-border" aria-label="Today's tips">
-      <h2
-        className="zz-anchor-greeting m-0 mb-[20px] text-center w-full px-[20px] lg:px-[40px] box-border tracking-wide"
-        style={{
-          color: 'var(--color-yellow)',
-        }}
-      >
-        Today&apos;s Tips
-      </h2>
       <div className="groovy-zone-grid mx-auto w-full rock-saving-tips-grid">
         {six.map((h) => {
           const tip = habitToTipCard(h)
@@ -151,34 +141,10 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
                 boxShadow: 'none',
               }}
             >
-              <div className="flex items-center justify-between w-full shrink-0 gap-2">
-                <span className="card-top-label" style={{ color: ROCK_CARD_TEXT }}>
-                  {(jid || 'TIP').replace(/-/g, ' ').toUpperCase()}
-                </span>
-                <span
-                  className="card-top-arrow card-top-arrow--hint flex items-center justify-center flex-shrink-0"
-                  style={{
-                    width: TIP_ARROW_SZ,
-                    height: TIP_ARROW_SZ,
-                    color: 'currentColor',
-                    background: 'transparent',
-                  }}
-                  aria-hidden
-                >
-                  <svg
-                    width={TIP_ARROW_SZ}
-                    height={TIP_ARROW_SZ}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M7 17L17 7M17 7H7M17 7v10" />
-                  </svg>
-                </span>
-              </div>
+              <ZoneBentoCardHeader
+                journeyId={jid ?? 'carbon'}
+                textColor={ROCK_CARD_TEXT}
+              />
               <h3 className="card-headline m-0 min-w-0" lang="en">
                 {tipHeadline}
               </h3>
@@ -211,9 +177,9 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
         })}
       </div>
 
-      <div className="w-full max-w-[min(1400px,100%)] mx-auto mt-8 px-0 box-border">
+      <div className="zone-rock-signup-wrap w-full box-border">
         <div
-          className="rock-mobile-signup-card bento-card-groovy rock-bento-tile w-full flex flex-col border-0 text-left box-border px-[20px]"
+          className="rock-mobile-signup-card bento-card-groovy rock-bento-tile w-full flex flex-col border-0 text-left box-border"
           style={{
             backgroundColor: ROCK_CARD_BG,
             color: ROCK_CARD_TEXT,

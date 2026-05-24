@@ -10,6 +10,7 @@ const UNSPLASH_BASE = 'https://images.unsplash.com/featured/800x600'
 
 const JOURNEY_KEYWORDS: Record<JourneyId, string> = {
   home: 'solar-panels,modern-house',
+  utilities: 'gas-meter,electricity-bill',
   grants: 'government-building,uk',
   solar: 'roof-solar-panels',
   travel: 'electric-car,bicycle',

@@ -7,7 +7,8 @@
  */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAiRouteAuth } from "@/lib/requestAuth";
 import { getLocalData } from "@/lib/local/getLocalData";
 import { getSessionFromRequest } from "@/lib/auth";
 import { getDbPool } from '@/lib/db';
@@ -290,7 +291,7 @@ async function polishZaiReplyAndLearn(args: {
   return text
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   // Read at request time so Vercel runtime env is available (not build-cached)
   const runtimeKey = process.env.GEMINI_API_KEY?.trim()
   if (!runtimeKey && !isAiGatewayConfigured()) {
@@ -349,6 +350,9 @@ export async function POST(req: Request) {
       })
       return NextResponse.json({ win })
     }
+
+    const authDenied = await requireAiRouteAuth(req)
+    if (authDenied) return authDenied
 
     const rawQuestion = body.question
     const question =

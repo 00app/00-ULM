@@ -1,6 +1,6 @@
 # Hybrid data pipeline (cost reduction + streaming fidelity)
 
-Full product loop: **`docs/ULM-APPLICATION-LOOP.md`**.
+Full product loop: **[ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md)**. **How scraped data becomes card copy and Solo Focus prose:** **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)**.
 
 **Principle:** Math and structure are free; raw scrape and LLM analysis cost money.
 

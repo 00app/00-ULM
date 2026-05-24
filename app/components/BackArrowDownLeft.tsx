@@ -1,5 +1,7 @@
 'use client'
 
+import { MONO_ICON_VIEWBOX, monoStrokeWidth } from '@/app/components/ui/MonoStrokeIcons'
+
 /** Same path as zone card open arrow (card-top-arrow), rotated 180° — points down-left for zip-shut / close. */
 export default function BackArrowDownLeft({
   size = 24,
@@ -14,10 +16,10 @@ export default function BackArrowDownLeft({
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox={MONO_ICON_VIEWBOX}
       fill="none"
       stroke="currentColor"
-      strokeWidth="2.5"
+      strokeWidth={monoStrokeWidth(size)}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}

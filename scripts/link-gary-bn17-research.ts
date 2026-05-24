@@ -5,8 +5,7 @@
  * Never commit credentials — read only from DATABASE_URL in the environment.
  */
 import { Client } from 'pg'
-
-const GARY_USER_ID = '00000000-0000-4000-a000-000000000000'
+import { LEGACY_DEMO_USER_ID } from '../lib/zone/garyMode'
 
 async function main() {
   const connectionString = process.env.DATABASE_URL?.trim()
@@ -24,7 +23,7 @@ async function main() {
      ON CONFLICT (id) DO UPDATE SET
        postcode = EXCLUDED.postcode,
        name = COALESCE(users.name, EXCLUDED.name)`,
-    [GARY_USER_ID]
+    [LEGACY_DEMO_USER_ID]
   )
 
   const linked = await c.query(
@@ -35,7 +34,7 @@ async function main() {
          REPLACE(COALESCE(postcode, ''), ' ', '') LIKE 'BN17%'
          OR COALESCE(locality_context, '') ILIKE '%BN17%'
        )`,
-    [GARY_USER_ID]
+    [LEGACY_DEMO_USER_ID]
   )
 
   const mirror = await c.query<{ column_name: string }>(
@@ -48,12 +47,12 @@ async function main() {
       `INSERT INTO user_profiles (user_id, journey_answers_jsonb, updated_at)
        VALUES ($1::uuid, '{}'::jsonb, NOW())
        ON CONFLICT (user_id) DO UPDATE SET updated_at = NOW()`,
-      [GARY_USER_ID]
+      [LEGACY_DEMO_USER_ID]
     )
   }
 
   console.log(`✅ Linked ${linked.rowCount ?? 0} research_results row(s) to Gary UUID`)
-  console.log(`✅ users.postcode set to BN17 for ${GARY_USER_ID}`)
+  console.log(`✅ users.postcode set to BN17 for ${LEGACY_DEMO_USER_ID}`)
   await c.end()
 }
 

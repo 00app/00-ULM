@@ -9,6 +9,7 @@ export type BentoPersona = 'square' | 'wide' | 'tall'
  */
 export const JOURNEY_BENTO_PERSONA: Record<JourneyId, BentoPersona> = {
   home: 'tall',
+  utilities: 'wide',
   grants: 'wide',
   solar: 'wide',
   travel: 'tall',

@@ -1,4 +1,8 @@
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
+import {
+  resolveUnifiedGridIntensityGPerKwh,
+  syncFallbackGridIntensityGPerKwh,
+} from '@/lib/brains/liveGridCarbonFactor'
 
 export interface LivePulseSnapshot {
   priceCapGbp: number
@@ -13,7 +17,6 @@ const SAFE_SENTINEL = {
   priceCapGbp: 1641,
   electricityPPerKwh: 24.67,
   gasPPerKwh: 5.74,
-  regionalCarbonGPerKwh: 140,
 } as const
 
 function compactPostcode(postcode: string): string {
@@ -46,27 +49,8 @@ async function fetchOfgemPulse(): Promise<{
 }
 
 async function fetchNationalGridPulse(postcode: string): Promise<number | null> {
-  try {
-    const outcode = compactPostcode(postcode).slice(0, 4)
-    if (!outcode) return null
-    const res = await fetch(
-      `https://api.carbonintensity.org.uk/regional/postcode/${encodeURIComponent(outcode)}`,
-      { cache: 'no-store' }
-    )
-    if (!res.ok) return null
-    const json = (await res.json()) as {
-      data?: Array<{
-        regions?: Array<{ intensity?: { actual?: number; forecast?: number } }>
-        intensity?: { actual?: number; forecast?: number }
-      }>
-    }
-    const d = json?.data?.[0]
-    const region = d?.regions?.[0] ?? d
-    const intensity = region?.intensity?.actual ?? region?.intensity?.forecast
-    return typeof intensity === 'number' ? intensity : null
-  } catch {
-    return null
-  }
+  const g = await resolveUnifiedGridIntensityGPerKwh(postcode).catch(() => null)
+  return typeof g === 'number' && g > 0 ? g : null
 }
 
 async function fetchOctopusAgilePulse(regionCode: string): Promise<number | null> {
@@ -88,15 +72,16 @@ function regionCodeFromPostcode(postcode: string): string {
   return first && /[A-Z]/.test(first) ? first : 'A'
 }
 
-function buildFallbackSnapshot(local: LocalIntelligence | null): LivePulseSnapshot {
+function buildFallbackSnapshot(local: LocalIntelligence | null, postcode?: string): LivePulseSnapshot {
+  const regionalCarbonGPerKwh =
+    typeof local?.localCarbonG === 'number' && local.localCarbonG > 0
+      ? local.localCarbonG
+      : syncFallbackGridIntensityGPerKwh(postcode, local)
   return {
     priceCapGbp: SAFE_SENTINEL.priceCapGbp,
     electricityPPerKwh: SAFE_SENTINEL.electricityPPerKwh,
     gasPPerKwh: SAFE_SENTINEL.gasPPerKwh,
-    regionalCarbonGPerKwh:
-      typeof local?.localCarbonG === 'number' && local.localCarbonG > 0
-        ? local.localCarbonG
-        : SAFE_SENTINEL.regionalCarbonGPerKwh,
+    regionalCarbonGPerKwh,
     agilePPerKwh: null,
     source: 'fallback',
   }
@@ -122,7 +107,7 @@ export async function fetchLivingPulseSnapshot(
       /* fall through */
     }
     console.warn('[pulse] Safe Sentinel fallback active')
-    return buildFallbackSnapshot(local)
+    return buildFallbackSnapshot(local, postcode)
   }
 
   const ofgem = await fetchOfgemPulse()
@@ -132,7 +117,7 @@ export async function fetchLivingPulseSnapshot(
   const useFallback = !ofgem || carbon == null
   if (useFallback) {
     console.warn('[pulse] Safe Sentinel fallback active')
-    return { ...buildFallbackSnapshot(local), agilePPerKwh: agile }
+    return { ...buildFallbackSnapshot(local, postcode), agilePPerKwh: agile }
   }
 
   return {
@@ -141,7 +126,9 @@ export async function fetchLivingPulseSnapshot(
     gasPPerKwh: ofgem.gasPPerKwh,
     regionalCarbonGPerKwh:
       carbon ??
-      (typeof local?.localCarbonG === 'number' ? local.localCarbonG : SAFE_SENTINEL.regionalCarbonGPerKwh),
+      (typeof local?.localCarbonG === 'number' && local.localCarbonG > 0
+        ? local.localCarbonG
+        : syncFallbackGridIntensityGPerKwh(postcode, local)),
     agilePPerKwh: agile,
     source: 'live',
   }

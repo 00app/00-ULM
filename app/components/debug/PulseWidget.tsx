@@ -230,8 +230,3 @@ export function PulseDiagnosticFab() {
     </motion.div>
   )
 }
-
-/** @deprecated Global fixed dock removed — use {@link PulseDiagnosticFab} in Solo Focus toolbar. */
-export default function PulseWidget() {
-  return null
-}

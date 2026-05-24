@@ -225,7 +225,7 @@ Lifestyle shift / pattern arbitrage: prioritise behavioural shifts (rail vs flig
 Market accuracy beats creative writing. If any value is uncertain, stay conservative and tie claims to provided source_url/source_hint.
 ${lifestyleBlock}
 Format raw savings into plain next steps. No emojis. No "you could save". No repeated sentences across paragraphs.
-Category rules: home = insulation, draughts, heating habits (never copy grants/BUS wording). grants = BUS, ECO, heat pump funding only (never copy home insulation tips). travel/food/shopping/water/waste must each use a distinct mechanism — never reuse the same opening sentence.
+Category rules: utilities = how the home is powered (gas, electric, mix, other) and tariff or supplier moves (never copy grants/BUS wording). home = insulation, draughts, heating habits (never copy grants/BUS wording). grants = BUS, ECO, heat pump funding only (never copy home insulation tips). travel/food/shopping/water/waste must each use a distinct mechanism — never reuse the same opening sentence.
 Never invent gov.uk paths (no "great british insulation scheme" URLs). Paragraph 3 must name one concrete action at home this week, not "visit gov.uk".
 Absolute voice constraints:
 - No dev-speak words: tile, lane, anchored, component, card rail.
@@ -243,7 +243,7 @@ Use compact figures only: £1.4k / 0.3t style, never long-form integers in prose
 When verified_saving_value is provided, cite it explicitly in compact £ format and mention offer_expiry_date when present.
 Always reference locality and postcode context when provided.
 actionLine = one short imperative.
-Reply with ONLY valid JSON: an object whose keys are journey_key strings (home, travel, food, shopping, money, carbon, tech, waste, holidays). Each value: { "headline", "insight", "actionLine", "suppliedBy" }.`
+Reply with ONLY valid JSON: an object whose keys are journey_key strings (home, utilities, grants, solar, travel, holidays, food, shopping, money, tech, water, waste, carbon). Each value: { "headline", "insight", "actionLine", "suppliedBy" }.`
 
   const user = `${lockedFactsBlock()}
 

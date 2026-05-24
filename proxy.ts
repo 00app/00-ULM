@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { passesAdminApiMiddlewareGate } from '@/lib/adminApiGate'
+import { attachGuestSessionCookieIfMissing } from '@/lib/proxyGuestCookie'
 
 /** Public GET — Zone reads cached Neon research without a session (no auth in proxy). */
 const PUBLIC_GET_API_PREFIXES = [
@@ -17,11 +18,14 @@ export function proxy(request: NextRequest) {
   if (request.method === 'GET') {
     const path = request.nextUrl.pathname
     if (PUBLIC_GET_API_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`))) {
-      return NextResponse.next()
+      return attachGuestSessionCookieIfMissing(request, NextResponse.next())
     }
   }
 
-  if (request.nextUrl.pathname.startsWith('/api/admin')) {
+  const path = request.nextUrl.pathname
+  const isAdminApi = path.startsWith('/api/admin')
+  const isAdminPulsePage = path === '/admin/pulse' || path.startsWith('/admin/pulse/')
+  if (isAdminApi || isAdminPulsePage) {
     if (!passesAdminApiMiddlewareGate(request)) {
       return new NextResponse('Authentication required', {
         status: 401,
@@ -29,9 +33,15 @@ export function proxy(request: NextRequest) {
       })
     }
   }
-  return NextResponse.next()
+
+  return attachGuestSessionCookieIfMissing(request, NextResponse.next())
 }
 
 export const config = {
-  matcher: ['/api/admin/:path*'],
+  matcher: [
+    '/api/admin/:path*',
+    '/admin/pulse',
+    '/admin/pulse/:path*',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+  ],
 }

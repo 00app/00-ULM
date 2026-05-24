@@ -8,6 +8,8 @@ import { isActiveEmployed, isLowIncomeBracket } from '@/lib/zone/affluenceCheck'
 export type LocalizedProfileInput = {
   postcode?: string | null
   home_type?: string | null
+  /** Profile step only — seeds utilities tile + journey answers (GAS / ELECTRIC / MIX / OTHER). */
+  home_power?: string | null
   household?: string | null
   transport_baseline?: string | null
   heating?: string | null
@@ -45,6 +47,11 @@ import { trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { normalizeCategoryToJourneyKey } from '@/lib/zone/trustedJourneyUrls'
 
 const JOURNEY_FIRECRAWL_SEEDS: Partial<Record<JourneyId, string[]>> = {
+  utilities: [
+    'https://www.moneysavingexpert.com/utilities/how-to-switch-gas-electricity/',
+    'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap',
+    'https://energysavingtrust.org.uk/',
+  ],
   home: [
     'https://www.gov.uk/apply-boiler-upgrade-scheme',
     'https://energysavingtrust.org.uk/',
@@ -96,6 +103,7 @@ export function buildLocalizedResearchPrefix(params: {
   ]
   const p = params.profileData
   if (p?.home_type) lines.push(`home_type: ${p.home_type}`)
+  if (p?.home_power) lines.push(`home_power: ${p.home_power}`)
   if (p?.household) lines.push(`household: ${p.household}`)
   if (p?.transport_baseline) lines.push(`transport_baseline: ${p.transport_baseline}`)
   if (p?.heating) lines.push(`heating: ${p.heating}`)
@@ -192,6 +200,19 @@ export function buildCategoryFirecrawlSeedUrls(params: {
   }
   if (!skipGrantSeeds && (journeyKey === 'home' || journeyKey === 'grants')) {
     add('https://www.gov.uk/apply-boiler-upgrade-scheme')
+  }
+
+  if (journeyKey === 'utilities') {
+    const hp = String(params.profileData?.home_power ?? '')
+      .trim()
+      .toUpperCase()
+    if (hp === 'GAS' || hp === 'MIX') {
+      add('https://www.gov.uk/apply-boiler-upgrade-scheme')
+    }
+    if (hp === 'ELECTRIC' || hp === 'MIX') {
+      add('https://octopus.energy/smart/')
+      add('https://energysavingtrust.org.uk/energy-at-home/heating-your-home/electric-heating/')
+    }
   }
 
   const cap = params.surgical ? 4 : 8

@@ -9,7 +9,11 @@
 import type { JourneyId } from '@/lib/journeys'
 import type { ImpactResult } from './calculations'
 import type { ScrapedDataPoint } from '@/lib/scraper/sources'
-import { cleanZonePreviewHeadline, isZonePreviewHeadlineNoise } from '@/lib/soloFocusCopy'
+import {
+  cleanZonePreviewHeadline,
+  isAcceptableZoneJourneyHeadline,
+  isZonePreviewHeadlineNoise,
+} from '@/lib/soloFocusCopy'
 
 const MAX_DELTA_RATIO = 0.2
 
@@ -65,11 +69,14 @@ export function applyScrapedOverlay(
     explanation: scraped.deep_content_tip
       ? [scraped.deep_content_tip, ...base.explanation]
       : base.explanation,
-    insightLabel:
-      scraped.deep_content_tip &&
-      !isZonePreviewHeadlineNoise(cleanZonePreviewHeadline(scraped.deep_content_tip))
-        ? scraped.deep_content_tip
-        : undefined,
+    insightLabel: (() => {
+      const tip = scraped.deep_content_tip?.trim()
+      if (!tip) return undefined
+      const cleaned = cleanZonePreviewHeadline(tip)
+      if (!cleaned || isZonePreviewHeadlineNoise(cleaned)) return undefined
+      if (!isAcceptableZoneJourneyHeadline(_journeyKey, cleaned)) return undefined
+      return tip
+    })(),
     insightAlert: Boolean(scraped.high_saving),
     fromScraper,
     localGrantGbp: localGrantGbp > 0 ? localGrantGbp : undefined,

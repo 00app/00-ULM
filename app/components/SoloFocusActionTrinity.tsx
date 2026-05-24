@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { IndustrialHandoffButton } from '@/app/components/ui/Buttons'
 import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
+import { HeartOutlineIcon, ZaiSparkIcon } from '@/app/components/ui/MonoStrokeIcons'
 
 type Props = {
   ctaUrl?: string | null
@@ -59,19 +60,7 @@ export function SoloFocusActionTrinity({
             color: isLiked ? 'var(--color-purple)' : 'var(--color-yellow)',
           }}
         >
-          <svg
-            width={22}
-            height={22}
-            viewBox="0 0 24 24"
-            fill={isLiked ? 'currentColor' : 'none'}
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
+          <HeartOutlineIcon size={22} />
         </motion.button>
       ) : null}
       {showAskZai && onAskZai ? (
@@ -87,21 +76,7 @@ export function SoloFocusActionTrinity({
           }}
         >
           <span className="solo-focus-ask-zai-visual" aria-hidden>
-            <svg
-              width={22}
-              height={22}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 12a8.5 8.5 0 0 1-8.5 8.5H7l-4 3V12A8.5 8.5 0 0 1 11.5 3.5h1A8.5 8.5 0 0 1 21 12z" />
-              <circle cx="9.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-              <circle cx="12.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-              <circle cx="15.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
-            </svg>
+            <ZaiSparkIcon size={22} />
           </span>
         </motion.button>
       ) : null}

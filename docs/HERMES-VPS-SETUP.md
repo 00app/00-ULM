@@ -162,4 +162,4 @@ If `No such file` for `hermes-pulse.sh`, clone or rsync the repo first (§2).
 | Empty `crontab -l` | Re-run `bash scripts/install-hermes-crontab.sh --install`. |
 | No log file | Cron not run yet; run manual `--smoke` once or wait until 05:00 UTC. |
 
-See also: `HANDBOOK.md` · `docs/FULL-APP-SPEC.md` §11 · `scripts/hermes-pulse.sh`
+See also: [HANDBOOK.md](HANDBOOK.md) · [FULL-APP-SPEC.md](FULL-APP-SPEC.md) §11 · `scripts/hermes-pulse.sh`

@@ -15,7 +15,7 @@ import {
   SHIMMER_FOCUS,
 } from '@/lib/animations'
 import { GlitchLogo } from '@/app/components/Logo'
-import { preloadAppFonts } from '@/lib/architecturalPulse'
+import { GLITCH_ANIM_MS, preloadAppFonts } from '@/lib/architecturalPulse'
 
 type IntroScreenState = 'logo' | 'value-message' | 'decision'
 
@@ -38,6 +38,9 @@ const INTRO_KINETIC_WORDS = [
 
 const INTRO_KINETIC_WORDS_ARRAY = [...INTRO_KINETIC_WORDS]
 const INTRO_WORD_SHIMMER_DURATIONS = INTRO_KINETIC_WORDS.map(() => INTRO_SHIMMER_WORD_DWELL_MS)
+
+/** Marvin lockup — sentence stack at 0.8 line-height (same rhythm as profile long prompts). */
+const INTRO_DECISION_LOCKUP = 'CREATE A\nPROFILE TO\nSTART.'
 
 function introWordsMinDurationMs(
   wordCount: number,
@@ -139,6 +142,20 @@ export default function IntroScreen() {
     )
   }, [])
 
+  /** Match Zone wall hydration — loop Style A glitch ~4 beats before kinetic words. */
+  useEffect(() => {
+    if (screen !== 'logo') return
+    if (reduceMotion) {
+      setScreen('value-message')
+      return
+    }
+    const dwellMs = GLITCH_ANIM_MS * 4
+    const tid = window.setTimeout(() => {
+      setScreen((s) => (s === 'logo' ? 'value-message' : s))
+    }, dwellMs)
+    return () => window.clearTimeout(tid)
+  }, [screen, reduceMotion])
+
   useEffect(() => {
     if (screen !== 'value-message') return
     const safetyMs = introWordsMinDurationMs(
@@ -155,7 +172,7 @@ export default function IntroScreen() {
   if (screen === 'logo') {
     return (
       <div className="app-boot-glitch intro-boot-glitch" style={{ ...fullScreenStyle, pointerEvents: 'auto' }}>
-        <GlitchLogo width={100} onComplete={() => setScreen('value-message')} />
+        <GlitchLogo width={100} loop={!reduceMotion} onComplete={reduceMotion ? () => setScreen('value-message') : undefined} />
       </div>
     )
   }
@@ -217,13 +234,12 @@ export default function IntroScreen() {
         animate={headlineAnimate}
         transition={headlineTransition}
         style={{
-          textAlign: 'center',
           margin: 0,
           marginBottom: 8,
           color: 'var(--color-yellow)',
         }}
       >
-        CREATE A PROFILE TO START.
+        {INTRO_DECISION_LOCKUP}
       </motion.h2>
       <div
         style={{ display: 'flex', gap: 40, alignItems: 'center', justifyContent: 'center' }}

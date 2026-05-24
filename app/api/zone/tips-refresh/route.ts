@@ -2,9 +2,10 @@
  * Zone tips refresh — user context + optional supplemental gateway research, then Gemini (3 cards).
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { z } from 'zod'
+import { requireAiRouteAuth } from '@/lib/requestAuth'
 import { getUserContextMarkdown } from '@/lib/memory/store'
 import { triggerSupplementalResearch } from '@/lib/agents/researchAgent'
 import { shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
@@ -89,7 +90,10 @@ function extractPostcodeFromContext(markdown: string): string | null {
   return match ? match[1].replace(/\s+/g, ' ').trim() || null : null
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const authDenied = await requireAiRouteAuth(request)
+  if (authDenied) return authDenied
+
   const apiKey = process.env.GEMINI_API_KEY?.trim()
   const userContext = getUserContextMarkdown()
   const postcodeNorm = postcodeFromContext(userContext)

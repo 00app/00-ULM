@@ -643,7 +643,7 @@ export function SoloFocusOverlay({
     const visitId = String(cardId ?? activeCardId ?? '').trim()
     onPatternShiftClose?.(loopJourneyKey, {
       cardId: visitId || undefined,
-      visitedClose: visitId ? shouldSkipInjectionOnCardClose(visitId) : false,
+      visitedClose: visitId ? shouldSkipInjectionOnCardClose(visitId, loopJourneyKey) : false,
     })
     onClose()
   }, [loopJourneyKey, onPatternShiftClose, onClose, cardId, activeCardId])

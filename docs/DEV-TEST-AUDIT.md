@@ -33,7 +33,7 @@ Hermes only HTTP-triggers Vercel (`scripts/hermes-pulse.sh` + `CRON_SECRET`). Ke
 - VPS: `bash scripts/install-hermes-crontab.sh --install` (weekly **repair-only** or `--weekly`)
 - Mac smoke: `npm run hermes:ping` · `npm run hermes:repair-pulse`
 
-See `docs/HERMES-ULM-JIT-BRIEF.md` and `docs/HERMES-VPS-SETUP.md`.
+See [HERMES-ULM-JIT-BRIEF.md](HERMES-ULM-JIT-BRIEF.md) and [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md).
 
 User-facing research is **in-app** (answer loop / Deep Dive), not Hermes cron.
 
@@ -237,7 +237,10 @@ Optional: `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` with `OPENROUTER_MODEL=meta-ll
 
 ## Related docs
 
-- `docs/ULM-APPLICATION-LOOP.md` — product ceilings
-- `docs/HYBRID-DATA-PIPELINE.md` — free vs premium tiers
-- `docs/ZAI-AND-QUESTIONS-RULES.md` — Zai + questions
-- `HANDBOOK.md` — full project reference
+- [ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md) — product ceilings
+- [HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md) — free vs premium tiers
+- [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) — scrape, card copy, Solo Focus, tone
+- [SENTINEL.md](SENTINEL.md) — Sentinel hook + API + home deck
+- [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) — Gary mode, pattern shift, rebirth vault
+- [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md) — Zai + questions
+- [HANDBOOK.md](HANDBOOK.md) — full project reference

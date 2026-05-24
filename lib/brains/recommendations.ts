@@ -197,12 +197,16 @@ export function getDiscoveryRecommendation(
     }
   }
 
-  if (journeyId === 'home' && questionId === 'energy_type') {
+  if (
+    (journeyId === 'home' && questionId === 'energy_type') ||
+    (journeyId === 'utilities' && questionId === 'home_power')
+  ) {
+    const gridJourneyKey = journeyId === 'utilities' ? 'utilities' : 'home'
     if (a === 'GAS') {
       return {
         headline: 'HEAT PUMP UPGRADE',
         body: 'Gas-heated homes can access official heat pump support up to £7,500 where rules apply — insulation quality still changes what installers quote.',
-        gridJourneyKey: 'home',
+        gridJourneyKey,
         learnUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
         actionUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
         ctaLabel: 'Check eligibility',
@@ -218,7 +222,7 @@ export function getDiscoveryRecommendation(
       return {
         headline: 'SMART TARIFF + HEAT PUMP',
         body: 'Electric homes save most by time-of-use tariffs and efficient heating — Energy Saving Trust has 2026 guides.',
-        gridJourneyKey: 'home',
+        gridJourneyKey,
         learnUrl: 'https://www.energysavingtrust.org.uk/',
         actionUrl: 'https://www.energysavingtrust.org.uk/',
         ctaLabel: 'Read the guide',

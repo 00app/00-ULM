@@ -71,12 +71,8 @@ export default function AdminPulsePage() {
   const [unauthorized, setUnauthorized] = useState(false)
 
   const fetchPulse = useCallback(() => {
-    const headers: HeadersInit = {}
-    const basic = process.env.NEXT_PUBLIC_ADMIN_BASIC_AUTH?.trim() ?? ''
-    if (basic) {
-      headers.Authorization = basic
-    }
-    fetch('/api/admin/pulse', { credentials: 'include', headers })
+    // Auth: browser Basic challenge (ADMIN_PASSWORD via proxy) or signed-in session cookie — never client env secrets.
+    fetch('/api/admin/pulse', { credentials: 'include' })
       .then(async (r) => {
         if (r.status === 401) {
           setUnauthorized(true)
@@ -132,8 +128,9 @@ export default function AdminPulsePage() {
 
         {unauthorized ? (
           <p className="zz-body-bold m-0" style={{ color: 'var(--color-yellow)' }}>
-            Sign in (session cookie) or call this API with <code className="text-xs">Authorization: Bearer</code> using{' '}
-            <code className="text-xs">CRON_SECRET</code> / gateway token — same as health diagnostics.
+            Admin access requires HTTP Basic auth (your browser will prompt) or a signed-in session cookie.
+            API scripts may use <code className="text-xs">Authorization: Bearer</code> with{' '}
+            <code className="text-xs">CRON_SECRET</code> / gateway token.
           </p>
         ) : null}
 

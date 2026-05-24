@@ -19,7 +19,7 @@ Open [http://127.0.0.1:3000](http://127.0.0.1:3000) when using default `npm run 
 
 **Typecheck:** `npm run check` · **Vulnerabilities:** `npm run audit` · **E2E:** `npm run test:e2e`
 
-Full write-up: **[HANDBOOK.md](HANDBOOK.md)**
+Full write-up: **[docs/HANDBOOK.md](docs/HANDBOOK.md)** · doc index: **[docs/README.md](docs/README.md)**
 
 ---
 
@@ -33,4 +33,4 @@ Full write-up: **[HANDBOOK.md](HANDBOOK.md)**
 
 ## Security
 
-Never commit `.env.local`. Run **`npm run audit`**. Details: **[HANDBOOK.md](HANDBOOK.md)** → Security.
+Never commit `.env.local`. Run **`npm run audit`**. Details: **[docs/HANDBOOK.md](docs/HANDBOOK.md)** → Security.

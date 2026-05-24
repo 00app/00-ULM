@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useCallback, useEffect, useLayoutEffect, type CSSProperties } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
@@ -12,9 +12,13 @@ import { ROUTES } from '@/lib/routes'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import type { ProfileAge } from '@/app/context/AppContext'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
+import { persistProfileLocality, prefetchProfileLocalityForHandoff, resolveProfileLocalityForPostcode } from '@/lib/geocode/resolvePostcodeLocality'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
-import { ensureClientResearchUserId, ensureGaryModeForPostcode } from '@/lib/zone/garyMode'
+import { persistHomePowerFromProfile, profileHomePowerToEnergyType } from '@/lib/profile/homePower'
+import { PROFILE_GOAL_WEIGHTS, type ProfileGoalValue } from '@/lib/profile/goalWeighting'
+import { syncSessionState } from '@/lib/sessionStateSync'
+import { flushSync } from 'react-dom'
 
 const PROFILE_QUESTIONS = [
   { id: 'name', label: 'name', type: 'input' as const, placeholder: 'alex' },
@@ -26,6 +30,17 @@ const PROFILE_QUESTIONS = [
     options: ['ALONE', 'COUPLE', 'FAMILY', 'SHARED'],
   },
   { id: 'homeType', label: 'your home?', type: 'options' as const, options: ['FLAT', 'HOUSE'] },
+  {
+    id: 'powerType',
+    label: 'power type?',
+    type: 'options' as const,
+    options: [
+      'GAS',
+      'ELECTRIC',
+      { label: 'MIXED\nBOTH', value: 'MIX', ariaLabel: 'Mixed both — gas and electric' },
+      'OTHER',
+    ],
+  },
   {
     id: 'transport',
     label: 'how do you get around?',
@@ -52,26 +67,15 @@ const PROFILE_QUESTIONS = [
     id: 'goal',
     label: 'what is your goal?',
     type: 'options' as const,
-    options: [
-      {
-        label: 'SAVE',
-        value: 'money',
-        weighting: { money: 0.8, carbon: 0.2 },
-        theme: 'var(--color-yellow)',
+    options: (Object.keys(PROFILE_GOAL_WEIGHTS) as ProfileGoalValue[]).map((value) => ({
+      label: PROFILE_GOAL_WEIGHTS[value].label,
+      value,
+      weighting: {
+        money: PROFILE_GOAL_WEIGHTS[value].money,
+        carbon: PROFILE_GOAL_WEIGHTS[value].carbon,
       },
-      {
-        label: 'REDUCE',
-        value: 'carbon',
-        weighting: { money: 0.2, carbon: 0.8 },
-        theme: 'var(--color-pink)',
-      },
-      {
-        label: 'BOTH',
-        value: 'balanced',
-        weighting: { money: 0.5, carbon: 0.5 },
-        theme: 'var(--color-purple)',
-      },
-    ],
+      theme: PROFILE_GOAL_WEIGHTS[value].theme,
+    })),
   },
 ]
 
@@ -80,10 +84,39 @@ const STORAGE_KEYS: Record<string, string> = {
   postcode: 'profile_postcode',
   livingSituation: 'profile_household',
   homeType: 'profile_home_type',
+  powerType: 'profile_home_power',
   transport: 'profile_transport',
   age: 'profile_age',
   employmentStatus: 'profile_employment_status',
   goal: 'profile_goal',
+}
+
+function isProfileOnboardingComplete(v: Record<string, string>): boolean {
+  const pc = (v.postcode ?? '').replace(/\s+/g, '').trim()
+  return (
+    Boolean(v.name?.trim()) &&
+    pc.length >= 4 &&
+    Boolean(v.livingSituation?.trim()) &&
+    Boolean(v.homeType?.trim()) &&
+    Boolean(v.powerType?.trim()) &&
+    Boolean(v.transport?.trim()) &&
+    Boolean(v.age?.trim()) &&
+    Boolean(v.employmentStatus?.trim()) &&
+    Boolean(v.goal?.trim())
+  )
+}
+
+function firstIncompleteProfileStepIndex(v: Record<string, string>): number {
+  for (let i = 0; i < PROFILE_QUESTIONS.length; i++) {
+    const q = PROFILE_QUESTIONS[i]
+    const raw = String(v[q.id] ?? '').trim()
+    if (q.id === 'postcode') {
+      if (raw.replace(/\s+/g, '').length < 4) return i
+      continue
+    }
+    if (!raw) return i
+  }
+  return -1
 }
 
 export default function ProfilePageClient() {
@@ -94,13 +127,43 @@ export default function ProfilePageClient() {
   const returnTo = searchParams?.get('returnTo')
   const { refreshProfile, setLocationState } = useApp()
   
-  const [step, setStep] = useState(() => {
+  const PROFILE_STEP_KEY = 'zz_profile_onboarding_step'
+  const [step, setStepState] = useState(() => {
     if (qParam) {
-      const index = PROFILE_QUESTIONS.findIndex((q) => q.id === qParam)
+      const index = PROFILE_QUESTIONS.findIndex(
+        (q) => q.id === qParam || (qParam === 'homePower' && q.id === 'powerType')
+      )
       if (index !== -1) return index
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = sessionStorage.getItem('zz_profile_onboarding_step')
+        const n = raw ? parseInt(raw, 10) : 0
+        if (Number.isFinite(n) && n >= 0 && n < PROFILE_QUESTIONS.length) return n
+      } catch {
+        // ignore
+      }
     }
     return 0
   })
+  const setStep = useCallback((next: number | ((s: number) => number)) => {
+    setStepState((prev) => {
+      const resolved = typeof next === 'function' ? next(prev) : next
+      const clamped = Math.max(0, Math.min(resolved, PROFILE_QUESTIONS.length - 1))
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem(PROFILE_STEP_KEY, String(clamped))
+        } catch {
+          // ignore
+        }
+      }
+      return clamped
+    })
+  }, [])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const submittingRef = useRef(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const hydratedRef = useRef(false)
   const [values, setValues] = useState<Record<string, string>>(() => {
     if (typeof window === 'undefined') return {}
     const v: Record<string, string> = {}
@@ -120,6 +183,51 @@ export default function ProfilePageClient() {
     router.prefetch(ROUTES.PROFILE_SUMMARY)
   }, [router])
 
+  useEffect(() => {
+    submittingRef.current = false
+    setIsSubmitting(false)
+  }, [])
+
+  useEffect(() => {
+    if (hydratedRef.current || typeof window === 'undefined') return
+    hydratedRef.current = true
+    const stored: Record<string, string> = {}
+    PROFILE_QUESTIONS.forEach((q) => {
+      const val = localStorage.getItem(STORAGE_KEYS[q.id] ?? q.id)
+      if (val) stored[q.id] = val
+    })
+    if (Object.keys(stored).length > 0) {
+      setValues((prev) => ({ ...stored, ...prev }))
+    }
+  }, [])
+
+  /** Mobile: recentre question block when the software keyboard dismisses. */
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const vv = window.visualViewport
+    const resetLayout = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    }
+    const sync = () => {
+      const gap = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0
+      if (gap < 48) resetLayout()
+    }
+    if (vv) {
+      vv.addEventListener('resize', sync)
+      vv.addEventListener('scroll', sync)
+    }
+    window.addEventListener('focusout', sync)
+    return () => {
+      if (vv) {
+        vv.removeEventListener('resize', sync)
+        vv.removeEventListener('scroll', sync)
+      }
+      window.removeEventListener('focusout', sync)
+    }
+  }, [step])
+
   const setValue = useCallback((id: string, value: string) => {
     if (id === 'postcode' && typeof window !== 'undefined') {
       const prev = (values.postcode ?? localStorage.getItem(STORAGE_KEYS.postcode) ?? '')
@@ -129,14 +237,13 @@ export default function ProfilePageClient() {
       const next = value.replace(/\s+/g, '').trim().toUpperCase()
       if (prev.length >= 4 && next.length >= 4 && prev !== next) {
         clearZoneVmLocalCache({ preservePostcode: next })
-      } else if (next.length >= 4) {
-        ensureGaryModeForPostcode(next)
       }
     }
     setValues((prev) => ({ ...prev, [id]: value }))
     const key = STORAGE_KEYS[id] ?? id
     if (typeof window !== 'undefined') {
       localStorage.setItem(key, value)
+      if (id === 'powerType') persistHomePowerFromProfile(value)
       try {
         persistUnifiedUserProfileMemory()
       } catch {
@@ -152,6 +259,11 @@ export default function ProfilePageClient() {
     const pc = (values.postcode ?? '').replace(/\s+/g, '').trim()
     if (pc.length < 4) return
     const tid = window.setTimeout(() => {
+      void resolveProfileLocalityForPostcode(pc)
+        .then(({ label, source }) => {
+          if (label && source !== 'postcode') persistProfileLocality(pc, label)
+        })
+        .catch(() => {})
       fetch('/api/local-intelligence', {
         method: 'POST',
         credentials: 'include',
@@ -172,6 +284,7 @@ export default function ProfilePageClient() {
           }
           const locationName = formatLocationDisplayName(local, pc)
           if (!locationName) return
+          persistProfileLocality(pc, locationName)
           setLocationState({ locationName, local })
         })
         .catch(() => {})
@@ -183,40 +296,60 @@ export default function ProfilePageClient() {
     const pc = (values.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
     if (pc.length < 4) return
     const tid = window.setTimeout(() => {
-      const researchUserId = ensureClientResearchUserId(pc)
+      const profileData = {
+        home_type: values.homeType ?? undefined,
+        home_power: values.powerType?.trim().toUpperCase() || undefined,
+        heating: profileHomePowerToEnergyType(values.powerType) || undefined,
+        transport_baseline: values.transport ?? undefined,
+        household: values.livingSituation ?? undefined,
+        employment_status: values.employmentStatus ?? undefined,
+        goal: values.goal ?? undefined,
+        primary_goal: values.goal ?? undefined,
+      }
+      const scrapeBody = {
+        trigger: true,
+        postcode: pc,
+        profileData,
+      }
       void fetch('/api/scrape-sync', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          trigger: true,
-          postcode: pc,
-          category: 'home',
-          ...(researchUserId ? { user_id: researchUserId } : {}),
-          profileData: {
-            home_type: values.homeType ?? undefined,
-            transport_baseline: values.transport ?? undefined,
-            household: values.livingSituation ?? undefined,
-            employment_status: values.employmentStatus ?? undefined,
-            goal: values.goal ?? undefined,
-            primary_goal: values.goal ?? undefined,
-          },
-        }),
+        body: JSON.stringify({ ...scrapeBody, category: 'home' }),
       }).catch(() => {})
+      if (values.powerType?.trim()) {
+        void fetch('/api/scrape-sync', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...scrapeBody, category: 'utilities' }),
+        }).catch(() => {})
+      }
     }, 400)
     return () => window.clearTimeout(tid)
   }, [
     values.postcode,
     values.homeType,
+    values.powerType,
     values.transport,
     values.livingSituation,
     values.employmentStatus,
-    values.goal,
   ])
 
   const submitProfile = useCallback(
     (finalValues: Record<string, string>, overrideReturnTo?: string) => {
-      const dest = overrideReturnTo || returnTo || ROUTES.PROFILE_SUMMARY
+      if (submittingRef.current) return
+      let dest = overrideReturnTo || returnTo || ROUTES.PROFILE_SUMMARY
+      dest = dest.trim()
+      if (!dest.startsWith('http') && !dest.startsWith('/')) dest = `/${dest.replace(/^\/+/, '')}`
+      if (!isProfileOnboardingComplete(finalValues)) {
+        const idx = firstIncompleteProfileStepIndex(finalValues)
+        if (idx >= 0) setStep(idx)
+        return
+      }
+
+      submittingRef.current = true
+      setIsSubmitting(true)
 
       if (typeof window !== 'undefined') {
         Object.entries(finalValues).forEach(([id, val]) => {
@@ -225,16 +358,46 @@ export default function ProfilePageClient() {
             localStorage.setItem(key, val.trim())
           }
         })
+        if (finalValues.powerType?.trim()) persistHomePowerFromProfile(finalValues.powerType)
         try {
           persistUnifiedUserProfileMemory()
         } catch {
           // ignore
         }
-        ensureClientResearchUserId(finalValues.postcode)
+
+        syncSessionState()
+        try {
+          sessionStorage.removeItem(PROFILE_STEP_KEY)
+        } catch {
+          // ignore
+        }
       }
 
       refreshProfile()
-      router.push(dest)
+      if (typeof window !== 'undefined') {
+        void (async () => {
+          const pc = (finalValues.postcode ?? '').replace(/\s+/g, '').trim()
+          if (pc.length >= 4) {
+            try {
+              await Promise.race([
+                prefetchProfileLocalityForHandoff(pc).then(({ label, local }) => {
+                  if (label) persistProfileLocality(pc, label)
+                  if (local) {
+                    const locationName = formatLocationDisplayName(local, pc) || label
+                    setLocationState({ locationName, local })
+                  }
+                }),
+                new Promise<void>((resolve) => window.setTimeout(resolve, 2600)),
+              ])
+            } catch {
+              /* offline — summary will retry */
+            }
+          }
+          window.location.assign(dest)
+        })()
+        return
+      }
+      router.replace(dest)
 
       const payload = {
         name: finalValues.name ?? '',
@@ -267,7 +430,10 @@ export default function ProfilePageClient() {
               country: typeof location.country === 'string' ? location.country : undefined,
             }
             const locationName = formatLocationDisplayName(local, finalValues.postcode ?? '')
-            if (locationName) setLocationState({ locationName, local })
+            if (locationName) {
+              persistProfileLocality(finalValues.postcode ?? '', locationName)
+              setLocationState({ locationName, local })
+            }
           }
           try {
             persistUnifiedUserProfileMemory()
@@ -284,44 +450,98 @@ export default function ProfilePageClient() {
             // ignore
           }
         })
+        .finally(() => {
+          submittingRef.current = false
+          setIsSubmitting(false)
+        })
     },
     [refreshProfile, router, returnTo, setLocationState]
   )
 
-  const handleNext = useCallback(() => {
-    if (returnTo) {
-      submitProfile(values, returnTo)
-    } else if (step < PROFILE_QUESTIONS.length - 1) {
+  const persistStepValues = useCallback((nextValues: Record<string, string>) => {
+    flushSync(() => {
+      setValues((prev) => ({ ...prev, ...nextValues }))
+      if (typeof window !== 'undefined') {
+        Object.entries(nextValues).forEach(([id, val]) => {
+          const key = STORAGE_KEYS[id] ?? id
+          if (typeof val === 'string' && val.trim()) localStorage.setItem(key, val.trim())
+        })
+        if (nextValues.powerType?.trim()) persistHomePowerFromProfile(nextValues.powerType)
+      }
+    })
+  }, [])
+
+  const advanceProfileStep = useCallback(
+    (nextValues: Record<string, string>) => {
+      if (submittingRef.current || isSubmitting) return
+      const atLast = step >= PROFILE_QUESTIONS.length - 1
+
+      if (atLast) {
+        submitProfile(nextValues, returnTo || undefined)
+        return
+      }
+
+      persistStepValues(nextValues)
       setStep((s) => s + 1)
-    } else {
-      submitProfile(values)
+    },
+    [step, returnTo, submitProfile, isSubmitting, persistStepValues]
+  )
+
+  const readLiveFieldValue = useCallback(() => {
+    if (current?.type === 'input' && inputRef.current) {
+      return inputRef.current.value.trim()
     }
-  }, [step, values, submitProfile, returnTo])
+    return (values[current?.id ?? ''] ?? '').trim()
+  }, [current, values])
+
+  const handleNext = useCallback(() => {
+    if (!current || submittingRef.current || isSubmitting) return
+    const trimmed = readLiveFieldValue()
+    if (current.type === 'input' && !trimmed) return
+    advanceProfileStep({ ...values, [current.id]: trimmed })
+  }, [current, values, isSubmitting, advanceProfileStep, readLiveFieldValue])
 
   if (!current) return null
 
-  const handleOptionClick = (opt: any) => {
+  const handleOptionClick = (opt: unknown) => {
+    if (submittingRef.current || isSubmitting) return
     const isObj = typeof opt === 'object' && opt !== null
-    const optValue = isObj ? opt.value : opt
-    setValue(current.id, optValue)
-    
-    if (returnTo) {
-      const finalValues = { ...values, [current.id]: optValue }
+    const optValue = isObj ? String((opt as { value: string }).value) : String(opt)
+    const isLastStep = step >= PROFILE_QUESTIONS.length - 1
+
+    const persistAndAdvance = (nextValues: Record<string, string>) => {
       if (typeof window !== 'undefined') {
         const key = STORAGE_KEYS[current.id] ?? current.id
         localStorage.setItem(key, optValue)
+        Object.entries(nextValues).forEach(([id, val]) => {
+          const k = STORAGE_KEYS[id] ?? id
+          if (typeof val === 'string' && val.trim()) localStorage.setItem(k, val.trim())
+        })
+        if (nextValues.powerType?.trim()) persistHomePowerFromProfile(nextValues.powerType)
+        try {
+          persistUnifiedUserProfileMemory()
+        } catch {
+          // ignore
+        }
       }
-      submitProfile(finalValues, returnTo)
-    } else if (step < PROFILE_QUESTIONS.length - 1) {
+      if (isLastStep) {
+        submitProfile(nextValues, returnTo || undefined)
+        return
+      }
+      persistStepValues(nextValues)
       setStep((s) => s + 1)
-    } else {
-      const finalValues = { ...values, [current.id]: optValue }
-      if (typeof window !== 'undefined') {
-        const key = STORAGE_KEYS[current.id] ?? current.id
-        localStorage.setItem(key, optValue)
-      }
-      submitProfile(finalValues)
     }
+
+    if (isLastStep) {
+      flushSync(() => {
+        setValues((prev) => ({ ...prev, [current.id]: optValue }))
+      })
+      persistAndAdvance({ ...values, [current.id]: optValue })
+      return
+    }
+
+    setValue(current.id, optValue)
+    persistAndAdvance({ ...values, [current.id]: optValue })
   }
 
   const questionBlockLabel = current ? current.label.replace(/\n/g, '\n') : ''
@@ -341,18 +561,17 @@ export default function ProfilePageClient() {
     <main
       className="zz-profile-page"
       style={{
-        height: '100dvh',
-        maxHeight: '100dvh',
-        minHeight: 0,
-        overflow: 'hidden',
+        minHeight: '100dvh',
+        height: 'auto',
+        maxHeight: 'none',
+        overflow: 'auto',
         boxSizing: 'border-box',
         padding: 'clamp(20px, 3vw, 40px)',
-        paddingTop: 'clamp(20px, 3vw, 40px)',
-        paddingBottom: 24,
+        paddingTop: 'max(clamp(20px, 3vw, 40px), env(safe-area-inset-top, 0px))',
+        paddingBottom: 'max(24px, env(safe-area-inset-bottom, 0px))',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
         textAlign: 'center',
         gap: 40,
       }}
@@ -387,20 +606,15 @@ export default function ProfilePageClient() {
             <span style={{ whiteSpace: 'pre-line', display: 'block' }}>{questionBlockLabel}</span>
           </motion.div>
           {current.type === 'input' ? (
-            <div
-              style={{
-                width: '100%',
-                maxWidth: 360,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 20,
-              }}
-            >
+            <div className="profile-step-controls profile-step-controls--input">
               <InputField
+                ref={inputRef}
                 value={currentVal}
                 onChange={(v) => setValue(current.id, v)}
                 onAdvance={handleNext}
+                onBlurViewportReset={() => {
+                  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+                }}
                 placeholder={
                   (current as { label: string; placeholder?: string }).placeholder ?? current.label
                 }
@@ -411,10 +625,11 @@ export default function ProfilePageClient() {
                 optionIndex={0}
                 delaySeconds={controlsAfterQuestionSec + STACCATO_STAGGER_SEC}
                 className=""
-                disabled={!currentVal.trim()}
+                disabled={isSubmitting}
                 onClick={() => {
-                  if (!currentVal.trim()) return
-                  handleNext()
+                  const trimmed = readLiveFieldValue()
+                  if (!trimmed || isSubmitting) return
+                  advanceProfileStep({ ...values, [current.id]: trimmed })
                 }}
                 aria-label="Continue"
               >
@@ -422,15 +637,7 @@ export default function ProfilePageClient() {
               </ProfileAnswerBtn>
             </div>
           ) : (
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 16,
-                justifyContent: 'center',
-                maxWidth: 360,
-              }}
-            >
+            <div className="profile-step-controls profile-step-controls--options">
               {(current.options ?? []).map((opt: any, optionIndex: number) => {
                 const isObj = typeof opt === 'object' && opt !== null
                 const optLabel = isObj ? opt.label : opt
@@ -449,6 +656,7 @@ export default function ProfilePageClient() {
                     delaySeconds={controlsAfterQuestionSec + optionIndex * STACCATO_STAGGER_SEC}
                     className={currentVal === optValue ? 'selected' : ''}
                     style={optTheme ? ({ '--local-theme': optTheme } as CSSProperties & { '--local-theme'?: string }) : undefined}
+                    disabled={isSubmitting}
                     onClick={() => handleOptionClick(opt)}
                     aria-label={optAria}
                   >

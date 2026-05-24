@@ -2,15 +2,16 @@
 
 What ships in **`main`** after the **mechanical truth** pass: the UI only shows £/kg and headlines when Neon or scrape-sync has **stream data**. No UK placeholder back-fill on the Zone wall.
 
-Cross-links: **`HANDBOOK.md`**, **`docs/INTELLIGENCE-LOOP-MANIFEST.md`**, **`lib/journeys.ts`**.
+Cross-links: **[HANDBOOK.md](HANDBOOK.md)**, **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)** (scrape, copy, presentation), **[HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md)**, **[INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md)**, **`lib/journeys.ts`**.
 
 ---
 
-## 1. Twelve domains × three questions
+## 1. Thirteen domains × three questions
 
 | Journey key | Profile / Solo Focus questions (ids) |
 |-------------|--------------------------------------|
 | `home` | `property_type`, `insulation_level`, `glazing_type` |
+| `utilities` | `tariff_type`, `supplier_switch`, `monthly_energy_band` ( **`home_power` / power type = profile only** — unlocks UTILITIES tile on Zone) |
 | `grants` | `boiler_age`, `income_benefits`, `prior_eco_bus` |
 | `solar` | `roof_orientation`, `roof_shading`, `daytime_occupancy` |
 | `travel` | `commute_distance`, `ev_hybrid`, `public_transport` |
@@ -24,8 +25,8 @@ Cross-links: **`HANDBOOK.md`**, **`docs/INTELLIGENCE-LOOP-MANIFEST.md`**, **`lib
 | `carbon` | `footprint_awareness`, `carbon_removal`, `tonne_reduction_timeline` |
 
 - **Source of truth:** `lib/journeys.ts` — `JOURNEY_ORDER`, `JOURNEYS`, `isValidJourneyQuestion`, `isJourneyComplete`.
-- **Wall order:** `WALL_JOURNEY_ORDER` in `app/zone/page.tsx` (same 12 keys, bento layout 3×4).
-- **DB sync:** `npm run db:evolve-12-domains` seeds `journey_questions` for all 12.
+- **Wall order:** `JOURNEY_ORDER` in `lib/journeys.ts` (13 keys including `utilities` after `home`).
+- **DB sync:** `npm run db:evolve-12-domains` seeds `journey_questions` for all keys in `JOURNEY_ORDER`.
 
 Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on cards comes from **research / scrape**, not from question text.
 
@@ -37,9 +38,21 @@ Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on ca
 |------|------|-------------|
 | Route | `app/profile/page.tsx` → `ProfilePageClient.tsx` | — |
 | Postcode step | `POST /api/local-intelligence` | Council, ward, `localCarbonG`, grant context → used in VM + summary |
-| Profile fields | name, postcode, `home_type`, transport, household, employment, goal | `users` + `AppContext` + `localStorage` mirror |
-| Motion | Full-sentence fade per step (`STACCATO_TWEEN`, y 10→0) | `HANDBOOK.md` Motion table |
+| Profile fields | name, postcode, `home_type`, **`power type`** (profile step `powerType` → GAS / ELECTRIC / MIX / OTHER), transport, household, employment, goal | `users` + `AppContext` + `localStorage` (`profile_home_power`); seeds journey answers + **unlocks 13th Zone card (UTILITIES)** via `lib/profile/homePower.ts` + `lib/zone/utilitiesZoneUnlock.ts` |
+| Motion | Full-sentence fade per step (`STACCATO_TWEEN`, y 10→0) | [HANDBOOK.md](HANDBOOK.md) Motion table |
 | After profile | `/profile/summary` → `/zone` | Summary uses `lib/brains/summaryLogic.ts` + `buildUserImpact` (no UK_2026 back-fill) |
+
+### Utilities free APIs (server-only)
+
+| API | Auth | Used for |
+|-----|------|----------|
+| [postcodes.io](https://postcodes.io) | none | Council / region anchor |
+| [carbonintensity.org.uk](https://api.carbonintensity.org.uk) | none | `GET /intensity` (live gCO₂/kWh), `GET /generation` (fuel mix %), regional postcode |
+| [environment.data.gov.uk](https://environment.data.gov.uk/flood-monitoring) | none | Water lane — latest station readings (`/data/readings?_limit=N`) |
+| [api.octopus.energy](https://api.octopus.energy) | none | Indicative Agile p/kWh (electric / mixed homes) |
+| Ofgem price-cap hub | none (HTML via `/api/pulse/living`) | Cap + unit-rate citations |
+
+Full matrix + usefulness: **[PUBLIC-UK-APIS.md](PUBLIC-UK-APIS.md)**. Registry: `lib/data/utilitiesFreeApis.ts` · `lib/data/ukPublicInfrastructureApis.ts` · `lib/data/octopusPublicApis.ts` · `lib/data/publicUkApisUsage.ts`. Live smoke: `npm run test:uk-apis`.
 
 **Intro:** `/` and `/intro` — **CREATE** only (no SKIP button). `?skip=1` still skips the logo animation via URL.
 
@@ -49,21 +62,22 @@ Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on ca
 
 ```mermaid
 flowchart LR
-  UI[EmbeddedJourneyQuestion] --> POST["POST /api/answers"]
+  UI[JourneyBentoCard QUESTION] --> POST["POST /api/answers"]
   POST --> VAL[isValidJourneyQuestion]
   VAL --> DB[(journey_answers_jsonb)]
   POST --> IMP[buildUserImpact]
-  POST --> DISC[discovery race / inject]
-  POST --> RES[research triggers optional]
+  POST --> RES[RESULT morph]
+  CLOSE[Close] --> LOOP[DiscoveryTakeover]
+  LOOP --> BIRTH[injectNewDiscoveryCard]
   GET["GET /api/answers"] --> HYDRATE[AppContext hydrate]
   HYDRATE --> ZONE[app/zone/page.tsx]
 ```
 
 | Piece | Location |
 |-------|----------|
-| Next unanswered question | `lib/zone/questionHandler.ts` → `getNextQuestion` |
-| UI | `app/components/EmbeddedJourneyQuestion.tsx` |
-| Session cap | `SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION` in `lib/animations.ts` |
+| Solo Focus Q | `lib/zone/questionHandler.ts` → `getSoloFocusNextQuestion` |
+| UI | `app/components/JourneyBentoCard.tsx` |
+| Loop after close | `app/components/DiscoveryTakeover.tsx` + `lib/zone/loopQuestions.ts` |
 | Server handler | `app/api/answers/route.ts` |
 | Validation | `isValidJourneyId` + `isValidJourneyQuestion` from `lib/journeys.ts` |
 | Persist | `upsertJourneyAnswerJsonb`, `upsertUserGenomeFromAnswer` (`lib/db/neon.ts`) |
@@ -144,3 +158,9 @@ npm run deploy:force      # vercel deploy --prod from repo root (scripts/deploy-
 ```
 
 If `git push` says “no upstream”, run once: `git push -u origin main`.
+
+---
+
+## 7. Presentation (after stream exists)
+
+Once `research_results` rows exist, see **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)** for how headlines, three-paragraph Solo Focus prose, Today's Tips rail, offer URLs, and tone of voice are built and guarded.

@@ -7,7 +7,7 @@ import {
 } from '@/lib/discoveryInject'
 import { headlineFromTitle, MAX_ZONE_CARD_HEADLINE_WORDS } from '@/lib/soloFocusCopy'
 import type { ZoneTipCard } from '@/lib/logic/zone'
-import { pickLoopQuestionForJourney } from '@/lib/zone/loopQuestions'
+import { LOOP_QUESTION_BANK, pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
 import { readStoredLoopAnswer } from '@/lib/zone/loopMemory'
 
 /**
@@ -19,7 +19,7 @@ export function spawnAchievementWhenLoopPoolExhausted(
   onCard?: (card: ZoneTipCard) => void
 ): ZoneTipCard | null {
   if (typeof window === 'undefined') return null
-  const beat = pickLoopQuestionForJourney(journeyId)
+  const beat = pickNextLoopQuestion(journeyId) ?? LOOP_QUESTION_BANK[0]!
   const answer =
     readStoredLoopAnswer(journeyId, beat.questionId)?.trim() ||
     beat.options[0]?.value?.trim() ||

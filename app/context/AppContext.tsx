@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { UNIFIED_PROFILE_MEMORY_EVENT, persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
+import { guardLegacyDemoIdentityOnClient } from '@/lib/zone/garyMode'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 
 /** Age persona for tips: Junior | Adult (MID) | Retired */
@@ -13,6 +14,8 @@ export interface AppProfile {
   postcode: string
   livingSituation: string
   homeType: string
+  /** GAS | ELECTRIC | MIX | OTHER — leading profile question for utilities tile. */
+  homePower?: string
   transport: string
   age: string
   /** EMPLOYED | SELF_EMPLOYED | UNEMPLOYED — set in onboarding step before goal */
@@ -48,7 +51,7 @@ function readHeroTotalsFromStorage(): HeroTotals | null {
   }
 }
 
-function readLocationStateFromStorage(): { locationName: string; local: LocalIntelligence | null } | null {
+export function readLocationStateFromStorage(): { locationName: string; local: LocalIntelligence | null } | null {
   if (typeof window === 'undefined') return null
   try {
     const raw = localStorage.getItem(LOCATION_STATE_KEY)
@@ -111,12 +114,23 @@ function readProfileFromStorage(): AppProfile | null {
   const postcode = localStorage.getItem('profile_postcode') ?? ''
   const livingSituation = localStorage.getItem('profile_household') ?? ''
   const homeType = localStorage.getItem('profile_home_type') ?? ''
+  const homePower = localStorage.getItem('profile_home_power') ?? ''
   const transport = localStorage.getItem('profile_transport') ?? ''
   const age = localStorage.getItem('profile_age') ?? ''
   const employmentStatus = localStorage.getItem('profile_employment_status') ?? ''
   const goal = localStorage.getItem('profile_goal') ?? ''
   if (!name && !postcode && !livingSituation && !homeType && !transport && !age && !goal) return null
-  return { name, postcode, livingSituation, homeType, transport, age, employmentStatus: employmentStatus || undefined, goal }
+  return {
+    name,
+    postcode,
+    livingSituation,
+    homeType,
+    homePower: homePower || undefined,
+    transport,
+    age,
+    employmentStatus: employmentStatus || undefined,
+    goal,
+  }
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -142,6 +156,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(() => {
     setProfile(readProfileFromStorage())
     setJourneyAnswers(readJourneyAnswersFromStorage())
+  }, [])
+
+  useEffect(() => {
+    guardLegacyDemoIdentityOnClient()
   }, [])
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
-import { createSession, getSessionCookieAttributes } from '@/lib/auth'
+import { createSession, setSessionCookieOnResponse } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 
 const SALT_ROUNDS = 10
@@ -38,9 +38,8 @@ export async function POST(request: NextRequest) {
     const user = result.rows[0]
 
     const token = await createSession(user.id)
-    const { name: cookieName, options } = getSessionCookieAttributes()
     const res = NextResponse.json({ user_id: user.id })
-    res.cookies.set(cookieName, token, options as any)
+    setSessionCookieOnResponse(res, token)
     return res
   } catch (error: any) {
     if (error?.code === '23505') {

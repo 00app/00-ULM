@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import { motion } from 'framer-motion'
 import { type JourneyId } from '@/lib/journeys'
-import { getSoloFocusNextQuestion } from '@/lib/zone/questionHandler'
 import {
   resolveZoneSurfaceKind,
   zoneSurfaceStyleProps,
@@ -25,6 +24,11 @@ import { PulseDiagnosticFab } from '@/app/components/debug/PulseWidget'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
+import {
+  ZONE_CARD_COMPUTING_ICON_PX,
+} from '@/app/components/ui/ZoneCategoryIcon'
+import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
+import { ZoneAiSparkIcon } from '@/app/components/ui/ZoneAiSparkIcon'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import {
@@ -74,13 +78,10 @@ import {
   journeyResearchSettled,
   type ResearchCategoryCoverageRow,
 } from '@/lib/researchSyncClient'
-import {
-  openOfferUrlInNewTab,
-  runTier2MotherChildSwap,
-} from '@/lib/zone/tier2RecursiveSpawner'
+import { openOfferUrlInNewTab } from '@/lib/zone/tier2RecursiveSpawner'
 import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
-import { markCardVisited, setDeepDiveInProgress, shouldSkipInjectionOnCardClose } from '@/lib/zone/visitedCards'
+import { setDeepDiveInProgress, shouldSkipInjectionOnCardClose } from '@/lib/zone/visitedCards'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
 import { runSoloFocusAuditCompletionClient } from '@/lib/soloFocusAuditCompleteClient'
 import {
@@ -91,10 +92,8 @@ import {
   clearSoloFocusSnapshot,
   type SoloFocusResultSnapshotV1,
 } from '@/lib/soloFocusSessionSnapshot'
-import { pickOfferLineFromAnswerMorph } from '@/lib/soloFocusAnswerHandoff'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
 import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
-import { scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
 
 type HomeSentinelRecard = {
   headline: string
@@ -186,7 +185,6 @@ export interface JourneyBentoCardProps {
    * After the last question in this journey is answered: close expanded view and let the shell
    * open the next journey in wall order, using `offerLine` as contextual copy on that tile.
    */
-  onAdvanceToNextJourneyAfterAnswer?: (payload: { fromJourneyId: JourneyId; offerLine: string }) => void
   /** v35.0 verified audit citation + revenue handoff */
   verifiedSourceName?: string | null
   verifiedSourceDate?: string | null
@@ -206,25 +204,6 @@ export interface JourneyBentoCardProps {
   isVisited?: boolean
   /** External link opened — show deep-dive-in-progress strip until return. */
   deepDiveInProgress?: boolean
-}
-
-/** Bento card / Solo Focus — same northeast “open” stroke as `card-top-arrow` tiles. */
-function BentoNortheastOpenArrow({ size = 22 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M7 17L17 7M17 7H7M17 7v10" />
-    </svg>
-  )
 }
 
 export function JourneyBentoCard({
@@ -262,7 +241,6 @@ export function JourneyBentoCard({
   architectActionLine,
   onEmbeddedAnswerSuccess,
   onSwipeNextJourney,
-  onAdvanceToNextJourneyAfterAnswer,
   hasLocalGrant = false,
   isPriorityAlert = false,
   verifiedSourceName,
@@ -287,21 +265,10 @@ export function JourneyBentoCard({
       ? (localStorage.getItem('profile_postcode') ?? '').replace(/\s+/g, '').trim().toUpperCase()
       : '') ||
     null
-  type ExpandedViewState = 'QUESTION' | 'RESULT'
   const effectiveOpen = kineticGrid ? isExpanded : false
   const [isExiting, setIsExiting] = useState(false)
   const { viewKey: soloFocusViewKey, snapKey: soloFocusSnapKey } = soloFocusSnapStorageKeys(cardId, journeyId)
-  const [loopZipCollapsing, setLoopZipCollapsing] = useState(false)
   const [tier2SlotFading, setTier2SlotFading] = useState(false)
-  const [viewState, setViewState] = useState<ExpandedViewState>(() => {
-    if (typeof window === 'undefined') return 'QUESTION'
-    try {
-      const raw = sessionStorage.getItem(soloFocusViewKey)
-      return raw === 'RESULT' ? 'RESULT' : 'QUESTION'
-    } catch {
-      return 'QUESTION'
-    }
-  })
   const [resultCitation, setResultCitation] = useState<{
     label: string
     url?: string
@@ -356,13 +323,15 @@ export function JourneyBentoCard({
     headline?: string | null
     supplied_by?: string | null
   } | null>(() => readHydrationSnap(soloFocusSnapKey, journeyId)?.researchAttribution ?? null)
-  const [soloEmbedQuestionLabel, setSoloEmbedQuestionLabel] = useState<string | null>(null)
   const [impactAnswerPulse, setImpactAnswerPulse] = useState(false)
   const [askZaiDeepDiveOpen, setAskZaiDeepDiveOpen] = useState(false)
   const [heroTotalsOverride, setHeroTotalsOverride] = useState<{ money: number; carbon: number } | null>(null)
   const [homeSentinelRecard, setHomeSentinelRecard] = useState<HomeSentinelRecard | null>(null)
   const prevIsExpandedRef = useRef(false)
-  const soloFocusViewStatePrev = useRef<ExpandedViewState>(viewState)
+  const patternShiftAfterExitRef = useRef<{
+    cardId?: string
+    visitedClose?: boolean
+  } | null>(null)
   const currentMorphData =
     morphDeckCursor > 0 && morphDeck[morphDeckCursor - 1] != null
       ? morphDeck[morphDeckCursor - 1]
@@ -486,7 +455,6 @@ export function JourneyBentoCard({
     buildZaiUrl: () => (allowZaiFallback ? buildZaiAuditUrl() : ''),
   })
   const resolvedOfferUrl = soloHandoff.ctaUrl
-  const physicalSoloHref = pickPrimaryHttpUrl(soloHandoff.offerUrl || soloHandoff.ctaUrl)
   const ctaActionTypeRaw =
     typeof currentMorphData?.actions?.actionType === 'string'
       ? currentMorphData.actions.actionType.toLowerCase()
@@ -514,12 +482,6 @@ export function JourneyBentoCard({
   }, [])
 
   const wasExpandedRef = useRef(false)
-  useEffect(() => {
-    if (isExpanded) {
-      const visitId = cardId?.trim() || `journey-${journeyId}`
-      markCardVisited(visitId)
-    }
-  }, [isExpanded, cardId, journeyId])
 
   useEffect(() => {
     if (isExpanded && !prevIsExpandedRef.current) {
@@ -529,35 +491,22 @@ export function JourneyBentoCard({
       try {
         sessionStorage.removeItem(lk)
         sessionStorage.removeItem(qk)
-        // Start each Solo Focus open as a fresh Child-question session.
-        // Prevent stale completed answers from forcing immediate RESULT copy.
-        localStorage.removeItem(`journey_${journeyId}_answers`)
-      } catch {
-        /* ignore */
-      }
-      // If this lane still has unanswered prompts, always reopen on Child question.
-      // Avoid replaying archived RESULT copy when user expects the next question.
-      try {
-        const raw = localStorage.getItem(`journey_${journeyId}_answers`) || '{}'
-        const parsed = JSON.parse(raw) as Record<string, string>
-        const stillHasQuestion = getSoloFocusNextQuestion(journeyId, parsed) != null
-        if (stillHasQuestion) {
-          setViewState('QUESTION')
-          sessionStorage.setItem(soloFocusViewKey, 'QUESTION')
-          clearSoloFocusSnapshot(soloFocusSnapKey)
-          setResultCitation(null)
-          setLiveClaimUrl(null)
-          setDiscoverySnap(null)
-          setDiscoveryWinLine(null)
-          setBirthedZoneTitle(null)
-          setGridContext(null)
-          setGeminiRecommendationCopy(null)
-          setResearchAttribution(null)
-        }
+        sessionStorage.setItem(soloFocusViewKey, 'RESULT')
       } catch {
         /* ignore */
       }
       setHomeSentinelRecard(null)
+      const snap = readHydrationSnap(soloFocusSnapKey, journeyId)
+      if (!snap || !Array.isArray(snap.morphDeck) || snap.morphDeck.length === 0) {
+        const seeded = getNextMorphCard(journeyId, {
+          postcode: profilePostcode,
+          homeType: state.profile?.homeType ?? null,
+          transport: state.profile?.transport ?? null,
+          fuelType: state.journeyAnswers?.travel?.fuel_type ?? null,
+        })
+        setMorphDeck([seeded])
+        setMorphDeckCursor(1)
+      }
     }
     prevIsExpandedRef.current = isExpanded
     if (isExpanded) {
@@ -571,20 +520,17 @@ export function JourneyBentoCard({
     setMorphDeck([])
     setMorphDeckCursor(0)
     setResearchAttribution(null)
-    setLoopZipCollapsing(false)
-    // Lane/session strings are read inside but Solo Focus collapse must run only on expand/collapse edges (avoid morph wipes on unrelated prop churn).
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset keyed to isExpanded edge only
-  }, [isExpanded])
-
-  const handleCloseStart = useCallback(() => {
-    /* Do not clear RESULT / discovery here — user must see the archived tip when they reopen this tile (§18.5.4). */
-    setSoloEmbedQuestionLabel(null)
-    setLoopZipCollapsing(false)
-    setIsExiting((prev) => {
-      if (prev) return prev
-      return true
-    })
-  }, [])
+  }, [
+    isExpanded,
+    journeyId,
+    cardId,
+    soloFocusSnapKey,
+    soloFocusViewKey,
+    profilePostcode,
+    state.profile?.homeType,
+    state.profile?.transport,
+    state.journeyAnswers?.travel?.fuel_type,
+  ])
 
   const triggerHaptic = useCallback((pattern: 'light' | 'medium' | 'heavy') => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -594,17 +540,21 @@ export function JourneyBentoCard({
     }
   }, [])
 
-  const requestClose = useCallback(() => {
+  const beginCloseWithPatternShift = useCallback(() => {
     triggerHaptic('medium')
     clearSoloFocusMemory()
     setDeepDiveInProgress(null)
     const visitId = String(activeCardId || cardId || '').trim()
-    onPatternShiftClose?.(journeyId, {
+    patternShiftAfterExitRef.current = {
       cardId: visitId || undefined,
-      visitedClose: visitId ? shouldSkipInjectionOnCardClose(visitId) : false,
-    })
-    onClose?.()
-  }, [journeyId, onPatternShiftClose, onClose, triggerHaptic, activeCardId, cardId])
+      visitedClose: visitId ? shouldSkipInjectionOnCardClose(visitId, journeyId) : false,
+    }
+    setIsExiting((prev) => (prev ? prev : true))
+  }, [journeyId, triggerHaptic, activeCardId, cardId])
+
+  const handleCloseStart = useCallback(() => {
+    beginCloseWithPatternShift()
+  }, [beginCloseWithPatternShift])
 
   const handleTrinityLike = useCallback(() => {
     if (!onLike || !(activeCardId || cardId)) return
@@ -630,34 +580,9 @@ export function JourneyBentoCard({
     }
   }, [effectiveOpen, isExiting, handleCloseStart])
 
-  // Persist view state so refreshKey/unlockedCount re-renders don't bounce RESULT -> QUESTION.
-  const persistViewState = (next: ExpandedViewState, opts?: { preserveResultContext?: boolean }) => {
-    setViewState(next)
-    const clearTrap = next === 'QUESTION' && !opts?.preserveResultContext
-    if (clearTrap) {
-      setResultCitation(null)
-      setLiveClaimUrl(null)
-      setDiscoverySnap(null)
-      setDiscoveryWinLine(null)
-      setBirthedZoneTitle(null)
-      setGridContext(null)
-      setGeminiRecommendationCopy(null)
-      setResearchAttribution(null)
-    }
-    if (typeof window === 'undefined') return
-    try {
-      if (clearTrap) {
-        clearSoloFocusSnapshot(soloFocusSnapKey)
-      }
-      sessionStorage.setItem(soloFocusViewKey, next)
-    } catch {
-      // ignore
-    }
-  }
-
   useEffect(() => {
     if (typeof window === 'undefined') return
-    if (viewState !== 'RESULT' && morphDeck.length === 0) return
+    if (morphDeck.length === 0) return
     const snap: SoloFocusResultSnapshotV1 = {
       v: SOLO_FOCUS_SNAPSHOT_V,
       journeyId,
@@ -674,7 +599,6 @@ export function JourneyBentoCard({
     }
     writeSoloFocusSnapshot(soloFocusSnapKey, snap)
   }, [
-    viewState,
     journeyId,
     soloFocusSnapKey,
     resultCitation,
@@ -691,55 +615,21 @@ export function JourneyBentoCard({
   ])
 
   useEffect(() => {
-    const prev = soloFocusViewStatePrev.current
-    soloFocusViewStatePrev.current = viewState
-    if (prev === 'QUESTION' && viewState === 'RESULT') {
-      setLoopZipCollapsing(false)
-    }
-  }, [viewState])
-
-  // When the overlay collapses, keep RESULT + trap payload so reopening the same tile shows the archived tip (§18.5.4).
-  useEffect(() => {
-    if (effectiveOpen) return
-    if (typeof window === 'undefined') return
-    if (viewState === 'RESULT') return
-    try {
-      const s = readSoloFocusSnapshot(soloFocusSnapKey, journeyId)
-      if (s && Array.isArray(s.morphDeck) && s.morphDeck.length > 0) return
-    } catch {
-      /* ignore */
-    }
-    setResultCitation(null)
-    setLiveClaimUrl(null)
-    setDiscoverySnap(null)
-    setGeminiRecommendationCopy(null)
-    setDiscoveryWinLine(null)
-    setBirthedZoneTitle(null)
-    setGridContext(null)
-    try {
-      sessionStorage.removeItem(soloFocusViewKey)
-      clearSoloFocusSnapshot(soloFocusSnapKey)
-    } catch {
-      // ignore
-    }
-  }, [effectiveOpen, soloFocusViewKey, soloFocusSnapKey, viewState, journeyId])
-
-  useEffect(() => {
-    if (!effectiveOpen || viewState !== 'RESULT' || !discoverySnap) {
+    if (!effectiveOpen || !discoverySnap) {
       setImpactAnswerPulse(false)
       return
     }
     setImpactAnswerPulse(true)
     const t = window.setTimeout(() => setImpactAnswerPulse(false), 720)
     return () => clearTimeout(t)
-  }, [effectiveOpen, viewState, discoverySnap, discoverySnap?.questionId, discoverySnap?.answerValue])
+  }, [effectiveOpen, discoverySnap, discoverySnap?.questionId, discoverySnap?.answerValue])
 
   const morphDeckLenRef = useRef(0)
   useEffect(() => {
     morphDeckLenRef.current = morphDeck.length
   }, [morphDeck.length])
 
-  /* Re-expand same session: restore morph + research from snapshot (collapse clears those only). */
+  /* Re-expand same session: restore result + morph from snapshot (collapse clears morph + attribution only). */
   useEffect(() => {
     if (!effectiveOpen) return
     const s = readSoloFocusSnapshot(soloFocusSnapKey, journeyId)
@@ -751,7 +641,41 @@ export function JourneyBentoCard({
     if (!researchAttribution && s.researchAttribution) {
       setResearchAttribution(s.researchAttribution)
     }
-  }, [effectiveOpen, morphDeck.length, researchAttribution, soloFocusSnapKey, journeyId])
+    if (!resultCitation && s.resultCitation) {
+      setResultCitation(s.resultCitation)
+    }
+    if (!liveClaimUrl && s.liveClaimUrl) {
+      setLiveClaimUrl(s.liveClaimUrl)
+    }
+    if (!discoverySnap && s.discoverySnap) {
+      setDiscoverySnap(s.discoverySnap)
+    }
+    if (!geminiRecommendationCopy && s.geminiRecommendationCopy) {
+      setGeminiRecommendationCopy(s.geminiRecommendationCopy)
+    }
+    if (!discoveryWinLine && s.discoveryWinLine) {
+      setDiscoveryWinLine(s.discoveryWinLine)
+    }
+    if (!birthedZoneTitle && s.birthedZoneTitle) {
+      setBirthedZoneTitle(s.birthedZoneTitle)
+    }
+    if (!gridContext && s.gridContext) {
+      setGridContext(s.gridContext)
+    }
+  }, [
+    effectiveOpen,
+    morphDeck.length,
+    researchAttribution,
+    resultCitation,
+    liveClaimUrl,
+    discoverySnap,
+    geminiRecommendationCopy,
+    discoveryWinLine,
+    birthedZoneTitle,
+    gridContext,
+    soloFocusSnapKey,
+    journeyId,
+  ])
   useEffect(() => {
     setMorphDeckCursor((c) => Math.max(0, Math.min(c, morphDeck.length)))
   }, [morphDeck.length])
@@ -940,6 +864,9 @@ export function JourneyBentoCard({
       setMorphDeck([])
       setMorphDeckCursor(0)
       setResearchAttribution(null)
+      const meta = patternShiftAfterExitRef.current
+      patternShiftAfterExitRef.current = null
+      if (meta) onPatternShiftClose?.(journeyId, meta)
     }
 
     const expandedOverlay =
@@ -986,7 +913,6 @@ export function JourneyBentoCard({
             delay: reducePagerMotion ? 0 : SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC,
           }}
         >
-          {/* Hero + metrics + actions */}
             <motion.div
               key={`sf-hero-${morphDeckCursor}-${displayJourneyId}-${String(activeCardId ?? 'base')}`}
               className={`solo-focus-shell solo-focus-mother solo-focus-content-stack w-full min-w-0${currentMorphData?.high_impact ? ' zz-high-impact-rebirth' : ''}`}
@@ -994,69 +920,31 @@ export function JourneyBentoCard({
             <div className="solo-focus-expanded-toolbar solo-focus-mother-columns w-full min-w-0">
               <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
                 <div key={motherShimmerKey} className="flex flex-col gap-2 w-full min-w-0">
-            {physicalSoloHref ? (
-              <motion.div
-                className="solo-focus-insight-bridge w-full min-w-0 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleOpenOfferUrl()
-                }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    handleOpenOfferUrl()
-                  }
-                }}
+            {showCardComputing ? (
+              <p
+                className="zz-label m-0 opacity-80"
+                style={{ color: 'var(--journey-text)', letterSpacing: '0.04em' }}
               >
-                <span
-                  className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
-                  style={{ color: 'var(--journey-text)' }}
-                >
-                  {zoneCategoryLabel}
-                </span>
-                <motion.h1
-                  className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left"
-                  style={{
-                    color: 'var(--journey-text)',
-                    margin: 0,
-                    padding: 0,
-                  }}
-                >
-                  {recommendationTitle}
-                </motion.h1>
-                {trueTipSectionsEl}
-              </motion.div>
-            ) : (
-              <>
-                {!physicalSoloHref && showCardComputing ? (
-                  <p
-                    className="zz-label m-0 opacity-80"
-                    style={{ color: 'var(--journey-text)', letterSpacing: '0.04em' }}
-                  >
-                    Computing…
-                  </p>
-                ) : null}
-                <span
-                  className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
-                  style={{ color: 'var(--journey-text)' }}
-                >
-                  {zoneCategoryLabel}
-                </span>
-                <motion.h1
-                  className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left"
-                  style={{
-                    color: 'var(--journey-text)',
-                    margin: 0,
-                    padding: 0,
-                  }}
-                >
-                  {recommendationTitle}
-                </motion.h1>
-                {trueTipSectionsEl}
-              </>
-            )}
+                Computing…
+              </p>
+            ) : null}
+            <span
+              className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
+              style={{ color: 'var(--journey-text)' }}
+            >
+              {zoneCategoryLabel}
+            </span>
+            <motion.h1
+              className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left"
+              style={{
+                color: 'var(--journey-text)',
+                margin: 0,
+                padding: 0,
+              }}
+            >
+              {recommendationTitle}
+            </motion.h1>
+            {trueTipSectionsEl}
 
             <MotherCardRenderer
               categoryLabel=""
@@ -1088,10 +976,7 @@ export function JourneyBentoCard({
                   type="button"
                   aria-label="Close"
                   className="solo-focus-close-circle"
-                  onClick={() => {
-                    triggerHaptic('medium')
-                    requestClose()
-                  }}
+                  onClick={() => beginCloseWithPatternShift()}
                   initial={false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={INDUSTRIAL_OPACITY_SNAP}
@@ -1134,9 +1019,6 @@ export function JourneyBentoCard({
 
   // —— COLLAPSED: Zero Zero Card Spec — Label (top-left), Arrow 3× (top-right, hover hint), Headline, Data Stack ——
 
-  const cardLabelHeight = 14
-  const arrowSize = cardLabelHeight * 3
-
   return (
       <motion.div
         data-journey={journeyId}
@@ -1167,40 +1049,9 @@ export function JourneyBentoCard({
         animate={{ opacity: tier2SlotFading ? 0.35 : 1 }}
         transition={INDUSTRIAL_OPACITY_SNAP}
       >
-      <motion.div
-        className="flex items-center justify-between w-full shrink-0"
-        role="button"
-        tabIndex={0}
-        onClick={(e) => {
-          e.stopPropagation()
-          handleOpenOfferUrl()
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            e.stopPropagation()
-            handleOpenOfferUrl()
-          }
-        }}
-      >
-        {showCardComputing ? (
-          <span className="zone-card-computing-pulse flex items-center gap-2 min-w-0 flex-1">
-            <Logo width={22} className="shrink-0" style={{ color: 'currentColor' }} aria-hidden />
-            <span className="card-top-label m-0">
-              {String(journeyId ?? '').replace(/-/g, ' ').toUpperCase()}
-            </span>
-          </span>
-        ) : (
-          <span className="card-top-label">
-            {String(journeyId ?? '').replace(/-/g, ' ').toUpperCase()}
-          </span>
-        )}
-        <span className="card-top-arrow card-top-arrow--hint flex items-center justify-center flex-shrink-0" style={{ width: arrowSize, height: arrowSize, color: 'currentColor', background: 'transparent' }} aria-hidden>
-          <svg width={arrowSize} height={arrowSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 17L17 7M17 7H7M17 7v10" />
-          </svg>
-        </span>
-      </motion.div>
+      <div className="flex items-center justify-between w-full shrink-0 pointer-events-none">
+        <ZoneBentoCardHeader journeyId={journeyId} textColor="currentColor" />
+      </div>
       <motion.h3
         className="card-headline m-0 min-w-0"
         lang="en"
@@ -1223,20 +1074,12 @@ export function JourneyBentoCard({
         </div>
       </div>
       {showCardComputing ? (
-        <div className="mt-2 pt-2 shrink-0 border-t border-white/15" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
-          <p className="m-0 text-[10px] leading-tight uppercase tracking-wide opacity-75">
-            Computing…
-          </p>
-          <div
-            className="mt-1 h-2 w-full rounded-full overflow-hidden"
-            style={{ background: 'rgba(255,255,255,0.12)' }}
-            aria-hidden
-          >
-            <div
-              className="h-full w-1/3 rounded-full animate-pulse"
-              style={{ background: 'rgba(255,255,255,0.35)' }}
-            />
-          </div>
+        <div className="mt-2 shrink-0 flex items-center zone-card-computing-foot" aria-label="Computing">
+          <ZoneAiSparkIcon
+            size={ZONE_CARD_COMPUTING_ICON_PX}
+            className="zone-ai-spark-icon"
+            style={{ color: 'currentColor' }}
+          />
         </div>
       ) : null}
     </motion.div>

@@ -8,6 +8,16 @@
 # testing
 /coverage
 /test-results/
+/playwright-report/
+.eslintcache
+
+# local editor / secrets (never commit)
+docs/.obsidian/
+docs/**/*.key
+**/ssh-key*.key
+
+# webpack / eslint caches (regenerated)
+node_modules/.cache
 
 # local archives (do not version)
 scripts.zip

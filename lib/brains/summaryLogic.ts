@@ -23,6 +23,22 @@ function looksLikeUkPostcode(value: string): boolean {
   return /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(t)
 }
 
+/** Outward code only (e.g. BN17) — not a town name for summary copy. */
+export function looksLikeOutcodeOnly(value: string): boolean {
+  const t = value.replace(/\s+/g, '').toUpperCase()
+  return /^[A-Z]{1,2}\d{1,2}[A-Z]?$/.test(t) && t.length >= 2 && t.length <= 4
+}
+
+/** True when label is safe to show as a settlement / council in summary beats. */
+export function isRealLocalityLabel(value: string | null | undefined): boolean {
+  const t = String(value ?? '').trim()
+  if (!t || t.toLowerCase() === 'the uk' || t.toLowerCase() === 'unknown') return false
+  if (looksLikeUkPostcode(removePostcodeTokens(t))) return false
+  if (looksLikeOutcodeOnly(t)) return false
+  if (/ council$/i.test(t)) return false
+  return true
+}
+
 function removePostcodeTokens(value: string): string {
   return value
     .replace(/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/gi, '')
@@ -76,15 +92,51 @@ export function resolveSummaryAreaLabel(input: ProfileSummaryNarrativeInput): st
     : null
 
   // Summary lock: never surface raw postcode in the area label.
-  const fromLocal = li ? formatLocationDisplayName(li, null).trim() : ''
+  const fromLocal = li ? formatLocationDisplayName(li, input.postcodeDisplay).trim() : ''
   const rawCouncilLabel = (input.councilLabel || '').trim()
   const cleanedCouncilLabel = removePostcodeTokens(rawCouncilLabel)
-  const fromCouncilLabel =
-    looksLikeUkPostcode(cleanedCouncilLabel) || cleanedCouncilLabel.length === 0
-      ? ''
-      : cleanedCouncilLabel
-  const area = fromLocal || fromCouncilLabel || 'the UK'
+  const fromCouncilLabel = isRealLocalityLabel(cleanedCouncilLabel) ? cleanedCouncilLabel : ''
+  const fromStoredCouncil =
+    loc?.council?.trim() &&
+    isRealLocalityLabel(loc.council.trim())
+      ? purgeYourAreaCopy(loc.council.trim())
+      : ''
+  const area =
+    (isRealLocalityLabel(fromLocal) ? fromLocal : '') ||
+    fromCouncilLabel ||
+    fromStoredCouncil ||
+    'the UK'
   return purgeYourAreaCopy(area)
+}
+
+/** Synchronous label for summary first paint — never a raw postcode token. */
+export function resolveImmediateSummaryCouncilLabel(input: {
+  postcodeDisplay: string
+  cachedLocality?: string | null
+  locationName?: string | null
+  local?: SummaryLocalContext | null
+}): string {
+  const cached = input.cachedLocality?.trim()
+  if (cached && isRealLocalityLabel(cached)) return cached
+
+  const locationName = input.locationName?.trim()
+  if (locationName && isRealLocalityLabel(locationName)) return locationName
+
+  if (input.local) {
+    const li: LocalIntelligence = {
+      council: input.local.council,
+      region: input.local.region ?? input.local.council,
+      ward: input.local.ward,
+      locality: input.local.locality,
+      outcode: input.local.outcode,
+      localCarbonG: input.local.localCarbonG,
+      country: input.local.country,
+    }
+    const fromLocal = formatLocationDisplayName(li, input.postcodeDisplay).trim()
+    if (isRealLocalityLabel(fromLocal)) return fromLocal
+  }
+
+  return ''
 }
 
 /** One-line status under the kinetic cycle (Roboto). */

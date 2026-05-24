@@ -4,6 +4,7 @@ import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import {
   cleanZonePreviewHeadline,
   headlineFromArchitectProse,
+  isAcceptableZoneJourneyHeadline,
   isLowQualityZoneHeadline,
 } from '@/lib/soloFocusCopy'
 
@@ -22,7 +23,10 @@ function mergeCoverageRow(
   return { ...a }
 }
 
-export function coverageRowToNeon(row: ResearchCategoryCoverageRow): NeonJourneyResearchRow | null {
+export function coverageRowToNeon(
+  row: ResearchCategoryCoverageRow,
+  journeyKey?: JourneyId
+): NeonJourneyResearchRow | null {
   const sav =
     row.latestSavingGbp != null && row.latestSavingGbp > 0
       ? row.latestSavingGbp
@@ -33,11 +37,23 @@ export function coverageRowToNeon(row: ResearchCategoryCoverageRow): NeonJourney
   let hl = row.agentHeadline?.trim() ?? null
   if (hl) {
     const cleaned = cleanZonePreviewHeadline(hl)
-    if (!cleaned || isLowQualityZoneHeadline(cleaned)) hl = null
-    else hl = cleaned
+    if (
+      !cleaned ||
+      isLowQualityZoneHeadline(cleaned) ||
+      (journeyKey != null && !isAcceptableZoneJourneyHeadline(journeyKey, cleaned))
+    ) {
+      hl = null
+    } else {
+      hl = cleaned
+    }
   }
   if (!hl && ap) {
-    hl = headlineFromArchitectProse(ap) ?? null
+    const fromProse = headlineFromArchitectProse(ap)
+    hl =
+      fromProse &&
+      (journeyKey == null || isAcceptableZoneJourneyHeadline(journeyKey, fromProse))
+        ? fromProse
+        : null
   }
   if (sav > 0 || (ap != null && ap.length > 0) || (hl != null && hl.length > 0)) {
     return { savingGbp: sav, architectProse: ap, agentHeadline: hl }
@@ -99,11 +115,11 @@ export function foldExtendedResearchCoverage(
   cov: Record<string, ResearchCategoryCoverageRow>
 ): Partial<Record<JourneyId, NeonJourneyResearchRow>> {
   const out: Partial<Record<JourneyId, NeonJourneyResearchRow>> = { ...base }
-  const grants = cov.grants ? coverageRowToNeon(cov.grants) : null
+  const grants = cov.grants ? coverageRowToNeon(cov.grants, 'home') : null
   if (grants) {
     out.home = mergeNeonJourneyResearch(out.home, grants)
   }
-  const bills = cov.bills ? coverageRowToNeon(cov.bills) : null
+  const bills = cov.bills ? coverageRowToNeon(cov.bills, 'money') : null
   if (bills) {
     out.money = mergeNeonJourneyResearch(out.money, bills)
   }

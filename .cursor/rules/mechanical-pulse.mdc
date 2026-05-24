@@ -19,4 +19,4 @@ globs:
 - **Zai:** 32px bubbles; user = Cool, Zai = Blue; 40px Floating Nav.
 - **useCountUp:** Use for Hero and Summary slot-machine numbers. See `lib/utils/useCountUp.ts`.
 
-Reference: `HANDBOOK.md` (product + Zone/Solo Focus summary) and this rule file.
+Reference: `docs/HANDBOOK.md` (product + Zone/Solo Focus summary) and this rule file.

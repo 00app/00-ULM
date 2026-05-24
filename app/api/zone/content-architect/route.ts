@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
+import { requireAiRouteAuth } from '@/lib/requestAuth'
 import { getJourneyAnswersForUser } from '@/lib/db/neon'
 import { generateCardContextsBatch, type ContentArchitectCardInput } from '@/lib/agents/contentArchitect'
 import type { JourneyId } from '@/lib/journeys'
@@ -123,6 +124,9 @@ function sanitiseCard(raw: unknown): ContentArchitectCardInput | null {
  * POST { cards: ContentArchitectCardInput[] } → { byJourney: Partial<Record<JourneyId, …>> }
  */
 export async function POST(req: NextRequest) {
+  const authDenied = await requireAiRouteAuth(req)
+  if (authDenied) return authDenied
+
   let body: unknown
   try {
     body = await req.json()

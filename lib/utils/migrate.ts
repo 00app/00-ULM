@@ -27,3 +27,14 @@ export function clearLocalStorageExceptProfileAndUser(): void {
     // ignore
   }
 }
+
+/** Factory reset — profile, journeys, locality cache, zone VM keys. */
+export function clearAllAppUserData(): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.clear()
+    sessionStorage.clear()
+  } catch {
+    // ignore
+  }
+}

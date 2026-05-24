@@ -21,10 +21,13 @@ export async function runZeroHunterBirthAfterAnswer(params: {
   const { journeyId, questionId, answerValue, postcode } = params
   const pc = postcode?.replace(/\s+/g, '').trim() ?? ''
 
-  if (journeyId === 'home' && questionId === 'energy_type' && answerValue.trim().toUpperCase() === 'GAS') {
+  const gasPowerAnswer =
+    (journeyId === 'home' && questionId === 'energy_type' && answerValue.trim().toUpperCase() === 'GAS') ||
+    (journeyId === 'utilities' && questionId === 'home_power' && answerValue.trim().toUpperCase() === 'GAS')
+  if (gasPowerAnswer) {
     const parsed = await researchLocalGrantsToDiscovery(pc, 'Heat Pump Grant')
-    const rec = getDiscoveryRecommendation('home', 'energy_type', 'GAS')
-    const id = buildDiscoveryInjectionId('home', 'energy_type', answerValue)
+    const rec = getDiscoveryRecommendation(journeyId, questionId, 'GAS')
+    const id = buildDiscoveryInjectionId(journeyId, questionId, answerValue)
     const zoneCard = validateInjectionCard({
       id,
       title: parsed.title,
