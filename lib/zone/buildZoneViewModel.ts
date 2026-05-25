@@ -898,9 +898,16 @@ export function buildZoneViewModel({
       journeyAnswers,
     })
     const titleFallback = baselineTitle || compactFallback
-    const title = !hasStream
-      ? computingJourneyTitle(journeyKey)
-      : (previewTitleFromNeon(neon, titleFallback, journeyKey) ??
+    const mechanicalHeadline = zoneCardHeadlineFromRaw(
+      titleFallback,
+      compactFallback,
+      MAX_ZONE_CARD_HEADLINE_WORDS
+    )
+    const hasMechanicalHeadline =
+      Boolean(mechanicalHeadline?.trim()) &&
+      isAcceptableZoneJourneyHeadline(journeyKey, mechanicalHeadline)
+    const title = hasStream
+      ? (previewTitleFromNeon(neon, titleFallback, journeyKey) ??
         (offerTeaserTitle &&
         isAcceptableZoneJourneyHeadline(journeyKey, offerTeaserTitle)
           ? zoneCardHeadlineFromRaw(
@@ -910,6 +917,10 @@ export function buildZoneViewModel({
             )
           : null) ??
         zoneCardHeadlineFromRaw(titleFallback, compactFallback, MAX_ZONE_CARD_HEADLINE_WORDS))
+      : hasMechanicalHeadline
+        ? mechanicalHeadline
+        : computingJourneyTitle(journeyKey)
+    const showGridImpact = hasStream || hasMechanicalHeadline || moneyGbp > 0 || carbonKg > 0
     const sourceUrl = sanitizeZoneOfferUrl(source.url, journeyKey)
     const learnUrl =
       !isGenericHomepageUrl(claimOfferUrl) ? claimOfferUrl! :
@@ -943,10 +954,10 @@ export function buildZoneViewModel({
       journey_key: journeyKey,
       category: journeyKey,
       data: {
-        carbon: hasStream ? formatCarbon(carbonKg) : '—',
-        money: hasStream ? formatZoneCardMoney(moneyGbp) : '—',
+        carbon: showGridImpact ? formatCarbon(carbonKg) : '—',
+        money: showGridImpact ? formatZoneCardMoney(moneyGbp) : '—',
       },
-      streamPending: !hasStream,
+      streamPending: !hasStream && !hasMechanicalHeadline,
       carbonKg: carbonKg,
       moneyGbp: moneyGbp,
       source: source.url,
