@@ -6,6 +6,7 @@ import './globals.css'
 
 import type { Metadata } from 'next'
 import { Roboto } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 
 const roboto = Roboto({
   weight: ['400', '700', '900'],
@@ -127,6 +128,7 @@ export default function RootLayout({
         <AppProvider>
           <GlobalAppShell>{children}</GlobalAppShell>
         </AppProvider>
+        <Analytics />
       </body>
     </html>
   )
