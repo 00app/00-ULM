@@ -3,8 +3,7 @@
 import type { JourneyId } from '@/lib/journeys'
 import { isValidJourneyId } from '@/lib/journeys'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
-import { readAnsweredLoopQuestionIds } from '@/lib/zone/loopMemory'
-import { beatsForJourney } from '@/lib/zone/loopQuestions'
+import { hasLoopDoneForJourney } from '@/lib/zone/loopMemory'
 
 export const VISITED_CARDS_KEY = 'visited_cards'
 export const DEEP_DIVE_IN_PROGRESS_KEY = 'zz_deep_dive_in_progress'
@@ -65,10 +64,7 @@ export function shouldSkipInjectionOnCardClose(
   if (!id) return false
   if (isCardVisited(id)) return true
   const jid = typeof journeyId === 'string' && isValidJourneyId(journeyId) ? journeyId : null
-  if (jid) {
-    const answered = readAnsweredLoopQuestionIds()
-    return beatsForJourney(jid).some((b) => answered.has(b.questionId))
-  }
+  if (jid && hasLoopDoneForJourney(jid)) return true
   return false
 }
 

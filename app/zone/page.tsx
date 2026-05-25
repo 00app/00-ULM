@@ -2508,6 +2508,10 @@ export default function ZonePage() {
                         setRefreshKey((k) => k + 1)
                         setUnlockedCount((prev) => Math.min(prev + 1, 9))
                       }}
+                      onEmbeddedAnswerSuccess={() => {
+                        setRefreshKey((k) => k + 1)
+                        setVmSyncStamp(Date.now())
+                      }}
                       onSoloEmbedComplete={(jid) => {
                         window.requestAnimationFrame(() => {
                           window.setTimeout(() => {

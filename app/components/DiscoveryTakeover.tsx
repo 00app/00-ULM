@@ -10,7 +10,7 @@ import {
   injectNewDiscoveryCard,
   persistAchievementCardRemote,
 } from '@/lib/discoveryInject'
-import { persistLoopAnswerLocal } from '@/lib/zone/loopMemory'
+import { markLoopDoneForJourney, persistLoopAnswerLocal } from '@/lib/zone/loopMemory'
 import {
   fetchTier2ScrapeSync,
   refreshZoneTotalsAfterTier2,
@@ -154,6 +154,7 @@ export function DiscoveryTakeover({
         questionId: beat.questionId,
         answer: answerValue,
       })
+      markLoopDoneForJourney(journeyId)
 
       const rec = getDiscoveryRecommendation(journeyId, beat.questionId, answerValue)
       const fallbackTitle = headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)

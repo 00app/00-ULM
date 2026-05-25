@@ -583,8 +583,11 @@ export function SoloFocusOverlay({
     if (!activeFollowUp) setTipVerified(false)
   }, [activeFollowUp])
 
+  const isRockHabitTip = String(cardId ?? '').trim().startsWith('rock-')
+
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (isZoneMotherChild || isRockHabitTip) return
     if (!journeyId || !onJourneyAnswered) return
     if (viewState === 'QUESTION') return
     try {
@@ -597,7 +600,7 @@ export function SoloFocusOverlay({
     } catch {
       /* ignore storage parse errors */
     }
-  }, [journeyId, onJourneyAnswered, viewState, persistViewState])
+  }, [journeyId, onJourneyAnswered, viewState, persistViewState, isZoneMotherChild, isRockHabitTip])
 
   useEffect(() => {
     if (viewState !== 'RESULT' || !discoverySnap) {
@@ -891,7 +894,7 @@ export function SoloFocusOverlay({
             </div>
               </motion.div>
 
-              {activeFollowUp && !trapComplete ? (
+              {activeFollowUp && !trapComplete && !isRockHabitTip ? (
                 <motion.div
                   className="solo-focus-shell solo-focus-child solo-focus-content-stack w-full min-w-0 rounded-[60px] p-[40px] relative mt-4"
                   initial={reducePagerMotion ? false : { opacity: 0, y: STACCATO_DROP_PX }}

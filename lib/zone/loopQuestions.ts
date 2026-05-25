@@ -6,7 +6,7 @@ import {
   isValidJourneyId,
   isValidJourneyQuestion,
 } from '@/lib/journeys'
-import { readAnsweredLoopQuestionIds } from '@/lib/zone/loopMemory'
+import { hasLoopDoneForJourney, readAnsweredLoopQuestionIds } from '@/lib/zone/loopMemory'
 import { safeGetItem } from '@/lib/zone/safeProfileStorage'
 
 export type LoopQuestionOption = {
@@ -237,13 +237,15 @@ export function beatsForJourney(journeyId: JourneyId): LoopQuestionBeat[] {
   )
 }
 
-/** Next unanswered loop beat for this journey context (never repeats a questionId). */
+/** Next unanswered loop beat for this journey — one lifestyle beat per category, journey-scoped first. */
 export function pickNextLoopQuestion(journeyId: JourneyId): LoopQuestionBeat | null {
+  if (hasLoopDoneForJourney(journeyId)) return null
   const answered = readAnsweredLoopQuestionIds()
-  const forJourney = beatsForJourney(journeyId).filter((b) => !answered.has(b.questionId))
-  if (forJourney.length > 0) return forJourney[0]!
-  const global = LOOP_QUESTION_BANK.filter((b) => !answered.has(b.questionId))
-  return global[0] ?? null
+  const scoped = LOOP_QUESTION_BANK.filter(
+    (b) => b.journeyKeys.includes(journeyId) && !answered.has(b.questionId)
+  )
+  if (scoped.length > 0) return scoped[0]!
+  return null
 }
 
 /** @deprecated Use pickNextLoopQuestion — kept for callers that have not migrated. */

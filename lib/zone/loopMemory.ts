@@ -1,13 +1,15 @@
-import type { JourneyId } from '@/lib/journeys'
+import { isValidJourneyId, type JourneyId } from '@/lib/journeys'
 import type { ZoneTipCard } from '@/lib/logic/zone'
 import { safeGetItem, safeSetItem } from '@/lib/zone/safeProfileStorage'
 
 const LOOP_ANSWERED_KEY = 'zz_loop_answered_ids'
+const LOOP_DONE_JOURNEYS_KEY = 'zz_loop_done_journeys'
 const PINNED_ACHIEVEMENTS_KEY = 'zz_pinned_achievements'
 
 /** Browser keys for loop learning + pins (dev reset / support). */
 export const LEARNING_CACHE_KEYS = [
   LOOP_ANSWERED_KEY,
+  LOOP_DONE_JOURNEYS_KEY,
   PINNED_ACHIEVEMENTS_KEY,
   'zz_loop_answers_log',
   'zz_zai_likes',
@@ -43,6 +45,34 @@ export function readAnsweredLoopQuestionIds(): Set<string> {
     return new Set(arr.filter((id): id is string => typeof id === 'string' && id.trim().length > 0))
   } catch {
     return new Set()
+  }
+}
+
+function readLoopDoneJourneyIds(): Set<JourneyId> {
+  if (typeof window === 'undefined') return new Set()
+  try {
+    const raw = safeGetItem(LOOP_DONE_JOURNEYS_KEY)
+    const arr = raw ? (JSON.parse(raw) as unknown) : []
+    if (!Array.isArray(arr)) return new Set()
+    return new Set(arr.filter((id): id is JourneyId => typeof id === 'string' && isValidJourneyId(id)))
+  } catch {
+    return new Set()
+  }
+}
+
+/** One post-close loop beat per journey category (13 domains). */
+export function hasLoopDoneForJourney(journeyId: JourneyId): boolean {
+  return readLoopDoneJourneyIds().has(journeyId)
+}
+
+export function markLoopDoneForJourney(journeyId: JourneyId): void {
+  if (typeof window === 'undefined') return
+  const next = readLoopDoneJourneyIds()
+  next.add(journeyId)
+  try {
+    safeSetItem(LOOP_DONE_JOURNEYS_KEY, JSON.stringify([...next]))
+  } catch {
+    /* quota */
   }
 }
 
