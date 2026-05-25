@@ -52,7 +52,8 @@ export const ROCK_HABITS: RockHabit[] = [
     insight: 'Collect rainwater for the garden to cut metered water use in summer.',
     money_gbp: 45,
     carbon_kg: 5,
-    provider_name: 'Thames Water',
+    provider_name: 'Waterwise',
+    learn_url: 'https://www.waterwise.org.uk/save-water/',
   },
   {
     slug: 'speed-cap-60',
@@ -564,6 +565,13 @@ if (ROCK_HABITS.length !== ROCK_HABIT_COUNT) {
   console.warn(`[Rock] Expected ${ROCK_HABIT_COUNT} habits, got ${ROCK_HABITS.length}`)
 }
 
+/** Every habit gets a trusted https offer when catalog omits `learn_url`. */
+for (const habit of ROCK_HABITS) {
+  if (!habit.learn_url?.trim()) {
+    habit.learn_url = trustedUrlForJourney(habit.journey_key)
+  }
+}
+
 export const ROCK_BY_SLUG = new Map(ROCK_HABITS.map((h) => [h.slug, h]))
 
 export function rockCardId(slug: string): string {
@@ -585,10 +593,7 @@ export function sumRockLikedImpact(likedCardIds: readonly string[]): { money: nu
 }
 
 export function habitToTipCard(h: RockHabit): import('@/lib/logic/zone').ZoneTipCard {
-  const learnUrl = sanitizeZoneOfferUrl(
-    h.learn_url?.trim() || trustedUrlForJourney(h.journey_key),
-    h.journey_key
-  )
+  const learnUrl = sanitizeZoneOfferUrl((h.learn_url ?? '').trim(), h.journey_key)
   const sourceLabel = `source. ${h.provider_name}`
   const source_name = formatVerifiedSourceNameFromLabel(h.provider_name)
   const partner_link = resolvePartnerLink({

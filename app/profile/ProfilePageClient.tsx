@@ -2,7 +2,9 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useCallback, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
+import { firstNameFromAutofill } from '@/lib/profile/firstNameFromInput'
 import { useApp } from '@/app/context/AppContext'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import { STACCATO_DURATION_SEC, STACCATO_DROP_PX, STACCATO_STAGGER_SEC, STACCATO_TWEEN } from '@/lib/animations'
@@ -120,7 +122,7 @@ function firstIncompleteProfileStepIndex(v: Record<string, string>): number {
 }
 
 export default function ProfilePageClient() {
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = useHydrationSafeReducedMotion()
   const router = useRouter()
   const searchParams = useSearchParams()
   const qParam = searchParams?.get('q')
@@ -128,24 +130,7 @@ export default function ProfilePageClient() {
   const { refreshProfile, setLocationState } = useApp()
   
   const PROFILE_STEP_KEY = 'zz_profile_onboarding_step'
-  const [step, setStepState] = useState(() => {
-    if (qParam) {
-      const index = PROFILE_QUESTIONS.findIndex(
-        (q) => q.id === qParam || (qParam === 'homePower' && q.id === 'powerType')
-      )
-      if (index !== -1) return index
-    }
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = sessionStorage.getItem('zz_profile_onboarding_step')
-        const n = raw ? parseInt(raw, 10) : 0
-        if (Number.isFinite(n) && n >= 0 && n < PROFILE_QUESTIONS.length) return n
-      } catch {
-        // ignore
-      }
-    }
-    return 0
-  })
+  const [step, setStepState] = useState(0)
   const setStep = useCallback((next: number | ((s: number) => number)) => {
     setStepState((prev) => {
       const resolved = typeof next === 'function' ? next(prev) : next
@@ -164,20 +149,13 @@ export default function ProfilePageClient() {
   const submittingRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const hydratedRef = useRef(false)
-  const [values, setValues] = useState<Record<string, string>>(() => {
-    if (typeof window === 'undefined') return {}
-    const v: Record<string, string> = {}
-    PROFILE_QUESTIONS.forEach((q) => {
-      const val = localStorage.getItem(STORAGE_KEYS[q.id] ?? q.id)
-      if (val) v[q.id] = val
-    })
-    return v
-  })
+  const [profileHydrated, setProfileHydrated] = useState(false)
+  const [values, setValues] = useState<Record<string, string>>({})
 
   useLayoutEffect(() => {
     if (PROFILE_QUESTIONS.length === 0) return
     if (step < 0 || step >= PROFILE_QUESTIONS.length) setStep(0)
-  }, [step])
+  }, [step, setStep])
 
   useEffect(() => {
     router.prefetch(ROUTES.PROFILE_SUMMARY)
@@ -188,18 +166,44 @@ export default function ProfilePageClient() {
     setIsSubmitting(false)
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (hydratedRef.current || typeof window === 'undefined') return
     hydratedRef.current = true
     const stored: Record<string, string> = {}
     PROFILE_QUESTIONS.forEach((q) => {
       const val = localStorage.getItem(STORAGE_KEYS[q.id] ?? q.id)
-      if (val) stored[q.id] = val
+      if (!val) return
+      stored[q.id] = q.id === 'name' ? firstNameFromAutofill(val) : val
     })
     if (Object.keys(stored).length > 0) {
-      setValues((prev) => ({ ...stored, ...prev }))
+      setValues(stored)
     }
-  }, [])
+    let nextStep = 0
+    if (qParam) {
+      const index = PROFILE_QUESTIONS.findIndex(
+        (q) => q.id === qParam || (qParam === 'homePower' && q.id === 'powerType')
+      )
+      if (index !== -1) nextStep = index
+    } else {
+      try {
+        const raw = sessionStorage.getItem(PROFILE_STEP_KEY)
+        const n = raw ? parseInt(raw, 10) : NaN
+        if (Number.isFinite(n) && n >= 0 && n < PROFILE_QUESTIONS.length) {
+          nextStep = n
+        } else {
+          const incomplete = firstIncompleteProfileStepIndex(
+            Object.keys(stored).length > 0 ? stored : {}
+          )
+          if (incomplete >= 0) nextStep = incomplete
+        }
+      } catch {
+        const incomplete = firstIncompleteProfileStepIndex(stored)
+        if (incomplete >= 0) nextStep = incomplete
+      }
+    }
+    setStep(nextStep)
+    setProfileHydrated(true)
+  }, [qParam, setStep])
 
   /** Mobile: recentre question block when the software keyboard dismisses. */
   useEffect(() => {
@@ -229,21 +233,27 @@ export default function ProfilePageClient() {
   }, [step])
 
   const setValue = useCallback((id: string, value: string) => {
+    const nextValue =
+      id === 'name'
+        ? firstNameFromAutofill(value)
+        : id === 'postcode'
+          ? value.replace(/\s+/g, ' ').trim().toUpperCase()
+          : value
     if (id === 'postcode' && typeof window !== 'undefined') {
       const prev = (values.postcode ?? localStorage.getItem(STORAGE_KEYS.postcode) ?? '')
         .replace(/\s+/g, '')
         .trim()
         .toUpperCase()
-      const next = value.replace(/\s+/g, '').trim().toUpperCase()
+      const next = nextValue.replace(/\s+/g, '').trim().toUpperCase()
       if (prev.length >= 4 && next.length >= 4 && prev !== next) {
         clearZoneVmLocalCache({ preservePostcode: next })
       }
     }
-    setValues((prev) => ({ ...prev, [id]: value }))
+    setValues((prev) => ({ ...prev, [id]: nextValue }))
     const key = STORAGE_KEYS[id] ?? id
     if (typeof window !== 'undefined') {
-      localStorage.setItem(key, value)
-      if (id === 'powerType') persistHomePowerFromProfile(value)
+      localStorage.setItem(key, nextValue)
+      if (id === 'powerType') persistHomePowerFromProfile(nextValue)
       try {
         persistUnifiedUserProfileMemory()
       } catch {
@@ -334,6 +344,7 @@ export default function ProfilePageClient() {
     values.transport,
     values.livingSituation,
     values.employmentStatus,
+    values.goal,
   ])
 
   const submitProfile = useCallback(
@@ -455,7 +466,7 @@ export default function ProfilePageClient() {
           setIsSubmitting(false)
         })
     },
-    [refreshProfile, router, returnTo, setLocationState]
+    [refreshProfile, router, returnTo, setLocationState, setStep]
   )
 
   const persistStepValues = useCallback((nextValues: Record<string, string>) => {
@@ -484,7 +495,7 @@ export default function ProfilePageClient() {
       persistStepValues(nextValues)
       setStep((s) => s + 1)
     },
-    [step, returnTo, submitProfile, isSubmitting, persistStepValues]
+    [step, returnTo, submitProfile, isSubmitting, persistStepValues, setStep]
   )
 
   const readLiveFieldValue = useCallback(() => {
@@ -544,7 +555,7 @@ export default function ProfilePageClient() {
     persistAndAdvance({ ...values, [current.id]: optValue })
   }
 
-  const questionBlockLabel = current ? current.label.replace(/\n/g, '\n') : ''
+  const questionBlockLabel = profileHydrated && current ? current.label.replace(/\n/g, '\n') : ''
   /** Full-sentence headline + controls: one block fade (Mechanical Snap — not word-by-word). */
   const controlsAfterQuestionSec = STACCATO_DURATION_SEC + STACCATO_STAGGER_SEC
 
@@ -557,25 +568,30 @@ export default function ProfilePageClient() {
     ? { opacity: 0, transition: { duration: 0.08, ease: [0, 0.55, 0.45, 1] as const } }
     : { opacity: 0, y: 8, transition: STACCATO_TWEEN }
 
+  const profileShellStyle: React.CSSProperties = {
+    minHeight: '100dvh',
+    height: 'auto',
+    maxHeight: 'none',
+    overflow: 'auto',
+    boxSizing: 'border-box',
+    padding: 'clamp(20px, 3vw, 40px)',
+    paddingTop: 'max(clamp(20px, 3vw, 40px), env(safe-area-inset-top, 0px))',
+    paddingBottom: 'max(24px, env(safe-area-inset-bottom, 0px))',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center',
+    gap: 40,
+  }
+
+  if (!profileHydrated || !current) {
+    return (
+      <main className="zz-profile-page" style={profileShellStyle} aria-busy="true" aria-label="Loading profile" />
+    )
+  }
+
   return (
-    <main
-      className="zz-profile-page"
-      style={{
-        minHeight: '100dvh',
-        height: 'auto',
-        maxHeight: 'none',
-        overflow: 'auto',
-        boxSizing: 'border-box',
-        padding: 'clamp(20px, 3vw, 40px)',
-        paddingTop: 'max(clamp(20px, 3vw, 40px), env(safe-area-inset-top, 0px))',
-        paddingBottom: 'max(24px, env(safe-area-inset-bottom, 0px))',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        textAlign: 'center',
-        gap: 40,
-      }}
-    >
+    <main className="zz-profile-page" style={profileShellStyle}>
       <>
         <motion.div
           key={step}
@@ -618,6 +634,8 @@ export default function ProfilePageClient() {
                 placeholder={
                   (current as { label: string; placeholder?: string }).placeholder ?? current.label
                 }
+                autoComplete={current.id === 'name' ? 'given-name' : current.id === 'postcode' ? 'postal-code' : undefined}
+                name={current.id === 'name' ? 'given-name' : current.id === 'postcode' ? 'postal-code' : undefined}
                 autoFocus
               />
               <ProfileAnswerBtn

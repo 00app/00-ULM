@@ -427,6 +427,36 @@ body {
   margin-inline: auto;
 }
 
+/* Summary → Zone handoff: full-viewport glitch then pulse (grid hidden underneath) */
+.zone-handoff-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: max(40px, env(safe-area-inset-top, 0px)) 40px max(40px, env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  background: transparent;
+  pointer-events: auto;
+}
+.zone-handoff-overlay .zz-glitch-wrap {
+  margin-inline: auto;
+}
+.zone-handoff-overlay .architectural-pulse-overlay {
+  position: relative !important;
+  inset: auto !important;
+  width: 100%;
+  max-width: min(520px, calc(100vw - 80px));
+  min-height: min(40dvh, 320px);
+  padding: 0;
+  z-index: 1;
+}
+.zone-handoff-overlay .intro-summary-opacity-ticker {
+  max-width: calc(100vw - 80px);
+}
+
 /* Wall hydrating — centre anchor cluster; no panel behind glitch */
 .zone-anchor.zone-anchor--wall-loading {
   align-items: center;
@@ -7085,16 +7115,15 @@ body:has(.likes-page) .floating-nav {
 .intro-decision-headline {
   display: block;
   width: fit-content;
-  max-width: min(92vw, 36rem);
+  max-width: min(92vw, 28rem);
   margin-left: auto;
   margin-right: auto;
   text-align: center;
-  white-space: pre-line;
   font-family: var(--font-marvin), var(--font-label), sans-serif;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: -0.03em !important;
-  font-size: clamp(2.75rem, 12vw, var(--zz-h2-mobile));
+  letter-spacing: -0.02em !important;
+  font-size: var(--zz-h2-mobile);
   line-height: 0.8 !important;
   color: var(--color-intro-type);
 }
@@ -7121,17 +7150,9 @@ p,
 .solo-focus-scraped-tip {
   line-height: 1.2 !important;
 }
-@media (min-width: 768px) {
-  .intro-decision-headline {
-    font-size: var(--zz-h2-tablet);
-    max-width: min(94vw, 44rem);
-  }
-}
 @media (min-width: 1024px) {
   .intro-decision-headline {
-    font-size: clamp(5rem, 7.5vw, var(--zz-h1-desktop));
-    max-width: min(96vw, 52rem);
-    letter-spacing: -0.04em !important;
+    font-size: var(--zz-h2-desktop);
   }
 }
 

@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useRef, useMemo } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import {
   INDUSTRIAL_OPACITY_SNAP,
   WORD_PULSE_APPEAR,
@@ -68,7 +69,7 @@ export default function IntroWordCycle({
   pulseGenomeMoney = false,
   holdFinalWord = false,
 }: IntroWordCycleProps) {
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = useHydrationSafeReducedMotion()
   const [index, setIndex] = useState(0)
   const [visible, setVisible] = useState(true)
   const [fitScale, setFitScale] = useState(1)

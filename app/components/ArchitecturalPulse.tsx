@@ -66,6 +66,7 @@ export function ArchitecturalPulse({
         wordDurations={DWELLS}
         wordExitMs={120}
         opacityTicker
+        fitToViewportPaddingPx={inline ? 40 : 0}
         onComplete={onComplete}
         holdFinalWord
       />

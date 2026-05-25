@@ -148,8 +148,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     activeCardId: null,
     activeType: null,
   })
-  const [journeyAnswers, setJourneyAnswers] = useState<Record<JourneyId, Record<string, string>>>(() =>
-    typeof window === 'undefined' ? ({} as Record<JourneyId, Record<string, string>>) : readJourneyAnswersFromStorage()
+  const [journeyAnswers, setJourneyAnswers] = useState<Record<JourneyId, Record<string, string>>>(
+    () => ({}) as Record<JourneyId, Record<string, string>>
   )
   const [lastPostcodeSynced, setLastPostcodeSynced] = useState<string>('')
 
@@ -187,6 +187,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
     refreshProfile()
+    setJourneyAnswers(readJourneyAnswersFromStorage())
     if (typeof window !== 'undefined') {
       const id = localStorage.getItem('userId') ?? localStorage.getItem('user_id')
       if (id) setUserIdState(id)

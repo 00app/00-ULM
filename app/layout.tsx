@@ -101,20 +101,19 @@ export default function RootLayout({
   }
 
   return (
-    <html lang="en-GB" className={roboto.variable} style={{ backgroundColor: '#2a004a' }}>
+    <html
+      lang="en-GB"
+      className={roboto.variable}
+      style={{ backgroundColor: '#2a004a' }}
+      suppressHydrationWarning
+    >
       <head>
-        {/* Display: Marvin Visions (`@font-face` in globals.css). Body: Roboto via next/font on <html>/<body>. */}
-        <link
-          rel="preload"
-          href="/assets/Marvin%20Visions%20Bold.ttf"
-          as="font"
-          type="font/ttf"
-          crossOrigin="anonymous"
-        />
+        {/* Marvin: `@font-face` in globals.css. Body: Roboto via next/font. */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
       <body
         className={roboto.className}
+        suppressHydrationWarning
         style={{
           backgroundColor: 'transparent',
           minHeight: '100vh',

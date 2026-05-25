@@ -131,8 +131,8 @@ flowchart LR
 
 | Step | Route | What happens |
 |------|--------|----------------|
-| Intro | `/`, `/intro` | Logo glitch (Style A) → CREATE → profile. `?skip=1` skips logo via URL. |
-| Profile | `/profile` | Stepped onboarding: name, **postcode**, household, home type, transport, age, employment, goal. Full-sentence fade per step. |
+| Intro | `/`, `/intro` | Logo glitch (Style A) → kinetic words → lockup **CREATE A / PROFILE TO / START.** at **profile H2 scale** → CREATE → profile. Geolocation may seed `profile_postcode`. `?skip=1` skips logo. |
+| Profile | `/profile` | Stepped onboarding: name (**given-name**, first token only), **postcode** (`postal-code`, hydrate `profile_postcode`), household, home type, transport, age, employment, goal. Full-sentence fade per step. |
 | Summary | `/profile/summary` | Kinetic **HELLO → name → locality** (`IntroWordCycle`, opacity ticker only). Impact totals. Handshake scrape. |
 | Zone | `/zone` | 12 journey cards + Saving Tips; hydrates from Neon via scrape-sync. |
 | Solo Focus | Overlay on Zone | Questions → answer → zip-shut → result / morph card. |
@@ -648,7 +648,7 @@ flowchart TB
 
 | Surface | Style | Rule |
 |---------|-------|------|
-| `/` + `/intro` | Style A (Glitch) | ~469ms CSS glitch; `IntroScreen` timers in sync |
+| `/` + `/intro` | Style A (Glitch) + decision lockup | ~469ms glitch; decision headline = `.profile-question-headline` H2 (uppercase stack, not desktop H1) |
 | `/profile/summary` | Staccato word ticker | `IntroWordCycle` + `opacityTicker`: one word, opacity 0→1 only |
 | `/profile` questions | Full-sentence fade | y: 10→0, opacity, `STACCATO_TWEEN` |
 | Zone grid | Style B (Mechanical Snap) | `STACCATO_*` stagger; 60px card radius |

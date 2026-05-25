@@ -12,6 +12,10 @@ interface InputFieldProps {
   className?: string
   autoFocus?: boolean
   onBlurViewportReset?: () => void
+  /** HTML autocomplete token (e.g. `given-name`, `postal-code`). */
+  autoComplete?: string
+  /** Accessible name for autofill heuristics. */
+  name?: string
 }
 
 const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function InputField(
@@ -25,6 +29,8 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function InputF
     className,
     autoFocus = false,
     onBlurViewportReset,
+    autoComplete,
+    name,
   },
   ref
 ) {
@@ -57,7 +63,10 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function InputF
                 : 'text'
       }
       inputMode={type === 'tel' ? 'tel' : undefined}
-      autoComplete={type === 'tel' ? 'tel-national' : type === 'text' ? 'name' : undefined}
+      autoComplete={
+        autoComplete ?? (type === 'tel' ? 'tel-national' : undefined)
+      }
+      name={name}
       value={value}
       onChange={(e) => onChange?.(e.target.value)}
       onInput={(e) => onChange?.((e.target as HTMLInputElement).value)}

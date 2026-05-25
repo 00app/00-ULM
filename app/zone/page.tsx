@@ -5,7 +5,7 @@ import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion, LayoutGroup, useReducedMotion } from 'framer-motion'
+import { motion, LayoutGroup } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { buildZoneViewModel } from '@/lib/logic/zone'
@@ -80,11 +80,13 @@ import {
 } from '@/lib/zone/loopMemory'
 import { spawnAchievementWhenLoopPoolExhausted } from '@/lib/zone/spawnAchievementOnClose'
 import {
+  GLITCH_ANIM_MS,
   SESSION_SUMMARY_TO_ZONE,
   ZONE_READY_MAX_WAIT_MS,
   buildZoneWelcomeCopy,
   computeIsZoneReady,
 } from '@/lib/architecturalPulse'
+import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import { scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
 import {
   bentoSpanClassForPersona,
@@ -233,7 +235,7 @@ function neonJourneyResearchFromCoverage(
 
 export default function ZonePage() {
   const router = useRouter()
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = useHydrationSafeReducedMotion()
   const { state, toggleLike, setHeroTotals, setLocationState, openSoloFocus, closeSoloFocus, refreshProfile } = useApp()
 
   const [viewModel, setViewModel] = useState<ZoneViewModel>(getPlaceholderZoneViewModel)
@@ -297,7 +299,7 @@ export default function ZonePage() {
   const [summaryGridStaggerKey, setSummaryGridStaggerKey] = useState(0)
   /** Post-summary Architectural Pulse → grid punch-through. */
   const [architecturalPulsePhase, setArchitecturalPulsePhase] = useState<
-    'idle' | 'pulse' | 'punch' | 'done'
+    'idle' | 'glitch' | 'pulse' | 'punch' | 'done'
   >('done')
   const [pulseWordsComplete, setPulseWordsComplete] = useState(false)
   const architecturalPulsePhaseRef = useRef(architecturalPulsePhase)
@@ -603,7 +605,7 @@ export default function ZonePage() {
         setHeroFromSummaryHandoff(true)
         setSummaryGridStaggerKey((k) => k + 1)
         setPulseWordsComplete(false)
-        setArchitecturalPulsePhase('pulse')
+        setArchitecturalPulsePhase('glitch')
       }
     } catch {
       //
@@ -1689,6 +1691,21 @@ export default function ZonePage() {
     }
   }, [hydrated, displayItems, openSoloFocus])
 
+  const zoneHandoffStaging =
+    architecturalPulsePhase === 'glitch' || architecturalPulsePhase === 'pulse'
+
+  useEffect(() => {
+    if (architecturalPulsePhase !== 'glitch') return
+    if (reduceMotion) {
+      setArchitecturalPulsePhase('pulse')
+      return
+    }
+    const tid = window.setTimeout(() => {
+      setArchitecturalPulsePhase((p) => (p === 'glitch' ? 'pulse' : p))
+    }, GLITCH_ANIM_MS * 4)
+    return () => window.clearTimeout(tid)
+  }, [architecturalPulsePhase, reduceMotion])
+
   const researchLoading = !vmResolved
   const isZoneReady = useMemo(
     () => computeIsZoneReady({ hydrated, vmResolved, scrapePostcode }),
@@ -1725,8 +1742,10 @@ export default function ZonePage() {
     architecturalPulsePhase === 'done' &&
     !patternShiftJourneyId
   const zoneWallCollapsed =
-    isZoneVisible && !patternShiftJourneyId && revealedCardCount < 1
-  const showInlineLoadingLogo = zoneWallCollapsed
+    isZoneVisible &&
+    !patternShiftJourneyId &&
+    (zoneHandoffStaging || revealedCardCount < 1)
+  const showInlineLoadingLogo = architecturalPulsePhase === 'glitch'
   const zoneRevealCount = Math.min(revealedCardCount, displayItems.length)
 
   useEffect(() => {
@@ -1893,11 +1912,27 @@ export default function ZonePage() {
         }}
         {...FADE_IN_UP}
       >
+        {zoneHandoffStaging ? (
+          <div
+            className="zone-handoff-overlay"
+            role="status"
+            aria-live="polite"
+            aria-label="Preparing your savings wall"
+          >
+            {architecturalPulsePhase === 'glitch' ? (
+              <GlitchLogo loop width={100} />
+            ) : (
+              <ArchitecturalPulse inline onComplete={() => setPulseWordsComplete(true)} />
+            )}
+          </div>
+        ) : null}
         {/* Zone wall — hero, bento, Rock share one rail so copy + cards + signup align */}
-        {isZoneVisible ? (
+        {isZoneVisible && !zoneHandoffStaging ? (
         <div className="zone-wall-stack zone-content-rail w-full flex flex-col items-stretch box-border">
         <motion.div
-          className={`zone-anchor flex flex-col pt-0 pb-0 w-full${showInlineLoadingLogo ? ' zone-anchor--wall-loading' : ' items-start'}`}
+          className={`zone-anchor flex flex-col pt-0 pb-0 w-full${
+            zoneHandoffStaging || showInlineLoadingLogo ? ' zone-anchor--wall-loading' : ' items-start'
+          }`}
           aria-hidden={false}
           variants={STACCATO_CONTAINER_VARIANTS}
           initial="hidden"
@@ -1948,7 +1983,7 @@ export default function ZonePage() {
             </div>
             <ZoneDesktopNavRail />
           </motion.div>
-          {showInlineLoadingLogo ? (
+          {showInlineLoadingLogo && !zoneHandoffStaging ? (
             <motion.div
               variants={STACCATO_CHILD_VARIANTS}
               initial="hidden"
@@ -1980,7 +2015,7 @@ export default function ZonePage() {
         <motion.div
           className={[
             'zone-container',
-            architecturalPulsePhase === 'pulse' && !patternShiftJourneyId
+            zoneHandoffStaging && !patternShiftJourneyId
               ? 'zone-container--pulse-prerender'
               : '',
             zoneWallCollapsed ? 'zone-container--wall-collapsed' : '',
@@ -2680,15 +2715,11 @@ export default function ZonePage() {
           />
         ) : null}
 
-        {architecturalPulsePhase === 'pulse' && !patternShiftJourneyId ? (
-          <ArchitecturalPulse onComplete={() => setPulseWordsComplete(true)} />
-        ) : null}
-
-        {isZoneVisible && !expandedCardId && !expandedTipId && !patternShiftJourneyId ? (
+        {isZoneVisible && !zoneHandoffStaging && !expandedCardId && !expandedTipId && !patternShiftJourneyId ? (
           <ZoneAskZaiDock onActivate={() => router.push(ROUTES.ZAI)} />
         ) : null}
 
-        {isZoneVisible && !expandedCardId && !expandedTipId && !patternShiftJourneyId && (
+        {isZoneVisible && !zoneHandoffStaging && !expandedCardId && !expandedTipId && !patternShiftJourneyId && (
           <AppFloatingNav active="zone" className="floating-nav--zone-rail-desktop" />
         )}
       </motion.main>

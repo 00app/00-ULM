@@ -105,9 +105,39 @@ export default function ProfileSummaryPage() {
   const exitNavTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const phaseRef = useRef(phase)
   const summaryPackRef = useRef(summaryPack)
+  const displayReadyRef = useRef(displayReady)
   const zoneNavigatedRef = useRef(false)
+  const lastLocationSyncRef = useRef('')
+  const lastSummaryPublishRef = useRef('')
   phaseRef.current = phase
   summaryPackRef.current = summaryPack
+  displayReadyRef.current = displayReady
+
+  // Stable primitive key — not `state.profile` object identity (avoids summary effect loops).
+  const profileEffectKey = useMemo(() => {
+    const p = state.profile
+    const stored = typeof window !== 'undefined' ? getProfileFromStorage() : null
+    return [
+      (p?.postcode ?? stored?.postcode ?? '').trim(),
+      (p?.name ?? stored?.name ?? '').trim(),
+      p?.livingSituation ?? stored?.livingSituation ?? '',
+      p?.homeType ?? stored?.homeType ?? '',
+      p?.transport ?? stored?.transport ?? '',
+      p?.employmentStatus ?? '',
+      p?.goal ?? stored?.goal ?? '',
+      p?.age ?? stored?.age ?? '',
+    ].join('\u001f')
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- primitive fields below, not `state.profile` object
+  }, [
+    state.profile?.postcode,
+    state.profile?.name,
+    state.profile?.livingSituation,
+    state.profile?.homeType,
+    state.profile?.transport,
+    state.profile?.employmentStatus,
+    state.profile?.goal,
+    state.profile?.age,
+  ])
 
   const navigateToZone = useCallback(() => {
     if (zoneNavigatedRef.current) return
@@ -135,6 +165,8 @@ export default function ProfileSummaryPage() {
 
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return
+    lastLocationSyncRef.current = ''
+    lastSummaryPublishRef.current = ''
     const profileFromContext = state.profile
     const fromStorage = getProfileFromStorage()
     const profilePostcode = (profileFromContext?.postcode ?? fromStorage?.postcode ?? '').trim()
@@ -231,26 +263,47 @@ export default function ProfileSummaryPage() {
       genomeMoney?: number
     ) => {
       if (cancelled) return
+      const publishKey = [
+        resolvedLocationName,
+        local?.council ?? '',
+        String(local?.localCarbonG ?? ''),
+        String(money),
+        String(carbon),
+        String(profileWaste.annualWasteCash),
+        String(profileWaste.annualWasteCarbon),
+        String(genomeMoney ?? ''),
+      ].join('|')
+      if (lastSummaryPublishRef.current === publishKey) return
+      lastSummaryPublishRef.current = publishKey
+
       if (resolvedLocationName && postcode.length >= 4 && isRealLocalityLabel(resolvedLocationName)) {
         persistProfileLocality(postcode, resolvedLocationName)
       }
       setSummaryPack(buildPack(local, resolvedLocationName, money, carbon, profileWaste, genomeMoney))
       setDisplayReady(true)
       if (isRealLocalityLabel(resolvedLocationName)) {
-        setLocationState({
-          locationName: resolvedLocationName,
-          local: local
-            ? {
-                council: local.council,
-                region: local.region ?? local.council,
-                localCarbonG: local.localCarbonG,
-                ward: local.ward,
-                locality: local.locality,
-                outcode: local.outcode,
-                country: local.country,
-              }
-            : null,
-        })
+        const locationKey = [
+          resolvedLocationName,
+          local?.council ?? '',
+          String(local?.localCarbonG ?? ''),
+        ].join('|')
+        if (lastLocationSyncRef.current !== locationKey) {
+          lastLocationSyncRef.current = locationKey
+          setLocationState({
+            locationName: resolvedLocationName,
+            local: local
+              ? {
+                  council: local.council,
+                  region: local.region ?? local.council,
+                  localCarbonG: local.localCarbonG,
+                  ward: local.ward,
+                  locality: local.locality,
+                  outcode: local.outcode,
+                  country: local.country,
+                }
+              : null,
+          })
+        }
       }
     }
 
@@ -280,10 +333,14 @@ export default function ProfileSummaryPage() {
 
     if (hasRealLocality) {
       publishSummary(contextLocal, councilImmediate, totalsMoney, totalsCarbon, impact.summaryWaste)
+    } else if (postcode.length < 4) {
+      publishSummary(contextLocal, 'the UK', totalsMoney, totalsCarbon, impact.summaryWaste)
     } else {
       safetyTimer = window.setTimeout(() => {
-        if (cancelled) return
-        publishSummary(contextLocal, 'the UK', totalsMoney, totalsCarbon, impact.summaryWaste)
+        if (cancelled || displayReadyRef.current) return
+        const outward = postcode.replace(/\s+/g, '').toUpperCase().match(/^([A-Z]{1,2}\d{1,2}[A-Z]?)/)?.[1]
+        const fallback = outward && outward.length >= 2 ? outward : 'the UK'
+        publishSummary(contextLocal, fallback, totalsMoney, totalsCarbon, impact.summaryWaste)
       }, LOCALITY_DISPLAY_SAFETY_MS)
     }
 
@@ -348,7 +405,8 @@ export default function ProfileSummaryPage() {
       cancelled = true
       if (safetyTimer != null) window.clearTimeout(safetyTimer)
     }
-  }, [mounted, state.profile?.postcode, state.profile?.name, setLocationState])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- omit locationState; publishSummary writes it and would loop
+  }, [mounted, profileEffectKey, setLocationState])
 
   useEffect(() => {
     if (!mounted) return
@@ -491,7 +549,7 @@ export default function ProfileSummaryPage() {
         alignItems: 'center',
         justifyContent: 'center',
         flex: 1,
-        padding: 24,
+        padding: 'max(40px, env(safe-area-inset-top, 0px)) 40px max(40px, env(safe-area-inset-bottom, 0px)) 40px',
         position: 'relative',
         overflow: 'hidden',
         boxSizing: 'border-box',

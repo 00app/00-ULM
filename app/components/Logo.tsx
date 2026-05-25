@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { useReducedMotion } from 'framer-motion'
+import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import { GLITCH_ANIM_MS } from '@/lib/architecturalPulse'
 
 export interface LogoProps {
@@ -46,7 +46,7 @@ type GlitchLogoProps = {
 
 /** Style A glitch — yellow base + pink overlay (469ms). */
 export function GlitchLogo({ width = 126, onComplete, loop = false, className = '' }: GlitchLogoProps) {
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = useHydrationSafeReducedMotion()
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
   const [tick, setTick] = useState(0)

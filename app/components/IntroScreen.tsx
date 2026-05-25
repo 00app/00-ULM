@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import IntroWordCycle from './IntroWordCycle'
 import { ROUTES } from '@/lib/routes'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
@@ -92,7 +93,7 @@ const ctaCircleStyle = {
 }
 
 export default function IntroScreen() {
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = useHydrationSafeReducedMotion()
   const [screen, setScreen] = useState<IntroScreenState>('logo')
   const urlHandledRef = useRef(false)
 
@@ -229,8 +230,8 @@ export default function IntroScreen() {
         pointerEvents: 'auto',
       }}
     >
-      <motion.h1
-        className="intro-decision-headline zz-shimmer-focus"
+      <motion.h2
+        className="text-marvin profile-question-headline intro-decision-headline zz-shimmer-focus"
         initial={headlineInitial}
         animate={headlineAnimate}
         transition={headlineTransition}
@@ -238,10 +239,11 @@ export default function IntroScreen() {
           margin: 0,
           marginBottom: 8,
           color: 'var(--color-yellow)',
+          maxWidth: 'min(92vw, 28rem)',
         }}
       >
-        {INTRO_DECISION_LOCKUP}
-      </motion.h1>
+        <span style={{ whiteSpace: 'pre-line', display: 'block' }}>{INTRO_DECISION_LOCKUP}</span>
+      </motion.h2>
       <div
         style={{ display: 'flex', gap: 40, alignItems: 'center', justifyContent: 'center' }}
       >

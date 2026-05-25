@@ -44,6 +44,11 @@ import {
   gridCarbonContextFromIntensityG,
   type GridCarbonContext,
 } from './liveGridCarbonFactor'
+import {
+  profileHasImpactBaseline,
+  syntheticJourneyAnswersFromProfile,
+  type ProfileBaselineInput,
+} from './profileJourneyBaseline'
 
 export type { Persona, ImpactProfile, UserData } from './types'
 export type { ScrapedOverlayResult } from './scrapedOverlay'
@@ -174,16 +179,20 @@ export function getSummaryWaste(profile?: ImpactProfile, employment?: Employment
 function calculateJourneyImpact(
   journeyKey: JourneyId,
   answers: Record<string, string> | undefined,
-  profile?: ImpactProfile,
+  profile?: ProfileBaselineInput,
   homeUnitRates?: LiveUnitRateSnapshot | Pick<LiveUnitRateSnapshot, 'elecGbpPerKwh' | 'gasGbpPerKwh'>,
   gridCarbon?: GridCarbonContext
 ): ImpactResult {
   if (!answers || Object.keys(answers).length === 0) {
-    return {
-      carbonKg: 0,
-      moneyGbp: 0,
-      source: 'uk government data',
-      explanation: ['Answer a few questions to see your personalised impact.'],
+    if (profileHasImpactBaseline(profile)) {
+      answers = syntheticJourneyAnswersFromProfile(journeyKey, profile)
+    } else {
+      return {
+        carbonKg: 0,
+        moneyGbp: 0,
+        source: 'uk government data',
+        explanation: ['Answer a few questions to see your personalised impact.'],
+      }
     }
   }
 

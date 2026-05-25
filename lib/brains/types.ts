@@ -17,6 +17,8 @@ export interface ImpactProfile {
   postcode?: string
   household?: string
   home_type?: string
+  /** GAS | ELECTRIC | MIX — unlocks utilities lane + synthetic estimates. */
+  home_power?: string
   transport_baseline?: string
   /** Persona for tips; optional. MID = Adult. */
   age?: Persona

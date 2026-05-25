@@ -24,6 +24,10 @@ import {
   journeyHasProfileSeed,
 } from '@/lib/zone/mechanicalTruth'
 import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
+import {
+  profileHasImpactBaseline,
+  syntheticJourneyAnswersFromProfile,
+} from '@/lib/brains/profileJourneyBaseline'
 import { goalSortWeights } from '@/lib/profile/goalWeighting'
 import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
 import {
@@ -515,18 +519,28 @@ function getGenomeModifier(params: {
     transport_baseline?: string
     age?: ProfileAge | string
     employment_status?: string
+    postcode?: string
+    home_power?: string
   }
   journeyAnswers: Record<JourneyId, Record<string, string>>
 }): { modifier: number; hasGenomeData: boolean } {
   const answers = params.journeyAnswers[params.journeyKey] ?? {}
-  const answeredCount = Object.keys(answers).filter((k) => String(answers[k] ?? '').trim().length > 0).length
+  let answeredCount = Object.keys(answers).filter((k) => String(answers[k] ?? '').trim().length > 0).length
+  const profileBaseline = profileHasImpactBaseline(params.profile)
+  if (answeredCount === 0 && profileBaseline) {
+    answeredCount = Object.keys(
+      syntheticJourneyAnswersFromProfile(params.journeyKey, params.profile)
+    ).length
+  }
   const profileSignals = [
     params.profile?.household,
     params.profile?.home_type,
     params.profile?.transport_baseline,
     params.profile?.employment_status,
+    params.profile?.postcode,
   ].filter((v) => String(v ?? '').trim().length > 0).length
-  const hasGenomeData = answeredCount > 0 && profileSignals >= 2
+  const hasGenomeData =
+    (answeredCount > 0 && profileSignals >= 2) || (profileBaseline && profileSignals >= 2)
   const raw = 0.72 + answeredCount * 0.08 + profileSignals * 0.04
   return { modifier: Math.min(1.45, Math.max(0.7, raw)), hasGenomeData }
 }
@@ -705,10 +719,11 @@ export function buildZoneViewModel({
         acc[journeyKey] = { moneyGbp: 0, carbonKg: 0, estimatedAudit: true }
         return acc
       }
-      if (
-        !journeyHasStreamData(journeyKey, streamOpts) &&
-        !journeyHasProfileSeed(journeyKey, profile, journeyAnswers)
-      ) {
+      const canEstimateFromProfile =
+        profileHasImpactBaseline(profile) ||
+        journeyHasStreamData(journeyKey, streamOpts) ||
+        journeyHasProfileSeed(journeyKey, profile, journeyAnswers)
+      if (!canEstimateFromProfile) {
         acc[journeyKey] = { moneyGbp: 0, carbonKg: 0, estimatedAudit: true }
         return acc
       }
@@ -831,7 +846,8 @@ export function buildZoneViewModel({
     const impact = journeyImpacts[journeyKey] as ScrapedOverlayResult
     const hasStream =
       journeyHasStreamData(journeyKey, streamOpts) ||
-      journeyHasProfileSeed(journeyKey, profile, journeyAnswers)
+      journeyHasProfileSeed(journeyKey, profile, journeyAnswers) ||
+      profileHasImpactBaseline(profile)
     const source = getJourneySource(journeyKey, 0)
 
     // Special case: home journey with provider switching

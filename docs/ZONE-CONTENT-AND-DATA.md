@@ -155,8 +155,9 @@ On `persistResearchResult`:
 **Numbers on tiles** come from **`buildUserImpact`** (`lib/brains/buildUserImpact.ts`) — the **only** place money and carbon are calculated. UI must not invent totals.
 
 1. Profile + journey answers → per-journey functions in `lib/brains/calculations.ts` (annualized).
-2. Optional **scraped overlay** (≤20% delta) when scrape-sync provides data points.
-3. **`buildZoneViewModel`** applies formula display **only** if `journeyHasStreamData(journey)` is true.
+2. When Solo Focus answers were cleared (e.g. after `/profile/summary`) but postcode / home / transport remain, **`lib/brains/profileJourneyBaseline.ts`** supplies **synthetic mid-band answers** so tiles are not £0 — badge stays **`ESTIMATED_AUDIT`** until Neon stream + genome complete.
+3. Optional **scraped overlay** (≤20% delta) when scrape-sync provides data points.
+4. **`buildZoneViewModel`** shows SAVE/CARBON when stream, utilities seed, or **`profileHasImpactBaseline`** — not only Neon.
 
 **Questions** in `lib/journeys.ts` are **behavioural only** — they refine the model; they do not embed “save £400” in labels.
 

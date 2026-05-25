@@ -29,14 +29,37 @@ export function looksLikeOutcodeOnly(value: string): boolean {
   return /^[A-Z]{1,2}\d{1,2}[A-Z]?$/.test(t) && t.length >= 2 && t.length <= 4
 }
 
+function isGenericUkPlaceLabel(value: string): boolean {
+  const lower = value.toLowerCase().replace(/\s+/g, ' ')
+  return (
+    lower === 'uk' ||
+    lower === 'the uk' ||
+    lower === 'united kingdom' ||
+    lower === 'great britain' ||
+    lower === 'england' ||
+    lower === 'unknown'
+  )
+}
+
 /** True when label is safe to show as a settlement / council in summary beats. */
 export function isRealLocalityLabel(value: string | null | undefined): boolean {
   const t = String(value ?? '').trim()
-  if (!t || t.toLowerCase() === 'the uk' || t.toLowerCase() === 'unknown') return false
+  if (!t || isGenericUkPlaceLabel(t)) return false
   if (looksLikeUkPostcode(removePostcodeTokens(t))) return false
-  if (looksLikeOutcodeOnly(t)) return false
   if (/ council$/i.test(t)) return false
   return true
+}
+
+/** Outward code (BN17) — acceptable summary beat when parish name is not yet resolved. */
+export function isSummaryOutcodeFallback(value: string | null | undefined): boolean {
+  const t = String(value ?? '').trim()
+  return Boolean(t) && looksLikeOutcodeOnly(t)
+}
+
+function outwardPostcodeFromDisplay(postcodeDisplay: string): string {
+  const compact = postcodeDisplay.replace(/\s+/g, '').toUpperCase()
+  const m = compact.match(/^([A-Z]{1,2}\d{1,2}[A-Z]?)/)
+  return m?.[1] ?? ''
 }
 
 function removePostcodeTokens(value: string): string {
@@ -101,10 +124,15 @@ export function resolveSummaryAreaLabel(input: ProfileSummaryNarrativeInput): st
     isRealLocalityLabel(loc.council.trim())
       ? purgeYourAreaCopy(loc.council.trim())
       : ''
+  const cachedOutcode = (loc?.outcode || outwardPostcodeFromDisplay(input.postcodeDisplay)).trim()
+  const outcodeFallback =
+    isSummaryOutcodeFallback(cachedOutcode) ? cachedOutcode : ''
+
   const area =
     (isRealLocalityLabel(fromLocal) ? fromLocal : '') ||
     fromCouncilLabel ||
     fromStoredCouncil ||
+    outcodeFallback ||
     'the UK'
   return purgeYourAreaCopy(area)
 }
@@ -262,10 +290,13 @@ export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): 
 
   const out: string[] = ['Hello', greetName, 'Based', 'on', 'your', 'profile', 'people', 'in']
 
-  if (area && area !== 'the UK') {
-    out.push(...area.split(/\s+/).filter(Boolean))
+  const localityBeat = formatSummaryLocalityKineticToken(area || 'the UK')
+  if (localityBeat.includes('\n')) {
+    out.push(localityBeat)
+  } else if (localityBeat === 'the UK') {
+    out.push('the UK')
   } else {
-    out.push('the', 'UK')
+    out.push(...localityBeat.split(/\s+/).filter(Boolean))
   }
 
   out.push('waste')

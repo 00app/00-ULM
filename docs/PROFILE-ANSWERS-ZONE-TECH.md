@@ -37,7 +37,8 @@ Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on ca
 | Step | Code | Persistence |
 |------|------|-------------|
 | Route | `app/profile/page.tsx` → `ProfilePageClient.tsx` | — |
-| Postcode step | `POST /api/local-intelligence` | Council, ward, `localCarbonG`, grant context → used in VM + summary |
+| Name step | `InputField` `autocomplete="given-name"`; `firstNameFromAutofill` on change/blur | `profile_name` — **first token only** (browser may autofill full name) |
+| Postcode step | `autocomplete="postal-code"`; hydrate from `profile_postcode` (`localStorage`, intro geolocation, `SessionStateRehydrate`) · `POST /api/local-intelligence` | Council, ward, `localCarbonG`, grant context → used in VM + summary |
 | Profile fields | name, postcode, `home_type`, **`power type`** (profile step `powerType` → GAS / ELECTRIC / MIX / OTHER), transport, household, employment, goal | `users` + `AppContext` + `localStorage` (`profile_home_power`); seeds journey answers + **unlocks 13th Zone card (UTILITIES)** via `lib/profile/homePower.ts` + `lib/zone/utilitiesZoneUnlock.ts` |
 | Motion | Full-sentence fade per step (`STACCATO_TWEEN`, y 10→0) | [HANDBOOK.md](HANDBOOK.md) Motion table |
 | After profile | `/profile/summary` → `/zone` | Summary uses `lib/brains/summaryLogic.ts` + `buildUserImpact` (no UK_2026 back-fill) |
@@ -54,7 +55,7 @@ Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on ca
 
 Full matrix + usefulness: **[PUBLIC-UK-APIS.md](PUBLIC-UK-APIS.md)**. Registry: `lib/data/utilitiesFreeApis.ts` · `lib/data/ukPublicInfrastructureApis.ts` · `lib/data/octopusPublicApis.ts` · `lib/data/publicUkApisUsage.ts`. Live smoke: `npm run test:uk-apis`.
 
-**Intro:** `/` and `/intro` — **CREATE** only (no SKIP button). `?skip=1` still skips the logo animation via URL.
+**Intro:** `/` and `/intro` — kinetic words → stacked lockup **CREATE A / PROFILE TO / START.** at **profile question H2 scale** (not desktop H1). **CREATE** only (no SKIP). `?skip=1` skips logo. Intro may set `profile_postcode` via geolocation + `/api/geocode`.
 
 ---
 

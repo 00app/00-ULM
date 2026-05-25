@@ -91,7 +91,20 @@ npm run dev
 # → http://127.0.0.1:3000
 ```
 
-After deploy or data-version bumps, clear site localStorage (DevTools → Application) or complete profile again.
+After deploy or data-version bumps (`DATA_VERSION` default `2026-05-24-profile-baseline`), returning users auto-reset via `SessionStateRehydrate` then rehydrate from `/api/session-state`. Manual: DevTools → Application → clear site data, or complete profile again.
+
+### Hydration + console noise (dev)
+
+| Symptom | Fix / expectation |
+|---------|-------------------|
+| React **hydration mismatch** on `/` | `useHydrationSafeReducedMotion` on intro/logo/word cycle; **`suppressHydrationWarning`** on `<html>` / `<body>` (Grammarly injects `data-gr-ext-installed`). |
+| **`name` vs `postcode` on `/profile`** | `ProfilePageClient` waits for `profileHydrated` after `useLayoutEffect` reads `localStorage` / `sessionStorage` — no SSR step label drift. |
+| **AUDIT over bento on Zone handoff** | Summary → Zone uses **`.zone-handoff-overlay`** (fixed, 40px inset); wall hidden until `architecturalPulsePhase === 'done'`. |
+| **Unused font preload** warning | Marvin loads via `@font-face` in `globals.css`; duplicate `<link rel="preload">` removed from `app/layout.tsx`. |
+| `runtime.lastError` / extension port | Browser extension — ignore unless reproducing in incognito without extensions. |
+| **`[403] Lightning dunning … gemini`** | Google Cloud billing / quota on the Gemini project — not an app bug. Bucket failover uses Groq/Mistral; expect **`[429]`** if profile triggers many `scrape-sync` calls in one session. |
+
+**Profile autofill smoke:** set `profile_postcode` in Application → Local Storage, reload `/profile?q=postcode` — field prefilled. Name step: browser `given-name` autofill should persist **first token only** (`lib/profile/firstNameFromInput.ts`).
 
 ---
 
@@ -122,7 +135,7 @@ npm run hermes:ping
 
 | Step | URL / action |
 |------|----------------|
-| Profile 8 steps | `/profile` → postcode hydrates via `/api/local-intelligence` |
+| Profile 8 steps | `/profile` — name `given-name` (first name only), postcode from `profile_postcode` + `/api/local-intelligence` |
 | Zone grid | `/zone` — 12 journeys, visited pink/yellow |
 | Solo Focus answer | one question → one discovery card; hybrid if bucket_failover |
 | Zai | `/zai` — stream, no scrape; pills under last Zai bubble |

@@ -5,7 +5,7 @@ import { clearLearningCacheLocal } from '@/lib/zone/loopMemory'
  * and returning users load from session/IP-based storage.
  */
 /** Bump when journey grid / local cache shape changes (e.g. 9 → 12 domains). */
-export const DATA_VERSION = process.env.NEXT_PUBLIC_DATA_VERSION ?? '2026-05-22-dev-reset'
+export const DATA_VERSION = process.env.NEXT_PUBLIC_DATA_VERSION ?? '2026-05-24-profile-baseline'
 
 export const LOCAL_STORAGE_KEYS = {
   VERSION: 'zz_data_version',
@@ -82,6 +82,8 @@ export function clearExtraLocalKeysForReset(): void {
     'zz_deep_dive_in_progress',
     'zz_session_memory',
     'zz_discovery_economy_fp',
+    'zz_rock_rotation_v1',
+    'zz_profile_onboarding_step',
   ])
   const prefix = [
     'discovery_trap_',
