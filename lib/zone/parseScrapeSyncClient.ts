@@ -1,4 +1,5 @@
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
+import { foldCoverageRowsForZone } from '@/lib/zone/neonResearchMerge'
 
 export function coerceMetaNum(v: unknown): number | undefined {
   if (v == null) return undefined
@@ -102,6 +103,13 @@ export function parseCoverageFromApi(data: unknown): Record<string, ResearchCate
     }
   }
   return Object.keys(next).length > 0 ? next : null
+}
+
+/** Fold Neon `grants` / `bills` / `general` rows onto Zone journey keys before VM build. */
+export function parseZoneCoverageFromApi(data: unknown): Record<string, ResearchCategoryCoverageRow> | null {
+  const raw = parseCoverageFromApi(data)
+  if (!raw) return null
+  return foldCoverageRowsForZone(raw)
 }
 
 export function researchTicksFromPayload(

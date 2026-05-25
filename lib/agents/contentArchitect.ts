@@ -292,13 +292,15 @@ export function applyArchitectEnrichment(
       let next = j
       if (arch) {
         const archHeadline = clampArchitectHeadline(arch.headline)
-        const keepNeonTitle =
-          !archHeadline ||
-          isLowQualityZoneHeadline(archHeadline) ||
-          /^COMPUTING\s+—/i.test(j.title)
+        const isComputingPlaceholder = /^COMPUTING\s+—/i.test(j.title)
+        const useArchitectHeadline =
+          Boolean(archHeadline) &&
+          !isLowQualityZoneHeadline(archHeadline) &&
+          (isComputingPlaceholder || j.streamPending)
         next = {
           ...j,
-          title: keepNeonTitle ? j.title : archHeadline,
+          title: useArchitectHeadline ? archHeadline : j.title,
+          streamPending: useArchitectHeadline ? false : j.streamPending,
           insightLabel: arch.insight,
           architectSuppliedBy: arch.suppliedBy,
           architectActionLine: arch.actionLine,

@@ -17,10 +17,7 @@ export function StampedMoneyGbp({ gbp, live }: { gbp: number; live?: boolean }) 
         </span>
       ) : null}
       {live ? (
-        <span
-          className="data-symbol-unit"
-          style={{ marginLeft: 6, padding: '0 6px', borderRadius: 9999, border: '1px solid currentColor' }}
-        >
+        <span className="data-symbol-unit" style={{ marginLeft: 6 }}>
           Live
         </span>
       ) : null}

@@ -641,9 +641,12 @@ export function SoloFocusOverlay({
   const requestClose = useCallback(() => {
     triggerHaptic('medium')
     const visitId = String(cardId ?? activeCardId ?? '').trim()
+    const isRockHabitTip = visitId.startsWith('rock-')
     onPatternShiftClose?.(loopJourneyKey, {
       cardId: visitId || undefined,
-      visitedClose: visitId ? shouldSkipInjectionOnCardClose(visitId, loopJourneyKey) : false,
+      visitedClose:
+        isRockHabitTip ||
+        (visitId ? shouldSkipInjectionOnCardClose(visitId, loopJourneyKey) : false),
     })
     onClose()
   }, [loopJourneyKey, onPatternShiftClose, onClose, cardId, activeCardId])

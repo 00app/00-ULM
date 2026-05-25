@@ -16,6 +16,7 @@ import {
   mergeVisitedFromServer,
   readDeepDiveInProgressCardId,
   readVisitedCardIds,
+  recordCardVisitHandoff,
   setDeepDiveInProgress,
 } from '@/lib/zone/visitedCards'
 import { rememberSoloFocusOpen, readSessionMemory } from '@/lib/zone/sessionMemory'
@@ -51,7 +52,7 @@ import {
   STACCATO_TWEEN,
 } from '@/lib/animations'
 
-import { parseCoverageFromApi, parseResearchMetaFromApi } from '@/lib/zone/parseScrapeSyncClient'
+import { parseZoneCoverageFromApi, parseResearchMetaFromApi } from '@/lib/zone/parseScrapeSyncClient'
 import {
   readCachedProfileLocality,
   resolveProfileLocalityForPostcode,
@@ -811,7 +812,7 @@ export default function ZonePage() {
           setDbVisitedJourneyKeys(new Set(vjk))
           for (const j of vjk) bumpCategoryIntent(j, 'visited')
         }
-        const next = parseCoverageFromApi(data)
+        const next = parseZoneCoverageFromApi(data)
         if (next) {
           setResearchCategoryCoverage(next)
           setInsightPendingKeys((prev) => {
@@ -975,7 +976,7 @@ export default function ZonePage() {
     fetch(url)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        const next = parseCoverageFromApi(data)
+        const next = parseZoneCoverageFromApi(data)
         if (next) {
           setResearchCategoryCoverage(next)
           setInsightPendingKeys((prev) => {
@@ -1114,7 +1115,7 @@ export default function ZonePage() {
       window.setTimeout(() => setDiscoverySnapTipId((id) => (id === detail.id ? null : id)), 950)
       setVmSyncStamp(Date.now())
       /* Achievement cards pin under hero — no Solo Focus hijack or tips-refresh wipe. */
-      if (!isAchievement) {
+      if (!isAchievement && detail.id && !readVisitedCardIds().has(detail.id)) {
         void fetch('/api/zone/tips-refresh', { method: 'POST', credentials: 'include' }).catch(() => {})
         setRefreshKey((k) => k + 1)
         scheduleSoloFocusRebirthOpen(() => {
@@ -1607,9 +1608,13 @@ export default function ZonePage() {
   }, [pinnedAchievements, effectiveInjectedTips, viewModel.tips])
 
   const isZoneCardVisited = useCallback(
-    (cardId: string, journeyKey?: JourneyId) =>
-      visitedCardIds.has(cardId) ||
-      (journeyKey != null && dbVisitedJourneyKeys.has(journeyKey)),
+    (cardId: string, journeyKey?: JourneyId) => {
+      if (cardId.startsWith('rock-')) return visitedCardIds.has(cardId)
+      return (
+        visitedCardIds.has(cardId) ||
+        (journeyKey != null && dbVisitedJourneyKeys.has(journeyKey))
+      )
+    },
     [visitedCardIds, dbVisitedJourneyKeys]
   )
   const [deepDivePendingId, setDeepDivePendingId] = useState<string | null>(() =>
@@ -2497,8 +2502,24 @@ export default function ZonePage() {
             <RockSavingTips
               habits={rockHabitsWithOffers}
               likedCardIds={state.likedCards}
+              visitedTipIds={visitedCardIds}
               onOpenTip={(id) => {
                 if (!zoneInteractable) return
+                const rockHabit = id.startsWith('rock-') ? ROCK_BY_SLUG.get(id.slice(5)) : undefined
+                markCardVisited(id)
+                void recordCardVisitHandoff({
+                  cardId: id,
+                  journeyKey: rockHabit?.journey_key,
+                  title: rockHabit?.title,
+                })
+                setVisitedCardIds(readVisitedCardIds())
+                try {
+                  sessionStorage.removeItem(`zz_sf_view_${id}`)
+                  sessionStorage.removeItem(`zz_sf_lane_${id}`)
+                  sessionStorage.removeItem(`zz_sf_q_${id}`)
+                } catch {
+                  /* ignore */
+                }
                 if (!openSoloFocus(id, 'tip')) return
                 setExpandedCardId(null)
                 setExpandedFromTip(null)
@@ -2559,6 +2580,7 @@ export default function ZonePage() {
             <>
               <SoloFocusOverlay
                 key={tip.id}
+                startInQuestionMode={!isRockTip}
                 auditState={tip.auditState ?? null}
                 category={(tip.journey_key || 'TIP').replace(/-/g, ' ')}
                 recommendation={tip.title}
@@ -2574,7 +2596,14 @@ export default function ZonePage() {
                 sourceLabel={tip.sourceLabel}
                 architectSuppliedBy={tip.architectSuppliedBy}
                 onClose={closeAnySoloFocus}
-                onPatternShiftClose={launchPatternShiftTakeover}
+                onPatternShiftClose={(jid, meta) => {
+                  if (isRockTip) {
+                    markCardVisited(tip.id)
+                    launchPatternShiftTakeover(jid, { visitedClose: true })
+                    return
+                  }
+                  launchPatternShiftTakeover(jid, meta)
+                }}
                 cardId={tip.id}
                 onLike={trackZoneLike}
                 onEmbeddedAnswerSuccess={

@@ -25,6 +25,7 @@ const INSTAGRAM_HREF =
 type Props = {
   habits: RockHabit[]
   likedCardIds: readonly string[]
+  visitedTipIds: ReadonlySet<string>
   onOpenTip: (tipId: string) => void
 }
 
@@ -54,7 +55,7 @@ function ensureSixRockHabits(habits: RockHabit[]): RockHabit[] {
  * The Rock — six saving-tip tiles: same bento shell as Zone (yellow / purple, `bento-card-groovy`).
  * Grid: 1 col mobile / 2 tablet / 3 desktop (matches Zone rhythm below XL).
  */
-export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
+export function RockSavingTips({ habits, likedCardIds, visitedTipIds, onOpenTip }: Props) {
   const six = ensureSixRockHabits(habits)
   const [mobile, setMobile] = useState('')
   const [signupBusy, setSignupBusy] = useState(false)
@@ -118,6 +119,9 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
         {six.map((h) => {
           const tip = habitToTipCard(h)
           const liked = likedCardIds.includes(tip.id)
+          const visited = visitedTipIds.has(tip.id)
+          const tipBg = visited ? ROCK_CARD_BG : 'var(--color-purple)'
+          const tipInk = 'var(--color-yellow)' as const
           const jid = h.journey_key
           const tipHeadline = headlineFromTitle(
             cleanZonePreviewHeadline(h.title),
@@ -132,25 +136,30 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
               type="button"
               onClick={() => onOpenTip(tip.id)}
               data-zone-surface="tip"
-              className="bento-card-groovy rock-bento-tile groovy-cell-radius flex flex-col justify-between w-full h-full min-h-0 cursor-pointer border-0 text-left"
+              className={[
+                'bento-card-groovy rock-bento-tile groovy-cell-radius flex flex-col justify-between w-full h-full min-h-0 cursor-pointer border-0 text-left',
+                visited ? 'zone-card--visited' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={{
-                ['--journey-bg' as string]: ROCK_CARD_BG,
-                ['--journey-text' as string]: ROCK_CARD_TEXT,
-                ['--color-ink' as string]: ROCK_CARD_TEXT,
+                ['--journey-bg' as string]: tipBg,
+                ['--journey-text' as string]: tipInk,
+                ['--color-ink' as string]: tipInk,
                 borderRadius: 60,
                 boxShadow: 'none',
               }}
             >
               <ZoneBentoCardHeader
                 journeyId={jid ?? 'carbon'}
-                textColor={ROCK_CARD_TEXT}
+                textColor={tipInk}
               />
               <h3 className="card-headline m-0 min-w-0" lang="en">
                 {tipHeadline}
               </h3>
               <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0">
                 <div className="data-stack data-stack--tight">
-                  <span className="data-label" style={{ color: ROCK_CARD_TEXT }}>
+                  <span className="data-label" style={{ color: tipInk }}>
                     SAVE
                   </span>
                   <span className="data-value text-data data-stamp-metric" style={{ color: 'var(--color-ink)' }}>
@@ -158,7 +167,7 @@ export function RockSavingTips({ habits, likedCardIds, onOpenTip }: Props) {
                   </span>
                 </div>
                 <div className="data-stack data-stack--tight">
-                  <span className="data-label" style={{ color: ROCK_CARD_TEXT }}>
+                  <span className="data-label" style={{ color: tipInk }}>
                     CARBON
                   </span>
                   <span className="data-value text-data data-stamp-metric" style={{ color: 'var(--color-ink)' }}>
