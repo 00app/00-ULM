@@ -1,0 +1,14 @@
+# Never upload local secrets with CLI deploys (dashboard env vars are canonical).
+.env
+.env.*
+!.env.example
+.env.local
+.env.production
+.env.production.local
+.vercel
+.eslintcache
+.next
+node_modules/.cache
+test-results
+playwright-report
+coverage
