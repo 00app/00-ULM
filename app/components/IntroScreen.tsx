@@ -218,6 +218,7 @@ export default function IntroScreen() {
 
   return (
     <div
+      className="intro-decision-screen"
       style={{
         ...fullScreenStyle,
         background: 'transparent',
@@ -228,7 +229,7 @@ export default function IntroScreen() {
         pointerEvents: 'auto',
       }}
     >
-      <motion.h2
+      <motion.h1
         className="intro-decision-headline zz-shimmer-focus"
         initial={headlineInitial}
         animate={headlineAnimate}
@@ -240,7 +241,7 @@ export default function IntroScreen() {
         }}
       >
         {INTRO_DECISION_LOCKUP}
-      </motion.h2>
+      </motion.h1>
       <div
         style={{ display: 'flex', gap: 40, alignItems: 'center', justifyContent: 'center' }}
       >

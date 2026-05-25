@@ -7078,11 +7078,14 @@ body:has(.likes-page) .floating-nav {
   .intro-text-large { font-size: var(--zz-h2-desktop); }
 }
 
-/* Intro decision — stacked sentence lockup (profile-question rhythm: pre-line + 0.8) */
+/* Intro decision — stacked sentence lockup (CREATE A / PROFILE TO / START.) */
+.intro-decision-screen {
+  gap: clamp(1.75rem, 4vw, 3rem);
+}
 .intro-decision-headline {
   display: block;
   width: fit-content;
-  max-width: min(92vw, 28rem);
+  max-width: min(92vw, 36rem);
   margin-left: auto;
   margin-right: auto;
   text-align: center;
@@ -7090,8 +7093,8 @@ body:has(.likes-page) .floating-nav {
   font-family: var(--font-marvin), var(--font-label), sans-serif;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: -0.02em !important;
-  font-size: var(--zz-h2-mobile);
+  letter-spacing: -0.03em !important;
+  font-size: clamp(2.75rem, 12vw, var(--zz-h2-mobile));
   line-height: 0.8 !important;
   color: var(--color-intro-type);
 }
@@ -7118,8 +7121,18 @@ p,
 .solo-focus-scraped-tip {
   line-height: 1.2 !important;
 }
+@media (min-width: 768px) {
+  .intro-decision-headline {
+    font-size: var(--zz-h2-tablet);
+    max-width: min(94vw, 44rem);
+  }
+}
 @media (min-width: 1024px) {
-  .intro-decision-headline { font-size: var(--zz-h2-desktop); }
+  .intro-decision-headline {
+    font-size: clamp(5rem, 7.5vw, var(--zz-h1-desktop));
+    max-width: min(96vw, 52rem);
+    letter-spacing: -0.04em !important;
+  }
 }
 
 /* Decision CTAs — Marvin H4 on 100px disc; rollover yellow/purple, bounce */
