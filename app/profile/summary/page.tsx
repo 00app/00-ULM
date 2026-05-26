@@ -25,7 +25,7 @@ import { ROUTES } from '@/lib/routes'
 import SummaryHeader from '@/app/components/SummaryHeader'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { INDUSTRIAL_OPACITY_SNAP, soloFocusSlamMotionProps } from '@/lib/animations'
-import { GlitchLogo } from '@/app/components/Logo'
+import { AtomicLogo } from '@/app/components/Logo'
 import { preloadAppFonts } from '@/lib/architecturalPulse'
 import { SESSION_SUMMARY_TO_ZONE } from '@/lib/architecturalPulse'
 
@@ -530,7 +530,7 @@ export default function ProfileSummaryPage() {
             justifyContent: 'center',
           }}
         >
-          <GlitchLogo loop width={100} />
+          <AtomicLogo loop width={100} />
         </div>
       </motion.div>
     )

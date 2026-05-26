@@ -1,5 +1,6 @@
 /**
- * Zero Zero — **MVP industrial lock**: linear opacity snaps (no physics, no vertical drift).
+ * Zero Zero motion — Zone/Solo industrial tokens + legacy exports.
+ * **Family Liquid (Profile, Summary, Likes, Settings):** `lib/motion-family.ts` + `docs/MOTION-FAMILY.md`.
  */
 
 // =============================================================================
@@ -193,33 +194,11 @@ export const ZONE_ANCHOR_VARIANTS = {
   visible: { opacity: 1, transition: STACCATO_TWEEN },
 }
 
-/** Stagger between Zone bento cells (vertical wave, same cadence as staccato). */
-export const ZONE_GRID_STAGGER_CHILD_DELAY_SEC = STACCATO_STAGGER_SEC
-
-/**
- * Zone wall cell — one fussy snap per card (no separate inner text choreography).
- * `ping` — Sentinel / grid pulse on journey tiles only (caller selects variant).
- */
-export const ZONE_BENTO_CELL_VARIANTS = {
-  hidden: {
-    opacity: 0,
-    y: 2,
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: STACCATO_TWEEN,
-  },
-  shrunk: {
-    opacity: 0,
-    y: 2,
-    transition: INDUSTRIAL_OPACITY_SNAP,
-  },
-  ping: {
-    opacity: [0, 1],
-    transition: INDUSTRIAL_OPACITY_SNAP,
-  },
-}
+/** Zone bento ripple + atomic crystallize — see `lib/motion-family.ts`. */
+export {
+  ZONE_ATOMIC_BENTO_VARIANTS as ZONE_BENTO_CELL_VARIANTS,
+  ZONE_GRID_STAGGER_CHILD_DELAY_SEC,
+} from '@/lib/motion-family'
 
 /** Solo Focus: zip-shut rail collapse — matches CSS `.solo-focus-loop` + inject gate in `EmbeddedJourneyQuestion`. */
 export const SOLO_FOCUS_ZIP_SHUT_SEC = 0.12
@@ -274,19 +253,27 @@ export const SHIMMER_FOCUS_EXIT = {
   opacity: 0,
 } as const
 
-/** `/` + `/intro` kinetic word line — ~30% faster cadence than legacy 1040/120. */
-export const INTRO_SHIMMER_WORD_DWELL_MS = 728
-export const INTRO_SHIMMER_WORD_GAP_MS = 84
+/** Intro / summary / segment loading — additional ~30% faster (stacks with `FAMILY_MOTION_SCALE`). */
+export const INTRO_TYPE_MOTION_SCALE = 0.7
+
+/** `/` + `/intro` kinetic word line — tuned with `INTRO_TYPE_MOTION_SCALE`. */
+export const INTRO_SHIMMER_WORD_DWELL_MS = Math.round(728 * INTRO_TYPE_MOTION_SCALE)
+export const INTRO_SHIMMER_WORD_GAP_MS = Math.round(84 * INTRO_TYPE_MOTION_SCALE)
 
 /** Profile summary kinetic line — speed-locked to IntroWordCycle. */
 export const SUMMARY_KINETIC_WORD_DWELL_MS = INTRO_SHIMMER_WORD_DWELL_MS
 export const SUMMARY_KINETIC_WORD_GAP_MS = INTRO_SHIMMER_WORD_GAP_MS
 
-/** Intro route: exit beat between words (summary keeps default 150 in `IntroWordCycle`). */
-export const INTRO_ROUTE_WORD_EXIT_MS = 105
+/** Intro + summary: exit beat between opacity-ticker words. */
+export const INTRO_ROUTE_WORD_EXIT_MS = Math.round(105 * INTRO_TYPE_MOTION_SCALE)
 
-/** Intro safety timer tail after max word path (was 800ms). */
-export const INTRO_ROUTE_SAFETY_TAIL_MS = 560
+/** Intro safety timer tail after max word path. */
+export const INTRO_ROUTE_SAFETY_TAIL_MS = Math.round(560 * INTRO_TYPE_MOTION_SCALE)
+
+/** `AtomicLogo` loop interval on route loading surfaces. */
+export const LOADING_ATOMIC_LOOP_MS = Math.round(
+  (Math.round(1.0 * 0.7 * 1000) + 120) * INTRO_TYPE_MOTION_SCALE
+)
 
 /** Solo Focus zip-shut: max answers per overlay open (lane-lock drill-down, sync with Sentinel runner). */
 export const SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION = 3

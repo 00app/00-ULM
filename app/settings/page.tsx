@@ -10,8 +10,18 @@ import { JOURNEY_ORDER, JOURNEYS, getFunkyOptionDisplay, type JourneyId } from '
 import { readLoopAnswersForSettings } from '@/lib/zone/loopQuestions'
 import { ROUTES } from '@/lib/routes'
 import { ENGINE_UI_LABELS } from '@/lib/logic/engine'
-import { INDUSTRIAL_OPACITY_SNAP, KINETIC_ZIP_PULSE } from '@/lib/animations'
+import {
+  FAMILY_DUR_SHORT,
+  FAMILY_EASE,
+  FAMILY_PAGE_ENTER,
+  familyAtomicProps,
+  familyPageEnterProps,
+  FAMILY_TRANSITION_ATOMIC,
+} from '@/lib/motion-family'
+import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import { SoloFocusOverlay } from '@/app/components/SoloFocusOverlay'
+import { SettingsLoopEditOverlay } from '@/app/components/SettingsLoopEditOverlay'
+import type { LoopAnswerSettingsRow } from '@/lib/zone/loopQuestions'
 import { buildZoneViewModel } from '@/lib/logic/zone'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
@@ -78,12 +88,14 @@ function SettingsBentoCard({
   label,
   headline,
   editHref,
+  onEditClick,
   children,
   isHero = false,
 }: {
   label: string
   headline: string
   editHref?: string
+  onEditClick?: () => void
   children?: React.ReactNode
   isHero?: boolean
 }) {
@@ -102,7 +114,17 @@ function SettingsBentoCard({
         <span className="card-top-label" style={{ color: textColor }}>
           {label}
         </span>
-        {editHref ? (
+        {onEditClick ? (
+          <button
+            type="button"
+            onClick={onEditClick}
+            className="card-top-arrow flex items-center justify-center flex-shrink-0 border-0 p-0 cursor-pointer bg-transparent"
+            style={{ width: 42, height: 42, color: textColor }}
+            aria-label={`Edit: ${label}`}
+          >
+            <PencilIcon />
+          </button>
+        ) : editHref ? (
           <Link href={editHref} className="card-top-arrow flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42, color: textColor }} aria-label={`Edit: ${label}`}>
             <PencilIcon />
           </Link>
@@ -150,9 +172,16 @@ const SHORT_QUESTION_LABELS: Record<string, string> = {
 export default function SettingsPage() {
   const { state } = useApp()
   const router = useRouter()
+  const reduceMotion = useHydrationSafeReducedMotion()
+  const settingsCellMotion = familyAtomicProps(reduceMotion)
+  const pageEnter = familyPageEnterProps(reduceMotion)
+  const settingsStaggerTransition = reduceMotion
+    ? { duration: 0.12, ease: 'linear' as const }
+    : { duration: FAMILY_DUR_SHORT, ease: FAMILY_EASE }
   const [hasMounted, setHasMounted] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeJourneyEdit, setActiveJourneyEdit] = useState<{ id: JourneyId; title: string } | null>(null)
+  const [activeLoopEdit, setActiveLoopEdit] = useState<LoopAnswerSettingsRow | null>(null)
   const [dbConnected, setDbConnected] = useState(true)
   const [dbHealthHint, setDbHealthHint] = useState<string | null>(null)
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
@@ -340,7 +369,9 @@ export default function SettingsPage() {
         paddingTop: 20,
         paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))',
       }}
-      {...KINETIC_ZIP_PULSE}
+      initial={pageEnter.initial}
+      animate={pageEnter.animate}
+      transition={pageEnter.transition}
     >
       <ZoneBackToZoneLink />
 
@@ -353,9 +384,9 @@ export default function SettingsPage() {
         <section className="settings-hero-section" aria-label="Overview">
           <motion.div
             className="settings-hero-inner"
-            initial={{ opacity: 0, y: 2 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...INDUSTRIAL_OPACITY_SNAP, delay: 0.08 }}
+            initial={settingsCellMotion.initial}
+            animate={settingsCellMotion.animate}
+            transition={{ ...settingsStaggerTransition, delay: 0.08 }}
           >
             <SettingsBentoCard label="Overview" headline="YOUR ANNUAL WASTE" isHero>
               <div
@@ -387,16 +418,20 @@ export default function SettingsPage() {
         </section>
 
         <section className="settings-cards-section" aria-label="Profile and journeys">
-          <motion.div className="settings-answer-grid" transition={INDUSTRIAL_OPACITY_SNAP}>
+          <motion.div className="settings-answer-grid" transition={settingsStaggerTransition}>
             {profileRows.map((row, i) => (
               <motion.div
                 key={`profile-${i}`}
                 className="settings-card-cell"
-                initial={{ opacity: 0, y: 2 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ ...INDUSTRIAL_OPACITY_SNAP, delay: 0.05 + i * 0.05 }}
+                initial={settingsCellMotion.initial}
+                animate={settingsCellMotion.animate}
+                transition={{ ...settingsStaggerTransition, delay: 0.05 + i * 0.08 }}
               >
-                <SettingsBentoCard label={row.question} headline={row.answer} editHref={ROUTES.PROFILE} />
+                <SettingsBentoCard
+                  label={row.question}
+                  headline={row.answer}
+                  editHref={`${ROUTES.PROFILE}?q=${encodeURIComponent(row.id)}&returnTo=${encodeURIComponent(ROUTES.SETTINGS)}`}
+                />
               </motion.div>
             ))}
 
@@ -404,17 +439,17 @@ export default function SettingsPage() {
               <motion.div
                 key={`loop-${row.questionId}`}
                 className="settings-card-cell"
-                initial={{ opacity: 0, y: 2 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={settingsCellMotion.initial}
+                animate={settingsCellMotion.animate}
                 transition={{
-                  ...INDUSTRIAL_OPACITY_SNAP,
-                  delay: 0.05 + (profileRows.length + i) * 0.05,
+                  ...settingsStaggerTransition,
+                  delay: 0.05 + (profileRows.length + i) * 0.08,
                 }}
               >
                 <SettingsBentoCard
                   label={row.question}
                   headline={row.answer}
-                  editHref={ROUTES.ZONE}
+                  onEditClick={() => setActiveLoopEdit(row)}
                 />
               </motion.div>
             ))}
@@ -424,11 +459,12 @@ export default function SettingsPage() {
                 key={`journey-${card.journey}`}
                 className="settings-card-cell cursor-pointer"
                 onClick={() => setActiveJourneyEdit({ id: card.journey, title: card.title })}
-                initial={{ opacity: 0, y: 2 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={settingsCellMotion.initial}
+                animate={settingsCellMotion.animate}
+                whileTap={reduceMotion ? undefined : { scale: 0.985 }}
                 transition={{
-                  ...INDUSTRIAL_OPACITY_SNAP,
-                  delay: 0.05 + (profileRows.length + loopRows.length + j) * 0.05,
+                  ...settingsStaggerTransition,
+                  delay: 0.05 + (profileRows.length + loopRows.length + j) * 0.08,
                 }}
               >
                 <div
@@ -459,6 +495,17 @@ export default function SettingsPage() {
       </div>
 
       <>
+        {activeLoopEdit ? (
+          <SettingsLoopEditOverlay
+            row={activeLoopEdit}
+            onClose={() => setActiveLoopEdit(null)}
+            onSaved={() => {
+              setRefreshKey((k) => k + 1)
+              void import('@/lib/sessionStateSync').then((m) => m.syncSessionState())
+            }}
+          />
+        ) : null}
+
         {activeJourneyEdit && (
           <SoloFocusOverlay
             key={`edit-${activeJourneyEdit.id}`}
@@ -499,7 +546,8 @@ export default function SettingsPage() {
           type="button"
           onClick={() => router.push(ROUTES.ZONE)}
           className="settings-circle-cta settings-circle-cta--yellow"
-          transition={INDUSTRIAL_OPACITY_SNAP}
+          whileTap={reduceMotion ? undefined : { scale: 0.985 }}
+          transition={settingsStaggerTransition}
           aria-label="Save and return to Zone"
         >
           <span className="settings-circle-cta__label zz-h4">SAVE</span>
@@ -520,7 +568,8 @@ export default function SettingsPage() {
             type="button"
             onClick={handleReset}
             className="settings-circle-cta settings-circle-cta--pink"
-            transition={INDUSTRIAL_OPACITY_SNAP}
+            whileTap={reduceMotion ? undefined : { scale: 0.985 }}
+            transition={settingsStaggerTransition}
             aria-label="Reset all data"
           >
             <span className="settings-circle-cta__label zz-h4">

@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/next'
 import { AppProvider } from '@/app/context/AppContext'
 import { GlobalAppShell } from '@/app/global-layout'
 import InteractiveBackground from '@/app/components/ui/InteractiveBackground'
@@ -126,6 +127,7 @@ export default function RootLayout({
         <AppProvider>
           <GlobalAppShell>{children}</GlobalAppShell>
         </AppProvider>
+        <Analytics />
       </body>
     </html>
   )

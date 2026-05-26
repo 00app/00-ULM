@@ -1,8 +1,11 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import { GLITCH_ANIM_MS } from '@/lib/architecturalPulse'
+import { LOADING_ATOMIC_LOOP_MS } from '@/lib/animations'
+import { familyAtomicProps, FAMILY_TRANSITION_ATOMIC } from '@/lib/motion-family'
 
 export interface LogoProps {
   width?: number
@@ -44,7 +47,45 @@ type GlitchLogoProps = {
   className?: string
 }
 
-/** Style A glitch — yellow base + pink overlay (469ms). */
+/** Power-on — logo crystallizes from golden particle cloud (1.0s). */
+export function AtomicLogo({ width = 126, onComplete, loop = false, className = '' }: GlitchLogoProps) {
+  const reduceMotion = useHydrationSafeReducedMotion()
+  const onCompleteRef = useRef(onComplete)
+  onCompleteRef.current = onComplete
+  const [cycle, setCycle] = useState(0)
+  const motionTargets = familyAtomicProps(reduceMotion)
+
+  useEffect(() => {
+    if (reduceMotion || !loop) return
+    const id = window.setInterval(() => setCycle((c) => c + 1), LOADING_ATOMIC_LOOP_MS)
+    return () => window.clearInterval(id)
+  }, [loop, reduceMotion])
+
+  if (reduceMotion) {
+    return (
+      <div className={`zz-atomic-logo-wrap ${className}`.trim()} aria-hidden>
+        <Logo width={width} style={{ color: 'var(--color-yellow)' }} />
+      </div>
+    )
+  }
+
+  return (
+    <motion.div
+      key={loop ? cycle : 'once'}
+      className={`zz-atomic-logo-wrap ${className}`.trim()}
+      aria-hidden
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      initial={motionTargets.initial}
+      animate={motionTargets.animate}
+      transition={FAMILY_TRANSITION_ATOMIC}
+      onAnimationComplete={() => onCompleteRef.current?.()}
+    >
+      <Logo width={width} style={{ color: 'var(--color-yellow)' }} />
+    </motion.div>
+  )
+}
+
+/** Style A glitch — legacy; prefer `AtomicLogo` for unified material. */
 export function GlitchLogo({ width = 126, onComplete, loop = false, className = '' }: GlitchLogoProps) {
   const reduceMotion = useHydrationSafeReducedMotion()
   const onCompleteRef = useRef(onComplete)

@@ -63,25 +63,19 @@ function preCleanNextOutput() {
   }
 }
 
-// Only backfill manifests that don't affect route resolution (pages-manifest is written by Next's server build)
+// Only backfill manifests that don't affect route resolution (pages-manifest is written by Next's server build).
+// Do not stub middleware-manifest.json — empty stubs can desync from proxy/middleware.js during build.
 const manifestFiles = [
   'next-font-manifest.json',
-  'middleware-manifest.json',
   'server-reference-manifest.json',
 ]
 
-const middlewareManifestContent = JSON.stringify(
-  { sortedMiddleware: [], middleware: {}, functions: {}, matchers: [] },
-  null,
-  0
-)
 const serverRefManifestContent = JSON.stringify({ node: {}, edge: {} }, null, 0)
 
 function ensureManifests() {
   // Only write into .next/server when it exists (do not create .next or .next/server)
   if (!fs.existsSync(distDir)) return
   const content = (name) => {
-    if (name === 'middleware-manifest.json') return middlewareManifestContent
     if (name === 'server-reference-manifest.json') return serverRefManifestContent
     return '{}'
   }

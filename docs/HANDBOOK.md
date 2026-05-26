@@ -1,6 +1,8 @@
 # Zero Zero (00-00) — Handbook
 
-Single reference for product intent, user flow, architecture, integrations, motion pointers, and security. This file is [HANDBOOK.md](HANDBOOK.md) in the repo. Implementation detail lives in code (`lib/`, `app/`); **verify animation timings in `lib/animations.ts`**.
+Single reference for product intent, user flow, architecture, integrations, motion pointers, and security. This file is [HANDBOOK.md](HANDBOOK.md) in the repo. Implementation detail lives in code (`lib/`, `app/`).
+
+**Motion (delivery-only, no flow changes):** tokens in **`lib/motion-family.ts`** · spec **`docs/MOTION-FAMILY.md`** · Zone bento re-exports from **`lib/animations.ts`**. **Brains / loop order / APIs are unchanged** by motion work — see **Director's Order** below.
 
 **Repo entry:** root **[README.md](../README.md)** · all product docs under **`docs/`**.
 
@@ -49,6 +51,7 @@ All paths relative to **`docs/`** unless noted.
 | **`FULL-APP-SPEC.md`** | Architecture, APIs, DB, mother/child cards |
 | **`DEPLOY-VERCEL.md`** | Checks Failed / Staged, promote, Node 24 |
 | **`DEV-TEST-AUDIT.md`** | Local smoke, SQL, Hermes, clean build |
+| **`MOTION-FAMILY.md`** | Family Liquid + Atomic Assembly (delivery physics only) |
 | **`HERMES-VPS-SETUP.md`** | Oracle VPS cron |
 | **`HERMES-ULM-JIT-BRIEF.md`** | JIT scrape vs Hermes scope |
 | **`SENTINEL.md`** | Live-Impact, home deck, `inject-sentinel-*` tips, `POST /api/sentinel` |
@@ -73,10 +76,10 @@ UK-first web app: **postcode** and **profile** drive local context; **Zone** sho
 | Step | Route | Notes |
 |------|--------|--------|
 | Intro | `/`, `/intro` | **Style A glitch logo** (`GlitchLogo` / `.app-boot-glitch`) → `IntroWordCycle` (SAVE → MONEY → …) → decision lockup **CREATE A / PROFILE TO / START.** (`IntroScreen`, Marvin **H2** scale = `.profile-question-headline`, uppercase stack) → **CREATE** (`/profile`) only. Optional geolocation → `profile_postcode` in `localStorage`. `?skip=1` / `?step=message` skips logo via URL. |
-| Profile | `/profile` | Stepped onboarding (`ProfilePageClient`). **Full-sentence fade:** each step’s heading is **one block** (soft **y: 10→0** + opacity, `STACCATO_TWEEN`) — **not** word-by-word. **Autofill:** `given-name` → **first name only** (`firstNameFromAutofill`); `postal-code` + hydrate from `profile_postcode` / session-state. Postcode → `POST /api/local-intelligence`. |
-| Summary | `/profile/summary` | **`SummaryHeader`** → **`IntroWordCycle`** with **`opacityTicker`** + **40px** viewport inset. Locality from cache/API (rejects bare **UK**; outcode fallback before UK-wide). **`the UK`** is one ticker beat, not a lone **UK** word. Then Zone. |
-| Zone | `/zone` | Summary handoff: **`.zone-handoff-overlay`** (fixed viewport, 40px inset) — glitch (~4×469ms) then pulse words; **bento wall not mounted** until `done`. Inline **`GlitchLogo`** for non-handoff wall load. **`GET /api/scrape-sync`** hydrates (`vmResolved`). Style B: **`STACCATO_*`**. |
-| Solo Focus | (overlay) | **`JourneyBentoCard`** (QUESTION/RESULT chamber; inject tips use **`SoloFocusOverlay`**). Expanded **Marvin H3** architect headline (6–12 words). **Ask Zai** Trinity → **`AskZaiDeepDiveSheet`**; **Continue in Zai** → **`setAskZaiContext`** + `/zai`. MC answer → **`POST /api/answers`** → RESULT; **grid birth** after close → loop → **`DiscoveryTakeover`** → **`injectNewDiscoveryCard`**. **Tier 2:** **`runTier2MotherChildSwap`**. Zip-shut → fade-open loop question. |
+| Profile | `/profile` | Stepped onboarding (`ProfilePageClient`). **Family glide + reveal:** `AnimatePresence mode="wait"`, 15px glide + blur-wake headline (`familyGlide` / `familyReveal`) — **not** word-by-word. **Autofill:** `given-name` → **first name only**; `postal-code` + `profile_postcode`. Postcode → `POST /api/local-intelligence`. |
+| Summary | `/profile/summary` | **`SummaryHeader`** → **`IntroWordCycle`** + **`opacityTicker`** (**Atomic Assembly**: blur cloud → sharp word, **40px** inset). Per-word dwell: **`atomicWordHoldMs`** (1s crystallize + **200ms/word** read buffer). Locality cache/API; **`the UK`** = one beat. Then Zone. |
+| Zone | `/zone` | Handoff: glitch then **`ArchitecturalPulse`** (atomic words) → grid gated on **`pulseWordsComplete`**. Bento cells **crystallize** (`ZONE_ATOMIC_BENTO_VARIANTS`), stagger **0.12s**; Rock/tips last. **`GET /api/scrape-sync`** (`vmResolved`). **Director's Order** for expand/close/loop/pink — below. |
+| Solo Focus | (overlay) | **`JourneyBentoCard`** embedded question → RESULT → **close** → **one** loop (`DiscoveryTakeover`, atomic loop headline) → discovery → **pink** (`completeCleanBirth` only). Rock/tips: **no loop** on close. MC answer → **`POST /api/answers`**. Zip-shut unchanged on embedded chamber. |
 | Other | `/zai`, `/likes`, `/settings` | Chat (consumes ask-handoff context), saved cards, reset/session. **`AppFloatingNav`** on Zone, Likes, Zai, Settings — **40×40px** circles, portaled pink bar; `ROUTES` (`likes`, `chat` → `/zai`, `summary` → `/settings`). |
 
 No `/journeys` or `/expand/*` product routes — journeys live on Zone.
@@ -88,7 +91,7 @@ No `/journeys` or `/expand/*` product routes — journeys live on Zone.
 - **Definitions:** `lib/journeys.ts` — **13 domains**, **3 questions each** (`JOURNEY_ORDER`: `home`, `utilities`, `grants`, `solar`, `travel`, `holidays`, `food`, `shopping`, `money`, `tech`, `water`, `waste`, `carbon`). Profile leading question **`home_power`** (GAS / ELECTRIC / MIX / OTHER) seeds utilities + `home.energy_type`. Question labels are behavioural only — **no £/kg in copy**.
 - **Full question map:** [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) §1.
 - **Next question:** `lib/zone/questionHandler.ts` — `getNextQuestion(journeyId, answers)` returns the first question with no (or empty) answer.
-- **UI (Solo Focus):** `app/components/JourneyBentoCard.tsx` — one registry question per open (`getSoloFocusNextQuestion`); profile-style **`ProfileAnswerBtn`** + **`profile-question-headline`**. After MC answer → **RESULT**; after **close** → **`DiscoveryTakeover`** loop beat (fade-open, `ZIP_SHUTTER_SPRING`).
+- **UI (Solo Focus):** `app/components/JourneyBentoCard.tsx` — one registry question per open (`getSoloFocusNextQuestion`); **`ProfileAnswerBtn`**. After MC answer → **RESULT**; after **close** → **`DiscoveryTakeover`** (one loop per journey, `pickNextLoopQuestion` / `lib/zone/loopMemory.ts`). **Do not** `markCardVisited` on close — pink only in **`completeCleanBirth`** (`app/zone/page.tsx`) after loop answer + discovery.
 - **UI (`/profile` onboarding):** `ProfilePageClient.tsx` — **full-sentence** question copy per step (same fade contract as above).
 - **Persist:** `POST /api/answers` — validates `isValidJourneyQuestion`, upserts `journey_answers_jsonb`, recomputes impact, discovery, optional research (`triggerSupplementalResearch`), Sentinel hooks, etc. **This is the canonical birth path** for discovery cards returned as `new_card_data` / `grid_pulse_card` in the JSON response → client **`injectNewDiscoveryCard`**.
 - **Hydrate:** `GET /api/answers` — server answers merged on boot (`AppContext`) so Zone matches Neon.
@@ -123,7 +126,7 @@ Locked product contract for **use less, more** (Ulm JIT) and multi-tester safety
 | Profile questions feed **real £ / kg** | **`buildUserImpact`** (`lib/brains/buildUserImpact.ts`) on **`POST /api/answers`**, **`/api/summary`**, **`buildZoneViewModel`** |
 | Postcode + locality | **`POST /api/local-intelligence`** (`ProfilePageClient`, intro) |
 | Persist answers | **`journey_answers_jsonb`** via **`POST /api/answers`** |
-| Summary motion | Full-sentence fade (`STACCATO_TWEEN`); **`IntroWordCycle`** + **`opacityTicker`** on `/profile/summary` (one word at a time, no glitch) |
+| Summary motion | **Atomic Assembly** ticker — **`IntroWordCycle`** + **`opacityTicker`** + **`atomicWordHoldMs`** (no intro glitch on this route) |
 | Tile headlines before scrape | **Mechanical truth** still applies per journey until Neon stream exists → **`COMPUTING — JOURNEY`**, metrics **`—`** (`lib/zone/mechanicalTruth.ts`) |
 
 ### Zone grid (12 domains)
@@ -132,7 +135,7 @@ Locked product contract for **use less, more** (Ulm JIT) and multi-tester safety
 |------|----------------|
 | **13 domains** | **`JOURNEY_ORDER`** in `lib/journeys.ts` — `home`, `utilities`, `grants`, `solar`, `travel`, `holidays`, `food`, `shopping`, `money`, `tech`, `water`, `waste`, `carbon` |
 | **One question per card** | **`getNextQuestion`** / **`getSoloFocusNextQuestion`** (`lib/zone/questionHandler.ts`) |
-| **Visited lock** | **`visited_cards`** (localStorage) + **`isCardVisited`** → pink **`#FF00FF`** / yellow **`#FDFD00`** (`.zone-card--visited`); no re-scrape on re-open (`SoloFocusOverlay` **`cardVisitedLock`**) |
+| **Visited lock** | Pink **only after** first loop + birth (`markCardVisited` in **`completeCleanBirth`**). **`visitedClose`** (`lib/zone/visitedCards.ts` + **`hasLoopDoneForJourney`**) skips loop on revisit. **`visited_cards`** localStorage + **`isCardVisited`** → `.zone-card--visited`; Rock close uses **`visitedClose: true`** (no loop). |
 | **24-card ceiling** | *Design target* — enforce in `buildGroovyGridItems` when grid grows (hero + journeys + tips + discovery) |
 | **No fake £ on empty Neon** | See **Mechanical truth** above |
 
@@ -382,21 +385,69 @@ Apply in Neon (or your pipeline) as needed:
 
 ---
 
-## Motion & layout (Mechanical Snap DNA)
+## Motion & layout (Family Liquid + Atomic Assembly)
+
+**Contract:** motion changes **presentation timing only**. They do **not** alter question registries, scrape triggers, **`POST /api/answers`** payloads, discovery caps, or mechanical truth. Full token table: [MOTION-FAMILY.md](MOTION-FAMILY.md). Prime directive: `.cursor/rules/zero-zero-prime-directive.mdc`.
 
 | Surface | Animation | Implementation |
 | --- | --- | --- |
-| **`/` + `/intro`** | **Style A — Glitch logo** | `IntroScreen` / **`GlitchLogo`** (~469ms CSS glitch, `GLITCH_ANIM_MS`). **Do not** reuse on `/profile/summary`. |
-| **Route loading** | **Boot glitch** | `app/loading.tsx` + `app/zone/loading.tsx` → **`AppBootGlitch`** (fullscreen purple + looping logo). |
-| **Zone hydrate** | **Inline glitch** | Under Ask Zai pill (`.zone-inline-loading-logo`, 40px vertical rhythm) until first bento card reveals. |
-| **`/profile/summary`** | **Staccato word ticker** | `SummaryHeader` → `IntroWordCycle` **`opacityTicker`**: one word at a time, **opacity only** (`STACCATO_*` timing). |
-| **`/profile` questions** | **Full-sentence fade** | `ProfilePageClient`: whole label as one block, **y: 10→0** + opacity, **`STACCATO_TWEEN`**. |
-| **Zone grid** | **Style B — Mechanical assembly** | `STACCATO_CONTAINER_VARIANTS` / **`STACCATO_CHILD_VARIANTS`** in `app/zone/page.tsx`; 20px gap, **60px** card radius, `grid-auto-rows: 1fr` on tablet+. |
-| **Solo Focus** | **Zip-shut → fade-open** | `EmbeddedJourneyQuestion`: **`ZIP_SHUTTER_SPRING`** on the question stack when answering; next **`motion.h3`** uses **opacity + y** when **`soloFocusZipShut`** (no `zz-shimmer-focus`). 40px close circle; journey slab colours. |
-| **Floating nav** | **Static precision lock** | `FloatingNav` / `AppFloatingNav`: **40×40px** item circles (`padding: 0`), **18px** icons, **12px** gap, pink bar portaled to `body`. Hidden on Zone when Solo Focus / tip / pattern-shift overlays are open. |
-| **Colours** | — | Yellow `#FDFD00`, pink `#FF00FF`, purple `#7800ce` — `:root` in `app/globals.css`. |
+| **`/` + `/intro`** | **Style A — Glitch logo** | `IntroScreen` / **`GlitchLogo`** (~469ms, `GLITCH_ANIM_MS`). **`WORD_PULSE_APPEAR`** on kinetic words — **not** Atomic Assembly. |
+| **Route loading** | **Boot glitch** | `app/loading.tsx`, `app/zone/loading.tsx` → **`AppBootGlitch`**. |
+| **`/profile/summary`** | **Atomic Assembly ticker** | `SummaryHeader` → `IntroWordCycle` **`opacityTicker`**: blur **15px** → sharp, letter-spacing cloud → lock, **1.0s** (`FAMILY_DUR_ATOMIC`). Dwell: **`atomicWordHoldMs(word)`** = assembly + **200ms × word count**. |
+| **`/profile` questions** | **Family glide + reveal** | `ProfilePageClient`: **`familyGlide`** step swap + **`familyReveal`** headline (`FAMILY_DUR_LONG` 0.8s). |
+| **`/likes`, `/settings`** | **Family enter + pulse** | `FAMILY_PAGE_ENTER`; tap **`familyPulse`**; **`.zz-family-bloom`** hover. |
+| **Zone handoff** | **Atomic pulse → grid ripple** | `ArchitecturalPulse` (same atomic ticker) → **`pulseWordsComplete`** → bento **`ZONE_ATOMIC_BENTO_VARIANTS`** (exported as `ZONE_BENTO_CELL_VARIANTS` from `lib/animations.ts`). Stagger **`ZONE_GRID_STAGGER_CHILD_DELAY_SEC`** (0.12s). Hover: **`FAMILY_ATOMIC_HOVER`** + **`.zz-atomic-hover`**. |
+| **Zone loop question** | **Atomic crystallize** | `DiscoveryTakeover` loop headline: **`familyAtomicProps`** + **`FAMILY_TRANSITION_ATOMIC`**. |
+| **Solo Focus (embedded)** | **Zip-shut → fade-open** | Unchanged industrial chamber: **`ZIP_SHUTTER_SPRING`**, **`soloFocusZipShut`** opacity + y on next question. |
+| **Floating nav** | **Static precision lock** | **40×40px** circles, portaled pink bar; hidden when Solo Focus / takeover open. |
+| **Colours** | — | Yellow `#FDFD00`, pink `#FF00FF`, purple `#7800ce` — `app/globals.css`. |
 
-Timers: **`SUMMARY_KINETIC_WORD_*`** and **`SHIMMER_FOCUS_*`** in `lib/animations.ts` (intro/summary/CTA only — Zone sticks to **`STACCATO_*`** + fussy snap).
+**Wave B (not shipped):** Center-Focus **`layoutId`** morph on journey expand — Solo Focus zip-shut stays industrial until then.
+
+### Director's Order (Zone — frozen product sequence)
+
+**Skeleton (logic):** `lib/zone/directorsOrder.ts`, `lib/zone/visitedCards.ts`, `lib/zone/loopMemory.ts`, `lib/zone/loopQuestions.ts`. **Skin (motion):** `lib/motion-family.ts` only — must not change this sequence.
+
+**Home cascade (unbreakable):**
+
+| Step | Route / surface | Gate |
+|------|-----------------|------|
+| 1 | `/` + `/intro` | Intro word-cycle completes |
+| 2 | `/profile` → `/profile/summary` | `SummaryHeader` atomic ticker completes (`handleCycleComplete` → exit) |
+| 3 | `/zone` | `ArchitecturalPulse` completes → **`pulseWordsComplete`** → **then** bento ripple (`revealedCardCount`); Rock last |
+
+Grid must **not** increment `revealedCardCount` until `architecturalPulsePhase === 'done'` **and** `pulseWordsComplete` (safety timers must **not** set `pulseWordsComplete` early).
+
+**Solo Focus contract:**
+
+| Step | Behaviour | Drift check |
+|------|-----------|-------------|
+| 1 | **13 journey cells + hero** crystallize in ripple; **`gridFullyRevealed`** before Rock strip | Cells use blur→sharp, not y-slide snap |
+| 2 | **Today's Tips** (Rock) last; close = **`visitedClose`** (no loop) | `launchPatternShiftTakeover(..., { visitedClose: true })` |
+| 3 | **First visit:** expand → embedded Solo Focus → **close** → **one** loop → answer → discovery → **pink** | **`markCardVisited` only in `completeCleanBirth`** — never on first close |
+| 4 | **Revisit pink:** expand → close → grid only | `shouldOpenLoopTakeover` false; **`DiscoveryTakeover` must not mount** when `hasLoopDoneForJourney` |
+
+---
+
+## Launch verification (senior gate — no drift)
+
+Run before promoting to production (see [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md)):
+
+```bash
+npm run purge:disk    # optional: drop .next + dev caches
+npm run verify        # typecheck + eslint (app, lib) — must exit 0
+npm run build:clean   # fresh .next production compile
+```
+
+**Manual smoke (money + carbon truth unchanged):**
+
+1. Profile → answer **`home_power`** + postcode → Summary (words **crystallize**, long locality readable).
+2. Zone: pulse words → grid ripple → interact only after wall ready.
+3. Pick one journey: expand → answer → close → **one** loop question → answer → card turns **pink**.
+4. Re-open pink card: expand → close → **no** second loop.
+5. Rock tip: close → **no** loop.
+
+**What motion work did *not* change:** `lib/brains/*`, `buildZoneViewModel`, `mechanicalTruth`, `POST /api/answers` discovery race, Hermes/cron boundaries, **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`**, question registry in **`lib/journeys.ts`**.
 
 ---
 
@@ -417,10 +468,10 @@ All insights and recommendations are strictly evaluated against the **12,000 kWh
 - **Dynamic Locality**: `user_profiles.postcode` / profile postcode is the coordinate for all Firecrawl research triggers. No static postcode anchor is allowed.
 - **Targeted Scraping**: The cron engine and discovery pipeline invoke Firecrawl with strict URL seeds to pull verified local grants, tariffs, and EV infrastructure logic.
 
-**4. The "Fussy" Motion DNA**
-The application UI reflects the Auditor's precision: mechanical, low-latency, and precise. 
-- **Linear Fades**: `0.12s linear`. No floaty physics.
-- **2px Snaps**: Elements fade in (`opacity: 0` to `1`) with a strict `2px` vertical snap (`y: 2` to `y: 0`).
+**4. Motion DNA (delivery)**
+- **Intro:** glitch + industrial word pulse (Style A).
+- **Summary / Zone handoff / loop question:** **Atomic Assembly** — particles crystallize into sharp **2px** yellow strokes; read-time **200ms/word** after lock (`lib/motion-family.ts`).
+- **Solo Focus chamber:** zip-shut + opacity snap (industrial) until Wave B layout morph.
 
 ---
 
@@ -452,7 +503,12 @@ The application UI reflects the Auditor's precision: mechanical, low-latency, an
 | `lib/db/neon.ts` | Answer upserts + research reads |
 | `lib/geocode/resolvePostcodeLocality.ts` | Nominatim label + localStorage cache |
 | `lib/soloFocusCopy.ts` | Headline limits (6–8 bento / 6–12 expanded), dedupe, True Tip prose |
-| `lib/architecturalPulse.ts` | Summary→Zone pulse, font preload, `isZoneReady`, glitch timing |
+| `lib/motion-family.ts` | Family Liquid + Atomic Assembly tokens (delivery-only) |
+| `lib/architecturalPulse.ts` | Summary→Zone pulse words, font preload, `isZoneReady`, glitch timing |
+| `lib/zone/directorsOrder.ts` | `shouldOpenLoopTakeover` / `shouldCloseToGridOnly` — Director's Order guards |
+| `lib/zone/loopMemory.ts` | Per-journey loop done (`zz_loop_done_journeys`) — sole loop truth |
+| `lib/zone/loopQuestions.ts` | One loop beat per journey (`pickNextLoopQuestion`) |
+| `docs/MOTION-FAMILY.md` | Motion spec + Director's order cross-ref |
 | `lib/researchSyncClient.ts` | POST trigger + re-exports Tier 2 fetch |
 | `lib/schema.sql` + `db/migrations/` | Schema reference + Neon SQL history |
 | `scripts/` | Ops only — see **Scripts** below |

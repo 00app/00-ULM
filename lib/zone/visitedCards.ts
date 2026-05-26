@@ -54,7 +54,9 @@ export function isCardVisited(cardId: string): boolean {
 }
 
 /**
- * Close credit guard — visited card or completed loop → close only (no loop takeover).
+ * Close credit guard — Director's order (sole client truth with `loopMemory.ts`):
+ * - Pink (`visited_cards`) or `hasLoopDoneForJourney` → close only (no takeover).
+ * - First visit close → loop once; pink is set in `completeCleanBirth` after discovery spawn.
  */
 export function shouldSkipInjectionOnCardClose(
   cardId: string | null | undefined,

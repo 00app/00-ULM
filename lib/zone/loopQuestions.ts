@@ -278,6 +278,12 @@ function loopAnswerDisplay(beat: LoopQuestionBeat, raw: string): string {
   return getFunkyOptionDisplay(t) || t
 }
 
+export function getLoopBeatByQuestionId(questionId: string): LoopQuestionBeat | null {
+  const qid = questionId.trim()
+  if (!qid) return null
+  return LOOP_QUESTION_BANK.find((b) => b.questionId === qid) ?? null
+}
+
 /** Answered loop beats for Settings bento grid (`zz_loop_answers_log` + journey_* loop ids). */
 export function readLoopAnswersForSettings(): LoopAnswerSettingsRow[] {
   if (typeof window === 'undefined') return []

@@ -71,16 +71,18 @@ import {
 import { setExpandCard } from '@/lib/expandStorage'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { DISCOVERY_INJECT_EVENT } from '@/lib/discoveryInject'
-import { GlitchLogo } from '@/app/components/Logo'
+import { AtomicLogo } from '@/app/components/Logo'
+import { FAMILY_TRANSITION_ATOMIC } from '@/lib/motion-family'
 import { DiscoveryTakeover } from '@/app/components/DiscoveryTakeover'
 import { pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
+import { shouldCloseToGridOnly, shouldOpenLoopTakeover } from '@/lib/zone/directorsOrder'
+import { markLoopDoneForJourney } from '@/lib/zone/loopMemory'
 import {
   persistPinnedAchievement,
   readPinnedAchievementsFromStorage,
 } from '@/lib/zone/loopMemory'
 import { spawnAchievementWhenLoopPoolExhausted } from '@/lib/zone/spawnAchievementOnClose'
 import {
-  GLITCH_ANIM_MS,
   SESSION_SUMMARY_TO_ZONE,
   ZONE_READY_MAX_WAIT_MS,
   buildZoneWelcomeCopy,
@@ -398,11 +400,21 @@ export default function ZonePage() {
   }, [])
 
   const loopCompletedJourneyRef = useRef<JourneyId | null>(null)
+  const loopCloseCardIdRef = useRef<string | null>(null)
+  const [visitedCardIds, setVisitedCardIds] = useState<Set<string>>(() => readVisitedCardIds())
 
   const launchPatternShiftTakeover = useCallback(
-    (journeyId: JourneyId, meta?: { visitedClose?: boolean }) => {
+    (journeyId: JourneyId, meta?: { cardId?: string; visitedClose?: boolean }) => {
       closeAnySoloFocus()
-      if (meta?.visitedClose) {
+      loopCloseCardIdRef.current = meta?.cardId?.trim() || null
+      if (shouldCloseToGridOnly(meta?.visitedClose)) {
+        loopCloseCardIdRef.current = null
+        setPatternShiftJourneyId(null)
+        setIsZoneVisible(true)
+        return
+      }
+      if (!shouldOpenLoopTakeover(meta?.cardId, journeyId)) {
+        loopCloseCardIdRef.current = null
         setPatternShiftJourneyId(null)
         setIsZoneVisible(true)
         return
@@ -437,9 +449,17 @@ export default function ZonePage() {
     setRefreshKey((k) => k + 1)
     setVmSyncStamp(Date.now())
     if (loopJid) {
-      for (const j of viewModel.journeys) {
-        if (j.journey_key === loopJid) markCardVisited(j.id)
+      markLoopDoneForJourney(loopJid)
+      const closedId = loopCloseCardIdRef.current
+      loopCloseCardIdRef.current = null
+      if (closedId) {
+        markCardVisited(closedId)
+      } else {
+        for (const j of viewModel.journeys) {
+          if (j.journey_key === loopJid) markCardVisited(j.id)
+        }
       }
+      setVisitedCardIds(readVisitedCardIds())
     }
   }, [closeAnySoloFocus, pinnedAchievements.length, viewModel.journeys])
 
@@ -605,7 +625,7 @@ export default function ZonePage() {
         setHeroFromSummaryHandoff(true)
         setSummaryGridStaggerKey((k) => k + 1)
         setPulseWordsComplete(false)
-        setArchitecturalPulsePhase('glitch')
+        setArchitecturalPulsePhase('pulse')
       }
     } catch {
       //
@@ -752,7 +772,6 @@ export default function ZonePage() {
     return formatLocationDisplayName(localData ?? undefined, scrapePostcode)
   }, [localData, scrapePostcode])
 
-  const [visitedCardIds, setVisitedCardIds] = useState<Set<string>>(() => readVisitedCardIds())
   const [dbVisitedJourneyKeys, setDbVisitedJourneyKeys] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
@@ -1691,20 +1710,7 @@ export default function ZonePage() {
     }
   }, [hydrated, displayItems, openSoloFocus])
 
-  const zoneHandoffStaging =
-    architecturalPulsePhase === 'glitch' || architecturalPulsePhase === 'pulse'
-
-  useEffect(() => {
-    if (architecturalPulsePhase !== 'glitch') return
-    if (reduceMotion) {
-      setArchitecturalPulsePhase('pulse')
-      return
-    }
-    const tid = window.setTimeout(() => {
-      setArchitecturalPulsePhase((p) => (p === 'glitch' ? 'pulse' : p))
-    }, GLITCH_ANIM_MS * 4)
-    return () => window.clearTimeout(tid)
-  }, [architecturalPulsePhase, reduceMotion])
+  const zoneHandoffStaging = architecturalPulsePhase === 'pulse'
 
   const researchLoading = !vmResolved
   const isZoneReady = useMemo(
@@ -1725,16 +1731,23 @@ export default function ZonePage() {
     beginZonePunchThrough()
   }, [architecturalPulsePhase, isZoneReady, pulseWordsComplete, beginZonePunchThrough])
 
+  /** Scrape-ready fallback — never skip Architectural Pulse words (Director's order). */
   useEffect(() => {
     if (architecturalPulsePhase !== 'pulse' || isZoneReady) return
     const safety = window.setTimeout(() => {
       if (architecturalPulsePhaseRef.current !== 'pulse') return
-      setPulseWordsComplete(true)
       setVmResolved(true)
-      beginZonePunchThrough()
     }, ZONE_READY_MAX_WAIT_MS)
     return () => window.clearTimeout(safety)
-  }, [architecturalPulsePhase, isZoneReady, beginZonePunchThrough])
+  }, [architecturalPulsePhase, isZoneReady])
+
+  /** Return visits / deep links: no summary handoff — grid may reveal once wall is idle. */
+  useEffect(() => {
+    if (zoneHandoffStaging) return
+    if (architecturalPulsePhase === 'done' && !pulseWordsComplete) {
+      setPulseWordsComplete(true)
+    }
+  }, [zoneHandoffStaging, architecturalPulsePhase, pulseWordsComplete])
 
   const zoneInteractable =
     isZoneVisible &&
@@ -1744,15 +1757,20 @@ export default function ZonePage() {
   const zoneWallCollapsed =
     isZoneVisible &&
     !patternShiftJourneyId &&
-    (zoneHandoffStaging || revealedCardCount < 1)
+    (zoneHandoffStaging || !pulseWordsComplete || revealedCardCount < 1)
   const showInlineLoadingLogo = architecturalPulsePhase === 'glitch'
   const zoneRevealCount = Math.min(revealedCardCount, displayItems.length)
+  const gridFullyRevealed =
+    architecturalPulsePhase === 'done' &&
+    pulseWordsComplete &&
+    displayItems.length > 0 &&
+    zoneRevealCount >= displayItems.length
 
   useEffect(() => {
     const pinFloor = 1 + pinnedAchievements.length
     const showPinnedWhileLoading = pinnedAchievements.length > 0 && isZoneVisible && architecturalPulsePhase === 'done'
 
-    if (!isZoneVisible || architecturalPulsePhase !== 'done') {
+    if (!isZoneVisible || architecturalPulsePhase !== 'done' || !pulseWordsComplete) {
       setRevealedCardCount(0)
       return
     }
@@ -1773,6 +1791,7 @@ export default function ZonePage() {
     cleanBirthRevealKey,
     summaryGridStaggerKey,
     pinnedAchievements.length,
+    pulseWordsComplete,
   ])
 
   const rockOfferByJourney = useMemo(() => {
@@ -1919,11 +1938,7 @@ export default function ZonePage() {
             aria-live="polite"
             aria-label="Preparing your savings wall"
           >
-            {architecturalPulsePhase === 'glitch' ? (
-              <GlitchLogo loop width={100} />
-            ) : (
-              <ArchitecturalPulse inline onComplete={() => setPulseWordsComplete(true)} />
-            )}
+            <ArchitecturalPulse inline onComplete={() => setPulseWordsComplete(true)} />
           </div>
         ) : null}
         {/* Zone wall — hero, bento, Rock share one rail so copy + cards + signup align */}
@@ -1993,7 +2008,7 @@ export default function ZonePage() {
               aria-live="polite"
               aria-label="Loading your savings wall"
             >
-              <GlitchLogo loop width={100} />
+              <AtomicLogo loop width={100} />
             </motion.div>
           ) : null}
           {sentinelPulseLabel ? (
@@ -2024,6 +2039,7 @@ export default function ZonePage() {
             .join(' ')}
           aria-hidden={zoneWallCollapsed}
         >
+          <LayoutGroup id="zone-bento-wall">
           <motion.div
             key={`zone-grid-${summaryGridStaggerKey}-${cleanBirthRevealKey}`}
             data-testid="zone-grid-mounted"
@@ -2269,9 +2285,15 @@ export default function ZonePage() {
                           ['--semantic-carbon' as string]: tipTextColor,
                         }}
                         onClick={handleTipClick}
-                        initial={snapBloomIn ? ZIP_OPEN_Z_INITIAL : false}
-                        animate={snapBloomIn ? ZIP_OPEN_Z_ANIMATE : undefined}
-                        transition={snapBloomIn ? ZIP_OPEN_Z_TRANSITION : undefined}
+                        initial={
+                          snapBloomIn
+                            ? { opacity: 0, scale: 1.05, filter: 'blur(15px)' }
+                            : false
+                        }
+                        animate={
+                          snapBloomIn ? { opacity: 1, scale: 1, filter: 'blur(0px)' } : undefined
+                        }
+                        transition={snapBloomIn ? FAMILY_TRANSITION_ATOMIC : undefined}
                         aria-label={`Expand: ${tipHeadline}`}
                         data-dominant-win={semanticWin}
                       >
@@ -2496,9 +2518,6 @@ export default function ZonePage() {
                         setExpandedFromTip(null)
                       }}
                       onPatternShiftClose={launchPatternShiftTakeover}
-                      onClose={() => {
-                        closeAnySoloFocus()
-                      }}
                       onLike={trackZoneLike}
                       isLiked={state.likedCards.includes(cell.item.id)}
                       learnUrl={cell.item.actions?.learnUrl}
@@ -2530,11 +2549,17 @@ export default function ZonePage() {
               )
             })}
           </motion.div>
+          </LayoutGroup>
         </motion.div>
 
-        {/* The Rock — heartbeat above Today's Tips while master wall hydrates */}
-        {!expandedCardId && !expandedTipId && (
-          <motion.div className="zone-rock-strip w-full mt-3 mb-10">
+        {/* The Rock — after summary + full bento ripple; read-only, no loop on close */}
+        {gridFullyRevealed && !expandedCardId && !expandedTipId && zoneInteractable ? (
+          <motion.div
+            className="zone-rock-strip w-full mt-3 mb-10"
+            initial={{ opacity: 0, scale: 1.04, filter: 'blur(15px)' }}
+            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+            transition={FAMILY_TRANSITION_ATOMIC}
+          >
             <h2 className="text-marvin text-xl text-[#FDFD00] lowercase mb-6">
               today&apos;s tips
             </h2>
@@ -2566,7 +2591,7 @@ export default function ZonePage() {
               }}
             />
           </motion.div>
-        )}
+        ) : null}
         </div>
         ) : null}
 

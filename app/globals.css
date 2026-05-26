@@ -209,11 +209,18 @@ nextjs-portal > * {
 
   /* Buttons/CTAs: contrasting to page (page is purple) — yellow or pink bg, purple text */
   --btn-bg-rest: var(--color-yellow);
-  --btn-bg-hover: var(--color-pink);
+  --btn-bg-hover: var(--color-yellow);
   --btn-bg-active: var(--color-yellow);
   --btn-text-rest: var(--color-purple);
   --btn-text-hover: var(--color-purple);
   --btn-text-active: var(--color-purple);
+  /* Interaction — colour swap on hover; soft press on active only */
+  --zz-press-scale: 0.985;
+  --zz-interaction-duration: 0.22s;
+  --zz-interaction-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --zz-glitch-anim-ms: 328ms; /* GLITCH_ANIM_MS — intro/loading glitch */
+  --zz-hover-bg: var(--color-yellow);
+  --zz-hover-text: var(--color-purple);
   --btn-radius-rest: 40px;
   --btn-radius-hover: 60px;
   --btn-ease: var(--easing-zero);
@@ -564,7 +571,7 @@ html {
    ========================================================================== */
 /* H1 90/200px | H2 70/120px | H3 50/90px | H4 20/28px | Body 14/16px. Marvin = headings + £/kg + circle labels. */
 
-/** H1–H6 — Marvin line box @ --zz-lh-heading (0.85) */
+/** H1–H3 — Marvin line box @ 0.8 (unitless, not px) */
 h1, .text-h1, .zz-h1 {
   font-family: var(--font-marvin);
   font-size: var(--zz-h1-mobile);
@@ -589,6 +596,10 @@ h3, .text-h3, .zz-h3, .text-marvin {
   line-height: 0.8 !important;
   font-weight: bold;
   text-transform: uppercase;
+}
+
+h1, h2, h3 {
+  line-height: 0.8 !important;
 }
 
 /** H4 */
@@ -969,8 +980,8 @@ p,
   --journey-cta-text: var(--color-purple);
   --sf-answer-bg: var(--color-yellow);
   --sf-answer-text: var(--color-purple);
-  --sf-answer-hover-bg: var(--color-purple);
-  --sf-answer-hover-text: var(--color-yellow);
+  --sf-answer-hover-bg: var(--color-yellow);
+  --sf-answer-hover-text: var(--color-purple);
 }
 
 .expanded-solo-focus[data-zone-surface='tip'] {
@@ -981,8 +992,8 @@ p,
   --journey-cta-text: var(--color-pink);
   --sf-answer-bg: var(--color-yellow);
   --sf-answer-text: var(--color-pink);
-  --sf-answer-hover-bg: var(--color-pink);
-  --sf-answer-hover-text: var(--color-yellow);
+  --sf-answer-hover-bg: var(--color-yellow);
+  --sf-answer-hover-text: var(--color-purple);
 }
 
 .expanded-solo-focus .solo-focus-shell {
@@ -1023,7 +1034,6 @@ p,
 .expanded-solo-focus .solo-focus-trap-block .solo-focus-answer-option:hover {
   background: var(--sf-answer-hover-bg) !important;
   color: var(--sf-answer-hover-text) !important;
-  transform: scale(0.98);
 }
 
 .expanded-solo-focus .solo-focus-action-btn,
@@ -1036,9 +1046,8 @@ p,
 .expanded-solo-focus .solo-focus-action-btn:hover,
 .expanded-solo-focus .solo-focus-action-btn.solo-focus-ask-zai-btn:hover,
 .expanded-solo-focus .solo-focus-close-circle:hover {
-  background: var(--journey-cta-text) !important;
-  color: var(--journey-cta-bg) !important;
-  transform: scale(0.98);
+  background: var(--zz-hover-bg) !important;
+  color: var(--zz-hover-text) !important;
 }
 
 .bento-card-groovy .card-top-label,
@@ -1544,7 +1553,11 @@ body, p, span, input, button, textarea, select,
   
   container-type: inline-size;
   container-name: zone-card;
-  transition: opacity var(--fussy-snap), transform var(--fussy-snap);
+  transition:
+    opacity var(--fussy-snap),
+    transform var(--zz-interaction-duration) var(--zz-interaction-ease),
+    background-color var(--zz-interaction-duration) var(--zz-interaction-ease),
+    color var(--zz-interaction-duration) var(--zz-interaction-ease);
 }
 
 .groovy-zone-grid .bento-card-groovy {
@@ -1729,7 +1742,7 @@ body, p, span, input, button, textarea, select,
 }
 
 .bento-card-groovy:active {
-  transform: scale(0.92) rotate(-1deg);
+  transform: scale(var(--zz-press-scale));
 }
 
 /* Native <button> bento tiles: remove UA padding/appearance so only .bento-card-groovy shell padding applies */
@@ -1828,19 +1841,6 @@ body, p, span, input, button, textarea, select,
 .groovy-zone-grid .bento-card-groovy .zone-bento-card-icon svg,
 .rock-saving-tips-grid .bento-card-groovy .zone-bento-card-icon svg {
   display: block;
-  transition: transform 0.2s ease;
-}
-
-.bento-card-groovy:hover .card-top-arrow--hint svg {
-  animation: card-arrow-hint 0.55s ease-in-out 1;
-}
-
-@keyframes card-arrow-hint {
-  0%   { transform: translate(0, 0); }
-  25%  { transform: translate(4px, -4px); }
-  50%  { transform: translate(-4px, 4px); }
-  75%  { transform: translate(4px, -4px); }
-  100% { transform: translate(0, 0); }
 }
 
 .card-headline {
@@ -2347,13 +2347,12 @@ body, p, span, input, button, textarea, select,
 }
 .expanded-solo-focus .solo-focus-close-circle:hover,
 .zz-close-btn:hover {
-  background: var(--journey-cta-text, var(--color-purple));
-  color: var(--journey-cta-bg, var(--color-yellow));
-  transform: scale(1.06);
+  background: var(--zz-hover-bg);
+  color: var(--zz-hover-text);
 }
 .expanded-solo-focus .solo-focus-close-circle:active,
 .zz-close-btn:active {
-  transform: scale(0.96);
+  transform: scale(var(--zz-press-scale));
 }
 .expanded-solo-focus .solo-focus-close-circle:focus-visible,
 .zz-close-btn:focus-visible {
@@ -2947,7 +2946,7 @@ h3.solo-focus-question-label.zz-h3 {
 }
 /* Hover colours: semantic contrast block (:is yellow vs pink surfaces) */
 .expanded-solo-focus .solo-focus-trap-block .solo-focus-answer-option:active {
-  transform: scale(0.96);
+  transform: scale(var(--zz-press-scale));
 }
 /* One column for question, tip, home alert, RESULT body — fluid within Solo Focus card */
 .expanded-solo-focus .solo-focus-copy-width {
@@ -3345,9 +3344,11 @@ h3.solo-focus-question-label.zz-h3 {
     color 0.2s ease;
 }
 .circle-btn:hover {
-  background: var(--color-purple);
-  color: var(--color-yellow);
-  transform: scale(1.03);
+  background: var(--zz-hover-bg);
+  color: var(--zz-hover-text);
+}
+.circle-btn:active {
+  transform: scale(var(--zz-press-scale));
 }
 .circle-btn:focus-visible {
   outline: 2px solid currentColor;
@@ -3391,8 +3392,8 @@ h3.solo-focus-question-label.zz-h3 {
 }
 .expanded-solo-focus .circle-btn.solo-focus-handoff-btn:hover,
 .expanded-solo-focus .circle-btn.solo-focus-handoff-btn.zz-shimmer-cta:hover {
-  background-color: color-mix(in srgb, var(--color-pink) 88%, #000) !important;
-  color: var(--color-yellow) !important;
+  background-color: var(--zz-hover-bg) !important;
+  color: var(--zz-hover-text) !important;
 }
 .expanded-solo-focus .circle-btn .circle-btn-label-stack {
   display: flex;
@@ -3427,9 +3428,8 @@ h3.solo-focus-question-label.zz-h3 {
 .expanded-solo-focus .solo-focus-action-btn:hover,
 .expanded-solo-focus .circle-btn.zz-shimmer-cta:hover,
 .expanded-solo-focus .solo-focus-action-btn.zz-shimmer-cta:hover {
-  background-color: var(--color-yellow) !important;
-  color: var(--color-purple) !important;
-  transform: scale(0.96);
+  background-color: var(--zz-hover-bg) !important;
+  color: var(--zz-hover-text) !important;
 }
 .expanded-solo-focus .circle-btn:focus-visible,
 .expanded-solo-focus .solo-focus-action-btn:focus-visible {
@@ -3438,13 +3438,14 @@ h3.solo-focus-question-label.zz-h3 {
 }
 .expanded-solo-focus .circle-btn:active,
 .expanded-solo-focus .solo-focus-action-btn:active {
-  transform: scale(0.96);
+  transform: scale(var(--zz-press-scale));
 }
-/* Answer chips — profile-style rollover (legible on purple + pink surfaces) */
 .expanded-solo-focus .solo-focus-answer-option.zz-shimmer-cta:hover {
-  background: var(--color-yellow) !important;
-  color: var(--color-purple) !important;
-  transform: scale(0.96);
+  background: var(--zz-hover-bg) !important;
+  color: var(--zz-hover-text) !important;
+}
+.expanded-solo-focus .solo-focus-answer-option.zz-shimmer-cta:active {
+  transform: scale(var(--zz-press-scale));
 }
 /* Solo Focus typography — scale only */
 .solo-focus-hero {
@@ -4078,8 +4079,11 @@ h3.solo-focus-question-label.zz-h3 {
 }
 .zai-interface .zai-suggest-pill:hover:not(:disabled),
 .zai-interface .zai-suggest-pill:focus-visible {
-  opacity: 0.92;
-  transform: scale(1.02);
+  background: var(--zz-hover-bg);
+  color: var(--zz-hover-text);
+}
+.zai-interface .zai-suggest-pill:active:not(:disabled) {
+  transform: scale(var(--zz-press-scale));
 }
 .zai-interface .zai-suggest-pill:disabled {
   opacity: 0.45;
@@ -4170,11 +4174,11 @@ h3.solo-focus-question-label.zz-h3 {
 }
 @media (hover: hover) {
   .zai-interface .zai-go-btn:not(:disabled):hover {
-    background-color: var(--zai-field-bg);
-    color: var(--zai-ink);
+    background-color: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
   }
   .zai-interface .zai-go-btn:not(:disabled):active {
-    transform: scale(0.96);
+    transform: scale(var(--zz-press-scale));
   }
 }
 .zai-interface .zai-go-btn:disabled {
@@ -4210,13 +4214,13 @@ h3.solo-focus-question-label.zz-h3 {
 }
 @media (hover: hover) {
   .zz-back-circle-40:hover {
-    background-color: var(--color-yellow);
-    color: var(--color-purple);
-    
-    transform: scale(1.05);
+    background-color: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
   }
 }
-.zz-back-circle-40:active { transform: scale(0.95); }
+.zz-back-circle-40:active {
+  transform: scale(var(--zz-press-scale));
+}
 
 /* ==========================================================================
    Back button — LOCKED style for all back/close buttons
@@ -4252,7 +4256,7 @@ h3.solo-focus-question-label.zz-h3 {
   color: var(--color-purple);
 }
 .zz-back-btn:active {
-  transform: scale(0.96);
+  transform: scale(var(--zz-press-scale));
 }
 /* Arrow inside: down-left “zip shut” — card open path rotated 180° (BackArrowDownLeft) */
 .zz-back-arrow {
@@ -4399,8 +4403,8 @@ h3.solo-focus-question-label.zz-h3 {
   width: 100%;
   max-width: min(1240px, 100%);
   margin: 0 auto;
-  padding-left: 0;
-  padding-right: 0;
+  padding-left: clamp(12px, 4vw, 24px);
+  padding-right: clamp(12px, 4vw, 24px);
   padding-bottom: 32px;
   box-sizing: border-box;
 }
@@ -4409,6 +4413,9 @@ h3.solo-focus-question-label.zz-h3 {
   grid-template-columns: 1fr;
   gap: 16px;
   width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 @media (min-width: 1024px) {
   .settings-answer-grid {
@@ -4617,10 +4624,13 @@ h3.solo-focus-question-label.zz-h3 {
   justify-content: center;
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
-.rock-saving-tips-section .rock-mobile-go-btn:hover:not(:disabled),
+.rock-saving-tips-section .rock-mobile-go-btn:hover:not(:disabled) {
+  background-color: var(--zz-hover-bg);
+  color: var(--zz-hover-text);
+  filter: none;
+}
 .rock-saving-tips-section .rock-mobile-go-btn:active:not(:disabled) {
-  background-color: var(--color-purple);
-  color: var(--color-yellow);
+  transform: scale(var(--zz-press-scale));
   filter: none;
 }
 .rock-saving-tips-section .rock-mobile-go-btn:focus-visible {
@@ -4698,12 +4708,11 @@ h3.solo-focus-question-label.zz-h3 {
   transition: background 0.2s, color 0.2s, transform 0.2s;
 }
 .settings-icon-btn:hover {
-  background: var(--color-yellow);
-  color: var(--color-purple);
-  opacity: 0.92;
+  background: var(--zz-hover-bg);
+  color: var(--zz-hover-text);
 }
 .settings-icon-btn:active {
-  transform: scale(0.92);
+  transform: scale(var(--zz-press-scale));
 }
 
 /* Settings: bottom SAVE / UPDATE LOCATION / RESET — solid circles, horizontal row, 2-line labels clipped */
@@ -4715,7 +4724,12 @@ h3.solo-focus-question-label.zz-h3 {
   justify-content: center;
   gap: 12px 16px;
   width: 100%;
-  max-width: 360px;
+  max-width: min(1240px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: clamp(12px, 4vw, 24px);
+  padding-right: clamp(12px, 4vw, 24px);
+  box-sizing: border-box;
   margin-left: auto;
   margin-right: auto;
   padding: 0 12px;
@@ -4748,8 +4762,15 @@ h3.solo-focus-question-label.zz-h3 {
   background: var(--color-pink);
   color: var(--color-yellow);
 }
+@media (hover: hover) {
+  .settings-circle-cta--yellow:hover,
+  .settings-circle-cta--pink:hover {
+    background: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
+  }
+}
 .settings-circle-cta:active {
-  transform: scale(0.94);
+  transform: scale(var(--zz-press-scale));
 }
 .settings-circle-cta__label {
   display: -webkit-box;
@@ -4946,50 +4967,6 @@ h3.solo-focus-question-label.zz-h3 {
   }
 }
 
-/* Yellow rolling card: purple text, edit pencil in corner */
-.settings-answer-card {
-  position: relative;
-  background: var(--color-yellow);
-  color: var(--color-purple);
-  border-radius: var(--radius-groovy);
-  padding: 24px 48px 24px 24px;
-  min-height: 100px;
-  box-sizing: border-box;
-}
-.settings-answer-card-edit {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-purple);
-  transition: opacity 0.2s;
-}
-.settings-answer-card-edit:hover {
-  opacity: 1;
-}
-.settings-answer-card-question {
-  font-family: var(--font-marvin);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--color-purple);
-  margin: 0 0 8px 0;
-}
-.settings-answer-card-answer {
-  font-family: var(--font-marvin);
-  font-size: clamp(22px, 4.5vw, 32px);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 0.8;
-  text-transform: uppercase;
-  color: var(--color-purple);
-  margin: 0;
-}
 .settings-empty-state {
   font-family: var(--font-roboto);
   font-size: 14px;
@@ -6205,13 +6182,12 @@ html.zz-zai-document body {
 }
 @media (hover: hover) {
   .enter-btn-80:hover {
-    background-color: var(--color-purple) !important;
-    color: var(--color-yellow) !important;
-    transform: scale(1.05);
+    background-color: var(--zz-hover-bg) !important;
+    color: var(--zz-hover-text) !important;
   }
 }
 .enter-btn-80:active {
-  transform: scale(0.92);
+  transform: scale(var(--zz-press-scale));
 }
 
 /* Summary Page Base — mesh shows through; yellow type on global atmospheric layer */
@@ -6388,13 +6364,13 @@ html.zz-zai-document body {
 }
 @media (hover: hover) {
   .summary-back-circle:hover {
-    background: var(--color-yellow);
-    color: var(--color-purple);
-    
-    transform: scale(1.05);
+    background: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
   }
 }
-.summary-back-circle:active { transform: scale(0.95); }
+.summary-back-circle:active {
+  transform: scale(var(--zz-press-scale));
+}
 
 /* Middle area — max-height 80vh so back + Enter fit; zero-scroll stability (e.g. iPhone SE) */
 .summary-grid-wrap {
@@ -6477,13 +6453,11 @@ html.zz-zai-document body {
 }
 @media (hover: hover) {
   .enter-btn:hover {
-    background-color: var(--color-purple);
-    color: var(--color-yellow);
-    
-    transform: scale(1.05);
+    background-color: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
   }
   .enter-btn:active {
-    transform: scale(0.98);
+    transform: scale(var(--zz-press-scale));
   }
 }
 /* Urgency: personal spend > regional avg — Pink Enter */
@@ -6494,10 +6468,11 @@ html.zz-zai-document body {
 }
 @media (hover: hover) {
   .enter-btn--urgency:hover {
-    background-color: var(--color-purple);
-    color: var(--color-pink);
-    
-    transform: scale(1.05);
+    background-color: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
+  }
+  .enter-btn--urgency:active {
+    transform: scale(var(--zz-press-scale));
   }
 }
 
@@ -6547,10 +6522,10 @@ html.zz-zai-document body {
     color: var(--btn-text-hover) !important;
     border-radius: var(--btn-radius-hover) !important;
   }
-  .zz-button:active,
-  .zz-button:focus {
+  .zz-button:active {
     background: var(--btn-bg-active) !important;
     color: var(--btn-text-active) !important;
+    transform: scale(var(--zz-press-scale));
   }
   .zz-button.selected:hover {
     background: var(--color-pink) !important;
@@ -6682,6 +6657,14 @@ html.zz-zai-document body {
   text-align: center;
 }
 
+/* Postcode/name inputs: never inherit atomic letter-spacing from step motion */
+.zz-profile-page .profile-step-slam .zz-input {
+  letter-spacing: normal !important;
+  font-family: var(--font-marvin), sans-serif !important;
+  filter: none !important;
+  transform: none !important;
+}
+
 .zz-profile-page .profile-step-controls--input {
   flex-direction: column;
   gap: 20px;
@@ -6713,6 +6696,7 @@ html.zz-zai-document body {
 }
 
 /* Zone Solo Focus + post-close loop — same profile question + CTA layout as onboarding */
+.expanded-solo-focus .profile-step-controls,
 .expanded-solo-focus .profile-step-controls,
 .discovery-clean-birth.zone-loop-takeover .profile-step-controls {
   width: 100%;
@@ -6751,8 +6735,107 @@ html.zz-zai-document body {
     font-size: var(--zz-h2-desktop);
   }
 }
-/* Profile + zone loop answer buttons: 100×100 circles — pink/yellow, hover swap */
+/* ==========================================================================
+   Interaction contract — colour swap on hover; soft press on :active only
+   ========================================================================== */
+@media (hover: hover) {
+  /* Zone + Rock bento (unvisited): purple → yellow, yellow ink → purple */
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover {
+    background: var(--zz-hover-bg) !important;
+    background-color: var(--zz-hover-bg) !important;
+    color: var(--zz-hover-text) !important;
+    --journey-bg: var(--zz-hover-bg);
+    --journey-text: var(--zz-hover-text);
+    --color-ink: var(--zz-hover-text);
+  }
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .card-top-label,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .card-headline,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-label,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-value,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .text-data,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .card-top-label,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .card-headline,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-label,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-value,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .text-data {
+    color: var(--zz-hover-text) !important;
+  }
+  /* Visited (pink) — no hover colour change */
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover {
+    background: var(--color-pink) !important;
+    background-color: var(--color-pink) !important;
+    color: var(--color-yellow) !important;
+    --journey-bg: var(--color-pink);
+    --journey-text: var(--color-yellow);
+    --color-ink: var(--color-yellow);
+  }
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .card-top-label,
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .card-headline,
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .data-label,
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .data-value,
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .text-data,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .card-top-label,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .card-headline,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .data-label,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .data-value,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .text-data {
+    color: var(--color-yellow) !important;
+  }
+  /* Settings + Likes bento tiles */
+  .settings-page .settings-bento-card.bento-card-groovy:hover,
+  .likes-page .bento-card-groovy:hover {
+    background: var(--zz-hover-bg) !important;
+    background-color: var(--zz-hover-bg) !important;
+    color: var(--zz-hover-text) !important;
+    --journey-bg: var(--zz-hover-bg);
+    --journey-text: var(--zz-hover-text);
+    --color-ink: var(--zz-hover-text);
+  }
+  .settings-page .settings-bento-card.bento-card-groovy:hover .card-top-label,
+  .settings-page .settings-bento-card.bento-card-groovy:hover .card-headline,
+  .settings-page .settings-bento-card.bento-card-groovy:hover .data-label,
+  .settings-page .settings-bento-card.bento-card-groovy:hover .data-value,
+  .likes-page .bento-card-groovy:hover .card-top-label,
+  .likes-page .bento-card-groovy:hover .card-headline,
+  .likes-page .bento-card-groovy:hover .data-label,
+  .likes-page .bento-card-groovy:hover .data-value {
+    color: var(--zz-hover-text) !important;
+  }
+  .zz-profile-page .zz-input:hover {
+    background: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
+  }
+}
+/* Legacy bloom / atomic-hover classes — no-op (kept on markup for gradual cleanup) */
+.zz-family-bloom:not(:disabled):hover,
+.zz-atomic-hover:hover {
+  filter: none;
+  transform: none;
+}
+
+/* Soft press — all interactive controls (hover stays colour-only via rules above) */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):active,
+  input[type='submit']:not(:disabled):active,
+  input[type='button']:not(:disabled):active,
+  input[type='reset']:not(:disabled):active,
+  [role='button']:not([aria-disabled='true']):active,
+  a.settings-circle-cta:active {
+    transform: scale(var(--zz-press-scale));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active,
+  [role='button']:not([aria-disabled='true']):active {
+    transform: none;
+  }
+}
+
+/* Profile + Solo Focus embed + zone loop answer buttons: 100×100 circles */
 .zz-profile-page .profile-answer-btn,
+.expanded-solo-focus .profile-answer-btn,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn {
   width: 100px;
   height: 100px;
@@ -6774,6 +6857,7 @@ html.zz-zai-document body {
   transition: background-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .zz-profile-page .profile-answer-btn .profile-answer-btn__text,
+.expanded-solo-focus .profile-answer-btn .profile-answer-btn__text,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn .profile-answer-btn__text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -6787,25 +6871,30 @@ html.zz-zai-document body {
   margin: 0;
 }
 .zz-profile-page .profile-answer-btn .profile-answer-btn__text.zz-h4,
+.expanded-solo-focus .profile-answer-btn .profile-answer-btn__text.zz-h4,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn .profile-answer-btn__text.zz-h4 {
   letter-spacing: var(--zz-track-circle-marvin) !important;
 }
 .zz-profile-page .profile-answer-btn:hover,
+.expanded-solo-focus .profile-answer-btn:hover,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn:hover {
   background: var(--color-yellow);
   color: var(--color-purple);
 }
 .zz-profile-page .profile-answer-btn:active,
+.expanded-solo-focus .profile-answer-btn:active,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn:active {
-  transform: scale(0.96);
+  transform: scale(var(--zz-press-scale));
 }
 .zz-profile-page .profile-answer-btn.selected,
+.expanded-solo-focus .profile-answer-btn.selected,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn.selected {
   background: var(--color-purple);
   color: var(--color-yellow);
   
 }
 .zz-profile-page .profile-answer-btn.selected:hover,
+.expanded-solo-focus .profile-answer-btn.selected:hover,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn.selected:hover {
   background: var(--color-yellow);
   color: var(--color-purple);
@@ -7220,12 +7309,12 @@ select,
   align-items: center;
   gap: 12px;
 }
-/* Wrapper duration — keep in sync with `IntroScreen.tsx` GLITCH_ANIM_MS (469ms) */
+/* Wrapper duration — keep in sync with `GLITCH_ANIM_MS` in lib/architecturalPulse.ts */
 .zz-glitch {
   position: relative;
   width: 126px;
   height: 200px;
-  animation: glitchWrapperDone 469ms linear forwards;
+  animation: glitchWrapperDone var(--zz-glitch-anim-ms) linear forwards;
 }
 @keyframes glitchWrapperDone {
   0% { transform: translateZ(0); }
@@ -7247,12 +7336,12 @@ select,
 .glitch-layer.base {
   z-index: 2;
   filter: none;
-  animation: glitchBase 469ms linear forwards;
+  animation: glitchBase var(--zz-glitch-anim-ms) linear forwards;
 }
 .glitch-layer.purple {
   z-index: 1;
   filter: none;
-  animation: glitchPurple 469ms linear forwards;
+  animation: glitchPurple var(--zz-glitch-anim-ms) linear forwards;
 }
 @keyframes glitchPurple {
   0%   { opacity: 0; transform: translate(0,0); }
@@ -7475,8 +7564,11 @@ select,
     color: var(--color-purple);
   }
   .zone-desktop-nav-item:hover .zone-desktop-nav-item-inner {
-    background: var(--color-pink);
-    color: var(--color-yellow);
+    background: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
+  }
+  .zone-desktop-nav-item:active .zone-desktop-nav-item-inner {
+    transform: scale(var(--zz-press-scale));
   }
 }
 

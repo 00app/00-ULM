@@ -2,10 +2,9 @@
 
 import { motion } from 'framer-motion'
 import IntroWordCycle from '@/app/components/IntroWordCycle'
-import {
-  ARCHITECTURAL_PULSE_DWELL_MS,
-  ARCHITECTURAL_PULSE_WORDS,
-} from '@/lib/architecturalPulse'
+import { ARCHITECTURAL_PULSE_WORDS } from '@/lib/architecturalPulse'
+import { INTRO_ROUTE_WORD_EXIT_MS } from '@/lib/animations'
+import { atomicWordHoldMs } from '@/lib/motion-family'
 
 type Props = {
   onComplete: () => void
@@ -18,7 +17,7 @@ type Props = {
 }
 
 const WORDS = [...ARCHITECTURAL_PULSE_WORDS]
-const DWELLS = WORDS.map(() => ARCHITECTURAL_PULSE_DWELL_MS)
+const DWELLS = WORDS.map((w) => atomicWordHoldMs(w))
 
 export function ArchitecturalPulse({
   onComplete,
@@ -64,7 +63,7 @@ export function ArchitecturalPulse({
         trailingPeriod={false}
         gapMs={0}
         wordDurations={DWELLS}
-        wordExitMs={120}
+        wordExitMs={INTRO_ROUTE_WORD_EXIT_MS}
         opacityTicker
         fitToViewportPaddingPx={inline ? 40 : 0}
         onComplete={onComplete}

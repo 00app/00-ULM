@@ -28,6 +28,9 @@ const TABLE_META: Record<string, { status: TableStatus; note: string }> = {
   scraped_summary: { status: 'hot', note: '001 crawler hero totals per journey_key' },
   user_profiles: { status: 'mirror', note: 'Hermes / Solo Focus genome mirror' },
   zai_messages: { status: 'legacy-unused', note: 'Schema only — chat is client + /api/zai' },
+  zone_questions: { status: 'legacy-unused', note: 'Superseded by journey_questions — drop when empty' },
+  user_answers: { status: 'legacy-unused', note: 'Superseded by journey_answers_jsonb — drop when empty' },
+  user_likes: { status: 'legacy-unused', note: 'Superseded by likes — drop when empty' },
 }
 
 async function main() {
@@ -61,8 +64,15 @@ async function main() {
     console.log(`${res.rows[0]?.reg ? '✓' : '✗'} ${t}`)
   }
 
-  console.log('\n━━━ Safe cleanup candidates (migration 20260521) ━━━')
-  for (const t of ['card_views', 'micro_answers', 'zai_messages'] as const) {
+  console.log('\n━━━ Safe cleanup candidates (20260521 + 20260526) ━━━')
+  for (const t of [
+    'card_views',
+    'micro_answers',
+    'zai_messages',
+    'zone_questions',
+    'user_answers',
+    'user_likes',
+  ] as const) {
     const res = await pool.query<{ reg: string | null }>(
       `SELECT to_regclass($1) AS reg`,
       [`public.${t}`]

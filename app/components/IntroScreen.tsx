@@ -7,16 +7,18 @@ import IntroWordCycle from './IntroWordCycle'
 import { ROUTES } from '@/lib/routes'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import {
-  INDUSTRIAL_OPACITY_SNAP,
-  KINETIC_WORD_DWELL_MS,
   INTRO_ROUTE_SAFETY_TAIL_MS,
   INTRO_ROUTE_WORD_EXIT_MS,
-  INTRO_SHIMMER_WORD_DWELL_MS,
   INTRO_SHIMMER_WORD_GAP_MS,
-  SHIMMER_FOCUS,
+  INTRO_TYPE_MOTION_SCALE,
 } from '@/lib/animations'
-import { GlitchLogo } from '@/app/components/Logo'
-import { GLITCH_ANIM_MS, preloadAppFonts } from '@/lib/architecturalPulse'
+import { AtomicLogo } from '@/app/components/Logo'
+import {
+  atomicWordHoldMs,
+  familyAtomicProps,
+  FAMILY_TRANSITION_ATOMIC,
+} from '@/lib/motion-family'
+import { preloadAppFonts } from '@/lib/architecturalPulse'
 
 type IntroScreenState = 'logo' | 'value-message' | 'decision'
 
@@ -38,19 +40,17 @@ const INTRO_KINETIC_WORDS = [
 ] as const
 
 const INTRO_KINETIC_WORDS_ARRAY = [...INTRO_KINETIC_WORDS]
-const INTRO_WORD_SHIMMER_DURATIONS = INTRO_KINETIC_WORDS.map(() => INTRO_SHIMMER_WORD_DWELL_MS)
+const INTRO_WORD_ATOMIC_DURATIONS = INTRO_KINETIC_WORDS.map((w) => atomicWordHoldMs(w))
 
 /** Marvin lockup — sentence stack at 0.8 line-height (same rhythm as profile long prompts). */
 const INTRO_DECISION_LOCKUP = 'CREATE A\nPROFILE TO\nSTART.'
 
-function introWordsMinDurationMs(
-  wordCount: number,
-  gapMs: number,
-  dwellMs: number = KINETIC_WORD_DWELL_MS,
-  exitMs: number = INTRO_ROUTE_WORD_EXIT_MS,
-): number {
-  const perWord = dwellMs + exitMs + gapMs
-  return wordCount * perWord + INTRO_ROUTE_SAFETY_TAIL_MS
+function introWordsMinDurationMs(words: readonly string[], gapMs: number, exitMs: number): number {
+  const total = words.reduce(
+    (sum, w) => sum + Math.round(atomicWordHoldMs(w) * INTRO_TYPE_MOTION_SCALE) + exitMs + gapMs,
+    0
+  )
+  return total + INTRO_ROUTE_SAFETY_TAIL_MS
 }
 
 const fullScreenStyle: React.CSSProperties = {
@@ -143,26 +143,12 @@ export default function IntroScreen() {
     )
   }, [])
 
-  /** Match Zone wall hydration — loop Style A glitch ~4 beats before kinetic words. */
-  useEffect(() => {
-    if (screen !== 'logo') return
-    if (reduceMotion) {
-      setScreen('value-message')
-      return
-    }
-    const dwellMs = GLITCH_ANIM_MS * 4
-    const tid = window.setTimeout(() => {
-      setScreen((s) => (s === 'logo' ? 'value-message' : s))
-    }, dwellMs)
-    return () => window.clearTimeout(tid)
-  }, [screen, reduceMotion])
-
   useEffect(() => {
     if (screen !== 'value-message') return
     const safetyMs = introWordsMinDurationMs(
-      INTRO_KINETIC_WORDS.length,
+      INTRO_KINETIC_WORDS,
       INTRO_SHIMMER_WORD_GAP_MS,
-      INTRO_SHIMMER_WORD_DWELL_MS,
+      INTRO_ROUTE_WORD_EXIT_MS
     )
     const tid = window.setTimeout(() => {
       setScreen((s) => (s === 'value-message' ? 'decision' : s))
@@ -173,7 +159,10 @@ export default function IntroScreen() {
   if (screen === 'logo') {
     return (
       <div className="app-boot-glitch intro-boot-glitch" style={{ ...fullScreenStyle, pointerEvents: 'auto' }}>
-        <GlitchLogo width={100} loop={!reduceMotion} onComplete={reduceMotion ? () => setScreen('value-message') : undefined} />
+        <AtomicLogo
+          width={100}
+          onComplete={() => setScreen((s) => (s === 'logo' ? 'value-message' : s))}
+        />
       </div>
     )
   }
@@ -195,27 +184,16 @@ export default function IntroScreen() {
           trailingPeriod={false}
           gapMs={INTRO_SHIMMER_WORD_GAP_MS}
           wordExitMs={INTRO_ROUTE_WORD_EXIT_MS}
-          wordDurations={INTRO_WORD_SHIMMER_DURATIONS}
-          lensFocusShimmer
+          wordDurations={INTRO_WORD_ATOMIC_DURATIONS}
+          opacityTicker
           onComplete={() => setScreen((s) => (s === 'value-message' ? 'decision' : s))}
         />
       </div>
     )
   }
 
-  const headlineInitial = reduceMotion
-    ? { opacity: 0, y: 2 }
-    : { ...SHIMMER_FOCUS.initial }
-  const headlineAnimate = reduceMotion
-    ? { opacity: 1, y: 0 }
-    : { ...SHIMMER_FOCUS.animate }
-  const headlineTransition = reduceMotion
-    ? INDUSTRIAL_OPACITY_SNAP
-    : SHIMMER_FOCUS.transition
-
-  const ctaInitial = reduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }
-  const ctaAnimate = reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }
-  const ctaTransitionBase = INDUSTRIAL_OPACITY_SNAP
+  const lockupMotion = familyAtomicProps(reduceMotion)
+  const ctaMotion = familyAtomicProps(reduceMotion)
 
   return (
     <div
@@ -231,10 +209,10 @@ export default function IntroScreen() {
       }}
     >
       <motion.h2
-        className="text-marvin profile-question-headline intro-decision-headline zz-shimmer-focus"
-        initial={headlineInitial}
-        animate={headlineAnimate}
-        transition={headlineTransition}
+        className="text-marvin profile-question-headline intro-decision-headline zz-family-atomic"
+        initial={lockupMotion.initial}
+        animate={lockupMotion.animate}
+        transition={FAMILY_TRANSITION_ATOMIC}
         style={{
           margin: 0,
           marginBottom: 8,
@@ -251,9 +229,9 @@ export default function IntroScreen() {
         <motion.a
           href={ROUTES.PROFILE}
           className="intro-cta-circle zz-h4 zz-shimmer-cta"
-          initial={ctaInitial}
-          animate={ctaAnimate}
-          transition={{ ...ctaTransitionBase, delay: 0.28 }}
+          initial={ctaMotion.initial}
+          animate={ctaMotion.animate}
+          transition={{ ...FAMILY_TRANSITION_ATOMIC, delay: 0.28 }}
           style={{
             ...ctaCircleStyle,
             background: 'var(--color-pink)',

@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { createPortal, flushSync } from 'react-dom'
+import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { type JourneyId, getOptionFullLabel } from '@/lib/journeys'
+import { type JourneyId } from '@/lib/journeys'
 import {
   resolveZoneSurfaceKind,
   zoneSurfaceStyleProps,
@@ -24,9 +24,6 @@ import { PulseDiagnosticFab } from '@/app/components/debug/PulseWidget'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
-import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
-import { mergeJourneyAnswerMaps, getSoloFocusNextQuestion } from '@/lib/zone/questionHandler'
-import { submitSoloFocusJourneyAnswer } from '@/lib/zone/submitSoloFocusJourneyAnswer'
 import {
   ZONE_CARD_COMPUTING_ICON_PX,
 } from '@/app/components/ui/ZoneCategoryIcon'
@@ -34,15 +31,12 @@ import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { ZoneAiSparkIcon } from '@/app/components/ui/ZoneAiSparkIcon'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
+import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import {
   INDUSTRIAL_OPACITY_SNAP,
   SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC,
   SOLO_FOCUS_CONTENT_SNAP_INITIAL,
   SOLO_FOCUS_CONTENT_SNAP_ANIMATE,
-  STACCATO_DROP_PX,
-  STACCATO_DURATION_SEC,
-  STACCATO_STAGGER_SEC,
-  STACCATO_TWEEN,
 } from '@/lib/animations'
 import {
   PRICE_CAP_APRIL_2026,
@@ -88,11 +82,7 @@ import {
 import { openOfferUrlInNewTab } from '@/lib/zone/tier2RecursiveSpawner'
 import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
-import {
-  markCardVisited,
-  setDeepDiveInProgress,
-  shouldSkipInjectionOnCardClose,
-} from '@/lib/zone/visitedCards'
+import { setDeepDiveInProgress, shouldSkipInjectionOnCardClose } from '@/lib/zone/visitedCards'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
 import { runSoloFocusAuditCompletionClient } from '@/lib/soloFocusAuditCompleteClient'
 import {
@@ -269,6 +259,7 @@ export function JourneyBentoCard({
   isVisited = false,
   deepDiveInProgress = false,
 }: JourneyBentoCardProps) {
+  const reduceMotion = useHydrationSafeReducedMotion()
   const { state } = useApp()
   const profilePostcode =
     (state.profile?.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase() ||
@@ -335,7 +326,6 @@ export function JourneyBentoCard({
     supplied_by?: string | null
   } | null>(() => readHydrationSnap(soloFocusSnapKey, journeyId)?.researchAttribution ?? null)
   const [impactAnswerPulse, setImpactAnswerPulse] = useState(false)
-  const [embedSubmitting, setEmbedSubmitting] = useState(false)
   const [askZaiDeepDiveOpen, setAskZaiDeepDiveOpen] = useState(false)
   const [heroTotalsOverride, setHeroTotalsOverride] = useState<{ money: number; carbon: number } | null>(null)
   const [homeSentinelRecard, setHomeSentinelRecard] = useState<HomeSentinelRecard | null>(null)
@@ -495,34 +485,13 @@ export function JourneyBentoCard({
 
   const wasExpandedRef = useRef(false)
 
-  const mergedJourneyAnswers = useMemo(() => {
-    let local: Record<string, string> = {}
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem(`journey_${journeyId}_answers`)
-        local = raw ? (JSON.parse(raw) as Record<string, string>) : {}
-      } catch {
-        local = {}
-      }
-    }
-    return mergeJourneyAnswerMaps(journeyId, local, state.journeyAnswers?.[journeyId] ?? null)
-  }, [journeyId, state.journeyAnswers, effectiveOpen, discoverySnap])
-
-  const embedQuestion = useMemo(() => {
-    if (!effectiveOpen || isVisited || discoverySnap) return null
-    return getSoloFocusNextQuestion(journeyId, mergedJourneyAnswers)
-  }, [effectiveOpen, isVisited, discoverySnap, journeyId, mergedJourneyAnswers])
-
-  const showEmbedQuestion = Boolean(embedQuestion)
-
   useEffect(() => {
     if (isExpanded && !prevIsExpandedRef.current) {
       const core = cardId ?? journeyId
       const lk = `zz_sf_lane_${core}`
       const qk = `zz_sf_q_${core}`
-      const pendingQ = getSoloFocusNextQuestion(journeyId, mergedJourneyAnswers)
       const snap = readHydrationSnap(soloFocusSnapKey, journeyId)
-      const viewMode = discoverySnap || !pendingQ || isVisited ? 'RESULT' : 'QUESTION'
+      const viewMode = 'RESULT'
       try {
         sessionStorage.removeItem(lk)
         sessionStorage.removeItem(qk)
@@ -564,7 +533,6 @@ export function JourneyBentoCard({
     state.profile?.homeType,
     state.profile?.transport,
     state.journeyAnswers?.travel?.fuel_type,
-    mergedJourneyAnswers,
     discoverySnap,
     isVisited,
   ])
@@ -577,88 +545,12 @@ export function JourneyBentoCard({
     }
   }, [])
 
-  const handleEmbedAnswer = useCallback(
-    async (answerValue: string) => {
-      if (!embedQuestion || embedSubmitting || isVisited) return
-      const questionId = embedQuestion.id
-      const answer = String(answerValue ?? '').trim()
-      if (!answer) return
-      triggerHaptic('medium')
-      setEmbedSubmitting(true)
-      try {
-        const result = await submitSoloFocusJourneyAnswer({
-          journeyId,
-          questionId,
-          answerValue: answer,
-          postcode: profilePostcode,
-          profileData: state.profile
-            ? {
-                postcode: state.profile.postcode ?? profilePostcode,
-                home_type: state.profile.homeType ?? null,
-                home_power: state.profile.homePower ?? null,
-                transport_baseline: state.profile.transport ?? null,
-              }
-            : null,
-          journeyAnswers: state.journeyAnswers,
-          cardId: cardId ?? null,
-        })
-        flushSync(() => {
-          setDiscoverySnap(result.discoverySnap)
-          if (result.discoveryWinLine) setDiscoveryWinLine(result.discoveryWinLine)
-          if (result.researchAttribution) setResearchAttribution(result.researchAttribution)
-          if (result.birthedZoneTitle) setBirthedZoneTitle(result.birthedZoneTitle)
-          if (result.gridContext) setGridContext(result.gridContext)
-          const sentinel = parseSentinelMotherRefresh(result.homeSentinelRecard)
-          if (sentinel) setHomeSentinelRecard(sentinel)
-          if (result.morphCards.length > 0) {
-            const prioritized = prioritizeMorphCardsForContext(
-              [...morphDeck, ...result.morphCards],
-              {
-                postcode: profilePostcode,
-                profile: { transport: state.profile?.transport ?? null },
-                journeyAnswers: state.journeyAnswers,
-              }
-            )
-            setMorphDeck(prioritized)
-            setMorphDeckCursor(prioritized.length)
-          }
-          try {
-            sessionStorage.setItem(soloFocusViewKey, 'RESULT')
-          } catch {
-            /* ignore */
-          }
-        })
-        onJourneyAnswered?.()
-        onEmbeddedAnswerSuccess?.({ cardId, journeyId })
-        onSoloEmbedComplete?.(journeyId)
-      } finally {
-        setEmbedSubmitting(false)
-      }
-    },
-    [
-      embedQuestion,
-      embedSubmitting,
-      isVisited,
-      journeyId,
-      profilePostcode,
-      state.profile,
-      state.journeyAnswers,
-      cardId,
-      morphDeck,
-      soloFocusViewKey,
-      onJourneyAnswered,
-      onEmbeddedAnswerSuccess,
-      onSoloEmbedComplete,
-      triggerHaptic,
-    ]
-  )
-
   const beginCloseWithPatternShift = useCallback(() => {
     triggerHaptic('medium')
     clearSoloFocusMemory()
     setDeepDiveInProgress(null)
     const visitId = String(activeCardId || cardId || '').trim()
-    if (visitId) markCardVisited(visitId)
+    /* Director's order: pink only after loop birth — never mark visited on close before takeover. */
     patternShiftAfterExitRef.current = {
       cardId: visitId || undefined,
       visitedClose: visitId ? shouldSkipInjectionOnCardClose(visitId, journeyId) : false,
@@ -971,18 +863,18 @@ export function JourneyBentoCard({
         : 0
     const treeEquivalent = Math.max(1, Math.round(discoveryImpactKg / 21))
     const motherShimmerKey = `${morphDeckCursor}-${currentMorphData?.id ?? 'base'}-${homeSentinelRecard?.headline ?? ''}-${homeSentinelRecard?.moneyGbp ?? 0}`
-    const controlsAfterQuestionSec = STACCATO_DURATION_SEC + STACCATO_STAGGER_SEC
-    const embedQuestionLabel = embedQuestion?.label?.trim() ?? ''
-
     const handleCloseComplete = () => {
-      onClose?.()
       setIsExiting(false)
       setMorphDeck([])
       setMorphDeckCursor(0)
       setResearchAttribution(null)
       const meta = patternShiftAfterExitRef.current
       patternShiftAfterExitRef.current = null
-      if (meta) onPatternShiftClose?.(journeyId, meta)
+      if (meta) {
+        onPatternShiftClose?.(journeyId, meta)
+        return
+      }
+      onClose?.()
     }
 
     const expandedOverlay =
@@ -1036,7 +928,7 @@ export function JourneyBentoCard({
             <div className="solo-focus-expanded-toolbar solo-focus-mother-columns w-full min-w-0">
               <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
                 <div key={motherShimmerKey} className="flex flex-col gap-2 w-full min-w-0">
-            {showCardComputing && !showEmbedQuestion ? (
+            {showCardComputing ? (
               <p
                 className="zz-label m-0 opacity-80"
                 style={{ color: 'var(--journey-text)', letterSpacing: '0.04em' }}
@@ -1050,83 +942,37 @@ export function JourneyBentoCard({
             >
               {zoneCategoryLabel}
             </span>
-            {showEmbedQuestion && embedQuestion ? (
-              <motion.div
-                className="profile-step-slam w-full flex flex-col items-stretch"
-                style={{ gap: 40, maxWidth: 520, marginInline: 'auto' }}
-                initial={reducePagerMotion ? false : { opacity: 0, y: STACCATO_DROP_PX }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={reducePagerMotion ? { duration: 0.12 } : STACCATO_TWEEN}
-              >
-                <motion.div
-                  className="text-marvin profile-question-headline text-left"
-                  style={{
-                    margin: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.06em',
-                    maxWidth: 'min(92vw, 28rem)',
-                  }}
-                >
-                  <span style={{ whiteSpace: 'pre-line', display: 'block' }}>{embedQuestionLabel}</span>
-                </motion.div>
-                <div className="profile-step-controls profile-step-controls--options">
-                  {(embedQuestion.options ?? []).map((opt, optionIndex) => {
-                    const optValue = String(opt).trim()
-                    const display = getOptionFullLabel(optValue)
-                    const optAria = display.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
-                    return (
-                      <ProfileAnswerBtn
-                        key={optValue}
-                        className=""
-                        reduceMotion={reducePagerMotion}
-                        optionIndex={optionIndex}
-                        delaySeconds={controlsAfterQuestionSec + optionIndex * STACCATO_STAGGER_SEC}
-                        disabled={embedSubmitting}
-                        onClick={() => void handleEmbedAnswer(optValue)}
-                        aria-label={optAria}
-                      >
-                        <span className="profile-answer-btn__text zz-h4">{display}</span>
-                      </ProfileAnswerBtn>
-                    )
-                  })}
-                </div>
-              </motion.div>
-            ) : (
-              <>
-                <motion.h1
-                  className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left"
-                  style={{
-                    color: 'var(--journey-text)',
-                    margin: 0,
-                    padding: 0,
-                  }}
-                >
-                  {recommendationTitle}
-                </motion.h1>
-                {trueTipSectionsEl}
+            <motion.h1
+              className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left"
+              style={{
+                color: 'var(--journey-text)',
+                margin: 0,
+                padding: 0,
+              }}
+            >
+              {recommendationTitle}
+            </motion.h1>
+            {trueTipSectionsEl}
 
-                <MotherCardRenderer
-                  categoryLabel=""
-                  headline={null}
-                  narrative={null}
-                  sourceFooter={sourceFooter}
-                  verifiedSourceCitation={verifiedCitation}
-                  actionLine={architectActionLine}
-                  moneyGbp={animatedMoneyGbp}
-                  carbonKg={animatedCarbonKg}
-                  verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
-                  impactPulse={impactAnswerPulse}
-                  ctaUrl={soloHandoff.ctaUrl}
-                  ctaJourneyId={displayJourneyId as string}
-                  ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : journeyCtaLabel}
-                  ctaSurface={currentMorphData?.high_impact ? 'yellow' : 'pink'}
-                  isLiked={isLiked}
-                  onLike={onLike ? handleTrinityLike : undefined}
-                  onAskZai={showAskZaiTrinity || _onAskZai ? handleTrinityAskZai : undefined}
-                />
-              </>
-            )}
+            <MotherCardRenderer
+              categoryLabel=""
+              headline={null}
+              narrative={null}
+              sourceFooter={sourceFooter}
+              verifiedSourceCitation={verifiedCitation}
+              actionLine={architectActionLine}
+              moneyGbp={animatedMoneyGbp}
+              carbonKg={animatedCarbonKg}
+              verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
+              impactPulse={impactAnswerPulse}
+              ctaUrl={soloHandoff.ctaUrl}
+              ctaJourneyId={displayJourneyId as string}
+              ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : journeyCtaLabel}
+              ctaSurface={currentMorphData?.high_impact ? 'yellow' : 'pink'}
+              isLiked={isLiked}
+              onLike={onLike ? handleTrinityLike : undefined}
+              onAskZai={showAskZaiTrinity || _onAskZai ? handleTrinityAskZai : undefined}
+            />
                 </div>
               </div>
               <div

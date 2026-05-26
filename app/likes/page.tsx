@@ -12,7 +12,12 @@ import { getJourneyColorHex } from '@/lib/journeyColors'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { motion } from 'framer-motion'
-import { KINETIC_ZIP_PULSE } from '@/lib/animations'
+import {
+  familyPageEnterProps,
+  FAMILY_PULSE_TRANSITION,
+  FAMILY_TRANSITION_SHORT,
+} from '@/lib/motion-family'
+import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import { readZaiLikes, removeZaiLike } from '@/lib/zai/zaiLikesStorage'
 import {
   ArrowNEOutlineIcon,
@@ -23,6 +28,8 @@ import {
 const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
 
 export default function LikesPage() {
+  const reduceMotion = useHydrationSafeReducedMotion()
+  const pageEnter = familyPageEnterProps(reduceMotion)
   const { state, toggleLike } = useApp()
   const [actionedIds, setActionedIds] = useState<Set<string>>(new Set())
   const viewModel = useMemo(() => {
@@ -119,7 +126,9 @@ export default function LikesPage() {
         minHeight: '100vh',
         paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))',
       }}
-      {...KINETIC_ZIP_PULSE}
+      initial={pageEnter.initial}
+      animate={pageEnter.animate}
+      transition={pageEnter.transition}
     >
       <ZoneModalCloseLink />
       <h3 className="zz-page-title">Likes</h3>
@@ -138,7 +147,7 @@ export default function LikesPage() {
             return (
               <article
                 key={pick.id}
-                className="bento-card-groovy"
+                className="bento-card-groovy zz-family-bloom"
                 style={{
                   width: '100%',
                   borderRadius: 60,
@@ -174,9 +183,16 @@ export default function LikesPage() {
                       source
                     </a>
                   ) : null}
-                  <button type="button" className="zz-body" onClick={() => handleUnlike(pick.id)} style={{ color: textColor }}>
+                  <motion.button
+                    type="button"
+                    className="zz-body zz-family-bloom"
+                    onClick={() => handleUnlike(pick.id)}
+                    style={{ color: textColor, background: 'transparent', border: 'none', cursor: 'pointer' }}
+                    whileTap={{ scale: 1.05 }}
+                    transition={FAMILY_PULSE_TRANSITION}
+                  >
                     Unlike
-                  </button>
+                  </motion.button>
                   <button type="button" className="zz-body" onClick={() => handleActioned(pick.id)} style={{ color: textColor, opacity: isActioned ? 0.5 : 1 }}>
                     {isActioned ? 'Actioned' : 'Mark actioned'}
                   </button>
@@ -195,7 +211,7 @@ export default function LikesPage() {
             return (
               <article
                 key={card.id}
-                className="bento-card-groovy"
+                className="bento-card-groovy zz-family-bloom"
                 style={{
                   width: '100%',
                   borderRadius: 60,
@@ -231,9 +247,9 @@ export default function LikesPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button
+                  <motion.button
                     type="button"
-                    className="expanded-view-action-btn"
+                    className="expanded-view-action-btn zz-family-bloom"
                     onClick={() => handleUnlike(card.id)}
                     aria-label="Unlike"
                     title="Remove from Likes"
@@ -249,9 +265,11 @@ export default function LikesPage() {
                       justifyContent: 'center',
                       cursor: 'pointer',
                     }}
+                    whileTap={{ scale: 1.05 }}
+                    transition={FAMILY_PULSE_TRANSITION}
                   >
                     <HeartOutlineIcon size={28} />
-                  </button>
+                  </motion.button>
                   <button
                     type="button"
                     className="expanded-view-action-btn"

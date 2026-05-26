@@ -60,15 +60,20 @@ HYBRID_DATA_PIPELINE=1
 ## Clean build (zero TS/lint errors)
 
 ```bash
-# 1) Static gate (must pass — only known warning in SoloFocusOverlay hooks)
+# 0) Optional — drop stale .next / Turbopack caches
+npm run purge:disk
+
+# 1) Static gate (must pass; fix any eslint *errors* before ship)
 npm run verify
 
-# 2) Production build (verify is included)
+# 2) Production build (verify is included in `npm run build`)
 npm run build
 
 # Or wipe .next first:
 npm run build:clean
 ```
+
+**Launch smoke after build:** see **Launch verification** in [HANDBOOK.md](HANDBOOK.md) (Summary atomic ticker → Zone ripple → one loop → pink; Rock = no loop).
 
 **Full prep (Neon + journey_questions + clean build):**
 
@@ -93,6 +98,36 @@ npm run dev
 
 After deploy or data-version bumps (`DATA_VERSION` default `2026-05-24-profile-baseline`), returning users auto-reset via `SessionStateRehydrate` then rehydrate from `/api/session-state`. Manual: DevTools → Application → clear site data, or complete profile again.
 
+### Final test reset (local)
+
+```bash
+npm run purge:disk
+npm run verify
+npm run build:clean
+npm run dev:clean
+```
+
+**Browser (127.0.0.1:3000):** Settings → **RESET DATA**, or DevTools → Application → **Clear site data**.
+
+**Partial journey/loop cache only** (keep profile): paste the snippet from `npm run clear:learning`.
+
+| Settings edit | Behaviour |
+|---------------|-----------|
+| Profile row (pencil) | `/profile?q={id}&returnTo=/settings` — one question, then back to Settings |
+| Loop row (pencil) | In-place loop beat overlay — answer updates `zz_loop_answers_log` + `journey_*_answers`, returns to Settings |
+| Journey card (pencil) | `SoloFocusOverlay` question mode — journey MC answers, then back to Settings |
+
+### `Cannot find the middleware module` (Next 16 + Webpack)
+
+| Cause | Fix |
+|-------|-----|
+| Stale `.next` after purge / crash | `npm run dev:clean` (purge + manifests + dev). Do not run bare `next dev` — use `npm run dev` or `dev:clean`. |
+| Port 3000 still held by an old `node` process | `lsof -ti :3000 \| xargs kill` then `npm run dev:clean`. |
+| Proxy not compiled yet (first request) | Wait for terminal `Compiled` / `proxy.ts` timing line, hard-refresh. |
+| `next start` without a build | Run `npm run build:clean` first; `start` no longer stubs middleware manifests. |
+
+Boundary file: root **`proxy.ts`** (`export function proxy`). Next 16 renamed `middleware.ts` → `proxy.ts`; the dev bundle still emits `.next/dev/server/middleware.js`.
+
 ### Hydration + console noise (dev)
 
 | Symptom | Fix / expectation |
@@ -100,6 +135,7 @@ After deploy or data-version bumps (`DATA_VERSION` default `2026-05-24-profile-b
 | React **hydration mismatch** on `/` | `useHydrationSafeReducedMotion` on intro/logo/word cycle; **`suppressHydrationWarning`** on `<html>` / `<body>` (Grammarly injects `data-gr-ext-installed`). |
 | **`name` vs `postcode` on `/profile`** | `ProfilePageClient` waits for `profileHydrated` after `useLayoutEffect` reads `localStorage` / `sessionStorage` — no SSR step label drift. |
 | **AUDIT over bento on Zone handoff** | Summary → Zone uses **`.zone-handoff-overlay`** (fixed, 40px inset); wall hidden until `architecturalPulsePhase === 'done'`. |
+| **Marvin / Roboto look like system fonts** | Marvin is local: `public/assets/Marvin Visions Bold.ttf` (`@font-face` in `globals.css`). If missing from disk, run `git checkout -- "public/assets/Marvin Visions Bold.ttf"`. Roboto is `next/font/google` on `<html className={roboto.variable}>` + `<body className={roboto.className}>`. Hard-refresh after restore. |
 | **Unused font preload** warning | Marvin loads via `@font-face` in `globals.css`; duplicate `<link rel="preload">` removed from `app/layout.tsx`. |
 | `runtime.lastError` / extension port | Browser extension — ignore unless reproducing in incognito without extensions. |
 | **`[403] Lightning dunning … gemini`** | Google Cloud billing / quota on the Gemini project — not an app bug. Bucket failover uses Groq/Mistral; expect **`[429]`** if profile triggers many `scrape-sync` calls in one session. |

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import {
   INDUSTRIAL_OPACITY_SNAP,
@@ -12,6 +12,18 @@ import {
   STACCATO_DURATION_SEC,
   STACCATO_EASE,
 } from '@/lib/animations'
+import { INTRO_TYPE_MOTION_SCALE } from '@/lib/animations'
+import {
+  familyAtomicProps,
+  atomicWordHoldMs,
+  FAMILY_DUR_ATOMIC,
+  FAMILY_EASE,
+  FAMILY_WORD_EXIT_MS,
+} from '@/lib/motion-family'
+
+function introTypeDwellMs(ms: number): number {
+  return Math.round(ms * INTRO_TYPE_MOTION_SCALE)
+}
 
 interface IntroWordCycleProps {
   words: string[]
@@ -40,7 +52,7 @@ interface IntroWordCycleProps {
   /** Exit blur duration before next word; intro uses `INTRO_ROUTE_WORD_EXIT_MS` (~30% faster than default). */
   wordExitMs?: number
   /**
-   * `/profile/summary` + Mechanical Snap DNA: one word at a time, **opacity only**.
+   * Summary / Architectural Pulse: **Atomic Assembly** — blur cloud → crystallized word.
    * Intro `/` + `/intro` keep **`WORD_PULSE_APPEAR`** (Style A glitch) unless this is set.
    */
   opacityTicker?: boolean
@@ -91,16 +103,25 @@ export default function IntroWordCycle({
     return w + '.'
   })()
 
-  const dwellMs = wordDurations?.[index] ?? KINETIC_WORD_DWELL_MS
+  const dwellMs =
+    wordDurations?.[index] !== undefined
+      ? introTypeDwellMs(wordDurations[index]!)
+      : opacityTicker
+        ? introTypeDwellMs(atomicWordHoldMs(currentWord))
+        : KINETIC_WORD_DWELL_MS
 
   const motionPreset = useMemo(() => {
     if (opacityTicker) {
-      const t = { duration: STACCATO_DURATION_SEC, ease: STACCATO_EASE }
+      const atomic = familyAtomicProps(reduceMotion)
+      const t = reduceMotion
+        ? { duration: STACCATO_DURATION_SEC, ease: STACCATO_EASE }
+        : { duration: FAMILY_DUR_ATOMIC, ease: FAMILY_EASE }
       return {
-        className: 'intro-text-large intro-summary-opacity-ticker',
-        initial: { opacity: 0 },
-        animate: { opacity: 1, transition: t },
-        exit: { opacity: 0, transition: { ...t, duration: STACCATO_DURATION_SEC * 0.85 } },
+        className: 'intro-text-large intro-summary-opacity-ticker zz-family-atomic',
+        initial: atomic.initial,
+        animate: atomic.animate,
+        exit: atomic.exit,
+        transition: t,
       }
     }
     if (!lensFocusShimmer) {
@@ -132,6 +153,11 @@ export default function IntroWordCycle({
     }
   }, [opacityTicker, lensFocusShimmer, reduceMotion])
 
+  const wordTransition =
+    'transition' in motionPreset && motionPreset.transition
+      ? motionPreset.transition
+      : undefined
+
   useEffect(() => {
     if (completedRef.current) return
     setVisible(true)
@@ -162,7 +188,15 @@ export default function IntroWordCycle({
   // Last resort if word timers never finish (tab sleep, Strict Mode edge cases).
   // Must exceed real wall time: dwell + exit+gap per word.
   useEffect(() => {
-    const maxDwell = Math.max(KINETIC_WORD_DWELL_MS, ...(wordDurations ?? []))
+    const maxDwell = opacityTicker
+      ? Math.max(
+          ...words.map((w) => introTypeDwellMs(atomicWordHoldMs(w))),
+          ...(wordDurations ?? []).map((ms) => introTypeDwellMs(ms))
+        )
+      : Math.max(
+          KINETIC_WORD_DWELL_MS,
+          ...(wordDurations ?? []).map((ms) => introTypeDwellMs(ms))
+        )
     const perWordMs = maxDwell + wordExitMs + gapMs + 300
     const maxMs = words.length * perWordMs + 6000
     const safety = setTimeout(() => {
@@ -243,7 +277,7 @@ export default function IntroWordCycle({
         minHeight: 120,
       }}
     >
-      <>
+      <AnimatePresence mode="wait">
         {visible && (
           <motion.h1
             ref={wordRef}
@@ -252,9 +286,7 @@ export default function IntroWordCycle({
             initial={motionPreset.initial}
             animate={motionPreset.animate}
             exit={motionPreset.exit}
-            {...('transition' in motionPreset && motionPreset.transition
-              ? { transition: motionPreset.transition }
-              : {})}
+            transition={wordTransition}
             style={{
               margin: 0,
               padding: 0,
@@ -298,7 +330,7 @@ export default function IntroWordCycle({
               : displayText}
           </motion.h1>
         )}
-      </>
+      </AnimatePresence>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
+import { FAMILY_PULSE_TRANSITION } from '@/lib/motion-family'
 
 /** Terminal pulse — Flight Deck trigger (Settings). */
 function PulseTerminalIcon() {
@@ -37,12 +37,13 @@ export default function DiagnosticsFlightDeckButton({
       type="button"
       onClick={onClick}
       className={[
-        'settings-flight-deck-btn',
+        'settings-flight-deck-btn zz-family-bloom',
         active ? 'settings-flight-deck-btn--active' : '',
       ]
         .filter(Boolean)
         .join(' ')}
-      transition={INDUSTRIAL_OPACITY_SNAP}
+      whileTap={{ scale: 1.05 }}
+      transition={FAMILY_PULSE_TRANSITION}
       aria-label="Open mechanical truth diagnostics"
       aria-pressed={active}
     >

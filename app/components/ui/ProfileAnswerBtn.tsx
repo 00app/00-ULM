@@ -2,7 +2,13 @@
 
 import { motion } from 'framer-motion'
 import type { CSSProperties, ReactNode } from 'react'
-import { STACCATO_DROP_PX, STACCATO_DURATION_SEC, STACCATO_EASE } from '@/lib/animations'
+import {
+  FAMILY_BLUR_PX,
+  FAMILY_DUR_SHORT,
+  FAMILY_EASE,
+  FAMILY_GLIDE_PX,
+  familyControlDelaySec,
+} from '@/lib/motion-family'
 
 export type ProfileAnswerBtnProps = {
   reduceMotion: boolean | null | undefined
@@ -32,9 +38,13 @@ export default function ProfileAnswerBtn({
   'aria-label': ariaLabel,
   children,
 }: ProfileAnswerBtnProps) {
-  const delay = delaySeconds ?? (optionIndex + 1) * STACCATO_DURATION_SEC
-  const initial = reduceMotion ? { opacity: 0 } : { opacity: 0, y: STACCATO_DROP_PX }
-  const animate = reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }
+  const delay = delaySeconds ?? familyControlDelaySec(optionIndex)
+  const initial = reduceMotion
+    ? { opacity: 0 }
+    : { opacity: 0, x: FAMILY_GLIDE_PX * 0.35, filter: `blur(${FAMILY_BLUR_PX * 0.5}px)` }
+  const animate = reduceMotion
+    ? { opacity: 1 }
+    : { opacity: 1, x: 0, filter: 'blur(0px)' }
   return (
     <motion.button
       type="button"
@@ -45,9 +55,9 @@ export default function ProfileAnswerBtn({
       initial={initial}
       animate={animate}
       transition={{
-        duration: STACCATO_DURATION_SEC,
+        duration: FAMILY_DUR_SHORT,
         delay,
-        ease: STACCATO_EASE,
+        ease: FAMILY_EASE,
       }}
       onClick={onClick}
     >

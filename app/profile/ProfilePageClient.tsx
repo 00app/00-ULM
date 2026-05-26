@@ -2,12 +2,17 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useCallback, useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import { firstNameFromAutofill } from '@/lib/profile/firstNameFromInput'
 import { useApp } from '@/app/context/AppContext'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
-import { STACCATO_DURATION_SEC, STACCATO_DROP_PX, STACCATO_STAGGER_SEC, STACCATO_TWEEN } from '@/lib/animations'
+import {
+  familyAtomicProps,
+  familyControlDelaySec,
+  familyProfileStepProps,
+  FAMILY_TRANSITION_ATOMIC,
+} from '@/lib/motion-family'
 import InputField from '@/app/components/InputField'
 import { createUser } from '@/lib/api'
 import { ROUTES } from '@/lib/routes'
@@ -556,17 +561,8 @@ export default function ProfilePageClient() {
   }
 
   const questionBlockLabel = profileHydrated && current ? current.label.replace(/\n/g, '\n') : ''
-  /** Full-sentence headline + controls: one block fade (Mechanical Snap — not word-by-word). */
-  const controlsAfterQuestionSec = STACCATO_DURATION_SEC + STACCATO_STAGGER_SEC
-
-  const stepBlockInitial = reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }
-  const stepBlockAnimate = reduceMotion ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }
-  const stepBlockTransition = reduceMotion
-    ? { duration: 0.12, ease: [0, 0.55, 0.45, 1] as const }
-    : STACCATO_TWEEN
-  const stepBlockExit = reduceMotion
-    ? { opacity: 0, transition: { duration: 0.08, ease: [0, 0.55, 0.45, 1] as const } }
-    : { opacity: 0, y: 8, transition: STACCATO_TWEEN }
+  const stepMotion = familyProfileStepProps(reduceMotion)
+  const headlineMotion = familyAtomicProps(reduceMotion)
 
   const profileShellStyle: React.CSSProperties = {
     minHeight: '100dvh',
@@ -592,15 +588,15 @@ export default function ProfilePageClient() {
 
   return (
     <main className="zz-profile-page" style={profileShellStyle}>
-      <>
+      <AnimatePresence mode="wait">
         <motion.div
           key={step}
           className="profile-step-slam w-full flex flex-col items-center"
           style={{ gap: 40, maxWidth: 520 }}
-          initial={stepBlockInitial}
-          animate={stepBlockAnimate}
-          exit={stepBlockExit}
-          transition={stepBlockTransition}
+          initial={stepMotion.initial}
+          animate={stepMotion.animate}
+          exit={stepMotion.exit}
+          transition={FAMILY_TRANSITION_ATOMIC}
         >
           <motion.div
             className="text-marvin profile-question-headline"
@@ -615,9 +611,10 @@ export default function ProfilePageClient() {
               maxWidth: 'min(92vw, 28rem)',
               textAlign: 'center',
             }}
-            initial={reduceMotion ? false : { opacity: 0, y: STACCATO_DROP_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={reduceMotion ? { duration: 0.12 } : STACCATO_TWEEN}
+            initial={headlineMotion.initial}
+            animate={headlineMotion.animate}
+            exit={headlineMotion.exit}
+            transition={FAMILY_TRANSITION_ATOMIC}
           >
             <span style={{ whiteSpace: 'pre-line', display: 'block' }}>{questionBlockLabel}</span>
           </motion.div>
@@ -641,7 +638,7 @@ export default function ProfilePageClient() {
               <ProfileAnswerBtn
                 reduceMotion={reduceMotion}
                 optionIndex={0}
-                delaySeconds={controlsAfterQuestionSec + STACCATO_STAGGER_SEC}
+                delaySeconds={familyControlDelaySec(0)}
                 className=""
                 disabled={isSubmitting}
                 onClick={() => {
@@ -671,7 +668,7 @@ export default function ProfilePageClient() {
                     key={optValue}
                     reduceMotion={reduceMotion}
                     optionIndex={optionIndex}
-                    delaySeconds={controlsAfterQuestionSec + optionIndex * STACCATO_STAGGER_SEC}
+                    delaySeconds={familyControlDelaySec(optionIndex)}
                     className={currentVal === optValue ? 'selected' : ''}
                     style={optTheme ? ({ '--local-theme': optTheme } as CSSProperties & { '--local-theme'?: string }) : undefined}
                     disabled={isSubmitting}
@@ -687,7 +684,7 @@ export default function ProfilePageClient() {
             </div>
           )}
         </motion.div>
-      </>
+      </AnimatePresence>
     </main>
   )
 }

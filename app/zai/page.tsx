@@ -10,7 +10,13 @@ import { getAskZaiContext, clearAskZaiContext } from '@/lib/expandStorage'
 import { dedupeLocalityInProse } from '@/lib/brains/zai/prose'
 import { sanitizeText } from '@/lib/sanitize'
 import { dispatchZaiAuditComplete } from '@/lib/zai/zoneSync'
-import { ELASTIC_PING, INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
+import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
+import {
+  familyAtomicProps,
+  familyPageEnterProps,
+  FAMILY_TRANSITION_ATOMIC,
+} from '@/lib/motion-family'
+import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { postZaiChat, readZaiStream } from '@/lib/zai/chatClient'
 import type { HeroTotals } from '@/app/context/AppContext'
@@ -117,7 +123,10 @@ function syncZaiLikeStorage(meta: ZaiChatMeta, liked: boolean): void {
 }
 
 export default function ZaiPage() {
+  const reduceMotion = useHydrationSafeReducedMotion()
   const { state, toggleLike } = useApp()
+  const pageEnter = familyPageEnterProps(reduceMotion)
+  const msgMotion = familyAtomicProps(reduceMotion)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -318,14 +327,21 @@ export default function ZaiPage() {
     <motion.div
       className="zz-page zai-interface zai-page"
       style={{ background: 'transparent' }}
-      {...ELASTIC_PING}
+      initial={pageEnter.initial}
+      animate={pageEnter.animate}
+      transition={pageEnter.transition}
     >
       <ZoneModalCloseLink onClose={handleZaiClose} />
 
       <div className="zai-page-scroll max-w-zone">
         <h3 className="zz-page-title">zai chat</h3>
         <motion.div className="zai-page-content">
-          <motion.div className="zai-intro-bubble">
+          <motion.div
+            className="zai-intro-bubble"
+            initial={msgMotion.initial}
+            animate={msgMotion.animate}
+            transition={FAMILY_TRANSITION_ATOMIC}
+          >
             {ZAI_INTRO_LINES.map((line) => (
               <p key={line} className="zz-body">
                 {line}
@@ -342,9 +358,9 @@ export default function ZaiPage() {
               <Fragment key={`${msg.role}-${i}-${msg.text.slice(0, 24)}`}>
                 <motion.div
                   className={`zai-chat-msg${msg.role === 'user' ? ' zai-chat-msg--user' : ''}`}
-                  initial={{ opacity: 0, y: 2 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={INDUSTRIAL_OPACITY_SNAP}
+                  initial={msgMotion.initial}
+                  animate={msgMotion.animate}
+                  transition={FAMILY_TRANSITION_ATOMIC}
                 >
                   <span
                     className={`zz-body zai-bubble zai-bubble-chat inline-block max-w-[85%] ${

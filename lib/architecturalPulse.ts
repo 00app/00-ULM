@@ -1,3 +1,4 @@
+import { INTRO_TYPE_MOTION_SCALE } from '@/lib/animations'
 import { formatMoneyValue, compactAuditValue } from '@/lib/format'
 
 /** Warm Marvin + Roboto while intro glitch runs. */
@@ -11,8 +12,8 @@ export function preloadAppFonts(): void {
   ]).catch(() => {})
 }
 
-/** Glitch logo beat — keep in sync with `.zz-glitch` in globals.css */
-export const GLITCH_ANIM_MS = 469
+/** Glitch logo beat — keep in sync with `--zz-glitch-anim-ms` in globals.css */
+export const GLITCH_ANIM_MS = Math.round(469 * INTRO_TYPE_MOTION_SCALE)
 
 /** Post–profile-summary handoff: one-word rhythmic pulse before Zone grid punch-through. */
 
@@ -25,8 +26,8 @@ export const ARCHITECTURAL_PULSE_WORDS = [
   'done.',
 ] as const
 
-/** Mechanical lock: 1.2s per beat (Marvin opacity ticker). */
-export const ARCHITECTURAL_PULSE_DWELL_MS = 1200
+/** Legacy constant — pulse uses per-word `atomicWordHoldMs` × `INTRO_TYPE_MOTION_SCALE` in `ArchitecturalPulse`. */
+export const ARCHITECTURAL_PULSE_DWELL_MS = Math.round(1200 * INTRO_TYPE_MOTION_SCALE)
 
 /** Max wait after DONE. before punch-through if scrape-sync is still in flight. */
 export const ZONE_READY_MAX_WAIT_MS = 14_000

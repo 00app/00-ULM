@@ -18,8 +18,15 @@ if [[ ! -f .env.local ]]; then
   exit 1
 fi
 
-echo "== Neon + journey_questions =="
+MARVIN_FONT="public/assets/Marvin Visions Bold.ttf"
+if [[ ! -f "$MARVIN_FONT" ]]; then
+  echo "❌ Missing $MARVIN_FONT — restore from git: git checkout -- \"public/assets/Marvin Visions Bold.ttf\""
+  exit 1
+fi
+
+echo "== Neon + journey_questions + pending migrations =="
 npm run db:test
+npm run db:apply-pending
 npm run db:evolve-12-domains
 echo ""
 

@@ -10,7 +10,7 @@ import {
   injectNewDiscoveryCard,
   persistAchievementCardRemote,
 } from '@/lib/discoveryInject'
-import { markLoopDoneForJourney, persistLoopAnswerLocal } from '@/lib/zone/loopMemory'
+import { persistLoopAnswerLocal } from '@/lib/zone/loopMemory'
 import {
   fetchTier2ScrapeSync,
   refreshZoneTotalsAfterTier2,
@@ -26,13 +26,14 @@ import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
 import { CLEAN_BIRTH_PULSE_MAX_WAIT_MS } from '@/lib/architecturalPulse'
 import type { ZoneTipCard } from '@/lib/logic/zone'
+import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 import {
-  STACCATO_DURATION_SEC,
-  STACCATO_DROP_PX,
-  STACCATO_STAGGER_SEC,
-  STACCATO_TWEEN,
-  INDUSTRIAL_OPACITY_SNAP,
-} from '@/lib/animations'
+  familyControlDelaySec,
+  familyProfileStepProps,
+  familyRevealProps,
+  FAMILY_TRANSITION_ATOMIC,
+  FAMILY_TRANSITION_LONG,
+} from '@/lib/motion-family'
 
 const TIER2_ENRICH_TIMEOUT_MS = 8000
 
@@ -118,13 +119,15 @@ export function DiscoveryTakeover({
   onAchievementCard,
 }: Props) {
   const reduceMotion = useReducedMotion()
-  const beat = useMemo(() => (open ? pickNextLoopQuestion(journeyId) : null), [open, journeyId])
+  const beat = useMemo(() => {
+    if (!open) return null
+    return pickNextLoopQuestion(journeyId)
+  }, [open, journeyId])
   const [phase, setPhase] = useState<TakeoverPhase>('question')
   const [answerLocked, setAnswerLocked] = useState(false)
   const [pulseWordsComplete, setPulseWordsComplete] = useState(false)
   const [cardReady, setCardReady] = useState(false)
   const revealFiredRef = useRef(false)
-  const controlsAfterQuestionSec = STACCATO_DURATION_SEC + STACCATO_STAGGER_SEC
 
   useEffect(() => {
     if (!open) {
@@ -154,8 +157,6 @@ export function DiscoveryTakeover({
         questionId: beat.questionId,
         answer: answerValue,
       })
-      markLoopDoneForJourney(journeyId)
-
       const rec = getDiscoveryRecommendation(journeyId, beat.questionId, answerValue)
       const fallbackTitle = headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
       const fallbackUrl = rec.actionUrl ?? rec.learnUrl ?? rec.ctaUrl ?? null
@@ -249,8 +250,9 @@ export function DiscoveryTakeover({
   }, [cardReady, onRevealComplete])
 
   useEffect(() => {
+    if (phase !== 'pulse' || !pulseWordsComplete || !cardReady) return
     tryReveal()
-  }, [tryReveal])
+  }, [phase, pulseWordsComplete, cardReady, tryReveal])
 
   useEffect(() => {
     if (phase !== 'pulse') return
@@ -274,11 +276,10 @@ export function DiscoveryTakeover({
 
   const zoneCategoryLabel = formatZoneCategoryLabel(String(journeyId || 'home'))
 
-  const stepBlockInitial = reduceMotion ? { opacity: 0 } : { opacity: 0, y: STACCATO_DROP_PX }
-  const stepBlockAnimate = reduceMotion ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }
-  const stepBlockTransition = reduceMotion
-    ? { duration: 0.12, ease: [0, 0.55, 0.45, 1] as const }
-    : STACCATO_TWEEN
+  const motionSafe = reduceMotion === true
+  const stepMotion = familyProfileStepProps(motionSafe)
+  const headlineMotion = familyRevealProps(motionSafe)
+  const controlsAfterQuestionSec = familyControlDelaySec(0, 0.12)
 
   return createPortal(
     <main
@@ -311,10 +312,10 @@ export function DiscoveryTakeover({
             key="clean-birth-question"
             className="zone-loop-question profile-step-slam w-full flex flex-col items-center"
             style={{ gap: 40, maxWidth: 520 }}
-            initial={stepBlockInitial}
-            animate={stepBlockAnimate}
-            exit={{ opacity: 0, y: -6, transition: INDUSTRIAL_OPACITY_SNAP }}
-            transition={stepBlockTransition}
+            initial={stepMotion.initial}
+            animate={stepMotion.animate}
+            exit={stepMotion.exit}
+            transition={FAMILY_TRANSITION_ATOMIC}
           >
             <span
               className="card-top-label solo-focus-zone-category m-0 text-center w-full block"
@@ -336,9 +337,10 @@ export function DiscoveryTakeover({
                 maxWidth: 'min(92vw, 28rem)',
                 textAlign: 'center',
               }}
-              initial={reduceMotion ? false : { opacity: 0, y: STACCATO_DROP_PX }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={reduceMotion ? { duration: 0.12 } : STACCATO_TWEEN}
+              initial={headlineMotion.initial}
+              animate={headlineMotion.animate}
+              exit={headlineMotion.exit}
+              transition={FAMILY_TRANSITION_ATOMIC}
             >
               <span style={{ whiteSpace: 'pre-line', display: 'block' }}>{beat.question}</span>
             </motion.div>
@@ -349,7 +351,7 @@ export function DiscoveryTakeover({
                   key={opt.value}
                   reduceMotion={reduceMotion}
                   optionIndex={optionIndex}
-                  delaySeconds={controlsAfterQuestionSec + optionIndex * STACCATO_STAGGER_SEC}
+                  delaySeconds={familyControlDelaySec(optionIndex, controlsAfterQuestionSec)}
                   className=""
                   disabled={answerLocked}
                   onClick={() => handleAnswer(opt.value)}

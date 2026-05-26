@@ -68,7 +68,6 @@ import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
-import { getSoloFocusNextQuestion } from '@/lib/zone/questionHandler'
 import {
   VERIFIED_SOURCE_DATE,
   formatVerifiedCitation,
@@ -585,22 +584,7 @@ export function SoloFocusOverlay({
 
   const isRockHabitTip = String(cardId ?? '').trim().startsWith('rock-')
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (isZoneMotherChild || isRockHabitTip) return
-    if (!journeyId || !onJourneyAnswered) return
-    if (viewState === 'QUESTION') return
-    try {
-      const raw = localStorage.getItem(`journey_${journeyId}_answers`) || '{}'
-      const parsed = JSON.parse(raw) as Record<string, string>
-      const hasPendingQuestion = getSoloFocusNextQuestion(journeyId, parsed) != null
-      if (hasPendingQuestion) {
-        persistViewState('QUESTION')
-      }
-    } catch {
-      /* ignore storage parse errors */
-    }
-  }, [journeyId, onJourneyAnswered, viewState, persistViewState, isZoneMotherChild, isRockHabitTip])
+  /* Zone expand always opens RESULT content card; registry MC questions are not swapped in here. */
 
   useEffect(() => {
     if (viewState !== 'RESULT' || !discoverySnap) {

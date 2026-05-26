@@ -7,17 +7,20 @@ alwaysApply: true
 
 # Zero Zero (00-00) Prime Directive
 
-## 1. Motion DNA (`lib/animations.ts`)
+## 1. Motion DNA (`lib/motion-family.ts` + `lib/animations.ts`)
+
+**Family Liquid + Atomic Assembly:** `FAMILY_EASE` `[0.22, 1, 0.36, 1]` — **0.8s** chapter, **1.0s** crystallize (`FAMILY_DUR_ATOMIC`), **0.4s** interaction. Read-time: **200ms/word** after lock (`atomicWordHoldMs`). See `docs/MOTION-FAMILY.md`.
 
 | Surface | Style | Rule |
 | --- | --- | --- |
-| **`/` + `/intro` (logo route)** | **Style A (Glitch)** | ~469ms CSS glitch; `IntroScreen` timers stay in sync. **Not** used on `/profile/summary`. |
-| **`/profile/summary`** | **Staccato word ticker** | `SummaryHeader` → `IntroWordCycle` with **`opacityTicker`**: one word at a time, **opacity 0→1 only** (no blur, no glitch). |
-| **`/profile` questions** | **Full-sentence fade** | Whole prompt as one block: **y: 10→0**, opacity, **circOut** (`STACCATO_TWEEN`). |
-| **Zone grid** | **Style B (Mechanical Snap)** | `STACCATO_*` staggered assembly; 60px card radius. |
-| **Solo Focus** | **Zip-shut → fade-open** | Answer collapses the chamber (`ZIP_SHUTTER_SPRING`); next question opens with **opacity + y** (no shimmer) when `soloFocusZipShut`. |
+| **`/` + `/intro` (logo route)** | **Atomic power-on** | `AtomicLogo` + atomic kinetic words (`opacityTicker`); legacy `GlitchLogo` retained for reference only. |
+| **`/profile/summary`** | **Atomic Assembly ticker** | `IntroWordCycle` + **`opacityTicker`**: blur cloud → sharp word (`familyAtomicAssembly`); dwell via `atomicWordHoldMs`. |
+| **`/profile` questions** | **Centered atomic cross-fade** | `familyProfileStepProps` = `familyAtomicAssembly`; `AnimatePresence mode="wait"`. |
+| **`/likes`, `/settings`, `/zai`** | **Atomic enter** | `familyPageEnterProps` / message bloom; likes pulse unchanged. |
+| **Zone grid** | **Atomic crystallize + morph** | `ZONE_ATOMIC_BENTO_VARIANTS`; expand `layoutId` + `FAMILY_LAYOUT_SPRING`. |
+| **Solo Focus** | **Liquid morph shell** | `ExpandedCardShell` + `layoutId`; embedded Q zip-shut industrial. |
 
-**Springs:** `KINETIC_SPRING` + `LAYOUT_SPRING` only — no extra stiffness families.
+**Springs:** `KINETIC_SPRING` + `LAYOUT_SPRING` for Zone layout morph (Wave B). Do not purge boot/glitch CSS keyframes.
 
 ## 2. Intelligence Loop (Handbook Alignment)
 
