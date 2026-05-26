@@ -2,7 +2,7 @@
 @font-face {
   font-family: 'Marvin Visions Bold';
   src: url('/assets/Marvin%20Visions%20Bold.ttf') format('truetype');
-  font-weight: bold;
+  font-weight: 700 900;
   font-style: normal;
   font-display: swap;
 }
@@ -8660,4 +8660,14 @@ body {
   letter-spacing: 0.01em;
   opacity: 0.9;
   pointer-events: none;
+}
+
+/* ZAI Chat Contrast & ULM Color Lock */
+.chat-bubble-zai {
+  background-color: #FFD700; /* ULM Yellow */
+  color: #1a1a1a;            /* ULM Dark Grey/Black substitute */
+  font-weight: 700;
+  line-height: 1.6;
+  padding: 1.25rem;
+  border-left: 4px solid #FF00FF; /* ULM Pink accent */
 }

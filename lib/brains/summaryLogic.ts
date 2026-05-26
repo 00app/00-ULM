@@ -287,33 +287,36 @@ export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): 
   const carbonForTicker = modelledCarbon
   const rawName = (input.displayName ?? '').trim().split(/\s+/)[0] ?? ''
   const greetName = rawName || 'there'
-
-  const out: string[] = ['Hello', greetName, 'Based', 'on', 'your', 'profile', 'people', 'in']
-
-  const localityBeat = formatSummaryLocalityKineticToken(area || 'the UK')
-  if (localityBeat.includes('\n')) {
-    out.push(localityBeat)
-  } else if (localityBeat === 'the UK') {
-    out.push('the UK')
-  } else {
-    out.push(...localityBeat.split(/\s+/).filter(Boolean))
-  }
-
-  out.push('waste')
+  const localityWord = formatSummaryLocalityKineticToken(area || 'the UK')
 
   const gbp =
     cashForTicker >= 1000
       ? `£${Math.round(cashForTicker / 1000)}k`
       : `£${cashForTicker.toLocaleString('en-GB')}`
-  out.push(gbp, 'and')
 
   const tCo2 = carbonForTicker / 1000
   const carbonStr =
     tCo2 >= 1
       ? `${tCo2 >= 10 ? Math.round(tCo2) : Number(tCo2.toFixed(1))}t CO2`
       : `${carbonForTicker}kg CO2e`
-  out.push(carbonStr, 'per', 'year.')
 
+  const out: string[] = []
+  const pushWords = (phrase: string) => {
+    const t = phrase.trim()
+    if (!t) return
+    if (t.includes('\n')) {
+      for (const line of t.split('\n')) {
+        for (const w of line.split(/\s+/).filter(Boolean)) out.push(w)
+      }
+      return
+    }
+    for (const w of t.split(/\s+/).filter(Boolean)) out.push(w)
+  }
+
+  out.push('Hello', greetName)
+  pushWords(localityWord)
+  pushWords('based on your profile')
+  out.push('waste', gbp, 'and', carbonStr, 'per', 'year.')
   return out
 }
 

@@ -20,22 +20,12 @@ export type LoopQuestionBeat = {
   /** Profile-style lowercase prompt (short; may use \\n for line break). */
   question: string
   options: LoopQuestionOption[]
-  /** Journeys that may surface this beat after Solo Focus close. Empty = any journey. */
-  journeyKeys: JourneyId[]
+  /** Single journey lane — one category only (Director's order). */
+  journeyKeys: [JourneyId]
 }
 
 /** Canonical loop bank — each questionId is shown at most once per browser profile. */
 export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
-  {
-    questionId: 'lifestyle_shift_pattern',
-    question: 'swap your annual\nflight for rail?',
-    journeyKeys: [],
-    options: [
-      { label: 'YES', value: 'YES — RAIL & LOCAL', ariaLabel: 'Yes — rail and local' },
-      { label: 'SHOW', value: 'MAYBE — SHOW ME', ariaLabel: 'Show me the maths' },
-      { label: 'FLY', value: 'NO — KEEP FLYING', ariaLabel: 'Keep flying' },
-    ],
-  },
   {
     questionId: 'travel_rail_vs_flight',
     question: 'rail instead\nof flying?',
@@ -49,7 +39,7 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   {
     questionId: 'travel_ev_commute',
     question: 'ev for your\ncommute?',
-    journeyKeys: ['travel', 'money'],
+    journeyKeys: ['travel'],
     options: [
       { label: 'YES', value: 'YES — EV', ariaLabel: 'Yes — electric vehicle' },
       { label: 'COMPARE', value: 'COMPARE COSTS', ariaLabel: 'Compare costs' },
@@ -69,7 +59,7 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   {
     questionId: 'holidays_train_not_plane',
     question: 'train to europe\nnot short flights?',
-    journeyKeys: ['holidays', 'travel'],
+    journeyKeys: ['holidays'],
     options: [
       { label: 'YES', value: 'YES — TRAIN', ariaLabel: 'Yes — train' },
       { label: 'SHOW', value: 'SHOW ROUTES', ariaLabel: 'Show routes' },
@@ -89,7 +79,7 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   {
     questionId: 'food_waste_cut',
     question: 'cut food waste\nby half?',
-    journeyKeys: ['food', 'waste'],
+    journeyKeys: ['waste'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
       { label: 'TIPS', value: 'SHOW TIPS', ariaLabel: 'Show tips' },
@@ -109,7 +99,7 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   {
     questionId: 'money_smart_tariff',
     question: 'switch to a\nsmart tariff?',
-    journeyKeys: ['money', 'home'],
+    journeyKeys: ['money'],
     options: [
       { label: 'YES', value: 'YES — SWITCH', ariaLabel: 'Yes — switch' },
       { label: 'COMPARE', value: 'COMPARE', ariaLabel: 'Compare tariffs' },
@@ -119,7 +109,7 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   {
     questionId: 'utilities_supplier_switch',
     question: 'switch gas or\nelectric supplier?',
-    journeyKeys: ['utilities', 'money', 'home'],
+    journeyKeys: ['utilities'],
     options: [
       { label: 'YES', value: 'YES — SWITCH', ariaLabel: 'Yes — switch supplier' },
       { label: 'COMPARE', value: 'COMPARE', ariaLabel: 'Compare tariffs' },
@@ -139,7 +129,7 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   {
     questionId: 'home_loft_insulate',
     question: 'loft insulation\nthis year?',
-    journeyKeys: ['home', 'grants'],
+    journeyKeys: ['home'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
       { label: 'QUOTE', value: 'GET QUOTE', ariaLabel: 'Get quote' },
@@ -149,7 +139,7 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   {
     questionId: 'grants_bus_boiler',
     question: 'check bus grant\nfor your boiler?',
-    journeyKeys: ['grants', 'home'],
+    journeyKeys: ['grants'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
       { label: 'INFO', value: 'MORE INFO', ariaLabel: 'More info' },
@@ -159,7 +149,7 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   {
     questionId: 'solar_roof_fit',
     question: 'solar on your\nroof?',
-    journeyKeys: ['solar', 'home'],
+    journeyKeys: ['solar'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
       { label: 'SURVEY', value: 'FREE SURVEY', ariaLabel: 'Free survey' },
@@ -199,7 +189,7 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   {
     questionId: 'waste_compost',
     question: 'compost food\nscraps?',
-    journeyKeys: ['waste', 'food'],
+    journeyKeys: ['waste'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
       { label: 'TRY', value: 'TRY IT', ariaLabel: 'Try it' },
@@ -232,26 +222,27 @@ export function isValidLoopOrJourneyQuestion(journeyId: string, questionId: stri
 }
 
 export function beatsForJourney(journeyId: JourneyId): LoopQuestionBeat[] {
-  return LOOP_QUESTION_BANK.filter(
-    (b) => b.journeyKeys.length === 0 || b.journeyKeys.includes(journeyId)
-  )
+  return LOOP_QUESTION_BANK.filter((b) => b.journeyKeys[0] === journeyId)
 }
 
-/** Next unanswered loop beat for this journey — one lifestyle beat per category, journey-scoped first. */
+/** Next unanswered loop beat — strictly one lane (`journeyKeys[0]` === category). */
 export function pickNextLoopQuestion(journeyId: JourneyId): LoopQuestionBeat | null {
   if (hasLoopDoneForJourney(journeyId)) return null
   const answered = readAnsweredLoopQuestionIds()
-  const scoped = LOOP_QUESTION_BANK.filter(
-    (b) => b.journeyKeys.includes(journeyId) && !answered.has(b.questionId)
-  )
-  if (scoped.length > 0) return scoped[0]!
+  for (const beat of LOOP_QUESTION_BANK) {
+    if (beat.journeyKeys[0] === journeyId && !answered.has(beat.questionId)) return beat
+  }
   return null
 }
 
 /** @deprecated Use pickNextLoopQuestion — kept for callers that have not migrated. */
 export function pickLoopQuestionForJourney(journeyId: JourneyId | null | undefined): LoopQuestionBeat {
   const jid = journeyId && JOURNEY_IDS.includes(journeyId) ? journeyId : 'travel'
-  return pickNextLoopQuestion(jid) ?? LOOP_QUESTION_BANK[0]!
+  return (
+    pickNextLoopQuestion(jid) ??
+    LOOP_QUESTION_BANK.find((b) => b.journeyKeys[0] === jid) ??
+    LOOP_QUESTION_BANK[0]!
+  )
 }
 
 export function loopQuestionsAnsweredCount(): number {

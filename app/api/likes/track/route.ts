@@ -3,6 +3,7 @@ import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 import { pinZaiSuggestionLink } from '@/lib/brains/zai/learning'
 
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 /**

@@ -25,7 +25,10 @@ export const FAMILY_DUR_ATOMIC = 1.0 * FAMILY_MOTION_SCALE
 /** Interactions — like pulse, hover bloom. */
 export const FAMILY_DUR_SHORT = 0.4 * FAMILY_MOTION_SCALE
 
-export const FAMILY_GLIDE_PX = 15
+/** Rise-from-below distance (intro text, cards, screens, zone cells). */
+export const FAMILY_RISE_PX = 15
+/** @deprecated Use `FAMILY_RISE_PX` — kept for imports that still name “glide”. */
+export const FAMILY_GLIDE_PX = FAMILY_RISE_PX
 
 export const FAMILY_BLUR_PX = 12
 
@@ -88,16 +91,19 @@ export function atomicWordHoldMs(text: string): number {
 // Variants
 // -----------------------------------------------------------------------------
 
+/** Intro / summary ticker — blur cloud + letter-spacing + rise (no horizontal glide). */
 export const familyAtomicAssembly: Record<string, Variant> = {
   hidden: {
     opacity: 0,
     scale: 1.05,
+    y: FAMILY_RISE_PX,
     filter: `blur(${FAMILY_ATOMIC_BLUR_IN_PX}px)`,
     letterSpacing: FAMILY_ATOMIC_LETTER_IN,
   },
   visible: {
     opacity: 1,
     scale: 1,
+    y: 0,
     filter: 'blur(0px)',
     letterSpacing: FAMILY_ATOMIC_LETTER_LOCKED,
     transition: FAMILY_TRANSITION_ATOMIC,
@@ -105,11 +111,40 @@ export const familyAtomicAssembly: Record<string, Variant> = {
   exit: {
     opacity: 0,
     scale: 0.95,
+    y: FAMILY_RISE_PX * 0.5,
     filter: `blur(${FAMILY_ATOMIC_BLUR_OUT_PX}px)`,
     letterSpacing: FAMILY_ATOMIC_LETTER_OUT,
     transition: familyTransition(FAMILY_DUR_SHORT * 0.75),
   },
 }
+
+/** Cards, screens, zone cells — same crystallize as intro text, without letter-spacing. */
+export const familyAtomicSurface: Record<string, Variant> = {
+  hidden: {
+    opacity: 0,
+    scale: 1.05,
+    y: FAMILY_RISE_PX,
+    filter: `blur(${FAMILY_ATOMIC_BLUR_IN_PX}px)`,
+  },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: FAMILY_TRANSITION_ATOMIC,
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    y: FAMILY_RISE_PX * 0.5,
+    filter: `blur(${FAMILY_ATOMIC_BLUR_OUT_PX}px)`,
+    transition: familyTransition(FAMILY_DUR_SHORT * 0.75),
+  },
+}
+
+export const FAMILY_ATOMIC_SURFACE_INITIAL = familyAtomicSurface.hidden as Target
+export const FAMILY_ATOMIC_SURFACE_ANIMATE = familyAtomicSurface.visible as Target
+export const FAMILY_ATOMIC_SURFACE_EXIT = familyAtomicSurface.exit as Target
 
 export const familyReveal: Record<string, Variant> = {
   hidden: { opacity: 0, filter: `blur(${FAMILY_BLUR_PX}px)` },
@@ -125,10 +160,28 @@ export const familyReveal: Record<string, Variant> = {
   },
 }
 
+/** Profile step swap — vertical rise (replaces legacy horizontal glide). */
 export const familyGlide: Record<string, Variant> = {
-  hidden: { opacity: 0, x: FAMILY_GLIDE_PX },
-  visible: { opacity: 1, x: 0, transition: FAMILY_TRANSITION_LONG },
-  exit: { opacity: 0, x: -FAMILY_GLIDE_PX * 0.5, transition: familyTransition(FAMILY_DUR_SHORT * 0.75) },
+  hidden: {
+    opacity: 0,
+    y: FAMILY_RISE_PX,
+    scale: 1.03,
+    filter: `blur(${FAMILY_BLUR_PX}px)`,
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    filter: 'blur(0px)',
+    transition: FAMILY_TRANSITION_LONG,
+  },
+  exit: {
+    opacity: 0,
+    y: FAMILY_RISE_PX * 0.5,
+    scale: 0.98,
+    filter: `blur(${Math.round(FAMILY_BLUR_PX * 0.65)}px)`,
+    transition: familyTransition(FAMILY_DUR_SHORT * 0.75),
+  },
 }
 
 export const familyPulse: Record<string, Variant> = {
@@ -139,28 +192,32 @@ export const familyPulse: Record<string, Variant> = {
   },
 }
 
-/** Zone bento — crystallize from blur cloud into locked card (not y-slide snap). */
+/** Zone bento — crystallize from blur cloud into locked card (rise + blur, staggered). */
 export const ZONE_ATOMIC_BENTO_VARIANTS: Record<string, Variant> = {
   hidden: {
     opacity: 0,
-    scale: 1.04,
+    scale: 1.05,
+    y: FAMILY_RISE_PX,
     filter: `blur(${FAMILY_ATOMIC_BLUR_IN_PX}px)`,
   },
   visible: {
     opacity: 1,
     scale: 1,
+    y: 0,
     filter: 'blur(0px)',
     transition: FAMILY_TRANSITION_ATOMIC,
   },
   shrunk: {
     opacity: 0,
-    scale: 0.96,
+    scale: 0.95,
+    y: FAMILY_RISE_PX * 0.5,
     filter: `blur(${FAMILY_ATOMIC_BLUR_OUT_PX}px)`,
     transition: familyTransition(FAMILY_DUR_SHORT * 0.6),
   },
   ping: {
     opacity: [0, 1],
     scale: [1.02, 1],
+    y: [FAMILY_RISE_PX * 0.6, 0],
     filter: ['blur(8px)', 'blur(0px)'],
     transition: FAMILY_TRANSITION_ATOMIC,
   },
@@ -183,9 +240,9 @@ export function familyPageEnterProps(reduceMotion: boolean): FamilyMotionTargets
 
 /** @deprecated Prefer `familyPageEnterProps` — kept for spread in likes/settings. */
 export const FAMILY_PAGE_ENTER = {
-  initial: { opacity: 0, scale: 1.05, filter: `blur(${FAMILY_ATOMIC_BLUR_IN_PX}px)` },
-  animate: { opacity: 1, scale: 1, filter: 'blur(0px)' },
-  exit: { opacity: 0, scale: 0.95, filter: `blur(${FAMILY_ATOMIC_BLUR_OUT_PX}px)` },
+  initial: FAMILY_ATOMIC_SURFACE_INITIAL,
+  animate: FAMILY_ATOMIC_SURFACE_ANIMATE,
+  exit: FAMILY_ATOMIC_SURFACE_EXIT,
   transition: FAMILY_TRANSITION_ATOMIC,
 } as const
 
@@ -193,7 +250,24 @@ export const FAMILY_PAGE_ENTER = {
 // Props helpers
 // -----------------------------------------------------------------------------
 
+/** Cards, screens, Zai bubbles, Solo Focus — atomic surface (rise + blur, no letter-spacing). */
 export function familyAtomicProps(reduceMotion: boolean): FamilyMotionTargets {
+  if (reduceMotion) {
+    return {
+      initial: { opacity: 0 },
+      animate: { opacity: 1 },
+      exit: { opacity: 0 },
+    }
+  }
+  return {
+    initial: familyAtomicSurface.hidden as Target,
+    animate: familyAtomicSurface.visible as Target,
+    exit: familyAtomicSurface.exit as Target,
+  }
+}
+
+/** Intro / summary opacity ticker — full assembly including letter-spacing + rise. */
+export function familyAtomicTextProps(reduceMotion: boolean): FamilyMotionTargets {
   if (reduceMotion) {
     return {
       initial: { opacity: 0 },
@@ -221,9 +295,13 @@ export function familyRevealProps(
     }
   }
   return {
-    initial: { opacity: 0, filter: `blur(${blur}px)` },
-    animate: { opacity: 1, filter: 'blur(0px)' },
-    exit: { opacity: 0, filter: `blur(${Math.max(2, Math.round(blur * 0.65))}px)` },
+    initial: { opacity: 0, y: FAMILY_RISE_PX, filter: `blur(${blur}px)` },
+    animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
+    exit: {
+      opacity: 0,
+      y: FAMILY_RISE_PX * 0.5,
+      filter: `blur(${Math.max(2, Math.round(blur * 0.65))}px)`,
+    },
   }
 }
 
@@ -240,11 +318,17 @@ export function familyProfileStepProps(reduceMotion: boolean): FamilyMotionTarge
     }
   }
   return {
-    initial: { opacity: 0, scale: 1.03, filter: `blur(${FAMILY_ATOMIC_BLUR_IN_PX}px)` },
-    animate: { opacity: 1, scale: 1, filter: 'blur(0px)' },
+    initial: {
+      opacity: 0,
+      scale: 1.03,
+      y: FAMILY_RISE_PX,
+      filter: `blur(${FAMILY_ATOMIC_BLUR_IN_PX}px)`,
+    },
+    animate: { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' },
     exit: {
       opacity: 0,
       scale: 0.98,
+      y: FAMILY_RISE_PX * 0.5,
       filter: `blur(${FAMILY_ATOMIC_BLUR_OUT_PX}px)`,
     },
   }

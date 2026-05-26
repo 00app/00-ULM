@@ -4,6 +4,8 @@
  * Returns: { local: { council, region, localCarbonG, ... }, global: { ukAvgMoney, ukAvgCarbon, equivalentTrees? }, ready }
  */
 
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { runBrain } from '@/lib/brain/runBrain'
 import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'

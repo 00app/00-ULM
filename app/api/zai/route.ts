@@ -6,6 +6,8 @@
  * When user is logged in, injects user_context (profile + journey answers) so Gemini gives grounded advice.
  */
 
+export const dynamic = 'force-dynamic'
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAiRouteAuth } from "@/lib/requestAuth";

@@ -3,11 +3,9 @@
 import { motion } from 'framer-motion'
 import type { CSSProperties, ReactNode } from 'react'
 import {
-  FAMILY_BLUR_PX,
-  FAMILY_DUR_SHORT,
-  FAMILY_EASE,
-  FAMILY_GLIDE_PX,
+  familyAtomicProps,
   familyControlDelaySec,
+  FAMILY_TRANSITION_ATOMIC,
 } from '@/lib/motion-family'
 
 export type ProfileAnswerBtnProps = {
@@ -39,12 +37,7 @@ export default function ProfileAnswerBtn({
   children,
 }: ProfileAnswerBtnProps) {
   const delay = delaySeconds ?? familyControlDelaySec(optionIndex)
-  const initial = reduceMotion
-    ? { opacity: 0 }
-    : { opacity: 0, x: FAMILY_GLIDE_PX * 0.35, filter: `blur(${FAMILY_BLUR_PX * 0.5}px)` }
-  const animate = reduceMotion
-    ? { opacity: 1 }
-    : { opacity: 1, x: 0, filter: 'blur(0px)' }
+  const enterMotion = familyAtomicProps(Boolean(reduceMotion))
   return (
     <motion.button
       type="button"
@@ -52,12 +45,11 @@ export default function ProfileAnswerBtn({
       className={`profile-answer-btn zz-shimmer-cta ${className}`.trim()}
       style={style}
       disabled={disabled}
-      initial={initial}
-      animate={animate}
+      initial={enterMotion.initial}
+      animate={enterMotion.animate}
       transition={{
-        duration: FAMILY_DUR_SHORT,
+        ...FAMILY_TRANSITION_ATOMIC,
         delay,
-        ease: FAMILY_EASE,
       }}
       onClick={onClick}
     >

@@ -3,6 +3,11 @@
 import { motion } from 'framer-motion'
 import { IndustrialHandoffButton } from '@/app/components/ui/Buttons'
 import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
+import {
+  FAMILY_ATOMIC_SURFACE_ANIMATE,
+  FAMILY_ATOMIC_SURFACE_INITIAL,
+  FAMILY_TRANSITION_ATOMIC,
+} from '@/lib/motion-family'
 import { HeartOutlineIcon, ZaiSparkIcon } from '@/app/components/ui/MonoStrokeIcons'
 
 type Props = {
@@ -34,9 +39,9 @@ export function SoloFocusActionTrinity({
     <motion.div
       className="solo-focus-trinity solo-focus-trinity--80 impact-to-trinity flex flex-row items-center justify-start flex-shrink-0 w-full"
       style={{ gap: 20, marginTop: 0, marginBottom: 0 }}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={INDUSTRIAL_OPACITY_SNAP}
+      initial={FAMILY_ATOMIC_SURFACE_INITIAL}
+      animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
+      transition={FAMILY_TRANSITION_ATOMIC}
     >
       {ctaUrl ? (
         <IndustrialHandoffButton

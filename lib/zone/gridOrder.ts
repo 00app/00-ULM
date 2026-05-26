@@ -5,8 +5,10 @@ import { goalSortWeights } from '@/lib/profile/goalWeighting'
 import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import {
-  capDiscoveryTipsForGrid,
+  capCategoryWallTips,
+  journeyKeyFromTip,
   SHOW_BASELINE_TIPS_ON_MAIN_GRID,
+  MAX_CARDS_PER_CATEGORY,
 } from '@/lib/zone/perCategoryCardCap'
 import { MAX_ZONE_BENTO_CELLS } from '@/lib/zone/ulmLimits'
 import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
@@ -55,8 +57,11 @@ export function buildGroovyGridItems(args: {
   const seenTipIds = new Set<string>()
 
   const discoveryByJourney = new Map<JourneyId, ZoneTipCard[]>()
-  for (const tip of capDiscoveryTipsForGrid(dedupeZoneTipCards(args.discoveryTips ?? []))) {
-    const jid = (tip.journey_key ?? 'home') as JourneyId
+  const wallTips = capCategoryWallTips(
+    dedupeZoneTipCards([...(args.discoveryTips ?? []), ...(args.achievementTips ?? [])])
+  )
+  for (const tip of wallTips) {
+    const jid = journeyKeyFromTip(tip)
     if (seenTipIds.has(tip.id)) continue
     seenTipIds.add(tip.id)
     const bucket = discoveryByJourney.get(jid) ?? []
@@ -78,29 +83,39 @@ export function buildGroovyGridItems(args: {
 
   const items: GroovyGridCell[] = [{ type: 'hero', hero: args.viewModel.hero }]
 
-  for (const tip of dedupeZoneTipCards(args.achievementTips ?? [])) {
-    if (seenTipIds.has(tip.id)) continue
-    seenTipIds.add(tip.id)
-    items.push({ type: 'tip', tip })
+  /** Track how many cells (journey + tips) have been placed per category. */
+  const categoryCardCount = new Map<JourneyId, number>()
+
+  const incrementCategory = (jid: JourneyId): boolean => {
+    const current = categoryCardCount.get(jid) ?? 0
+    if (current >= MAX_CARDS_PER_CATEGORY) return false
+    categoryCardCount.set(jid, current + 1)
+    return true
   }
 
   JOURNEY_ORDER.forEach((jid, index) => {
     if (jid === 'utilities' && !isUtilitiesZoneCardUnlocked(args.profile)) return
     const item = byJourney.get(jid)
     if (item) {
-      items.push({
-        type: 'journey',
-        item,
-        index,
-        persona: args.personaForJourney(jid),
-      })
+      // Journey card always placed first for its category (counts as 1 toward the cap)
+      if (incrementCategory(jid)) {
+        items.push({
+          type: 'journey',
+          item,
+          index,
+          persona: args.personaForJourney(jid),
+        })
+      }
     }
     const nestedDiscovery = sortTipsWithinJourney(discoveryByJourney.get(jid) ?? [], args.profileGoal)
     for (const tip of nestedDiscovery) {
+      // Only add tip if category hasn't hit its 2-card ceiling
+      if (!incrementCategory(jid)) break
       items.push({ type: 'tip', tip })
     }
     const nestedBaseline = sortTipsWithinJourney(baselineByJourney.get(jid) ?? [], args.profileGoal)
     for (const tip of nestedBaseline) {
+      if (!incrementCategory(jid)) break
       items.push({ type: 'tip', tip })
     }
   })

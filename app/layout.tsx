@@ -110,6 +110,13 @@ export default function RootLayout({
     >
       <head>
         {/* Marvin: `@font-face` in globals.css. Body: Roboto via next/font. */}
+        <link
+          rel="preload"
+          href="/assets/Marvin%20Visions%20Bold.ttf"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
       <body

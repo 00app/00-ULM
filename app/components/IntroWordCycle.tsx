@@ -14,7 +14,7 @@ import {
 } from '@/lib/animations'
 import { INTRO_TYPE_MOTION_SCALE } from '@/lib/animations'
 import {
-  familyAtomicProps,
+  familyAtomicTextProps,
   atomicWordHoldMs,
   FAMILY_DUR_ATOMIC,
   FAMILY_EASE,
@@ -112,7 +112,7 @@ export default function IntroWordCycle({
 
   const motionPreset = useMemo(() => {
     if (opacityTicker) {
-      const atomic = familyAtomicProps(reduceMotion)
+      const atomic = familyAtomicTextProps(reduceMotion)
       const t = reduceMotion
         ? { duration: STACCATO_DURATION_SEC, ease: STACCATO_EASE }
         : { duration: FAMILY_DUR_ATOMIC, ease: FAMILY_EASE }
@@ -157,6 +157,14 @@ export default function IntroWordCycle({
     'transition' in motionPreset && motionPreset.transition
       ? motionPreset.transition
       : undefined
+
+  const wordsFingerprint = words.join('\u001f')
+
+  useEffect(() => {
+    setIndex(0)
+    setVisible(true)
+    completedRef.current = false
+  }, [wordsFingerprint])
 
   useEffect(() => {
     if (completedRef.current) return

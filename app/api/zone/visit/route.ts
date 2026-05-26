@@ -2,6 +2,8 @@
  * Record card / journey visits for guests (zz_sid) and signed-in users — no Gemini.
  */
 
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'

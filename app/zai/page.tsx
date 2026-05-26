@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from 'react'
 import ZoneModalCloseLink from '@/app/components/ZoneModalCloseLink'
+import ZaiComposerDock from '@/app/components/ZaiComposerDock'
 import ZaiSuggestPills from '@/app/components/ZaiSuggestPills'
 import { renderZaiChatProse } from '@/lib/zai/renderChatProse'
 import { motion } from 'framer-motion'
@@ -447,7 +448,7 @@ export default function ZaiPage() {
         </motion.div>
       </div>
 
-      <div className="zai-composer-dock zai-composer-dock--fixed max-w-zone">
+      <ZaiComposerDock>
         {loading ? (
           <motion.p
             className="zz-body zai-connecting m-0 zai-prose-voice"
@@ -482,7 +483,7 @@ export default function ZaiPage() {
             Go
           </motion.button>
         </motion.div>
-      </div>
+      </ZaiComposerDock>
     </motion.div>
   )
 }

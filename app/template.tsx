@@ -5,14 +5,18 @@
  * Re-mounts on navigation; pairs with FloatingNav moves between Zone / Zai / Likes / Settings.
  */
 import { motion } from 'framer-motion'
-import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
+import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
+import { familyPageEnterProps, FAMILY_TRANSITION_ATOMIC } from '@/lib/motion-family'
 
 export default function Template({ children }: { children: React.ReactNode }) {
+  const reduceMotion = useHydrationSafeReducedMotion()
+  const pageEnter = familyPageEnterProps(reduceMotion)
   return (
     <motion.div
-      initial={{ opacity: 0, y: 2 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={INDUSTRIAL_OPACITY_SNAP}
+      initial={pageEnter.initial}
+      animate={pageEnter.animate}
+      exit={pageEnter.exit}
+      transition={pageEnter.transition ?? FAMILY_TRANSITION_ATOMIC}
       style={{ minHeight: '100%' }}
     >
       {children}

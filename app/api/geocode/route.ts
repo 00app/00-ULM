@@ -4,6 +4,8 @@
  * Usage policy: https://operations.osmfoundation.org/policies/nominatim/
  */
 
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
 

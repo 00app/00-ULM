@@ -31,9 +31,11 @@ import { SESSION_SUMMARY_TO_ZONE } from '@/lib/architecturalPulse'
 
 const REDIRECT_NO_PROFILE_MS = 1800
 const PAGE_EXIT_NAV_MS = 550
-const LOCALITY_DISPLAY_SAFETY_MS = 8000
+const LOCALITY_DISPLAY_SAFETY_MS = 2800
 const EXIT_NAV_SAFETY_MS = 6000
 const SUMMARY_SETTLE_MS = 500
+/** Wait for Neon `/api/summary` before starting ticker so £/CO₂ beats do not republish mid-cycle. */
+const SUMMARY_GENOME_SETTLE_MS = 1200
 
 const SESSION_ZONE_HANDOFF = SESSION_SUMMARY_TO_ZONE
 
@@ -100,6 +102,7 @@ export default function ProfileSummaryPage() {
   const [mounted, setMounted] = useState(false)
   const [summaryPack, setSummaryPack] = useState<SummaryPack | null>(null)
   const [displayReady, setDisplayReady] = useState(false)
+  const [fontsReady, setFontsReady] = useState(false)
   const [phase, setPhase] = useState<'cycle' | 'settle' | 'exit'>('cycle')
   const handshakePromiseRef = useRef<Promise<void> | null>(null)
   const exitNavTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -109,6 +112,8 @@ export default function ProfileSummaryPage() {
   const zoneNavigatedRef = useRef(false)
   const lastLocationSyncRef = useRef('')
   const lastSummaryPublishRef = useRef('')
+  const tickerLockedRef = useRef(false)
+  const [tickerWords, setTickerWords] = useState<string[] | null>(null)
   phaseRef.current = phase
   summaryPackRef.current = summaryPack
   displayReadyRef.current = displayReady
@@ -160,7 +165,17 @@ export default function ProfileSummaryPage() {
   useLayoutEffect(() => setMounted(true), [])
 
   useEffect(() => {
-    preloadAppFonts()
+    let cancelled = false
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) setFontsReady(true)
+    }, 2000)
+    void preloadAppFonts().then(() => {
+      if (!cancelled) setFontsReady(true)
+    })
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+    }
   }, [])
 
   useEffect(() => {
@@ -262,7 +277,7 @@ export default function ProfileSummaryPage() {
       profileWaste: { annualWasteCash: number; annualWasteCarbon: number },
       genomeMoney?: number
     ) => {
-      if (cancelled) return
+      if (cancelled || tickerLockedRef.current) return
       const publishKey = [
         resolvedLocationName,
         local?.council ?? '',
@@ -331,11 +346,9 @@ export default function ProfileSummaryPage() {
 
     let safetyTimer: number | undefined
 
-    if (hasRealLocality) {
-      publishSummary(contextLocal, councilImmediate, totalsMoney, totalsCarbon, impact.summaryWaste)
-    } else if (postcode.length < 4) {
+    if (postcode.length < 4) {
       publishSummary(contextLocal, 'the UK', totalsMoney, totalsCarbon, impact.summaryWaste)
-    } else {
+    } else if (!hasRealLocality) {
       safetyTimer = window.setTimeout(() => {
         if (cancelled || displayReadyRef.current) return
         const outward = postcode.replace(/\s+/g, '').toUpperCase().match(/^([A-Z]{1,2}\d{1,2}[A-Z]?)/)?.[1]
@@ -379,26 +392,40 @@ export default function ProfileSummaryPage() {
       if (cancelled) return
       if (safetyTimer != null) window.clearTimeout(safetyTimer)
 
-      const displayLabel = isRealLocalityLabel(resolvedLocationName) ? resolvedLocationName : 'the UK'
+      const displayLabel = isRealLocalityLabel(resolvedLocationName)
+        ? resolvedLocationName
+        : isRealLocalityLabel(councilImmediate)
+          ? councilImmediate
+          : 'the UK'
 
-      if (!hasRealLocality) {
-        publishSummary(local, displayLabel, totalsMoney, totalsCarbon, impact.summaryWaste)
-      } else if (resolvedLocationName !== councilImmediate) {
-        publishSummary(local, displayLabel, totalsMoney, totalsCarbon, impact.summaryWaste)
+      let summaryBody: {
+        savings?: number
+        carbon?: number
+        genomeTotals?: { totalMoney?: number; totalCarbon?: number }
+      } | null = null
+      try {
+        const summaryRes = await Promise.race([
+          fetch('/api/summary?type=profile', { credentials: 'include', cache: 'no-store' }).then((sr) =>
+            sr.ok ? sr.json() : null
+          ),
+          new Promise<null>((resolve) => window.setTimeout(() => resolve(null), SUMMARY_GENOME_SETTLE_MS)),
+        ])
+        summaryBody = summaryRes
+      } catch {
+        summaryBody = null
       }
 
-      void fetch('/api/summary?type=profile', { credentials: 'include', cache: 'no-store' })
-        .then((sr) => (sr.ok ? sr.json() : null))
-        .then((body: { savings?: number; carbon?: number; genomeTotals?: { totalMoney?: number; totalCarbon?: number } } | null) => {
-          if (cancelled || !body) return
-          const gMoney = body.genomeTotals?.totalMoney ?? body.savings
-          const gCarbon = body.genomeTotals?.totalCarbon ?? body.carbon
-          if (typeof gMoney === 'number' && gMoney > 0) genomeSavingsMoney = Math.round(gMoney)
-          if (typeof gMoney === 'number' && gMoney > 0) totalsMoney = gMoney
-          if (typeof gCarbon === 'number' && gCarbon > 0) totalsCarbon = gCarbon
-          publishSummary(local, displayLabel, totalsMoney, totalsCarbon, impact.summaryWaste, genomeSavingsMoney)
-        })
-        .catch(() => {})
+      if (cancelled) return
+
+      if (summaryBody) {
+        const gMoney = summaryBody.genomeTotals?.totalMoney ?? summaryBody.savings
+        const gCarbon = summaryBody.genomeTotals?.totalCarbon ?? summaryBody.carbon
+        if (typeof gMoney === 'number' && gMoney > 0) genomeSavingsMoney = Math.round(gMoney)
+        if (typeof gMoney === 'number' && gMoney > 0) totalsMoney = gMoney
+        if (typeof gCarbon === 'number' && gCarbon > 0) totalsCarbon = gCarbon
+      }
+
+      publishSummary(local, displayLabel, totalsMoney, totalsCarbon, impact.summaryWaste, genomeSavingsMoney)
     })()
 
     return () => {
@@ -425,10 +452,11 @@ export default function ProfileSummaryPage() {
     }
   }, [refreshProfile])
 
-  const staccatoWords = useMemo(
-    () => (summaryPack ? buildSummaryStaccatoWords(summaryPack.narrative) : []),
-    [summaryPack]
-  )
+  useEffect(() => {
+    if (!displayReady || !summaryPack || tickerWords) return
+    tickerLockedRef.current = true
+    setTickerWords(buildSummaryStaccatoWords(summaryPack.narrative))
+  }, [displayReady, summaryPack, tickerWords])
 
   useEffect(() => {
     if (phase !== 'exit' || !summaryPackRef.current) return
@@ -508,7 +536,7 @@ export default function ProfileSummaryPage() {
     }, SUMMARY_SETTLE_MS)
   }
 
-  if (!summaryPack || !displayReady) {
+  if (!summaryPack || !displayReady || !fontsReady || !tickerWords?.length) {
     return (
       <motion.div
         className="zz-profile-page summary-page--minimal mode-ui"
@@ -603,8 +631,8 @@ export default function ProfileSummaryPage() {
             >
               <div style={{ position: 'relative', width: '100%', minHeight: 120 }}>
                 <SummaryHeader
-                  key={summaryPack.narrative.councilLabel || summaryPack.narrative.postcodeDisplay}
-                  words={staccatoWords}
+                  key={tickerWords.join('\u001f')}
+                  words={tickerWords}
                   pulseGenomeMoney={(summaryPack?.narrative?.genomeSavingsMoney ?? 0) > 0}
                   onComplete={handleCycleComplete}
                 />

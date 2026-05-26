@@ -35,9 +35,12 @@ function scoreHabit(
  * Fallback morph birth to keep Solo Focus alive when API returns no morph cards.
  */
 export function getNextMorphCard(journeyId: JourneyId, profile: MorphProfile): ZoneTipCard {
-  const ranked = [...ROCK_HABITS].sort(
+  const journeyHabits = ROCK_HABITS.filter((h) => h.journey_key === journeyId)
+  const pool = journeyHabits.length > 0 ? journeyHabits : ROCK_HABITS
+  const ranked = [...pool].sort(
     (a, b) => scoreHabit(b, journeyId, profile) - scoreHabit(a, journeyId, profile)
   )
-  return habitToTipCard(ranked[0] ?? ROCK_HABITS[0])
+  const pick = ranked.find((h) => h.journey_key === journeyId) ?? ranked[0] ?? ROCK_HABITS[0]
+  return habitToTipCard(pick)
 }
 

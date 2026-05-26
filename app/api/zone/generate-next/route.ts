@@ -9,6 +9,7 @@ import {
 } from '@/lib/zone/trustedJourneyUrls'
 import type { JourneyId } from '@/lib/journeys'
 
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 

@@ -3,7 +3,11 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { STACCATO_TWEEN } from '@/lib/animations'
+import {
+  FAMILY_ATOMIC_SURFACE_ANIMATE,
+  FAMILY_ATOMIC_SURFACE_INITIAL,
+  FAMILY_TRANSITION_ATOMIC,
+} from '@/lib/motion-family'
 
 /** Portaled Ask Zai pill — viewport bottom centre, aligned with the bento grid. */
 export default function ZoneAskZaiDock({ onActivate }: { onActivate: () => void }) {
@@ -13,9 +17,9 @@ export default function ZoneAskZaiDock({ onActivate }: { onActivate: () => void 
   const dock = (
     <motion.div
       className="zone-ask-zai-dock"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={STACCATO_TWEEN}
+      initial={FAMILY_ATOMIC_SURFACE_INITIAL}
+      animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
+      transition={FAMILY_TRANSITION_ATOMIC}
     >
       <input
         type="text"

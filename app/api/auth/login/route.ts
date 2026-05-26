@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { createSession, setSessionCookieOnResponse } from '@/lib/auth'

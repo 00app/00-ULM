@@ -6,13 +6,14 @@
  */
 import { forwardRef } from 'react'
 import { motion, type HTMLMotionProps } from 'framer-motion'
+import { EXPANDED_CARD_CLOSE_TRANSITION } from '@/lib/animations'
 import {
-  EXPANDED_CARD_CLOSE_TRANSITION,
-  EXPANDED_CARD_EXIT_COORDS,
-  ZIP_OPEN_Z_INITIAL,
-  ZIP_OPEN_Z_ANIMATE,
-} from '@/lib/animations'
-import { FAMILY_LAYOUT_SPRING, FAMILY_TRANSITION_ATOMIC } from '@/lib/motion-family'
+  FAMILY_ATOMIC_SURFACE_ANIMATE,
+  FAMILY_ATOMIC_SURFACE_EXIT,
+  FAMILY_LAYOUT_SPRING,
+  FAMILY_TRANSITION_ATOMIC,
+  familyAtomicProps,
+} from '@/lib/motion-family'
 
 export type ExpandedCardShellProps = Omit<HTMLMotionProps<'div'>, 'initial' | 'animate' | 'transition' | 'exit'> & {
   reduceMotion: boolean
@@ -52,13 +53,9 @@ export const ExpandedCardShell = forwardRef<HTMLDivElement, ExpandedCardShellPro
         layoutId={layoutId}
         layout
         initial={false}
-        animate={
-          isExiting
-            ? { opacity: 0, scale: 0.96, filter: 'blur(10px)' }
-            : { opacity: 1, scale: 1, filter: 'blur(0px)' }
-        }
+        animate={isExiting ? FAMILY_ATOMIC_SURFACE_EXIT : FAMILY_ATOMIC_SURFACE_ANIMATE}
         exit={{
-          ...EXPANDED_CARD_EXIT_COORDS,
+          ...FAMILY_ATOMIC_SURFACE_EXIT,
           transition: EXPANDED_CARD_CLOSE_TRANSITION,
         }}
         transition={{
@@ -72,13 +69,14 @@ export const ExpandedCardShell = forwardRef<HTMLDivElement, ExpandedCardShellPro
     )
   }
 
+  const atomic = familyAtomicProps(false)
   return (
     <motion.div
       ref={ref}
-      initial={skipInitialSlam ? false : ZIP_OPEN_Z_INITIAL}
-      animate={isExiting ? EXPANDED_CARD_EXIT_COORDS : ZIP_OPEN_Z_ANIMATE}
+      initial={skipInitialSlam ? false : atomic.initial}
+      animate={isExiting ? atomic.exit : atomic.animate}
       exit={{
-        ...EXPANDED_CARD_EXIT_COORDS,
+        ...atomic.exit,
         transition: EXPANDED_CARD_CLOSE_TRANSITION,
       }}
       transition={isExiting ? EXPANDED_CARD_CLOSE_TRANSITION : FAMILY_TRANSITION_ATOMIC}

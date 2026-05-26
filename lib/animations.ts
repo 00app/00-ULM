@@ -1,7 +1,16 @@
 /**
  * Zero Zero motion — Zone/Solo industrial tokens + legacy exports.
- * **Family Liquid (Profile, Summary, Likes, Settings):** `lib/motion-family.ts` + `docs/MOTION-FAMILY.md`.
+ * **Family Liquid (Profile, Summary, Likes, Settings, Zone):** `lib/motion-family.ts` + `docs/MOTION-FAMILY.md`.
+ * Cards / screens / zone cells share `familyAtomicSurface` (rise + blur + `FAMILY_TRANSITION_ATOMIC`).
  */
+import {
+  familyAtomicProps,
+  familyAtomicSurface,
+  FAMILY_ATOMIC_SURFACE_ANIMATE,
+  FAMILY_ATOMIC_SURFACE_EXIT,
+  FAMILY_ATOMIC_SURFACE_INITIAL,
+  FAMILY_TRANSITION_ATOMIC,
+} from '@/lib/motion-family'
 
 // =============================================================================
 // INDUSTRIAL SNAP (single timing surface)
@@ -41,11 +50,10 @@ export const STACCATO_CONTAINER_VARIANTS = {
 } as const
 
 export const STACCATO_CHILD_VARIANTS = {
-  hidden: { opacity: 0, y: 2 },
+  hidden: familyAtomicSurface.hidden,
   visible: {
-    opacity: 1,
-    y: 0,
-    transition: STACCATO_TWEEN,
+    ...familyAtomicSurface.visible,
+    transition: FAMILY_TRANSITION_ATOMIC,
   },
 } as const
 
@@ -53,9 +61,9 @@ export const STACCATO_CHILD_VARIANTS = {
 // DAMPED SLAM — scale + opacity (linear snap timing)
 // =============================================================================
 
-export const DAMPED_SLAM_INITIAL = { opacity: 0, y: 2 }
-export const DAMPED_SLAM_ANIMATE = { opacity: 1, y: 0 }
-export const DAMPED_SLAM_EXIT = { opacity: 0, y: 2 }
+export const DAMPED_SLAM_INITIAL = FAMILY_ATOMIC_SURFACE_INITIAL
+export const DAMPED_SLAM_ANIMATE = FAMILY_ATOMIC_SURFACE_ANIMATE
+export const DAMPED_SLAM_EXIT = FAMILY_ATOMIC_SURFACE_EXIT
 
 export const SLAM_INTRO_INITIAL = DAMPED_SLAM_INITIAL
 export const SLAM_INTRO_ANIMATE = DAMPED_SLAM_ANIMATE
@@ -67,83 +75,53 @@ export const SLAM_INTRO_EXIT = DAMPED_SLAM_EXIT
 
 export const ZIP_OPEN_Z_TRANSITION = INDUSTRIAL_OPACITY_SNAP
 
-export const ZIP_OPEN_Z_INITIAL = {
-  opacity: 0,
-  y: 2,
-} as const
+export const ZIP_OPEN_Z_INITIAL = FAMILY_ATOMIC_SURFACE_INITIAL
 
-export const ZIP_OPEN_Z_ANIMATE = {
-  opacity: 1,
-  y: 0,
-} as const
+export const ZIP_OPEN_Z_ANIMATE = FAMILY_ATOMIC_SURFACE_ANIMATE
 
-/** Exit — opacity snap only. */
+/** Exit — atomic surface rise + blur (same as intro crystallize). */
 export const ZIP_SHUT_Z_EXIT = {
-  opacity: 0,
-  y: 2,
-  transition: { duration: 0.12, ease: 'linear' as const },
+  ...FAMILY_ATOMIC_SURFACE_EXIT,
+  transition: FAMILY_TRANSITION_ATOMIC,
 } as const
 
-/** Expanded Solo Focus shell — quick mechanical zip (staccato DNA). */
-export const EXPANDED_CARD_CLOSE_TRANSITION = {
-  duration: STACCATO_DURATION_SEC,
-  ease: STACCATO_EASE_CUBIC,
-}
+/** Expanded Solo Focus shell — atomic crystallize open/close. */
+export const EXPANDED_CARD_CLOSE_TRANSITION = FAMILY_TRANSITION_ATOMIC
 
-/** Expanded shell open — same cadence. */
-export const EXPANDED_CARD_OPEN_TRANSITION = {
-  duration: STACCATO_DURATION_SEC,
-  ease: STACCATO_EASE_CUBIC,
-}
+export const EXPANDED_CARD_OPEN_TRANSITION = FAMILY_TRANSITION_ATOMIC
 
-/** Coordinates used when collapsing the expanded portal (matches prior bespoke exit pose). */
-export const EXPANDED_CARD_EXIT_COORDS = {
-  opacity: 0,
-  y: 2,
-} as const
+export const EXPANDED_CARD_EXIT_COORDS = FAMILY_ATOMIC_SURFACE_EXIT
 
-/** Props for `motion.div` — opacity snap; respects reduced motion. */
+/** Props for `motion.div` — atomic surface; respects reduced motion. */
 export function soloFocusSlamMotionProps(reduceMotion: boolean, skipInitialSlam: boolean) {
+  const atomic = familyAtomicProps(reduceMotion)
   if (reduceMotion) {
     return {
       initial: false as const,
-      animate: { opacity: 1 },
-      exit: { opacity: 0, transition: INDUSTRIAL_OPACITY_SNAP },
+      animate: atomic.animate,
+      exit: { ...atomic.exit, transition: INDUSTRIAL_OPACITY_SNAP },
       transition: INDUSTRIAL_OPACITY_SNAP,
     }
   }
   return {
-    initial: skipInitialSlam ? (false as const) : ZIP_OPEN_Z_INITIAL,
-    animate: ZIP_OPEN_Z_ANIMATE,
-    exit: ZIP_SHUT_Z_EXIT,
-    transition: ZIP_OPEN_Z_TRANSITION,
+    initial: skipInitialSlam ? (false as const) : atomic.initial,
+    animate: atomic.animate,
+    exit: atomic.exit,
+    transition: FAMILY_TRANSITION_ATOMIC,
   }
 }
 
 /** Full-screen Solo Focus portal shell (`.expanded-solo-focus`) — same tokens. */
 export function soloFocusShellZipMotionProps(reduceMotion: boolean) {
-  if (reduceMotion) {
-    return {
-      initial: false as const,
-      animate: { opacity: 1 },
-      exit: { opacity: 0, transition: INDUSTRIAL_OPACITY_SNAP },
-      transition: INDUSTRIAL_OPACITY_SNAP,
-    }
-  }
-  return {
-    initial: ZIP_OPEN_Z_INITIAL,
-    animate: ZIP_OPEN_Z_ANIMATE,
-    exit: ZIP_SHUT_Z_EXIT,
-    transition: ZIP_OPEN_Z_TRANSITION,
-  }
+  return soloFocusSlamMotionProps(reduceMotion, false)
 }
 
-/** Page-level kinetic zip — Likes, Settings, full-route shells (same tokens as Solo Focus). */
+/** Page-level kinetic enter — Likes, Settings, route shells. */
 export const KINETIC_ZIP_PULSE = {
-  initial: ZIP_OPEN_Z_INITIAL,
-  animate: ZIP_OPEN_Z_ANIMATE,
+  initial: FAMILY_ATOMIC_SURFACE_INITIAL,
+  animate: FAMILY_ATOMIC_SURFACE_ANIMATE,
   exit: ZIP_SHUT_Z_EXIT,
-  transition: ZIP_OPEN_Z_TRANSITION,
+  transition: FAMILY_TRANSITION_ATOMIC,
 } as const
 
 // =============================================================================
@@ -158,30 +136,28 @@ export const KINETIC_WORD_DWELL_MS = 400
 
 /** Zone main shell — opacity snap only. */
 export const FADE_IN_UP = {
-  initial: { opacity: 0, y: 2 },
-  animate: { opacity: 1, y: 0 },
-  transition: STACCATO_TWEEN,
-  exit: { opacity: 0, y: 2, transition: INDUSTRIAL_OPACITY_SNAP },
+  initial: FAMILY_ATOMIC_SURFACE_INITIAL,
+  animate: FAMILY_ATOMIC_SURFACE_ANIMATE,
+  transition: FAMILY_TRANSITION_ATOMIC,
+  exit: { ...FAMILY_ATOMIC_SURFACE_EXIT, transition: FAMILY_TRANSITION_ATOMIC },
 }
 
 export const WORD_APPEAR = {
-  initial: { opacity: 0, y: 2 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: 2 },
-  transition: INDUSTRIAL_OPACITY_SNAP,
+  initial: FAMILY_ATOMIC_SURFACE_INITIAL,
+  animate: FAMILY_ATOMIC_SURFACE_ANIMATE,
+  exit: FAMILY_ATOMIC_SURFACE_EXIT,
+  transition: FAMILY_TRANSITION_ATOMIC,
 }
 
 export const WORD_PULSE_APPEAR = {
-  initial: { opacity: 0, y: 2 },
+  initial: FAMILY_ATOMIC_SURFACE_INITIAL,
   animate: {
-    opacity: 1,
-    y: 0,
-    transition: INDUSTRIAL_OPACITY_SNAP,
+    ...FAMILY_ATOMIC_SURFACE_ANIMATE,
+    transition: FAMILY_TRANSITION_ATOMIC,
   },
   exit: {
-    opacity: 0,
-    y: 2,
-    transition: INDUSTRIAL_OPACITY_SNAP,
+    ...FAMILY_ATOMIC_SURFACE_EXIT,
+    transition: FAMILY_TRANSITION_ATOMIC,
   },
 } as const
 
@@ -207,26 +183,20 @@ export const SOLO_FOCUS_ZIP_SHUT_SEC = 0.12
 export const SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC = 0.05
 
 /** Solo Focus content handoff — opacity snap only. */
-export const SOLO_FOCUS_CONTENT_SNAP_INITIAL = {
-  opacity: 0,
-  y: 2,
-} as const
-export const SOLO_FOCUS_CONTENT_SNAP_ANIMATE = {
-  opacity: 1,
-  y: 0,
-} as const
+export const SOLO_FOCUS_CONTENT_SNAP_INITIAL = FAMILY_ATOMIC_SURFACE_INITIAL
+export const SOLO_FOCUS_CONTENT_SNAP_ANIMATE = FAMILY_ATOMIC_SURFACE_ANIMATE
 
 /** Solo Focus / bento copy blocks — opacity snap. */
 export const FADE_VARIANTS = {
-  hidden: { opacity: 0, y: 2 },
-  visible: { opacity: 1, y: 0, transition: STACCATO_TWEEN },
+  hidden: familyAtomicSurface.hidden,
+  visible: { ...familyAtomicSurface.visible, transition: FAMILY_TRANSITION_ATOMIC },
 }
 
 export const ELASTIC_PING = {
-  initial: { opacity: 0, y: 2 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: 2 },
-  transition: INDUSTRIAL_OPACITY_SNAP,
+  initial: FAMILY_ATOMIC_SURFACE_INITIAL,
+  animate: FAMILY_ATOMIC_SURFACE_ANIMATE,
+  exit: FAMILY_ATOMIC_SURFACE_EXIT,
+  transition: FAMILY_TRANSITION_ATOMIC,
 }
 
 // =============================================================================
@@ -234,15 +204,9 @@ export const ELASTIC_PING = {
 // =============================================================================
 
 export const SHIMMER_FOCUS = {
-  initial: {
-    opacity: 0,
-    y: 2,
-  },
-  animate: {
-    opacity: 1,
-    y: 0,
-  },
-  transition: INDUSTRIAL_OPACITY_SNAP,
+  initial: FAMILY_ATOMIC_SURFACE_INITIAL,
+  animate: FAMILY_ATOMIC_SURFACE_ANIMATE,
+  transition: FAMILY_TRANSITION_ATOMIC,
 } as const
 
 export const SHIMMER_FOCUS_INITIAL = SHIMMER_FOCUS.initial
@@ -291,9 +255,9 @@ export const ZONE_HERO_FROM_SUMMARY = {
   transition: INDUSTRIAL_OPACITY_SNAP,
 }
 
-/** Zone bento punch-through after Architectural Pulse `DONE.` */
+/** Zone bento punch-through — container fade; cells crystallize via `ZONE_BENTO_CELL_VARIANTS` stagger. */
 export const ZONE_GRID_PUNCH_THROUGH = {
-  initial: { opacity: 0, scale: 0.8 },
-  animate: { opacity: 1, scale: 1 },
-  transition: { type: 'spring' as const, stiffness: 420, damping: 32, mass: 0.85 },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  transition: FAMILY_TRANSITION_ATOMIC,
 }

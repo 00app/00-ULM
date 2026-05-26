@@ -14,7 +14,9 @@ Delivery-only motion vocabulary. **Does not** change profile questions, summary 
 | `FAMILY_DUR_SHORT` | `0.4s` | Likes, hovers, word exit, controls |
 | `familyAtomicAssembly` | blur + letter-spacing + scale | Summary ticker, Architectural Pulse, loop question |
 | `familyReveal` | blur → sharp (no letter-spacing) | Profile headline, settings cells |
-| `familyGlide` | 15px horizontal | Profile step swap |
+| `familyGlide` | 15px **vertical rise** + blur | Profile step swap (legacy name) |
+| `familyAtomicSurface` | rise + blur + scale | Cards, screens, zone cells, Solo Focus |
+| `familyAtomicTextProps` | surface + letter-spacing | Intro / summary opacity ticker |
 | `ZONE_ATOMIC_BENTO_VARIANTS` | blur cloud → card | Zone grid ripple (exported as `ZONE_BENTO_CELL_VARIANTS`) |
 
 ## Reading-speed contract
@@ -31,7 +33,7 @@ Delivery-only motion vocabulary. **Does not** change profile questions, summary 
 | Loading routes | `AppBootGlitch` → `AtomicLogo` loop |
 | `/profile` | Centered atomic cross-fade (`familyProfileStepProps` = atomic) |
 | `/profile/summary` | Atomic ticker + `atomicWordHoldMs` read buffer |
-| Zone | Pulse words → atomic grid ripple → `layoutId` liquid morph expand |
+| Zone | Pulse words → atomic grid ripple (rise + blur, **0.12s** stagger) → expand shell |
 | Loop / discovery | Atomic headline; discovery tip atomic snap-in |
 | `/zai` | Page + messages `familyAtomicProps` |
 | `/likes`, `/settings` | `familyPageEnterProps` + atomic cells |

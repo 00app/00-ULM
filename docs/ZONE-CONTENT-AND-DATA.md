@@ -182,12 +182,12 @@ Built in **`lib/zone/buildZoneViewModel.ts`**, rendered as **`JourneyBentoCard`*
 | **SAVE / CARBON** | `formatZoneCardMoney` / carbon from impact + stream |
 | **Insight strip** | Short label or “Computing…” when `insightGenerationPending` |
 | **Category colour** | `lib/journeyColors.ts` |
-| **Visited** | `markCardVisited` on expand → `.zone-card--visited`: pink bg `#FF00FF`, yellow text `#FDFD00` |
+| **Visited (pink)** | Mother tile: pink after loop + `completeCleanBirth`. Discovery inject: pink on close. `.zone-card--visited` — see **Director's Order** in [HANDBOOK.md](HANDBOOK.md) |
 | **Source line** | `source. …` attribution — **not** long prose |
 
 ### Motion
 
-**Style B — Mechanical Snap:** staggered grid (`STACCATO_*` in `app/zone/page.tsx`). Wall hidden until `revealedCardCount ≥ 1`.
+**Atomic crystallize:** bento ripple via `ZONE_ATOMIC_BENTO_VARIANTS` + stagger (`lib/motion-family.ts`). Wall hidden until `revealedCardCount ≥ 1` and `pulseWordsComplete`.
 
 ### Today's Tips rail (Rock)
 
@@ -211,7 +211,7 @@ Ceilings: **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** · **`MAX_ZONE_BENTO_CE
 
 ## 7. Expanded card — Solo Focus
 
-**Open:** `onExpand` → `markJourneyCardOpened` → `openSoloFocus` → **`JourneyBentoCard`** QUESTION chamber (inject tips: **`SoloFocusOverlay`**).
+**Open:** `onExpand` → `rememberSoloFocusOpen` / `openSoloFocus` → **`JourneyBentoCard`** QUESTION chamber (inject tips: **`SoloFocusOverlay`**). Pink lock waits for loop birth — not expand.
 
 ### Layout (Zai Architect)
 

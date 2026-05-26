@@ -12,6 +12,9 @@ export const SHOW_BASELINE_TIPS_ON_MAIN_GRID = false
 /** Max discovery / inject tips nested under each journey on the bento wall. */
 export const MAX_DISCOVERY_TIPS_PER_JOURNEY_ON_GRID = 1
 
+/** Hard ceiling: max total cards (journey tile + tips combined) shown per category on the bento wall. */
+export const MAX_CARDS_PER_CATEGORY = 2
+
 /** Max saving-tip habits per journey on The Rock rail. */
 export const MAX_SAVING_TIPS_PER_JOURNEY = 2
 
@@ -60,6 +63,16 @@ export function capDiscoveryTipsForGrid(tips: ZoneTipCard[]): ZoneTipCard[] {
     tips.filter(isUserDiscoveryInjectTip),
     MAX_DISCOVERY_TIPS_PER_JOURNEY_ON_GRID
   )
+}
+
+/** Discovery inject + achievement — max one tip cell per category (2 total with journey tile). */
+export function isCategoryWallTip(tip: ZoneTipCard): boolean {
+  if (tip.achievement_discovery) return true
+  return isUserDiscoveryInjectTip(tip)
+}
+
+export function capCategoryWallTips(tips: ZoneTipCard[]): ZoneTipCard[] {
+  return capTipsPerJourney(tips.filter(isCategoryWallTip), MAX_DISCOVERY_TIPS_PER_JOURNEY_ON_GRID)
 }
 
 export function capRockHabitsPerJourney<T extends { journey_key: JourneyId }>(

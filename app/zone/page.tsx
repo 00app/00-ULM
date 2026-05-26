@@ -44,13 +44,15 @@ import {
   FADE_IN_UP,
   ZONE_HERO_FROM_SUMMARY,
   ZONE_GRID_PUNCH_THROUGH,
-  ZIP_OPEN_Z_INITIAL,
-  ZIP_OPEN_Z_ANIMATE,
-  ZIP_OPEN_Z_TRANSITION,
   STACCATO_CONTAINER_VARIANTS,
   STACCATO_CHILD_VARIANTS,
-  STACCATO_TWEEN,
 } from '@/lib/animations'
+import {
+  FAMILY_ATOMIC_SURFACE_ANIMATE,
+  FAMILY_ATOMIC_SURFACE_EXIT,
+  FAMILY_ATOMIC_SURFACE_INITIAL,
+  FAMILY_TRANSITION_ATOMIC,
+} from '@/lib/motion-family'
 
 import { parseZoneCoverageFromApi, parseResearchMetaFromApi } from '@/lib/zone/parseScrapeSyncClient'
 import {
@@ -72,7 +74,6 @@ import { setExpandCard } from '@/lib/expandStorage'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { DISCOVERY_INJECT_EVENT } from '@/lib/discoveryInject'
 import { AtomicLogo } from '@/app/components/Logo'
-import { FAMILY_TRANSITION_ATOMIC } from '@/lib/motion-family'
 import { DiscoveryTakeover } from '@/app/components/DiscoveryTakeover'
 import { pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
 import {
@@ -133,6 +134,7 @@ import {
 import { ROCK_BY_SLUG, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/lib/rock/habitsCatalog'
 import { replaceRockSlotAfterLike } from '@/lib/rock/rotation'
 import { useRockVisibleHabits } from '@/lib/rock/useRockVisibleHabits'
+import { utcDayIndex } from '@/lib/rock/rotation'
 import { useSentinel } from '@/app/hooks/useSentinel'
 import {
   journeyResearchSettled,
@@ -584,7 +586,7 @@ export default function ZonePage() {
     [sentinelSupportTipCard, remoteBehavioralTipCards, injectedTips, sentinelTipCards]
   )
 
-  const rockSeed = state.userId ?? 'guest'
+  const rockSeed = `${state.userId ?? 'guest'}:d${utcDayIndex()}`
   const rockVisibleHabits = useRockVisibleHabits(state.likedCards, rockSeed, rockRefreshKey)
 
   useEffect(() => {
@@ -1694,16 +1696,33 @@ export default function ZonePage() {
     const mem = readSessionMemory()
     const focus = mem?.last_solo_focus
     if (!focus?.cardId) return
-    const hasCard = displayItems.some(
-      (c) =>
-        (c.type === 'journey' && c.item.id === focus.cardId) ||
-        (c.type === 'tip' && c.tip.id === focus.cardId)
+    const journeyCell = displayItems.find(
+      (c): c is GroovyItem & { type: 'journey' } => c.type === 'journey' && c.item.id === focus.cardId
+    )
+    const tipCell = displayItems.find(
+      (c): c is GroovyItem & { type: 'tip' } => c.type === 'tip' && c.tip.id === focus.cardId
     )
     sessionRestoreDone.current = true
-    if (!hasCard) return
-    if (openSoloFocus(focus.cardId, 'journey')) {
-      setExpandedCardId(focus.cardId)
-      setExpandedFromTip(null)
+    if (journeyCell) {
+      if (openSoloFocus(journeyCell.item.id, 'journey')) {
+        setExpandedCardId(journeyCell.item.id)
+        setExpandedFromTip(null)
+        setExpandedTipId(null)
+      }
+      return
+    }
+    if (tipCell) {
+      if (tipCell.tip.id.startsWith('inject-')) {
+        if (openSoloFocus(tipCell.tip.id, 'discovery')) {
+          setExpandedCardId(null)
+          setExpandedFromTip(null)
+          setExpandedTipId(tipCell.tip.id)
+        }
+      } else if (openSoloFocus(tipCell.tip.id, 'tip')) {
+        setExpandedCardId(null)
+        setExpandedFromTip(null)
+        setExpandedTipId(tipCell.tip.id)
+      }
     }
   }, [hydrated, displayItems, openSoloFocus])
 
@@ -2012,10 +2031,10 @@ export default function ZonePage() {
             <motion.p
               key={sentinelPulseLabel}
               className="zz-body-bold m-0 mt-2 uppercase"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 6 }}
-              transition={STACCATO_TWEEN}
+              initial={FAMILY_ATOMIC_SURFACE_INITIAL}
+              animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
+              exit={FAMILY_ATOMIC_SURFACE_EXIT}
+              transition={FAMILY_TRANSITION_ATOMIC}
               style={{ color: 'var(--color-yellow)' }}
             >
               {sentinelPulseLabel}
@@ -2287,14 +2306,8 @@ export default function ZonePage() {
                           ['--semantic-carbon' as string]: tipTextColor,
                         }}
                         onClick={handleTipClick}
-                        initial={
-                          snapBloomIn
-                            ? { opacity: 0, scale: 1.05, filter: 'blur(15px)' }
-                            : false
-                        }
-                        animate={
-                          snapBloomIn ? { opacity: 1, scale: 1, filter: 'blur(0px)' } : undefined
-                        }
+                        initial={snapBloomIn ? FAMILY_ATOMIC_SURFACE_INITIAL : false}
+                        animate={snapBloomIn ? FAMILY_ATOMIC_SURFACE_ANIMATE : undefined}
                         transition={snapBloomIn ? FAMILY_TRANSITION_ATOMIC : undefined}
                         aria-label={`Expand: ${tipHeadline}`}
                         data-dominant-win={semanticWin}
@@ -2558,8 +2571,8 @@ export default function ZonePage() {
         {gridFullyRevealed && !expandedCardId && !expandedTipId && zoneInteractable ? (
           <motion.div
             className="zone-rock-strip w-full mt-3 mb-10"
-            initial={{ opacity: 0, scale: 1.04, filter: 'blur(15px)' }}
-            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+            initial={FAMILY_ATOMIC_SURFACE_INITIAL}
+            animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
             transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2 className="text-marvin text-xl text-[#FDFD00] lowercase mb-6">

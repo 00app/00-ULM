@@ -484,11 +484,23 @@ function mergeDiscoveryInjectionsIntoTips(staticTips: ZoneTipCard[], injected?: 
     return 0
   })
 
-  const topInjected = sortedInjected.slice(0, 3)
+  // Home view top-3 rule: strictly max 1 card per category across all 3 slots.
+  // Pick at most 1 injected tip per journey_key (category), up to 3 total.
+  const topInjected: ZoneTipCard[] = []
+  const injectedCategories = new Set<string>()
+  for (const tip of sortedInjected) {
+    if (topInjected.length >= 3) break
+    const cat = tip.journey_key ?? 'home'
+    if (injectedCategories.has(cat)) continue // enforce 1-per-category in top-3
+    injectedCategories.add(cat)
+    topInjected.push(tip)
+  }
+
   const usedJourneys = new Set(topInjected.map((i) => i.journey_key))
   const injectedTitleKeys = new Set(
     topInjected.map((c) => normalizeCardHeadlineKey(c.title ?? '')).filter(Boolean)
   )
+  // Fill remaining slots from static tips, skipping already-used categories
   const rest = staticTips.filter(
     (t) =>
       !usedJourneys.has(t.journey_key) &&

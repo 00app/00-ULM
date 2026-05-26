@@ -508,8 +508,26 @@ export function JourneyBentoCard({
           transport: state.profile?.transport ?? null,
           fuelType: state.journeyAnswers?.travel?.fuel_type ?? null,
         })
-        setMorphDeck([seeded])
+        const seededForJourney =
+          seeded.journey_key === journeyId
+            ? seeded
+            : { ...seeded, journey_key: journeyId, id: `morph-${journeyId}-${seeded.id}` }
+        setMorphDeck([seededForJourney])
         setMorphDeckCursor(1)
+      } else {
+        const deck = snap.morphDeck as { journey_key?: string }[]
+        const aligned = deck.every((m) => !m?.journey_key || m.journey_key === journeyId)
+        if (!aligned) {
+          clearSoloFocusSnapshot(soloFocusSnapKey)
+          const seeded = getNextMorphCard(journeyId, {
+            postcode: profilePostcode,
+            homeType: state.profile?.homeType ?? null,
+            transport: state.profile?.transport ?? null,
+            fuelType: state.journeyAnswers?.travel?.fuel_type ?? null,
+          })
+          setMorphDeck([seeded])
+          setMorphDeckCursor(1)
+        }
       }
     }
     prevIsExpandedRef.current = isExpanded

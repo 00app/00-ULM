@@ -4,6 +4,8 @@
  * No auth; used by Zone dashboard to show "Local" tag and Local Pulse badge.
  */
 
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'

@@ -1,15 +1,17 @@
 import { INTRO_TYPE_MOTION_SCALE } from '@/lib/animations'
 import { formatMoneyValue, compactAuditValue } from '@/lib/format'
 
-/** Warm Marvin + Roboto while intro glitch runs. */
-export function preloadAppFonts(): void {
-  if (typeof document === 'undefined') return
-  void Promise.all([
+/** Warm Marvin + Roboto before summary ticker / intro type (avoids sans-serif flash). */
+export function preloadAppFonts(): Promise<void> {
+  if (typeof document === 'undefined') return Promise.resolve()
+  return Promise.all([
     document.fonts.load('700 16px var(--font-roboto)'),
     document.fonts.load('800 16px var(--font-roboto)'),
-    document.fonts.load('bold 20px "Marvin Visions Bold"'),
-    document.fonts.load('bold 50px "Marvin Visions Bold"'),
-  ]).catch(() => {})
+    document.fonts.load('700 20px "Marvin Visions Bold"'),
+    document.fonts.load('900 50px "Marvin Visions Bold"'),
+  ])
+    .then(() => undefined)
+    .catch(() => undefined)
 }
 
 /** Glitch logo beat — keep in sync with `--zz-glitch-anim-ms` in globals.css */

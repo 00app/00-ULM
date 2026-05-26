@@ -29,10 +29,9 @@ import type { ZoneTipCard } from '@/lib/logic/zone'
 import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 import {
   familyControlDelaySec,
+  familyAtomicProps,
   familyProfileStepProps,
-  familyRevealProps,
   FAMILY_TRANSITION_ATOMIC,
-  FAMILY_TRANSITION_LONG,
 } from '@/lib/motion-family'
 
 const TIER2_ENRICH_TIMEOUT_MS = 8000
@@ -278,7 +277,7 @@ export function DiscoveryTakeover({
 
   const motionSafe = reduceMotion === true
   const stepMotion = familyProfileStepProps(motionSafe)
-  const headlineMotion = familyRevealProps(motionSafe)
+  const headlineMotion = familyAtomicProps(motionSafe)
   const controlsAfterQuestionSec = familyControlDelaySec(0, 0.12)
 
   return createPortal(

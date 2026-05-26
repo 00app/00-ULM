@@ -55,3 +55,4 @@ next-env.d.ts
 vercel-deploy*.log
 deploy-trigger.err
 deploy-trigger.json
+.env*.local
