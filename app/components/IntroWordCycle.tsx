@@ -206,7 +206,7 @@ export default function IntroWordCycle({
       }
     }, maxMs)
     return () => clearTimeout(safety)
-  }, [words.length, wordDurations, gapMs, wordExitMs])
+  }, [words.length, wordDurations, gapMs, wordExitMs, words, opacityTicker])
 
   const isMultiline = displayText.includes('\n')
 
