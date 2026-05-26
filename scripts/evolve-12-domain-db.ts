@@ -14,7 +14,6 @@ import { loadEnvLocal } from './load-env-local'
 
 async function main() {
   loadEnvLocal({ preferLocal: true })
-  process.env.DATABASE_USE_NEON_SERVERLESS = '0'
 
   if (!process.env.DATABASE_URL?.trim()) {
     console.error('❌ DATABASE_URL missing — set in .env.local')
@@ -32,11 +31,13 @@ async function main() {
     process.exit(1)
   }
 
-  const { default: pool, shutdownDbPool } = await import('../lib/db')
+  const { withNeonPool } = await import('./neon-wake')
+  const migrationSql = fs.readFileSync(migrationPath, 'utf8')
 
-  try {
-    const migrationSql = fs.readFileSync(migrationPath, 'utf8')
-    await pool.query(migrationSql)
+  await withNeonPool(async (query) => {
+    const pool = (await import('../lib/db')).getDbPool()
+
+    await query(migrationSql)
     console.log('✅ Applied journey_questions migration (017).')
 
     await pool.query('BEGIN')
@@ -76,9 +77,7 @@ async function main() {
     )
     console.log('   Row count (12-domain keys):', count.rows[0]?.n ?? '0')
     console.log('✅ NEON ARMED: 12-DOMAIN DATA CAPTURE ACTIVE')
-  } finally {
-    await shutdownDbPool()
-  }
+  })
 }
 
 main().catch((e: unknown) => {

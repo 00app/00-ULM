@@ -5,6 +5,7 @@
 import fs from 'fs'
 import path from 'path'
 import { loadEnvLocal } from './load-env-local'
+import { withNeonPool } from './neon-wake'
 
 const MIGRATION_FILES = [
   '20260519_ulm_genome_expansion.sql',
@@ -15,16 +16,14 @@ const MIGRATION_FILES = [
 
 async function main() {
   loadEnvLocal({ preferLocal: true })
-  process.env.DATABASE_USE_NEON_SERVERLESS = '0'
+  // Use Neon serverless pool (default) — do not force node-pg TCP (flakes on cold start).
 
   if (!process.env.DATABASE_URL?.trim()) {
     console.error('❌ DATABASE_URL missing — set in .env.local')
     process.exit(1)
   }
 
-  const { default: pool, shutdownDbPool } = await import('../lib/db')
-
-  try {
+  await withNeonPool(async (query) => {
     for (const file of MIGRATION_FILES) {
       const migPath = path.join(process.cwd(), 'db', 'migrations', file)
       if (!fs.existsSync(migPath)) {
@@ -33,7 +32,7 @@ async function main() {
       }
       const sql = fs.readFileSync(migPath, 'utf8')
       try {
-        await pool.query(sql)
+        await query(sql)
         console.log(`✅ Applied db/migrations/${file}`)
       } catch (err: unknown) {
         const m = err instanceof Error ? err.message : String(err)
@@ -49,22 +48,23 @@ async function main() {
       }
     }
 
-    const guestCols = await pool.query<{ column_name: string }>(
+    const guestCols = (await query(
       `SELECT column_name FROM information_schema.columns
        WHERE table_schema = 'public' AND table_name = 'guest_sessions'
        ORDER BY ordinal_position`
-    )
+    )) as { rows: { column_name: string }[] }
     console.log(
       '   guest_sessions:',
       guestCols.rows.map((r) => r.column_name).join(', ')
     )
     console.log('✅ Pending migrations complete.')
-  } finally {
-    await shutdownDbPool()
-  }
+  })
 }
 
 main().catch((e: unknown) => {
   console.error('❌', e instanceof Error ? e.message : e)
+  console.error(
+    '   Tip: run `npm run db:test` once (wakes Neon), then retry `npm run db:apply-pending`.'
+  )
   process.exit(1)
 })

@@ -117,6 +117,18 @@ npm run dev:clean
 | Loop row (pencil) | In-place loop beat overlay — answer updates `zz_loop_answers_log` + `journey_*_answers`, returns to Settings |
 | Journey card (pencil) | `SoloFocusOverlay` question mode — journey MC answers, then back to Settings |
 
+### Neon `Connection terminated due to connection timeout` (prep / migrations)
+
+| Cause | Fix |
+|-------|-----|
+| Compute suspended (cold start) | Run `npm run db:test` first (HTTP wake), then `npm run db:apply-pending` or `npm run prep:live`. Scripts retry automatically via `scripts/neon-wake.ts`. |
+| Forced TCP `pg` | Do **not** set `DATABASE_USE_NEON_SERVERLESS=0` for local CLI unless you need raw `pg`. |
+| SSL mode warning in terminal | Informational for `pg` v9; optional: add `sslmode=verify-full` to `DATABASE_URL` in Neon console. |
+
+### Vercel CLI `ETIMEDOUT` after “Deployment completed”
+
+Harmless — build and deploy finished; CLI lost the polling connection. Confirm in [Vercel dashboard](https://vercel.com) or `curl https://00-ulm.vercel.app/api/health?live=1`.
+
 ### `Cannot find the middleware module` (Next 16 + Webpack)
 
 | Cause | Fix |
