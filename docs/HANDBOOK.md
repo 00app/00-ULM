@@ -350,7 +350,7 @@ Full manifest (Hermes, Neon host token, caps): [INTELLIGENCE-LOOP-MANIFEST.md](I
 - **Hermes / Oracle VPS:** [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md). **Mac:** `npm run hermes:ping` (auth-only), `npm run hermes:repair-pulse` (mechanical backfill). **Deploy/sync VPS:** `bash scripts/deploy-hermes-to-vps.sh`. **On box:** crontab **`0 5 * * 1`** → **`repair-mechanical`** or `hermes-pulse.sh --repair-only` → **`~/hermes-pulse.log`**. Do **not** run full `zone-research?limit=12` on a schedule. Target: **`https://00-ulm.vercel.app/api/cron/repair-mechanical`**.
 - **Neon project:** **`00-ULM`** (London `eu-west-2`); pooler host **`MANIFEST_NEON_POOLER_HOST`**. Wake: `npm run db:test` or any API hit; compute auto-resumes on query.
 - **Twelve categories:** Journey keys in `lib/journeys.ts` (`JOURNEY_ORDER` — 12 domains × 3 questions). Research persistence (`research_results`) requires **`saving_amount_gbp`**, **`offer_url`**, category, and prose fields as implemented in `lib/agents/researchAgent.ts` / `persistResearchResult`. **Carbon (kg)** on cards comes from stream + impact only when `journeyHasStreamData` — no UK placeholder wall figures.
-- **Injection cap:** `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` (**1**) — enforced in `discovery_injections` per user per `journey_key` for both `POST /api/zone/injections` (answer loop → alternate journey) and `POST /api/research/question-card` (free question → same journey). Main grid keeps ranked `tip-*` off the bento wall (`SHOW_BASELINE_TIPS_ON_MAIN_GRID`).
+- **Injection cap:** `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` (**3**) — enforced in `discovery_injections` per user per `journey_key` for both `POST /api/zone/injections` (answer loop → alternate journey) and `POST /api/research/question-card` (free question → same journey). Main grid keeps ranked `tip-*` off the bento wall (`SHOW_BASELINE_TIPS_ON_MAIN_GRID`).
 - **Locality scrape hints:** `runZeroResearch` prepends extra Firecrawl seeds when user context mentions **Littlehampton** / **Arun** or **Les Azerables** / **Creuse** (`lib/agents/researchAgent.ts`).
 
 ### Four-step loop (Hermes as orchestrator, not “just a timer”)
@@ -424,8 +424,9 @@ Grid must **not** increment `revealedCardCount` until `architecturalPulsePhase =
 |------|-----------|-------------|
 | 1 | **13 journey cells + hero** crystallize in ripple; **`gridFullyRevealed`** before Rock strip | Cells use blur→sharp, not y-slide snap |
 | 2 | **Today's Tips** (Rock) last; close = **`visitedClose`** (no loop) | `launchPatternShiftTakeover(..., { visitedClose: true })` |
-| 3 | **First visit:** expand → embedded Solo Focus → **close** → **one** loop → answer → discovery → **pink** | **`markCardVisited` only in `completeCleanBirth`** — never on first close |
-| 4 | **Revisit pink:** expand → close → grid only | `shouldOpenLoopTakeover` false; **`DiscoveryTakeover` must not mount** when `hasLoopDoneForJourney` |
+| 3 | **Loop 1 — Mother card:** expand → close → **one** loop → answer → **new discovery child** on grid → mother turns **pink** | **`markCardVisited` only in `completeCleanBirth`** — never on first close |
+| 4 | **Loop 2 — Discovery child (`inject-*`):** tap yellow tile → expand → close → grid immediately → child turns **pink** (no loop question) | `isDiscoveryInjectCard` → `shouldCloseMarkPinkOnly` → `visitedClose: true` |
+| 5 | **Revisit pink:** expand → close → grid only | `shouldOpenLoopTakeover` false; **`DiscoveryTakeover` must not mount** when `hasLoopDoneForJourney` |
 
 ---
 

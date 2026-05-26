@@ -35,7 +35,7 @@ CATEGORIES=(
 echo "Seeding ${#CATEGORIES[@]} categories for ${POSTCODE} on ${HOST}" >&2
 for cat in "${CATEGORIES[@]}"; do
   echo "--- category: ${cat} ---" >&2
-  bash "${TRIGGER}" "${ENV_ARGS[@]}" "${HOST}" "${POSTCODE}" "${cat}" || exit 1
+  bash "${TRIGGER}" ${ENV_ARGS[@]+"${ENV_ARGS[@]}"} "${HOST}" "${POSTCODE}" "${cat}" || exit 1
   sleep 3
 done
 
