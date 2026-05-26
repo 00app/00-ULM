@@ -75,7 +75,13 @@ import { AtomicLogo } from '@/app/components/Logo'
 import { FAMILY_TRANSITION_ATOMIC } from '@/lib/motion-family'
 import { DiscoveryTakeover } from '@/app/components/DiscoveryTakeover'
 import { pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
-import { shouldCloseToGridOnly, shouldOpenLoopTakeover } from '@/lib/zone/directorsOrder'
+import {
+  isDiscoveryInjectCard,
+  isZoneCardPink,
+  shouldCloseMarkPinkOnly,
+  shouldCloseToGridOnly,
+  shouldOpenLoopTakeover,
+} from '@/lib/zone/directorsOrder'
 import { markLoopDoneForJourney } from '@/lib/zone/loopMemory'
 import {
   persistPinnedAchievement,
@@ -89,7 +95,6 @@ import {
   computeIsZoneReady,
 } from '@/lib/architecturalPulse'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
-import { scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
 import {
   bentoSpanClassForPersona,
   JOURNEY_BENTO_PERSONA,
@@ -408,6 +413,11 @@ export default function ZonePage() {
       closeAnySoloFocus()
       loopCloseCardIdRef.current = meta?.cardId?.trim() || null
       if (shouldCloseToGridOnly(meta?.visitedClose)) {
+        const closeId = meta?.cardId?.trim()
+        if (closeId) {
+          markCardVisited(closeId)
+          setVisitedCardIds(readVisitedCardIds())
+        }
         loopCloseCardIdRef.current = null
         setPatternShiftJourneyId(null)
         setIsZoneVisible(true)
@@ -1135,18 +1145,10 @@ export default function ZonePage() {
       setDiscoverySnapTipId(detail.id)
       window.setTimeout(() => setDiscoverySnapTipId((id) => (id === detail.id ? null : id)), 950)
       setVmSyncStamp(Date.now())
-      /* Achievement cards pin under hero — no Solo Focus hijack or tips-refresh wipe. */
+      /* Birth on grid only (atomic assembly) — user opens discovery in Solo Focus when ready. */
       if (!isAchievement && detail.id && !readVisitedCardIds().has(detail.id)) {
         void fetch('/api/zone/tips-refresh', { method: 'POST', credentials: 'include' }).catch(() => {})
         setRefreshKey((k) => k + 1)
-        scheduleSoloFocusRebirthOpen(() => {
-          setExpandedCardId(null)
-          setExpandedFromTip(null)
-          closeSoloFocus()
-          if (openSoloFocus(detail.id, 'discovery')) {
-            setExpandedTipId(detail.id)
-          }
-        })
       }
     }
     window.addEventListener(DISCOVERY_INJECT_EVENT, onInject)
@@ -1629,13 +1631,8 @@ export default function ZonePage() {
   }, [pinnedAchievements, effectiveInjectedTips, viewModel.tips])
 
   const isZoneCardVisited = useCallback(
-    (cardId: string, journeyKey?: JourneyId) => {
-      if (cardId.startsWith('rock-')) return visitedCardIds.has(cardId)
-      return (
-        visitedCardIds.has(cardId) ||
-        (journeyKey != null && dbVisitedJourneyKeys.has(journeyKey))
-      )
-    },
+    (cardId: string, journeyKey?: JourneyId) =>
+      isZoneCardPink(cardId, visitedCardIds, dbVisitedJourneyKeys, journeyKey),
     [visitedCardIds, dbVisitedJourneyKeys]
   )
   const [deepDivePendingId, setDeepDivePendingId] = useState<string | null>(() =>
@@ -2192,12 +2189,17 @@ export default function ZonePage() {
                     const isDiscoveryInject = tip.id.startsWith('inject-')
                     const tipVisited = isZoneCardVisited(tip.id, tip.journey_key)
                     const tipDeepDive = deepDivePendingId === tip.id
+                    const discoveryChild = isDiscoveryInjectCard(tip.id)
                     const tipBg = tipVisited
                       ? 'var(--color-pink)'
-                      : isDiscoveryInject
-                        ? 'var(--color-pink)'
+                      : discoveryChild
+                        ? 'var(--color-yellow)'
                         : 'var(--color-purple)'
-                    const tipInk = tipVisited ? 'var(--color-yellow)' : 'var(--color-yellow)'
+                    const tipInk = tipVisited
+                      ? 'var(--color-yellow)'
+                      : discoveryChild
+                        ? 'var(--color-purple)'
+                        : 'var(--color-yellow)'
                     const tipTextColor = tipInk
                     const semanticWin = tip.dominant_win ?? 'money'
                     const tipHeadline = zoneCardHeadlineFromRaw(
@@ -2661,12 +2663,13 @@ export default function ZonePage() {
                 architectSuppliedBy={tip.architectSuppliedBy}
                 onClose={closeAnySoloFocus}
                 onPatternShiftClose={(jid, meta) => {
-                  if (isRockTip) {
-                    markCardVisited(tip.id)
-                    launchPatternShiftTakeover(jid, { visitedClose: true })
-                    return
-                  }
-                  launchPatternShiftTakeover(jid, meta)
+                  const visitId = meta?.cardId?.trim() || tip.id
+                  const pinkOnly =
+                    isRockTip || shouldCloseMarkPinkOnly(visitId, jid)
+                  launchPatternShiftTakeover(jid, {
+                    cardId: visitId,
+                    visitedClose: pinkOnly,
+                  })
                 }}
                 cardId={tip.id}
                 onLike={trackZoneLike}

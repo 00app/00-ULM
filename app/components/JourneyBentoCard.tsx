@@ -82,8 +82,9 @@ import {
 import { openOfferUrlInNewTab } from '@/lib/zone/tier2RecursiveSpawner'
 import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
-import { setDeepDiveInProgress, shouldSkipInjectionOnCardClose } from '@/lib/zone/visitedCards'
+import { setDeepDiveInProgress } from '@/lib/zone/visitedCards'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
+import { shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
 import { runSoloFocusAuditCompletionClient } from '@/lib/soloFocusAuditCompleteClient'
 import {
   SOLO_FOCUS_SNAPSHOT_V,
@@ -553,7 +554,7 @@ export function JourneyBentoCard({
     /* Director's order: pink only after loop birth — never mark visited on close before takeover. */
     patternShiftAfterExitRef.current = {
       cardId: visitId || undefined,
-      visitedClose: visitId ? shouldSkipInjectionOnCardClose(visitId, journeyId) : false,
+      visitedClose: visitId ? shouldCloseMarkPinkOnly(visitId, journeyId) : false,
     }
     setIsExiting((prev) => (prev ? prev : true))
   }, [journeyId, triggerHaptic, activeCardId, cardId])

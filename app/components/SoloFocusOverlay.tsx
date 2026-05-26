@@ -88,8 +88,8 @@ import {
   isCardVisited,
   markCardVisited,
   recordCardVisitHandoff,
-  shouldSkipInjectionOnCardClose,
 } from '@/lib/zone/visitedCards'
+import { shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
 
 export interface SoloFocusOverlayProps {
@@ -632,8 +632,7 @@ export function SoloFocusOverlay({
     onPatternShiftClose?.(loopJourneyKey, {
       cardId: visitId || undefined,
       visitedClose:
-        isRockHabitTip ||
-        (visitId ? shouldSkipInjectionOnCardClose(visitId, loopJourneyKey) : false),
+        isRockHabitTip || (visitId ? shouldCloseMarkPinkOnly(visitId, loopJourneyKey) : false),
     })
     onClose()
   }, [loopJourneyKey, onPatternShiftClose, onClose, cardId, activeCardId])

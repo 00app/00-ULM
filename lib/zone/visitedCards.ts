@@ -56,7 +56,8 @@ export function isCardVisited(cardId: string): boolean {
 /**
  * Close credit guard — Director's order (sole client truth with `loopMemory.ts`):
  * - Pink (`visited_cards`) or `hasLoopDoneForJourney` → close only (no takeover).
- * - First visit close → loop once; pink is set in `completeCleanBirth` after discovery spawn.
+ * - Discovery inject (`inject-*`) → always close-only; pink on close via `markCardVisited`.
+ * - Mother category: first close → loop once; mother pink in `completeCleanBirth` after spawn.
  */
 export function shouldSkipInjectionOnCardClose(
   cardId: string | null | undefined,
@@ -64,6 +65,9 @@ export function shouldSkipInjectionOnCardClose(
 ): boolean {
   const id = cardId?.trim()
   if (!id) return false
+  if (id.startsWith('inject-') && !id.startsWith('inject-sentinel-') && !id.startsWith('inject-fallback-')) {
+    return true
+  }
   if (isCardVisited(id)) return true
   const jid = typeof journeyId === 'string' && isValidJourneyId(journeyId) ? journeyId : null
   if (jid && hasLoopDoneForJourney(jid)) return true
