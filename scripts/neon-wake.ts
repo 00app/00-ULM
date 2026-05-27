@@ -2,41 +2,13 @@
  * Wake suspended Neon compute before TCP/pg CLI scripts (pooler cold start).
  * Uses HTTP driver first (same as db:test), then optional pool ping.
  */
-import { neon } from '@neondatabase/serverless'
 import type { QueryResult } from 'pg'
-import { sanitizeNeonConnectionString } from '../lib/db'
+import { wakeNeonHttp } from '../lib/db'
+
+export { wakeNeonHttp }
 
 const WAKE_ATTEMPTS = 4
 const WAKE_DELAY_MS = 2_500
-
-export async function wakeNeonHttp(databaseUrl?: string): Promise<void> {
-  const raw = databaseUrl?.trim() || process.env.DATABASE_URL?.trim() || ''
-  const url = sanitizeNeonConnectionString(raw)
-  if (!url) {
-    throw new Error('DATABASE_URL missing — set in .env.local')
-  }
-
-  const sql = neon(url)
-  let lastErr: unknown
-  for (let attempt = 1; attempt <= WAKE_ATTEMPTS; attempt++) {
-    try {
-      await sql`SELECT 1 AS ok`
-      if (attempt > 1) {
-        console.log(`✅ Neon awake (attempt ${attempt}/${WAKE_ATTEMPTS})`)
-      }
-      return
-    } catch (err) {
-      lastErr = err
-      if (attempt < WAKE_ATTEMPTS) {
-        console.warn(
-          `⚠️  Neon wake attempt ${attempt}/${WAKE_ATTEMPTS} failed — retrying in ${WAKE_DELAY_MS / 1000}s…`
-        )
-        await new Promise((r) => setTimeout(r, WAKE_DELAY_MS))
-      }
-    }
-  }
-  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
-}
 
 function isRetryableDbError(err: unknown): boolean {
   const m = err instanceof Error ? err.message : String(err)

@@ -8,12 +8,13 @@ type SqlFn = ReturnType<typeof neon>
 type DbGlobal = {
   pool: DbPool | null
   sql: SqlFn | null
+  wakePromise: Promise<void> | null
 }
 
 function dbGlobal(): DbGlobal {
   const g = globalThis as unknown as { __zz_neon_db?: DbGlobal }
   if (!g.__zz_neon_db) {
-    g.__zz_neon_db = { pool: null, sql: null }
+    g.__zz_neon_db = { pool: null, sql: null, wakePromise: null }
   }
   return g.__zz_neon_db
 }
@@ -90,6 +91,73 @@ function poolMax(): number {
   return 10
 }
 
+const WAKE_ATTEMPTS = 4
+const WAKE_DELAY_MS = 2_500
+
+function isRetryableDbError(err: unknown): boolean {
+  const m = err instanceof Error ? err.message : String(err)
+  return (
+    m.includes('timeout') ||
+    m.includes('terminated') ||
+    m.includes('ECONNRESET') ||
+    m.includes('Connection terminated') ||
+    m.includes('compute is suspended') ||
+    m.includes("Can't reach database server")
+  )
+}
+
+/** HTTP wake for suspended Neon compute — safe for serverless cold starts. */
+export async function wakeNeonHttp(databaseUrl?: string): Promise<void> {
+  const raw = databaseUrl?.trim() || process.env.DATABASE_URL?.trim() || ''
+  const url = mergeSslModeRequire(sanitizeNeonConnectionString(raw))
+  if (!url || !shouldUseNeonServerless(url)) return
+
+  const sql = neon(url)
+  let lastErr: unknown
+  for (let attempt = 1; attempt <= WAKE_ATTEMPTS; attempt++) {
+    try {
+      await sql`SELECT 1 AS ok`
+      return
+    } catch (err) {
+      lastErr = err
+      if (attempt < WAKE_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, WAKE_DELAY_MS))
+      }
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
+}
+
+function neonWakeOnce(resolved: string): Promise<void> {
+  const store = dbGlobal()
+  if (!store.wakePromise) {
+    store.wakePromise = shouldUseNeonServerless(resolved)
+      ? wakeNeonHttp(resolved).catch((err) => {
+          console.warn('[db] neon wake failed:', err)
+        })
+      : Promise.resolve()
+  }
+  return store.wakePromise
+}
+
+/** Every pool.query awaits HTTP wake once per serverless runtime (suspended compute). */
+function wrapPoolWithNeonWake(pool: DbPool, resolved: string): DbPool {
+  if (!shouldUseNeonServerless(resolved)) return pool
+  return new Proxy(pool, {
+    get(target, prop, receiver) {
+      if (prop === 'query') {
+        const orig = target.query.bind(target)
+        return (...args: unknown[]) =>
+          neonWakeOnce(resolved).then(() =>
+            (orig as (...a: unknown[]) => unknown).apply(target, args)
+          )
+      }
+      const value = Reflect.get(target, prop, receiver)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
+
 function createPool(resolved: string): DbPool {
   const max = poolMax()
   const isProd = process.env.NODE_ENV === 'production'
@@ -125,7 +193,7 @@ function ensurePool(): DbPool {
   if (store.pool) return store.pool
 
   const resolved = resolveConnectionString()
-  store.pool = createPool(resolved)
+  store.pool = wrapPoolWithNeonWake(createPool(resolved), resolved)
   return store.pool
 }
 
@@ -142,23 +210,35 @@ export function getDbPool(): DbPool {
  * (e.g. cron) so the invocation does not hold idle backends. Safe to call when
  * idle; the next `getDbPool()` creates a fresh pool.
  */
-/** Health / diagnostics — one-shot ping with optional Neon HTTP fallback after pool flake. */
+/** Health / diagnostics — wake + retry for suspended Neon compute. */
 export async function pingDatabase(): Promise<{ ok: boolean; latencyMs: number | null }> {
+  const resolved = resolveConnectionString()
   const t0 = Date.now()
-  try {
-    await ensurePool().query('SELECT 1')
-    return { ok: true, latencyMs: Math.max(0, Date.now() - t0) }
-  } catch (first) {
-    if (shouldUseNeonServerless(resolveConnectionString())) {
-      try {
-        await ensureSql()`SELECT 1`
-        return { ok: true, latencyMs: Math.max(0, Date.now() - t0) }
-      } catch {
-        console.warn('[db] ping failed (pool + neon):', first)
+  let lastErr: unknown
+
+  for (let attempt = 1; attempt <= WAKE_ATTEMPTS; attempt++) {
+    try {
+      if (shouldUseNeonServerless(resolved)) {
+        await wakeNeonHttp(resolved)
       }
+      await ensurePool().query('SELECT 1')
+      return { ok: true, latencyMs: Math.max(0, Date.now() - t0) }
+    } catch (err) {
+      lastErr = err
+      if (!isRetryableDbError(err) || attempt >= WAKE_ATTEMPTS) break
+      await new Promise((r) => setTimeout(r, WAKE_DELAY_MS))
     }
-    return { ok: false, latencyMs: null }
   }
+
+  if (shouldUseNeonServerless(resolved)) {
+    try {
+      await ensureSql()`SELECT 1`
+      return { ok: true, latencyMs: Math.max(0, Date.now() - t0) }
+    } catch {
+      console.warn('[db] ping failed (pool + neon):', lastErr)
+    }
+  }
+  return { ok: false, latencyMs: null }
 }
 
 export async function shutdownDbPool(): Promise<void> {
@@ -172,6 +252,7 @@ export async function shutdownDbPool(): Promise<void> {
     store.pool = null
   }
   store.sql = null
+  store.wakePromise = null
 }
 
 /** Lazy default export so `next build` can import routes without DATABASE_URL at module init. */

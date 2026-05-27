@@ -6,6 +6,7 @@
  */
 import { useEffect, useMemo } from 'react'
 import SessionStateRehydrate from '@/app/components/SessionStateRehydrate'
+import NeonWakePing from '@/app/components/NeonWakePing'
 import { PulseExpandedDiagnosticsProvider } from '@/app/context/PulseExpandedDiagnosticsContext'
 import { ROUTES } from '@/lib/routes'
 import { usePathname } from 'next/navigation'
@@ -73,6 +74,7 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <PulseExpandedDiagnosticsProvider>
+      <NeonWakePing />
       <SessionStateRehydrate />
       <div
         className={`zz-main-perspective-shell${fixedViewportStage ? ' zz-intro-stage-lock' : ''}`}
