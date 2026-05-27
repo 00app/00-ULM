@@ -1,10 +1,13 @@
 import type { JourneyId } from '@/lib/journeys'
+import { JOURNEY_ORDER } from '@/lib/journeys'
 import type { ContentArchitectCardInput } from '@/lib/agents/contentArchitect'
 import type { ZoneViewModel } from '@/lib/logic/zone'
 import { compactAuditValue } from '@/lib/format'
 import { BASELINE_2026_CAP_GBP } from '@/lib/brains/calculations'
+import { ensureAbsoluteHttpsUrl } from '@/lib/zone/contentProseSanitize'
+import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 
-/** Build POST body for `/api/zone/content-architect` from the current Zone view model (nine category rows). */
+/** Build POST body for `/api/zone/content-architect` — all 13 operational journeys. */
 export function buildContentArchitectCardPayload(args: {
   vm: ZoneViewModel
   journeyAnswers: Record<JourneyId, Record<string, string>>
@@ -25,9 +28,34 @@ export function buildContentArchitectCardPayload(args: {
     postcode?: string
   }
 }): ContentArchitectCardInput[] {
-  const nine = args.vm.journeys.filter((j) => j.id.startsWith('journey-'))
+  const byKey = new Map<JourneyId, (typeof args.vm.journeys)[number]>()
+  for (const j of args.vm.journeys) {
+    if (j.id.startsWith('journey-') && j.journey_key) {
+      byKey.set(j.journey_key, j)
+    }
+  }
   const live = args.liveUnitRates
-  return nine.map((j) => {
+  return JOURNEY_ORDER.map((journey_key) => {
+    const j = byKey.get(journey_key)
+    if (!j) {
+      return {
+        journey_key,
+        money_gbp: 0,
+        carbon_kg: 0,
+        baseline_title: journey_key.toUpperCase(),
+        locality: args.localCouncil ?? args.profile?.postcode,
+        price_cap_gbp: BASELINE_2026_CAP_GBP,
+        journey_answers: args.journeyAnswers[journey_key] ?? {},
+      } satisfies ContentArchitectCardInput
+    }
+    const rawSource =
+      j.claimOfferUrl || j.actions?.learnUrl || j.source || undefined
+    const httpsSource = rawSource
+      ? sanitizeZoneOfferUrl(
+          ensureAbsoluteHttpsUrl(rawSource) ?? rawSource,
+          journey_key
+        )
+      : undefined
     const moneyCompact = compactAuditValue(Math.round(j.moneyGbp ?? 0), 'money')
     const carbonCompact = compactAuditValue(Math.round(j.carbonKg ?? 0), 'carbon')
     return {
@@ -39,7 +67,7 @@ export function buildContentArchitectCardPayload(args: {
     baseline_title: j.title,
     baseline_insight: j.insightLabel,
     source_hint: j.sourceLabel?.replace(/^source\.\s*/i, '').trim(),
-    source_url: j.claimOfferUrl || j.actions?.learnUrl || j.source,
+    source_url: httpsSource,
     deep_link_url: args.marketResearch?.deepLinkUrl,
     verified_saving_value: args.marketResearch?.verifiedSavingValue,
     offer_expiry_date: args.marketResearch?.offerExpiryDate,
@@ -57,8 +85,8 @@ export function buildContentArchitectCardPayload(args: {
       j.journey_key === 'home' && args.ratesCitationUrl?.trim() ? args.ratesCitationUrl.trim() : undefined,
     journey_answers: args.journeyAnswers[j.journey_key] ?? {},
     flags: [
-      ...(j.journey_key === 'home' && args.localCouncil ? (['has_council'] as const) : []),
-      ...(j.journey_key === 'home' && (j.moneyGbp ?? 0) >= 6500 ? (['bus_eligible_hint'] as const) : []),
+      ...(journey_key === 'grants' && args.localCouncil ? (['has_council'] as const) : []),
+      ...(journey_key === 'grants' && (j.moneyGbp ?? 0) >= 6500 ? (['bus_eligible_hint'] as const) : []),
     ],
     }
   })

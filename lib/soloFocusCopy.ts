@@ -84,14 +84,20 @@ export function isEnergyAuditDebrisHeadline(text: string): boolean {
 
 /** Non-home journeys must not show home-energy audit fragments on the bento face. */
 const JOURNEY_HEADLINE_TOPIC_CONFLICT: Partial<Record<JourneyId, RegExp>> = {
+  solar:
+    /\b(?:april\s*cap\s*signal|ofgem\s+price|heat\s*pump|boiler\s+upgrade|bus\b|dual-fuel|gas\s+boiler|e-bike|ebike)\b/i,
+  grants: /\b(?:april\s*cap\s*signal|solar\s+panel|e-bike\s+scheme|loft\s+top-?up)\b/i,
+  utilities: /\b(?:e-bike|ebike|food\s+compost|loft\s+top-?up|boiler\s+upgrade\s+scheme)\b/i,
+  home: /\b(?:e-bike\s+scheme|ebike|cycle\s+to\s+work|solar\s+export)\b/i,
   water: /\b(?:electric(?:ity)?|gas\b|kwh|tariff|boiler|heat\s*pump|solar\s+panel|ofgem|octopus|grid\s+intensity)\b/i,
-  food: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump|loft\s+insulation)\b/i,
-  shopping: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump)\b/i,
-  waste: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump)\b/i,
-  holidays: /\b(?:loft|insulation|boiler|kwh|tariff|heat\s*pump)\b/i,
-  tech: /\b(?:shower|bath|rainwater|water\s+meter|flush)\b/i,
-  travel: /\b(?:shower|bath|rainwater|water\s+meter)\b/i,
-  money: /\b(?:shower|bath|rainwater|loft\s+insulation)\b/i,
+  food: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump|loft\s+insulation|april\s*cap)\b/i,
+  shopping: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump|april\s*cap)\b/i,
+  waste: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump|april\s*cap)\b/i,
+  holidays: /\b(?:loft|insulation|boiler|kwh|tariff|heat\s*pump|april\s*cap)\b/i,
+  tech: /\b(?:shower|bath|rainwater|water\s+meter|flush|april\s*cap\s*signal)\b/i,
+  travel: /\b(?:shower|bath|rainwater|water\s+meter|loft\s+insulation|april\s*cap)\b/i,
+  money: /\b(?:shower|bath|rainwater|loft\s+insulation|april\s*cap)\b/i,
+  carbon: /\b(?:e-bike|ebike|meal\s+planner|food\s+compost)\b/i,
 }
 
 export function headlineConflictsWithJourney(journey: JourneyId, headline: string): boolean {

@@ -38,6 +38,7 @@ import {
   triggerSupplementalResearch,
 } from '@/lib/agents/researcher'
 import { getLocalData } from '@/lib/local/getLocalData'
+import { stripContentSystemLeakage } from '@/lib/zone/contentProseSanitize'
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
 import {
   APRIL_2026_TRUTH_PENCE,
@@ -648,11 +649,12 @@ function clipArchitectParagraphToMaxWords(p: string, maxWords: number): string {
 /** Exactly three `\n\n`-separated paragraphs; reject mashed single-paragraph output; clip each paragraph to max words. */
 function normalizeArchitectProseThreeParagraphs(ap: string | undefined): string | undefined {
   if (!ap?.trim()) return undefined
-  const parts = ap
+  const cleaned = stripContentSystemLeakage(ap)
+  const parts = cleaned
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean)
-    .map((p) => clipArchitectParagraphToMaxWords(p, MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH))
+    .map((p) => clipArchitectParagraphToMaxWords(stripContentSystemLeakage(p), MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH))
   if (parts.length === 3) return parts.join('\n\n')
   if (parts.length > 3) return parts.slice(0, 3).join('\n\n')
   if (parts.length === 1) {
@@ -1195,8 +1197,8 @@ function mechanicalCategoryTripletFallback(params: {
     const fallbacks: Record<string, { gbp: number; headline: string; prose: string }> = {
       home: {
         gbp: 180,
-        headline: `April cap signal ${areaTag}`,
-        prose: `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£180 draught-proofing and loft insulation potential as a local kitchen-table fix to seal leaks in older housing stock.\n\nOpen the verified Energy Saving Trust advice link below and check your eligibility for local retrofit funding before winter.`,
+        headline: `Home heat audit ${areaTag}`,
+        prose: `Older homes in ${areaLabel} leak heat through lofts, draughts, and lagging gaps — sealing those cuts bills before you chase a new boiler.\n\nApril 2026 bills still track the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel) so every wasted kWh hurts until fabric is fixed.\n\nOpen the verified Energy Saving Trust advice link below and plan loft and draught-proofing work before winter.`,
       },
       utilities: {
         gbp: 120,
@@ -1206,12 +1208,12 @@ function mechanicalCategoryTripletFallback(params: {
       grants: {
         gbp: MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP,
         headline: `BUS heat pump grant ${areaTag}`,
-        prose: `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — the grant pays up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString('en-GB')} toward a clean heat pump.\n\nWe stack that grant against April dual-fuel cap maths (~£${capTypical}/yr typical) so you see real grant cash plus lower running costs, not generic SEO.\n\nOpen the verified BUS application link below while local installers still have MCS slots — confirm eligibility before you sign a quote.`,
+        prose: `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — air-source heat pumps receive a flat £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString('en-GB')} grant in England & Wales; oil and LPG homes may access £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nWe stack that grant against your heating bill baseline so you see installer cash plus lower running costs, not generic comparison-site copy.\n\nOpen the verified BUS application link below while local MCS installers still have capacity — confirm eligibility before you sign a quote.`,
       },
       solar: {
-        gbp: 150,
-        headline: `April cap signal ${areaTag}`,
-        prose: `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£150 green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nOpen the verified Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`,
+        gbp: 450,
+        headline: `Solar export audit ${areaTag}`,
+        prose: `Solar in ${areaLabel} pays when generation, export rate, and daytime use align — typical homes cut import costs once an MCS install is sized to the roof.\n\nApril 2026 import rates still follow the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel), so export and self-use matter for what you buy overnight.\n\nOpen the verified MCS certified installer directory below and compare export tariffs with your supplier before you lock an install quote.`,
       },
       travel: {
         gbp: 450,
@@ -1289,7 +1291,7 @@ function mechanicalCategoryTripletFallback(params: {
       ) || `HEAT PUMP GRANT IN ${areaTag}`
     const architect_prose =
       normalizeArchitectProseThreeParagraphs(
-        `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — the grant pays up to £${gbp.toLocaleString('en-GB')} toward an air-source or ground-source heat pump.\n\nWe stack that £${gbp.toLocaleString('en-GB')} against April dual-fuel cap maths (~£${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr typical) so you see grant cash plus lower running costs, not generic SEO.\n\nOpen the verified BUS application link below while installers still have MCS slots — confirm eligibility before you sign a quote.`
+        `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — air-source heat pumps receive a flat £${gbp.toLocaleString('en-GB')} grant in England & Wales; oil and LPG homes may access £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nWe stack that grant against your heating bill baseline so you see installer cash plus lower running costs, not generic SEO.\n\nOpen the verified BUS application link below while installers still have MCS slots — confirm eligibility before you sign a quote.`
       ) ?? ''
     if (!architect_prose) return null
     return { saving_amount_gbp: gbp, agent_headline, architect_prose }

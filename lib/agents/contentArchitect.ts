@@ -16,6 +16,10 @@ import {
 import { TRUSTED_JOURNEY_URLS } from '@/lib/zone/trustedJourneyUrls'
 import { collapseDuplicateProseParagraphs } from '@/lib/soloFocusCopy'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
+import {
+  sanitizeArchitectProseForJourney,
+  stripContentSystemLeakage,
+} from '@/lib/zone/contentProseSanitize'
 
 export type ArchitectJourneyPayload = {
   headline: string
@@ -90,7 +94,8 @@ function thresholdRulesBlock(): string {
 - food: money_gbp > 100 → headline like "SWITCH TO SEASONAL VEG" unless a stronger UK policy beats it.
 - travel: money_gbp > 1000 → headline like "CLAIM EV INSTALL GRANT" (gov.uk chargepoint grant pathway).
 - waste: money_gbp > 50 → headline like "START FOOD COMPOSTING" (WRAP-aligned).
-- home: money_gbp >= 6500 or flags include bus_eligible_hint → headline like "UPGRADE TO A HEAT PUMP" / BUS £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP} — cite GOV.UK.
+- grants: money_gbp >= 6500 or flags include bus_eligible_hint → headline like "CLAIM BUS HEAT PUMP GRANT" — air-source £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}; oil/LPG uplift £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} from July 2026 — cite GOV.UK only on grants cards.
+- home: insulation, draughts, fabric — never BUS or heat-pump grant amounts on home cards.
 Use April 2026 context: typical cap saving ~£${PRICE_CAP_SAVING_APRIL_1}/yr when relevant (Ofgem).`
 }
 
@@ -103,6 +108,7 @@ function lockedFactsBlock(): string {
     .map(([k, u]) => `${k}: ${u}`)
     .join('\n')
   return `LOCKED UK FACTS (April–June 2026 — use in paragraph 2 for national policy; do NOT invent different caps, unit pence, grant £ amounts, or new URLs):
+- Boiler Upgrade Scheme (England & Wales): flat £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP} for air-source heat pumps; oil/LPG properties may access £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} from July 2026. Never cite £5,000 BUS amounts.
 - Typical price-cap headline about £${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr; bill composition shift ~£${TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP} (green levy) off dual-fuel statements.
 - Reference unit rates: electricity ~${APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH}p/kWh, gas ~${APRIL_2026_TRUTH_PENCE.GAS_PER_KWH}p/kWh. Ofgem cap hub: ${PRICE_CAP_SOURCE_URL}
 - OZEV flats/renters chargepoint support £${TRUTH_2026_MARCH.EV_GRANT_NEW_GBP} per eligible socket (April 2026 framing).
@@ -134,10 +140,11 @@ function normalisePayload(
   const actionLine = typeof o.actionLine === 'string' ? o.actionLine : ''
   const suppliedBy = typeof o.suppliedBy === 'string' ? o.suppliedBy : ''
   if (!headline || !insight || !actionLine || !suppliedBy) return null
+  const journey = key as JourneyId
   return {
-    headline: clampArchitectHeadline(headline),
-    insight: normaliseInsightEditorialSandwich(insight),
-    actionLine: actionLine.trim().replace(/\s+/g, ' ').slice(0, 200),
+    headline: clampArchitectHeadline(stripContentSystemLeakage(headline)),
+    insight: normaliseInsightEditorialSandwich(insight, journey),
+    actionLine: stripContentSystemLeakage(actionLine.trim().replace(/\s+/g, ' ')).slice(0, 200),
     suppliedBy: suppliedBy.trim().replace(/\s+/g, ' ').slice(0, 48).toUpperCase(),
   }
 }
@@ -150,8 +157,10 @@ function scrubBulletPrefix(line: string): string {
   return line.replace(/^\s*(?:[-*•]|\d+\.)\s+/, '').trim()
 }
 
-function normaliseInsightEditorialSandwich(raw: string): string {
-  const stripped = replaceDevSpeak(raw)
+function normaliseInsightEditorialSandwich(raw: string, journeyKey?: JourneyId): string {
+  const stripped = stripContentSystemLeakage(
+    replaceDevSpeak(raw)
+  )
     .split('\n')
     .map((line) => scrubBulletPrefix(line))
     .join('\n')
@@ -166,7 +175,11 @@ function normaliseInsightEditorialSandwich(raw: string): string {
     deDuped[1] ?? 'April 2026 market conditions keep this waste expensive if left untouched.',
     deDuped[2] ?? 'Tap RECLAIM now to convert this audit finding into a live action.',
   ]
-  return collapseDuplicateProseParagraphs(padded.slice(0, 3).join('\n\n')).slice(0, 1200)
+  const joined = collapseDuplicateProseParagraphs(padded.slice(0, 3).join('\n\n')).slice(0, 1200)
+  if (journeyKey) {
+    return sanitizeArchitectProseForJourney(journeyKey, joined) ?? joined
+  }
+  return joined
 }
 
 function paddedUniqueParagraphs(paragraphs: string[]): string[] {
@@ -211,7 +224,7 @@ export async function generateCardContextsBatch(
     model: process.env.GEMINI_ARTICLE_MODEL?.trim() || 'gemini-1.5-flash',
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 4096,
     },
   })
 
@@ -225,8 +238,16 @@ Lifestyle shift / pattern arbitrage: prioritise behavioural shifts (rail vs flig
 Market accuracy beats creative writing. If any value is uncertain, stay conservative and tie claims to provided source_url/source_hint.
 ${lifestyleBlock}
 Format raw savings into plain next steps. No emojis. No "you could save". No repeated sentences across paragraphs.
-Category rules: utilities = how the home is powered (gas, electric, mix, other) and tariff or supplier moves (never copy grants/BUS wording). home = insulation, draughts, heating habits (never copy grants/BUS wording). grants = BUS, ECO, heat pump funding only (never copy home insulation tips). travel/food/shopping/water/waste must each use a distinct mechanism — never reuse the same opening sentence.
-Never invent gov.uk paths (no "great british insulation scheme" URLs). Paragraph 3 must name one concrete action at home this week, not "visit gov.uk".
+STRICT CATEGORY BOUNDARIES (mandatory — violating a boundary invalidates the card):
+- Each card's copy must match journey_key only. If journey_key is grants and the topic is e-bike schemes, do NOT mention gas boilers, heat pumps, or Ofgem cap maths unless the grant is explicitly BUS/heat-pump.
+- utilities = fuel mix, tariff, supplier, standing charges (no BUS, no loft insulation).
+- home = fabric, draughts, heating habits (no BUS grant £ amounts).
+- grants = BUS, ECO, heat pump funding only (no solar panel install copy, no generic cap essays).
+- solar = PV, export, MCS installs only (no BUS, no boilers, no e-bike).
+- travel/holidays/food/shopping/water/waste/money/tech/carbon each need a distinct mechanism — never reuse the same opening sentence across cards.
+Banned in all user-facing text: parenthetical system notes, "(official cap pathway)", "your live pathway is", raw variable names, or conditional dev notes.
+Never invent gov.uk paths (no "great british insulation scheme" URLs). Paragraph 3 must name one concrete action this week and reference the HTTPS source_url for that card.
+source_url and deep_link_url in input are already absolute https:// — echo them in paragraph 3, never bare domains like "ofgem.gov.uk".
 Absolute voice constraints:
 - No dev-speak words: tile, lane, anchored, component, card rail.
 - No bullet points or numbered list formatting.

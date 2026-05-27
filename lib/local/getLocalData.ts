@@ -63,10 +63,10 @@ function attachHeatPumpGrantContext(cleanPostcode: string, data: LocalIntelligen
   return {
     ...data,
     heat_pump_grant_context: {
-      primary_scheme_label: 'England & Wales heat pump support (official cap pathway)',
+      primary_scheme_label: 'Boiler Upgrade Scheme — air-source heat pump grant',
       primary_max_gbp: 7500,
       comparison_note:
-        'North Scotland outward codes may access Home Energy Scotland with different ceilings (up to £9,000 with rural uplift where eligible).',
+        'Standard BUS grant is £7,500 for air-source heat pumps in England & Wales; oil and LPG homes may access a £9,000 uplift from July 2026 where eligible. North Scotland may use Home Energy Scotland with different ceilings.',
       source_url: GOV_UK_BUS_URL,
       verified_date: 'April 2026',
     },

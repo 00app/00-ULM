@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
   }
 
   const cards: ContentArchitectCardInput[] = []
-  for (const item of cardsRaw.slice(0, 12)) {
+  for (const item of cardsRaw.slice(0, 13)) {
     const c = sanitiseCard(item)
     if (c) cards.push(c)
   }

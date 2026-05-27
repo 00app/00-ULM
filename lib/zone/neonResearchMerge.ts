@@ -7,6 +7,7 @@ import {
   isAcceptableZoneJourneyHeadline,
   isLowQualityZoneHeadline,
 } from '@/lib/soloFocusCopy'
+import { sanitizeArchitectProseForJourney, stripContentSystemLeakage } from '@/lib/zone/contentProseSanitize'
 
 function mergeCoverageRow(
   a: ResearchCategoryCoverageRow | undefined,
@@ -33,10 +34,16 @@ export function coverageRowToNeon(
       : row.latestVerifiedGbp != null && row.latestVerifiedGbp > 0
         ? row.latestVerifiedGbp
         : 0
-  const ap = row.architectProse?.trim() ?? null
+  const apRaw = row.architectProse?.trim() ?? null
+  const ap =
+    journeyKey != null
+      ? sanitizeArchitectProseForJourney(journeyKey, apRaw)
+      : apRaw
+        ? stripContentSystemLeakage(apRaw)
+        : null
   let hl = row.agentHeadline?.trim() ?? null
   if (hl) {
-    const cleaned = cleanZonePreviewHeadline(hl)
+    const cleaned = cleanZonePreviewHeadline(stripContentSystemLeakage(hl))
     if (
       !cleaned ||
       isLowQualityZoneHeadline(cleaned) ||

@@ -52,10 +52,17 @@ import {
   resolvePartnerLink,
   formatVerifiedSourceNameFromLabel,
 } from '@/lib/zone/verifiedRevenue'
+import {
+  ensureAbsoluteHttpsUrl,
+  sanitizeArchitectProseForJourney,
+} from '@/lib/zone/contentProseSanitize'
 
 /** Split Neon `architect_prose` into three Trinity blocks. */
-function trinityExplanationFromArchitectProse(prose: string | null | undefined): string[] | null {
-  const t = prose?.trim()
+function trinityExplanationFromArchitectProse(
+  prose: string | null | undefined,
+  journeyKey: JourneyId
+): string[] | null {
+  const t = sanitizeArchitectProseForJourney(journeyKey, prose)
   if (!t) return null
   const parts = t.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
   if (parts.length >= 3) return parts.slice(0, 3)
@@ -872,8 +879,8 @@ export function buildZoneViewModel({
 
     const grantCtx = localData?.heat_pump_grant_context
     const localCouncilTip =
-      journeyKey === 'home' && council && grantCtx?.primary_scheme_label
-        ? `${grantCtx.primary_scheme_label} in ${council}${typeof grantCtx.primary_max_gbp === 'number' ? ` up to £${grantCtx.primary_max_gbp.toLocaleString('en-GB')}.` : '.'}`
+      journeyKey === 'grants' && council && grantCtx?.primary_scheme_label
+        ? `${grantCtx.primary_scheme_label} in ${council}${typeof grantCtx.primary_max_gbp === 'number' ? ` — up to £${grantCtx.primary_max_gbp.toLocaleString('en-GB')}.` : '.'}`
         : undefined
 
     const localCarbonG = localData?.localCarbonG
@@ -889,10 +896,20 @@ export function buildZoneViewModel({
     const isPriorityAlert = journeyKey === 'home' && !!council
 
     const hasLocalGridData = typeof localCarbonG === 'number' && Number.isFinite(localCarbonG)
-    const localContextBar =
-      hasLocalGridData || (council && grantCtx?.primary_scheme_label)
-        ? `${hasLocalGridData ? `Your local grid is running at ${Math.round(localCarbonG)}g CO₂e/kWh` : ''}${hasLocalGridData && council && grantCtx?.primary_scheme_label ? '. ' : ''}${council && grantCtx?.primary_scheme_label ? `In ${council} your live pathway is ${grantCtx.primary_scheme_label}${typeof grantCtx.primary_max_gbp === 'number' ? ` (up to £${grantCtx.primary_max_gbp.toLocaleString('en-GB')})` : ''}.` : ''}`
-        : undefined
+    const gridContextJourneys = new Set<JourneyId>(['utilities', 'carbon', 'home'])
+    const localContextBar = (() => {
+      if (journeyKey === 'grants' && council && grantCtx?.primary_scheme_label) {
+        const max =
+          typeof grantCtx.primary_max_gbp === 'number'
+            ? ` — up to £${grantCtx.primary_max_gbp.toLocaleString('en-GB')}`
+            : ''
+        return `${grantCtx.primary_scheme_label} in ${council}${max}.`
+      }
+      if (gridContextJourneys.has(journeyKey) && hasLocalGridData) {
+        return `Your local grid is running at ${Math.round(localCarbonG!)}g CO₂e/kWh.`
+      }
+      return undefined
+    })()
 
     const baselineTitleRaw = profileDrivenJourneyTitle(journeyKey, profile, journeyAnswers)
     const baselineTitle =
@@ -988,13 +1005,16 @@ export function buildZoneViewModel({
       streamPending: !hasStream && !hasMechanicalHeadline,
       carbonKg: carbonKg,
       moneyGbp: moneyGbp,
-      source: source.url,
+      source: sanitizeZoneOfferUrl(
+        ensureAbsoluteHttpsUrl(source.url) ?? source.url,
+        journeyKey
+      ),
       sourceLabel,
       source_name: sourceNameV35,
       source_date: VERIFIED_SOURCE_DATE,
       partner_link,
       explanation:
-        trinityExplanationFromArchitectProse(neon?.architectProse ?? null) ??
+        trinityExplanationFromArchitectProse(neon?.architectProse ?? null, journeyKey) ??
         buildAuditorNarrativeParagraphs({
           userPostcode: userPostcodeForAudit,
           sourceName: sourceNameV35,
@@ -1289,7 +1309,10 @@ export function buildZoneViewModel({
         carbon: formatCarbon(dynamicJourneyValues[journeyKey].carbonKg),
         money: formatZoneCardMoney(tipMoneyGbp),
       },
-      source: source.url,
+      source: sanitizeZoneOfferUrl(
+        ensureAbsoluteHttpsUrl(source.url) ?? source.url,
+        journeyKey
+      ),
       sourceLabel: tipSourceLabel,
       source_name: tipNameV35,
       source_date: VERIFIED_SOURCE_DATE,
@@ -1345,7 +1368,10 @@ export function buildZoneViewModel({
               : dynamicJourneyValues.home.moneyGbp
           ),
         },
-        source: source.url,
+        source: sanitizeZoneOfferUrl(
+          ensureAbsoluteHttpsUrl(source.url) ?? source.url,
+          'home'
+        ),
         sourceLabel: swLabel,
         source_name: swName,
         source_date: VERIFIED_SOURCE_DATE,

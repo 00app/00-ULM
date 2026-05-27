@@ -55,8 +55,10 @@ export const MARCH_2026_ECONOMY = {
   /** Gas kg CO₂e per kWh — grid electricity uses `liveGridCarbonFactor.ts` */
   CARBON_FACTOR_GAS: 0.183,
 
-  /** National grants (March 2026) */
+  /** National grants (March 2026) — air-source heat pump BUS England & Wales */
   BUS_GRANT_HEAT_PUMP: 7500,
+  /** Oil/LPG properties — BUS uplift from July 2026 (GOV.UK) */
+  BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026: 9000,
   ECO4_ACTIVE: true,
   /** EV chargepoint — renters / flats from April 2026 (GOV.UK scheme rules apply) */
   EV_CHARGEPOINT_GRANT_RENTER_APRIL_GBP: TRUTH_2026_MARCH.EV_GRANT_NEW_GBP,
