@@ -7637,23 +7637,26 @@ select,
   opacity: 0.92;
 }
 
-/* Ask Zai — floating dock: viewport bottom centre (portaled), 20px from bottom */
+/* Ask Zai — floating dock: viewport bottom centre (portaled), 40px from bottom */
 .zone-ask-zai-dock {
   position: fixed;
   inset-inline: 0;
-  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  z-index: 195;
+  bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  z-index: 210;
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  padding-inline: 16px;
+  padding-inline: max(16px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
   box-sizing: border-box;
   pointer-events: none;
 }
 .zone-ask-zai-dock > .zone-ask-zai-pill {
   pointer-events: auto;
-  width: min(400px, 100%);
-  max-width: min(400px, calc(100vw - 32px));
+  width: min(var(--max-w-zone), calc(100vw - 32px));
+  max-width: min(var(--max-w-zone), calc(100vw - 32px));
+}
+body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
+  padding-bottom: calc(40px + 80px + 40px + env(safe-area-inset-bottom, 0px));
 }
 .zone-ask-zai-pill--dock {
   box-shadow: 0 8px 32px color-mix(in srgb, var(--color-purple) 35%, transparent);

@@ -21,7 +21,7 @@ import { ensureGaryDemoUser, relinkOrphanResearchToGary } from '@/lib/db/ensureG
 async function main() {
   const pc = (process.argv[2] ?? 'BN177DW').replace(/\s+/g, '').trim().toUpperCase()
   await ensureGaryDemoUser(pc)
-  const n = await relinkOrphanResearchToGary()
+  const n = await relinkOrphanResearchToGary(pc)
   console.log(`✅ Gary demo user ensured (${pc}); relinked ${n} research_results row(s).`)
   process.exit(0)
 }

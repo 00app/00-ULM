@@ -476,8 +476,8 @@ export default function ZonePage() {
     }
   }, [closeAnySoloFocus, pinnedAchievements.length, viewModel.journeys])
 
-  // Recovery guard: clear stale AppContext soloFocus when local expand ids are gone.
-  // Defer one frame so expand setState from the same click commits before we close.
+  /** Set synchronously before expand setState so the recovery guard does not close Solo Focus mid-open. */
+  const soloFocusExpandIntentRef = useRef<string | null>(null)
   const expandedCardIdRef = useRef<string | null>(null)
   const expandedTipIdRef = useRef<string | null>(null)
   useEffect(() => {
@@ -488,13 +488,20 @@ export default function ZonePage() {
   }, [expandedTipId])
   useEffect(() => {
     if (!state.soloFocus.activeCardId) return
-    if (expandedCardId || expandedTipId) return
-    const frame = requestAnimationFrame(() => {
-      if (!expandedCardIdRef.current && !expandedTipIdRef.current) {
-        closeSoloFocus()
+    if (expandedCardId || expandedTipId) {
+      if (soloFocusExpandIntentRef.current === state.soloFocus.activeCardId) {
+        soloFocusExpandIntentRef.current = null
       }
-    })
-    return () => cancelAnimationFrame(frame)
+      return
+    }
+    const activeId = state.soloFocus.activeCardId
+    if (soloFocusExpandIntentRef.current === activeId) return
+    const t = window.setTimeout(() => {
+      if (soloFocusExpandIntentRef.current === activeId) return
+      if (expandedCardIdRef.current || expandedTipIdRef.current) return
+      closeSoloFocus()
+    }, 120)
+    return () => window.clearTimeout(t)
   }, [state.soloFocus.activeCardId, expandedCardId, expandedTipId, closeSoloFocus])
 
   const [recentChatHistory] = useState<Array<{ role: 'user' | 'zai'; text: string }>>(() =>
@@ -1783,6 +1790,46 @@ export default function ZonePage() {
     displayItems.length > 0 &&
     zoneRevealCount >= displayItems.length
 
+  const openZoneJourneySoloFocus = useCallback(
+    (item: ZoneJourneyCard, fromTip?: ZoneTipCard | null) => {
+      if (!zoneInteractable) return
+      soloFocusExpandIntentRef.current = item.id
+      setExpandedTipId(null)
+      setExpandedFromTip(fromTip ?? null)
+      setExpandedCardId(item.id)
+      setExpandCard(
+        {
+          id: item.id,
+          title:
+            fromTip?.title ??
+            (item.journey_key === 'home' && homeSentinelSupportActive
+              ? homeSupportTitle
+              : item.title),
+          journey_key: item.journey_key,
+          data: fromTip?.data ?? item.data,
+          explanation: fromTip?.explanation ?? item.explanation,
+          localCouncilTip: item.localCouncilTip,
+          source: fromTip?.source ?? item.source,
+          sourceLabel: fromTip?.sourceLabel ?? item.sourceLabel,
+          actions:
+            item.journey_key === 'home' && homeSentinelSupportActive
+              ? { ...(item.actions ?? {}), actionUrl: homeSupportOfferUrl, learnUrl: homeSupportOfferUrl }
+              : fromTip?.actions ?? item.actions,
+        },
+        'zone'
+      )
+      rememberSoloFocusOpen(item.id, item.journey_key)
+      openSoloFocus(item.id, 'journey')
+    },
+    [
+      zoneInteractable,
+      homeSentinelSupportActive,
+      homeSupportTitle,
+      homeSupportOfferUrl,
+      openSoloFocus,
+    ]
+  )
+
   useEffect(() => {
     const pinFloor = 1 + pinnedAchievements.length
     const showPinnedWhileLoading = pinnedAchievements.length > 0 && isZoneVisible && architecturalPulsePhase === 'done'
@@ -1838,31 +1885,13 @@ export default function ZonePage() {
         const nextKey = JOURNEY_ORDER[step]
         for (const c of displayItems) {
           if (c.type === 'journey' && c.item.journey_key === nextKey) {
-            setExpandedTipId(null)
-            openSoloFocus(c.item.id, 'journey')
-            setExpandCard(
-              {
-                id: c.item.id,
-                title: c.item.title,
-                journey_key: c.item.journey_key,
-                data: c.item.data,
-                explanation: c.item.explanation,
-                localCouncilTip: c.item.localCouncilTip,
-                source: c.item.source,
-                sourceLabel: c.item.sourceLabel,
-                actions: c.item.actions,
-              },
-              'zone',
-            )
-            setExpandedCardId(c.item.id)
-            setExpandedFromTip(null)
-            setExpandedTipId(null)
+            openZoneJourneySoloFocus(c.item)
             return
           }
         }
       }
     },
-    [displayItems, openSoloFocus],
+    [displayItems, openZoneJourneySoloFocus],
   )
 
   /** Oversized slot-machine numbers: strict journey-sum totals + liked Rock habits. */
@@ -2251,31 +2280,7 @@ export default function ZonePage() {
                         return
                       }
                       if (journeyCell) {
-                        rememberSoloFocusOpen(journeyCell.item.id, journeyCell.item.journey_key)
-                        if (!openSoloFocus(journeyCell.item.id, 'journey')) return
-                        setExpandedTipId(null)
-                        setExpandCard(
-                          {
-                            id: journeyCell.item.id,
-                            title:
-                              journeyCell.item.journey_key === 'home' && homeSentinelSupportActive
-                                ? homeSupportTitle
-                                : journeyCell.item.title,
-                            journey_key: journeyCell.item.journey_key,
-                            data: journeyCell.item.data,
-                            explanation: journeyCell.item.explanation,
-                            localCouncilTip: journeyCell.item.localCouncilTip,
-                            source: journeyCell.item.source,
-                            sourceLabel: journeyCell.item.sourceLabel,
-                            actions:
-                              journeyCell.item.journey_key === 'home' && homeSentinelSupportActive
-                                ? { ...(journeyCell.item.actions ?? {}), actionUrl: homeSupportOfferUrl, learnUrl: homeSupportOfferUrl }
-                                : journeyCell.item.actions,
-                          },
-                          'zone'
-                        )
-                        setExpandedCardId(journeyCell.item.id)
-                        setExpandedFromTip(tip)
+                        openZoneJourneySoloFocus(journeyCell.item, tip)
                       } else {
                         rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
                         if (!openSoloFocus(tip.id, 'tip')) return
@@ -2379,33 +2384,7 @@ export default function ZonePage() {
                       moneyGbp={cell.item.moneyGbp}
                       isComplete={completedJourneys.includes(cell.item.journey_key)}
                       onRefineQuestions={undefined}
-                      onActionClick={() => {
-                        if (!zoneInteractable) return
-                        rememberSoloFocusOpen(cell.item.id, cell.item.journey_key)
-                        if (!openSoloFocus(cell.item.id, 'journey')) return
-                        setExpandCard(
-                          {
-                            id: cell.item.id,
-                            title:
-                              cell.item.journey_key === 'home' && homeSentinelSupportActive
-                                ? homeSupportTitle
-                                : cell.item.title,
-                            journey_key: cell.item.journey_key,
-                            data: cell.item.data,
-                            explanation: cell.item.explanation,
-                            localCouncilTip: cell.item.localCouncilTip,
-                            source: cell.item.source,
-                            sourceLabel: cell.item.sourceLabel,
-                            actions:
-                              cell.item.journey_key === 'home' && homeSentinelSupportActive
-                                ? { ...(cell.item.actions ?? {}), actionUrl: homeSupportOfferUrl, learnUrl: homeSupportOfferUrl }
-                                : cell.item.actions,
-                          },
-                          'zone'
-                        )
-                        setExpandedCardId(cell.item.id)
-                        setExpandedFromTip(null)
-                      }}
+                      onActionClick={() => openZoneJourneySoloFocus(cell.item)}
                       crawlerTip={expandedFromTip?.journey_key === cell.item.journey_key ? undefined : (cell.item.localCouncilTip || cell.item.insightLabel || cell.item.explanation?.[0])}
                       offerOneLine={
                         expandedFromTip?.journey_key === cell.item.journey_key
@@ -2508,34 +2487,7 @@ export default function ZonePage() {
                           insightPendingKeys.has(cell.item.journey_key))
                       }
                       isExpanded={expandedCardId === cell.item.id}
-                      onExpand={() => {
-                        if (!zoneInteractable) return
-                        rememberSoloFocusOpen(cell.item.id, cell.item.journey_key)
-                        if (!openSoloFocus(cell.item.id, 'journey')) return
-                        setExpandedTipId(null)
-                        setExpandCard(
-                          {
-                            id: cell.item.id,
-                            title:
-                              cell.item.journey_key === 'home' && homeSentinelSupportActive
-                                ? homeSupportTitle
-                                : cell.item.title,
-                            journey_key: cell.item.journey_key,
-                            data: cell.item.data,
-                            explanation: cell.item.explanation,
-                            localCouncilTip: cell.item.localCouncilTip,
-                            source: cell.item.source,
-                            sourceLabel: cell.item.sourceLabel,
-                            actions:
-                              cell.item.journey_key === 'home' && homeSentinelSupportActive
-                                ? { ...(cell.item.actions ?? {}), actionUrl: homeSupportOfferUrl, learnUrl: homeSupportOfferUrl }
-                                : cell.item.actions,
-                          },
-                          'zone'
-                        )
-                        setExpandedCardId(cell.item.id)
-                        setExpandedFromTip(null)
-                      }}
+                      onExpand={() => openZoneJourneySoloFocus(cell.item)}
                       onPatternShiftClose={launchPatternShiftTakeover}
                       onLike={trackZoneLike}
                       isLiked={state.likedCards.includes(cell.item.id)}
@@ -2772,7 +2724,7 @@ export default function ZonePage() {
           />
         ) : null}
 
-        {isZoneVisible && !zoneHandoffStaging && !expandedCardId && !expandedTipId && !patternShiftJourneyId ? (
+        {isZoneVisible && !zoneHandoffStaging && !isFocusViewOpen && !patternShiftJourneyId ? (
           <ZoneAskZaiDock onActivate={() => router.push(ROUTES.ZAI)} />
         ) : null}
 

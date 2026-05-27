@@ -688,7 +688,7 @@ function normalizeGeminiAgentHeadline(
   return clipped.length > 0 ? clipped.slice(0, 600) : undefined
 }
 
-/** When Gemini / gateway JSON triplet fails, recover £/URL/prose from research markdown (BN17-style audits). */
+/** When Gemini / gateway JSON triplet fails, recover £/URL/prose from research markdown (postcode-parameterized audits). */
 function inferResearchTripletFromMarkdown(
   markdown: string,
   categoryHint?: string | null
@@ -1181,84 +1181,94 @@ function mechanicalCategoryTripletFallback(params: {
   architect_prose: string
 } | null {
   let cat = normalizeResearchCategory(params.category)
-  const pc = (params.postcode ?? '').replace(/\s+/g, '').toUpperCase()
-  const loc = (params.localityContext ?? '').toLowerCase()
-  if (pc.startsWith('BN17') || loc.includes('littlehampton')) {
+  const outward = outwardFromPostcode(params.postcode)
+  const townRaw =
+    params.localityContext?.split(',')[0]?.trim() ||
+    outward ||
+    ''
+  const areaLabel = townRaw || 'your area'
+  const areaTag =
+    areaLabel.length <= 28 ? areaLabel.toUpperCase() : areaLabel.slice(0, 28).toUpperCase()
+  const capTypical = TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP
+
+  if (outward || townRaw) {
     const fallbacks: Record<string, { gbp: number; headline: string; prose: string }> = {
       home: {
         gbp: 180,
-        headline: 'April cap signal BN17',
-        prose: `BN17 sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £1641/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£180 draught-proofing and loft insulation potential as a local kitchen-table fix to seal leaks in older housing stock.\n\nOpen the verified Energy Saving Trust advice link below and check your eligibility for local Arun retrofit funding before winter.`
+        headline: `April cap signal ${areaTag}`,
+        prose: `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£180 draught-proofing and loft insulation potential as a local kitchen-table fix to seal leaks in older housing stock.\n\nOpen the verified Energy Saving Trust advice link below and check your eligibility for local retrofit funding before winter.`,
       },
       utilities: {
         gbp: 120,
-        headline: 'April cap signal BN17',
-        prose: `BN17 sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £1641/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£120 dual-fuel standing-charge and direct-debit realignment as the immediate target before locking a fixed tariff.\n\nOpen the verified Ofgem advice portal below to confirm your supplier statement matches the cap rates before you make any switch.`
+        headline: `April cap signal ${areaTag}`,
+        prose: `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£120 dual-fuel standing-charge and direct-debit realignment as the immediate target before locking a fixed tariff.\n\nOpen the verified Ofgem advice portal below to confirm your supplier statement matches the cap rates before you make any switch.`,
       },
       grants: {
-        gbp: 7500,
-        headline: 'BUS Heat Pump Grant BN17',
-        prose: `BN17 qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — the grant pays up to £7500 toward a clean heat pump.\n\nWe stack that £7500 against April dual-fuel cap maths (~£1641/yr typical) so you see real grant cash plus lower running costs, not generic SEO.\n\nOpen the verified BUS application link below while local installers still have MCS slots — confirm eligibility before you sign a quote.`
+        gbp: MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP,
+        headline: `BUS heat pump grant ${areaTag}`,
+        prose: `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — the grant pays up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString('en-GB')} toward a clean heat pump.\n\nWe stack that grant against April dual-fuel cap maths (~£${capTypical}/yr typical) so you see real grant cash plus lower running costs, not generic SEO.\n\nOpen the verified BUS application link below while local installers still have MCS slots — confirm eligibility before you sign a quote.`,
       },
       solar: {
         gbp: 150,
-        headline: 'April cap signal BN17',
-        prose: `BN17 sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £1641/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£150 green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nOpen the verified Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`
+        headline: `April cap signal ${areaTag}`,
+        prose: `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£150 green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nOpen the verified Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`,
       },
       travel: {
         gbp: 450,
-        headline: 'Travel cost audit BN17',
-        prose: `BN17 travel patterns and commuter miles reveal room for EV transitions and active travel habits under modern green funding frameworks.\n\nWe treat the ~£450 travel optimization plan as the baseline for swapping private vehicle journeys with local public transport links.\n\nOpen the verified National Rail or local transit planner below to review ticket structures and green travel discounts in West Sussex.`
+        headline: `Travel cost audit ${areaTag}`,
+        prose: `Travel patterns from ${areaLabel} reveal room for EV transitions and active travel habits under modern green funding frameworks.\n\nWe treat the ~£450 travel optimization plan as the baseline for swapping private vehicle journeys with local public transport links.\n\nOpen the verified National Rail or local transit planner below to review ticket structures and green travel discounts in your region.`,
       },
       holidays: {
         gbp: 250,
-        headline: 'Holiday flight audit BN17',
-        prose: `Holidays from BN17 carry heavy footprint liabilities. Changing flight frequencies and selecting rail over short flights is a highly effective carbon protection.\n\nWe treat the ~£250 flight frequency reduction as the baseline to hedge against rising airline carbon taxes and seasonal fuel surcharges.\n\nOpen the verified flight carbon comparison tool below and evaluate your footprint before choosing your next destination.`
+        headline: `Holiday flight audit ${areaTag}`,
+        prose: `Holidays from ${areaLabel} carry heavy footprint liabilities. Changing flight frequencies and selecting rail over short flights is a highly effective carbon protection.\n\nWe treat the ~£250 flight frequency reduction as the baseline to hedge against rising airline carbon taxes and seasonal fuel surcharges.\n\nOpen the verified flight carbon comparison tool below and evaluate your footprint before choosing your next destination.`,
       },
       food: {
         gbp: 180,
-        headline: 'Food budget audit BN17',
-        prose: `Food budgets in BN17 show substantial packaging and food waste overheads. Shifting to localized organic basket plans secures kitchen-table savings.\n\nWe treat the ~£180 food optimization path as the baseline for adopting a low-waste, plant-rich diet aligned with local Sussex farming outlets.\n\nOpen the verified Love Food Hate Waste portal below and check their meal planners to optimize your weekly shopping list.`
+        headline: `Food budget audit ${areaTag}`,
+        prose: `Food budgets in ${areaLabel} show substantial packaging and food waste overheads. Shifting to localized basket plans secures kitchen-table savings.\n\nWe treat the ~£180 food optimization path as the baseline for adopting a low-waste, plant-rich diet aligned with local outlets.\n\nOpen the verified Love Food Hate Waste portal below and check their meal planners to optimize your weekly shopping list.`,
       },
       shopping: {
         gbp: 110,
-        headline: 'Shopping savings audit BN17',
-        prose: `Shopping habits in BN17 reveal significant savings from adopting a repair-over-replace circular economy mindset for home goods and fashion.\n\nWe treat the ~£110 circular economy purchase shifts as the baseline for avoiding high-waste retail channels and fast-fashion outlets.\n\nOpen the verified circular economy directory below and locate repair shops or low-waste retailers operating in West Sussex.`
+        headline: `Shopping savings audit ${areaTag}`,
+        prose: `Shopping habits in ${areaLabel} reveal significant savings from adopting a repair-over-replace circular economy mindset for home goods and fashion.\n\nWe treat the ~£110 circular economy purchase shifts as the baseline for avoiding high-waste retail channels and fast-fashion outlets.\n\nOpen the verified circular economy directory below and locate repair shops or low-waste retailers operating near you.`,
       },
       money: {
         gbp: 320,
-        headline: 'Green money audit BN17',
-        prose: `Money and finance choices in BN17 shape structural footprint leakage. Moving cash balances to clean green accounts hedges capital liabilities.\n\nWe treat the ~£320 green investment shift as the baseline for using low-carbon ISAs or green bonds that offer stable yields without oil funding.\n\nOpen the verified green finance comparison directory below and review certified clean banking options for UK savers.`
+        headline: `Green money audit ${areaTag}`,
+        prose: `Money and finance choices in ${areaLabel} shape structural footprint leakage. Moving cash balances to clean green accounts hedges capital liabilities.\n\nWe treat the ~£320 green investment shift as the baseline for using low-carbon ISAs or green bonds that offer stable yields without oil funding.\n\nOpen the verified green finance comparison directory below and review certified clean banking options for UK savers.`,
       },
       tech: {
         gbp: 140,
-        headline: 'Tech efficiency audit BN17',
-        prose: `Tech solutions in BN17, including smart meters and automated smart thermostats, offer rapid bill protection under the April 2026 cap frame.\n\nWe treat the ~£140 smart-home heating precision plan as the baseline to avoid heating empty rooms or running inefficient boilers.\n\nOpen the verified smart energy advice portal below and see if your supplier offers free smart meter installations in Arun.`
+        headline: `Tech efficiency audit ${areaTag}`,
+        prose: `Tech solutions in ${areaLabel}, including smart meters and automated smart thermostats, offer rapid bill protection under the April 2026 cap frame.\n\nWe treat the ~£140 smart-home heating precision plan as the baseline to avoid heating empty rooms or running inefficient boilers.\n\nOpen the verified smart energy advice portal below and see if your supplier offers free smart meter installations locally.`,
       },
       water: {
         gbp: 90,
-        headline: 'Water conservation BN17',
-        prose: `Water billing in BN17 is subject to rising sewage and metered tariff hikes in the Southern Water area, making local conservation highly profitable.\n\nWe treat the ~£90 rainwater butt and shower aeration plan as the baseline to reduce household metered volume charges.\n\nOpen the verified Southern Water advice directory below to claim free water-saving tap inserts and shower heads.`
+        headline: `Water conservation ${areaTag}`,
+        prose: `Water billing in ${areaLabel} is subject to rising sewage and metered tariff hikes, making local conservation highly profitable.\n\nWe treat the ~£90 rainwater butt and shower aeration plan as the baseline to reduce household metered volume charges.\n\nOpen the verified water company advice directory below to claim free water-saving tap inserts and shower heads.`,
       },
       waste: {
         gbp: 70,
-        headline: 'Waste reduction BN17',
-        prose: `Waste management in BN17 is governed by Arun Council landfill rules. Active soft-plastic sorting and home composting secures easy environmental wins.\n\nWe treat the ~£70 waste sorting and composting habit shift as the baseline to optimize organic waste separation and circular disposal.\n\nOpen the verified Arun waste recycling directory below and confirm the collection dates and rules for your neighborhood.`
+        headline: `Waste reduction ${areaTag}`,
+        prose: `Waste management in ${areaLabel} is governed by local council landfill rules. Active soft-plastic sorting and home composting secures easy environmental wins.\n\nWe treat the ~£70 waste sorting and composting habit shift as the baseline to optimize organic waste separation and circular disposal.\n\nOpen the verified local waste recycling directory below and confirm the collection dates and rules for your neighborhood.`,
       },
       carbon: {
         gbp: 100,
-        headline: 'Carbon reduction BN17',
-        prose: `Carbon footprint tracking in BN17 aligns with the 12,000 kWh / 1 tonne baseline, acting as an early protection system against future green levies.\n\nWe treat the ~£100 carbon reduction plan as the baseline for tracking daily energy inputs and eliminating non-essential household footprints.\n\nOpen the verified UK carbon calculator below and audit your family footprint against the national transition timeline.`
-      }
-    };
-    
-    const targetCat = cat || 'home';
-    const fallback = fallbacks[targetCat] || fallbacks.home;
+        headline: `Carbon reduction ${areaTag}`,
+        prose: `Carbon footprint tracking in ${areaLabel} aligns with the 12,000 kWh / 1 tonne baseline, acting as an early protection system against future green levies.\n\nWe treat the ~£100 carbon reduction plan as the baseline for tracking daily energy inputs and eliminating non-essential household footprints.\n\nOpen the verified UK carbon calculator below and audit your family footprint against the national transition timeline.`,
+      },
+    }
+
+    const targetCat = cat || 'home'
+    const fallback = fallbacks[targetCat] ?? fallbacks.home
+    const prose = normalizeArchitectProseThreeParagraphs(fallback.prose)
+    if (!prose) return null
     return {
       saving_amount_gbp: fallback.gbp,
       agent_headline: fallback.headline,
-      architect_prose: fallback.prose
-    };
+      architect_prose: prose,
+    }
   }
 
   const url = (params.offerUrl ?? '').trim()
@@ -1268,11 +1278,6 @@ function mechanicalCategoryTripletFallback(params: {
     else if (url.includes('ofgem') && /price-cap|energy-advice/i.test(url)) cat = 'bills'
     else return null
   }
-  const town =
-    params.localityContext?.split(',')[0]?.trim() ||
-    outwardFromPostcode(params.postcode) ||
-    'your area'
-  const areaTag = town.length <= 28 ? town.toUpperCase() : town.slice(0, 28).toUpperCase()
 
   if (cat === 'grants' && url.includes('boiler-upgrade')) {
     const gbp = MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP
@@ -1284,7 +1289,7 @@ function mechanicalCategoryTripletFallback(params: {
       ) || `HEAT PUMP GRANT IN ${areaTag}`
     const architect_prose =
       normalizeArchitectProseThreeParagraphs(
-        `${town} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — the grant pays up to £${gbp.toLocaleString('en-GB')} toward an air-source or ground-source heat pump.\n\nWe stack that £${gbp.toLocaleString('en-GB')} against April dual-fuel cap maths (~£${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr typical) so you see grant cash plus lower running costs, not generic SEO.\n\nOpen the verified BUS application link below while installers still have MCS slots — confirm eligibility before you sign a quote.`
+        `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — the grant pays up to £${gbp.toLocaleString('en-GB')} toward an air-source or ground-source heat pump.\n\nWe stack that £${gbp.toLocaleString('en-GB')} against April dual-fuel cap maths (~£${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr typical) so you see grant cash plus lower running costs, not generic SEO.\n\nOpen the verified BUS application link below while installers still have MCS slots — confirm eligibility before you sign a quote.`
       ) ?? ''
     if (!architect_prose) return null
     return { saving_amount_gbp: gbp, agent_headline, architect_prose }
@@ -1294,13 +1299,13 @@ function mechanicalCategoryTripletFallback(params: {
     const gbp = TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP
     const agent_headline =
       zoneCardHeadlineFromRaw(
-        `April cap signal ${town}`,
+        `April cap signal ${areaLabel}`,
         `APRIL CAP SIGNAL ${areaTag}`,
         MAX_ZONE_CARD_HEADLINE_WORDS
       ) || `APRIL CAP SIGNAL ${areaTag}`
     const architect_prose =
       normalizeArchitectProseThreeParagraphs(
-        `${town} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£${gbp} green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nOpen the verified Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`
+        `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£${gbp} green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nOpen the verified Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`
       ) ?? ''
     if (!architect_prose) return null
     return { saving_amount_gbp: gbp, agent_headline, architect_prose }

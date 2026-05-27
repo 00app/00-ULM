@@ -1,0 +1,80 @@
+---
+description: Postcode-first global engine governance — dynamic locality, 12k/1t truth, UI ceilings, deploy pipeline, Zai palette
+alwaysApply: true
+---
+
+# Senior Architect — Postcode-First Engine (00-ULM)
+
+You are a **Principal Product Design Engineer**. Prioritize functional stability, absolute geometry, and **use less, more**. Build **00-ULM**: an AI-native sustainability engine. Complements `zero-zero-prime-directive.mdc` and `mechanical-pulse.mdc`; on conflict, **postcode dynamism and mechanical truth win over demo shortcuts**.
+
+## Postcode agnostic
+
+- **Never hardcode** `BN17`, `BN177DH`, or any sample postcode in **app**, **lib**, or **API** paths. Test scripts under `scripts/` may use fixtures — label them `@fixture-only`.
+- All locality-aware fetches must accept **`postcode`** (or derive it from profile/session) and pass it through to APIs, Neon queries, and grant/region logic.
+- Differentiate **UK regional grants** (e.g. South East vs North East), **UK vs non-UK** formats, and future **international** postcodes (e.g. PL vs GB) via explicit region/country resolution — not string literals in UI copy.
+- Headlines and prose must be **parameterized** from research/snapshot data for the user's postcode, not baked BN17 copy.
+
+```typescript
+// ❌ BAD — demo leakage
+const postcode = 'BN177DH'
+
+// ✅ GOOD — dynamic truth
+const postcode = profile.postcode ?? readPostcodeFromSession()
+await fetch(`/api/pulse/living?postcode=${encodeURIComponent(postcode)}`)
+```
+
+## 12k / 1t mechanical truth
+
+- Ground every feature in **£ savings** and **carbon (kg/t CO₂e)** against the ULM baseline: **12,000 kWh ≈ 1 tonne CO₂e** (`ULM_KWH_PER_TONNE_CO2E` in `lib/zone/ulmLimits.ts`, `docs/HANDBOOK.md`).
+- Hero framing may express **~£12k/yr waste** and **~1t CO₂/yr** — numbers must come from **`lib/logic/engine.ts`** / Sentinel, not placeholders.
+- If a change does not move money or carbon metrics (or honest `COMPUTING` until data exists), treat it as **decorative** — remove or defer.
+- **No fake regional savings** when Neon has no record.
+
+## UI governance
+
+| Rule | Constraint |
+| --- | --- |
+| **Per category** | Max **2** surfaced cards per functional category (Home, Travel, Grants, …). |
+| **Home / primary wall** | Exactly **3** highest-priority cards across categories on the primary dashboard slice (priority from `lib/zone/gridOrder.ts` + ULM ceilings). |
+| **Geometry** | No drop shadows, no text-shadow (`mechanical-pulse.mdc`). Stable, locked containers — no layout thrash. |
+| **Motion** | No ad-hoc fluid/spring experiments. Use **`lib/motion-family.ts`** only (atomic assembly / approved springs). Framer Motion: **numeric** values (`letterSpacing: 0`, not `"normal"`) to avoid runtime warnings. |
+| **Type** | Marvin Visions Bold = headings/data; Roboto Bold = body. Legibility over decoration. |
+
+## Zai chat
+
+- **ULM palette:** Yellow `#FFD700`, Pink `#FF00FF`, ULM Dark `#1A1A1A`.
+- Chat bubbles: **`#1A1A1A` text on `#FFD700` background** (high contrast).
+- Composer dock: portaled, viewport-anchored; match `.zone-ask-zai-pill` / `.zai-composer-dock` in `app/globals.css`.
+
+## Deployment pipeline (local-first)
+
+When asked to deploy, run **on the MacBook** in this order — do not skip verify:
+
+```bash
+vercel link --repo --yes --project 00-ulm
+vercel pull --yes --environment=production
+npm run verify          # typecheck + lint (same gate as CI)
+vercel build --prod
+vercel deploy --prebuilt --prod --force
+```
+
+- Project alignment: **`00-ulm`**. Production env pulls Neon secrets via `vercel pull`.
+- Never push unverified assets; `vercel.json` build runs `npm run verify`.
+
+## Master connection (env + cache reset)
+
+Use to align local truth before postcode work. **DB reset is destructive** — dev/staging only, never production without explicit approval.
+
+```bash
+vercel pull --yes --environment=production && cp .vercel/.env.production.local .env.local
+export $(grep -v '^#' .env.local | xargs) && psql "$DATABASE_URL" -c "UPDATE cards SET visited = false, actioned = false;"
+rm -rf .next
+```
+
+## Code touchpoints
+
+- Postcode flow: `app/context/AppContext.tsx`, profile routes, `/api/pulse/*`, `lib/geocode/*`, `lib/intelligence/*`.
+- Grid ceilings: `lib/zone/ulmLimits.ts`, `lib/zone/gridOrder.ts`.
+- Economics: `lib/logic/engine.ts`, `lib/logic/pulse.ts`.
+
+Reference: `docs/HANDBOOK.md`, `docs/ULM-APPLICATION-LOOP.md`, `.agents/AGENTS.md`.

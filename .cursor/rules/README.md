@@ -2,6 +2,7 @@
 
 This workspace uses:
 
+- `postcode-first-architect.mdc` — global engine governance: dynamic postcode, 12k/1t truth, UI ceilings, deploy pipeline, Zai palette (always on).
 - `zero-zero-prime-directive.mdc` — universal manifest: motion DNA, intelligence loop, UI constraints (always on).
 - `mechanical-pulse.mdc` — design, typography, spacing, and colour lock for Zone / Solo Focus.
 

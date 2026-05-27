@@ -13,10 +13,16 @@ import {
 export default function ZoneAskZaiDock({ onActivate }: { onActivate: () => void }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
+  useEffect(() => {
+    if (!mounted || typeof document === 'undefined') return
+    document.body.classList.add('zone-ask-zai-dock-active')
+    return () => document.body.classList.remove('zone-ask-zai-dock-active')
+  }, [mounted])
 
   const dock = (
     <motion.div
       className="zone-ask-zai-dock"
+      data-testid="zone-ask-zai-dock"
       initial={FAMILY_ATOMIC_SURFACE_INITIAL}
       animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
       transition={FAMILY_TRANSITION_ATOMIC}

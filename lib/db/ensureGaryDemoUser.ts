@@ -3,9 +3,11 @@
  */
 import { LEGACY_DEMO_USER_ID } from '@/lib/zone/garyMode'
 
-export async function ensureGaryDemoUser(postcode = 'BN177DW'): Promise<void> {
+/** @param postcode Required — pass explicitly from scripts; never a silent default. */
+export async function ensureGaryDemoUser(postcode: string): Promise<void> {
   const pool = (await import('@/lib/db')).default
   const pc = postcode.replace(/\s+/g, '').trim().toUpperCase()
+  if (!pc) throw new Error('ensureGaryDemoUser requires a postcode')
   try {
     await pool.query(
       `INSERT INTO users (id, name, email, postcode, household, home_type, transport_baseline)
@@ -29,11 +31,14 @@ export async function ensureGaryDemoUser(postcode = 'BN177DW'): Promise<void> {
   )
 }
 
-export async function relinkOrphanResearchToGary(): Promise<number> {
+/** Relink orphan rows matching the demo user's outward postcode prefix. */
+export async function relinkOrphanResearchToGary(postcode: string): Promise<number> {
   const pool = (await import('@/lib/db')).default
+  const prefix = postcode.replace(/\s+/g, '').trim().toUpperCase().slice(0, 4)
+  if (!prefix) throw new Error('relinkOrphanResearchToGary requires a postcode')
   const result = await pool.query(
-    `UPDATE research_results SET user_id = $1::uuid WHERE user_id IS NULL AND REPLACE(COALESCE(postcode, ''), ' ', '') LIKE 'BN17%'`,
-    [LEGACY_DEMO_USER_ID]
+    `UPDATE research_results SET user_id = $1::uuid WHERE user_id IS NULL AND REPLACE(COALESCE(postcode, ''), ' ', '') LIKE $2`,
+    [LEGACY_DEMO_USER_ID, `${prefix}%`]
   )
   return result.rowCount ?? 0
 }
