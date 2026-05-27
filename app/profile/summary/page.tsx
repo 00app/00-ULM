@@ -444,15 +444,6 @@ export default function ProfileSummaryPage() {
   }, [mounted, state.profile, router])
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      JOURNEY_ORDER.forEach((jid) => {
-        localStorage.removeItem(`journey_${jid}_answers`)
-      })
-      refreshProfile()
-    }
-  }, [refreshProfile])
-
-  useEffect(() => {
     if (!displayReady || !summaryPack || tickerWords) return
     tickerLockedRef.current = true
     setTickerWords(buildSummaryStaccatoWords(summaryPack.narrative))

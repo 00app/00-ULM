@@ -252,17 +252,29 @@ export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): s
   const rawName = (input.displayName ?? '').trim().split(/\s+/)[0] ?? ''
   const greetName = rawName || 'there'
   const gbp = `£${wasteCash.toLocaleString('en-GB')}`
+  const tCo2 = wasteKg / 1000
+  const carbonAmount =
+    tCo2 >= 1
+      ? `${tCo2 >= 10 ? Math.round(tCo2) : Number(tCo2.toFixed(1))}t`
+      : `${wasteKg}kg`
+
+  const localityParts = localityWord.split(/\s+|\n/).filter(Boolean)
 
   return [
     'HELLO',
     greetName,
-    'based on your profile',
-    'people in',
-    localityWord,
+    'based',
+    'on',
+    'your',
+    'profile',
+    'people',
+    'in',
+    ...localityParts,
     'waste',
     gbp,
     'and',
-    `${wasteKg}kg CO₂e`,
+    carbonAmount,
+    'CO₂',
     'per',
     'year',
   ]
@@ -296,10 +308,10 @@ export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): 
       : `£${cashForTicker.toLocaleString('en-GB')}`
 
   const tCo2 = carbonForTicker / 1000
-  const carbonStr =
+  const carbonAmount =
     tCo2 >= 1
-      ? `${tCo2 >= 10 ? Math.round(tCo2) : Number(tCo2.toFixed(1))}t CO2`
-      : `${carbonForTicker}kg CO2e`
+      ? `${tCo2 >= 10 ? Math.round(tCo2) : Number(tCo2.toFixed(1))}t`
+      : `${carbonForTicker}kg`
 
   const out: string[] = []
   const pushWords = (phrase: string) => {
@@ -314,11 +326,11 @@ export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): 
     for (const w of t.split(/\s+/).filter(Boolean)) out.push(w)
   }
 
-  out.push('Hello', greetName)
+  out.push('HELLO', greetName)
   pushWords('based on your profile')
   pushWords('people in')
   pushWords(localityWord)
-  out.push('waste', gbp, 'and', carbonStr, 'per', 'year')
+  out.push('waste', gbp, 'and', carbonAmount, 'CO₂', 'per', 'year')
   return out
 }
 

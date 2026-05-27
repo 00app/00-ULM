@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import Link from 'next/link'
@@ -311,7 +311,14 @@ export default function ZonePage() {
   const [architecturalPulsePhase, setArchitecturalPulsePhase] = useState<
     'idle' | 'glitch' | 'pulse' | 'punch' | 'done'
   >('done')
-  const [pulseWordsComplete, setPulseWordsComplete] = useState(false)
+  const [pulseWordsComplete, setPulseWordsComplete] = useState(() => {
+    if (typeof window === 'undefined') return true
+    try {
+      return sessionStorage.getItem(SESSION_SUMMARY_TO_ZONE) !== '1'
+    } catch {
+      return true
+    }
+  })
   const architecturalPulsePhaseRef = useRef(architecturalPulsePhase)
   architecturalPulsePhaseRef.current = architecturalPulsePhase
   /** Pink achievement cards pinned directly under profile hero. */
@@ -1766,6 +1773,16 @@ export default function ZonePage() {
   }, [architecturalPulsePhase, isZoneReady])
 
   /** Return visits / deep links: no summary handoff — grid may reveal once wall is idle. */
+  useLayoutEffect(() => {
+    if (zoneHandoffStaging) return
+    if (architecturalPulsePhase === 'done') {
+      setPulseWordsComplete(true)
+      if (displayItems.length > 0) {
+        setRevealedCardCount((n) => Math.max(n, 1))
+      }
+    }
+  }, [zoneHandoffStaging, architecturalPulsePhase, displayItems.length])
+
   useEffect(() => {
     if (zoneHandoffStaging) return
     if (architecturalPulsePhase === 'done' && !pulseWordsComplete) {
@@ -1773,15 +1790,38 @@ export default function ZonePage() {
     }
   }, [zoneHandoffStaging, architecturalPulsePhase, pulseWordsComplete])
 
+  /** Never leave summary handoff pulse stuck if scrape-sync is slow. */
+  useEffect(() => {
+    if (architecturalPulsePhase !== 'pulse') return
+    const t = window.setTimeout(() => {
+      if (architecturalPulsePhaseRef.current !== 'pulse') return
+      setPulseWordsComplete(true)
+      setArchitecturalPulsePhase('done')
+    }, ZONE_READY_MAX_WAIT_MS)
+    return () => window.clearTimeout(t)
+  }, [architecturalPulsePhase])
+
+  /** Last-resort grid reveal — hero visible but bento collapsed. */
+  useEffect(() => {
+    if (!hydrated || zoneHandoffStaging || architecturalPulsePhase !== 'done') return
+    const t = window.setTimeout(() => {
+      setPulseWordsComplete(true)
+      if (displayItems.length > 0) {
+        setRevealedCardCount((n) => Math.max(n, 1))
+      }
+    }, 4_000)
+    return () => window.clearTimeout(t)
+  }, [hydrated, zoneHandoffStaging, architecturalPulsePhase, displayItems.length])
+
   const zoneInteractable =
     isZoneVisible &&
     hydrated &&
     architecturalPulsePhase === 'done' &&
     !patternShiftJourneyId
   const zoneWallCollapsed =
-    isZoneVisible &&
-    !patternShiftJourneyId &&
-    (zoneHandoffStaging || !pulseWordsComplete || revealedCardCount < 1)
+    zoneHandoffStaging ||
+    architecturalPulsePhase !== 'done' ||
+    !pulseWordsComplete
   const showInlineLoadingLogo = architecturalPulsePhase === 'glitch'
   const zoneRevealCount = Math.min(revealedCardCount, displayItems.length)
   const gridFullyRevealed =
