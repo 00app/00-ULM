@@ -203,6 +203,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === 'undefined') return
     const rawId = localStorage.getItem('userId') ?? localStorage.getItem('user_id') ?? ''
     if (!rawId || rawId.startsWith('guest-') || !SESSION_USER_UUID_RE.test(rawId)) return
+    const hasSessionCookie =
+      typeof document !== 'undefined' &&
+      document.cookie.split(';').some((c) => c.trim().startsWith('session='))
+    if (!hasSessionCookie) return
     let cancelled = false
     fetch('/api/answers', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))

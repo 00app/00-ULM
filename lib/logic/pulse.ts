@@ -72,7 +72,8 @@ function regionCodeFromPostcode(postcode: string): string {
   return first && /[A-Z]/.test(first) ? first : 'A'
 }
 
-function buildFallbackSnapshot(local: LocalIntelligence | null, postcode?: string): LivePulseSnapshot {
+/** Degraded pulse when live scrape fails — always safe to return as HTTP 200. */
+export function buildFallbackSnapshot(local: LocalIntelligence | null, postcode?: string): LivePulseSnapshot {
   const regionalCarbonGPerKwh =
     typeof local?.localCarbonG === 'number' && local.localCarbonG > 0
       ? local.localCarbonG

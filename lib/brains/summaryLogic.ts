@@ -240,8 +240,8 @@ export function formatSummaryLocalityKineticToken(areaLabel: string): string {
 
 /**
  * Profile summary — one beat at a time (`IntroWordCycle` + 40px horizontal inset on the summary page).
- * On-screen sequence: **HELLO → first name → locality** (long tokens scaled / wrapped — Littlehampton fix) →
- * bridge phrase → waste → £… → and → …kg CO₂e (one beat) → per → year.
+ * On-screen sequence: **HELLO → first name → based on your profile → people in → locality** →
+ * waste → £… → and → … CO₂ → per → year.
  * £ / CO₂: see file header — `buildUserImpact` totals / `summaryWaste`.
  */
 export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): string[] {
@@ -256,8 +256,9 @@ export function buildSummaryKineticWords(input: ProfileSummaryNarrativeInput): s
   return [
     'HELLO',
     greetName,
-    localityWord,
     'based on your profile',
+    'people in',
+    localityWord,
     'waste',
     gbp,
     'and',
@@ -314,9 +315,10 @@ export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): 
   }
 
   out.push('Hello', greetName)
-  pushWords(localityWord)
   pushWords('based on your profile')
-  out.push('waste', gbp, 'and', carbonStr, 'per', 'year.')
+  pushWords('people in')
+  pushWords(localityWord)
+  out.push('waste', gbp, 'and', carbonStr, 'per', 'year')
   return out
 }
 
