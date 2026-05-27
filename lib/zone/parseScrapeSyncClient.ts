@@ -105,7 +105,7 @@ export function parseCoverageFromApi(data: unknown): Record<string, ResearchCate
   return Object.keys(next).length > 0 ? next : null
 }
 
-/** Fold Neon `grants` / `bills` / `general` rows onto Zone journey keys before VM build. */
+/** Fold legacy Neon `bills` / `general` aliases onto Zone journey keys before VM build. */
 export function parseZoneCoverageFromApi(data: unknown): Record<string, ResearchCategoryCoverageRow> | null {
   const raw = parseCoverageFromApi(data)
   if (!raw) return null

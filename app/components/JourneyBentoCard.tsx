@@ -75,6 +75,11 @@ import {
 } from '@/lib/zone/verifiedRevenue'
 import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
 import {
+  filterMorphDeckForJourney,
+  morphDeckAlignedWithJourney,
+  resolveFocusCategoryJourneyId,
+} from '@/lib/zone/focusCategory'
+import {
   triggerScrapeSyncForCategory,
   journeyResearchSettled,
   type ResearchCategoryCoverageRow,
@@ -345,7 +350,12 @@ export function JourneyBentoCard({
       ? { money: `£${homeSentinelRecard.moneyGbp}`, carbon: `${homeSentinelRecard.carbonKg}kg CO₂` }
       : null
 
-  const displayJourneyId = currentMorphData?.journey_key ?? journeyId
+  const focusCategoryJourneyId = resolveFocusCategoryJourneyId(journeyId, currentMorphData?.journey_key)
+  const morphMatchesParent =
+    !currentMorphData?.journey_key || currentMorphData.journey_key === journeyId
+  const displayJourneyId = morphMatchesParent
+    ? (currentMorphData?.journey_key ?? journeyId)
+    : journeyId
   const displayTitle = currentMorphData?.heading ?? currentMorphData?.title ?? title
   const displayMoneyValue = sentinelMoneyCarbon?.money
     ? sentinelMoneyCarbon.money
@@ -516,8 +526,7 @@ export function JourneyBentoCard({
         setMorphDeckCursor(1)
       } else {
         const deck = snap.morphDeck as { journey_key?: string }[]
-        const aligned = deck.every((m) => !m?.journey_key || m.journey_key === journeyId)
-        if (!aligned) {
+        if (!morphDeckAlignedWithJourney(deck, journeyId)) {
           clearSoloFocusSnapshot(soloFocusSnapKey)
           const seeded = getNextMorphCard(journeyId, {
             postcode: profilePostcode,
@@ -525,8 +534,14 @@ export function JourneyBentoCard({
             transport: state.profile?.transport ?? null,
             fuelType: state.journeyAnswers?.travel?.fuel_type ?? null,
           })
-          setMorphDeck([seeded])
+          const seededForJourney =
+            seeded.journey_key === journeyId
+              ? seeded
+              : { ...seeded, journey_key: journeyId, id: `morph-${journeyId}-${seeded.id}` }
+          setMorphDeck([seededForJourney])
           setMorphDeckCursor(1)
+        } else {
+          setMorphDeck(filterMorphDeckForJourney(deck, journeyId))
         }
       }
     }
@@ -783,7 +798,7 @@ export function JourneyBentoCard({
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =
       auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
-    const zoneCategoryLabel = formatZoneCategoryLabel(String(displayJourneyId || journeyId))
+    const zoneCategoryLabel = formatZoneCategoryLabel(focusCategoryJourneyId)
     let sourceName = 'our partners'
     if (resolvedOfferUrl) {
       try { sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '') } catch {}

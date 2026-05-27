@@ -4123,11 +4123,13 @@ h3.solo-focus-question-label.zz-h3 {
 .zai-interface .ask-zai-input::placeholder {
   color: color-mix(in srgb, var(--zai-ink) 72%, transparent);
 }
-/* Zai input row — inside fixed composer dock */
-.zai-interface .zai-input-row {
+/* Zai input row — inside fixed composer dock (composer is portaled outside .zai-interface) */
+.zai-interface .zai-input-row,
+.zai-composer-dock .zai-input-row {
   display: flex;
-  align-items: stretch;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
   width: 100%;
   max-width: 100%;
   margin: 0;

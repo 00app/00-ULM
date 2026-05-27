@@ -103,6 +103,7 @@ import {
 } from '@/lib/zone/bentoPersona'
 import {
   MAX_ZONE_CARD_HEADLINE_WORDS,
+  formatZoneCategoryLabel,
   normalizeCardHeadlineKey,
   zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
@@ -2491,7 +2492,10 @@ export default function ZonePage() {
                       verifiedAuditCategory={
                         researchCategoryCoverage?.[cell.item.journey_key]?.verified
                           ? cell.item.journey_key
-                          : researchMeta?.category ?? null
+                          : researchMeta?.category
+                            ? researchCategoryToJourneyKey(researchMeta.category) ??
+                              cell.item.journey_key
+                            : null
                       }
                       groovy
                       kineticGrid
@@ -2649,8 +2653,16 @@ export default function ZonePage() {
             isPriorityHome: tip.journey_key === 'home' && !!localData?.council,
           })
           const tipCtaLabel = resolveRevenueCtaLabel(tipCtaKind, tipMoneyGbp)
+          const tipResearchJourney =
+            researchMeta?.category != null
+              ? researchCategoryToJourneyKey(researchMeta.category)
+              : null
           const tipAuditMatches =
-            Boolean(liveResearchData && researchMeta?.category === tip.journey_key)
+            Boolean(
+              liveResearchData &&
+                tipResearchJourney != null &&
+                tipResearchJourney === tip.journey_key
+            )
           const tipAuditMoney =
             tipAuditMatches
               ? researchMeta?.savingAmountGbp ?? researchMeta?.verifiedSaving ?? null
@@ -2661,7 +2673,7 @@ export default function ZonePage() {
                 key={tip.id}
                 startInQuestionMode={!isRockTip}
                 auditState={tip.auditState ?? null}
-                category={(tip.journey_key || 'TIP').replace(/-/g, ' ')}
+                category={formatZoneCategoryLabel(tip.journey_key ?? 'home')}
                 recommendation={tip.title}
                 insight={tipNarrative || undefined}
                 moneyValue={tip.data.money || '£0'}

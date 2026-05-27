@@ -82,10 +82,9 @@ export function mergeNeonJourneyResearch(
 }
 
 /**
- * Fold `grants` / `bills` Neon categories onto the nine-card Zone (`home` / `money` display buckets).
- * Core journey keys are already mapped in the caller.
+ * Fold legacy Neon aliases onto first-class Zone journey keys.
+ * `grants` stays on the grants tile — do not merge into `home` (13-domain wall).
  */
-/** Map Neon `general` / `grants` / `bills` rows onto Zone bento journey keys. */
 export function foldCoverageRowsForZone(
   cov: Record<string, ResearchCategoryCoverageRow>
 ): Record<string, ResearchCategoryCoverageRow> {
@@ -95,7 +94,6 @@ export function foldCoverageRowsForZone(
     if (!src) return
     out[to] = mergeCoverageRow(out[to], src)
   }
-  fold('grants', 'home')
   fold('bills', 'money')
   fold('general', 'home')
   return out
@@ -104,7 +102,6 @@ export function foldCoverageRowsForZone(
 export function researchCategoryToJourneyKey(cat: string): JourneyId | null {
   const c = cat.trim().toLowerCase()
   if ((JOURNEY_ORDER as readonly string[]).includes(c)) return c as JourneyId
-  if (c === 'grants') return 'home'
   if (c === 'bills') return 'money'
   if (c === 'general') return 'home'
   return null
@@ -115,9 +112,9 @@ export function foldExtendedResearchCoverage(
   cov: Record<string, ResearchCategoryCoverageRow>
 ): Partial<Record<JourneyId, NeonJourneyResearchRow>> {
   const out: Partial<Record<JourneyId, NeonJourneyResearchRow>> = { ...base }
-  const grants = cov.grants ? coverageRowToNeon(cov.grants, 'home') : null
+  const grants = cov.grants ? coverageRowToNeon(cov.grants, 'grants') : null
   if (grants) {
-    out.home = mergeNeonJourneyResearch(out.home, grants)
+    out.grants = mergeNeonJourneyResearch(out.grants, grants)
   }
   const bills = cov.bills ? coverageRowToNeon(cov.bills, 'money') : null
   if (bills) {

@@ -59,6 +59,7 @@ import {
   APRIL_2026_STANDING_PENCE,
 } from '@/lib/brains/constants'
 import { normalizeCategoryToJourneyKey, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
+import { resolveFocusCategoryJourneyId } from '@/lib/zone/focusCategory'
 import { resolveZoneSurfaceKind, zoneSurfaceStyleProps } from '@/lib/journeyColors'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
 import { PulseDiagnosticFab } from '@/app/components/debug/PulseWidget'
@@ -308,7 +309,8 @@ export function SoloFocusOverlay({
     : currentMorphData?.data?.carbon ?? (heroTotalsOverride ? `${heroTotalsOverride.carbon}kg CO₂` : carbonValue)
   const displayTitle = currentMorphData?.heading ?? currentMorphData?.title ?? title
   const displayJourneyId = currentMorphData?.journey_key ?? journeyId
-  const zoneCategoryLabel = formatZoneCategoryLabel(String(displayJourneyId ?? journeyId ?? 'home'))
+  const focusCategoryJourneyId = resolveFocusCategoryJourneyId(journeyId, displayJourneyId)
+  const zoneCategoryLabel = formatZoneCategoryLabel(focusCategoryJourneyId)
 
   const activeCardId = currentMorphData?.id ?? cardId
 
@@ -354,9 +356,7 @@ export function SoloFocusOverlay({
     }
   }
   const partnerHttp = pickFirstHttpUrl(partnerLink ?? undefined)
-  const covLookupKey = String(displayJourneyId ?? journeyId ?? '')
-    .trim()
-    .toLowerCase()
+  const covLookupKey = focusCategoryJourneyId
   const journeyResearchCov =
     covLookupKey && researchCategoryCoverage ? researchCategoryCoverage[covLookupKey] : undefined
   const overlayResearchSettled = journeyResearchSettled(journeyResearchCov)
@@ -623,7 +623,7 @@ export function SoloFocusOverlay({
     onClose()
   }, [onClose, sfStorageKey])
 
-  const loopJourneyKey = (displayJourneyId ?? journeyId ?? normalizeCategoryToJourneyKey(category)) as JourneyId
+  const loopJourneyKey = focusCategoryJourneyId
 
   const requestClose = useCallback(() => {
     triggerHaptic('medium')
