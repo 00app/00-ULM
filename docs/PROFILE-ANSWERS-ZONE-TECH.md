@@ -145,7 +145,7 @@ npm run db:columns
 
 | State | Zone hero | Journey tiles |
 |-------|-----------|---------------|
-| Clean Neon, first load | “Analyzing your postcode…”, £0 total | 12× **COMPUTING — …**, **—** for SAVE/CARBON, pulsing “Computing…” |
+| Clean Neon, first load | “Analyzing your postcode…”, £0 total | 13× **COMPUTING — …**, **—** for SAVE/CARBON, pulsing “Computing…” |
 | After pulse / research rows | Personalised hero when totals &gt; 0 | Real £, headlines, LIVE/ESTIMATED audit badges |
 | Stale client cache | Old £ may flash briefly | Hard refresh; `DATA_VERSION` in app clears journey cache on bump |
 
@@ -154,9 +154,14 @@ npm run db:columns
 ## 6. Deploy & prep
 
 ```bash
-npm run prep:live          # db:test + db:evolve-12-domains + build:clean
-npm run deploy:force      # vercel deploy --prod from repo root (scripts/deploy-production.sh)
+npm run verify
+npm run prep:live           # db:test + db:evolve-12-domains + build:clean
+npm run deploy              # verify + remote build + auto-promote
+npm run promote             # if Vercel Staged but build green
+npm run dev:pipeline-ready  # local env + health; optional -- --seed POSTCODE
 ```
+
+See [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) and [USER-FLOW-AND-DATA-PIPELINE.md](USER-FLOW-AND-DATA-PIPELINE.md) §6.
 
 If `git push` says “no upstream”, run once: `git push -u origin main`.
 

@@ -1,54 +1,53 @@
-# User Flow and Data Pipeline Specification
+# App Flow And Pipeline (spec)
 
-This document defines the deterministic user lifecycle and content generation constraints for the 00-ULM application framework.
+> **Canonical user-facing doc:** [USER-FLOW-AND-DATA-PIPELINE.md](USER-FLOW-AND-DATA-PIPELINE.md) — keep that file updated for ops and copy contracts. This spec adds structural constraints for architects.
 
-## 1. End-to-End User Flow Matrix
+## 1. End-to-end user flow
 
-| Step | Route / Surface | User Interaction | System Operation |
-| :--- | :--- | :--- | :--- |
-| 1 | `/` / `/intro` | Initial land, triggers optional geocode capture. | Initialises motion wrappers, triggers client-side location vectoring. |
-| 2 | `/profile` | Submits answers to core onboarding genome questions. | Writes answers to local state Context and session persistence layers. Locates user via active postcode. |
-| 3 | `/profile/summary` | Reviews localized baseline totals framing. | Compiles aggregate impact framing and triggers background generation routines. |
-| 4 | `/zone` | Interacts with dashboard grid of 13 separate category cards. | Fetches scraped metrics, groups items by active postcode, enforces a strict visual max of 3 aggregate cards on Home view. |
-| 5 | Card Open (Solo Focus) | Triggers active click event into full-screen Overlay view. | Mounts unique article view. Loads specialized loop question, likes container, localized savings data, and ZAI chat context scoped *only* to this article. |
-| 6 | Interloop Action | Answers inner loop engagement or updates parameters. | Executes `POST /api/answers`, triggers dynamic Neon mutation, flags card record state. |
-| 7 | Solo Focus Close | Returns to primary layout. | If card is unvisited: updates state. If card is visited: visual container turns Pink (#FF00FF). Re-opening visited cards closes strictly to the grid with no loop takeover. |
+| Step | Route | User | System |
+| --- | --- | --- | --- |
+| 1 | `/`, `/intro` | Land, start profile | Motion, optional geocode → `profile_postcode` |
+| 2 | `/profile` | Onboarding genome | Context + `POST /api/local-intelligence` → `locationName` |
+| 3 | `/profile/summary` | Review totals | Atomic ticker → Zone handoff |
+| 4 | `/zone` | 13 category cards | `GET /api/scrape-sync`, `buildZoneViewModel`, mechanical truth |
+| 5 | Solo Focus | Open card | Marvin hook H1 + town-based lead + 3-beat prose |
+| 6 | Answer | MC / loop | `POST /api/answers`, discovery, optional scrape |
+| 7 | Close | Return to grid | Pink on birth; visited → grid only (no loop takeover) |
 
-## 2. Dynamic High-Level Runtime Architecture
+## 2. Runtime architecture
 
 ```mermaid
 flowchart TD
-  A[User Input: Profile + Onboarding Genome] --> B[AppContext + Postcode Extraction]
-  B --> C[API Layer: POST /api/answers]
-  C --> D[(Neon DB: guest_sessions + user_answers)]
-  D --> F[GET /api/scrape-sync?postcode=...]
-  F --> G[lib/zone/buildZoneViewModel.ts]
-  G --> H[Zone Grid Renders: 13 Category State]
-  H --> I[POST /api/zone/content-architect]
-  I --> J[Sanitized Editorial Copy + Absolute HTTPS Links]
-  J --> H
+  A[Profile + postcode] --> B[AppContext + locationName]
+  B --> C[POST /api/answers]
+  C --> D[(Neon: answers + research_results)]
+  D --> E[GET /api/scrape-sync]
+  E --> F[buildZoneViewModel]
+  F --> G[Zone + Solo Focus]
+  G --> H[POST /api/zone/content-architect]
+  H --> G
 ```
 
-## 3. Strict Structural Content Governance Rules
+## 3. Content governance
 
-### A. Postcode-First Localization
+| Rule | Implementation |
+| --- | --- |
+| Postcode-first APIs | All research/scrape uses session postcode param |
+| Town in UI prose | `lib/zone/localityCopy.ts` — no raw postcode in Solo Focus lead |
+| Category isolation | `contentProseSanitize`, `isAcceptableZoneJourneyHeadline` per `journey_key` |
+| Warm voice | `lib/zone/zoneVoice.ts` — Gemini + Content Architect |
+| Mechanical truth | No fake £/kg without Neon stream (`mechanicalTruth.ts`) |
+| HTTPS CTAs | `offerUrlGuard`, `trustedJourneyUrls` |
 
-All regional calculations must stem from the active session's postcode. If a non-local postcode is evaluated, the system must drop static context metrics and calculate fresh local thresholds (e.g., regional utility grid carbon intensity).
+## 4. Deploy and wake
 
-### B. Category Domain Isolation
+| Task | Command |
+| --- | --- |
+| Verify | `npm run verify` |
+| Deploy + promote | `npm run deploy` |
+| Staged only | `npm run promote` |
+| Stack smoke | `npm run stack:verify` |
+| Hermes | `npm run hermes:ping` |
+| Dev seed (13 journeys) | `npm run pipeline:seed -- YOURPOSTCODE` |
 
-Cross-contamination of metrics is strictly banned. If the active category is `GRANTS` and the topic is `e-bike schemes`, the text engine is explicitly barred from pulling data points, copy, or citations belonging to `Boiler Upgrade Schemes` or `Ofgem`.
-
-### C. System String Sanitization
-
-No raw schema parameters, parenthetical logic instructions, variable handles, or conditional flags (e.g., `(official cap pathway)`) may be rendered in the final user-facing string layers.
-
-### D. Absolute Link Protocols
-
-Outbound target handles and call-to-action endpoints must be normalized with explicit absolute protocols (`https://www.`) rather than plain text web domain fragments.
-
-### E. Visited Card Constraints
-
-- **Unvisited State:** Cards render using clear transparent/white structural boundaries.
-- **Visited State:** Cards alter visual state to ULM Pink (#FF00FF). Re-opening a visited card displays the absolute metric asset details but forbids injecting loop takeover questions on close events.
-
+Details: [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md), [HANDBOOK.md](HANDBOOK.md).

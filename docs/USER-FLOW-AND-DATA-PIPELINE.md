@@ -51,7 +51,8 @@ flowchart TD
 - **Persona:** trusted UK mate — calm, empathetic, data-honest; one line of dry humour per card at most (`lib/zone/zoneVoice.ts`). Numbers still from Neon / `buildUserImpact` only.
 - **Write path:** scrape-sync / `researchAgent` → Neon `architect_prose` + `agent_headline` → optional `content-architect` batch → `buildZoneViewModel` + `contentProseSanitize` on read.
 - **Expanded Solo Focus:** `resolveExpandedTrueTipInsight` uses per-**parent** `journey_key` coverage (`focusCategoryJourneyId`); short rows pad with `payoffSentence` (hands off to stamped £ / CO₂e).
-- **Postcode:** all locality strings from profile/postcode APIs — never hardcoded area labels in `app/` or `lib/` UI paths.
+- **Locality in prose:** town name from `AppContext.locationState.locationName` (geocode after profile postcode) — **`lib/zone/localityCopy.ts`**. Raw postcodes never appear in Solo Focus lead copy.
+- **Postcode:** drives APIs and research only — never hardcoded demo labels in `app/` or `lib/` UI paths.
 
 ### Client Layer
 - **State hub:** `app/context/AppContext.tsx`
@@ -110,16 +111,17 @@ Each Zone card only accepts Neon copy that passes `sanitizeArchitectProseForJour
 
 ## 6) Operational Pipeline (Deploy + Health)
 
-1. Verify app integrity (`npm run verify`).
-2. Deploy with remote build + promote (`npm run deploy` → `scripts/deploy-production.sh`).
-4. Validate health:
-   - `GET /api/health?live=1`
-   - `GET /api/health/diagnostics`
-   - `GET /api/pulse/living?postcode=...`
-6. Local dev: `vercel pull --yes --environment=production && cp .vercel/.env.production.local .env.local` then restart `npm run dev:3000` (fixes `/api/health` 503 and `/api/session-state` errors).
-7. Dev pipeline gate: `npm run dev:pipeline-ready` (verify + health). Seed all 13 categories: `npm run dev:pipeline-ready -- --seed YOURPOSTCODE` or `bash scripts/seed-zone-research-all.sh http://127.0.0.1:3000 YOURPOSTCODE`.
-8. Localhost `/zone` auto-bootstraps unsettled journeys via `lib/zone/devResearchBootstrap.ts` (staggered `POST /api/scrape-sync`). Production remains JIT unless `NEXT_PUBLIC_ZONE_DEV_BOOTSTRAP=1`.
-9. Validate content hydration:
-   - `GET /api/scrape-sync?postcode=...`
-   - optional authenticated trigger `POST /api/scrape-sync` with `trigger` + `journey_key`
+| Step | Command / endpoint |
+| --- | --- |
+| 1 | `npm run verify` — local gate (`tsc:check` + `lint:ci`) |
+| 2 | `npm run deploy` — verify, Vercel remote build, auto-promote (`scripts/deploy-production.sh`) |
+| 3 | `npm run promote` — if dashboard shows **Staged** but build is green |
+| 4 | `GET /api/health?live=1` · `GET /api/health` · `GET /api/health/diagnostics` (Bearer `CRON_SECRET`) |
+| 5 | `npm run hermes:ping` · `npm run hermes:pulse` (cron smoke) |
+| 6 | Local env: `vercel pull --environment=production` → `npm run env:merge` → `npm run dev:3000` |
+| 7 | `npm run dev:pipeline-ready` — verify + health; optional `npm run dev:pipeline-ready -- --seed YOURPOSTCODE` |
+| 8 | Localhost `/zone`: auto-bootstrap unsettled journeys (`devResearchBootstrap.ts`); prod JIT unless `NEXT_PUBLIC_ZONE_DEV_BOOTSTRAP=1` |
+| 9 | Content: `GET /api/scrape-sync?postcode=...` or `POST` trigger with `journey_key` |
+
+See [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) for Vercel Lint/Typecheck *internal error* (build often OK — use **`npm run promote`**).
 

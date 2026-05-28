@@ -217,22 +217,26 @@ Ceilings: **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** · **`MAX_ZONE_BENTO_CE
 
 | Zone | Content |
 |------|---------|
-| **H1 (Marvin)** | **6–12 words** after `stripExpandedCardTitleNoise` — no postcodes, tariff dumps, audit-report prefixes |
-| **Body** | Three **Roboto Bold** paragraphs — `buildResearchResultsTrueTipBody` or `resolveExpandedTrueTipInsight` |
+| **H1 (Marvin)** | **10–20 word** hook (`headlineFromExpandedHook`) — 2–3 lines; no postcodes/tariff dumps in title |
+| **Lead (Marvin H4)** | First paragraph only — **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), never raw postcode |
+| **Body** | Two **Roboto Bold** paragraphs + payoff — `buildResearchResultsTrueTipBody` / `resolveExpandedTrueTipInsight` |
 | **Metrics** | Verified £ + CO₂e from stored row |
 | **Trinity** | Ask Zai → deep dive; Continue in Zai → handoff; RECLAIM / BUY → `MotherCardRenderer` + `IndustrialHandoffButton` |
 | **Questions** | **One** registry Q per open — zip-shut MC answer → **RESULT**; close → loop question (`DiscoveryTakeover`) |
 
-### Mechanical Sincerity (copy voice — 2026)
+### Warm auditor voice (copy — 2026)
+
+Persona: **trusted UK mate** — calm, empathetic, data-honest; at most one line of dry humour per card (`lib/zone/zoneVoice.ts`). Numbers only from Neon / `buildUserImpact`.
 
 **Source of truth (no UI filler):**
 
 | Layer | Owner | Rule |
 |--------|--------|------|
-| **Neon `research_results`** | `researchAgent` / scrape-sync | Three paragraphs from Gemini + surgical scrape; `areaLabel` from **user postcode only** |
-| **Content Architect** | `POST /api/zone/content-architect` | Batch polish: Friction / Leverage / Action; category locks; banned filler (`cosy`, `haven`, …) |
-| **Solo Focus display** | `resolveExpandedTrueTipInsight` → `buildResearchResultsTrueTipBody` | Prefer DB `architect_prose`; pad short rows with `bridgeSentence` only — **no** hardcoded “open the verified source…” UI lines |
-| **Sanitizer** | `lib/zone/contentProseSanitize.ts` | Strip leakage, BN17-style literals, cross-category pollution on read |
+| **Neon `research_results`** | `researchAgent` / scrape-sync | Three paragraphs from Gemini + surgical scrape; locality from geocode / profile |
+| **Content Architect** | `POST /api/zone/content-architect` | Batch polish: friction / lever / action; category locks; `ZONE_CONTENT_ARCHITECT_VOICE` |
+| **Solo Focus display** | `resolveExpandedTrueTipInsight` → `buildResearchResultsTrueTipBody` | Prefer DB `architect_prose`; pad with `payoffSentence` (stamped £/CO₂e) — **no** “open the verified source…” lines |
+| **Locality** | `lib/zone/localityCopy.ts` | `resolveSoloFocusPlaceLabel` + `personalizeTrueTipPlaceLead` — town in lead, not postcode |
+| **Sanitizer** | `lib/zone/contentProseSanitize.ts` | Strip leakage, demo postcodes, cross-category pollution on read |
 
 **Not used for card prose:** `lib/soloFocusCopy.ts` generic placeholders, demo postcodes, or static “local data” paragraphs in the client.
 
@@ -242,7 +246,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 
 1. **Friction** — data-backed waste for the category (compact £ / kg).
 2. **Leverage** — April 2026 policy or grant fact from `lib/brains/constants.ts` when relevant.
-3. **Action** — mechanical CTA tied to HTTPS `source_url` (`bridgeSentence` in `lib/zone/auditorNarrative.ts` when padding).
+3. **Payoff** — hands off to stamped £/CO₂e below (`payoffSentence` in `lib/zone/auditorNarrative.ts` when padding).
 
 ### Quality gates (`lib/soloFocusCopy.ts`)
 
@@ -259,7 +263,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Surface | Limit | Enforcer |
 |---------|-------|----------|
 | Zone bento | **5–8** | `enforceHeadlineWordLimits(text, false)` |
-| Solo Focus expanded | **6–12** | `enforceHeadlineWordLimits(text, true)` |
+| Solo Focus expanded hook | **10–20** (~2–3 lines) | `headlineFromExpandedHook` / `enforceHeadlineWordLimits(text, true)` |
 | Paragraph | ≤ **40** words each | `MAX_TRUE_TIP_PARAGRAPH_WORDS` |
 
 ### After an answer
@@ -304,9 +308,10 @@ Architect receives **locked** £/kg — it does not recalculate totals.
 
 ### Architect tone (system prompt summary)
 
-- UK **family kitchen-table** mate — sharp friend, not regulator bulletin
-- Lowercase where natural; no emojis; no “you could save”
-- Headline template: `[ACTION] £[VALUE] FROM YOUR [HOMETYPE] IN [LOCALITY] — [SPECIFIC_REASON]` (uppercase, capped)
+- **`ZONE_CONTENT_ARCHITECT_VOICE`** (`lib/zone/zoneVoice.ts`) — warm, caring, compact £ facts
+- Uppercase functional headlines (5–8 words bento; expanded hook up to 20 words)
+- No emojis, no cheerleading, no dev-speak (`tile`, `pipeline`, `morph`)
+- Category locks enforced per `journey_key` (see [USER-FLOW-AND-DATA-PIPELINE.md](USER-FLOW-AND-DATA-PIPELINE.md) §4)
 - **home** = insulation, draughts, heating — never grants/BUS wording
 - **grants** = BUS, ECO, heat pump funding only
 - Each journey: distinct mechanism — no reused opening sentence
@@ -318,8 +323,8 @@ Architect receives **locked** £/kg — it does not recalculate totals.
 
 | Surface | Persona | Scrape on turn? |
 |---------|---------|-----------------|
-| Zone bento + Solo Focus | Industrial auditor — three paragraphs, compact £ | On answer / tip+1 / hydrate only |
-| Content Architect | Warm family savings mate (batch polish) | N/A (batch) |
+| Zone bento + Solo Focus | Warm auditor (`zoneVoice.ts`) — Marvin hook + lead + Roboto body | On answer / tip+1 / hydrate; localhost bootstrap (dev) |
+| Content Architect | Same warm voice (batch polish) | N/A (batch) |
 | **`/zai` chat** | “Active auditor with a pint” — calm UK mate, dry irony OK | **Never** on `POST /api/zai` |
 | Deep Dive sheet | Same matrix, in-card | **Search deeper** only |
 
@@ -342,7 +347,8 @@ Full boundaries + question registry: **[ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUES
 |-----------|-------------|------------|
 | Grid headline | `agent_headline` + Architect + cleaners | `soloFocusCopy`, `contentArchitect` |
 | Grid £/kg | `buildUserImpact` + `journeyHasStreamData` | `calculations.ts` |
-| Expanded H1 | Headline pipeline, expanded limit | `stripExpandedCardTitleNoise` |
+| Expanded H1 | 10–20 word hook, 2–3 lines | `headlineFromExpandedHook`, `stripExpandedCardTitleNoise` |
+| Expanded lead (H4) | Town from `locationState` | `localityCopy.ts`, `personalizeTrueTipPlaceLead` |
 | Expanded body | `architect_prose` or auditor fallback | `buildResearchResultsTrueTipBody` |
 | BUY link | `offer_url` → sanitizer → trusted fallback | `offerUrlGuard`, `trustedJourneyUrls` |
 | Questions | `lib/journeys.ts` | Static behavioural copy |

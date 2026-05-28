@@ -172,11 +172,16 @@ If `db:test` passes but pool scripts fail: save `.env.local`, remove stale `expo
 ## App + API smoke
 
 ```bash
+npm run verify
+npm run stack:verify          # env + db:test + hermes:ping
+npm run dev:pipeline-ready    # optional: -- --seed YOURPOSTCODE
+
 npm run verify:env
-# optional production:
 # BASE_URL=https://00-ulm.vercel.app npm run verify:env
 
 npm run hermes:ping
+npm run deploy                # verify + remote build + auto-promote
+# npm run promote             # if Vercel shows Staged but build green
 ```
 
 **Manual checklist**
@@ -184,7 +189,7 @@ npm run hermes:ping
 | Step | URL / action |
 |------|----------------|
 | Profile 8 steps | `/profile` — name `given-name` (first name only), postcode from `profile_postcode` + `/api/local-intelligence` |
-| Zone grid | `/zone` — 12 journeys, visited pink/yellow |
+| Zone grid | `/zone` — 13 journeys (`JOURNEY_ORDER`), visited pink/yellow; localhost may auto-bootstrap scrapes |
 | Solo Focus answer | one question → one discovery card; hybrid if bucket_failover |
 | Zai | `/zai` — stream, no scrape; pills under last Zai bubble |
 | Deep Dive | unvisited card → **Search deeper** only (scrape) |
@@ -288,7 +293,8 @@ Optional: `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` with `OPENROUTER_MODEL=meta-ll
 | `[scraper] Ofgem Firecrawl scrape failed: 402` | Add `SKIP_FIRECRAWL=1` to `.env.local` (no Firecrawl calls) |
 | Many `POST /api/zone/content-architect` ~20s | One batch per profile fingerprint; clear `sessionStorage` keys `zz_architect_*` to force refresh |
 | `npm run hermes:repair-pulse # comment` → `Unknown arg: #` | Run **one command per line** — npm passes `#` to bash |
-| `vercel promote <deployment-url> --yes` | Use a real URL: `vercel promote https://00-no8wcw8hh-….vercel.app --yes` or `vercel inspect 00-ulm.vercel.app` |
+| Vercel Lint/Typecheck *internal error* | Build often OK — `npm run promote` or [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) |
+| Staged deployment | `npm run promote` (alias latest Ready prod → `00-ulm.vercel.app`) |
 | Zone stale cards | Clear localStorage; check `NEXT_PUBLIC_DATA_VERSION` in `.env.local` |
 | Hermes 401 | `CRON_SECRET` in `.env.local` must match VPS secret file |
 | `Unknown arg: #` after npm | Remove inline `# comments` on npm lines |
@@ -298,6 +304,8 @@ Optional: `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` with `OPENROUTER_MODEL=meta-ll
 
 ## Related docs
 
+- [USER-FLOW-AND-DATA-PIPELINE.md](USER-FLOW-AND-DATA-PIPELINE.md) — flow, category contract, deploy checklist
+- [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) — Staged / promote / native checks
 - [ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md) — product ceilings
 - [HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md) — free vs premium tiers
 - [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) — scrape, card copy, Solo Focus, tone

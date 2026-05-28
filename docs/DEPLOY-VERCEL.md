@@ -9,13 +9,13 @@ On the deployment page, open **Build Logs** (not Deployment Checks).
 Look for:
 
 ```text
-> npm run build
 > npm run verify
+> node scripts/build-with-manifest-fix.js
 ...
 Build complete. Output in .next
 ```
 
-If that finished without `Error: Command "npm run build" exited with 1`, **your code is fine**.
+If that finished without `Error: Command "npm run verify && …" exited with 1`, **your code is fine**.
 
 ## 2. Promote to production (fastest)
 
@@ -27,7 +27,17 @@ Production alias **`https://00-ulm.vercel.app`** should then serve this build.
 
 ## 3. Stop the false failures (repo + dashboard)
 
-**Repo (automatic):** `package.json` defines **`lint`** → `lint:ci` and **`typecheck`** → `tsc:check` so Vercel native Deployment Checks run real commands (missing scripts caused *internal error*). **`vercel.json` `buildCommand`** still runs **`npm run verify`** before the Next build; **`next.config.js`** sets `eslint.ignoreDuringBuilds` + `typescript.ignoreBuildErrors` so `next build` does not duplicate those steps.
+**Repo (automatic):**
+
+| Layer | What runs |
+| --- | --- |
+| **`vercel.json` `buildCommand`** | `npm run verify` then `node scripts/build-with-manifest-fix.js` |
+| **`package.json` `lint`** | `node node_modules/eslint/bin/eslint.js app lib` (direct — no nested `npm run`) |
+| **`package.json` `typecheck`** | `node node_modules/typescript/bin/tsc --noEmit -p tsconfig.typecheck.json` |
+| **`next.config.js`** | `eslint.ignoreDuringBuilds` + `typescript.ignoreBuildErrors` (Next build does not re-lint/re-tsc) |
+| **`npm run deploy`** | verify → `vercel deploy --prod` → wait Ready → **`scripts/vercel-promote-latest.sh`** |
+
+Missing or nested check scripts caused Vercel *internal error* on native Lint/Typecheck; direct binaries fix that.
 
 **Dashboard (required once if checks keep failing):** **Settings** → **Build & Deployment** → **Deployment Checks** → set native **Lint** / **Typecheck** to **not required**, or delete them and use GitHub **Lint** / **Typecheck** from `.github/workflows/vercel-production-gate.yml` only.
 
@@ -54,7 +64,9 @@ From repo root (linked to **00-ulm**):
 npm run deploy
 ```
 
-This runs **`npm run verify`**, then **`vercel deploy --prod`** (build on Vercel — **not** `--prebuilt`), then **`vercel promote`** so production is not left **Staged** when dashboard checks fail.
+This runs **`npm run verify`**, then **`vercel deploy --prod`** (build on Vercel — **not** `--prebuilt`), then **auto-promote** via `scripts/vercel-promote-latest.sh` so **`00-ulm.vercel.app`** is not left on an old build when dashboard checks fail.
+
+**Staged only (build already green):** `npm run promote`
 
 Do **not** use `vercel deploy --prebuilt` unless you ran **`vercel build --prod`** in the same session seconds earlier.
 

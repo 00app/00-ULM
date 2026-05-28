@@ -15,11 +15,13 @@ npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030
 
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000) when using default `npm run dev`.
 
-**Build:** `npm run build` · **Deploy:** `npm run deploy` or `npm run ship` (build + Vercel prod).
+**Verify:** `npm run verify` · **Build:** `npm run build` · **Deploy:** `npm run deploy` (auto-promote) · **Staged fix:** `npm run promote`
 
-**Typecheck:** `npm run check` · **Vulnerabilities:** `npm run audit` · **E2E:** `npm run test:e2e`
+**Dev stack:** `npm run dev:pipeline-ready` · **Hermes:** `npm run hermes:ping`
 
-Full write-up: **[docs/HANDBOOK.md](docs/HANDBOOK.md)** · doc index: **[docs/README.md](docs/README.md)**
+**Typecheck:** `npm run check` · **E2E:** `npm run test:e2e`
+
+Docs: **[docs/HANDBOOK.md](docs/HANDBOOK.md)** · **[docs/USER-FLOW-AND-DATA-PIPELINE.md](docs/USER-FLOW-AND-DATA-PIPELINE.md)** · index: **[docs/README.md](docs/README.md)**
 
 ---
 

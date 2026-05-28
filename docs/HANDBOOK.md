@@ -23,7 +23,7 @@ npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030
 
 **`.env.local` vs shell:** `npm run init-db`, `npm run db:test`, and `npm run db:log-research` load `.env.local` with **`preferLocal: true`** (`scripts/load-env-local.ts`) so values in the file **override** a stale exported `DATABASE_URL`. Still **save** `.env.local` to disk after edits — the terminal reads the file, not an unsaved editor buffer.
 
-**Build:** `npm run build` (runs **`verify`** = `tsc:check` + `lint:ci` before Next build) · **Typecheck:** `npm run check` / `npm run tsc:check` · **Lint:** `npm run lint:ci` · **Prep:** `npm run prep:live` · **Deploy:** `npm run deploy` or `npm run deploy:force` (`scripts/deploy-production.sh` → `vercel deploy --prod`). Production: **`https://00-ulm.vercel.app`**.
+**Build:** `npm run build` (runs **`verify`** = `tsc:check` + `lint:ci` before Next build) · **Typecheck:** `npm run check` / `npm run tsc:check` / `npm run typecheck` · **Lint:** `npm run lint:ci` / `npm run lint` · **Prep:** `npm run prep:live` · **Deploy:** `npm run deploy` (verify → remote build → auto-**promote**) · **Staged fix:** `npm run promote` · Production: **`https://00-ulm.vercel.app`**.
 
 **Dev / test / audit runbook:** [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md) (SQL + Hermes + clean build + local smoke).
 
@@ -49,6 +49,7 @@ All paths relative to **`docs/`** unless noted.
 | **`ULM-APPLICATION-LOOP.md`** | Ceilings, spawn, headline limits, credit guardrails |
 | **`INTELLIGENCE-LOOP-MANIFEST.md`** | Hermes, Firecrawl, Gemini persist, verification curls |
 | **`FULL-APP-SPEC.md`** | Architecture, APIs, DB, mother/child cards |
+| **`USER-FLOW-AND-DATA-PIPELINE.md`** | User flow, category contract, dev bootstrap, deploy checklist |
 | **`DEPLOY-VERCEL.md`** | Checks Failed / Staged, promote, Node 24 |
 | **`DEV-TEST-AUDIT.md`** | Local smoke, SQL, Hermes, clean build |
 | **`MOTION-FAMILY.md`** | Family Liquid + Atomic Assembly (delivery physics only) |
@@ -117,7 +118,7 @@ After a clean DB, expect an **empty honest Zone** until pulse — then tiles pop
 
 ## Enforced loop & credit boundaries
 
-Locked product contract for **use less, more** (Ulm JIT) and multi-tester safety. Code: `lib/intelligence/scrapeBoundaries.ts`, `lib/intelligence/bucketFailover.ts`, `lib/zone/bootstrapZoneResearch.ts` (bootstrap disabled).
+Locked product contract for **use less, more** (Ulm JIT) and multi-tester safety. Code: `lib/intelligence/scrapeBoundaries.ts`, `lib/intelligence/bucketFailover.ts`, `lib/zone/bootstrapZoneResearch.ts` + `lib/zone/devResearchBootstrap.ts` (**localhost** auto-seeds unsettled journeys; production JIT unless `NEXT_PUBLIC_ZONE_DEV_BOOTSTRAP=1`).
 
 ### Onboarding → true baseline
 
@@ -129,7 +130,7 @@ Locked product contract for **use less, more** (Ulm JIT) and multi-tester safety
 | Summary motion | **Atomic Assembly** ticker — **`IntroWordCycle`** + **`opacityTicker`** + **`atomicWordHoldMs`** (no intro glitch on this route) |
 | Tile headlines before scrape | **Mechanical truth** still applies per journey until Neon stream exists → **`COMPUTING — JOURNEY`**, metrics **`—`** (`lib/zone/mechanicalTruth.ts`) |
 
-### Zone grid (12 domains)
+### Zone grid (13 domains)
 
 | Rule | Implementation |
 |------|----------------|
@@ -310,7 +311,7 @@ Full presentation contract: [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)
 | Title cleanup | **`stripExpandedCardTitleNoise`** — strips trailing **(Updated …)** so the H1 does not repeat body dates — **`lib/soloFocusCopy.ts`**; used in **`JourneyBentoCard`**, **`SoloFocusOverlay`** before **`headlineFromTitle`** |
 | Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini **article-tier** triplet in **`lib/agents/researchAgent.ts`**: **`EDITORIAL_MAGAZINE_CONSTRAINT`** + exactly three label-free paragraphs (what / why / how embedded in prose only; ≤40 words each). |
 | Category label | Same as collapsed tile: **`card-top-label`** / **`formatZoneCategoryLabel`** above expanded H1. |
-| Headline limits | Zone bento **`agent_headline`**: **6–8 words** (`MIN_ZONE_CARD_HEADLINE_WORDS` / `MAX_ZONE_CARD_HEADLINE_WORDS`). Expanded Solo Focus H1: **6–12 words** (`MAX_EXPANDED_VIEW_HEADLINE_WORDS`). Enforced in **`headlineFromTitle`** + Gemini prompt. |
+| Headline limits | Zone bento: **5–8 words**. Expanded Solo Focus hook H1: **10–20 words** (~2–3 Marvin lines) via **`headlineFromExpandedHook`**. Lead paragraph uses **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), not raw postcode. |
 | Dedupe | **`dedupeZoneTipCards`** — no duplicate ids or normalized headline on the tip rail; inject handler on Zone filters before merge. |
 | Question cap | **3 questions per journey** (`lib/journeys.ts`); Solo Focus session stops after **`SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION` (3)** per category (`EmbeddedJourneyQuestion`). |
 | Layout | Expanded: **Marvin H3** headline (`text-marvin` / `.solo-focus-architect-headline`) + three **Roboto Bold** **`solo-focus-architect-prose`** paragraphs (≤ **`MAX_TRUE_TIP_PARAGRAPH_WORDS` (40)** each). Raw tariff dumps stripped via **`isRawResearchDump`**. |
@@ -349,7 +350,7 @@ Full manifest (Hermes, Neon host token, caps): [INTELLIGENCE-LOOP-MANIFEST.md](I
 - **Neon (London):** Canonical pooler host token is `MANIFEST_NEON_POOLER_HOST` in `lib/intelligence/manifest.ts` — it must match the hostname inside `DATABASE_URL` (set password only via Neon Console / Vercel env; never commit secrets).
 - **Hermes / Oracle VPS:** [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md). **Mac:** `npm run hermes:ping` (auth-only), `npm run hermes:repair-pulse` (mechanical backfill). **Deploy/sync VPS:** `bash scripts/deploy-hermes-to-vps.sh`. **On box:** crontab **`0 5 * * 1`** → **`repair-mechanical`** or `hermes-pulse.sh --repair-only` → **`~/hermes-pulse.log`**. Do **not** run full `zone-research?limit=12` on a schedule. Target: **`https://00-ulm.vercel.app/api/cron/repair-mechanical`**.
 - **Neon project:** **`00-ULM`** (London `eu-west-2`); pooler host **`MANIFEST_NEON_POOLER_HOST`**. Wake: `npm run db:test` or any API hit; compute auto-resumes on query.
-- **Twelve categories:** Journey keys in `lib/journeys.ts` (`JOURNEY_ORDER` — 12 domains × 3 questions). Research persistence (`research_results`) requires **`saving_amount_gbp`**, **`offer_url`**, category, and prose fields as implemented in `lib/agents/researchAgent.ts` / `persistResearchResult`. **Carbon (kg)** on cards comes from stream + impact only when `journeyHasStreamData` — no UK placeholder wall figures.
+- **Thirteen categories:** Journey keys in `lib/journeys.ts` (`JOURNEY_ORDER` — 13 domains × 3 questions). Research persistence (`research_results`) requires **`saving_amount_gbp`**, **`offer_url`**, category, and prose fields as implemented in `lib/agents/researchAgent.ts` / `persistResearchResult`. **Carbon (kg)** on cards comes from stream + impact only when `journeyHasStreamData` — no UK placeholder wall figures.
 - **Injection cap:** `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` (**3**) — enforced in `discovery_injections` per user per `journey_key` for both `POST /api/zone/injections` (answer loop → alternate journey) and `POST /api/research/question-card` (free question → same journey). Main grid keeps ranked `tip-*` off the bento wall (`SHOW_BASELINE_TIPS_ON_MAIN_GRID`).
 - **Locality scrape hints:** `runZeroResearch` prepends extra Firecrawl seeds when user context mentions **Littlehampton** / **Arun** or **Les Azerables** / **Creuse** (`lib/agents/researchAgent.ts`).
 
@@ -358,8 +359,8 @@ Full manifest (Hermes, Neon host token, caps): [INTELLIGENCE-LOOP-MANIFEST.md](I
 Hermes on the Oracle VPS is the **trigger** for a multi-step pipeline, not an isolated cron ping:
 
 1. **Trigger (Hermes):** Scheduled job (e.g. 05:00) calls **`GET /api/cron/zone-research`** on Vercel with **`CRON_SECRET`** → kicks research refresh for queued users/postcodes.
-2. **Extraction:** **Firecrawl** deep-scrapes locality/trust seeds; **Gemini** maps findings into the **twelve journey categories**, producing persistable GBP, prose, `offer_url`, and citations (`lib/agents/researchAgent.ts`, `persistResearchResult`).
-3. **Consumption (Zone):** Dashboard cards surface totals and tips; **Solo Focus** expanded view shows **6–12 word** architect headline + **three prose paragraphs** (`architect_prose` when audit matches) + **verified source link**, and a **handoff CTA** (`IndustrialHandoffButton`).
+2. **Extraction:** **Firecrawl** deep-scrapes locality/trust seeds; **Gemini** maps findings into the **thirteen journey categories**, producing persistable GBP, prose, `offer_url`, and citations (`lib/agents/researchAgent.ts`, `persistResearchResult`).
+3. **Consumption (Zone):** Dashboard cards surface totals and tips; **Solo Focus** shows **10–20 word** hook headline (Marvin, 2–3 lines) + **three warm-auditor paragraphs** (`architect_prose` when category matches) + stamped £/CO₂e + CTA (`IndustrialHandoffButton`).
 4. **Expansion (user):** **`POST /api/answers`** remains the **canonical** server path that returns discovery payloads for **`injectNewDiscoveryCard`**. **`POST /api/zone/injections`** (trap follow-up) and **`POST /api/research/question-card`** (Ask) are **supplemental** and share the **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`** cap.
 
 **UX:** While injections run after a trap answer, Solo Focus shows **“Targeted scrape running…”** and disables duplicate taps. **£ column** shows a **✓ True data** pill when **`verifiedDataBadge`** (Neon-aligned audit).
@@ -503,7 +504,10 @@ All insights and recommendations are strictly evaluated against the **12,000 kWh
 | `lib/agents/` | Research, discovery, Firecrawl, Gemini persist |
 | `lib/db/neon.ts` | Answer upserts + research reads |
 | `lib/geocode/resolvePostcodeLocality.ts` | Nominatim label + localStorage cache |
-| `lib/soloFocusCopy.ts` | Headline limits (6–8 bento / 6–12 expanded), dedupe, True Tip prose |
+| `lib/soloFocusCopy.ts` | Headline limits (5–8 bento / 10–20 expanded hook), dedupe, True Tip prose |
+| `lib/zone/zoneVoice.ts` | Warm auditor voice for Zone + Gemini prompts |
+| `lib/zone/localityCopy.ts` | Town label in Solo Focus lead (no postcode in prose) |
+| `lib/zone/devResearchBootstrap.ts` | Localhost-only 13-journey scrape bootstrap |
 | `lib/motion-family.ts` | Family Liquid + Atomic Assembly tokens (delivery-only) |
 | `lib/architecturalPulse.ts` | Summary→Zone pulse words, font preload, `isZoneReady`, glitch timing |
 | `lib/zone/directorsOrder.ts` | `shouldOpenLoopTakeover` / `shouldCloseToGridOnly` — Director's Order guards |
@@ -531,10 +535,13 @@ All insights and recommendations are strictly evaluated against the **12,000 kWh
 | `npm run init-db` | `scripts/init-db.ts` |
 | `npm run db:test` | `scripts/db-test.ts` |
 | `npm run db:log-research` | `scripts/log-latest-research-row.ts` |
-| `npm run verify` | `typecheck` + `lint:ci` (also runs inside `npm run build`) |
-| `npm run tsc:check` | `tsc -p tsconfig.typecheck.json` |
-| `npm run lint:ci` | ESLint on `app` + `lib` |
-| `npm run deploy` | `scripts/deploy-production.sh` |
+| `npm run verify` | `tsc:check` + `lint:ci` (Vercel `buildCommand` gate) |
+| `npm run lint` / `npm run typecheck` | Direct eslint/tsc binaries (Vercel Deployment Checks) |
+| `npm run deploy` | `scripts/deploy-production.sh` — verify, remote build, **auto-promote** |
+| `npm run promote` | `scripts/vercel-promote-latest.sh` — alias when dashboard checks stall |
+| `npm run dev:pipeline-ready` | Env + health + optional `--seed POSTCODE` |
+| `npm run pipeline:seed` | All 13 categories via `scripts/seed-zone-research-all.sh` |
+| `npm run stack:verify` | `verify:env` + `db:test` + `hermes:ping` |
 | `npm run verify:env` | `scripts/verify-env-and-health.sh` |
 | `npm run hermes:ping` | `scripts/hermes-pulse.sh --auth-only` |
 | `npm run hermes:pulse` | `scripts/hermes-pulse.sh --smoke` |
@@ -556,11 +563,11 @@ Other files under `scripts/` are optional one-offs (seed, curl helpers) — not 
 ## Vercel / Next.js maintenance
 
 - **Project:** **`gary-lomi-lomicos-projects/00-ulm`** · alias **`https://00-ulm.vercel.app`**. Deploy: **`npm run deploy`** (tolerates CLI timeout if build log shows **Deployment completed** / **Aliased**).
-- **Pipeline:** Push **`main`** (Git integration) or **`npm run deploy`**. **`vercel.json`**: `installCommand: npm ci`, `buildCommand: npm run build` (includes **`verify`**).
-- **Node version:** **`engines.node`**: **`24.x`**, **`.node-version`**: **`24`** — must match Vercel **Project Settings → Node.js Version** (dashboard currently **24.x**). Mismatch can break native Deployment Checks.
-- **Native Deployment Checks:** Vercel binds native **Lint** / **Typecheck** to `package.json` scripts of those exact names (parallel jobs; often *internal error*). This repo uses **`tsc:check`** + **`lint:ci`** only inside **`verify`** / **`buildCommand`** so native checks **skip** when `lint` / `typecheck` scripts are absent.
-- **“Checks Failed” + “Staged” (build OK):** Confirm **Build** finished → **Promote to Production** (or `vercel promote <url>`). See [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md). If native checks still appear in the dashboard, remove them under **Deployment Checks** or require GitHub **Lint** / **Typecheck** from `ci.yml`.
-- **GitHub CI:** `.github/workflows/ci.yml` — lint + typecheck on push/PR (Node 24).
+- **Pipeline:** Push **`main`** (Git integration) or **`npm run deploy`**. **`vercel.json`**: `installCommand: npm ci`, `buildCommand: npm run verify && node scripts/build-with-manifest-fix.js`.
+- **Node version:** **`engines.node`**: **`24.x`**, **`.node-version`**: **`24`** — must match Vercel **Project Settings → Node.js Version** (**24.x**).
+- **Native Deployment Checks:** **`lint`** and **`typecheck`** in `package.json` call eslint/tsc **directly** (no nested `npm run`). Real gate: **`verify`** inside **`buildCommand`**. **`next.config.js`**: `eslint.ignoreDuringBuilds` + `typescript.ignoreBuildErrors` (Next does not duplicate lint/tsc).
+- **“Checks Failed” + “Staged” (build OK):** Run **`npm run promote`** or **`npm run deploy`** (auto-promotes). See [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md). Dashboard: set native checks **not required** or use GitHub **Lint** / **Typecheck** from `.github/workflows/vercel-production-gate.yml`.
+- **GitHub CI:** `.github/workflows/ci.yml` + **`vercel-production-gate.yml`** — `tsc:check` + `lint:ci` on push/PR (Node 24).
 - **Smoke test:** **`GET /api/health`** (`database: connected` ⇒ Neon OK). **`bash scripts/verify-env-and-health.sh`** with **`BASE_URL=https://00-ulm.vercel.app`** for diagnostics.
 - **Stale JS chunks:** After deploy, users may see **Loading chunk … failed** if HTML references an old hash — **`app/error.tsx`** auto-reloads once; hard refresh or clear site data fixes it.
 - **Admin API gate:** **`proxy.ts`** (Next.js 16+) on `/api/admin/*` — do not duplicate auth in `middleware.ts`.

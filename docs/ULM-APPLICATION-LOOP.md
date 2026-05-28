@@ -64,7 +64,7 @@ Grid discovery tips on wall: still **1 earned inject per category** via `perCate
 | Surface | Words |
 |---------|-------|
 | Zone bento | **5–8** — `enforceHeadlineWordLimits(text, false)` |
-| Solo Focus / expanded | **6–12** — `enforceHeadlineWordLimits(text, true)` |
+| Solo Focus / expanded hook | **10–20** — `headlineFromExpandedHook` / `enforceHeadlineWordLimits(text, true)` |
 | Prose beats | ≤ **40** words / paragraph |
 
 Full scrape → copy → presentation pipeline: **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)**.
