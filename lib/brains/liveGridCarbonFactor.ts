@@ -6,7 +6,6 @@
 
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { REG_GB_BASE_G_PER_KWH } from '@/lib/brains/constants'
-import { getCarbonIntensity } from '@/lib/logic/engine'
 import { fetchNesoGridIntensity } from '@/lib/intelligence/nesoGridClient'
 
 /** GB-wide fallback when postcode is unknown or API + tier both fail (gCO₂/kWh). */
@@ -42,7 +41,17 @@ export function syncFallbackGridIntensityGPerKwh(
 ): number {
   const pc = (postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
   if (pc.length < 4) return GB_GRID_FALLBACK_G_PER_KWH
-  return getCarbonIntensity(pc, local ?? null)
+  const live = local?.localCarbonG
+  if (typeof live === 'number' && Number.isFinite(live) && live > 0) {
+    return live
+  }
+  if (/^(KW|IV|HS|ZE|PH)/.test(pc)) return 170
+  const region = String(local?.region ?? '').toLowerCase()
+  const council = String(local?.council ?? '').toLowerCase()
+  if (region.includes('london') || council.includes('manchester') || council.includes('birmingham')) {
+    return 110
+  }
+  return GB_GRID_FALLBACK_G_PER_KWH
 }
 
 export function gridCarbonContextForPostcode(
