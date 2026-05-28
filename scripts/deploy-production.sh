@@ -25,7 +25,11 @@ rm -rf .vercel/output
 LOG="${ROOT}/vercel-deploy.log"
 echo "→ Remote production build on Vercel (no --prebuilt)…"
 set +e
-vercel deploy --prod --yes "${FORCE[@]}" "$ROOT" 2>&1 | tee "$LOG"
+if [[ ${#FORCE[@]} -gt 0 ]]; then
+  vercel deploy --prod --yes "${FORCE[@]}" "$ROOT" 2>&1 | tee "$LOG"
+else
+  vercel deploy --prod --yes "$ROOT" 2>&1 | tee "$LOG"
+fi
 code=${PIPESTATUS[0]}
 set -e
 
