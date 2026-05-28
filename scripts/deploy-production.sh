@@ -44,12 +44,16 @@ if [[ "$code" -ne 0 ]] && ! grep -qE 'Deployment completed|Aliased:|Production: 
 fi
 
 if [[ -n "$DEPLOY_URL" ]]; then
-  echo "→ Promote ${DEPLOY_URL} (bypass Staged / failed dashboard Lint·Typecheck)…"
-  vercel promote "$DEPLOY_URL" --yes || vercel promote "$DEPLOY_URL" --yes --scope gary-lomi-lomicos-projects 2>/dev/null || true
-else
-  echo "→ Promote latest production deployment (fallback)…"
-  vercel promote 00-ulm.vercel.app --yes 2>/dev/null || true
+  echo "→ Waiting for ${DEPLOY_URL} to be Ready…"
+  for _ in $(seq 1 36); do
+    if vercel inspect "$DEPLOY_URL" 2>/dev/null | grep -qiE 'status\s+●\s+Ready|status\s+Ready'; then
+      break
+    fi
+    sleep 5
+  done
 fi
+
+bash "${ROOT}/scripts/vercel-promote-latest.sh" "${DEPLOY_URL:-}"
 
 echo "→ Health https://00-ulm.vercel.app/api/health"
 if curl -sf --max-time 20 "https://00-ulm.vercel.app/api/health"; then

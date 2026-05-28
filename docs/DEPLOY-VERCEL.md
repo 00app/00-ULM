@@ -29,7 +29,9 @@ Production alias **`https://00-ulm.vercel.app`** should then serve this build.
 
 **Repo (automatic):** `package.json` defines **`lint`** → `lint:ci` and **`typecheck`** → `tsc:check` so Vercel native Deployment Checks run real commands (missing scripts caused *internal error*). **`vercel.json` `buildCommand`** still runs **`npm run verify`** before the Next build; **`next.config.js`** sets `eslint.ignoreDuringBuilds` + `typescript.ignoreBuildErrors` so `next build` does not duplicate those steps.
 
-**Dashboard (if checks still appear):** **Settings** → **Build & Deployment** → **Deployment Checks** → remove native **Lint** + **Typecheck**, or switch required checks to GitHub Actions jobs **Lint** / **Typecheck** from `.github/workflows/ci.yml`.
+**Dashboard (required once if checks keep failing):** **Settings** → **Build & Deployment** → **Deployment Checks** → set native **Lint** / **Typecheck** to **not required**, or delete them and use GitHub **Lint** / **Typecheck** from `.github/workflows/vercel-production-gate.yml` only.
+
+**Staged but build green:** run `npm run promote` (promotes latest Ready prod deployment to `00-ulm.vercel.app`).
 
 Optional smoke check: **`GET /api/health?live=1`** (no DB, returns 200).
 
