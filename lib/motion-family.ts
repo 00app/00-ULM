@@ -39,7 +39,8 @@ export const FAMILY_ATOMIC_BLUR_IN_PX = 15
 export const FAMILY_ATOMIC_BLUR_OUT_PX = 10
 export const FAMILY_ATOMIC_LETTER_IN = '0.4em'
 export const FAMILY_ATOMIC_LETTER_OUT = '-0.02em'
-export const FAMILY_ATOMIC_LETTER_LOCKED = 'normal'
+/** Keep numeric for Framer interpolation (prevents 'normal' runtime warnings). */
+export const FAMILY_ATOMIC_LETTER_LOCKED = '0em'
 
 /** Reading-speed buffer — sharp dwell before next beat assembles. */
 export const FAMILY_READ_MS_PER_WORD = Math.round(200 * FAMILY_MOTION_SCALE)
