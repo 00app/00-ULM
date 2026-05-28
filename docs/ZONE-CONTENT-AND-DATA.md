@@ -189,6 +189,8 @@ Built in **`lib/zone/buildZoneViewModel.ts`**, rendered as **`JourneyBentoCard`*
 
 **Atomic crystallize:** bento ripple via `ZONE_ATOMIC_BENTO_VARIANTS` + stagger (`lib/motion-family.ts`). Wall hidden until `revealedCardCount ≥ 1` and `pulseWordsComplete`.
 
+**Grid reveal stability (`app/zone/page.tsx`):** after Architectural Pulse completes, cards stagger in at **2×** `ZONE_GRID_STAGGER_CHILD_DELAY_SEC` (not 3×). `revealedCardCount` only resets to **0** when pulse phase is not `done` — not when `displayItems` grows after scrape-sync (avoids flash-then-stall). Dev localhost bootstrap seeds unsettled journeys once; it does **not** schedule `refreshKey` poll timers (those used to re-hydrate the whole grid and interrupt reveal).
+
 ### Today's Tips rail (Rock)
 
 Separate from 12 journey bentos:
@@ -234,7 +236,7 @@ Persona: **trusted UK mate** — calm, empathetic, data-honest; at most one line
 |--------|--------|------|
 | **Neon `research_results`** | `researchAgent` / scrape-sync | Three paragraphs from Gemini + surgical scrape; locality from geocode / profile |
 | **Content Architect** | `POST /api/zone/content-architect` | Batch polish: friction / lever / action; category locks; `ZONE_CONTENT_ARCHITECT_VOICE` |
-| **Solo Focus display** | `resolveExpandedTrueTipInsight` → `buildResearchResultsTrueTipBody` | Prefer DB `architect_prose`; pad with `payoffSentence` (stamped £/CO₂e) — **no** “open the verified source…” lines |
+| **Solo Focus display** | `resolveExpandedTrueTipInsight` → `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` | Prefer DB `architect_prose`; **one** payoff line via `payoffSentence` (stamped £/CO₂e) — **no** CTA-bridge / “Execute the…” / duplicate stamp paragraphs |
 | **Locality** | `lib/zone/localityCopy.ts` | `resolveSoloFocusPlaceLabel` + `personalizeTrueTipPlaceLead` — town in lead, not postcode |
 | **Sanitizer** | `lib/zone/contentProseSanitize.ts` | Strip leakage, demo postcodes, cross-category pollution on read |
 
@@ -246,14 +248,18 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 
 1. **Friction** — data-backed waste for the category (compact £ / kg).
 2. **Leverage** — April 2026 policy or grant fact from `lib/brains/constants.ts` when relevant.
-3. **Payoff** — hands off to stamped £/CO₂e below (`payoffSentence` in `lib/zone/auditorNarrative.ts` when padding).
+3. **Payoff** — single closing line, e.g. *“We've put about £X a year and around Y CO₂e against your {topic} row — from your saved audit, not a guess.”* (`payoffSentence` in `lib/zone/auditorNarrative.ts` — deduped by `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp`).
 
 ### Quality gates (`lib/soloFocusCopy.ts`)
 
 | Function | Purpose |
 |----------|---------|
 | `stripExpandedCardTitleNoise` | Clean Solo Focus H1 |
-| `collapseDuplicateProseParagraphs` | No repeated sentences |
+| `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **10–20 word** Marvin hook; per-journey fallback when DB title is thin, jargon, or off-topic (e.g. travel: rail/bus commute swap — not generic “near you” padding) |
+| `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp` | Drop duplicate payoff / repeated blocks before render |
+| `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *optimization plan*, *green funding frameworks*, thin *“Your X is high-value”* |
+| `collapseDuplicateProseParagraphs` | No repeated sentences within a block |
+| `polishTrueTipParagraphsForHeadline` | Dedupe + de-headline-echo on open paragraph |
 | `isRawResearchDump` | Reject tariff/policy blobs |
 | `pruneDuplicateLocalityInsight` | Don't repeat H1 locality in body |
 | Category separation | **home ≠ grants** — insulation vs BUS/ECO wording |
@@ -263,7 +269,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Surface | Limit | Enforcer |
 |---------|-------|----------|
 | Zone bento | **5–8** | `enforceHeadlineWordLimits(text, false)` |
-| Solo Focus expanded hook | **10–20** (~2–3 lines) | `headlineFromExpandedHook` / `enforceHeadlineWordLimits(text, true)` |
+| Solo Focus expanded hook | **10–20** (~2–3 lines) | `headlineFromExpandedHook` → `EXPANDED_JOURNEY_HOOK[journey]` when weak; else `enforceHeadlineWordLimits(text, true)` |
 | Paragraph | ≤ **40** words each | `MAX_TRUE_TIP_PARAGRAPH_WORDS` |
 
 ### After an answer
@@ -349,7 +355,8 @@ Full boundaries + question registry: **[ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUES
 | Grid £/kg | `buildUserImpact` + `journeyHasStreamData` | `calculations.ts` |
 | Expanded H1 | 10–20 word hook, 2–3 lines | `headlineFromExpandedHook`, `stripExpandedCardTitleNoise` |
 | Expanded lead (H4) | Town from `locationState` | `localityCopy.ts`, `personalizeTrueTipPlaceLead` |
-| Expanded body | `architect_prose` or auditor fallback | `buildResearchResultsTrueTipBody` |
+| Expanded body | `architect_prose` or auditor fallback | `buildResearchResultsTrueTipBody`, `toThreeTrueTipParagraphs` |
+| No-offer footer | When no HTTPS partner URL | *“No live retailer link this week — figures still come from your saved audit row.”* (`JourneyBentoCard`, `SoloFocusOverlay`) — not “Fresh Audit…” dev-speak |
 | BUY link | `offer_url` → sanitizer → trusted fallback | `offerUrlGuard`, `trustedJourneyUrls` |
 | Questions | `lib/journeys.ts` | Static behavioural copy |
 | Today's Tips | Rock catalog | `RockSavingTips`, `habitsCatalog` |

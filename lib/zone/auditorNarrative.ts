@@ -59,7 +59,7 @@ export function payoffSentence(journey: JourneyId, moneyGbp: number, carbonKg: n
   const m = Math.max(0, Math.round(moneyGbp))
   const c = Math.max(0, Math.round(carbonKg))
   const topic = auditTopicPhrase(journey)
-  return `Below we've stamped about £${formatMoneyValue(m)} a year and roughly ${formatCarbonValue(c)} CO₂e on ${topic} — straight from your saved row, not a generic guess.`
+  return `We've put about £${formatMoneyValue(m)} a year and around ${formatCarbonValue(c)} CO₂e against your ${topic} row — from your saved audit, not a guess.`
 }
 
 export function buildAuditorDetectionParagraph(params: {

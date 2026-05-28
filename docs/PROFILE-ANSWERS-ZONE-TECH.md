@@ -169,4 +169,4 @@ If `git push` says “no upstream”, run once: `git push -u origin main`.
 
 ## 7. Presentation (after stream exists)
 
-Once `research_results` rows exist, see **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)** for how headlines, three-paragraph Solo Focus prose, Today's Tips rail, offer URLs, and tone of voice are built and guarded.
+Once `research_results` rows exist, see **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)** for headlines, Solo Focus triplets (deduped payoff, per-journey expanded hooks), Today's Tips rail, offer URLs, grid reveal stability, and warm UK auditor tone.

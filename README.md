@@ -21,7 +21,7 @@ Open [http://127.0.0.1:3000](http://127.0.0.1:3000) when using default `npm run 
 
 **Typecheck:** `npm run check` · **E2E:** `npm run test:e2e`
 
-Docs: **[docs/HANDBOOK.md](docs/HANDBOOK.md)** · **[docs/USER-FLOW-AND-DATA-PIPELINE.md](docs/USER-FLOW-AND-DATA-PIPELINE.md)** · index: **[docs/README.md](docs/README.md)**
+**Documentation:** all product docs live under **[docs/](docs/)** — start at **[docs/HANDBOOK.md](docs/HANDBOOK.md)** or **[docs/README.md](docs/README.md)** (full index).
 
 ---
 

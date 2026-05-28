@@ -41,8 +41,9 @@ Delivery-only motion vocabulary. **Does not** change profile questions, summary 
 ## Director's order (Zone)
 
 1. Summary atomic ticker completes (`pulseWordsComplete`).
-2. Bento grid ripples (crystallize, stagger `ZONE_GRID_STAGGER_CHILD_DELAY_SEC`).
-3. Today's tips (Rock) last — **no loop** on close.
+2. Bento grid ripples (crystallize, stagger `ZONE_GRID_STAGGER_CHILD_DELAY_SEC`; reveal interval **2×** child delay in `app/zone/page.tsx`).
+3. `revealedCardCount` stays stable when scrape-sync adds rows — no reset-to-zero flash mid-session.
+4. Today's tips (Rock) last — **no loop** on close.
 
 Journey loop: expand → close → **one** loop → discovery → **pink** (`markCardVisited` in `completeCleanBirth` only).
 

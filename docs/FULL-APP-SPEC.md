@@ -382,16 +382,18 @@ sequenceDiagram
 
 | Piece | Source / code |
 |-------|----------------|
-| H1 (~12 words) | `agent_headline` via `stripExpandedCardTitleNoise` (`lib/soloFocusCopy.ts`) |
-| Three paragraphs | `architect_prose` — what / why / how embedded in prose (no UI section labels) |
+| H1 (**10–20 words**) | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when DB title weak; `stripExpandedCardTitleNoise` |
+| Lead (H4) | Town from `locationState.locationName` — `personalizeTrueTipPlaceLead` (`lib/zone/localityCopy.ts`) |
+| Three paragraphs | `architect_prose` via `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` (label-free beats; one `payoffSentence`) |
 | SAVE / CARBON | Verified £ from `research_results` when settled |
 | CTA | `offer_url` → `IndustrialHandoffButton` (`resolveRevenueCtaLabel`) |
 | Source link | `source_url` / `verifiedAuditSourceUrl` |
+| No-offer footer | Calm UK line when no HTTPS partner URL (not “Fresh Audit…”) |
 | Fallback CTA | `/zai` if no offer URL |
 
-**Layout:** Marvin H1 + three Roboto Bold `solo-focus-architect-prose` paragraphs (≤ `MAX_TRUE_TIP_PARAGRAPH_WORDS` each). Raw tariff dumps stripped via `isRawResearchDump`.
+**Layout:** Marvin hook H1 + Marvin H4 lead + two Roboto body paragraphs + payoff (≤ `MAX_TRUE_TIP_PARAGRAPH_WORDS` each). Guards: `isRawResearchDump`, `dedupeTrueTipParagraphs`, `isMechanicalScaffoldParagraph`.
 
-**Copy resolver:** `resolveExpandedTrueTipInsight` · `buildResearchResultsTrueTipBody` · `resolveSoloFocusInsightDisplay`.
+**Copy resolver:** `resolveExpandedTrueTipInsight` · `buildResearchResultsTrueTipBody` · `toThreeTrueTipParagraphs` · `resolveSoloFocusInsightDisplay`.
 
 ---
 

@@ -991,10 +991,6 @@ export default function ZonePage() {
         employment_status: pf.employment_status,
       },
     })
-    const pollTimers = [14_000, 32_000, 55_000].map((ms) =>
-      window.setTimeout(() => setRefreshKey((k) => k + 1), ms)
-    )
-    return () => pollTimers.forEach((t) => window.clearTimeout(t))
   }, [
     hydrated,
     scrapePostcode,
@@ -1877,13 +1873,15 @@ export default function ZonePage() {
     const showPinnedWhileLoading = pinnedAchievements.length > 0 && isZoneVisible && architecturalPulsePhase === 'done'
 
     if (!isZoneVisible || architecturalPulsePhase !== 'done' || !pulseWordsComplete) {
-      setRevealedCardCount(0)
+      if (architecturalPulsePhase !== 'done') {
+        setRevealedCardCount(0)
+      }
       return
     }
     if (displayItems.length === 0) return
-    setRevealedCardCount((n) => Math.max(n, 1))
-    let n = Math.max(1, pinFloor)
-    const stepMs = Math.max(72, ZONE_GRID_STAGGER_CHILD_DELAY_SEC * 1000 * 3)
+    setRevealedCardCount((n) => Math.max(n, pinFloor, 1))
+    let n = Math.max(pinFloor, 1)
+    const stepMs = Math.max(72, ZONE_GRID_STAGGER_CHILD_DELAY_SEC * 1000 * 2)
     const id = window.setInterval(() => {
       n += 1
       setRevealedCardCount(n)

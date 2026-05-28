@@ -35,7 +35,8 @@ flowchart TD
 | Postcode-first APIs | All research/scrape uses session postcode param |
 | Town in UI prose | `lib/zone/localityCopy.ts` — no raw postcode in Solo Focus lead |
 | Category isolation | `contentProseSanitize`, `isAcceptableZoneJourneyHeadline` per `journey_key` |
-| Warm voice | `lib/zone/zoneVoice.ts` — Gemini + Content Architect |
+| Warm voice | `lib/zone/zoneVoice.ts` — Gemini + Content Architect; Solo Focus dedupe via `dedupeTrueTipParagraphs` |
+| Expanded hook | `EXPANDED_JOURNEY_HOOK` per `journey_key` when DB headline is thin or off-topic |
 | Mechanical truth | No fake £/kg without Neon stream (`mechanicalTruth.ts`) |
 | HTTPS CTAs | `offerUrlGuard`, `trustedJourneyUrls` |
 

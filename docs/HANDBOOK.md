@@ -50,6 +50,7 @@ All paths relative to **`docs/`** unless noted.
 | **`INTELLIGENCE-LOOP-MANIFEST.md`** | Hermes, Firecrawl, Gemini persist, verification curls |
 | **`FULL-APP-SPEC.md`** | Architecture, APIs, DB, mother/child cards |
 | **`USER-FLOW-AND-DATA-PIPELINE.md`** | User flow, category contract, dev bootstrap, deploy checklist |
+| **`APP-FLOW-AND-PIPELINE.md`** | Route map + content governance (architect companion to user-flow doc) |
 | **`DEPLOY-VERCEL.md`** | Checks Failed / Staged, promote, Node 24 |
 | **`DEV-TEST-AUDIT.md`** | Local smoke, SQL, Hermes, clean build |
 | **`MOTION-FAMILY.md`** | Family Liquid + Atomic Assembly (delivery physics only) |
@@ -57,6 +58,8 @@ All paths relative to **`docs/`** unless noted.
 | **`HERMES-ULM-JIT-BRIEF.md`** | JIT scrape vs Hermes scope |
 | **`SENTINEL.md`** | Live-Impact, home deck, `inject-sentinel-*` tips, `POST /api/sentinel` |
 | **`SUPPLEMENTAL-SYSTEMS.md`** | Gary mode, pattern shift, rebirth vault, research path matrix |
+| **`PRODUCT-ARCHITECTURE-SPEC.md`** | Product architecture notes |
+| **`PUBLIC-UK-APIS.md`** | UK public API reference |
 
 **DB init:** `npm run init-db` applies **`lib/schema.sql`** then runs **`db/migrations/20260513_research_snapshot_column.sql`** as a single batch (legacy JSONB column → **`research_snapshot`** merge/rename). Files under `db/migrations/` are otherwise for Neon SQL editor / manual history unless wired here.
 
@@ -309,10 +312,10 @@ Full presentation contract: [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)
 | Piece | Location |
 |-------|-----------|
 | Title cleanup | **`stripExpandedCardTitleNoise`** — strips trailing **(Updated …)** so the H1 does not repeat body dates — **`lib/soloFocusCopy.ts`**; used in **`JourneyBentoCard`**, **`SoloFocusOverlay`** before **`headlineFromTitle`** |
-| Three paragraphs | **`resolveExpandedTrueTipInsight`** — if Neon **`architect_prose`** matches verified audit → **`buildResearchResultsTrueTipBody`** (verified £ / CO₂e); else **`resolveSoloFocusInsightDisplay`**. Gemini **article-tier** triplet in **`lib/agents/researchAgent.ts`**: **`EDITORIAL_MAGAZINE_CONSTRAINT`** + exactly three label-free paragraphs (what / why / how embedded in prose only; ≤40 words each). |
+| Three paragraphs | **`resolveExpandedTrueTipInsight`** → **`buildResearchResultsTrueTipBody`** / **`toThreeTrueTipParagraphs`** — if Neon **`architect_prose`** matches verified audit; else **`resolveSoloFocusInsightDisplay`**. Gemini **article-tier** triplet in **`lib/agents/researchAgent.ts`**: **`EDITORIAL_MAGAZINE_CONSTRAINT`** + exactly three label-free paragraphs (what / why / how embedded in prose only; ≤40 words each). Mechanical fallbacks (e.g. travel commute) use warm UK copy — no *Execute the audited step…* scaffolding. |
 | Category label | Same as collapsed tile: **`card-top-label`** / **`formatZoneCategoryLabel`** above expanded H1. |
-| Headline limits | Zone bento: **5–8 words**. Expanded Solo Focus hook H1: **10–20 words** (~2–3 Marvin lines) via **`headlineFromExpandedHook`**. Lead paragraph uses **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), not raw postcode. |
-| Dedupe | **`dedupeZoneTipCards`** — no duplicate ids or normalized headline on the tip rail; inject handler on Zone filters before merge. |
+| Headline limits | Zone bento: **5–8 words**. Expanded hook: **10–20 words** via **`headlineFromExpandedHook`** + **`EXPANDED_JOURNEY_HOOK`** when DB title is weak. Lead uses **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), not postcode. |
+| Dedupe | **`dedupeTrueTipParagraphs`** / **`paragraphRepeatsPayoffStamp`** — one payoff stamp per card; **`dedupeZoneTipCards`** on tip rail. |
 | Question cap | **3 questions per journey** (`lib/journeys.ts`); Solo Focus session stops after **`SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION` (3)** per category (`EmbeddedJourneyQuestion`). |
 | Layout | Expanded: **Marvin H3** headline (`text-marvin` / `.solo-focus-architect-headline`) + three **Roboto Bold** **`solo-focus-architect-prose`** paragraphs (≤ **`MAX_TRUE_TIP_PARAGRAPH_WORDS` (40)** each). Raw tariff dumps stripped via **`isRawResearchDump`**. |
 | Ask Zai | **`AskZaiDeepDiveSheet`** → **Continue in Zai** → `/zai`; chat is read-only (scrape only on **Search deeper**). Zone answers birth cards via **`POST /api/answers`**; Zai interprets stored state. **Integrated flow + all questions:** [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md) (Part 0 boundaries + **How it all works together**). Code: `lib/zai/chatBoundaries.ts`. |

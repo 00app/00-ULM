@@ -50,7 +50,7 @@ flowchart TD
 
 - **Persona:** trusted UK mate — calm, empathetic, data-honest; one line of dry humour per card at most (`lib/zone/zoneVoice.ts`). Numbers still from Neon / `buildUserImpact` only.
 - **Write path:** scrape-sync / `researchAgent` → Neon `architect_prose` + `agent_headline` → optional `content-architect` batch → `buildZoneViewModel` + `contentProseSanitize` on read.
-- **Expanded Solo Focus:** `resolveExpandedTrueTipInsight` uses per-**parent** `journey_key` coverage (`focusCategoryJourneyId`); short rows pad with `payoffSentence` (hands off to stamped £ / CO₂e).
+- **Expanded Solo Focus:** `resolveExpandedTrueTipInsight` uses per-**parent** `journey_key` (`focusCategoryJourneyId`); body via `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` with **`dedupeTrueTipParagraphs`** so the stamped £/CO₂e payoff appears **once**. Weak expanded H1s use **`EXPANDED_JOURNEY_HOOK`** (per journey). Mechanical scaffold lines stripped before display.
 - **Locality in prose:** town name from `AppContext.locationState.locationName` (geocode after profile postcode) — **`lib/zone/localityCopy.ts`**. Raw postcodes never appear in Solo Focus lead copy.
 - **Postcode:** drives APIs and research only — never hardcoded demo labels in `app/` or `lib/` UI paths.
 
@@ -120,7 +120,7 @@ Each Zone card only accepts Neon copy that passes `sanitizeArchitectProseForJour
 | 5 | `npm run hermes:ping` · `npm run hermes:pulse` (cron smoke) |
 | 6 | Local env: `vercel pull --environment=production` → `npm run env:merge` → `npm run dev:3000` |
 | 7 | `npm run dev:pipeline-ready` — verify + health; optional `npm run dev:pipeline-ready -- --seed YOURPOSTCODE` |
-| 8 | Localhost `/zone`: auto-bootstrap unsettled journeys (`devResearchBootstrap.ts`); prod JIT unless `NEXT_PUBLIC_ZONE_DEV_BOOTSTRAP=1` |
+| 8 | Localhost `/zone`: one-shot auto-bootstrap unsettled journeys (`devResearchBootstrap.ts`); prod JIT unless `NEXT_PUBLIC_ZONE_DEV_BOOTSTRAP=1`. Grid reveal does not use timed `refreshKey` polls after bootstrap. |
 | 9 | Content: `GET /api/scrape-sync?postcode=...` or `POST` trigger with `journey_key` |
 
 See [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) for Vercel Lint/Typecheck *internal error* (build often OK — use **`npm run promote`**).

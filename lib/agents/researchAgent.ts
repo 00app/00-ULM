@@ -1217,8 +1217,8 @@ function mechanicalCategoryTripletFallback(params: {
       },
       travel: {
         gbp: 450,
-        headline: `Travel cost audit ${areaTag}`,
-        prose: `Travel patterns from ${areaLabel} reveal room for EV transitions and active travel habits under modern green funding frameworks.\n\nWe treat the ~£450 travel optimization plan as the baseline for swapping private vehicle journeys with local public transport links.\n\nExecute the audited step in the CTA — National Rail or local transit planner below to review ticket structures and green travel discounts in your region.`,
+        headline: `Swap one commute ${areaTag}`,
+        prose: `Around ${areaLabel}, one regular car commute is often the priciest habit on your travel row — a single rail or bus day each week is a gentle first swap.\n\nLocal timetables and season tickets still beat ad-hoc fuel top-ups when you plan the same journey twice.\n\nUse the link below to check rail or bus options for your usual route before you renew insurance or fuel cards.`,
       },
       holidays: {
         gbp: 250,

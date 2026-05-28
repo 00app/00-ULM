@@ -524,7 +524,7 @@ export function SoloFocusOverlay({
   ) : null
   const sourceFooter = partnerHttp
     ? ''
-    : 'Fresh Audit: live partner offer unavailable, running verified fallback.'
+    : 'No live retailer link this week — figures still come from your saved audit row.'
   const overlayCtaKind = inferRevenueCtaKind({
     journey: (journeyId ?? 'home') as JourneyId,
     actionType: tipNeedsSwitching

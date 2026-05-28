@@ -193,10 +193,66 @@ export function stripProseReportLead(text: string): string {
 const BOILERPLATE_PROSE_RE =
   /\b(?:open the verified source(?:\s+link)?\s+below to complete this action(?:\s+and lock in the saving)?|open the verified source to complete this action|use the link below to execute the verified offer|use the primary action below to claim|use the verified source to execute the action plan)\b/i
 
+/** Legacy agent scaffolding — strip before Solo Focus display. */
+const MECHANICAL_SCAFFOLD_PROSE_RE =
+  /\b(?:execute the audited step|execute the verified step|we treat the ~£|optimization plan|green funding frameworks|at today'?s pathway numbers|fresh audit:|live partner offer unavailable|footprint liabilities|hedges capital liabilities)\b/i
+
+const THIN_FLUFF_PROSE_RE =
+  /^your\s+\w+\s+is\s+high[- ]?value\.?$/i
+
+export function isMechanicalScaffoldParagraph(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  if (THIN_FLUFF_PROSE_RE.test(t)) return true
+  if (t.length < 28 && /^execute the\b/i.test(t)) return true
+  return MECHANICAL_SCAFFOLD_PROSE_RE.test(t)
+}
+
 export function isBoilerplateProseParagraph(text: string): boolean {
   const t = text.trim()
   if (!t) return true
-  return BOILERPLATE_PROSE_RE.test(t) || isCtaBridgeParagraph(t)
+  return (
+    BOILERPLATE_PROSE_RE.test(t) ||
+    isCtaBridgeParagraph(t) ||
+    isMechanicalScaffoldParagraph(t)
+  )
+}
+
+function paragraphRepeatsPayoffStamp(text: string, journey: JourneyId, moneyGbp: number, carbonKg: number): boolean {
+  const key = compactAlnumKey(text)
+  if (key.length < 20) return false
+  const stamp = compactAlnumKey(payoffSentence(journey, moneyGbp, carbonKg))
+  const n = Math.min(42, key.length, stamp.length)
+  if (n >= 20 && key.slice(0, n) === stamp.slice(0, n)) return true
+  if (/\b(?:below we(?:'ve| have) stamped|we(?:'ve| have) put about £|from your saved (?:row|audit))\b/i.test(text)) {
+    return true
+  }
+  if (/\b(?:pathway numbers|not a (?:generic )?guess|not a filler estimate)\b/i.test(text)) {
+    return true
+  }
+  return false
+}
+
+/** Drop duplicate payoff / scaffold paragraphs before packing True Tip triplets. */
+export function dedupeTrueTipParagraphs(paragraphs: string[]): string[] {
+  const kept: string[] = []
+  for (const raw of paragraphs) {
+    const p = raw.trim()
+    if (!p || isBoilerplateProseParagraph(p)) continue
+    const key = compactAlnumKey(p.slice(0, Math.min(180, p.length)))
+    if (key.length < 12) {
+      kept.push(p)
+      continue
+    }
+    const dup = kept.some((prev) => {
+      const pk = compactAlnumKey(prev.slice(0, Math.min(180, prev.length)))
+      if (pk.length < 12) return false
+      const n = Math.min(48, pk.length, key.length)
+      return pk.slice(0, n) === key.slice(0, n) || pk.includes(key) || key.includes(pk)
+    })
+    if (!dup) kept.push(p)
+  }
+  return kept
 }
 
 /** Legacy CTA-bridge padding — replaced in Solo Focus by {@link payoffSentence}. */
@@ -348,7 +404,8 @@ export function polishTrueTipParagraphsForHeadline(
   headline: string,
   paras: [string, string, string]
 ): [string, string, string] {
-  const [a, b, c] = paras
+  const deduped = dedupeTrueTipParagraphs(paras)
+  const [a, b, c] = [deduped[0] ?? paras[0], deduped[1] ?? paras[1], deduped[2] ?? paras[2]]
   return [
     humanizeTrueTipParagraph(dedupeTrueTipOpeningParagraph(headline, a)),
     humanizeTrueTipParagraph(b),
@@ -536,18 +593,42 @@ export function headlineFromTitle(
   return `${words.slice(0, maxWords).join(' ')}...`
 }
 
+/** Expanded Solo Focus hook when DB title is thin or off-topic. */
+const EXPANDED_JOURNEY_HOOK: Partial<Record<JourneyId, string>> = {
+  travel: 'ONE RAIL OR BUS COMMUTE A WEEK STILL CUTS FUEL AND FARE WASTE',
+  holidays: 'SHORT HAUL BY TRAIN BEATS A FLIGHT FOR COST AND CARBON',
+  home: 'SEAL DRAUGHTS AND LOFT GAPS BEFORE YOU CHASE A NEW BOILER',
+  utilities: 'LINE UP YOUR TARIFF WITH THE APRIL CAP BEFORE YOU LOCK IN',
+  grants: 'CHECK BUS HEAT PUMP GRANT RULES BEFORE YOU BOOK AN INSTALLER',
+  solar: 'SIZE SOLAR TO YOUR ROOF AND DAYTIME USE NOT A GENERIC KIT',
+  food: 'PLAN MEALS AROUND WHAT YOU ALREADY HAVE TO CUT FOOD WASTE',
+  shopping: 'REPAIR AND REUSE BEFORE YOU REPLACE ANOTHER HOME ITEM',
+  money: 'MOVE IDLE CASH TO A CLEANER ACCOUNT WITHOUT LOSING ACCESS',
+  tech: 'CUT STANDBY DRAW ON PLUGS YOU LEAVE ON ALL NIGHT',
+  water: 'FIT AERATORS AND FIX DRIPS BEFORE THE METER TICKS UP',
+  waste: 'SORT AND COMPOST AT HOME TO EASE COUNCIL BIN PRESSURE',
+  carbon: 'TRACK ONE BIG ENERGY HABIT AND TRIM WHAT YOU DO NOT NEED',
+}
+
 /** Expanded Solo Focus H1 — hook headline with 2–3 line word budget. */
 export function headlineFromExpandedHook(
   title: string,
   journeyId?: string
 ): string {
+  const jid = journeyId ? coerceJourneyId(journeyId) : undefined
+  const journeyHook = jid ? EXPANDED_JOURNEY_HOOK[jid] : undefined
   const prepared = prepareZoneHeadlineSource(title)
-  let resolved = enforceHeadlineWordLimits(prepared || title, true)
+  const resolved = enforceHeadlineWordLimits(prepared || title, true)
   const words = splitHeadlineWords(resolved)
-  if (words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && journeyId) {
-    const topic = journeyId.replace(/-/g, ' ').trim()
-    const pad = `worth a proper look for your ${topic} setup near you`
-    resolved = enforceHeadlineWordLimits(`${resolved} ${pad}`.trim(), true)
+  const weak =
+    isLowQualityZoneHeadline(resolved) ||
+    words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS ||
+    (jid != null && headlineConflictsWithJourney(jid, resolved))
+  if (jid && journeyHook && weak) {
+    return enforceHeadlineWordLimits(journeyHook, true)
+  }
+  if (words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && journeyHook) {
+    return enforceHeadlineWordLimits(journeyHook, true)
   }
   return resolved
 }
@@ -810,6 +891,8 @@ export function buildResearchResultsTrueTipBody(params: {
     stripProseReportLead(stripArchitectEmbeddedSectionTitles(sanitized)),
     4000
   )
+  const m = Math.max(0, Math.round(params.verifiedSavingGbp))
+  const c = Math.max(0, Math.round(params.carbonKg))
   const blocks = rawClean
     .split(/\n\s*\n/)
     .map((p) =>
@@ -817,16 +900,21 @@ export function buildResearchResultsTrueTipBody(params: {
         stripAuditorFluffParagraph(stripArchitectEmbeddedSectionTitles(p.trim()))
       )
     )
-    .filter((p) => p.length > 0 && !isBoilerplateProseParagraph(p))
-  const m = Math.max(0, Math.round(params.verifiedSavingGbp))
-  const c = Math.max(0, Math.round(params.carbonKg))
-  const whyLine = `At today’s pathway numbers you are looking at about £${formatMoneyValue(m)} a year back in the pocket and roughly ${formatCarbonValue(c)} CO₂e — grounded in your stored audit and research row, not a filler estimate.`
-  if (blocks.length >= 3) {
-    const third = normalizeTrueTipThirdParagraph(j, blocks[2]!, m, c)
-    return collapseDuplicateProseParagraphs([blocks[0]!, blocks[1]!, third].join('\n\n'))
+    .filter(
+      (p) =>
+        p.length > 0 &&
+        !isBoilerplateProseParagraph(p) &&
+        !paragraphRepeatsPayoffStamp(p, j, m, c)
+    )
+  const filtered = dedupeTrueTipParagraphs(blocks)
+  if (filtered.length >= 3) {
+    const third = normalizeTrueTipThirdParagraph(j, filtered[2]!, m, c)
+    const packed = dedupeTrueTipParagraphs([filtered[0]!, filtered[1]!, third])
+    return collapseDuplicateProseParagraphs(packed.join('\n\n'))
   }
-  if (blocks.length === 2) {
-    return [blocks[0]!, blocks[1]!, payoffSentence(j, m, c)].join('\n\n')
+  if (filtered.length === 2) {
+    const packed = dedupeTrueTipParagraphs([filtered[0]!, filtered[1]!, payoffSentence(j, m, c)])
+    return packed.join('\n\n')
   }
   /** Legacy single blob without blank-line breaks: split sentences into three beats. */
   const sentences = rawClean
@@ -841,8 +929,16 @@ export function buildResearchResultsTrueTipBody(params: {
       '\n\n'
     )
   }
-  const what = blocks[0] ?? rawClean
-  return [what, whyLine, payoffSentence(j, m, c)].join('\n\n')
+  const what = filtered[0] ?? blocks[0] ?? rawClean
+  const packed = dedupeTrueTipParagraphs([
+    what,
+    filtered[1] ?? '',
+    payoffSentence(j, m, c),
+  ]).filter(Boolean)
+  while (packed.length < 3) {
+    packed.push(payoffSentence(j, m, c))
+  }
+  return collapseDuplicateProseParagraphs(packed.slice(0, 3).join('\n\n'))
 }
 
 /** Unified resolver: DB-backed True Tip when audit category matches, else scraped + auditor fallback. */
@@ -910,14 +1006,34 @@ export function toThreeTrueTipParagraphs(
   const carbon = options?.carbonKg ?? 0
   const pack3 = (a: string, b: string, c: string): [string, string, string] => {
     const third = normalizeTrueTipThirdParagraph(j, c, money, carbon)
-    const out = [
-      humanizeTrueTipParagraph(stripAuditorFluffParagraph(a)),
-      humanizeTrueTipParagraph(stripAuditorFluffParagraph(b)),
-      humanizeTrueTipParagraph(stripAuditorFluffParagraph(third)),
-    ].filter((p) => p.trim().length > 0 && !isBoilerplateProseParagraph(p))
-    while (out.length < 3) {
-      out.push(humanizeTrueTipParagraph(payoffSentence(j, money, carbon)))
+    const payoff = payoffSentence(j, money, carbon)
+    let parts = dedupeTrueTipParagraphs([
+      stripAuditorFluffParagraph(a),
+      stripAuditorFluffParagraph(b),
+      stripAuditorFluffParagraph(third),
+    ]).filter((p) => p.trim().length > 0 && !isBoilerplateProseParagraph(p))
+    parts = parts.filter((p) => !paragraphRepeatsPayoffStamp(p, j, money, carbon))
+    const src = (options?.sourceDisplayName ?? '').trim() || 'UK Government'
+    const pc = (options?.userPostcode ?? '').trim() || 'your postcode'
+    const narrative = buildAuditorNarrativeParagraphs({
+      userPostcode: pc,
+      sourceName: src,
+      journey: j,
+      moneyGbp: money,
+      carbonKg: carbon,
+      locality: options?.auditHeaderLocality ?? '',
+    })
+    while (parts.length < 2) {
+      const pad = narrative[parts.length] ?? narrative[0]!
+      if (pad && !parts.includes(pad)) parts.push(pad)
+      else break
     }
+    parts.push(payoff)
+    parts = dedupeTrueTipParagraphs(parts).slice(0, 3)
+    while (parts.length < 3) {
+      parts.push(payoff)
+    }
+    const out = parts.slice(0, 3).map((p) => humanizeTrueTipParagraph(p))
     return [out[0]!, out[1]!, out[2]!]
   }
 

@@ -189,7 +189,7 @@ npm run deploy                # verify + remote build + auto-promote
 | Step | URL / action |
 |------|----------------|
 | Profile 8 steps | `/profile` — name `given-name` (first name only), postcode from `profile_postcode` + `/api/local-intelligence` |
-| Zone grid | `/zone` — 13 journeys (`JOURNEY_ORDER`), visited pink/yellow; localhost may auto-bootstrap scrapes |
+| Zone grid | `/zone` — 13 journeys (`JOURNEY_ORDER`), visited pink/yellow; localhost one-shot bootstrap (`devResearchBootstrap.ts`). After pulse, cards should stagger in without flash/stall (no post-bootstrap `refreshKey` polls). |
 | Solo Focus answer | one question → one discovery card; hybrid if bucket_failover |
 | Zai | `/zai` — stream, no scrape; pills under last Zai bubble |
 | Deep Dive | unvisited card → **Search deeper** only (scrape) |

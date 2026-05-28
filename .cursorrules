@@ -8,3 +8,5 @@ Always apply project rules in `.cursor/rules/`:
 - `mechanical-pulse.mdc` — typography, geometry, colour lock
 
 Never hardcode BN17 in app/lib/API code. All locality flows through the user's postcode parameter.
+
+Product documentation: **`docs/`** only — index **`docs/HANDBOOK.md`** · **`docs/README.md`**.

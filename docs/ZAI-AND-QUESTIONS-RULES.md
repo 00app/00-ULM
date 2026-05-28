@@ -73,7 +73,7 @@ Hermes cron unchanged (repair backfill only). See [HYBRID-DATA-PIPELINE.md](HYBR
 | **Injection budget** | Up to **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** per domain (`lib/intelligence/manifest.ts`). |
 | **Visited flip (pink)** | **Mother journey:** pink only after **one** loop answer + `completeCleanBirth` (`markCardVisited` on closed card id — **not** on first Solo Focus close). **Discovery inject (`inject-*`):** pink on close (`shouldCloseMarkPinkOnly`). **Rock / tip +1:** may mark on open or verify path. UI: `.zone-card--visited` via `isZoneCardPink` + `visited_cards`. |
 | **Offer URLs** | `sanitizeZoneOfferUrl` (`lib/zone/offerUrlGuard.ts`): block 404 gov paths (e.g. great-british-insulation-scheme), bare `gov.uk` homepages, home↔grants cross-landing; fall back to `TRUSTED_JOURNEY_URLS` (EST, MSE, WRAP, railcards — not regulator homepages). |
-| **Copy voice** | Content architect + True Tip: family kitchen-table tone; **home ≠ grants** mechanism; `collapseDuplicateProseParagraphs` + `isRawResearchDump` strip tariff/policy dumps. Full pipeline: **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)**. |
+| **Copy voice** | Content architect + True Tip: calm UK mate tone; **home ≠ grants** mechanism; `dedupeTrueTipParagraphs`, `isMechanicalScaffoldParagraph`, `collapseDuplicateProseParagraphs`, `isRawResearchDump`. Full pipeline: **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)**. |
 | **Close credit guard** | If card already visited, close calls `onPatternShiftClose` with `visitedClose: true` → **no** loop takeover, **no** `spawnAchievementWhenLoopPoolExhausted`, **no** `/api/zone/injections` path from close (`lib/zone/patternShiftClose.ts`). |
 
 ### Zai chat sandbox

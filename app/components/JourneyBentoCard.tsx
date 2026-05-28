@@ -905,7 +905,7 @@ export function JourneyBentoCard({
     })
     const sourceFooter = partnerHttp
       ? ''
-      : 'Fresh Audit: live partner offer unavailable, running verified fallback.'
+      : 'No live retailer link this week — figures still come from your saved audit row.'
     const discovery =
       discoverySnap != null
         ? {
