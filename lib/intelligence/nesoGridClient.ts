@@ -4,7 +4,28 @@
  */
 
 import { getLocalData, type LocalIntelligence } from '@/lib/local/getLocalData'
-import { deriveGridTier, getCarbonIntensity } from '@/lib/logic/engine'
+import {
+  REG_GB_BASE_G_PER_KWH,
+  REG_HI_RURAL_G_PER_KWH,
+  REG_URBAN_LEZ_G_PER_KWH,
+} from '@/lib/brains/constants'
+
+function deriveGridTier(postcode: string, local: LocalIntelligence | null): 'REG_HI_RURAL' | 'REG_URBAN_LEZ' | 'REG_GB_BASE' {
+  const compact = postcode.replace(/\s+/g, '').toUpperCase()
+  if (/^(KW|IV|HS|ZE|PH)/.test(compact)) return 'REG_HI_RURAL'
+  const region = String(local?.region ?? '').toLowerCase()
+  const council = String(local?.council ?? '').toLowerCase()
+  if (region.includes('london') || council.includes('manchester') || council.includes('birmingham')) {
+    return 'REG_URBAN_LEZ'
+  }
+  return 'REG_GB_BASE'
+}
+
+function gridTierFallbackGPerKwh(tier: ReturnType<typeof deriveGridTier>): number {
+  if (tier === 'REG_HI_RURAL') return REG_HI_RURAL_G_PER_KWH
+  if (tier === 'REG_URBAN_LEZ') return REG_URBAN_LEZ_G_PER_KWH
+  return REG_GB_BASE_G_PER_KWH
+}
 
 export type NesoGridSnapshot = {
   postcode: string
@@ -31,7 +52,7 @@ export async function fetchNesoGridIntensity(postcode: string): Promise<NesoGrid
   const intensityG =
     typeof live === 'number' && Number.isFinite(live) && live > 0
       ? live
-      : getCarbonIntensity(compact, local)
+      : gridTierFallbackGPerKwh(tier)
 
   let generationMix: NesoGridSnapshot['generationMix']
   try {
