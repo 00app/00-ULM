@@ -27,7 +27,7 @@ Production alias **`https://00-ulm.vercel.app`** should then serve this build.
 
 ## 3. Stop the false failures (repo + dashboard)
 
-**Repo (automatic):** `package.json` has **no** scripts named `lint` or `typecheck` (only `tsc:check`, `lint:ci`, `verify`). Vercel **native** Deployment Checks **skip** when the matching script is missing; **`vercel.json` `buildCommand`** still runs **`npm run verify`** before the Next build.
+**Repo (automatic):** `package.json` defines **`lint`** → `lint:ci` and **`typecheck`** → `tsc:check` so Vercel native Deployment Checks run real commands (missing scripts caused *internal error*). **`vercel.json` `buildCommand`** still runs **`npm run verify`** before the Next build; **`next.config.js`** sets `eslint.ignoreDuringBuilds` + `typescript.ignoreBuildErrors` so `next build` does not duplicate those steps.
 
 **Dashboard (if checks still appear):** **Settings** → **Build & Deployment** → **Deployment Checks** → remove native **Lint** + **Typecheck**, or switch required checks to GitHub Actions jobs **Lint** / **Typecheck** from `.github/workflows/ci.yml`.
 

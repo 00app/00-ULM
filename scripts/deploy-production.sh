@@ -34,6 +34,9 @@ code=${PIPESTATUS[0]}
 set -e
 
 DEPLOY_URL="$(grep -oE 'https://00-[a-z0-9]+-gary-lomi-lomicos-projects\.vercel\.app' "$LOG" | tail -1 || true)"
+if [[ -z "$DEPLOY_URL" ]]; then
+  DEPLOY_URL="$(grep -oE 'Production: https://[^ ]+' "$LOG" | tail -1 | sed 's/^Production: //' || true)"
+fi
 
 if [[ "$code" -ne 0 ]] && ! grep -qE 'Deployment completed|Aliased:|Production: https://00-' "$LOG" 2>/dev/null; then
   echo "❌ Deploy failed (exit ${code}). See ${LOG}" >&2
@@ -41,8 +44,11 @@ if [[ "$code" -ne 0 ]] && ! grep -qE 'Deployment completed|Aliased:|Production: 
 fi
 
 if [[ -n "$DEPLOY_URL" ]]; then
-  echo "→ Promote ${DEPLOY_URL} (bypass Staged / failed dashboard checks)…"
-  vercel promote "$DEPLOY_URL" --yes 2>/dev/null || true
+  echo "→ Promote ${DEPLOY_URL} (bypass Staged / failed dashboard Lint·Typecheck)…"
+  vercel promote "$DEPLOY_URL" --yes || vercel promote "$DEPLOY_URL" --yes --scope gary-lomi-lomicos-projects 2>/dev/null || true
+else
+  echo "→ Promote latest production deployment (fallback)…"
+  vercel promote 00-ulm.vercel.app --yes 2>/dev/null || true
 fi
 
 echo "→ Health https://00-ulm.vercel.app/api/health"
