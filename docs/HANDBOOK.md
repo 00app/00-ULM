@@ -23,7 +23,7 @@ npm run dev                  # http://127.0.0.1:3000 (see package.json for :3030
 
 **`.env.local` vs shell:** `npm run init-db`, `npm run db:test`, and `npm run db:log-research` load `.env.local` with **`preferLocal: true`** (`scripts/load-env-local.ts`) so values in the file **override** a stale exported `DATABASE_URL`. Still **save** `.env.local` to disk after edits — the terminal reads the file, not an unsaved editor buffer.
 
-**Build:** `npm run build` (runs **`verify`** = `typecheck` + `lint:ci` before Next build) · **Typecheck:** `npm run check` / `npm run typecheck` · **Lint:** `npm run lint` · **Prep:** `npm run prep:live` · **Deploy:** `npm run deploy` or `npm run deploy:force` (`scripts/deploy-production.sh` → `vercel deploy --prod`). Production: **`https://00-ulm.vercel.app`**.
+**Build:** `npm run build` (runs **`verify`** = `tsc:check` + `lint:ci` before Next build) · **Typecheck:** `npm run check` / `npm run tsc:check` · **Lint:** `npm run lint:ci` · **Prep:** `npm run prep:live` · **Deploy:** `npm run deploy` or `npm run deploy:force` (`scripts/deploy-production.sh` → `vercel deploy --prod`). Production: **`https://00-ulm.vercel.app`**.
 
 **Dev / test / audit runbook:** [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md) (SQL + Hermes + clean build + local smoke).
 
@@ -532,8 +532,8 @@ All insights and recommendations are strictly evaluated against the **12,000 kWh
 | `npm run db:test` | `scripts/db-test.ts` |
 | `npm run db:log-research` | `scripts/log-latest-research-row.ts` |
 | `npm run verify` | `typecheck` + `lint:ci` (also runs inside `npm run build`) |
-| `npm run typecheck` | `tsc -p tsconfig.typecheck.json` |
-| `npm run lint` / `lint:ci` | ESLint on `app` + `lib` |
+| `npm run tsc:check` | `tsc -p tsconfig.typecheck.json` |
+| `npm run lint:ci` | ESLint on `app` + `lib` |
 | `npm run deploy` | `scripts/deploy-production.sh` |
 | `npm run verify:env` | `scripts/verify-env-and-health.sh` |
 | `npm run hermes:ping` | `scripts/hermes-pulse.sh --auth-only` |
@@ -558,9 +558,8 @@ Other files under `scripts/` are optional one-offs (seed, curl helpers) — not 
 - **Project:** **`gary-lomi-lomicos-projects/00-ulm`** · alias **`https://00-ulm.vercel.app`**. Deploy: **`npm run deploy`** (tolerates CLI timeout if build log shows **Deployment completed** / **Aliased**).
 - **Pipeline:** Push **`main`** (Git integration) or **`npm run deploy`**. **`vercel.json`**: `installCommand: npm ci`, `buildCommand: npm run build` (includes **`verify`**).
 - **Node version:** **`engines.node`**: **`24.x`**, **`.node-version`**: **`24`** — must match Vercel **Project Settings → Node.js Version** (dashboard currently **24.x**). Mismatch can break native Deployment Checks.
-- **Native Deployment Checks (Lint / Typecheck):** Vercel runs **`npm run lint`** and **`npm run typecheck`** in *parallel* with the build (separate jobs). **`eslint`** + **`typescript`** live in **`dependencies`**; scripts use **`node node_modules/...`**. **`.nvmrc`**, **`.node-version`**, and **`engines.node`** must all be **24** (drift causes “internal error”).
-- **“Checks Failed” + “Staged” (build OK):** Open the deployment → confirm **Build** step finished (not exit 1) → **Promote to Production**. The app build already ran **`npm run verify`** inside **`npm run build`**. Red **Lint/Typecheck** rows that say *“An internal error occurred”* are a Vercel check-runner glitch, not your code — see [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md).
-- **Disable duplicate checks (recommended):** Project **00-ulm** → **Settings** → **Build & Deployment** → **Deployment Checks** → remove or disable native **Lint** + **Typecheck** (or replace with **`GET /api/health?live=1`** smoke only).
+- **Native Deployment Checks:** Vercel binds native **Lint** / **Typecheck** to `package.json` scripts of those exact names (parallel jobs; often *internal error*). This repo uses **`tsc:check`** + **`lint:ci`** only inside **`verify`** / **`buildCommand`** so native checks **skip** when `lint` / `typecheck` scripts are absent.
+- **“Checks Failed” + “Staged” (build OK):** Confirm **Build** finished → **Promote to Production** (or `vercel promote <url>`). See [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md). If native checks still appear in the dashboard, remove them under **Deployment Checks** or require GitHub **Lint** / **Typecheck** from `ci.yml`.
 - **GitHub CI:** `.github/workflows/ci.yml` — lint + typecheck on push/PR (Node 24).
 - **Smoke test:** **`GET /api/health`** (`database: connected` ⇒ Neon OK). **`bash scripts/verify-env-and-health.sh`** with **`BASE_URL=https://00-ulm.vercel.app`** for diagnostics.
 - **Stale JS chunks:** After deploy, users may see **Loading chunk … failed** if HTML references an old hash — **`app/error.tsx`** auto-reloads once; hard refresh or clear site data fixes it.

@@ -25,18 +25,13 @@ If that finished without `Error: Command "npm run build" exited with 1`, **your 
 
 Production alias **`https://00-ulm.vercel.app`** should then serve this build.
 
-## 3. Stop the false failures (one-time settings)
+## 3. Stop the false failures (repo + dashboard)
 
-**Settings** → **Build & Deployment** → **Deployment Checks**
+**Repo (automatic):** `package.json` has **no** scripts named `lint` or `typecheck` (only `tsc:check`, `lint:ci`, `verify`). Vercel **native** Deployment Checks **skip** when the matching script is missing; **`vercel.json` `buildCommand`** still runs **`npm run verify`** before the Next build.
 
-| Check | Action |
-|--------|--------|
-| **Lint** | Disable, or set to optional / non-blocking |
-| **Typecheck** | Disable, or set to optional / non-blocking |
+**Dashboard (if checks still appear):** **Settings** → **Build & Deployment** → **Deployment Checks** → remove native **Lint** + **Typecheck**, or switch required checks to GitHub Actions jobs **Lint** / **Typecheck** from `.github/workflows/ci.yml`.
 
-Reason: **`vercel.json`** / build already runs **`npm run build`** → **`npm run verify`** (`typecheck` + `lint:ci`). Running lint/typecheck again in parallel duplicates work and often hits Vercel *internal error* on Node 24 + Next 16.
-
-Optional smoke check instead: **`GET /api/health?live=1`** (no DB, returns 200).
+Optional smoke check: **`GET /api/health?live=1`** (no DB, returns 200).
 
 ## 4. Align Node 24 everywhere
 
