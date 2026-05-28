@@ -632,10 +632,12 @@ export function SoloFocusOverlay({
     onPatternShiftClose?.(loopJourneyKey, {
       cardId: visitId || undefined,
       visitedClose:
-        isRockHabitTip || (visitId ? shouldCloseMarkPinkOnly(visitId, loopJourneyKey) : false),
+        isRockHabitTip ||
+        cardVisitedLock ||
+        (visitId ? shouldCloseMarkPinkOnly(visitId, loopJourneyKey) : false),
     })
     onClose()
-  }, [loopJourneyKey, onPatternShiftClose, onClose, cardId, activeCardId])
+  }, [loopJourneyKey, onPatternShiftClose, onClose, cardId, activeCardId, cardVisitedLock])
 
   const handleTrinityLike = useCallback(() => {
     triggerHaptic('medium')
