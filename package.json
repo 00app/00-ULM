@@ -66,6 +66,8 @@
     "env:merge": "node scripts/merge-env-local.mjs",
     "verify:env": "bash scripts/verify-env-and-health.sh",
     "stack:verify": "npm run verify:env && npm run db:test && npm run hermes:ping",
+    "dev:pipeline-ready": "bash scripts/dev-pipeline-ready.sh",
+    "pipeline:seed": "bash scripts/seed-zone-research-all.sh --env-file .env.local http://127.0.0.1:3000",
     "curl:scrape-sync": "bash scripts/curl-scrape-sync-trigger.sh",
     "hermes:ping": "bash scripts/hermes-pulse.sh --auth-only",
     "hermes:pulse": "bash scripts/hermes-pulse.sh --smoke",

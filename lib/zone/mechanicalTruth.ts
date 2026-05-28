@@ -1,5 +1,7 @@
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import type { ScrapedDataPoint } from '@/lib/scraper/sources'
+import { isAcceptableZoneJourneyHeadline } from '@/lib/soloFocusCopy'
+import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
 
 export type NeonJourneyResearchRow = {
@@ -21,10 +23,10 @@ export function journeyHasStreamData(
     return true
   }
   if (typeof neon?.architectProse === 'string' && neon.architectProse.trim().length > 0) {
-    return true
+    if (sanitizeArchitectProseForJourney(journeyKey, neon.architectProse)) return true
   }
   if (typeof neon?.agentHeadline === 'string' && neon.agentHeadline.trim().length > 0) {
-    return true
+    if (isAcceptableZoneJourneyHeadline(journeyKey, neon.agentHeadline)) return true
   }
   const sc = opts.scraped?.[journeyKey]
   if (sc && Number(sc.money_value) > 0) return true

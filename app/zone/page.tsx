@@ -9,6 +9,7 @@ import { motion, LayoutGroup } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { buildZoneViewModel } from '@/lib/logic/zone'
+import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { ZAI_AUDIT_COMPLETE_EVENT } from '@/lib/zai/zoneSync'
 import { buildGroovyGridItems, type GroovyGridCell } from '@/lib/zone/gridOrder'
 import {
@@ -981,6 +982,7 @@ export default function ZonePage() {
     const pf = readProfileFieldsFromStorage()
     bootstrapZoneCategoryResearch({
       postcode: scrapePostcode,
+      coverage: researchCategoryCoverage,
       profileData: {
         postcode: scrapePostcode,
         home_type: pf.home_type,
@@ -1030,7 +1032,7 @@ export default function ZonePage() {
           setInsightPendingKeys((prev) => {
             const n = new Set(prev)
             for (const jid of prev) {
-              if (journeyResearchSettled(next[jid])) n.delete(jid)
+              if (journeyResearchSettled(next[jid], { journeyId: jid as JourneyId })) n.delete(jid)
             }
             return n
           })
@@ -2312,6 +2314,7 @@ export default function ZonePage() {
                       if (!zoneInteractable) return
                       /* Discovery injections: own Solo Focus + context trap; do not hijack journey tile expand. */
                       if (tip.id.startsWith('inject-')) {
+                        soloFocusExpandIntentRef.current = tip.id
                         rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
                         if (!openSoloFocus(tip.id, 'discovery')) return
                         setExpandedCardId(null)
@@ -2322,6 +2325,7 @@ export default function ZonePage() {
                       if (journeyCell) {
                         openZoneJourneySoloFocus(journeyCell.item, tip)
                       } else {
+                        soloFocusExpandIntentRef.current = tip.id
                         rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
                         if (!openSoloFocus(tip.id, 'tip')) return
                         setExpandedCardId(null)
@@ -2489,16 +2493,10 @@ export default function ZonePage() {
                           : null
                       })()}
                       verifiedArchitectProse={(() => {
-                        const cov = researchCategoryCoverage?.[cell.item.journey_key]
-                        const p = cov?.architectProse?.trim()
-                        if (p) return p
-                        const metaJourney =
-                          researchMeta?.category != null
-                            ? researchCategoryToJourneyKey(researchMeta.category)
-                            : null
-                        return liveResearchData && metaJourney === cell.item.journey_key && researchMeta
-                          ? researchMeta.architectProse ?? null
-                          : null
+                        const jid = cell.item.journey_key
+                        const p = researchCategoryCoverage?.[jid]?.architectProse?.trim()
+                        if (!p) return null
+                        return sanitizeArchitectProseForJourney(jid, p)
                       })()}
                       verifiedAuditSourceUrl={(() => {
                         const cov = researchCategoryCoverage?.[cell.item.journey_key]
@@ -2508,20 +2506,22 @@ export default function ZonePage() {
                         if (src?.startsWith('http')) return src
                         return researchMeta?.auditSourceUrl ?? null
                       })()}
-                      verifiedAuditCategory={
-                        researchCategoryCoverage?.[cell.item.journey_key]?.verified
-                          ? cell.item.journey_key
-                          : researchMeta?.category
-                            ? researchCategoryToJourneyKey(researchMeta.category) ??
-                              cell.item.journey_key
-                            : null
-                      }
+                      verifiedAuditCategory={(() => {
+                        const jid = cell.item.journey_key
+                        const cov = researchCategoryCoverage?.[jid]
+                        if (!cov?.verified && !cov?.architectProse?.trim()) return null
+                        const prose = cov?.architectProse?.trim()
+                          ? sanitizeArchitectProseForJourney(jid, cov.architectProse)
+                          : null
+                        return cov?.verified || prose ? jid : null
+                      })()}
                       groovy
                       kineticGrid
                       researchCategoryCoverage={researchCategoryCoverage}
                       insightGenerationPending={
                         !journeyResearchSettled(researchCategoryCoverage?.[cell.item.journey_key], {
                           streamPending: cell.item.streamPending === true,
+                          journeyId: cell.item.journey_key,
                         }) &&
                         (cell.item.streamPending === true ||
                           insightPendingKeys.has(cell.item.journey_key))
@@ -2612,9 +2612,17 @@ export default function ZonePage() {
           const rockHabit = rockSlug ? ROCK_BY_SLUG.get(rockSlug) : undefined
           const rockTip = rockHabit ? habitToTipCard(rockHabit) : null
           const tipCell = groovyItems.find((c): c is GroovyItem & { type: 'tip'; tip: ZoneTipCard } => c.type === 'tip' && c.tip.id === expandedTipId)
-          const tip = rockTip ?? tipCell?.tip ?? viewModel.tips.find((t) => t.id === expandedTipId)
+          const tip =
+            rockTip ??
+            tipCell?.tip ??
+            achievementTips.find((t) => t.id === expandedTipId) ??
+            discoveryTips.find((t) => t.id === expandedTipId) ??
+            effectiveInjectedTips.find((t) => t.id === expandedTipId) ??
+            viewModel.tips.find((t) => t.id === expandedTipId)
           if (!tip) return null
           const isRockTip = Boolean(rockTip)
+          const isInjectDiscovery = isDiscoveryInjectCard(tip.id)
+          const tipVisitedForFocus = isZoneCardVisited(tip.id, tip.journey_key)
           const rawOfferUrl = tip.cta?.url || tip.actions?.actionUrl || tip.actions?.learnUrl || tip.source
           const tipNarrative = (tip.explanation ?? [])
             .map((p) => (typeof p === 'string' ? p.trim() : ''))
@@ -2645,25 +2653,23 @@ export default function ZonePage() {
             isPriorityHome: tip.journey_key === 'home' && !!localData?.council,
           })
           const tipCtaLabel = resolveRevenueCtaLabel(tipCtaKind, tipMoneyGbp)
-          const tipResearchJourney =
-            researchMeta?.category != null
-              ? researchCategoryToJourneyKey(researchMeta.category)
-              : null
-          const tipAuditMatches =
-            Boolean(
-              liveResearchData &&
-                tipResearchJourney != null &&
-                tipResearchJourney === tip.journey_key
-            )
-          const tipAuditMoney =
-            tipAuditMatches
-              ? researchMeta?.savingAmountGbp ?? researchMeta?.verifiedSaving ?? null
-              : null
+          const tipCov = researchCategoryCoverage?.[tip.journey_key]
+          const tipSanitizedProse = tipCov?.architectProse?.trim()
+            ? sanitizeArchitectProseForJourney(tip.journey_key, tipCov.architectProse)
+            : null
+          const tipAuditMatches = Boolean(
+            tipCov?.verified === true || (tipSanitizedProse != null && tipSanitizedProse.length > 0)
+          )
+          const tipAuditMoney = tipAuditMatches
+            ? tipCov?.latestSavingGbp ?? tipCov?.latestVerifiedGbp ?? null
+            : null
           return (
             <>
               <SoloFocusOverlay
                 key={tip.id}
-                startInQuestionMode={!isRockTip}
+                startInQuestionMode={false}
+                tipVerificationMode={isInjectDiscovery && !tipVisitedForFocus && !isRockTip}
+                discoveryFollowUp={tip.followUp}
                 auditState={tip.auditState ?? null}
                 category={formatZoneCategoryLabel(tip.journey_key ?? 'home')}
                 recommendation={tip.title}
@@ -2672,9 +2678,11 @@ export default function ZonePage() {
                 carbonValue={tip.data.carbon || '0 KG CO₂'}
                 offerUrl={offerUrl}
                 sourceUrl={
-                  tipAuditMatches && researchMeta?.auditSourceUrl
-                    ? researchMeta.auditSourceUrl
-                    : tip.source || tip.actions?.learnUrl
+                  tipCov?.latestOfferUrl?.trim().startsWith('http')
+                    ? tipCov.latestOfferUrl.trim()
+                    : tipCov?.latestSourceUrl?.trim().startsWith('http')
+                      ? tipCov.latestSourceUrl.trim()
+                      : tip.source || tip.actions?.learnUrl
                 }
                 sourceLabel={tip.sourceLabel}
                 architectSuppliedBy={tip.architectSuppliedBy}
@@ -2738,9 +2746,15 @@ export default function ZonePage() {
                 tipNeedsSwitching={tipNeedsSwitching}
                 isPriorityHome={tip.journey_key === 'home' && !!localData?.council}
                 verifiedAuditMoneyGbp={tipAuditMoney}
-                verifiedArchitectProse={tipAuditMatches ? researchMeta?.architectProse ?? null : null}
-                verifiedAuditSourceUrl={researchMeta?.auditSourceUrl ?? null}
-                verifiedAuditCategory={researchMeta?.category ?? null}
+                verifiedArchitectProse={tipSanitizedProse}
+                verifiedAuditSourceUrl={
+                  tipCov?.latestOfferUrl?.trim().startsWith('http')
+                    ? tipCov.latestOfferUrl.trim()
+                    : tipCov?.latestSourceUrl?.trim().startsWith('http')
+                      ? tipCov.latestSourceUrl.trim()
+                      : null
+                }
+                verifiedAuditCategory={tipAuditMatches ? tip.journey_key : null}
                 researchCategoryCoverage={researchCategoryCoverage}
               />
             </>

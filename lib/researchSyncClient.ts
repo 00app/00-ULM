@@ -1,4 +1,7 @@
+import type { JourneyId } from '@/lib/journeys'
 import type { ResearchProfileData } from '@/lib/agents/researchAgent'
+import { isAcceptableZoneJourneyHeadline } from '@/lib/soloFocusCopy'
+import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { isCardVisited } from '@/lib/zone/visitedCards'
 
 /** Latest row per `research_results.category` from GET /api/scrape-sync. */
@@ -17,18 +20,29 @@ export type ResearchCategoryCoverageRow = {
   agentHeadline?: string | null
 }
 
-/** Card / Solo Focus can render when Neon has £, offer URL, headline, or prose — not prose-only. */
+/** Card / Solo Focus can render when Neon has journey-valid £, offer URL, headline, or prose. */
 export function journeyResearchSettled(
   row: ResearchCategoryCoverageRow | undefined | null,
-  opts?: { streamPending?: boolean }
+  opts?: { streamPending?: boolean; journeyId?: JourneyId }
 ): boolean {
   if (opts?.streamPending === false) return true
   if (!row) return false
-  if (row.insightReady) return true
-  if ((row.latestSavingGbp ?? 0) > 0 || (row.latestVerifiedGbp ?? 0) > 0) return true
-  if (row.hasOffer) return true
-  if (row.agentHeadline?.trim()) return true
-  if (row.architectProse?.trim()) return true
+  const jid = opts?.journeyId
+  const proseOk =
+    row.architectProse?.trim() &&
+    (!jid || sanitizeArchitectProseForJourney(jid, row.architectProse) != null)
+  const headlineOk =
+    row.agentHeadline?.trim() &&
+    (!jid || isAcceptableZoneJourneyHeadline(jid, row.agentHeadline))
+  if (row.insightReady && (proseOk || headlineOk || row.hasOffer || (row.latestSavingGbp ?? 0) > 0)) {
+    return true
+  }
+  if ((row.latestSavingGbp ?? 0) > 0 || (row.latestVerifiedGbp ?? 0) > 0) {
+    return Boolean(proseOk || headlineOk || row.hasOffer)
+  }
+  if (row.hasOffer && (proseOk || headlineOk)) return true
+  if (headlineOk) return true
+  if (proseOk) return true
   return false
 }
 

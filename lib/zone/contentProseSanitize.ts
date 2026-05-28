@@ -41,9 +41,9 @@ const JOURNEY_PROSE_BANNED: Partial<Record<JourneyId, RegExp>> = {
   shopping: /\b(?:boiler\s+upgrade|heat\s*pump|ofgem\s+price\s*cap|solar\s+panel)\b/i,
   water: /\b(?:boiler\s+upgrade|heat\s*pump|ofgem\s+price\s*cap|solar\s+panel|ev\s+chargepoint)\b/i,
   waste: /\b(?:boiler\s+upgrade|heat\s*pump|ofgem\s+price\s*cap|solar\s+panel)\b/i,
-  holidays: /\b(?:boiler\s+upgrade|loft\s+insulation|ofgem\s+price\s*cap)\b/i,
+  holidays: /\b(?:boiler\s+upgrade|loft\s+insulation|ofgem\s+price\s*cap|e-?bike|ebike)\b/i,
   tech: /\b(?:boiler\s+upgrade|bus\b|loft\s+insulation|ofgem\s+price\s*cap)\b/i,
-  money: /\b(?:boiler\s+upgrade|loft\s+insulation|heat\s*pump|shower\s+head)\b/i,
+  money: /\b(?:boiler\s+upgrade|loft\s+insulation|heat\s*pump|shower\s+head|e-?bike|ebike)\b/i,
   grants: /\b(?:solar\s+panel\s+install|feed-in\s+tariff|mcs\s+certified\s+only)\b/i,
   home: /\b(?:e-bike\s+scheme|cycle\s+to\s+work\s+loan|bus\s+grant\s+only)\b/i,
   utilities: /\b(?:e-bike|food\s+compost|wrap\s+uk)\b/i,
@@ -55,13 +55,25 @@ export function proseViolatesJourneyCategory(journey: JourneyId, prose: string):
   return re ? re.test(prose) : false
 }
 
+const BOILERPLATE_PROSE_RE =
+  /\b(?:open the verified source(?:\s+link)?\s+below to complete this action(?:\s+and lock in the saving)?|open the verified source to complete this action|use the link below to execute the verified offer|use the primary action below to claim|use the verified source to execute the action plan)\b/i
+
+function stripBoilerplateFromParagraph(paragraph: string): string {
+  const sentences = paragraph
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const kept = sentences.filter((s) => !BOILERPLATE_PROSE_RE.test(s))
+  return kept.join(' ').trim()
+}
+
 /** Sanitize architect prose before Neon persistence or Solo Focus display. */
 export function sanitizeArchitectProseForJourney(journey: JourneyId, prose: string | null | undefined): string | null {
   if (!prose?.trim()) return null
   let t = stripContentSystemLeakage(prose)
   t = t
     .split(/\n\s*\n/)
-    .map((p) => stripContentSystemLeakage(p.trim()))
+    .map((p) => stripBoilerplateFromParagraph(stripContentSystemLeakage(p.trim())))
     .filter(Boolean)
     .join('\n\n')
   if (!t || proseViolatesJourneyCategory(journey, t)) return null

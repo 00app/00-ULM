@@ -46,6 +46,13 @@ flowchart TD
 
 ## 3) Data Pipeline By Layer
 
+### Copy voice (warm auditor)
+
+- **Persona:** trusted UK mate — calm, empathetic, data-honest; one line of dry humour per card at most (`lib/zone/zoneVoice.ts`). Numbers still from Neon / `buildUserImpact` only.
+- **Write path:** scrape-sync / `researchAgent` → Neon `architect_prose` + `agent_headline` → optional `content-architect` batch → `buildZoneViewModel` + `contentProseSanitize` on read.
+- **Expanded Solo Focus:** `resolveExpandedTrueTipInsight` uses per-**parent** `journey_key` coverage (`focusCategoryJourneyId`); short rows pad with `payoffSentence` (hands off to stamped £ / CO₂e).
+- **Postcode:** all locality strings from profile/postcode APIs — never hardcoded area labels in `app/` or `lib/` UI paths.
+
 ### Client Layer
 - **State hub:** `app/context/AppContext.tsx`
 - **Zone orchestrator:** `app/zone/page.tsx`
@@ -67,7 +74,31 @@ flowchart TD
 
 ---
 
-## 4) Flow Rules That Matter
+## 4) Category contract (what each journey must say)
+
+Each Zone card only accepts Neon copy that passes `sanitizeArchitectProseForJourney` + `isAcceptableZoneJourneyHeadline` for that journey key. Wrong-category rows (e.g. BUS grant prose on `grants` with an e-bike headline) are treated as **unsettled** → Solo Focus shows **Computing…** until a valid scrape or `content-architect` row exists.
+
+| Journey | Headline / topic lane | Prose must cover |
+| --- | --- | --- |
+| `home` | Fabric, heating, draughts, insulation | Loft, draught-proofing, heating waste — not e-bike or pure tariff-only dumps |
+| `utilities` | Tariff, standing charge, direct debit | Ofgem cap / supplier switch maths for the user's fuel type |
+| `grants` | BUS, ECO, local authority grants | Grant eligibility + installer path — not generic e-bike retail |
+| `solar` | MCS install, export, self-use | Generation ROI — not boiler upgrade or BUS-only copy |
+| `travel` | Commute, fuel, rail, EV | Transport swap — not loft or heat-pump grants |
+| `holidays` | Flights, rail vs air, trip frequency | Holiday travel carbon — not home energy or e-bike schemes |
+| `food` | Waste, basket, local outlets | Food waste / diet shift — not heat pumps |
+| `shopping` | Repair, circular, durable goods | Purchase habits — not energy audit tables |
+| `money` | Green finance, bills, direct debits | Household money moves — not shower heads or BUS |
+| `tech` | Standby, smart heat, meters | Plug/load discipline — not loft insulation |
+| `water` | Metering, Southern/regional water saves | Water volume — not gas boiler grants |
+| `waste` | Council recycling, compost | Local waste rules — not tariff cap essays |
+| `carbon` | Footprint tracking vs 12k kWh ≈ 1t | Audit framing — not meal planners or e-bike |
+
+**Settled** means: per-journey coverage has verified £ **and** journey-valid headline or three-paragraph `architect_prose` (see `journeyResearchSettled` in `lib/researchSyncClient.ts`).
+
+---
+
+## 5) Flow Rules That Matter
 
 - **Postcode-first:** locality-aware paths must derive from user postcode.
 - **Mechanical truth first:** no fake money/carbon if research stream is absent.
@@ -77,7 +108,7 @@ flowchart TD
 
 ---
 
-## 5) Operational Pipeline (Deploy + Health)
+## 6) Operational Pipeline (Deploy + Health)
 
 1. Verify app integrity (`npm run verify`).
 2. Deploy with remote build + promote (`npm run deploy` → `scripts/deploy-production.sh`).
@@ -85,7 +116,10 @@ flowchart TD
    - `GET /api/health?live=1`
    - `GET /api/health/diagnostics`
    - `GET /api/pulse/living?postcode=...`
-5. Validate content hydration:
+6. Local dev: `vercel pull --yes --environment=production && cp .vercel/.env.production.local .env.local` then restart `npm run dev:3000` (fixes `/api/health` 503 and `/api/session-state` errors).
+7. Dev pipeline gate: `npm run dev:pipeline-ready` (verify + health). Seed all 13 categories: `npm run dev:pipeline-ready -- --seed YOURPOSTCODE` or `bash scripts/seed-zone-research-all.sh http://127.0.0.1:3000 YOURPOSTCODE`.
+8. Localhost `/zone` auto-bootstraps unsettled journeys via `lib/zone/devResearchBootstrap.ts` (staggered `POST /api/scrape-sync`). Production remains JIT unless `NEXT_PUBLIC_ZONE_DEV_BOOTSTRAP=1`.
+9. Validate content hydration:
    - `GET /api/scrape-sync?postcode=...`
    - optional authenticated trigger `POST /api/scrape-sync` with `trigger` + `journey_key`
 

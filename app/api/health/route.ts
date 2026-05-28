@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { pingDatabase } from '@/lib/db'
+import { isDatabaseConfigured, pingDatabase } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -11,6 +11,17 @@ export async function GET(request: Request) {
   const live = new URL(request.url).searchParams.get('live')
   if (live === '1') {
     return NextResponse.json({ status: 'ok', probe: 'liveness' })
+  }
+
+  if (!isDatabaseConfigured()) {
+    return NextResponse.json(
+      {
+        status: 'degraded',
+        database: 'not_configured',
+        hint: 'Run vercel pull --yes --environment=production && cp .vercel/.env.production.local .env.local',
+      },
+      { status: 503 }
+    )
   }
 
   try {

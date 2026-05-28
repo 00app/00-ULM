@@ -573,7 +573,7 @@ ${postcodeDna}
 
 ${laneLock}
 
-You are a UK household savings researcher (April 2026). Write markdown for postcode **${pc}**${locality ? ` (${locality})` : ''}.
+You are a trusted UK household savings guide (April 2026) — calm, clear, and gently direct. Write markdown for postcode **${pc}**${locality ? ` (${locality})` : ''}.
 CURRENT_DOMAIN: ${cat}. Do not reference other journey domains.
 ${categoryLine}
 Pull real localized deals from the profile context — no placeholder £0 rows. Include one numeric **£/year** saving and at least one **https://** deep link to a live UK offer or scheme page.
@@ -847,7 +847,7 @@ async function extractResearchTripletWithGemini(
   const categoryBias = catHint
     ? `Target journey category for this pass (use "${catHint}" unless the evidence clearly fits another listed category): ${catHint}\n\n`
     : ''
-  const prompt = `${pc}${profileBlock}${categoryBias}You are an expert editorial writer for Zero Zero — sustainable lifestyle and smart UK consumer choices. Transform the scraped evidence into a compelling, human-centric feature. No dashboard speak, API jargon, or robotic summaries.
+  const prompt = `${pc}${profileBlock}${categoryBias}You are a trusted Zero Zero guide — warm, empathetic UK copy from scraped evidence. No dashboard speak, API jargon, or robotic summaries.
 
 ${EDITORIAL_MAGAZINE_CONSTRAINT}
 
@@ -860,11 +860,11 @@ From the markdown below, return ONLY valid JSON (no markdown code fence) with ex
 - "saving_amount_gbp": non-negative number with up to two decimal places — annual GBP saving grounded in the scraped text (use 0 only if truly none inferable).
 - "offer_url": one https URL copied verbatim from the markdown or citation context. If no live URL exists, return an empty string.
 - "agent_headline": **Zone card heading** — **6 to 8 words**, punchy and benefit-driven (e.g. "leapfrog your energy bills this month"). No colons. No section labels.
-- "expanded_headline": **Expanded Solo Focus heading** — **up to 12 words**; high-impact lifestyle hook tying the user's setup to the win. Optional key; if omitted, agent_headline may be reused.
-- "architect_prose": exactly **THREE** paragraphs for the expanded view only, separated by **two** newlines (blank line between). **Hard cap: each paragraph at most ${MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH} words.** Editorial, lifestyle-first UK English:
-  - Paragraph 1 — **The Hook:** connect their current lifestyle setup (profile/postcode) directly to the opportunity.
-  - Paragraph 2 — **The Core Deal:** the real-world product or offer; financial and waste-reduction impact, not tech specs.
-  - Paragraph 3 — **The Leapfrog:** forward-looking payoff — how this choice steps them into the next tier of modern sustainable living.
+- "expanded_headline": **Expanded Solo Focus hook heading** — **10 to 20 words** (2–3 lines); benefit-led lifestyle hook for their town/setup, not a postcode. Optional; if omitted, agent_headline may be reused.
+- "architect_prose": exactly **THREE** paragraphs for the expanded view only, separated by **two** newlines (blank line between). **Hard cap: each paragraph at most ${MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH} words.** Warm, trusted UK English — caring and clear, one line of dry humour at most:
+  - Paragraph 1 — **Hook:** connect their lifestyle (profile/postcode) to the opportunity without lecturing.
+  - Paragraph 2 — **Deal:** the real-world offer or grant; compact £ and carbon impact, not tariff tables or API jargon.
+  - Paragraph 3 — **Payoff:** what changes this month if they act — hand off to the stamped figures below, not "open the CTA".
   **Banned:** "What:", "Why:", "How:", bullets, numbering, markdown headings, or role labels in the prose text.
 
 Markdown:
@@ -877,7 +877,7 @@ ${markdown.slice(0, 28_000)}`
       tag,
       tier: 'article',
       maxOutputTokens: 1536,
-      temperature: GEMINI_PRECISION_TEMPERATURE,
+      temperature: 0.32,
       models: options?.model?.trim()
         ? [`google/${options.model.trim().replace(/^google\//, '')}`, ...ARTICLE_GATEWAY_MODEL_CHAIN]
         : undefined,
@@ -1198,67 +1198,67 @@ function mechanicalCategoryTripletFallback(params: {
       home: {
         gbp: 180,
         headline: `Home heat audit ${areaTag}`,
-        prose: `Older homes in ${areaLabel} leak heat through lofts, draughts, and lagging gaps — sealing those cuts bills before you chase a new boiler.\n\nApril 2026 bills still track the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel) so every wasted kWh hurts until fabric is fixed.\n\nOpen the verified Energy Saving Trust advice link below and plan loft and draught-proofing work before winter.`,
+        prose: `Older homes in ${areaLabel} leak heat through lofts, draughts, and lagging gaps — sealing those cuts bills before you chase a new boiler.\n\nApril 2026 bills still track the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel) so every wasted kWh hurts until fabric is fixed.\n\nExecute the audited step in the CTA — Energy Saving Trust advice link below and plan loft and draught-proofing work before winter.`,
       },
       utilities: {
         gbp: 120,
         headline: `April cap signal ${areaTag}`,
-        prose: `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£120 dual-fuel standing-charge and direct-debit realignment as the immediate target before locking a fixed tariff.\n\nOpen the verified Ofgem advice portal below to confirm your supplier statement matches the cap rates before you make any switch.`,
+        prose: `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£120 dual-fuel standing-charge and direct-debit realignment as the immediate target before locking a fixed tariff.\n\nExecute the audited step in the CTA — Ofgem advice portal below to confirm your supplier statement matches the cap rates before you make any switch.`,
       },
       grants: {
         gbp: MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP,
         headline: `BUS heat pump grant ${areaTag}`,
-        prose: `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — air-source heat pumps receive a flat £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString('en-GB')} grant in England & Wales; oil and LPG homes may access £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nWe stack that grant against your heating bill baseline so you see installer cash plus lower running costs, not generic comparison-site copy.\n\nOpen the verified BUS application link below while local MCS installers still have capacity — confirm eligibility before you sign a quote.`,
+        prose: `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — air-source heat pumps receive a flat £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString('en-GB')} grant in England & Wales; oil and LPG homes may access £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nWe stack that grant against your heating bill baseline so you see installer cash plus lower running costs, not generic comparison-site copy.\n\nExecute the audited step in the CTA — BUS application link below while local MCS installers still have capacity — confirm eligibility before you sign a quote.`,
       },
       solar: {
         gbp: 450,
         headline: `Solar export audit ${areaTag}`,
-        prose: `Solar in ${areaLabel} pays when generation, export rate, and daytime use align — typical homes cut import costs once an MCS install is sized to the roof.\n\nApril 2026 import rates still follow the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel), so export and self-use matter for what you buy overnight.\n\nOpen the verified MCS certified installer directory below and compare export tariffs with your supplier before you lock an install quote.`,
+        prose: `Solar in ${areaLabel} pays when generation, export rate, and daytime use align — typical homes cut import costs once an MCS install is sized to the roof.\n\nApril 2026 import rates still follow the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel), so export and self-use matter for what you buy overnight.\n\nExecute the audited step in the CTA — MCS certified installer directory below and compare export tariffs with your supplier before you lock an install quote.`,
       },
       travel: {
         gbp: 450,
         headline: `Travel cost audit ${areaTag}`,
-        prose: `Travel patterns from ${areaLabel} reveal room for EV transitions and active travel habits under modern green funding frameworks.\n\nWe treat the ~£450 travel optimization plan as the baseline for swapping private vehicle journeys with local public transport links.\n\nOpen the verified National Rail or local transit planner below to review ticket structures and green travel discounts in your region.`,
+        prose: `Travel patterns from ${areaLabel} reveal room for EV transitions and active travel habits under modern green funding frameworks.\n\nWe treat the ~£450 travel optimization plan as the baseline for swapping private vehicle journeys with local public transport links.\n\nExecute the audited step in the CTA — National Rail or local transit planner below to review ticket structures and green travel discounts in your region.`,
       },
       holidays: {
         gbp: 250,
         headline: `Holiday flight audit ${areaTag}`,
-        prose: `Holidays from ${areaLabel} carry heavy footprint liabilities. Changing flight frequencies and selecting rail over short flights is a highly effective carbon protection.\n\nWe treat the ~£250 flight frequency reduction as the baseline to hedge against rising airline carbon taxes and seasonal fuel surcharges.\n\nOpen the verified flight carbon comparison tool below and evaluate your footprint before choosing your next destination.`,
+        prose: `Holidays from ${areaLabel} carry heavy footprint liabilities. Changing flight frequencies and selecting rail over short flights is a highly effective carbon protection.\n\nWe treat the ~£250 flight frequency reduction as the baseline to hedge against rising airline carbon taxes and seasonal fuel surcharges.\n\nExecute the audited step in the CTA — flight carbon comparison tool below and evaluate your footprint before choosing your next destination.`,
       },
       food: {
         gbp: 180,
         headline: `Food budget audit ${areaTag}`,
-        prose: `Food budgets in ${areaLabel} show substantial packaging and food waste overheads. Shifting to localized basket plans secures kitchen-table savings.\n\nWe treat the ~£180 food optimization path as the baseline for adopting a low-waste, plant-rich diet aligned with local outlets.\n\nOpen the verified Love Food Hate Waste portal below and check their meal planners to optimize your weekly shopping list.`,
+        prose: `Food budgets in ${areaLabel} show substantial packaging and food waste overheads. Shifting to localized basket plans secures kitchen-table savings.\n\nWe treat the ~£180 food optimization path as the baseline for adopting a low-waste, plant-rich diet aligned with local outlets.\n\nExecute the audited step in the CTA — Love Food Hate Waste portal below and check their meal planners to optimize your weekly shopping list.`,
       },
       shopping: {
         gbp: 110,
         headline: `Shopping savings audit ${areaTag}`,
-        prose: `Shopping habits in ${areaLabel} reveal significant savings from adopting a repair-over-replace circular economy mindset for home goods and fashion.\n\nWe treat the ~£110 circular economy purchase shifts as the baseline for avoiding high-waste retail channels and fast-fashion outlets.\n\nOpen the verified circular economy directory below and locate repair shops or low-waste retailers operating near you.`,
+        prose: `Shopping habits in ${areaLabel} reveal significant savings from adopting a repair-over-replace circular economy mindset for home goods and fashion.\n\nWe treat the ~£110 circular economy purchase shifts as the baseline for avoiding high-waste retail channels and fast-fashion outlets.\n\nExecute the audited step in the CTA — circular economy directory below and locate repair shops or low-waste retailers operating near you.`,
       },
       money: {
         gbp: 320,
         headline: `Green money audit ${areaTag}`,
-        prose: `Money and finance choices in ${areaLabel} shape structural footprint leakage. Moving cash balances to clean green accounts hedges capital liabilities.\n\nWe treat the ~£320 green investment shift as the baseline for using low-carbon ISAs or green bonds that offer stable yields without oil funding.\n\nOpen the verified green finance comparison directory below and review certified clean banking options for UK savers.`,
+        prose: `Money and finance choices in ${areaLabel} shape structural footprint leakage. Moving cash balances to clean green accounts hedges capital liabilities.\n\nWe treat the ~£320 green investment shift as the baseline for using low-carbon ISAs or green bonds that offer stable yields without oil funding.\n\nExecute the audited step in the CTA — green finance comparison directory below and review certified clean banking options for UK savers.`,
       },
       tech: {
         gbp: 140,
         headline: `Tech efficiency audit ${areaTag}`,
-        prose: `Tech solutions in ${areaLabel}, including smart meters and automated smart thermostats, offer rapid bill protection under the April 2026 cap frame.\n\nWe treat the ~£140 smart-home heating precision plan as the baseline to avoid heating empty rooms or running inefficient boilers.\n\nOpen the verified smart energy advice portal below and see if your supplier offers free smart meter installations locally.`,
+        prose: `Tech solutions in ${areaLabel}, including smart meters and automated smart thermostats, offer rapid bill protection under the April 2026 cap frame.\n\nWe treat the ~£140 smart-home heating precision plan as the baseline to avoid heating empty rooms or running inefficient boilers.\n\nExecute the audited step in the CTA — smart energy advice portal below and see if your supplier offers free smart meter installations locally.`,
       },
       water: {
         gbp: 90,
         headline: `Water conservation ${areaTag}`,
-        prose: `Water billing in ${areaLabel} is subject to rising sewage and metered tariff hikes, making local conservation highly profitable.\n\nWe treat the ~£90 rainwater butt and shower aeration plan as the baseline to reduce household metered volume charges.\n\nOpen the verified water company advice directory below to claim free water-saving tap inserts and shower heads.`,
+        prose: `Water billing in ${areaLabel} is subject to rising sewage and metered tariff hikes, making local conservation highly profitable.\n\nWe treat the ~£90 rainwater butt and shower aeration plan as the baseline to reduce household metered volume charges.\n\nExecute the audited step in the CTA — water company advice directory below to claim free water-saving tap inserts and shower heads.`,
       },
       waste: {
         gbp: 70,
         headline: `Waste reduction ${areaTag}`,
-        prose: `Waste management in ${areaLabel} is governed by local council landfill rules. Active soft-plastic sorting and home composting secures easy environmental wins.\n\nWe treat the ~£70 waste sorting and composting habit shift as the baseline to optimize organic waste separation and circular disposal.\n\nOpen the verified local waste recycling directory below and confirm the collection dates and rules for your neighborhood.`,
+        prose: `Waste management in ${areaLabel} is governed by local council landfill rules. Active soft-plastic sorting and home composting secures easy environmental wins.\n\nWe treat the ~£70 waste sorting and composting habit shift as the baseline to optimize organic waste separation and circular disposal.\n\nExecute the audited step in the CTA — local waste recycling directory below and confirm the collection dates and rules for your neighborhood.`,
       },
       carbon: {
         gbp: 100,
         headline: `Carbon reduction ${areaTag}`,
-        prose: `Carbon footprint tracking in ${areaLabel} aligns with the 12,000 kWh / 1 tonne baseline, acting as an early protection system against future green levies.\n\nWe treat the ~£100 carbon reduction plan as the baseline for tracking daily energy inputs and eliminating non-essential household footprints.\n\nOpen the verified UK carbon calculator below and audit your family footprint against the national transition timeline.`,
+        prose: `Carbon footprint tracking in ${areaLabel} aligns with the 12,000 kWh / 1 tonne baseline, acting as an early protection system against future green levies.\n\nWe treat the ~£100 carbon reduction plan as the baseline for tracking daily energy inputs and eliminating non-essential household footprints.\n\nExecute the audited step in the CTA — UK carbon calculator below and audit your family footprint against the national transition timeline.`,
       },
     }
 
@@ -1291,7 +1291,7 @@ function mechanicalCategoryTripletFallback(params: {
       ) || `HEAT PUMP GRANT IN ${areaTag}`
     const architect_prose =
       normalizeArchitectProseThreeParagraphs(
-        `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — air-source heat pumps receive a flat £${gbp.toLocaleString('en-GB')} grant in England & Wales; oil and LPG homes may access £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nWe stack that grant against your heating bill baseline so you see installer cash plus lower running costs, not generic SEO.\n\nOpen the verified BUS application link below while installers still have MCS slots — confirm eligibility before you sign a quote.`
+        `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — air-source heat pumps receive a flat £${gbp.toLocaleString('en-GB')} grant in England & Wales; oil and LPG homes may access £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nWe stack that grant against your heating bill baseline so you see installer cash plus lower running costs, not generic SEO.\n\nExecute the audited step in the CTA — BUS application link below while installers still have MCS slots — confirm eligibility before you sign a quote.`
       ) ?? ''
     if (!architect_prose) return null
     return { saving_amount_gbp: gbp, agent_headline, architect_prose }
@@ -1307,7 +1307,7 @@ function mechanicalCategoryTripletFallback(params: {
       ) || `APRIL CAP SIGNAL ${areaTag}`
     const architect_prose =
       normalizeArchitectProseThreeParagraphs(
-        `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£${gbp} green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nOpen the verified Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`
+        `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£${gbp} green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nExecute the audited step in the CTA — Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`
       ) ?? ''
     if (!architect_prose) return null
     return { saving_amount_gbp: gbp, agent_headline, architect_prose }

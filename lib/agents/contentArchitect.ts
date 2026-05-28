@@ -20,6 +20,7 @@ import {
   sanitizeArchitectProseForJourney,
   stripContentSystemLeakage,
 } from '@/lib/zone/contentProseSanitize'
+import { ZONE_CONTENT_ARCHITECT_VOICE } from '@/lib/zone/zoneVoice'
 
 export type ArchitectJourneyPayload = {
   headline: string
@@ -250,7 +251,7 @@ export async function generateCardContextsBatch(
   const model = genAI.getGenerativeModel({
     model: process.env.GEMINI_ARTICLE_MODEL?.trim() || 'gemini-1.5-flash',
     generationConfig: {
-      temperature: 0.2,
+      temperature: 0.35,
       maxOutputTokens: 4096,
     },
   })
@@ -261,11 +262,10 @@ export async function generateCardContextsBatch(
 Lifestyle shift / pattern arbitrage: prioritise behavioural shifts (rail vs flight, EV swap, local holidays, meal patterns) over generic grant homepages. Paragraph 3 must reference a deep-linked https portal — never a site root or 404 page.`
     : ''
 
-  const system = `You are a Senior Design Engineer & Energy Architect operating in Mechanical Sincerity mode.
-Voice: minimalist, high-contrast, urgent, data-dense, and clear. No conversational filler. No patronising language.
-Market accuracy beats creative writing. If any value is uncertain, stay conservative and tie claims to provided source_url/source_hint.
+  const system = `${ZONE_CONTENT_ARCHITECT_VOICE}
 ${lifestyleBlock}
-Format raw savings into plain execution steps. No emojis. No "you could save". No repeated sentences.
+Market accuracy beats creative writing. If any value is uncertain, stay conservative and tie claims to provided source_url/source_hint.
+No emojis. No repeated sentences.
 STRICT CATEGORY BOUNDARIES (mandatory — violating a boundary invalidates the card):
 - Each card's copy must match journey_key only. If journey_key is grants and the topic is e-bike schemes, do NOT mention gas boilers, heat pumps, or Ofgem cap maths unless the grant is explicitly BUS/heat-pump.
 - utilities = fuel mix, tariff, supplier, standing charges (no BUS, no loft insulation).
@@ -282,13 +282,11 @@ Absolute voice constraints:
 - No bullet points or numbered list formatting.
 - Never use repetitive generic line: "Green pension funds hitting 20% ROI in 2026."
 - Keep each journey insight unique in wording and mechanism.
-Headline must be a functional component label, uppercase, flat and specific (examples: "HEAT PUMP TRANSITION", "LOFT INSULATION 300MM", "EV TYRE PRESSURE CONTROL").
-Do not write marketing slogans, emotional hooks, or locality vanity in headline.
 Keep headline <= ${MAX_HEADLINE_CHARS} chars, uppercase, no trailing period.
-Insight must be exactly 3 punchy sentences, each on its own paragraph (blank line between):
-Sentence 1 (Friction): one brutal, data-backed baseline waste statement for this category.
-Sentence 2 (Leverage): one localized 2026 fix grounded in provided facts (BUS £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}/£${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} only where relevant).
-Sentence 3 (Action): one definitive mechanical outcome plus the required HTTPS action/source reference for this week; tie the action to the £12k/1t target trajectory when possible.
+Insight must be exactly 3 sentences, each on its own paragraph (blank line between):
+Sentence 1 (Friction): honest baseline waste for this category — compact £ or habit fact, empathetic tone.
+Sentence 2 (Leverage): one localized 2026 fix from provided facts (BUS £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}/£${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} only where relevant).
+Sentence 3 (Action): warm payoff plus the required HTTPS action/source reference for this week; tie to the £12k/1t trajectory when figures are provided.
 Use compact figures only: £1.4k / 0.3t style, never long-form integers in prose.
 When verified_saving_value is provided, cite it explicitly in compact £ format and mention offer_expiry_date when present.
 Always reference locality and postcode context when provided.

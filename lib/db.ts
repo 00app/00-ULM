@@ -56,6 +56,16 @@ export function mergeSslModeRequire(connectionString: string): string {
   return `${t}${joiner}sslmode=require`
 }
 
+/** True when a real Neon/Vercel DATABASE_URL is configured (not dev localhost fallback). */
+export function isDatabaseConfigured(): boolean {
+  const raw = process.env.DATABASE_URL?.trim() ?? ''
+  if (!raw) return false
+  if (/localhost\/neondb/i.test(raw) || raw === 'postgresql://localhost/neondb?sslmode=require') {
+    return false
+  }
+  return true
+}
+
 function resolveConnectionString(): string {
   const raw = process.env.DATABASE_URL?.trim() ?? ''
   const connectionString = raw ? sanitizeNeonConnectionString(raw) : ''

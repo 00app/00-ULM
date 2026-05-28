@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Seed all 12 journey categories for a postcode via POST /api/scrape-sync (Bearer auth).
+# Seed all 13 journey categories for a postcode via POST /api/scrape-sync (Bearer auth).
+# Mirrors lib/journeys.ts JOURNEY_ORDER (home … carbon).
 #
 # Usage:
-#   bash scripts/seed-zone-research-all.sh --env-file .env.production.local https://00-ulm.vercel.app BN17
-#   bash scripts/seed-zone-research-all.sh BN17   # uses NEXT_PUBLIC_APP_URL or 00-ulm default
+#   bash scripts/seed-zone-research-all.sh --env-file .env.local http://127.0.0.1:3000 SW1A1AA
+#   bash scripts/seed-zone-research-all.sh SW1A1AA   # uses NEXT_PUBLIC_APP_URL or 00-ulm default
 #
 set -euo pipefail
 
@@ -25,11 +26,21 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-HOST="${POSITIONAL[0]:-${NEXT_PUBLIC_APP_URL:-https://00-ulm.vercel.app}}"
-POSTCODE="${POSITIONAL[1]:-M11AG}"
+# Host + postcode: if first arg looks like a postcode (no scheme), treat as postcode only.
+HOST="${NEXT_PUBLIC_APP_URL:-https://00-ulm.vercel.app}"
+POSTCODE="M11AG"
+if [[ ${#POSITIONAL[@]} -ge 1 ]]; then
+  if [[ "${POSITIONAL[0]}" == http* ]]; then
+    HOST="${POSITIONAL[0]}"
+    POSTCODE="${POSITIONAL[1]:-M11AG}"
+  else
+    POSTCODE="${POSITIONAL[0]}"
+    [[ ${#POSITIONAL[@]} -ge 2 ]] && HOST="${POSITIONAL[1]}"
+  fi
+fi
 
 CATEGORIES=(
-  home grants solar travel holidays food shopping money tech water waste carbon
+  home utilities grants solar travel holidays food shopping money tech water waste carbon
 )
 
 echo "Seeding ${#CATEGORIES[@]} categories for ${POSTCODE} on ${HOST}" >&2

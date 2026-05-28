@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getDbPool } from '@/lib/db'
+import { getDbPool, isDatabaseConfigured } from '@/lib/db'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import {
   guestIpHashFromRequest,
@@ -18,10 +18,38 @@ import {
 
 export const dynamic = 'force-dynamic'
 
+function emptySessionPayload() {
+  return {
+    visitedCardIds: [] as string[],
+    visitedJourneyKeys: [] as string[],
+    profile: {
+      name: '',
+      postcode: '',
+      household: '',
+      home_type: '',
+      home_power: '',
+      transport: '',
+      age: '',
+      employment_status: '',
+      goal: '',
+    },
+    journeyAnswers: JOURNEY_ORDER.reduce<Record<string, Record<string, string>>>((acc, jid) => {
+      acc[jid] = {}
+      return acc
+    }, {}),
+    completedJourneys: [] as string[],
+  }
+}
+
 /** GET — return profile, journey_answers, completed_journeys for this session (or IP fallback). */
 export async function GET(request: NextRequest) {
+  const sessionId = resolveGuestSessionId(request)
+  if (!isDatabaseConfigured()) {
+    const res = NextResponse.json(emptySessionPayload())
+    setGuestSessionCookie(res, sessionId)
+    return res
+  }
   try {
-    const sessionId = resolveGuestSessionId(request)
     const ipHash = guestIpHashFromRequest(request)
     const pool = getDbPool()
 
@@ -99,14 +127,21 @@ export async function GET(request: NextRequest) {
     return res
   } catch (e) {
     console.error('[session-state] GET error:', e)
-    return NextResponse.json({ error: 'Failed to load session state' }, { status: 500 })
+    const res = NextResponse.json(emptySessionPayload())
+    setGuestSessionCookie(res, sessionId)
+    return res
   }
 }
 
 /** POST — upsert profile, journey_answers, completed_journeys for this session. */
 export async function POST(request: NextRequest) {
+  const sessionId = resolveGuestSessionId(request)
+  if (!isDatabaseConfigured()) {
+    const res = NextResponse.json({ ok: true, offline: true })
+    setGuestSessionCookie(res, sessionId)
+    return res
+  }
   try {
-    const sessionId = resolveGuestSessionId(request)
     const ipHash = guestIpHashFromRequest(request)
     const body = await request.json().catch(() => ({}))
     const profile = (body.profile as Record<string, string>) ?? {}

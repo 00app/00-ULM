@@ -5,7 +5,8 @@
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { sanitizeAgentMarkdown, stripMarkdownForProseDisplay } from '@/lib/agents/zeroHunterMarkdown'
-import { bridgeSentence, buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
+import { buildAuditorNarrativeParagraphs, payoffSentence } from '@/lib/zone/auditorNarrative'
+import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 
@@ -86,17 +87,17 @@ export function isEnergyAuditDebrisHeadline(text: string): boolean {
 const JOURNEY_HEADLINE_TOPIC_CONFLICT: Partial<Record<JourneyId, RegExp>> = {
   solar:
     /\b(?:april\s*cap\s*signal|ofgem\s+price|heat\s*pump|boiler\s+upgrade|bus\b|dual-fuel|gas\s+boiler|e-bike|ebike)\b/i,
-  grants: /\b(?:april\s*cap\s*signal|solar\s+panel|e-bike\s+scheme|loft\s+top-?up)\b/i,
+  grants: /\b(?:april\s*cap\s*signal|solar\s+panel|loft\s+top-?up|e-?bike|ebike)\b/i,
   utilities: /\b(?:e-bike|ebike|food\s+compost|loft\s+top-?up|boiler\s+upgrade\s+scheme)\b/i,
   home: /\b(?:e-bike\s+scheme|ebike|cycle\s+to\s+work|solar\s+export)\b/i,
   water: /\b(?:electric(?:ity)?|gas\b|kwh|tariff|boiler|heat\s*pump|solar\s+panel|ofgem|octopus|grid\s+intensity)\b/i,
   food: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump|loft\s+insulation|april\s*cap)\b/i,
   shopping: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump|april\s*cap)\b/i,
   waste: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump|april\s*cap)\b/i,
-  holidays: /\b(?:loft|insulation|boiler|kwh|tariff|heat\s*pump|april\s*cap)\b/i,
+  holidays: /\b(?:loft|insulation|boiler|kwh|tariff|heat\s*pump|april\s*cap|e-?bike|ebike)\b/i,
+  money: /\b(?:shower|bath|rainwater|loft\s+insulation|april\s*cap|e-?bike|ebike|boiler\s+upgrade)\b/i,
   tech: /\b(?:shower|bath|rainwater|water\s+meter|flush|april\s*cap\s*signal)\b/i,
   travel: /\b(?:shower|bath|rainwater|water\s+meter|loft\s+insulation|april\s*cap)\b/i,
-  money: /\b(?:shower|bath|rainwater|loft\s+insulation|april\s*cap)\b/i,
   carbon: /\b(?:e-bike|ebike|meal\s+planner|food\s+compost)\b/i,
 }
 
@@ -188,13 +189,59 @@ export function stripProseReportLead(text: string): string {
 }
 
 /** Remove cheap engagement openers from auditor / architect paragraphs (prompt hygiene). */
+/** UI / template filler — never show in Solo Focus (DB rows may still carry legacy closes). */
+const BOILERPLATE_PROSE_RE =
+  /\b(?:open the verified source(?:\s+link)?\s+below to complete this action(?:\s+and lock in the saving)?|open the verified source to complete this action|use the link below to execute the verified offer|use the primary action below to claim|use the verified source to execute the action plan)\b/i
+
+export function isBoilerplateProseParagraph(text: string): boolean {
+  const t = text.trim()
+  if (!t) return true
+  return BOILERPLATE_PROSE_RE.test(t) || isCtaBridgeParagraph(t)
+}
+
+/** Legacy CTA-bridge padding — replaced in Solo Focus by {@link payoffSentence}. */
+export function isCtaBridgeParagraph(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  if (/\bvia the cta\b/i.test(t)) return true
+  if (/\block fabric or tariff moves\b/i.test(t)) return true
+  if (/\bexecute the verified step\b/i.test(t)) return true
+  if (/\bapply through the cta\b/i.test(t)) return true
+  if (/\balign quotes to your postcode audit before you switch\b/i.test(t)) return true
+  return false
+}
+
+function normalizeTrueTipThirdParagraph(
+  journey: JourneyId,
+  paragraph: string,
+  moneyGbp: number,
+  carbonKg: number
+): string {
+  const t = paragraph.trim()
+  if (!t || isCtaBridgeParagraph(t) || isBoilerplateProseParagraph(t)) {
+    return payoffSentence(journey, moneyGbp, carbonKg)
+  }
+  return t
+}
+
+export function stripBoilerplateProseSentences(text: string): string {
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const kept = sentences.filter((s) => !isBoilerplateProseParagraph(s))
+  return kept.join(' ').trim()
+}
+
 export function stripAuditorFluffParagraph(raw: string): string {
-  return raw
-    .replace(
-      /^(?:did you know\??|consider (?:this|that)\.?\s*|fun fact:?\s*|here'?s (?:the thing|what you need to know):?\s*)/i,
-      ''
-    )
-    .trim()
+  return stripBoilerplateProseSentences(
+    raw
+      .replace(
+        /^(?:did you know\??|consider (?:this|that)\.?\s*|fun fact:?\s*|here'?s (?:the thing|what you need to know):?\s*)/i,
+        ''
+      )
+      .trim()
+  )
 }
 
 /** Remove What/Why/How / Discovery headings Gemini may echo in `architect_prose` (expanded UI is label-free). */
@@ -289,10 +336,10 @@ export function dedupeTrueTipOpeningParagraph(headline: string, firstParagraph: 
   if (h.length < 10 || f.length < 10) return firstParagraph
   const prefixLen = Math.min(48, h.length, f.length)
   if (prefixLen >= 10 && h.slice(0, prefixLen) === f.slice(0, prefixLen)) {
-    return `Behind this headline sits a live scheme from your audit trail — the £ and CO₂e figures are pathway estimates tied to your postcode and eligibility signals, not boilerplate.`
+    return ''
   }
   if (h.length >= 18 && fpKey.includes(h)) {
-    return `Behind this headline sits a live scheme from your audit trail — the £ and CO₂e figures are pathway estimates tied to your postcode and eligibility signals, not boilerplate.`
+    return ''
   }
   return firstParagraph
 }
@@ -312,9 +359,9 @@ export function polishTrueTipParagraphsForHeadline(
 /** Zone / bento card face — Marvin stamp (5–8 words). */
 export const MIN_ZONE_CARD_HEADLINE_WORDS = 5
 export const MAX_ZONE_CARD_HEADLINE_WORDS = 8
-/** Solo Focus / expanded Zai Architect H1 (6–12 words). */
-export const MIN_EXPANDED_VIEW_HEADLINE_WORDS = 6
-export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 12
+/** Solo Focus hook H1 — Marvin, ~2–3 lines (more words than bento face). */
+export const MIN_EXPANDED_VIEW_HEADLINE_WORDS = 10
+export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 20
 /** @deprecated Use {@link MIN_ZONE_CARD_HEADLINE_WORDS} or {@link MIN_EXPANDED_VIEW_HEADLINE_WORDS}. */
 export const MIN_HEADLINE_WORDS = MIN_ZONE_CARD_HEADLINE_WORDS
 /** Each True Tip paragraph — readable auditor copy, not tariff tables. */
@@ -422,14 +469,14 @@ export function headlineFromArchitectProse(
  * Zone bento / tip face — strip jargon, never pad with "RIGHT NOW THIS MONTH", fall back when empty.
  */
 /**
- * Programmatic headline contract — Zone 5–8 words; expanded Solo Focus 6–12 words.
- * @param expanded — when true, uses expanded view bounds (6–12).
+ * Programmatic headline contract — Zone 5–8 words; expanded Solo Focus 10–20 words (hook, 2–3 lines).
+ * @param expanded — when true, uses expanded hook bounds.
  */
 export function enforceHeadlineWordLimits(text: string, expanded = false): string {
   const min = expanded ? MIN_EXPANDED_VIEW_HEADLINE_WORDS : MIN_ZONE_CARD_HEADLINE_WORDS
   const max = expanded ? MAX_EXPANDED_VIEW_HEADLINE_WORDS : MAX_ZONE_CARD_HEADLINE_WORDS
   const fallback = expanded
-    ? 'close your saving gap with one uk move this week'
+    ? 'one clear move near you that locks real bill savings this spring'
     : 'save money on home bills near you'
   const resolved = zoneCardHeadlineFromRaw(text, fallback, max)
   const words = splitHeadlineWords(resolved)
@@ -487,6 +534,22 @@ export function headlineFromTitle(
   const words = splitHeadlineWords(prepared)
   if (words.length <= maxWords) return words.join(' ')
   return `${words.slice(0, maxWords).join(' ')}...`
+}
+
+/** Expanded Solo Focus H1 — hook headline with 2–3 line word budget. */
+export function headlineFromExpandedHook(
+  title: string,
+  journeyId?: string
+): string {
+  const prepared = prepareZoneHeadlineSource(title)
+  let resolved = enforceHeadlineWordLimits(prepared || title, true)
+  const words = splitHeadlineWords(resolved)
+  if (words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && journeyId) {
+    const topic = journeyId.replace(/-/g, ' ').trim()
+    const pad = `worth a proper look for your ${topic} setup near you`
+    resolved = enforceHeadlineWordLimits(`${resolved} ${pad}`.trim(), true)
+  }
+  return resolved
 }
 
 /** Clean domain for Source link (e.g. gov.uk, ofgem.gov.uk). */
@@ -579,13 +642,15 @@ export function enrichSoloFocusInsightBody(raw: string, titleHint?: string): str
 }
 
 /** v2.9 — Solo Focus bridge: up to `maxSentences` real sentences from scraped/source fields only (no synthetic pad). */
+const COMPUTING_PLACEHOLDER_RE = /^computing[\s.…]*$/i
+
 export function composeScrapedInsightDescription(
   parts: Array<string | null | undefined>,
   maxSentences = 3
 ): string {
   const raw = parts
     .map((p) => (typeof p === 'string' ? p.trim() : ''))
-    .filter(Boolean)
+    .filter((p) => p.length > 0 && !COMPUTING_PLACEHOLDER_RE.test(p))
     .join(' ')
     .replace(/\s+/g, ' ')
     .replace(/\bin your area\.?/gi, '')
@@ -646,19 +711,31 @@ export function resolveSoloFocusInsightDisplay(args: {
   auditHeaderLocality?: string | null
 }): string {
   const scraped = composeScrapedInsightDescription(args.morphParts, 3).trim()
+  const j = coerceJourneyId(args.journeyId)
   const toParagraphs = (text: string): string[] => {
     const sentences = text
       .split(/(?<=[.!?])\s+/)
       .map((s) => s.trim())
       .filter(Boolean)
     if (sentences.length >= 3) return sentences.slice(0, 3)
-    if (sentences.length === 2) return [sentences[0], sentences[1], 'Open the verified source to complete this action.']
-    if (sentences.length === 1) {
+    if (sentences.length === 2) {
       return [
-        sentences[0],
-        `This maps to roughly £${formatMoneyValue(Math.max(0, Math.round(args.moneyGbp)))} and ${formatCarbonValue(Math.max(0, Math.round(args.carbonKg)))} in this audit pathway.`,
-        'Use the verified source to execute the action plan this week.',
+        sentences[0]!,
+        sentences[1]!,
+        payoffSentence(j, args.moneyGbp, args.carbonKg),
       ]
+    }
+    if (sentences.length === 1) {
+      const src = (args.sourceDisplayName ?? '').trim() || 'UK Government'
+      const pc = (args.userPostcode ?? '').trim() || 'your postcode'
+      return buildAuditorNarrativeParagraphs({
+        userPostcode: pc,
+        sourceName: src,
+        journey: j,
+        moneyGbp: args.moneyGbp,
+        carbonKg: args.carbonKg,
+        locality: args.auditHeaderLocality ?? '',
+      })
     }
     return []
   }
@@ -666,7 +743,6 @@ export function resolveSoloFocusInsightDisplay(args: {
     const joined = toParagraphs(scraped).join('\n\n')
     return pruneDuplicateLocalityInsight(joined, args.headline, args.auditHeaderLocality, args.journeyId)
   }
-  const j = coerceJourneyId(args.journeyId)
   const pc = (args.userPostcode ?? '').trim() || 'your postcode'
   const src = (args.sourceDisplayName ?? '').trim() || 'UK Government'
   const fallback = buildAuditorNarrativeParagraphs({
@@ -675,7 +751,7 @@ export function resolveSoloFocusInsightDisplay(args: {
     journey: j,
     moneyGbp: args.moneyGbp,
     carbonKg: args.carbonKg,
-    locality: '',
+    locality: args.auditHeaderLocality ?? '',
   }).join('\n\n')
   return pruneDuplicateLocalityInsight(fallback, args.headline, args.auditHeaderLocality, args.journeyId)
 }
@@ -718,22 +794,39 @@ export function buildResearchResultsTrueTipBody(params: {
   journeyId: string
 }): string {
   const j = coerceJourneyId(params.journeyId)
+  const sanitized =
+    sanitizeArchitectProseForJourney(j, params.architectProse.trim()) ?? ''
+  if (!sanitized) {
+    return buildAuditorNarrativeParagraphs({
+      userPostcode: 'your postcode',
+      sourceName: 'UK Government',
+      journey: j,
+      moneyGbp: params.verifiedSavingGbp,
+      carbonKg: params.carbonKg,
+      locality: '',
+    }).join('\n\n')
+  }
   const rawClean = stripMarkdownForProseDisplay(
-    stripProseReportLead(stripArchitectEmbeddedSectionTitles(params.architectProse.trim())),
+    stripProseReportLead(stripArchitectEmbeddedSectionTitles(sanitized)),
     4000
   )
   const blocks = rawClean
     .split(/\n\s*\n/)
-    .map((p) => humanizeTrueTipParagraph(stripArchitectEmbeddedSectionTitles(p.trim())))
-    .filter(Boolean)
+    .map((p) =>
+      humanizeTrueTipParagraph(
+        stripAuditorFluffParagraph(stripArchitectEmbeddedSectionTitles(p.trim()))
+      )
+    )
+    .filter((p) => p.length > 0 && !isBoilerplateProseParagraph(p))
   const m = Math.max(0, Math.round(params.verifiedSavingGbp))
   const c = Math.max(0, Math.round(params.carbonKg))
   const whyLine = `At today’s pathway numbers you are looking at about £${formatMoneyValue(m)} a year back in the pocket and roughly ${formatCarbonValue(c)} CO₂e — grounded in your stored audit and research row, not a filler estimate.`
   if (blocks.length >= 3) {
-    return collapseDuplicateProseParagraphs(blocks.slice(0, 3).join('\n\n'))
+    const third = normalizeTrueTipThirdParagraph(j, blocks[2]!, m, c)
+    return collapseDuplicateProseParagraphs([blocks[0]!, blocks[1]!, third].join('\n\n'))
   }
   if (blocks.length === 2) {
-    return [blocks[0]!, blocks[1]!, bridgeSentence(j)].join('\n\n')
+    return [blocks[0]!, blocks[1]!, payoffSentence(j, m, c)].join('\n\n')
   }
   /** Legacy single blob without blank-line breaks: split sentences into three beats. */
   const sentences = rawClean
@@ -749,7 +842,7 @@ export function buildResearchResultsTrueTipBody(params: {
     )
   }
   const what = blocks[0] ?? rawClean
-  return [what, whyLine, bridgeSentence(j)].join('\n\n')
+  return [what, whyLine, payoffSentence(j, m, c)].join('\n\n')
 }
 
 /** Unified resolver: DB-backed True Tip when audit category matches, else scraped + auditor fallback. */
@@ -768,9 +861,16 @@ export function resolveExpandedTrueTipInsight(args: {
   auditHeaderLocality?: string | null
 }): string {
   const ap = (args.architectProse ?? '').trim()
-  if (args.verifiedAuditMatchesJourney && ap.length > 0 && !isRawResearchDump(ap)) {
+  const jid = coerceJourneyId(args.journeyId)
+  const sanitizedAp = ap ? sanitizeArchitectProseForJourney(jid, ap) : null
+  if (
+    args.verifiedAuditMatchesJourney &&
+    sanitizedAp &&
+    sanitizedAp.length > 0 &&
+    !isRawResearchDump(sanitizedAp)
+  ) {
     return buildResearchResultsTrueTipBody({
-      architectProse: ap,
+      architectProse: sanitizedAp,
       verifiedSavingGbp: args.moneyGbp,
       carbonKg: args.carbonKg,
       journeyId: args.journeyId,
@@ -794,13 +894,49 @@ export function resolveExpandedTrueTipInsight(args: {
  * Normalise any insight string into exactly three paragraphs for the True Tip layout.
  * Prefers existing `\n\n` blocks; otherwise groups sentences.
  */
-export function toThreeTrueTipParagraphs(text: string): [string, string, string] {
-  const pack3 = (a: string, b: string, c: string): [string, string, string] =>
-    [
+export function toThreeTrueTipParagraphs(
+  text: string,
+  options?: {
+    journeyId?: string
+    moneyGbp?: number
+    carbonKg?: number
+    userPostcode?: string | null
+    sourceDisplayName?: string | null
+    auditHeaderLocality?: string | null
+  }
+): [string, string, string] {
+  const j = coerceJourneyId(options?.journeyId ?? 'home')
+  const money = options?.moneyGbp ?? 0
+  const carbon = options?.carbonKg ?? 0
+  const pack3 = (a: string, b: string, c: string): [string, string, string] => {
+    const third = normalizeTrueTipThirdParagraph(j, c, money, carbon)
+    const out = [
       humanizeTrueTipParagraph(stripAuditorFluffParagraph(a)),
       humanizeTrueTipParagraph(stripAuditorFluffParagraph(b)),
-      humanizeTrueTipParagraph(stripAuditorFluffParagraph(c)),
-    ]
+      humanizeTrueTipParagraph(stripAuditorFluffParagraph(third)),
+    ].filter((p) => p.trim().length > 0 && !isBoilerplateProseParagraph(p))
+    while (out.length < 3) {
+      out.push(humanizeTrueTipParagraph(payoffSentence(j, money, carbon)))
+    }
+    return [out[0]!, out[1]!, out[2]!]
+  }
+
+  const padMechanicalThird = (a: string, b: string): [string, string, string] =>
+    pack3(a, b, payoffSentence(j, money, carbon))
+
+  const padFromSingle = (only: string): [string, string, string] => {
+    const src = (options?.sourceDisplayName ?? '').trim() || 'UK Government'
+    const pc = (options?.userPostcode ?? '').trim() || 'your postcode'
+    const paras = buildAuditorNarrativeParagraphs({
+      userPostcode: pc,
+      sourceName: src,
+      journey: j,
+      moneyGbp: options?.moneyGbp ?? 0,
+      carbonKg: options?.carbonKg ?? 0,
+      locality: options?.auditHeaderLocality ?? '',
+    })
+    return pack3(only, paras[1] ?? paras[0]!, paras[2] ?? payoffSentence(j, money, carbon))
+  }
 
   const t = collapseDuplicateProseParagraphs(stripProseReportLead(text.trim()))
   if (!t) {
@@ -828,18 +964,10 @@ export function toThreeTrueTipParagraphs(text: string): [string, string, string]
     )
   }
   if (sentences.length === 2) {
-    return pack3(
-      sentences[0]!,
-      sentences[1]!,
-      'Open the verified source link below to complete this action and lock in the saving.'
-    )
+    return padMechanicalThird(sentences[0]!, sentences[1]!)
   }
   if (sentences.length === 1) {
-    return pack3(
-      sentences[0]!,
-      `This maps to the £ and kg figures shown — wallet and footprint move together when you act.`,
-      `Use the primary action below to claim the saving or change the behaviour; the source line confirms the live audit trail.`
-    )
+    return padFromSingle(sentences[0]!)
   }
   return pack3(t, t, t)
 }

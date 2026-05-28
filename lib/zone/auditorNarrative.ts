@@ -4,8 +4,9 @@
 
 import type { JourneyId } from '@/lib/journeys'
 import { PRICE_CAP_APRIL_2026 } from '@/lib/brains/constants'
+import { resolveSoloFocusPlaceLabel } from '@/lib/zone/localityCopy'
 import { isLondonPostcode } from '@/lib/zone/verifiedRevenue'
-import { formatMoneyValue } from '@/lib/format'
+import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 
 function auditTopicPhrase(journey: JourneyId): string {
   const m: Partial<Record<JourneyId, string>> = {
@@ -25,39 +26,55 @@ function auditTopicPhrase(journey: JourneyId): string {
 function proofSentence(journey: JourneyId, sourceName: string, postcode?: string): string {
   const london = isLondonPostcode(postcode)
   if (journey === 'tech') {
-    return `According to ${sourceName}, standby waste has increased by 8% under the April 2026 energy climate.`
+    return `${sourceName} reckon standby creep is up about 8% in this April 2026 climate — dull, but very fixable with a few plug changes.`
   }
   if (journey === 'home') {
-    return `According to ${sourceName}, heating and passive draw remain the dominant bill drain under the April 2026 price cap at £${PRICE_CAP_APRIL_2026.toLocaleString('en-GB')}.`
+    return `${sourceName} still put heating and background draw at the top of the bill pile — the April 2026 cap sits around £${PRICE_CAP_APRIL_2026.toLocaleString('en-GB')}, so fabric and tariff moves still matter.`
   }
   if (journey === 'travel') {
     if (london) {
-      return `According to ${sourceName}, ULEZ and duty pressure keep London commuter costs elevated through April 2026.`
+      return `${sourceName} flag ULEZ and duty as keeping London commute costs stubborn through April 2026 — worth planning swaps before you renew anything.`
     }
-    return `According to ${sourceName}, fuel and fare pressure remains elevated under the April 2026 economy.`
+    return `${sourceName} show fuel and fares still running hot in the April 2026 economy — small commute shifts add up faster than another loyalty card.`
   }
-  return `According to ${sourceName}, policy and tariff pressure in April 2026 keeps this category expensive without a verified move.`
+  return `${sourceName} point to policy and tariff pressure through April 2026 — this category stays expensive until you make one verified move.`
 }
 
+/** @deprecated Solo Focus no longer surfaces CTA-bridge filler — use {@link payoffSentence}. */
 export function bridgeSentence(journey: JourneyId): string {
+  if (journey === 'grants') {
+    return `Apply through the CTA — confirm MCS installer quotes and eligibility before you commit.`
+  }
   if (journey === 'tech') {
-    return `Use the link below to swap to a verified standby cut-down and reclaim this cash today.`
+    return `Cut standby draw via the CTA — swap plugs and timers, then record the kWh drop against your audit.`
   }
   if (journey === 'home') {
-    return `Use the link below to lock a verified tariff or grant step and reclaim this cash today.`
+    return `Lock fabric or tariff moves via the CTA — align quotes to your postcode audit before you switch.`
   }
-  return `Use the link below to execute the verified offer and reclaim this cash today.`
+  return `Execute the verified step in the CTA and record the £ and CO₂e against your audit trail.`
 }
 
-export function buildAuditorDetectionParagraph(
-  userPostcode: string,
-  moneyGbp: number,
-  journey: JourneyId
-): string {
-  const pc = userPostcode.trim() || 'your postcode'
-  const moneyCompact = formatMoneyValue(Math.max(0, Math.round(moneyGbp)))
+/** Third True Tip beat — hands off to the stamped £ / CO₂e row (not “open the CTA”). */
+export function payoffSentence(journey: JourneyId, moneyGbp: number, carbonKg: number): string {
+  const m = Math.max(0, Math.round(moneyGbp))
+  const c = Math.max(0, Math.round(carbonKg))
   const topic = auditTopicPhrase(journey)
-  return `Our audit of ${pc} reveals a £${moneyCompact} annual drain on your ${topic} setup.`
+  return `Below we've stamped about £${formatMoneyValue(m)} a year and roughly ${formatCarbonValue(c)} CO₂e on ${topic} — straight from your saved row, not a generic guess.`
+}
+
+export function buildAuditorDetectionParagraph(params: {
+  placeLabel: string
+  moneyGbp: number
+  journey: JourneyId
+}): string {
+  const place = params.placeLabel.trim() || 'your area'
+  const moneyCompact = formatMoneyValue(Math.max(0, Math.round(params.moneyGbp)))
+  const topic = auditTopicPhrase(params.journey)
+  const opener =
+    place === 'your area'
+      ? `In your area, about £${moneyCompact} a year can quietly slip away on ${topic}`
+      : `In ${place}, about £${moneyCompact} a year can quietly slip away on ${topic}`
+  return `${opener} — not to scare you, just to show where a proper fix pays back.`
 }
 
 export function buildAuditorNarrativeParagraphs(params: {
@@ -69,8 +86,16 @@ export function buildAuditorNarrativeParagraphs(params: {
   locality: string
 }): string[] {
   const sourceName = params.sourceName.trim() || 'UK Government'
-  const detection = buildAuditorDetectionParagraph(params.userPostcode, params.moneyGbp, params.journey)
+  const placeLabel = resolveSoloFocusPlaceLabel({
+    locality: params.locality,
+    postcode: params.userPostcode,
+  })
+  const detection = buildAuditorDetectionParagraph({
+    placeLabel,
+    moneyGbp: params.moneyGbp,
+    journey: params.journey,
+  })
   const proof = proofSentence(params.journey, sourceName, params.userPostcode)
-  const bridge = bridgeSentence(params.journey)
-  return [detection, proof, bridge]
+  const payoff = payoffSentence(params.journey, params.moneyGbp, params.carbonKg)
+  return [detection, proof, payoff]
 }

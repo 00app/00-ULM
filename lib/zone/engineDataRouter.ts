@@ -28,7 +28,11 @@ import {
 import type { ResearchProfileData } from '@/lib/agents/researchAgent'
 import { buildDiscoveryInjectionId, buildDiscoveryInjectionCardAsync } from '@/lib/zone/discoveryCard'
 import { validateInjectionCard } from '@/lib/zone/injections'
-import { enforceHeadlineWordLimits, headlineFromTitle } from '@/lib/soloFocusCopy'
+import {
+  enforceHeadlineWordLimits,
+  headlineFromTitle,
+  MAX_EXPANDED_VIEW_HEADLINE_WORDS,
+} from '@/lib/soloFocusCopy'
 import type { ZoneTipCard } from '@/lib/logic/zone'
 import { ULM_KWH_PER_TONNE_CO2E } from '@/lib/zone/ulmLimits'
 
@@ -206,7 +210,10 @@ export async function processCalculatedLoopSpawn(
   }
 
   let agentHeadline = enforceHeadlineWordLimits(rec.headline, false)
-  let expandedHeadline = enforceHeadlineWordLimits(headlineFromTitle(rec.headline, 12), true)
+  let expandedHeadline = enforceHeadlineWordLimits(
+    headlineFromTitle(rec.headline, MAX_EXPANDED_VIEW_HEADLINE_WORDS),
+    true
+  )
   let architectProse = rec.body
   let offerUrl = rec.learnUrl
 

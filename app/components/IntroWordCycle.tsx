@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import {
@@ -64,6 +64,19 @@ interface IntroWordCycleProps {
 
 const DEFAULT_GAP_MS = 90
 const DEFAULT_WORD_EXIT_MS = 150
+
+/** Summary ticker: Unicode ₂ often falls back to system fonts — stamp CO + subscript 2 in Marvin. */
+function renderTickerWord(text: string): ReactNode {
+  const compact = text.replace(/\s/g, '')
+  if (/^co[\u2082₂]$/i.test(compact) || /^co2$/i.test(compact)) {
+    return (
+      <span className="intro-co2-mark" aria-label="CO2">
+        CO<span className="intro-co2-sub">2</span>
+      </span>
+    )
+  }
+  return text
+}
 
 export default function IntroWordCycle({
   words,
@@ -332,10 +345,10 @@ export default function IntroWordCycle({
                       overflowWrap: wrapLongPreservedWords ? ('anywhere' as const) : undefined,
                     }}
                   >
-                    {line}
+                    {renderTickerWord(line)}
                   </span>
                 ))
-              : displayText}
+              : renderTickerWord(displayText)}
           </motion.h1>
         )}
       </AnimatePresence>

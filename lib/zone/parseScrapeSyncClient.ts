@@ -1,5 +1,9 @@
+import type { JourneyId } from '@/lib/journeys'
+import { JOURNEY_ORDER } from '@/lib/journeys'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
-import { foldCoverageRowsForZone } from '@/lib/zone/neonResearchMerge'
+import { isAcceptableZoneJourneyHeadline, cleanZonePreviewHeadline } from '@/lib/soloFocusCopy'
+import { foldCoverageRowsForZone, researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
+import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 
 export function coerceMetaNum(v: unknown): number | undefined {
   if (v == null) return undefined
@@ -73,6 +77,12 @@ export function parseResearchMetaFromApi(data: unknown): ParsedResearchMeta | nu
   }
 }
 
+function coverageJourneyKey(rawKey: string): JourneyId | null {
+  const k = rawKey.trim().toLowerCase()
+  if ((JOURNEY_ORDER as readonly string[]).includes(k)) return k as JourneyId
+  return researchCategoryToJourneyKey(k)
+}
+
 export function parseCoverageFromApi(data: unknown): Record<string, ResearchCategoryCoverageRow> | null {
   if (!data || typeof data !== 'object') return null
   const rawCov = (data as { research_category_coverage?: unknown }).research_category_coverage
@@ -82,14 +92,23 @@ export function parseCoverageFromApi(data: unknown): Record<string, ResearchCate
     const key = k.trim().toLowerCase()
     if (!key || typeof v !== 'object' || !v) continue
     const o = v as Record<string, unknown>
-    const ap =
+    const jid = coverageJourneyKey(key)
+    const apRaw =
       typeof o.architectProse === 'string' && o.architectProse.trim().length > 0
         ? o.architectProse.trim()
         : null
-    const hl =
+    const ap = jid && apRaw ? sanitizeArchitectProseForJourney(jid, apRaw) : apRaw
+    const hlRaw =
       typeof o.agentHeadline === 'string' && o.agentHeadline.trim().length > 0
         ? o.agentHeadline.trim()
         : null
+    let hl: string | null = null
+    if (hlRaw) {
+      const cleaned = cleanZonePreviewHeadline(hlRaw)
+      if (jid ? isAcceptableZoneJourneyHeadline(jid, cleaned) : cleaned.length > 0) {
+        hl = cleaned
+      }
+    }
     next[key] = {
       insightReady: Boolean(o.insightReady),
       hasOffer: Boolean(o.hasOffer),

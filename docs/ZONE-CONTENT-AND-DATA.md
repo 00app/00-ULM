@@ -223,13 +223,26 @@ Ceilings: **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** · **`MAX_ZONE_BENTO_CE
 | **Trinity** | Ask Zai → deep dive; Continue in Zai → handoff; RECLAIM / BUY → `MotherCardRenderer` + `IndustrialHandoffButton` |
 | **Questions** | **One** registry Q per open — zip-shut MC answer → **RESULT**; close → loop question (`DiscoveryTakeover`) |
 
+### Mechanical Sincerity (copy voice — 2026)
+
+**Source of truth (no UI filler):**
+
+| Layer | Owner | Rule |
+|--------|--------|------|
+| **Neon `research_results`** | `researchAgent` / scrape-sync | Three paragraphs from Gemini + surgical scrape; `areaLabel` from **user postcode only** |
+| **Content Architect** | `POST /api/zone/content-architect` | Batch polish: Friction / Leverage / Action; category locks; banned filler (`cosy`, `haven`, …) |
+| **Solo Focus display** | `resolveExpandedTrueTipInsight` → `buildResearchResultsTrueTipBody` | Prefer DB `architect_prose`; pad short rows with `bridgeSentence` only — **no** hardcoded “open the verified source…” UI lines |
+| **Sanitizer** | `lib/zone/contentProseSanitize.ts` | Strip leakage, BN17-style literals, cross-category pollution on read |
+
+**Not used for card prose:** `lib/soloFocusCopy.ts` generic placeholders, demo postcodes, or static “local data” paragraphs in the client.
+
 ### Three prose beats (no UI labels)
 
 Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 
-1. **Detection** — specific leak in locality (compact £).
-2. **2026 context** — April price-cap / grid (`PRICE_CAP_APRIL_2026`, council when available).
-3. **Bridge** — concrete action this week + CTA (`bridgeSentence` in `lib/zone/auditorNarrative.ts`).
+1. **Friction** — data-backed waste for the category (compact £ / kg).
+2. **Leverage** — April 2026 policy or grant fact from `lib/brains/constants.ts` when relevant.
+3. **Action** — mechanical CTA tied to HTTPS `source_url` (`bridgeSentence` in `lib/zone/auditorNarrative.ts` when padding).
 
 ### Quality gates (`lib/soloFocusCopy.ts`)
 

@@ -44,7 +44,6 @@ import {
   stripExpandedCardTitleNoise,
   toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
-  formatAuditSourceLinkDisplay,
   resolveSoloFocusHandoffUrls,
 } from '@/lib/soloFocusCopy'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
@@ -70,8 +69,6 @@ import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
 import {
-  VERIFIED_SOURCE_DATE,
-  formatVerifiedCitation,
   inferRevenueCtaKind,
   pickFirstHttpUrl,
   resolveRevenueCtaLabel,
@@ -359,7 +356,9 @@ export function SoloFocusOverlay({
   const covLookupKey = focusCategoryJourneyId
   const journeyResearchCov =
     covLookupKey && researchCategoryCoverage ? researchCategoryCoverage[covLookupKey] : undefined
-  const overlayResearchSettled = journeyResearchSettled(journeyResearchCov)
+  const overlayResearchSettled = journeyResearchSettled(journeyResearchCov, {
+    journeyId: normalizeCategoryToJourneyKey(journeyId ?? 'home'),
+  })
   const covOfferHttp =
     journeyResearchCov?.latestOfferUrl?.trim().startsWith('http')
       ? journeyResearchCov.latestOfferUrl.trim()
@@ -475,11 +474,7 @@ export function SoloFocusOverlay({
       : composeScrapedInsightDescription([displayInsight ?? insight], 3).trim()
   const genericCopy = /answer a few questions|personalise your/i
   const insightDisplay =
-    scrapedOverlay && !genericCopy.test(scrapedOverlay)
-      ? scrapedOverlay
-      : resolvedOpenUrl.trim() && sourceName
-        ? `${sourceName} carries the tariff notes, eligibility copy, and programme detail behind this headline. Use the link to read the authoritative wording on site before acting.`
-        : scrapedOverlay
+    scrapedOverlay && !genericCopy.test(scrapedOverlay) ? scrapedOverlay : ''
   const insightParaSource =
     researchBackedTrueTip?.trim() ??
     (preSplitAuditor.length >= 3
@@ -487,38 +482,46 @@ export function SoloFocusOverlay({
       : (insightDisplay || '').trim() || rawInsight)
   const trueTipParagraphs = polishTrueTipParagraphsForHeadline(
     recommendationTitle,
-    toThreeTrueTipParagraphs(insightParaSource)
+    toThreeTrueTipParagraphs(insightParaSource, {
+      journeyId: String(displayJourneyId ?? journeyId ?? 'home'),
+      moneyGbp: motherMoneyTargetGbp,
+      carbonKg: carbonTargetKg,
+      userPostcode: profilePostcode ?? state.profile?.postcode,
+      sourceDisplayName: sourceName,
+    })
   )
-  const verifiedSourceLinkUrl = soloHandoff.sourceLinkUrl
-  const verifiedSourceLinkEl = verifiedSourceLinkUrl ? (
-    <a
-      href={verifiedSourceLinkUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="solo-focus-verified-source-link"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {formatAuditSourceLinkDisplay(verifiedSourceLinkUrl)}
-    </a>
-  ) : null
-  const trueTipSectionsEl =
-    trueTipParagraphs.some((p) => p.trim().length > 0) || verifiedSourceLinkEl ? (
-      <div className="solo-focus-true-tip-sections flex flex-col gap-0 w-full min-w-0 mt-1">
-        {trueTipParagraphs.map((para, i) =>
-          para?.trim() ? (
-            <motion.p
+  const trueTipSectionsEl = trueTipParagraphs.some((p) => p.trim().length > 0) ? (
+    <div className="solo-focus-true-tip-sections flex flex-col gap-0 w-full min-w-0 mt-1">
+      {trueTipParagraphs.map((para, i) => {
+        if (!para?.trim()) return null
+        const proseClass =
+          'solo-focus-architect-prose solo-focus-copy-width solo-focus-content-text text-left m-0'
+        const proseStyle = { color: 'var(--journey-text)' as const }
+        if (i === 0) {
+          return (
+            <motion.h4
               key={`architect-p-${i}`}
-              className="solo-focus-architect-prose solo-focus-copy-width solo-focus-content-text text-left m-0"
-              style={{ color: 'var(--journey-text)' }}
+              className={`${proseClass} solo-focus-architect-lead text-marvin zz-h4`}
+              style={proseStyle}
               variants={FADE_VARIANTS}
             >
               {para}
-            </motion.p>
-          ) : null
-        )}
-        {verifiedSourceLinkEl}
-      </div>
-    ) : null
+            </motion.h4>
+          )
+        }
+        return (
+          <motion.p
+            key={`architect-p-${i}`}
+            className={proseClass}
+            style={proseStyle}
+            variants={FADE_VARIANTS}
+          >
+            {para}
+          </motion.p>
+        )
+      })}
+    </div>
+  ) : null
   const sourceFooter = partnerHttp
     ? ''
     : 'Fresh Audit: live partner offer unavailable, running verified fallback.'
@@ -531,11 +534,6 @@ export function SoloFocusOverlay({
     isPriorityHome: Boolean(isPriorityHome),
   })
   const effectiveHandoffLabel = ctaLabel ?? resolveRevenueCtaLabel(overlayCtaKind, motherMoneyTargetGbp)
-  const verifiedOverlayCitation = formatVerifiedCitation(
-    (verifiedSourceName ?? diagnosticProvider).trim(),
-    (verifiedSourceDate ?? VERIFIED_SOURCE_DATE).trim()
-  )
-
   const persistViewState = useCallback((next: OverlayViewState, opts?: { preserveResultContext?: boolean }) => {
     setViewState(next)
     if (next === 'QUESTION' && !opts?.preserveResultContext) {
@@ -555,6 +553,13 @@ export function SoloFocusOverlay({
       // ignore
     }
   }, [sfStorageKey])
+
+  /** Zone tip / pink discovery reopen — show article (RESULT), not an empty QUESTION shell. */
+  useEffect(() => {
+    if (!isZoneMotherChild || activeFollowUp) return
+    if (viewState === 'RESULT') return
+    persistViewState('RESULT')
+  }, [isZoneMotherChild, activeFollowUp, viewState, persistViewState])
 
   useEffect(() => {
     const prev = overlayViewStatePrev.current
@@ -584,7 +589,7 @@ export function SoloFocusOverlay({
 
   const isRockHabitTip = String(cardId ?? '').trim().startsWith('rock-')
 
-  /* Zone expand always opens RESULT content card; registry MC questions are not swapped in here. */
+  /* Zone expand always opens RESULT content card; +1 verification uses child shell when activeFollowUp is set. */
 
   useEffect(() => {
     if (viewState !== 'RESULT' || !discoverySnap) {
@@ -842,7 +847,7 @@ export function SoloFocusOverlay({
                   headline={null}
                   narrative={null}
                   sourceFooter={sourceFooter}
-                  verifiedSourceCitation={verifiedOverlayCitation}
+                  verifiedSourceCitation={null}
                   verifiedDataBadge={Boolean(dbVerifiedFromResearchTable) || tipVerified}
                   moneyGbp={animatedMoneyGbp}
                   carbonKg={animatedCarbonKg}

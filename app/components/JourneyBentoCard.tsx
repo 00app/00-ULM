@@ -48,27 +48,28 @@ import {
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
 import {
+  headlineFromExpandedHook,
   headlineFromTitle,
   formatZoneCategoryLabel,
   zoneCardHeadlineFromRaw,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   MAX_ZONE_CARD_HEADLINE_WORDS,
-  formatAuditSourceLinkDisplay,
   polishTrueTipParagraphsForHeadline,
   resolveExpandedTrueTipInsight,
   resolveSoloFocusHandoffUrls,
   stripExpandedCardTitleNoise,
   toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
+  isAcceptableZoneJourneyHeadline,
 } from '@/lib/soloFocusCopy'
+import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
+import { personalizeTrueTipPlaceLead } from '@/lib/zone/localityCopy'
 import { useApp } from '@/app/context/AppContext'
 import { normalizeCategoryToJourneyKey, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import { parseMoneyGbpFromImpactDisplay, parseCarbonKgFromImpactDisplay } from '@/lib/soloFocusImpactParse'
 import { useSoloFocusExpandedGestures } from '@/lib/hooks/useSoloFocusExpandedGestures'
 import {
-  VERIFIED_SOURCE_DATE,
-  formatVerifiedCitation,
   inferRevenueCtaKind,
   pickFirstHttpUrl,
   resolveRevenueCtaLabel,
@@ -371,13 +372,22 @@ export function JourneyBentoCard({
 
   const moneyTargetGbp = parseMoneyGbpFromImpactDisplay(displayMoneyValue)
   const carbonTargetKg = parseCarbonKgFromImpactDisplay(displayCarbonValue)
+  const journeyResearchCov = researchCategoryCoverage?.[journeyId]
+  const focusJourneyKey = normalizeCategoryToJourneyKey(journeyId)
+  const sanitizedCovProse = journeyResearchCov?.architectProse?.trim()
+    ? sanitizeArchitectProseForJourney(focusJourneyKey, journeyResearchCov.architectProse)
+    : null
   const verifiedAuditMatchesJourney =
     verifiedAuditMoneyGbp != null &&
     Number.isFinite(verifiedAuditMoneyGbp) &&
-    (verifiedAuditCategory ?? '').trim().toLowerCase() === journeyId
-  const journeyResearchCov = researchCategoryCoverage?.[journeyId]
+    (verifiedAuditCategory ?? '').trim().toLowerCase() === journeyId &&
+    Boolean(
+      (verifiedArchitectProse?.trim() && sanitizeArchitectProseForJourney(focusJourneyKey, verifiedArchitectProse)) ||
+        sanitizedCovProse
+    )
   const researchSettled = journeyResearchSettled(journeyResearchCov, {
     streamPending: insightGenerationPending,
+    journeyId: focusJourneyKey,
   })
   const showCardComputing =
     !researchSettled && (insightGenerationPending || researchCategoryCoverage != null)
@@ -791,10 +801,20 @@ export function JourneyBentoCard({
           : researchAttribution?.headline?.trim() ||
             String(displayTitle || title || journeyId).trim() ||
             journeyId
-    const recommendationTitle = headlineFromTitle(
-      stripExpandedCardTitleNoise(String(effectiveTitleRaw)),
+    const focusJourney = normalizeCategoryToJourneyKey(String(displayJourneyId || journeyId))
+    const cleanedExpandTitle = stripExpandedCardTitleNoise(String(effectiveTitleRaw))
+    const tileFallbackTitle = stripExpandedCardTitleNoise(String(title || displayTitle || journeyId))
+    const mechanicalFallback = zoneCardHeadlineFromRaw(
+      tileFallbackTitle || focusJourney.replace(/-/g, ' '),
+      focusJourney.replace(/-/g, ' '),
       MAX_EXPANDED_VIEW_HEADLINE_WORDS
     )
+    const expandedHeadlineSource = isAcceptableZoneJourneyHeadline(focusJourney, cleanedExpandTitle)
+      ? cleanedExpandTitle
+      : isAcceptableZoneJourneyHeadline(focusJourney, tileFallbackTitle)
+        ? tileFallbackTitle
+        : mechanicalFallback
+    const recommendationTitle = headlineFromExpandedHook(expandedHeadlineSource, focusJourney)
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =
       auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
@@ -819,7 +839,7 @@ export function JourneyBentoCard({
         localContextBar,
         offerOneLine,
       ],
-      journeyId: String(displayJourneyId || journeyId),
+      journeyId: focusCategoryJourneyId,
       headline: recommendationTitle,
       moneyGbp: motherMoneyTargetGbp,
       carbonKg: carbonTargetKg,
@@ -829,39 +849,49 @@ export function JourneyBentoCard({
       sourceDisplayName: verifiedSourceName ?? undefined,
       auditHeaderLocality: state.locationState?.locationName ?? undefined,
     })
-    const trueTipParagraphs = polishTrueTipParagraphsForHeadline(
-      recommendationTitle,
-      toThreeTrueTipParagraphs(insightDisplay)
+    const trueTipParagraphs = personalizeTrueTipPlaceLead(
+      polishTrueTipParagraphsForHeadline(
+        recommendationTitle,
+        toThreeTrueTipParagraphs(insightDisplay, {
+          journeyId: focusCategoryJourneyId,
+          moneyGbp: motherMoneyTargetGbp,
+          carbonKg: carbonTargetKg,
+          userPostcode: profilePostcode ?? state.profile?.postcode,
+          sourceDisplayName: verifiedSourceName ?? sourceName,
+          auditHeaderLocality: state.locationState?.locationName ?? undefined,
+        })
+      ),
+      {
+        locality: state.locationState?.locationName ?? undefined,
+        postcode: profilePostcode ?? state.profile?.postcode ?? undefined,
+      }
     )
-    const verifiedSourceLinkUrl = soloHandoff.sourceLinkUrl
-    const verifiedSourceLinkEl = verifiedSourceLinkUrl ? (
-      <a
-        href={verifiedSourceLinkUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="solo-focus-verified-source-link"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {formatAuditSourceLinkDisplay(verifiedSourceLinkUrl)}
-      </a>
-    ) : null
-    const trueTipSectionsEl =
-      trueTipParagraphs.some((p) => p.trim().length > 0) || verifiedSourceLinkEl ? (
-        <div className="solo-focus-true-tip-sections flex flex-col gap-0 w-full min-w-0 mt-1">
-          {trueTipParagraphs.map((para, i) =>
-            para?.trim() ? (
-              <p
+    const trueTipSectionsEl = trueTipParagraphs.some((p) => p.trim().length > 0) ? (
+      <div className="solo-focus-true-tip-sections flex flex-col gap-0 w-full min-w-0 mt-1">
+        {trueTipParagraphs.map((para, i) => {
+          if (!para?.trim()) return null
+          const proseClass =
+            'solo-focus-architect-prose solo-focus-copy-width solo-focus-content-text text-left m-0'
+          const proseStyle = { color: 'var(--journey-text)' as const }
+          if (i === 0) {
+            return (
+              <h4
                 key={`architect-p-${i}`}
-                className="solo-focus-architect-prose solo-focus-copy-width solo-focus-content-text text-left m-0"
-                style={{ color: 'var(--journey-text)' }}
+                className={`${proseClass} solo-focus-architect-lead text-marvin zz-h4`}
+                style={proseStyle}
               >
                 {para}
-              </p>
-            ) : null
-          )}
-          {verifiedSourceLinkEl}
-        </div>
-      ) : null
+              </h4>
+            )
+          }
+          return (
+            <p key={`architect-p-${i}`} className={proseClass} style={proseStyle}>
+              {para}
+            </p>
+          )
+        })}
+      </div>
+    ) : null
 
     const diagnosticProviderJourney = resolveSuppliedByDisplayName({
       researchSuppliedBy: researchAttribution?.supplied_by,
@@ -876,11 +906,6 @@ export function JourneyBentoCard({
     const sourceFooter = partnerHttp
       ? ''
       : 'Fresh Audit: live partner offer unavailable, running verified fallback.'
-    const verifiedCitation = formatVerifiedCitation(
-      (verifiedSourceName ?? diagnosticProviderJourney).trim(),
-      (verifiedSourceDate ?? VERIFIED_SOURCE_DATE).trim()
-    )
-
     const discovery =
       discoverySnap != null
         ? {
@@ -986,14 +1011,14 @@ export function JourneyBentoCard({
             >
               {recommendationTitle}
             </motion.h1>
-            {trueTipSectionsEl}
+            {!showCardComputing ? trueTipSectionsEl : null}
 
             <MotherCardRenderer
               categoryLabel=""
               headline={null}
               narrative={null}
               sourceFooter={sourceFooter}
-              verifiedSourceCitation={verifiedCitation}
+              verifiedSourceCitation={null}
               actionLine={architectActionLine}
               moneyGbp={animatedMoneyGbp}
               carbonKg={animatedCarbonKg}

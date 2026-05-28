@@ -61,6 +61,10 @@ export function AtomicLogo({ width = 126, onComplete, loop = false, className = 
     return () => window.clearInterval(id)
   }, [loop, reduceMotion])
 
+  useEffect(() => {
+    if (reduceMotion) onCompleteRef.current?.()
+  }, [reduceMotion])
+
   if (reduceMotion) {
     return (
       <div className={`zz-atomic-logo-wrap ${className}`.trim()} aria-hidden>

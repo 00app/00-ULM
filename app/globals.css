@@ -2059,13 +2059,20 @@ body, p, span, input, button, textarea, select,
 }
 
 /* CO₂ — subscript digit uses Marvin (zone hero / stamps), not default subscript face */
-.data-carbon-units .data-co2-sub {
+.data-carbon-units .data-co2-sub,
+.intro-co2-sub {
   font-family: var(--font-marvin) !important;
   font-size: 0.65em !important;
   font-weight: bold !important;
   letter-spacing: var(--zz-track-marvin) !important;
   vertical-align: sub;
   line-height: 0;
+}
+
+.intro-co2-mark {
+  font-family: var(--font-marvin), var(--font-label), sans-serif;
+  font-weight: 900;
+  letter-spacing: var(--zz-track-marvin);
 }
 
 /* 5) Shared two-column impact grid lock */
@@ -2766,7 +2773,7 @@ h3.solo-focus-question-label.zz-h3 {
 .expanded-solo-focus .solo-focus-architect-headline {
   font-family: var(--font-marvin), sans-serif;
   font-weight: bold;
-  line-height: 0.8 !important;
+  line-height: 0.92 !important;
   font-size: var(--zz-h3-mobile) !important;
   letter-spacing: var(--zz-track-marvin);
   text-transform: uppercase;
@@ -2775,9 +2782,13 @@ h3.solo-focus-question-label.zz-h3 {
   padding: 0;
   text-align: left;
   max-width: 100%;
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
   overflow-wrap: break-word;
   word-break: break-word;
+  min-height: calc(2 * 0.92 * var(--zz-h3-mobile));
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus .solo-focus-architect-headline {
@@ -2786,6 +2797,13 @@ h3.solo-focus-question-label.zz-h3 {
 }
 .expanded-solo-focus .solo-focus-architect-headline + .solo-focus-true-tip-sections {
   margin-top: 10px !important;
+}
+.expanded-solo-focus h4.solo-focus-architect-lead {
+  margin: 0 0 8px !important;
+  padding: 0;
+  color: var(--journey-text, var(--color-yellow));
+  max-width: min(100%, 42rem);
+  width: 100%;
 }
 .expanded-solo-focus p.solo-focus-architect-prose {
   font-family: var(--font-roboto), sans-serif !important;
@@ -8408,9 +8426,9 @@ p,
 .expanded-solo-focus .solo-focus-action-line,
 .expanded-solo-focus .solo-focus-tip-source-url,
 .expanded-solo-focus .solo-focus-supplied-by,
-.expanded-solo-focus .solo-focus-architect-prose,
+.expanded-solo-focus .solo-focus-architect-prose:not(.solo-focus-architect-lead),
 .expanded-solo-focus p.solo-focus-architect-prose,
-.expanded-solo-focus .solo-focus-content-text:not(.solo-focus-architect-headline),
+.expanded-solo-focus .solo-focus-content-text:not(.solo-focus-architect-headline):not(.solo-focus-architect-lead),
 .expanded-solo-focus .solo-focus-source-citation-footnote,
 .expanded-solo-focus .solo-focus-price-cap-footnote,
 .expanded-solo-focus a.solo-focus-verified-source-link,
@@ -8427,15 +8445,34 @@ p,
 .expanded-solo-focus .solo-focus-architect-headline {
   font-family: var(--font-marvin), sans-serif !important;
   font-size: var(--zz-h3-mobile) !important;
-  line-height: 0.8 !important;
+  line-height: 0.92 !important;
   font-weight: bold !important;
   letter-spacing: var(--zz-track-marvin) !important;
   text-transform: uppercase !important;
+  -webkit-line-clamp: 3;
+  min-height: calc(2 * 0.92 * var(--zz-h3-mobile));
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus h1.solo-focus-architect-headline,
   .expanded-solo-focus .solo-focus-architect-headline {
     font-size: var(--zz-h3-desktop) !important;
+  }
+}
+
+/* True Tip lead — Marvin H4 (first paragraph); body paragraphs stay Roboto below */
+.expanded-solo-focus h4.solo-focus-architect-lead,
+.expanded-solo-focus h4.solo-focus-architect-lead.solo-focus-architect-prose,
+.expanded-solo-focus h4.solo-focus-architect-lead.solo-focus-content-text {
+  font-family: var(--font-marvin), sans-serif !important;
+  font-size: var(--zz-h4-mobile) !important;
+  line-height: 0.95 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+@media (min-width: 768px) {
+  .expanded-solo-focus h4.solo-focus-architect-lead {
+    font-size: var(--zz-h4-desktop) !important;
   }
 }
 
