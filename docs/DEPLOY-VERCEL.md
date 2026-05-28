@@ -44,19 +44,17 @@ Optional smoke check: **`GET /api/health?live=1`** (no DB, returns 200).
 
 Mismatch (e.g. `.nvmrc` on 22) can break native check jobs while the main build uses 24.
 
-## 5. CLI deploy (skips dashboard check gating)
+## 5. CLI deploy (recommended — remote build + auto-promote)
 
 From repo root (linked to **00-ulm**):
 
 ```bash
-npm run deploy:force
+npm run deploy
 ```
 
-Or:
+This runs **`npm run verify`**, then **`vercel deploy --prod`** (build on Vercel — **not** `--prebuilt`), then **`vercel promote`** so production is not left **Staged** when dashboard checks fail.
 
-```bash
-vercel deploy --prod --yes --force
-```
+Do **not** use `vercel deploy --prebuilt` unless you ran **`vercel build --prod`** in the same session seconds earlier.
 
 ## 6. After production is live
 

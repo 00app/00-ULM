@@ -80,8 +80,7 @@ flowchart TD
 ## 5) Operational Pipeline (Deploy + Health)
 
 1. Verify app integrity (`npm run verify`).
-2. Build prod artifacts (`vercel build --prod`).
-3. Deploy prebuilt output (`vercel deploy --prebuilt --prod --force`).
+2. Deploy with remote build + promote (`npm run deploy` → `scripts/deploy-production.sh`).
 4. Validate health:
    - `GET /api/health?live=1`
    - `GET /api/health/diagnostics`

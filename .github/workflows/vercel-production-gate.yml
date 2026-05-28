@@ -1,0 +1,42 @@
+# Satisfies Vercel Deployment Checks when configured to use GitHub (job names must match).
+# Native Lint/Typecheck are skipped — package.json has no `lint` / `typecheck` scripts (see tsc:check, lint:ci).
+name: Vercel production gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: vercel-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  Lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint:ci
+
+  Typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run tsc:check
