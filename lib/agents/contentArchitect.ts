@@ -60,6 +60,7 @@ export type ContentArchitectCardInput = {
 
 const MAX_HEADLINE_CHARS = 160
 const DEV_SPEAK_BANNED = /\b(tile|tiles|lane|lanes|anchored|anchor|ui shell|card rail|component)\b/gi
+const TONE_FILLER_BANNED = /\b(cosy|cozy|haven|havens|humming|quietly|nesting|navigating|perfect|simple|gently|nicely|lovely|friendly nudge|little win)\b/gi
 
 /** Stable short fingerprint for sessionStorage cache keys (profile + answers + £/kg). */
 export function architectCacheFingerprint(payload: unknown): string {
@@ -153,13 +154,17 @@ function replaceDevSpeak(text: string): string {
   return text.replace(DEV_SPEAK_BANNED, 'audit')
 }
 
+function stripFillerTone(text: string): string {
+  return text.replace(TONE_FILLER_BANNED, '')
+}
+
 function scrubBulletPrefix(line: string): string {
   return line.replace(/^\s*(?:[-*•]|\d+\.)\s+/, '').trim()
 }
 
 function normaliseInsightEditorialSandwich(raw: string, journeyKey?: JourneyId): string {
   const stripped = stripContentSystemLeakage(
-    replaceDevSpeak(raw)
+    stripFillerTone(replaceDevSpeak(raw))
   )
     .split('\n')
     .map((line) => scrubBulletPrefix(line))
@@ -171,15 +176,37 @@ function normaliseInsightEditorialSandwich(raw: string, journeyKey?: JourneyId):
     .filter(Boolean)
   const deDuped = paddedUniqueParagraphs(paragraphs)
   const padded = [
-    deDuped[0] ?? 'Performance audit detects a measurable leak in your local setup.',
-    deDuped[1] ?? 'April 2026 market conditions keep this waste expensive if left untouched.',
-    deDuped[2] ?? 'Tap RECLAIM now to convert this audit finding into a live action.',
+    deDuped[0] ?? 'Your current setup leaks measurable money and carbon each year.',
+    deDuped[1] ?? 'The 2026 UK baseline defines the actionable fix for this journey category.',
+    deDuped[2] ?? 'Apply the linked action now to lock the outcome this week.',
   ]
-  const joined = collapseDuplicateProseParagraphs(padded.slice(0, 3).join('\n\n')).slice(0, 1200)
+  const joined = forceThreeSentenceInsight(
+    collapseDuplicateProseParagraphs(padded.slice(0, 3).join('\n\n')).slice(0, 1200)
+  )
   if (journeyKey) {
     return sanitizeArchitectProseForJourney(journeyKey, joined) ?? joined
   }
   return joined
+}
+
+function forceThreeSentenceInsight(text: string): string {
+  const compact = text
+    .replace(/\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const parts = compact
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const defaults = [
+    'Your current setup leaks measurable money and carbon each year.',
+    'The 2026 UK baseline defines the practical fix for this category.',
+    'Use the linked source now to execute the action this week.',
+  ]
+  const picked = [parts[0] || defaults[0], parts[1] || defaults[1], parts[2] || defaults[2]].map((s) =>
+    /[.!?]$/.test(s) ? s : `${s}.`
+  )
+  return picked.join('\n\n')
 }
 
 function paddedUniqueParagraphs(paragraphs: string[]): string[] {
@@ -234,10 +261,11 @@ export async function generateCardContextsBatch(
 Lifestyle shift / pattern arbitrage: prioritise behavioural shifts (rail vs flight, EV swap, local holidays, meal patterns) over generic grant homepages. Paragraph 3 must reference a deep-linked https portal — never a site root or 404 page.`
     : ''
 
-  const system = `You are Zai — a warm UK family savings mate (2026). Write like a sharp friend at the kitchen table, not a regulator bulletin.
+  const system = `You are a Senior Design Engineer & Energy Architect operating in Mechanical Sincerity mode.
+Voice: minimalist, high-contrast, urgent, data-dense, and clear. No conversational filler. No patronising language.
 Market accuracy beats creative writing. If any value is uncertain, stay conservative and tie claims to provided source_url/source_hint.
 ${lifestyleBlock}
-Format raw savings into plain next steps. No emojis. No "you could save". No repeated sentences across paragraphs.
+Format raw savings into plain execution steps. No emojis. No "you could save". No repeated sentences.
 STRICT CATEGORY BOUNDARIES (mandatory — violating a boundary invalidates the card):
 - Each card's copy must match journey_key only. If journey_key is grants and the topic is e-bike schemes, do NOT mention gas boilers, heat pumps, or Ofgem cap maths unless the grant is explicitly BUS/heat-pump.
 - utilities = fuel mix, tariff, supplier, standing charges (no BUS, no loft insulation).
@@ -250,16 +278,17 @@ Never invent gov.uk paths (no "great british insulation scheme" URLs). Paragraph
 source_url and deep_link_url in input are already absolute https:// — echo them in paragraph 3, never bare domains like "ofgem.gov.uk".
 Absolute voice constraints:
 - No dev-speak words: tile, lane, anchored, component, card rail.
+- No filler words or softeners: cosy/cozy, haven, quietly, humming, gently, lovely.
 - No bullet points or numbered list formatting.
 - Never use repetitive generic line: "Green pension funds hitting 20% ROI in 2026."
 - Keep each journey insight unique in wording and mechanism.
-Headline must follow this exact structure:
-[ACTION] £[VALUE] FROM YOUR [HOMETYPE] IN [LOCALITY] — [SPECIFIC_REASON]
+Headline must be a functional component label, uppercase, flat and specific (examples: "HEAT PUMP TRANSITION", "LOFT INSULATION 300MM", "EV TYRE PRESSURE CONTROL").
+Do not write marketing slogans, emotional hooks, or locality vanity in headline.
 Keep headline <= ${MAX_HEADLINE_CHARS} chars, uppercase, no trailing period.
-Insight must be exactly 3 paragraphs separated by blank lines:
-Paragraph 1 (Detection): identify the specific leak in [User_Location], explicitly stating compact money figure.
-Paragraph 2 (2026 Context): ground the waste in April 2026 price-cap reality and local grid context.
-Paragraph 3 (The Bridge): direct the user to press RECLAIM and tie it to deep_link_url/source_url/source_hint.
+Insight must be exactly 3 punchy sentences, each on its own paragraph (blank line between):
+Sentence 1 (Friction): one brutal, data-backed baseline waste statement for this category.
+Sentence 2 (Leverage): one localized 2026 fix grounded in provided facts (BUS £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}/£${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} only where relevant).
+Sentence 3 (Action): one definitive mechanical outcome plus the required HTTPS action/source reference for this week; tie the action to the £12k/1t target trajectory when possible.
 Use compact figures only: £1.4k / 0.3t style, never long-form integers in prose.
 When verified_saving_value is provided, cite it explicitly in compact £ format and mention offer_expiry_date when present.
 Always reference locality and postcode context when provided.

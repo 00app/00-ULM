@@ -9,6 +9,7 @@ import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { trustedUrlForJourney, isHttpsUrl } from '@/lib/zone/trustedJourneyUrls'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
+import { ensureAbsoluteHttpsUrl } from '@/lib/zone/contentProseSanitize'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
 import pool from '@/lib/db'
 import {
@@ -205,12 +206,15 @@ export async function POST(req: NextRequest) {
       }
       const preferredDeepLink = c.deep_link_url?.trim()
       if (preferredDeepLink && isHttpsUrl(preferredDeepLink)) {
-        return { ...c, source_url: sanitizeZoneOfferUrl(preferredDeepLink, c.journey_key) }
+        const normalized = ensureAbsoluteHttpsUrl(preferredDeepLink) ?? preferredDeepLink
+        return { ...c, source_url: sanitizeZoneOfferUrl(normalized, c.journey_key) }
       }
       if (c.source_url?.trim() && isHttpsUrl(c.source_url)) {
-        return { ...c, source_url: sanitizeZoneOfferUrl(c.source_url, c.journey_key) }
+        const normalized = ensureAbsoluteHttpsUrl(c.source_url) ?? c.source_url
+        return { ...c, source_url: sanitizeZoneOfferUrl(normalized, c.journey_key) }
       }
-      return { ...c, source_url: trustedUrlForJourney(c.journey_key) }
+      const trusted = trustedUrlForJourney(c.journey_key)
+      return { ...c, source_url: ensureAbsoluteHttpsUrl(trusted) ?? trusted }
     })
   )
 

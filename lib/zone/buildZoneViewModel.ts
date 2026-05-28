@@ -891,7 +891,10 @@ export function buildZoneViewModel({
           ? 'https://www.gov.uk/ev-chargepoint-grant'
           : undefined
     let claimOfferUrl = marketDeepLink || impact.claimOfferUrl || fallbackClaimUrl
-    if (claimOfferUrl) claimOfferUrl = sanitizeZoneOfferUrl(claimOfferUrl, journeyKey)
+    if (claimOfferUrl) {
+      const normalizedClaim = ensureAbsoluteHttpsUrl(claimOfferUrl) ?? claimOfferUrl
+      claimOfferUrl = sanitizeZoneOfferUrl(normalizedClaim, journeyKey)
+    }
 
     const isPriorityAlert = journeyKey === 'home' && !!council
 
@@ -966,7 +969,10 @@ export function buildZoneViewModel({
         ? mechanicalHeadline
         : computingJourneyTitle(journeyKey)
     const showGridImpact = hasStream || hasMechanicalHeadline || moneyGbp > 0 || carbonKg > 0
-    const sourceUrl = sanitizeZoneOfferUrl(source.url, journeyKey)
+    const sourceUrl = sanitizeZoneOfferUrl(
+      ensureAbsoluteHttpsUrl(source.url) ?? source.url,
+      journeyKey
+    )
     const learnUrl =
       !isGenericHomepageUrl(claimOfferUrl) ? claimOfferUrl! :
       !isGenericHomepageUrl(sourceUrl) ? sourceUrl :
@@ -1027,7 +1033,7 @@ export function buildZoneViewModel({
         actionType: needsSwitching ? 'switch' : 'learn',
         learnUrl,
         actionUrl: needsSwitching
-          ? 'https://www.energysavingtrust.org.uk/advice/switching-energy-supplier/'
+          ? ensureAbsoluteHttpsUrl('https://www.energysavingtrust.org.uk/advice/switching-energy-supplier/')
           : undefined,
       },
       insightLabel: insightLabel,
@@ -1079,7 +1085,7 @@ export function buildZoneViewModel({
         carbon: formatCarbon(generalHomeLiving.carbonKg),
         money: formatZoneCardMoney(generalHomeMoney),
       },
-      source: homeSource.url,
+      source: ensureAbsoluteHttpsUrl(homeSource.url) ?? homeSource.url,
       sourceLabel: generalHomeLabel,
       source_name: formatVerifiedSourceNameFromLabel(generalHomeLabel),
       source_date: VERIFIED_SOURCE_DATE,
@@ -1100,7 +1106,7 @@ export function buildZoneViewModel({
         carbonKg: generalHomeLiving.carbonKg,
         locality: auditLocality,
       }),
-      actions: { actionType: 'learn', learnUrl: homeSource.url },
+      actions: { actionType: 'learn', learnUrl: ensureAbsoluteHttpsUrl(homeSource.url) ?? homeSource.url },
       architectSuppliedBy: defaultVerifiedArchitectSuppliedBy({
         sourceLabel: generalHomeLabel,
         sourceUrl: homeSource.url,
@@ -1117,7 +1123,7 @@ export function buildZoneViewModel({
         carbon: formatCarbon(generalTransport.carbonKg),
         money: formatZoneCardMoney(generalTravelMoney),
       },
-      source: travelSource.url,
+      source: ensureAbsoluteHttpsUrl(travelSource.url) ?? travelSource.url,
       sourceLabel: generalTravelLabel,
       source_name: formatVerifiedSourceNameFromLabel(generalTravelLabel),
       source_date: VERIFIED_SOURCE_DATE,
@@ -1138,7 +1144,7 @@ export function buildZoneViewModel({
         carbonKg: generalTransport.carbonKg,
         locality: auditLocality,
       }),
-      actions: { actionType: 'learn', learnUrl: travelSource.url },
+      actions: { actionType: 'learn', learnUrl: ensureAbsoluteHttpsUrl(travelSource.url) ?? travelSource.url },
       architectSuppliedBy: defaultVerifiedArchitectSuppliedBy({
         sourceLabel: generalTravelLabel,
         sourceUrl: travelSource.url,
@@ -1155,7 +1161,7 @@ export function buildZoneViewModel({
         carbon: formatCarbon(generalHomeExtra.carbonKg),
         money: formatZoneCardMoney(generalHomeExtraMoney),
       },
-      source: homeSource2.url,
+      source: ensureAbsoluteHttpsUrl(homeSource2.url) ?? homeSource2.url,
       sourceLabel: generalHome2Label,
       source_name: formatVerifiedSourceNameFromLabel(generalHome2Label),
       source_date: VERIFIED_SOURCE_DATE,
@@ -1176,7 +1182,7 @@ export function buildZoneViewModel({
         carbonKg: generalHomeExtra.carbonKg,
         locality: auditLocality,
       }),
-      actions: { actionType: 'learn', learnUrl: homeSource2.url },
+      actions: { actionType: 'learn', learnUrl: ensureAbsoluteHttpsUrl(homeSource2.url) ?? homeSource2.url },
       architectSuppliedBy: defaultVerifiedArchitectSuppliedBy({
         sourceLabel: generalHome2Label,
         sourceUrl: homeSource2.url,
