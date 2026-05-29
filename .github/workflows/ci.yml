@@ -23,7 +23,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --include=dev
       - run: npm run typecheck
 
   lint:
@@ -36,8 +36,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - run: npm run lint:ci
+      - run: npm ci --include=dev
+      - run: npm run lint
 
   verify:
     name: Verify
@@ -50,5 +50,5 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --include=dev
       - run: npm run verify

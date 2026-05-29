@@ -32,8 +32,9 @@ Production alias **`https://00-ulm.vercel.app`** should then serve this build.
 | Layer | What runs |
 | --- | --- |
 | **`vercel.json` `buildCommand`** | `npm run verify` then `node scripts/build-with-manifest-fix.js` |
-| **`package.json` `lint`** | `eslint app lib` (flat config: `eslint.config.mjs`) |
-| **`package.json` `typecheck`** | `tsc --noEmit -p tsconfig.typecheck.json` |
+| **`.npmrc`** | `include=dev` — native Lint/Typecheck jobs get `@types/*` + eslint |
+| **`scripts/vercel-check.mjs`** | Native check entry: `next typegen` + explicit eslint/tsc binaries |
+| **`package.json` `lint` / `typecheck`** | `node scripts/vercel-check.mjs …` (not deprecated `next lint`) |
 | **`next.config.js`** | No `eslint` key (Next 16 removed it — native Vercel Lint crashes). `typescript.ignoreBuildErrors` only. |
 | **`vercel.json` `installCommand`** | `npm ci --include=dev` (checks + build see eslint/tsc) |
 | **`npm run deploy`** | verify → `vercel deploy --prod` → wait Ready → **`scripts/vercel-promote-latest.sh`** |
