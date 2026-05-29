@@ -22,6 +22,7 @@ import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
 import { PulseDiagnosticFab } from '@/app/components/debug/PulseWidget'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
+import { SoloFocusJourneyNav } from '@/app/components/SoloFocusJourneyNav'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
 import {
@@ -193,6 +194,8 @@ export interface JourneyBentoCardProps {
   onEmbeddedAnswerSuccess?: (info: { cardId?: string; journeyId: JourneyId }) => void
   /** Swipe down at scroll top: open next visible journey on the Zone wall (mobile). */
   onSwipeNextJourney?: (journeyId: JourneyId) => void
+  /** Bottom rail: jump to prev/next journey in `JOURNEY_ORDER` (wraps). */
+  onNavigateJourney?: (journeyId: JourneyId) => void
   /**
    * After the last question in this journey is answered: close expanded view and let the shell
    * open the next journey in wall order, using `offerLine` as contextual copy on that tile.
@@ -253,6 +256,7 @@ export function JourneyBentoCard({
   architectActionLine,
   onEmbeddedAnswerSuccess,
   onSwipeNextJourney,
+  onNavigateJourney,
   hasLocalGrant = false,
   isPriorityAlert = false,
   verifiedSourceName,
@@ -1071,6 +1075,9 @@ export function JourneyBentoCard({
         </motion.div>
       </ExpandedCardShell>
             </motion.div>
+      {onNavigateJourney ? (
+        <SoloFocusJourneyNav journeyId={journeyId} onNavigate={onNavigateJourney} />
+      ) : null}
       <AskZaiDeepDiveSheet
         open={askZaiDeepDiveOpen}
         onClose={() => setAskZaiDeepDiveOpen(false)}

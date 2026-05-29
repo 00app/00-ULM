@@ -901,14 +901,69 @@ p,
   color: var(--color-yellow);
 }
 
-.expanded-solo-focus .solo-focus-pager-rail.solo-focus-pager-rail--fixed {
+.expanded-solo-focus .solo-focus-pager-rail.solo-focus-pager-rail--fixed,
+.solo-focus-journey-nav.solo-focus-pager-rail--fixed {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(40px + env(safe-area-inset-bottom, 0px));
-  width: auto;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: min(92vw, 720px);
   z-index: 120;
   padding: 0;
+}
+
+.solo-focus-journey-nav {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  pointer-events: auto;
+  box-sizing: border-box;
+  padding: 0 12px;
+}
+
+.solo-focus-journey-nav__btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  min-height: 44px;
+  color: #1a1a1a;
+}
+
+.solo-focus-journey-nav__btn:focus-visible {
+  outline: 2px solid var(--color-pink);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.solo-focus-journey-nav__label {
+  font-family: var(--font-roboto), Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-transform: lowercase;
+  color: #1a1a1a;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.solo-focus-journey-nav__arrow {
+  flex-shrink: 0;
+  color: #1a1a1a;
+}
+
+.solo-focus-journey-nav__arrow--prev {
+  transform: rotate(90deg);
+}
+
+.solo-focus-journey-nav__arrow--next {
+  transform: rotate(-90deg);
 }
 
 .pager-pip {
@@ -984,15 +1039,16 @@ p,
 }
 
 .expanded-solo-focus[data-zone-surface='journey'] {
-  --journey-bg: var(--color-purple);
-  --journey-text: var(--color-yellow);
-  --color-ink: var(--color-yellow);
-  --journey-cta-bg: var(--color-yellow);
-  --journey-cta-text: var(--color-purple);
+  --color-ulm-dark: #1a1a1a;
+  --journey-bg: #ffffff;
+  --journey-text: var(--color-ulm-dark);
+  --color-ink: var(--color-ulm-dark);
+  --journey-cta-bg: var(--color-pink);
+  --journey-cta-text: var(--color-yellow);
   --sf-answer-bg: var(--color-yellow);
-  --sf-answer-text: var(--color-purple);
-  --sf-answer-hover-bg: var(--color-yellow);
-  --sf-answer-hover-text: var(--color-purple);
+  --sf-answer-text: var(--color-ulm-dark);
+  --sf-answer-hover-bg: var(--color-pink);
+  --sf-answer-hover-text: var(--color-yellow);
 }
 
 .expanded-solo-focus[data-zone-surface='tip'] {

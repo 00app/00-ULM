@@ -30,6 +30,7 @@ import {
 } from '@/lib/soloFocusImpactParse'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
+import { SoloFocusJourneyNav } from '@/app/components/SoloFocusJourneyNav'
 import type { ZoneTipCard } from '@/lib/logic/zone'
 import { useApp } from '@/app/context/AppContext'
 import { syncSessionState } from '@/lib/sessionStateSync'
@@ -143,6 +144,8 @@ export interface SoloFocusOverlayProps {
     carbonKg: number
     coverage: Record<string, ResearchCategoryCoverageRow> | null
   }) => void
+  /** Linear 13-journey audit rail (wraps on `JOURNEY_ORDER`). */
+  onNavigateJourney?: (journeyId: JourneyId) => void
 }
 
 function triggerHaptic(p: 'light' | 'medium' | 'heavy') {
@@ -193,6 +196,7 @@ export function SoloFocusOverlay({
   tipVerificationMode = false,
   isCardVisited: isCardVisitedProp = false,
   onTipVerificationComplete,
+  onNavigateJourney,
 }: SoloFocusOverlayProps) {
   const cardVisitedLock =
     isCardVisitedProp || (cardId?.trim() ? isCardVisited(cardId) : false)
@@ -936,6 +940,9 @@ export function SoloFocusOverlay({
         </ExpandedCardShell>
 
       </motion.div>
+      {onNavigateJourney && journeyId ? (
+        <SoloFocusJourneyNav journeyId={journeyId} onNavigate={onNavigateJourney} />
+      ) : null}
       <AskZaiDeepDiveSheet
         open={askZaiDeepDiveOpen}
         onClose={() => setAskZaiDeepDiveOpen(false)}

@@ -1918,20 +1918,29 @@ export default function ZonePage() {
     })
   }, [rockVisibleHabits, rockOfferByJourney])
 
-  const openNextJourneyFromExpanded = useCallback(
-    (jid: JourneyId) => {
-      const idx = JOURNEY_ORDER.indexOf(jid)
-      for (let step = idx + 1; step < JOURNEY_ORDER.length; step++) {
-        const nextKey = JOURNEY_ORDER[step]
-        for (const c of displayItems) {
-          if (c.type === 'journey' && c.item.journey_key === nextKey) {
-            openZoneJourneySoloFocus(c.item)
-            return
-          }
+  const navigateJourneyInSoloFocus = useCallback(
+    (target: JourneyId) => {
+      if (expandedTipId?.trim()) markCardVisited(expandedTipId)
+      if (expandedCardId?.trim()) markCardVisited(expandedCardId)
+      setExpandedTipId(null)
+      setExpandedFromTip(null)
+      for (const c of displayItems) {
+        if (c.type === 'journey' && c.item.journey_key === target) {
+          openZoneJourneySoloFocus(c.item)
+          return
         }
       }
     },
-    [displayItems, openZoneJourneySoloFocus],
+    [displayItems, expandedCardId, expandedTipId, openZoneJourneySoloFocus],
+  )
+
+  const openNextJourneyFromExpanded = useCallback(
+    (jid: JourneyId) => {
+      const idx = JOURNEY_ORDER.indexOf(jid)
+      const nextKey = JOURNEY_ORDER[(idx + 1) % JOURNEY_ORDER.length]!
+      navigateJourneyInSoloFocus(nextKey)
+    },
+    [navigateJourneyInSoloFocus],
   )
 
   /** Oversized slot-machine numbers: strict journey-sum totals + liked Rock habits. */
@@ -2551,6 +2560,7 @@ export default function ZonePage() {
                         })
                       }}
                       onSwipeNextJourney={openNextJourneyFromExpanded}
+                      onNavigateJourney={navigateJourneyInSoloFocus}
                     />
                     </div>
                   )}
@@ -2754,6 +2764,7 @@ export default function ZonePage() {
                 }
                 verifiedAuditCategory={tipAuditMatches ? tip.journey_key : null}
                 researchCategoryCoverage={researchCategoryCoverage}
+                onNavigateJourney={navigateJourneyInSoloFocus}
               />
             </>
           )

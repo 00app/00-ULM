@@ -28,7 +28,7 @@
     "start:8765": "node node_modules/.bin/next start -p 8765",
     "check": "node scripts/run-typecheck.mjs",
     "typegen": "next typegen",
-    "tsc:check": "tsc --noEmit -p tsconfig.typecheck.json",
+    "tsc:check": "node scripts/vercel-check.mjs typecheck",
     "typecheck": "node scripts/vercel-check.mjs typecheck",
     "check:build": "npm run tsc:check && node scripts/build-with-manifest-fix.js",
     "lint:ci": "node scripts/vercel-check.mjs lint",
