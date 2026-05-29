@@ -1,27 +1,20 @@
 # Zero Zero documentation
 
-All **product and ops** documentation for the **00-00** repo lives in this folder. Application code is in `app/` and `lib/`.
+All **product and ops** documentation for the **00-00** repo lives in this folder.
 
-## Start here
+## Start here — one document
 
 | Doc | Use when |
 |-----|----------|
-| **[HANDBOOK.md](HANDBOOK.md)** | Quick start, deploy, Neon, repo map, security |
-| **[USER-FLOW-AND-DATA-PIPELINE.md](USER-FLOW-AND-DATA-PIPELINE.md)** | End-to-end user flow, category contract, dev + deploy ops |
-| **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)** | Scrape, copy, cards, Solo Focus, Zone reveal |
-| **[DEPLOY-VERCEL.md](DEPLOY-VERCEL.md)** | Vercel checks, Staged → promote, `npm run deploy` |
-| **[ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md)** | Questions registry, Zai boundaries |
-| **[PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md)** | Profile autofill, 13×3 questions, mechanical truth |
-| **[DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md)** | Local smoke, SQL, clean build, Hermes |
+| **[HANDBOOK.md](HANDBOOK.md)** | **Master audit doc** — copy, logic, APIs, questions, loops, data sources, deploy, motion (synthesized front + full annexes from every file below) |
 
-## All docs in `docs/`
+Open **`HANDBOOK.md`** to check everything in one place. The annex sections are the full text of each satellite doc (regenerate with `python3 scripts/consolidate-handbook.py` after editing sources).
+
+## Satellite docs (edit these first, then consolidate)
 
 | File | Topic |
 |------|--------|
-| [HANDBOOK.md](HANDBOOK.md) | Index, quick start, ops, repo map |
-| [README.md](README.md) | This index |
 | [USER-FLOW-AND-DATA-PIPELINE.md](USER-FLOW-AND-DATA-PIPELINE.md) | User flow, category contract, deploy checklist |
-| [APP-FLOW-AND-PIPELINE.md](APP-FLOW-AND-PIPELINE.md) | Architect spec (routes, governance) |
 | [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) | Scrape, copy, bento, Solo Focus, tone |
 | [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) | Questions, answers API, scrape-sync |
 | [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md) | Zai boundaries + question registry |
@@ -38,6 +31,7 @@ All **product and ops** documentation for the **00-00** repo lives in this folde
 | [SENTINEL.md](SENTINEL.md) | Sentinel live layer |
 | [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) | Gary mode, pattern shift, inject paths |
 | [PUBLIC-UK-APIS.md](PUBLIC-UK-APIS.md) | UK public API reference |
+| [APP-FLOW-AND-PIPELINE.md](APP-FLOW-AND-PIPELINE.md) | Architect spec (routes, governance) |
 
 ## Not in `docs/` (by design)
 

@@ -5,11 +5,29 @@
  * Loop 1 (mother / category bento): close → one loop question → birth discovery → mother pink.
  * Loop 2 (discovery inject): open Solo Focus → close → pink immediately, no second loop.
  *
+ * ## Solo Focus UI contract (mother stack — no duplication)
+ *
+ * | Slot | Source | Rule |
+ * |------|--------|------|
+ * | Label | `formatZoneCategoryLabel(journeyId)` | UPPERCASE journey key, journey yellow |
+ * | H1 | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | 10–20 words; no generic spring filler |
+ * | Lead | `SoloFocusProseStack` H4 | Locality via `locationName` — town, not postcode |
+ * | Body | Roboto | Max {@link MAX_SOLO_FOCUS_PROSE_BLOCKS} blocks total (lead + body); no £ if metrics stamp |
+ * | Impact | `MotherCardRenderer` SAVE/CARBON | Single stamp — hide `payoffSentence` text when prose already has £ |
+ * | Trinity | Ask Zai · Continue · RECLAIM/BUY | `SoloFocusActionTrinity` / industrial handoff |
+ *
  * @see docs/HANDBOOK.md — Launch verification + Director's Order
  */
 
+export const SOLO_FOCUS_UI_CONTRACT = {
+  maxProseBlocks: MAX_SOLO_FOCUS_PROSE_BLOCKS,
+  headlineWordsMin: 10,
+  headlineWordsMax: 20,
+} as const
+
 import type { JourneyId } from '@/lib/journeys'
 import { hasLoopDoneForJourney } from '@/lib/zone/loopMemory'
+import { MAX_SOLO_FOCUS_PROSE_BLOCKS } from '@/lib/zone/zoneVoice'
 import { isCardVisited, shouldSkipInjectionOnCardClose } from '@/lib/zone/visitedCards'
 
 /** Client-birthed discovery / achievement cells (`inject-*`, not sentinel/fallback). */

@@ -16,6 +16,13 @@ fi
 
 SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 echo "→ Commit ${SHA}: $(git log -1 --format='%s' 2>/dev/null || true)"
+
+if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+  echo "❌ Working tree has uncommitted changes — commit before deploy (verify only runs on committed code)." >&2
+  git status --short >&2
+  exit 1
+fi
+
 echo "→ Local verify (same gate as vercel.json buildCommand)…"
 npm run verify
 

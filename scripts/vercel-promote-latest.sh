@@ -5,6 +5,16 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 URL="${1:-}"
+if [[ -n "$URL" ]]; then
+  echo "→ Waiting for ${URL} to reach Ready…"
+  for _ in $(seq 1 72); do
+    inspect="$(vercel inspect "$URL" 2>/dev/null || true)"
+    if echo "$inspect" | grep -qiE 'status\s+●\s+Ready|status\s+Ready|\bReady\b'; then
+      break
+    fi
+    sleep 5
+  done
+fi
 if [[ -z "$URL" ]]; then
   URL="$(vercel ls 00-ulm --prod 2>/dev/null | awk '/Ready/ {print $2; exit}')"
 fi

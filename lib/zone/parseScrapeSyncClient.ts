@@ -6,8 +6,15 @@ import { foldCoverageRowsForZone, researchCategoryToJourneyKey } from '@/lib/zon
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 
 export function coerceMetaNum(v: unknown): number | undefined {
-  if (v == null) return undefined
-  const n = typeof v === 'number' ? v : Number(v)
+  if (v == null || v === '') return undefined
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string') {
+    const cleaned = v.replace(/[£,\s]/g, '')
+    if (!cleaned) return undefined
+    const n = Number(cleaned)
+    return Number.isFinite(n) ? n : undefined
+  }
+  const n = Number(v)
   return Number.isFinite(n) ? n : undefined
 }
 

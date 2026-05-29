@@ -13,6 +13,7 @@ import {
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
+import { MAX_SOLO_FOCUS_PROSE_BLOCKS } from '@/lib/zone/zoneVoice'
 
 function coerceJourneyId(id: string): JourneyId {
   return (JOURNEY_ORDER.includes(id as JourneyId) ? id : 'home') as JourneyId
@@ -238,6 +239,21 @@ export function isGenericSpringHeadline(text: string): boolean {
   return key.slice(0, n) === genericKey.slice(0, n)
 }
 
+/** Prose already states GBP — metrics row owns the stamp; omit payoffSentence lines. */
+export function proseContainsMoneyStamp(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  if (/£\s*\d/.test(t)) return true
+  if (/\b\d[\d,]*(?:\.\d+)?\s*(?:gbp|pounds?)\b/i.test(t)) return true
+  if (/\bsave(?:s|d)?\s+(?:about\s+)?£/i.test(t)) return true
+  if (/\b(?:£|gbp)[\d,]+.*(?:\/|per)\s*year\b/i.test(t)) return true
+  return false
+}
+
+export function shouldOmitPayoffLine(architectProse: string | null | undefined): boolean {
+  return proseContainsMoneyStamp((architectProse ?? '').trim())
+}
+
 function paragraphRepeatsPayoffStamp(text: string, journey: JourneyId, moneyGbp: number, carbonKg: number): boolean {
   const key = compactAlnumKey(text)
   if (key.length < 20) return false
@@ -430,13 +446,14 @@ export function dedupeTrueTipOpeningParagraph(headline: string, firstParagraph: 
   return firstParagraph
 }
 
-/** Solo Focus with £/kg below — subheading + body only (no payoff paragraph). */
+/** Solo Focus with £/kg in metrics — Marvin lead + at most one Roboto body (max-2-blocks). */
 export function layoutSoloFocusProseBlocks(
   headline: string,
   triple: [string, string, string],
-  opts: { journeyId: string; moneyGbp: number; carbonKg: number }
+  opts: { journeyId: string; moneyGbp: number; carbonKg: number; omitPayoffLine?: boolean }
 ): { subheading: string; body: string[] } {
   const j = coerceJourneyId(opts.journeyId)
+  const omitPayoff = opts.omitPayoffLine === true
   const blocks = dedupeTrueTipParagraphs(
     triple
       .map((p) => p.trim())
@@ -444,15 +461,18 @@ export function layoutSoloFocusProseBlocks(
         (p) =>
           p.length > 0 &&
           !isBoilerplateProseParagraph(p) &&
-          !paragraphRepeatsPayoffStamp(p, j, opts.moneyGbp, opts.carbonKg)
+          !paragraphRepeatsPayoffStamp(p, j, opts.moneyGbp, opts.carbonKg) &&
+          !(omitPayoff && proseContainsMoneyStamp(p))
       )
   )
-  const subheading = blocks[0] ?? ''
+  const capped = blocks.slice(0, MAX_SOLO_FOCUS_PROSE_BLOCKS)
+  const subheading = capped[0] ?? ''
   const subKey = compactAlnumKey(subheading)
-  const body = blocks.slice(1).filter((p) => {
+  const maxBody = Math.max(0, MAX_SOLO_FOCUS_PROSE_BLOCKS - (subheading ? 1 : 0))
+  const body = capped.slice(1).filter((p) => {
     const k = compactAlnumKey(p)
     return k.length >= 12 && k !== subKey
-  })
+  }).slice(0, maxBody)
   return { subheading, body }
 }
 
@@ -959,6 +979,7 @@ export function buildResearchResultsTrueTipBody(params: {
   )
   const m = Math.max(0, Math.round(params.verifiedSavingGbp))
   const c = Math.max(0, Math.round(params.carbonKg))
+  const omitPayoff = proseContainsMoneyStamp(rawClean)
   const blocks = rawClean
     .split(/\n\s*\n/)
     .map((p) =>
@@ -974,11 +995,18 @@ export function buildResearchResultsTrueTipBody(params: {
     )
   const filtered = dedupeTrueTipParagraphs(blocks)
   if (filtered.length >= 3) {
-    const third = normalizeTrueTipThirdParagraph(j, filtered[2]!, m, c)
-    const packed = dedupeTrueTipParagraphs([filtered[0]!, filtered[1]!, third])
-    return collapseDuplicateProseParagraphs(packed.join('\n\n'))
+    const third = omitPayoff
+      ? filtered[2]!
+      : normalizeTrueTipThirdParagraph(j, filtered[2]!, m, c)
+    const packed = dedupeTrueTipParagraphs(
+      omitPayoff ? filtered.slice(0, 3) : [filtered[0]!, filtered[1]!, third]
+    )
+    return collapseDuplicateProseParagraphs(packed.slice(0, MAX_SOLO_FOCUS_PROSE_BLOCKS).join('\n\n'))
   }
   if (filtered.length === 2) {
+    if (omitPayoff) {
+      return collapseDuplicateProseParagraphs(filtered.slice(0, MAX_SOLO_FOCUS_PROSE_BLOCKS).join('\n\n'))
+    }
     const packed = dedupeTrueTipParagraphs([filtered[0]!, filtered[1]!, payoffSentence(j, m, c)])
     return packed.join('\n\n')
   }
@@ -996,6 +1024,10 @@ export function buildResearchResultsTrueTipBody(params: {
     )
   }
   const what = filtered[0] ?? blocks[0] ?? rawClean
+  if (omitPayoff) {
+    const packed = dedupeTrueTipParagraphs([what, filtered[1] ?? ''].filter(Boolean))
+    return collapseDuplicateProseParagraphs(packed.slice(0, MAX_SOLO_FOCUS_PROSE_BLOCKS).join('\n\n'))
+  }
   const packed = dedupeTrueTipParagraphs([
     what,
     filtered[1] ?? '',
@@ -1072,7 +1104,9 @@ export function toThreeTrueTipParagraphs(
   const j = coerceJourneyId(options?.journeyId ?? 'home')
   const money = options?.moneyGbp ?? 0
   const carbon = options?.carbonKg ?? 0
-  const includePayoff = options?.includePayoffParagraph !== false
+  const omitFromProse = proseContainsMoneyStamp(text)
+  const includePayoff =
+    options?.includePayoffParagraph !== false && !omitFromProse
   const pack3 = (a: string, b: string, c: string): [string, string, string] => {
     const third = includePayoff
       ? normalizeTrueTipThirdParagraph(j, c, money, carbon)

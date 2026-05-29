@@ -4,6 +4,7 @@ import {
   layoutSoloFocusProseBlocks,
   toThreeTrueTipParagraphs,
   polishTrueTipParagraphsForHeadline,
+  shouldOmitPayoffLine,
 } from '@/lib/soloFocusCopy'
 import { personalizeTrueTipPlaceLead } from '@/lib/zone/localityCopy'
 
@@ -32,6 +33,7 @@ export function SoloFocusProseStack({
   locality,
   postcode,
 }: SoloFocusProseStackProps) {
+  const omitPayoffLine = shouldOmitPayoffLine(insightSource)
   const triple = polishTrueTipParagraphsForHeadline(
     headline,
     toThreeTrueTipParagraphs(insightSource, {
@@ -52,8 +54,9 @@ export function SoloFocusProseStack({
     journeyId,
     moneyGbp,
     carbonKg,
+    omitPayoffLine,
   })
-  const bodyLead = body.slice(0, 1)
+  const bodyLead = body
 
   if (!subheading && bodyLead.length === 0) return null
 
