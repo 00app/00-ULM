@@ -10,6 +10,7 @@ SYNTH_START = "<!-- SYNTHESIZED:START -->"
 SYNTH_END = "<!-- SYNTHESIZED:END -->"
 
 SOURCES = [
+    ("PIPELINE-AUDIT-CREDIT.md", "Pipeline audit — APIs, boundaries, scrape URLs, credit", "annex-pipeline-audit--apis-boundaries-scrape-urls-credit-control"),
     ("USER-FLOW-AND-DATA-PIPELINE.md", "User flow & runtime pipeline", "annex-user-flow--runtime-pipeline"),
     ("ZONE-CONTENT-AND-DATA.md", "Zone content, scrape & presentation", "annex-zone-content-scrape--presentation"),
     ("PROFILE-ANSWERS-ZONE-TECH.md", "Profile, journey questions & mechanical truth", "annex-profile-journey-questions--mechanical-truth"),

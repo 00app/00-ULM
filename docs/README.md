@@ -6,7 +6,8 @@ All **product and ops** documentation for the **00-00** repo lives in this folde
 
 | Doc | Use when |
 |-----|----------|
-| **[HANDBOOK.md](HANDBOOK.md)** | **Master audit doc** — copy, logic, APIs, questions, loops, data sources, deploy, motion (synthesized front + full annexes from every file below) |
+| **[HANDBOOK.md](HANDBOOK.md)** | **Master audit doc** — copy, logic, APIs, questions, loops, data sources, deploy, motion |
+| **[PIPELINE-AUDIT-CREDIT.md](PIPELINE-AUDIT-CREDIT.md)** | **Pipeline audit** — API map, scrape boundaries, all seed URLs, credit env, audit commands |
 
 Open **`HANDBOOK.md`** to check everything in one place. The annex sections are the full text of each satellite doc (regenerate with `python3 scripts/consolidate-handbook.py` after editing sources).
 
@@ -14,6 +15,7 @@ Open **`HANDBOOK.md`** to check everything in one place. The annex sections are 
 
 | File | Topic |
 |------|--------|
+| [PIPELINE-AUDIT-CREDIT.md](PIPELINE-AUDIT-CREDIT.md) | APIs, scrape URLs, boundaries, credit control |
 | [USER-FLOW-AND-DATA-PIPELINE.md](USER-FLOW-AND-DATA-PIPELINE.md) | User flow, category contract, deploy checklist |
 | [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) | Scrape, copy, bento, Solo Focus, tone |
 | [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) | Questions, answers API, scrape-sync |
