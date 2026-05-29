@@ -60,6 +60,7 @@ import {
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   MAX_ZONE_CARD_HEADLINE_WORDS,
   resolveExpandedTrueTipInsight,
+  shouldShowSoloFocusArchitectActionLine,
   resolveSoloFocusHandoffUrls,
   stripExpandedCardTitleNoise,
   wrapResultSupportingAsterisks,
@@ -978,7 +979,11 @@ export function JourneyBentoCard({
                     narrative={null}
                     sourceFooter={sourceFooter}
                     verifiedSourceCitation={null}
-                    actionLine={architectActionLine}
+                    actionLine={
+                      shouldShowSoloFocusArchitectActionLine(architectActionLine, insightDisplay)
+                        ? architectActionLine
+                        : null
+                    }
                     moneyGbp={animatedMoneyGbp}
                     carbonKg={animatedCarbonKg}
                     verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}

@@ -2907,17 +2907,48 @@ h3.solo-focus-question-label.zz-h3 {
   margin-top: 40px !important;
 }
 
-/* Solo Focus mother stack — locked vertical rhythm (40px between major blocks). */
-.expanded-solo-focus .solo-focus-mother-stack {
+/* Solo Focus mother stack — mobile column; md+ bento grid (copy | metrics). */
+.expanded-solo-focus .solo-focus-mother-grid.solo-focus-mother-stack {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   width: 100%;
   min-width: 0;
+  max-width: 100%;
   gap: 0;
+  box-shadow: none;
 }
-.expanded-solo-focus .solo-focus-mother-stack > * + * {
+.expanded-solo-focus .solo-focus-mother-copy-col > * + *,
+.expanded-solo-focus .solo-focus-mother-metrics-col > * + * {
   margin-top: 40px;
+}
+.expanded-solo-focus .solo-focus-mother-stack .solo-focus-mother-metrics-col .solo-focus-mother-metrics > * + *,
+.expanded-solo-focus .solo-focus-mother-metrics-col > .solo-focus-impact-hero + *,
+.expanded-solo-focus .solo-focus-mother-metrics-col > * + .solo-focus-trinity {
+  margin-top: 40px;
+}
+@media (min-width: 768px) {
+  .expanded-solo-focus .solo-focus-mother-grid.solo-focus-mother-stack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding-inline: 2.5rem;
+    align-items: end;
+  }
+  .expanded-solo-focus .solo-focus-mother-copy-col > * + * {
+    margin-top: 40px;
+  }
+  .expanded-solo-focus .solo-focus-mother-metrics-col {
+    justify-content: flex-end;
+  }
+}
+@media (min-width: 1024px) {
+  .expanded-solo-focus .solo-focus-mother-grid.solo-focus-mother-stack {
+    gap: 3rem;
+    padding-inline: 2.5rem;
+  }
 }
 .expanded-solo-focus .solo-focus-mother-stack .solo-focus-mother-metrics > * + * {
   margin-top: 40px;
@@ -3319,6 +3350,16 @@ h3.solo-focus-question-label.zz-h3 {
   height: 80px !important;
   min-width: 80px !important;
   min-height: 80px !important;
+}
+@media (min-width: 768px) {
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-80,
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn,
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-trinity-cta {
+    width: 88px !important;
+    height: 88px !important;
+    min-width: 88px !important;
+    min-height: 88px !important;
+  }
 }
 
 .architectural-pulse-overlay .intro-summary-opacity-ticker {

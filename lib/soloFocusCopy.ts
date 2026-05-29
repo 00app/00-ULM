@@ -13,6 +13,7 @@ import {
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
+import { personalizeTrueTipPlaceLead } from '@/lib/zone/localityCopy'
 import { MAX_SOLO_FOCUS_PROSE_BLOCKS } from '@/lib/zone/zoneVoice'
 
 function coerceJourneyId(id: string): JourneyId {
@@ -208,6 +209,10 @@ const MECHANICAL_SCAFFOLD_PROSE_RE =
 const THIN_FLUFF_PROSE_RE =
   /^your\s+\w+\s+is\s+high[- ]?value\.?$/i
 
+/** Marketing / AI bridge — never a Solo Focus body block. */
+const BRIDGE_PHRASE_PROSE_RE =
+  /\b(?:here(?:'s| is) how you can|in conclusion|to summarize|unlock your potential|you could save|as an ai|i can help|absolutely!?|great news)\b/i
+
 export function isMechanicalScaffoldParagraph(text: string): boolean {
   const t = text.trim()
   if (!t) return false
@@ -221,6 +226,7 @@ export function isBoilerplateProseParagraph(text: string): boolean {
   if (!t) return true
   return (
     BOILERPLATE_PROSE_RE.test(t) ||
+    BRIDGE_PHRASE_PROSE_RE.test(t) ||
     isCtaBridgeParagraph(t) ||
     isMechanicalScaffoldParagraph(t) ||
     isGenericAuditorProofParagraph(t)
@@ -446,12 +452,12 @@ export function dedupeTrueTipOpeningParagraph(headline: string, firstParagraph: 
   return firstParagraph
 }
 
-/** Solo Focus with £/kg in metrics — Marvin lead + at most one Roboto body (max-2-blocks). */
+/** Solo Focus with £/kg in metrics — Marvin lead (H4) + at most one Roboto body. */
 export function layoutSoloFocusProseBlocks(
   headline: string,
   triple: [string, string, string],
   opts: { journeyId: string; moneyGbp: number; carbonKg: number; omitPayoffLine?: boolean }
-): { subheading: string; body: string[] } {
+): { subheading: string; body: string | null } {
   const j = coerceJourneyId(opts.journeyId)
   const omitPayoff = opts.omitPayoffLine === true
   const blocks = dedupeTrueTipParagraphs(
@@ -466,14 +472,70 @@ export function layoutSoloFocusProseBlocks(
       )
   )
   const capped = blocks.slice(0, MAX_SOLO_FOCUS_PROSE_BLOCKS)
-  const subheading = capped[0] ?? ''
+  let subheading = capped[0] ?? ''
+  subheading = dedupeTrueTipOpeningParagraph(headline, subheading) || subheading
   const subKey = compactAlnumKey(subheading)
-  const maxBody = Math.max(0, MAX_SOLO_FOCUS_PROSE_BLOCKS - (subheading ? 1 : 0))
-  const body = capped.slice(1).filter((p) => {
-    const k = compactAlnumKey(p)
-    return k.length >= 12 && k !== subKey
-  }).slice(0, maxBody)
-  return { subheading, body }
+  let body: string | null = null
+  for (let i = 1; i < capped.length; i++) {
+    const candidate = capped[i]!.trim()
+    if (!candidate) continue
+    const k = compactAlnumKey(candidate)
+    if (k.length < 12 || k === subKey) continue
+    body = candidate
+    break
+  }
+  return { subheading: subheading.trim(), body: body?.trim() || null }
+}
+
+/** Strict display contract: audit lead + optional impact body (never a third prose block). */
+export function resolveSoloFocusDisplayProse(args: {
+  headline: string
+  insightSource: string
+  journeyId: string
+  moneyGbp: number
+  carbonKg: number
+  userPostcode?: string | null
+  sourceDisplayName?: string | null
+  auditHeaderLocality?: string | null
+  locality?: string | null
+  postcode?: string | null
+}): { lead: string; body: string | null } {
+  const omitPayoffLine = shouldOmitPayoffLine(args.insightSource)
+  const triple = polishTrueTipParagraphsForHeadline(
+    args.headline,
+    toThreeTrueTipParagraphs(args.insightSource, {
+      journeyId: args.journeyId,
+      moneyGbp: args.moneyGbp,
+      carbonKg: args.carbonKg,
+      userPostcode: args.userPostcode,
+      sourceDisplayName: args.sourceDisplayName,
+      auditHeaderLocality: args.auditHeaderLocality,
+      includePayoffParagraph: false,
+    })
+  )
+  const personalized = personalizeTrueTipPlaceLead(triple, {
+    locality: args.locality ?? undefined,
+    postcode: args.postcode ?? undefined,
+  }) as [string, string, string]
+  const { subheading, body } = layoutSoloFocusProseBlocks(args.headline, personalized, {
+    journeyId: args.journeyId,
+    moneyGbp: args.moneyGbp,
+    carbonKg: args.carbonKg,
+    omitPayoffLine,
+  })
+  return { lead: subheading, body }
+}
+
+/** Content-architect imperative — not a third prose block when audit copy is complete. */
+export function shouldShowSoloFocusArchitectActionLine(
+  actionLine: string | null | undefined,
+  insightSource: string
+): boolean {
+  const line = (actionLine ?? '').trim()
+  if (!line || isBoilerplateProseParagraph(line)) return false
+  if (shouldOmitPayoffLine(insightSource)) return false
+  if (proseContainsMoneyStamp(insightSource)) return false
+  return false
 }
 
 export function polishTrueTipParagraphsForHeadline(
@@ -999,15 +1061,19 @@ export function buildResearchResultsTrueTipBody(params: {
       ? filtered[2]!
       : normalizeTrueTipThirdParagraph(j, filtered[2]!, m, c)
     const packed = dedupeTrueTipParagraphs(
-      omitPayoff ? filtered.slice(0, 3) : [filtered[0]!, filtered[1]!, third]
+      omitPayoff
+        ? filtered.slice(0, MAX_SOLO_FOCUS_PROSE_BLOCKS)
+        : [filtered[0]!, filtered[1]!, third].slice(0, MAX_SOLO_FOCUS_PROSE_BLOCKS)
     )
-    return collapseDuplicateProseParagraphs(packed.slice(0, MAX_SOLO_FOCUS_PROSE_BLOCKS).join('\n\n'))
+    return collapseDuplicateProseParagraphs(packed.join('\n\n'))
   }
   if (filtered.length === 2) {
     if (omitPayoff) {
       return collapseDuplicateProseParagraphs(filtered.slice(0, MAX_SOLO_FOCUS_PROSE_BLOCKS).join('\n\n'))
     }
-    const packed = dedupeTrueTipParagraphs([filtered[0]!, filtered[1]!, payoffSentence(j, m, c)])
+    const packed = dedupeTrueTipParagraphs(
+      [filtered[0]!, filtered[1]!, payoffSentence(j, m, c)].slice(0, MAX_SOLO_FOCUS_PROSE_BLOCKS)
+    )
     return packed.join('\n\n')
   }
   /** Legacy single blob without blank-line breaks: split sentences into three beats. */

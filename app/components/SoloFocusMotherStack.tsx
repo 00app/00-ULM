@@ -17,7 +17,7 @@ export type SoloFocusMotherStackProps = {
 
 /**
  * Canonical Solo Focus mother column — category → H1 → prose → metrics (SAVE/CARBON + Trinity + nav).
- * Journey bento + tip overlay must share this stack.
+ * md+: 2-column grid (copy | metrics). Journey bento + tip overlay must share this stack.
  */
 export function SoloFocusMotherStack({
   zoneCategoryLabel,
@@ -30,7 +30,7 @@ export function SoloFocusMotherStack({
   shellClassName = '',
 }: SoloFocusMotherStackProps) {
   const headlineClass =
-    'solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left'
+    'solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left md:text-5xl lg:text-6xl'
   const headlineStyle = { color: 'var(--journey-text)', margin: 0, padding: 0 } as const
 
   const headlineEl = headlineMotion ? (
@@ -45,11 +45,11 @@ export function SoloFocusMotherStack({
 
   return (
     <div className={`solo-focus-expanded-toolbar w-full min-w-0${shellClassName ? ` ${shellClassName}` : ''}`}>
-      <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
-        <div
-          key={bodyKey}
-          className="solo-focus-mother-body solo-focus-mother-stack w-full min-w-0 flex-1"
-        >
+      <div
+        key={bodyKey}
+        className="solo-focus-mother-body solo-focus-mother-grid solo-focus-mother-stack w-full min-w-0 flex-1"
+      >
+        <div className="solo-focus-mother-copy-col flex flex-col items-stretch w-full min-w-0 min-h-0">
           {showComputing ? (
             <p
               className="zz-label m-0 opacity-80"
@@ -66,6 +66,8 @@ export function SoloFocusMotherStack({
           </span>
           {headlineEl}
           {prose}
+        </div>
+        <div className="solo-focus-mother-metrics-col w-full min-w-0 flex flex-col justify-end">
           <div className="solo-focus-mother-metrics w-full min-w-0">{metrics}</div>
         </div>
       </div>

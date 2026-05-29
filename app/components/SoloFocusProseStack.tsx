@@ -1,12 +1,6 @@
 'use client'
 
-import {
-  layoutSoloFocusProseBlocks,
-  toThreeTrueTipParagraphs,
-  polishTrueTipParagraphsForHeadline,
-  shouldOmitPayoffLine,
-} from '@/lib/soloFocusCopy'
-import { personalizeTrueTipPlaceLead } from '@/lib/zone/localityCopy'
+import { resolveSoloFocusDisplayProse } from '@/lib/soloFocusCopy'
 
 export type SoloFocusProseStackProps = {
   headline: string
@@ -33,54 +27,41 @@ export function SoloFocusProseStack({
   locality,
   postcode,
 }: SoloFocusProseStackProps) {
-  const omitPayoffLine = shouldOmitPayoffLine(insightSource)
-  const triple = polishTrueTipParagraphsForHeadline(
+  const { lead, body } = resolveSoloFocusDisplayProse({
     headline,
-    toThreeTrueTipParagraphs(insightSource, {
-      journeyId,
-      moneyGbp,
-      carbonKg,
-      userPostcode,
-      sourceDisplayName,
-      auditHeaderLocality,
-      includePayoffParagraph: false,
-    })
-  )
-  const personalized = personalizeTrueTipPlaceLead(triple, {
-    locality: locality ?? undefined,
-    postcode: postcode ?? undefined,
-  }) as [string, string, string]
-  const { subheading, body } = layoutSoloFocusProseBlocks(headline, personalized, {
+    insightSource,
     journeyId,
     moneyGbp,
     carbonKg,
-    omitPayoffLine,
+    userPostcode,
+    sourceDisplayName,
+    auditHeaderLocality,
+    locality,
+    postcode,
   })
-  const bodyLead = body
 
-  if (!subheading && bodyLead.length === 0) return null
+  if (!lead && !body) return null
 
   const proseStyle = { color: 'var(--journey-text)' as const }
 
   return (
     <div className="solo-focus-true-tip-sections solo-focus-true-tip-sections--mother flex flex-col gap-0 w-full min-w-0">
-      {subheading ? (
+      {lead ? (
         <h4
-          className="solo-focus-architect-prose solo-focus-architect-lead solo-focus-copy-width solo-focus-content-text text-left m-0 text-marvin zz-h4"
+          className="solo-focus-architect-prose solo-focus-architect-lead solo-focus-copy-width solo-focus-content-text text-left m-0 text-marvin zz-h4 md:text-lg lg:text-xl"
           style={proseStyle}
         >
-          {subheading}
+          {lead}
         </h4>
       ) : null}
-      {bodyLead.map((para) => (
+      {body ? (
         <p
-          key={para.slice(0, 48)}
-          className="solo-focus-architect-prose solo-focus-architect-body solo-focus-copy-width solo-focus-content-text text-left m-0"
+          className="solo-focus-architect-prose solo-focus-architect-body solo-focus-copy-width solo-focus-content-text text-left m-0 zz-body-bold text-sm md:text-base lg:text-lg leading-relaxed"
           style={proseStyle}
         >
-          {para}
+          {body}
         </p>
-      ))}
+      ) : null}
     </div>
   )
 }
