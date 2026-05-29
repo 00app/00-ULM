@@ -269,7 +269,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Surface | Limit | Enforcer |
 |---------|-------|----------|
 | Zone bento | **5–8** | `enforceHeadlineWordLimits(text, false)` |
-| Solo Focus expanded hook | **10–20** (~2–3 lines) | `headlineFromExpandedHook` → `EXPANDED_JOURNEY_HOOK[journey]` when weak; else `enforceHeadlineWordLimits(text, true)` |
+| Solo Focus expanded hook | **10–20** (~2–3 lines) | `headlineFromExpandedHook` → per-journey `EXPANDED_JOURNEY_HOOK` when title is weak or generic spring filler (`isGenericSpringHeadline`); mechanical proof via `lib/zone/auditorNarrative.ts` (no shared “policy and tariff pressure…” block) |
 | Paragraph | ≤ **40** words each | `MAX_TRUE_TIP_PARAGRAPH_WORDS` |
 
 ### After an answer

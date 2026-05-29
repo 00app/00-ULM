@@ -353,6 +353,10 @@ function buildCompactHeadline(params: {
       return 'LOWER GRID LOAD'
     case 'waste':
       return 'SHRINK BIN LEAKS'
+    case 'grants':
+      return 'CHECK GRANT ELIGIBILITY'
+    case 'solar':
+      return 'SIZE SOLAR TO YOUR ROOF'
     default:
       return reason
   }

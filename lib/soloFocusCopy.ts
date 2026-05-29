@@ -5,7 +5,11 @@
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { sanitizeAgentMarkdown, stripMarkdownForProseDisplay } from '@/lib/agents/zeroHunterMarkdown'
-import { buildAuditorNarrativeParagraphs, payoffSentence } from '@/lib/zone/auditorNarrative'
+import {
+  buildAuditorNarrativeParagraphs,
+  isGenericAuditorProofParagraph,
+  payoffSentence,
+} from '@/lib/zone/auditorNarrative'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
@@ -193,6 +197,9 @@ export function stripProseReportLead(text: string): string {
 const BOILERPLATE_PROSE_RE =
   /\b(?:open the verified source(?:\s+link)?\s+below to complete this action(?:\s+and lock in the saving)?|open the verified source to complete this action|use the link below to execute the verified offer|use the primary action below to claim|use the verified source to execute the action plan)\b/i
 
+const GENERIC_SPRING_HEADLINE_RE =
+  /\bone\s+clear\s+move\s+near\s+you\b.*\b(?:bill\s+savings|locks\s+real)\b/i
+
 /** Legacy agent scaffolding — strip before Solo Focus display. */
 const MECHANICAL_SCAFFOLD_PROSE_RE =
   /\b(?:execute the audited step|execute the verified step|we treat the ~£|optimization plan|green funding frameworks|at today'?s pathway numbers|fresh audit:|live partner offer unavailable|footprint liabilities|hedges capital liabilities)\b/i
@@ -214,8 +221,21 @@ export function isBoilerplateProseParagraph(text: string): boolean {
   return (
     BOILERPLATE_PROSE_RE.test(t) ||
     isCtaBridgeParagraph(t) ||
-    isMechanicalScaffoldParagraph(t)
+    isMechanicalScaffoldParagraph(t) ||
+    isGenericAuditorProofParagraph(t)
   )
+}
+
+/** Expanded/bento headline filler reused across journeys when Neon title is thin. */
+export function isGenericSpringHeadline(text: string): boolean {
+  const t = text.replace(/\s+/g, ' ').trim()
+  if (!t) return false
+  if (GENERIC_SPRING_HEADLINE_RE.test(t)) return true
+  const key = compactAlnumKey(t)
+  const genericKey = compactAlnumKey('one clear move near you that locks real bill savings this spring')
+  if (key.length < 18 || genericKey.length < 18) return false
+  const n = Math.min(36, key.length, genericKey.length)
+  return key.slice(0, n) === genericKey.slice(0, n)
 }
 
 function paragraphRepeatsPayoffStamp(text: string, journey: JourneyId, moneyGbp: number, carbonKg: number): boolean {
@@ -351,7 +371,17 @@ function dedupeSentencesWithinParagraph(paragraph: string): string {
     })
     if (!dup) kept.push(s)
   }
-  return kept.join(' ')
+  let joined = kept.join(' ')
+  const placeMatch = joined.match(/\b([A-Z][a-z]+(?:'s)?)\b/g)
+  if (placeMatch && placeMatch.length >= 2) {
+    const first = placeMatch[0]!
+    const repeats = placeMatch.filter((p) => p.toLowerCase() === first.toLowerCase()).length
+    if (repeats >= 2 && joined.toLowerCase().includes(`${first.toLowerCase()}'s`)) {
+      const parts = joined.split(/(?<=[.!?])\s+/)
+      if (parts.length > 1) joined = parts.slice(1).join(' ').trim() || joined
+    }
+  }
+  return joined
 }
 
 /** Drop paragraphs that repeat earlier copy (Gemini often echoes sentence 1 mid-body). */
@@ -508,6 +538,7 @@ export function isLowQualityZoneHeadline(text: string): boolean {
   if (isEnergyAuditDebrisHeadline(joined)) return true
   if (ZONE_HEADLINE_JARGON_RE.test(joined)) return true
   if (isZonePreviewHeadlineNoise(joined)) return true
+  if (isGenericSpringHeadline(joined)) return true
   if (words.every((w) => ZONE_HEADLINE_FILLER_WORDS.has(w.toLowerCase()))) return true
   if (words.length <= 2 && /^(?:pattern|learned|zone|your)$/i.test(words[0] ?? '')) return true
   return false
@@ -555,13 +586,21 @@ export function headlineFromArchitectProse(
  * Programmatic headline contract — Zone 5–8 words; expanded Solo Focus 10–20 words (hook, 2–3 lines).
  * @param expanded — when true, uses expanded hook bounds.
  */
-export function enforceHeadlineWordLimits(text: string, expanded = false): string {
+export function enforceHeadlineWordLimits(
+  text: string,
+  expanded = false,
+  journeyId?: JourneyId | string
+): string {
   const min = expanded ? MIN_EXPANDED_VIEW_HEADLINE_WORDS : MIN_ZONE_CARD_HEADLINE_WORDS
   const max = expanded ? MAX_EXPANDED_VIEW_HEADLINE_WORDS : MAX_ZONE_CARD_HEADLINE_WORDS
+  const jid = journeyId ? coerceJourneyId(String(journeyId)) : undefined
+  const journeyHook = jid ? EXPANDED_JOURNEY_HOOK[jid] : undefined
   const fallback = expanded
-    ? 'one clear move near you that locks real bill savings this spring'
+    ? journeyHook ?? 'save money on home bills near you'
     : 'save money on home bills near you'
-  const resolved = zoneCardHeadlineFromRaw(text, fallback, max)
+  const source =
+    isGenericSpringHeadline(text) && journeyHook ? journeyHook : text
+  const resolved = zoneCardHeadlineFromRaw(source, fallback, max)
   const words = splitHeadlineWords(resolved)
   if (words.length < min) {
     const fb = splitHeadlineWords(zoneCardHeadlineFromRaw(fallback, fallback, max))
@@ -648,13 +687,14 @@ export function headlineFromExpandedHook(
   const words = splitHeadlineWords(resolved)
   const weak =
     isLowQualityZoneHeadline(resolved) ||
+    isGenericSpringHeadline(resolved) ||
     words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS ||
     (jid != null && headlineConflictsWithJourney(jid, resolved))
-  if (jid && journeyHook && weak) {
-    return enforceHeadlineWordLimits(journeyHook, true)
+  if (jid && journeyHook && (weak || isGenericSpringHeadline(prepared || title))) {
+    return enforceHeadlineWordLimits(journeyHook, true, jid)
   }
   if (words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && journeyHook) {
-    return enforceHeadlineWordLimits(journeyHook, true)
+    return enforceHeadlineWordLimits(journeyHook, true, jid)
   }
   return resolved
 }

@@ -54,7 +54,7 @@ export function polishWarmAuditorProse(raw: string, maxWordsPerParagraph = 40): 
 
   if (parts.length >= 3) return parts.slice(0, 3).join('\n\n')
   if (parts.length === 2) {
-    return [parts[0], parts[1], parts[1]].join('\n\n')
+    return undefined
   }
   if (parts.length === 1) {
     const sentences = parts[0]
