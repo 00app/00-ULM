@@ -29,7 +29,7 @@ import {
 import { routeQuestion } from "@/lib/brains/zai/router";
 import {
   ZAI_EDITORIAL_AUDITOR_DNA,
-  ZAI_PERFORMANCE_AUDITOR_V3_MATRIX,
+  ZAI_FORENSIC_CHAT_MATRIX,
 } from "@/lib/brains/zai/prompts";
 import { buildZaiGenomeContextPrompt } from '@/lib/brains/zai/genomeContext'
 import { finalizeZaiChatLearning } from '@/lib/brains/zai/learning'
@@ -634,7 +634,7 @@ export async function POST(req: NextRequest) {
       ? ` optional opener: you may start with "${mandatoryOpener} " then continue in a friendly uk voice. never repeat the same place twice in one sentence. do not sound robotic.`
       : ' if journey answers include home heating or postcode, mention them naturally in the first sentence — warm tone, not technical. never duplicate locality phrases.'
 
-    const auditorBlock = ` ${ZAI_PERFORMANCE_AUDITOR_V3_MATRIX}`
+    const auditorBlock = ` ${ZAI_FORENSIC_CHAT_MATRIX} do not repeat the solo focus card headline or its three-beat editorial prose — explain why and how only.`
     const totalsLine = ` household savings so far: about £${totalMoney}/yr and ${totalCarbon}kg carbon — use these when discussing money or carbon; do not invent zeros.`
     const systemInstruction = isExpandedContext
       ? `you are zai. the user is in deep dive on [${categoryLabel}]. personal spend signal: ${personalSpend}; regional avg signal: ${regionalAvg}.${scrapedSourceLine}${journeyFormQuestionLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${totalsLine}${energyOpenerRule}${optimizationPrompt} answer strictly about this shift and how to close the saving gap.${userContextNote}${editorialBlock}${auditorBlock}${activeShiftBlock}${roleGuard}${userContextBlock}${genomePrompt}`

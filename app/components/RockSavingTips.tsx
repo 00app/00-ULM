@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useCallback, useEffect } from 'react'
+import type { JourneyId } from '@/lib/journeys'
 import type { RockHabit } from '@/lib/rock/types'
 import { ROCK_HABITS, habitToTipCard } from '@/lib/rock/habitsCatalog'
 import InputField from '@/app/components/InputField'
@@ -27,6 +28,8 @@ type Props = {
   likedCardIds: readonly string[]
   visitedTipIds: ReadonlySet<string>
   onOpenTip: (tipId: string) => void
+  /** Content Architect / Neon headlines by journey — polishes Rock tile faces to match Zone grid. */
+  architectHeadlineByJourney?: Partial<Record<JourneyId, string>>
 }
 
 function InstagramGlyph({ className }: { className?: string }) {
@@ -55,7 +58,13 @@ function ensureSixRockHabits(habits: RockHabit[]): RockHabit[] {
  * The Rock — six saving-tip tiles: same bento shell as Zone (yellow / purple, `bento-card-groovy`).
  * Grid: 1 col mobile / 2 tablet / 3 desktop (matches Zone rhythm below XL).
  */
-export function RockSavingTips({ habits, likedCardIds, visitedTipIds, onOpenTip }: Props) {
+export function RockSavingTips({
+  habits,
+  likedCardIds,
+  visitedTipIds,
+  onOpenTip,
+  architectHeadlineByJourney,
+}: Props) {
   const six = ensureSixRockHabits(habits)
   const [mobile, setMobile] = useState('')
   const [signupBusy, setSignupBusy] = useState(false)
@@ -123,8 +132,9 @@ export function RockSavingTips({ habits, likedCardIds, visitedTipIds, onOpenTip 
           const tipBg = visited ? ROCK_CARD_BG : 'var(--color-purple)'
           const tipInk = 'var(--color-yellow)' as const
           const jid = h.journey_key
+          const architectRaw = jid ? architectHeadlineByJourney?.[jid]?.trim() : ''
           const tipHeadline = headlineFromTitle(
-            cleanZonePreviewHeadline(h.title),
+            cleanZonePreviewHeadline(architectRaw || h.title),
             MAX_ZONE_CARD_HEADLINE_WORDS
           )
           const gbp = parseMoneyGbpFromDisplay(String(tip.data.money ?? '0'))

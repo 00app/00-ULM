@@ -2,6 +2,7 @@
  * Zai system voice — canonical export for routing docs; implementation in `lib/brains/zai/prompts.ts`.
  */
 export {
+  ZAI_FORENSIC_CHAT_MATRIX,
   ZAI_PERFORMANCE_AUDITOR_V3_MATRIX,
   ZAI_EDITORIAL_AUDITOR_DNA,
   buildSystemPrompt,

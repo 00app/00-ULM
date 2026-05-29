@@ -39,6 +39,8 @@ import {
 } from '@/lib/agents/researcher'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { stripContentSystemLeakage } from '@/lib/zone/contentProseSanitize'
+import { ZONE_WARM_AUDITOR_THREE_BEAT } from '@/lib/zone/zoneVoice'
+import { polishWarmAuditorProse } from '@/lib/zone/warmAuditorCopy'
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
 import {
   APRIL_2026_TRUTH_PENCE,
@@ -77,6 +79,8 @@ export interface ZeroResearchResult {
 /** Profile snapshot for USER.md context (home_type, transport_baseline, etc.). */
 export interface ResearchProfileData {
   postcode?: string | null
+  /** Geocoded town for Warm Auditor P1 (e.g. Littlehampton) — not the postcode. */
+  locality_display?: string | null
   home_type?: string | null
   home_power?: string | null
   household?: string | null
@@ -648,6 +652,8 @@ function clipArchitectParagraphToMaxWords(p: string, maxWords: number): string {
 
 /** Exactly three `\n\n`-separated paragraphs; reject mashed single-paragraph output; clip each paragraph to max words. */
 function normalizeArchitectProseThreeParagraphs(ap: string | undefined): string | undefined {
+  const polished = polishWarmAuditorProse(ap ?? '', MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH)
+  if (polished) return polished
   if (!ap?.trim()) return undefined
   const cleaned = stripContentSystemLeakage(ap)
   const parts = cleaned
@@ -796,6 +802,10 @@ function parseResearchTripletJson(raw: string): {
 
 function buildResearchProfileAuditorContext(data: ResearchProfileData | null | undefined): string {
   if (!data || typeof data !== 'object') return ''
+  const townLine =
+    typeof data.locality_display === 'string' && data.locality_display.trim()
+      ? `Town for prose (paragraph 1 — use this name, never the postcode): ${data.locality_display.trim()}\n\n`
+      : ''
   const affluence = buildAffluenceAuditorPromptBlock({
     employment_status: data.employment_status,
     postcode: data.postcode,
@@ -810,8 +820,8 @@ function buildResearchProfileAuditorContext(data: ResearchProfileData | null | u
     rows.push(`- ${key}: ${s.length > 280 ? `${s.slice(0, 280)}…` : s}`)
     if (rows.length >= 24) break
   }
-  if (!rows.length) return affluence
-  return `${affluence}Household auditing context (treat as ground truth — interrogate the markdown through this lens, not generic “grants” SEO):\n${rows.join('\n')}\n\n`
+  if (!rows.length) return `${townLine}${affluence}`
+  return `${townLine}${affluence}Household auditing context (treat as ground truth — interrogate the markdown through this lens, not generic “grants” SEO):\n${rows.join('\n')}\n\n`
 }
 
 function researchTripletNeedsRecovery(triplet: {
@@ -861,11 +871,10 @@ From the markdown below, return ONLY valid JSON (no markdown code fence) with ex
 - "offer_url": one https URL copied verbatim from the markdown or citation context. If no live URL exists, return an empty string.
 - "agent_headline": **Zone card heading** — **6 to 8 words**, punchy and benefit-driven (e.g. "leapfrog your energy bills this month"). No colons. No section labels.
 - "expanded_headline": **Expanded Solo Focus hook heading** — **10 to 20 words** (2–3 lines); benefit-led lifestyle hook for their town/setup, not a postcode. Optional; if omitted, agent_headline may be reused.
-- "architect_prose": exactly **THREE** paragraphs for the expanded view only, separated by **two** newlines (blank line between). **Hard cap: each paragraph at most ${MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH} words.** Warm, trusted UK English — caring and clear, one line of dry humour at most:
-  - Paragraph 1 — **Hook:** connect their lifestyle (profile/postcode) to the opportunity without lecturing.
-  - Paragraph 2 — **Deal:** the real-world offer or grant; compact £ and carbon impact, not tariff tables or API jargon.
-  - Paragraph 3 — **Payoff:** what changes this month if they act — hand off to the stamped figures below, not "open the CTA".
-  **Banned:** "What:", "Why:", "How:", bullets, numbering, markdown headings, or role labels in the prose text.
+- "architect_prose": exactly **THREE** paragraphs for Solo Focus (blank line between). **Hard cap: each paragraph at most ${MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH} words.**
+${ZONE_WARM_AUDITOR_THREE_BEAT}
+  **Banned in prose:** "What:", "Why:", "How:", bullets, markdown (##, **), raw postcodes, "aviation factors", "tariff pressure", "Sure!", "I can help", dev-speak (morph, pipeline, tile).
+  **Headlines:** agent_headline stays punchy uppercase fragments; architect_prose body is sentence case / lowercase where natural.
 
 Markdown:
 ---

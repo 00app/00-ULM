@@ -5,7 +5,14 @@
 
 import type { JourneyId } from '@/lib/journeys'
 import type { ZoneViewModel } from '@/lib/logic/zone'
-import { isLowQualityZoneHeadline } from '@/lib/soloFocusCopy'
+import {
+  isAcceptableZoneJourneyHeadline,
+  isLowQualityZoneHeadline,
+  isZonePreviewHeadlineNoise,
+  zoneCardHeadlineFromRaw,
+  MAX_ZONE_CARD_HEADLINE_WORDS,
+} from '@/lib/soloFocusCopy'
+import { GEMINI_PRECISION_TEMPERATURE, GEMINI_DIRECT_ZONE } from '@/lib/intelligence/geminiModels'
 import {
   MARCH_2026_ECONOMY,
   PRICE_CAP_SAVING_APRIL_1,
@@ -14,7 +21,8 @@ import {
   PRICE_CAP_SOURCE_URL,
 } from '@/lib/brains/constants'
 import { TRUSTED_JOURNEY_URLS } from '@/lib/zone/trustedJourneyUrls'
-import { collapseDuplicateProseParagraphs } from '@/lib/soloFocusCopy'
+import { collapseDuplicateProseParagraphs, dedupeTrueTipParagraphs } from '@/lib/soloFocusCopy'
+import { polishWarmAuditorProse } from '@/lib/zone/warmAuditorCopy'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import {
   sanitizeArchitectProseForJourney,
@@ -62,6 +70,8 @@ export type ContentArchitectCardInput = {
 const MAX_HEADLINE_CHARS = 160
 const DEV_SPEAK_BANNED = /\b(tile|tiles|lane|lanes|anchored|anchor|ui shell|card rail|component)\b/gi
 const TONE_FILLER_BANNED = /\b(cosy|cozy|haven|havens|humming|quietly|nesting|navigating|perfect|simple|gently|nicely|lovely|friendly nudge|little win)\b/gi
+const TECHNICAL_JARGON_BANNED =
+  /\b(aviation factors?|tariff pressure|emissions factor|policy signal|defra data|pathway numbers)\b/gi
 
 /** Stable short fingerprint for sessionStorage cache keys (profile + answers + £/kg). */
 export function architectCacheFingerprint(payload: unknown): string {
@@ -71,6 +81,36 @@ export function architectCacheFingerprint(payload: unknown): string {
     h = (Math.imul(h, 33) ^ str.charCodeAt(i)) >>> 0
   }
   return h.toString(16)
+}
+
+/** When Content Architect returns a valid headline, prefer it on grid faces (journeys + tips). */
+export function shouldPreferArchitectHeadline(
+  currentTitle: string,
+  archHeadline: string,
+  journeyKey: JourneyId,
+  options?: { streamPending?: boolean }
+): boolean {
+  const arch = clampArchitectHeadline(archHeadline)
+  if (!arch || isLowQualityZoneHeadline(arch)) return false
+  if (!isAcceptableZoneJourneyHeadline(journeyKey, arch)) return false
+  const cur = currentTitle.trim()
+  if (!cur || /^COMPUTING\s+—/i.test(cur)) return true
+  if (options?.streamPending) return true
+  if (isZonePreviewHeadlineNoise(cur) || isLowQualityZoneHeadline(cur)) return true
+  if (!isAcceptableZoneJourneyHeadline(journeyKey, cur)) return true
+  return false
+}
+
+export function architectHeadlineForZoneCard(
+  archHeadline: string,
+  fallback: string,
+  journeyKey: JourneyId
+): string {
+  const arch = clampArchitectHeadline(archHeadline)
+  if (!arch || isLowQualityZoneHeadline(arch)) {
+    return zoneCardHeadlineFromRaw(fallback, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
+  }
+  return zoneCardHeadlineFromRaw(arch, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
 }
 
 export function clampArchitectHeadline(s: string): string {
@@ -156,7 +196,7 @@ function replaceDevSpeak(text: string): string {
 }
 
 function stripFillerTone(text: string): string {
-  return text.replace(TONE_FILLER_BANNED, '')
+  return text.replace(TONE_FILLER_BANNED, '').replace(TECHNICAL_JARGON_BANNED, 'your bills')
 }
 
 function scrubBulletPrefix(line: string): string {
@@ -171,15 +211,24 @@ function normaliseInsightEditorialSandwich(raw: string, journeyKey?: JourneyId):
     .map((line) => scrubBulletPrefix(line))
     .join('\n')
     .trim()
-  const paragraphs = stripped
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean)
+  const polished = polishWarmAuditorProse(stripped)
+  if (polished) {
+    if (journeyKey) {
+      return sanitizeArchitectProseForJourney(journeyKey, polished) ?? polished
+    }
+    return polished
+  }
+  const paragraphs = dedupeTrueTipParagraphs(
+    stripped
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+  )
   const deDuped = paddedUniqueParagraphs(paragraphs)
   const padded = [
-    deDuped[0] ?? 'Your current setup leaks measurable money and carbon each year.',
-    deDuped[1] ?? 'The 2026 UK baseline defines the actionable fix for this journey category.',
-    deDuped[2] ?? 'Apply the linked action now to lock the outcome this week.',
+    deDuped[0] ?? 'Your home setup is still leaking cash and carbon each year.',
+    deDuped[1] ?? 'April 2026 UK schemes can shrink that waste if you match the fix to your setup.',
+    deDuped[2] ?? 'Take one step this week via the linked source and lock the saving on your row.',
   ]
   const joined = forceThreeSentenceInsight(
     collapseDuplicateProseParagraphs(padded.slice(0, 3).join('\n\n')).slice(0, 1200)
@@ -249,9 +298,9 @@ export async function generateCardContextsBatch(
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(key)
   const model = genAI.getGenerativeModel({
-    model: process.env.GEMINI_ARTICLE_MODEL?.trim() || 'gemini-1.5-flash',
+    model: process.env.GEMINI_ZONE_MODEL?.trim() || GEMINI_DIRECT_ZONE,
     generationConfig: {
-      temperature: 0.35,
+      temperature: GEMINI_PRECISION_TEMPERATURE,
       maxOutputTokens: 4096,
     },
   })
@@ -283,13 +332,12 @@ Absolute voice constraints:
 - Never use repetitive generic line: "Green pension funds hitting 20% ROI in 2026."
 - Keep each journey insight unique in wording and mechanism.
 Keep headline <= ${MAX_HEADLINE_CHARS} chars, uppercase, no trailing period.
-Insight must be exactly 3 sentences, each on its own paragraph (blank line between):
-Sentence 1 (Friction): honest baseline waste for this category — compact £ or habit fact, empathetic tone.
-Sentence 2 (Leverage): one localized 2026 fix from provided facts (BUS £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}/£${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} only where relevant).
-Sentence 3 (Action): warm payoff plus the required HTTPS action/source reference for this week; tie to the £12k/1t trajectory when figures are provided.
+Insight must follow the 3-beat structure (three paragraphs, blank line between) — see ZONE_WARM_AUDITOR_THREE_BEAT above.
+Paragraph 1 must open with locality (town name) when the card JSON includes locality — never the raw postcode string.
+Paragraph 2 may cite BUS £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP} / £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} only on grants/home-heat cards where relevant.
+Paragraph 3 holds the single £/kg payoff and the https source_url action — do not repeat payoff figures from paragraph 1.
 Use compact figures only: £1.4k / 0.3t style, never long-form integers in prose.
-When verified_saving_value is provided, cite it explicitly in compact £ format and mention offer_expiry_date when present.
-Always reference locality and postcode context when provided.
+When verified_saving_value is provided, cite it in paragraph 3 only (compact £) and mention offer_expiry_date when present.
 actionLine = one short imperative.
 Reply with ONLY valid JSON: an object whose keys are journey_key strings (home, utilities, grants, solar, travel, holidays, food, shopping, money, tech, water, waste, carbon). Each value: { "headline", "insight", "actionLine", "suppliedBy" }.`
 
@@ -339,15 +387,15 @@ export function applyArchitectEnrichment(
       const https = rawUrl ? sanitizeZoneOfferUrl(rawUrl, key) : undefined
       let next = j
       if (arch) {
-        const archHeadline = clampArchitectHeadline(arch.headline)
-        const isComputingPlaceholder = /^COMPUTING\s+—/i.test(j.title)
-        const useArchitectHeadline =
-          Boolean(archHeadline) &&
-          !isLowQualityZoneHeadline(archHeadline) &&
-          (isComputingPlaceholder || j.streamPending)
+        const useArchitectHeadline = shouldPreferArchitectHeadline(j.title, arch.headline, key, {
+          streamPending: j.streamPending,
+        })
+        const faceTitle = useArchitectHeadline
+          ? architectHeadlineForZoneCard(arch.headline, j.title, key)
+          : j.title
         next = {
           ...j,
-          title: useArchitectHeadline ? archHeadline : j.title,
+          title: faceTitle,
           streamPending: useArchitectHeadline ? false : j.streamPending,
           insightLabel: arch.insight,
           architectSuppliedBy: arch.suppliedBy,
@@ -362,6 +410,28 @@ export function applyArchitectEnrichment(
         actions: next.actions
           ? { ...next.actions, learnUrl: https, actionUrl: https }
           : { actionType: 'learn', learnUrl: https, actionUrl: https },
+      }
+    }),
+    tips: vm.tips.map((tip) => {
+      const key = tip.journey_key
+      if (!key || skip.has(key)) return tip
+      const arch = byJourney[key]
+      if (!arch) return tip
+      const useArchitectHeadline = shouldPreferArchitectHeadline(tip.title, arch.headline, key)
+      const faceTitle = useArchitectHeadline
+        ? architectHeadlineForZoneCard(arch.headline, tip.title, key)
+        : tip.title
+      const insightParagraphs = arch.insight
+        .split(/\n\s*\n/)
+        .map((p) => p.trim())
+        .filter(Boolean)
+      return {
+        ...tip,
+        title: faceTitle,
+        explanation: insightParagraphs.length >= 2 ? insightParagraphs : tip.explanation,
+        architectSuppliedBy: arch.suppliedBy || tip.architectSuppliedBy,
+        architectActionLine: arch.actionLine,
+        source_name: arch.suppliedBy || tip.source_name,
       }
     }),
   }

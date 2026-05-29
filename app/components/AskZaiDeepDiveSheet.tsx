@@ -1,18 +1,26 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { INDUSTRIAL_OPACITY_SNAP, ZIP_OPEN_Z_TRANSITION } from '@/lib/animations'
 import { postZaiChat, readZaiStream, type ZaiChatMessage } from '@/lib/zai/chatClient'
 import { triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
-import { buildSoloFocusAskZaiQuestion } from '@/lib/expandStorage'
+import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
 import { sanitizeText } from '@/lib/sanitize'
 import { dedupeLocalityInProse } from '@/lib/brains/zai/prose'
 import { stripZaiChatMarkdown } from '@/lib/zai/chatBoundaries'
 import { renderZaiChatProse } from '@/lib/zai/renderChatProse'
 import { JOURNEY_ORDER } from '@/lib/journeys'
+import { ROUTES } from '@/lib/routes'
 import { useApp } from '@/app/context/AppContext'
+import {
+  buildDeepDiveAuditTrail,
+  buildDeepDiveCalculationSummary,
+  buildDeepDiveQuestionPills,
+  type DeepDiveProfileSlice,
+} from '@/lib/zai/deepDiveAudit'
 
 const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
 
@@ -52,7 +60,10 @@ type Props = {
   regionalAvg?: string
   scrapedSource?: string
   postcode?: string | null
-  suggestedQuestions: string[]
+  localityName?: string | null
+  profileSlice?: DeepDiveProfileSlice | null
+  /** Override category pills; default = 3 journey-specific pills → /zai handoff. */
+  suggestedQuestions?: string[]
 }
 
 export function AskZaiDeepDiveSheet({
@@ -65,8 +76,11 @@ export function AskZaiDeepDiveSheet({
   regionalAvg = '0',
   scrapedSource = '',
   postcode: postcodeProp,
+  localityName,
+  profileSlice,
   suggestedQuestions,
 }: Props) {
+  const router = useRouter()
   const { state } = useApp()
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
@@ -77,6 +91,55 @@ export function AskZaiDeepDiveSheet({
     postcodeProp ??
     state.profile?.postcode ??
     (typeof window !== 'undefined' ? window.localStorage?.getItem?.('profile_postcode') : null)
+
+  const locality =
+    localityName ?? state.locationState?.locationName ?? state.profile?.postcode ?? null
+
+  const auditInput = useMemo(
+    () => {
+      const profile: DeepDiveProfileSlice = profileSlice ?? {
+        homeType: state.profile?.homeType,
+        transport: state.profile?.transport,
+        livingSituation: state.profile?.livingSituation,
+        postcode: state.profile?.postcode,
+      }
+      return {
+        journeyKey,
+        categoryLabel: category,
+        headline,
+        personalSpend,
+        regionalAvg,
+        scrapedSource,
+        localityName: locality,
+        profile,
+        journeyAnswers: getJourneyAnswersFromClient(),
+      }
+    },
+    [
+      journeyKey,
+      category,
+      headline,
+      personalSpend,
+      regionalAvg,
+      scrapedSource,
+      locality,
+      profileSlice,
+      state.profile?.homeType,
+      state.profile?.transport,
+      state.profile?.livingSituation,
+      state.profile?.postcode,
+    ]
+  )
+
+  const auditTrail = useMemo(() => buildDeepDiveAuditTrail(auditInput), [auditInput])
+  const calculationSummary = useMemo(
+    () => buildDeepDiveCalculationSummary(auditInput),
+    [auditInput]
+  )
+  const transitionPills = useMemo(
+    () => suggestedQuestions ?? buildDeepDiveQuestionPills(journeyKey),
+    [suggestedQuestions, journeyKey]
+  )
 
   useEffect(() => {
     if (!open) {
@@ -116,6 +179,27 @@ export function AskZaiDeepDiveSheet({
     [journeyKey, postcode, state.profile]
   )
 
+  const continueInZai = useCallback(
+    (pillLabel: string) => {
+      const label = pillLabel.trim()
+      if (!label) return
+      const answers = getJourneyAnswersFromClient()
+      setAskZaiContext({
+        category: journeyKey,
+        personalSpend,
+        regionalAvg,
+        question: buildSoloFocusAskZaiQuestion(headline, label),
+        shift_title: headline,
+        scraped_source: scrapedSource,
+        journey_answers_jsonb: answers,
+        journey_question_label: label,
+      })
+      onClose()
+      router.push(ROUTES.ZAI)
+    },
+    [headline, journeyKey, onClose, personalSpend, regionalAvg, router, scrapedSource]
+  )
+
   const submit = useCallback(
     async (q: string) => {
       const label = q.trim()
@@ -130,7 +214,7 @@ export function AskZaiDeepDiveSheet({
 
       runLocalizedScrape(label)
 
-      const journeyAnswers = getJourneyAnswersFromClient()
+      const journeyAnswersLocal = getJourneyAnswersFromClient()
       const questionForApi = buildSoloFocusAskZaiQuestion(headline, label)
       const totals = state.heroTotals ?? { totalMoney: 0, totalCarbon: 0 }
 
@@ -139,7 +223,7 @@ export function AskZaiDeepDiveSheet({
           question: questionForApi,
           stream: true,
           messages: prior,
-          journey_answers: journeyAnswers,
+          journey_answers: journeyAnswersLocal,
           postcode: postcode ?? undefined,
           expandedContext: {
             category: journeyKey,
@@ -148,7 +232,7 @@ export function AskZaiDeepDiveSheet({
             shift_title: headline,
             scraped_source: scrapedSource,
             journey_question_label: label,
-            journey_answers_jsonb: journeyAnswers,
+            journey_answers_jsonb: journeyAnswersLocal,
           },
           contextData: {
             totals,
@@ -267,22 +351,36 @@ export function AskZaiDeepDiveSheet({
                 {category}
               </p>
               <h2 id="ask-zai-deep-dive-title" className="ask-zai-deep-dive-title m-0 text-marvin uppercase">
-                Deep dive
+                Audit trail
               </h2>
               <p className="ask-zai-deep-dive-headline m-0">{headline}</p>
-              <div className="flex flex-wrap gap-3" style={{ gap: 12 }}>
-                {suggestedQuestions.map((q) => (
+
+              <section className="ask-zai-deep-dive-audit" aria-label="Calculation summary">
+                <h3 className="ask-zai-deep-dive-audit__heading m-0 text-marvin uppercase">Calculation summary</h3>
+                <p className="ask-zai-deep-dive-audit__summary m-0">{calculationSummary}</p>
+                <ul className="ask-zai-deep-dive-audit__list m-0 p-0 list-none">
+                  {auditTrail.map((line) => (
+                    <li key={line} className="ask-zai-deep-dive-audit__line">
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <div className="ask-zai-deep-dive-pill-row flex flex-wrap gap-3" style={{ gap: 12 }}>
+                {transitionPills.map((q) => (
                   <button
                     key={q}
                     type="button"
                     disabled={busy}
-                    onClick={() => void submit(q)}
+                    onClick={() => continueInZai(q)}
                     className="ask-zai-deep-dive-pill rounded-full border-0 cursor-pointer uppercase text-marvin"
                   >
                     {q}
                   </button>
                 ))}
               </div>
+
               <div className="ask-zai-deep-dive-thread" aria-live="polite">
                 {messages.map((msg, i) =>
                   msg.role === 'user' ? (
@@ -290,17 +388,21 @@ export function AskZaiDeepDiveSheet({
                       {msg.text}
                     </p>
                   ) : (
-                    <p key={`z-${i}`} className="ask-zai-deep-dive-answer m-0">
+                    <div
+                      key={`z-${i}`}
+                      className="ask-zai-deep-dive-bubble ask-zai-deep-dive-bubble--zai"
+                    >
                       {msg.text
                         ? renderZaiChatProse(msg.text, { journey_key: journeyKey, source: 'zai_chat' })
                         : busy && i === messages.length - 1
                           ? 'Auditing…'
                           : null}
-                    </p>
+                    </div>
                   )
                 )}
                 <div ref={threadEndRef} />
               </div>
+
               <form
                 className="flex flex-col gap-3 mt-auto max-w-zone w-full"
                 onSubmit={(e) => {
@@ -322,6 +424,14 @@ export function AskZaiDeepDiveSheet({
                   aria-busy={busy}
                 >
                   {busy ? 'Auditing…' : 'Search deeper'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="ask-zai-deep-dive-continue rounded-full border-0 h-12 uppercase text-marvin cursor-pointer w-full"
+                  onClick={() => continueInZai(transitionPills[0] ?? 'show me the math')}
+                >
+                  Continue in Zai
                 </button>
               </form>
             </motion.div>

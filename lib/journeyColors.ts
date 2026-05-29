@@ -215,20 +215,18 @@ export function getZoneSurfaceTokens(kind: ZoneSurfaceKind): ZoneSurfaceTokens {
   }
 }
 
-const ULM_DARK = '#1a1a1a'
-
-/** Expanded journey Solo Focus — white audit document (not purple bento). */
+/** Expanded Solo Focus — typographic HUD over Zone atmosphere (no card fill). */
 export function zoneExpandedJourneySurfaceStyleProps(): Record<string, string> {
   return {
-    '--journey-bg': '#ffffff',
-    '--journey-text': ULM_DARK,
-    '--color-ink': ULM_DARK,
+    '--journey-bg': 'transparent',
+    '--journey-text': COLOR_YELLOW,
+    '--color-ink': COLOR_YELLOW,
     '--journey-accent': COLOR_PINK,
     '--journey-on-accent': COLOR_YELLOW,
     '--journey-cta-bg': COLOR_PINK,
     '--journey-cta-text': COLOR_YELLOW,
     '--sf-answer-bg': COLOR_YELLOW,
-    '--sf-answer-text': ULM_DARK,
+    '--sf-answer-text': COLOR_YELLOW,
     '--sf-answer-hover-bg': COLOR_PINK,
     '--sf-answer-hover-text': COLOR_YELLOW,
   }

@@ -63,7 +63,8 @@ export function metaFromAskZaiContext(
   ctx: AskZaiContext,
   journeyAnswers?: Record<string, Record<string, string>>
 ): ZaiChatMeta | undefined {
-  const title = ctx.question?.trim() || ctx.category?.trim() || 'zai tip'
+  const title =
+    ctx.shift_title?.trim() || ctx.question?.trim() || ctx.category?.trim() || 'zai tip'
   const likeId = zaiLikeIdFromText(`${ctx.category}-${title}`)
   const savingsGbp = Number.parseFloat(ctx.personalSpend.replace(/[^\d.]/g, '')) || 0
   const sourceUrl =

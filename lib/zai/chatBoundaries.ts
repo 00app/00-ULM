@@ -25,6 +25,22 @@ export const ZAI_SCRAPE_FORBIDDEN_SURFACES = [
 export type ZaiScrapeAllowedSurface = (typeof ZAI_SCRAPE_ALLOWED_SURFACES)[number]
 export type ZaiScrapeForbiddenSurface = (typeof ZAI_SCRAPE_FORBIDDEN_SURFACES)[number]
 
+/** Zai chat + Deep Dive — read-only interpreter; Zone cards own editorial 3-beat prose. */
+export const ZAI_READ_ONLY_TRUTH_RULES = {
+  allowedSources: [
+    'user_genome',
+    'research_results',
+    'buildUserImpact totals',
+    'journey_answers',
+    'expandedContext / StoredExpandCard handoff',
+    'open_data_anchor in genome',
+  ] as const,
+  noInventedSavings: true,
+  noRepeatCardThreeBeat: true,
+  noWebBrowseOnChatSurface: true,
+  ulmBaselineHint: '12,000 kWh ≈ 1 tonne CO₂e — interpret only when totals exist in context',
+} as const
+
 export const ZAI_CHAT_EDITORIAL_RULES = {
   threeBeat: ['detection', 'proof', 'directive'] as const,
   noMarkdownHeadings: true,

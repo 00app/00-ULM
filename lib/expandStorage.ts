@@ -32,6 +32,8 @@ export interface AskZaiContext {
   personalSpend: string
   regionalAvg: string
   question: string
+  /** Solo Focus / bento headline — Zai must not repeat this as editorial copy. */
+  shift_title?: string
   /** Active Solo Focus embedded question (e.g. DEVICE COUNT?) when user taps Ask */
   journey_question_label?: string | null
   userContext?: any

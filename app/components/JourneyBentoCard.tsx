@@ -21,10 +21,11 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { Logo } from '@/app/components/Logo'
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
-import { PulseDiagnosticFab } from '@/app/components/debug/PulseWidget'
+import { SoloFocusViewportUtilityStrip } from '@/app/components/SoloFocusViewportUtilityStrip'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { SoloFocusJourneyNav } from '@/app/components/SoloFocusJourneyNav'
 import { SoloFocusProseStack } from '@/app/components/SoloFocusProseStack'
+import { SoloFocusMotherStack } from '@/app/components/SoloFocusMotherStack'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
 import {
@@ -35,6 +36,7 @@ import { ZoneAiSparkIcon } from '@/app/components/ui/ZoneAiSparkIcon'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
+import { useSoloFocusHudBodyClass } from '@/lib/hooks/useSoloFocusHudBodyClass'
 import {
   INDUSTRIAL_OPACITY_SNAP,
   SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC,
@@ -78,7 +80,6 @@ import {
   pickFirstHttpUrl,
   resolveRevenueCtaLabel,
 } from '@/lib/zone/verifiedRevenue'
-import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
 import {
   filterMorphDeckForJourney,
   morphDeckAlignedWithJourney,
@@ -95,7 +96,6 @@ import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
 import { setDeepDiveInProgress } from '@/lib/zone/visitedCards'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
 import { shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
-import { runSoloFocusAuditCompletionClient } from '@/lib/soloFocusAuditCompleteClient'
 import {
   SOLO_FOCUS_SNAPSHOT_V,
   soloFocusSnapStorageKeys,
@@ -105,8 +105,6 @@ import {
   type SoloFocusResultSnapshotV1,
 } from '@/lib/soloFocusSessionSnapshot'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
-import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
-
 type HomeSentinelRecard = {
   headline: string
   description: string
@@ -116,20 +114,6 @@ type HomeSentinelRecard = {
   verifiedAt?: string
 }
 
-function parseSentinelMotherRefresh(raw: unknown): HomeSentinelRecard | null {
-  if (!raw || typeof raw !== 'object') return null
-  const p = raw as SentinelMotherRecardPayload
-  const headline = typeof p.headline === 'string' ? p.headline.trim() : ''
-  if (!headline) return null
-  return {
-    headline,
-    description: typeof p.description === 'string' ? p.description.trim() : '',
-    moneyGbp: typeof p.moneyValue === 'number' && Number.isFinite(p.moneyValue) ? p.moneyValue : 0,
-    carbonKg: typeof p.carbonValue === 'number' && Number.isFinite(p.carbonValue) ? p.carbonValue : 0,
-    sourceUrl: typeof p.source_url === 'string' ? p.source_url : undefined,
-    verifiedAt: typeof p.verified_date === 'string' ? p.verified_date : undefined,
-  }
-}
 function readHydrationSnap(snapKey: string, journeyId: JourneyId): SoloFocusResultSnapshotV1 | null {
   if (typeof window === 'undefined') return null
   return readSoloFocusSnapshot(snapKey, journeyId)
@@ -195,6 +179,8 @@ export interface JourneyBentoCardProps {
   onSwipeNextJourney?: (journeyId: JourneyId) => void
   /** Bottom rail: jump to prev/next journey in `JOURNEY_ORDER` (wraps). */
   onNavigateJourney?: (journeyId: JourneyId) => void
+  /** Journey mother cards on the Zone wall — drives prev/next labels and targets. */
+  soloFocusJourneyRing?: readonly JourneyId[]
   /**
    * After the last question in this journey is answered: close expanded view and let the shell
    * open the next journey in wall order, using `offerLine` as contextual copy on that tile.
@@ -256,6 +242,7 @@ export function JourneyBentoCard({
   onEmbeddedAnswerSuccess,
   onSwipeNextJourney,
   onNavigateJourney,
+  soloFocusJourneyRing,
   hasLocalGrant = false,
   isPriorityAlert = false,
   verifiedSourceName,
@@ -283,6 +270,7 @@ export function JourneyBentoCard({
     null
   const effectiveOpen = kineticGrid ? isExpanded : false
   const [isExiting, setIsExiting] = useState(false)
+  useSoloFocusHudBodyClass(kineticGrid && (effectiveOpen || isExiting))
   const { viewKey: soloFocusViewKey, snapKey: soloFocusSnapKey } = soloFocusSnapStorageKeys(cardId, journeyId)
   const [tier2SlotFading, setTier2SlotFading] = useState(false)
   const [resultCitation, setResultCitation] = useState<{
@@ -635,6 +623,7 @@ export function JourneyBentoCard({
     triggerHaptic('medium')
     setAskZaiDeepDiveOpen(true)
   }, [triggerHaptic])
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && (effectiveOpen || isExiting)) handleCloseStart()
@@ -849,6 +838,8 @@ export function JourneyBentoCard({
       morphParts: [
         journeyId === 'home' && homeSentinelRecard && !currentMorphData ? homeSentinelRecard.description : undefined,
         currentMorphData?.description,
+        geminiRecommendationCopy,
+        discoveryWinLine,
         insightLabel,
         crawlerTip,
         localContextBar,
@@ -957,6 +948,7 @@ export function JourneyBentoCard({
           providerName={diagnosticProviderJourney}
           sourceUrl={diagnosticUrlJourney}
         />
+        <SoloFocusViewportUtilityStrip onClose={() => beginCloseWithPatternShift()} />
 
         <motion.div className="solo-focus-rail w-full min-w-0">
         <motion.div
@@ -972,85 +964,44 @@ export function JourneyBentoCard({
               key={`sf-hero-${morphDeckCursor}-${displayJourneyId}-${String(activeCardId ?? 'base')}`}
               className={`solo-focus-shell solo-focus-mother solo-focus-content-stack w-full min-w-0${currentMorphData?.high_impact ? ' zz-high-impact-rebirth' : ''}`}
             >
-            <div className="solo-focus-expanded-toolbar solo-focus-mother-columns w-full min-w-0">
-              <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
-                <div key={motherShimmerKey} className="solo-focus-mother-body flex flex-col gap-2 w-full min-w-0 flex-1">
-            {showCardComputing ? (
-              <p
-                className="zz-label m-0 opacity-80"
-                style={{ color: 'var(--journey-text)', letterSpacing: '0.04em' }}
-              >
-                Computing…
-              </p>
-            ) : null}
-            <span
-              className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
-              style={{ color: 'var(--journey-text)' }}
-            >
-              {zoneCategoryLabel}
-            </span>
-            <motion.h1
-              className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left"
-              style={{
-                color: 'var(--journey-text)',
-                margin: 0,
-                padding: 0,
-              }}
-            >
-              {recommendationTitle}
-            </motion.h1>
-            {trueTipSectionsEl}
-
-            <div className="solo-focus-mother-metrics w-full min-w-0">
-            <MotherCardRenderer
-              categoryLabel=""
-              headline={null}
-              narrative={null}
-              sourceFooter={sourceFooter}
-              verifiedSourceCitation={null}
-              actionLine={architectActionLine}
-              moneyGbp={animatedMoneyGbp}
-              carbonKg={animatedCarbonKg}
-              verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
-              impactPulse={impactAnswerPulse}
-              ctaUrl={soloHandoff.ctaUrl}
-              ctaJourneyId={displayJourneyId as string}
-              ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : journeyCtaLabel}
-              ctaSurface={currentMorphData?.high_impact ? 'yellow' : 'pink'}
-              isLiked={isLiked}
-              onLike={onLike ? handleTrinityLike : undefined}
-              onAskZai={showAskZaiTrinity || _onAskZai ? handleTrinityAskZai : undefined}
-            />
-            </div>
-                </div>
-                {onNavigateJourney ? (
-                  <SoloFocusJourneyNav
-                    journeyId={journeyId}
-                    onNavigate={onNavigateJourney}
-                    className="solo-focus-journey-nav--inset"
+            <SoloFocusMotherStack
+              bodyKey={motherShimmerKey}
+              zoneCategoryLabel={zoneCategoryLabel}
+              headline={recommendationTitle}
+              showComputing={showCardComputing}
+              prose={trueTipSectionsEl}
+              metrics={
+                <>
+                  <MotherCardRenderer
+                    categoryLabel=""
+                    headline={null}
+                    narrative={null}
+                    sourceFooter={sourceFooter}
+                    verifiedSourceCitation={null}
+                    actionLine={architectActionLine}
+                    moneyGbp={animatedMoneyGbp}
+                    carbonKg={animatedCarbonKg}
+                    verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
+                    impactPulse={impactAnswerPulse}
+                    ctaUrl={soloHandoff.ctaUrl}
+                    ctaJourneyId={displayJourneyId as string}
+                    ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : journeyCtaLabel}
+                    ctaSurface={currentMorphData?.high_impact ? 'yellow' : 'pink'}
+                    isLiked={isLiked}
+                    onLike={onLike ? handleTrinityLike : undefined}
+                    onAskZai={showAskZaiTrinity || _onAskZai ? handleTrinityAskZai : undefined}
                   />
-                ) : null}
-              </div>
-              <div
-                className="solo-focus-utility-strip flex flex-col items-end"
-                style={{ gap: 20 }}
-                aria-label="Solo focus actions"
-              >
-                  <motion.button
-                  type="button"
-                  aria-label="Close"
-                  className="solo-focus-close-circle"
-                  onClick={() => beginCloseWithPatternShift()}
-                  initial={false}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={INDUSTRIAL_OPACITY_SNAP}
-                  style={{ transformOrigin: 'top right' }}
-                >
-                  <BackArrowDownLeft size={24} />
-                </motion.button>
-                <PulseDiagnosticFab />
-              </div>
-            </div>
+                  {onNavigateJourney ? (
+                    <SoloFocusJourneyNav
+                      journeyId={focusCategoryJourneyId}
+                      availableJourneyIds={soloFocusJourneyRing}
+                      onNavigate={onNavigateJourney}
+                      className="solo-focus-journey-nav--inset"
+                    />
+                  ) : null}
+                </>
+              }
+            />
             </motion.div>
         </motion.div>
         </motion.div>
@@ -1061,16 +1012,12 @@ export function JourneyBentoCard({
         onClose={() => setAskZaiDeepDiveOpen(false)}
         headline={String(recommendationTitle)}
         category={zoneCategoryLabel}
-        journeyKey={journeyId}
+        journeyKey={String(focusCategoryJourneyId)}
         personalSpend={moneyValue.replace(/^£\s*/, '').trim() || '0'}
         regionalAvg={carbonValue.replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0'}
         scrapedSource={insightLabel || crawlerTip || localContextBar || ''}
         postcode={state.profile?.postcode}
-        suggestedQuestions={[
-          'Why this shift saves money',
-          'What is the carbon trade-off',
-          'What is the next concrete step',
-        ]}
+        localityName={state.locationState?.locationName ?? undefined}
       />
           </>
       ) : null

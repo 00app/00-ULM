@@ -188,7 +188,7 @@ export default function ZaiPage() {
         category: ctx.category,
         personalSpend: ctx.personalSpend,
         regionalAvg: ctx.regionalAvg,
-        shift_title: ctx.question,
+        shift_title: ctx.shift_title ?? ctx.question,
         userContext: ctx.userContext,
         scraped_source: ctx.scraped_source,
         journey_answers_jsonb: ctx.journey_answers_jsonb,

@@ -121,10 +121,12 @@ nextjs-portal > * {
   --color-pink: #FF00FF;
   --color-intro-type: var(--color-yellow);
 
-  /* Ask Zai + deep-dive — yellow field, deep navy ink (#141268), not brand purple */
+  /* Ask Zai + deep-dive — ULM yellow field, ULM dark ink (mechanical-pulse / postcode-first) */
+  --ulm-yellow: #FFD700;
+  --ulm-dark: #1A1A1A;
   --zai-deep-blue: #141268;
-  --zai-field-bg: var(--color-yellow);
-  --zai-ink: var(--zai-deep-blue);
+  --zai-field-bg: var(--ulm-yellow);
+  --zai-ink: var(--ulm-dark);
   --zai-pill-bg: var(--zai-deep-blue);
   --zai-pill-text: var(--color-yellow);
 
@@ -933,7 +935,7 @@ p,
   gap: 8px;
   padding: 8px 4px;
   min-height: 44px;
-  color: #1a1a1a;
+  color: var(--color-pink);
 }
 
 .solo-focus-journey-nav__btn:focus-visible {
@@ -955,7 +957,7 @@ p,
 
 .solo-focus-journey-nav__arrow {
   flex-shrink: 0;
-  color: #1a1a1a;
+  color: var(--color-pink);
 }
 
 .solo-focus-journey-nav__arrow--prev {
@@ -979,9 +981,10 @@ p,
   bottom: auto;
   transform: none;
   width: 100%;
-  margin-top: 20px;
+  margin-top: 40px;
   padding: 0;
   flex-shrink: 0;
+  align-self: stretch;
 }
 
 .solo-focus-mother-metrics {
@@ -992,14 +995,22 @@ p,
   margin-top: 0 !important;
 }
 
+.solo-focus-journey-nav__label.nav-label,
+.nav-label {
+  color: var(--color-pink) !important;
+}
+
 .solo-focus-journey-nav__btn:hover .solo-focus-journey-nav__label,
 .solo-focus-journey-nav__btn:focus-visible .solo-focus-journey-nav__label {
-  color: var(--color-pink);
+  color: var(--color-yellow) !important;
 }
 
 .solo-focus-journey-nav__btn:hover .solo-focus-journey-nav__arrow,
-.solo-focus-journey-nav__btn:focus-visible .solo-focus-journey-nav__arrow {
-  color: var(--color-yellow);
+.solo-focus-journey-nav__btn:focus-visible .solo-focus-journey-nav__arrow,
+.solo-focus-journey-nav__btn:hover .solo-focus-journey-nav__arrow svg,
+.solo-focus-journey-nav__btn:focus-visible .solo-focus-journey-nav__arrow svg {
+  color: var(--color-yellow) !important;
+  stroke: var(--color-yellow) !important;
 }
 
 .pager-pip {
@@ -1075,14 +1086,13 @@ p,
 }
 
 .expanded-solo-focus[data-zone-surface='journey'] {
-  --color-ulm-dark: #1a1a1a;
-  --journey-bg: #ffffff;
-  --journey-text: var(--color-ulm-dark);
-  --color-ink: var(--color-ulm-dark);
+  --journey-bg: transparent;
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
   --journey-cta-bg: var(--color-pink);
   --journey-cta-text: var(--color-yellow);
   --sf-answer-bg: var(--color-yellow);
-  --sf-answer-text: var(--color-ulm-dark);
+  --sf-answer-text: var(--color-yellow);
   --sf-answer-hover-bg: var(--color-pink);
   --sf-answer-hover-text: var(--color-yellow);
 }
@@ -1105,9 +1115,10 @@ p,
 }
 
 .expanded-solo-focus[data-zone-surface='journey'] .solo-focus-shell {
-  background-color: #ffffff !important;
-  color: #1a1a1a !important;
+  background-color: transparent !important;
+  color: var(--color-yellow) !important;
   box-shadow: none !important;
+  border: none !important;
 }
 
 .expanded-solo-focus .solo-focus-question-label,
@@ -1781,7 +1792,7 @@ body, p, span, input, button, textarea, select,
   .settings-hero-card.settings-bento-card.bento-card-groovy,
   .expanded-solo-focus .solo-focus-shell,
   .likes-page .bento-card-groovy {
-    padding: 30px !important;
+    padding: 20px !important;
   }
 }
 
@@ -2506,28 +2517,31 @@ body, p, span, input, button, textarea, select,
   line-height: 0.8 !important;
 }
 
-/* Mother row: strip is out of flow so row height matches copy — avoids a tall dead band under the last line of prose. */
-.solo-focus-expanded-toolbar.solo-focus-mother-columns {
-  position: relative;
+/* Mother toolbar — full-width copy (close/pulse portaled to viewport top-right). */
+.solo-focus-expanded-toolbar {
   align-items: flex-start;
   margin-bottom: 0 !important;
 }
-/* SAVE/CARBON sits in the copy column under supplied-by / location; 20px below prose stack (overrides .insight-to-impact 40px here). */
-.solo-focus-mother-columns .solo-focus-mother-copy > .solo-focus-impact-hero.insight-to-impact {
+.solo-focus-mother-copy > .solo-focus-impact-hero.insight-to-impact {
   margin-top: 20px !important;
 }
-.solo-focus-mother-columns .solo-focus-mother-copy {
+.solo-focus-mother-copy {
   flex: 1 1 auto;
   min-width: 0;
-  padding-right: 56px; /* 40px control column + gutter vs absolute strip */
   box-sizing: border-box;
 }
-.solo-focus-mother-columns .solo-focus-utility-strip {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 501;
-  gap: 20px;
+/* Solo Focus close + Pulse — same lock as Likes / Zai / Settings (.zz-back-btn--viewport-lock). */
+.solo-focus-utility-strip--viewport-lock {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  z-index: 260;
+  pointer-events: auto;
+}
+.solo-focus-utility-strip--viewport-lock .solo-focus-close-circle {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
 }
 
 /* Solo Focus structural lock — all expanded paths use the same A/B shell contract. */
@@ -2546,7 +2560,7 @@ body, p, span, input, button, textarea, select,
   box-sizing: border-box;
   width: 100%;
   border-radius: 60px !important;
-  padding: 30px !important;
+  padding: 20px !important;
   background-color: transparent !important;
 }
 .expanded-solo-focus .solo-focus-impact-hero.solo-focus-impact-grid {
@@ -2562,6 +2576,84 @@ body, p, span, input, button, textarea, select,
 /* Strict physical split: Mother (A) above Child (B). */
 .expanded-solo-focus .solo-focus-shell + .solo-focus-shell {
   margin-top: 10px;
+}
+
+/* Solo Focus — Engineering HUD (typographic layer over Zone atmosphere) */
+.solo-focus-shell,
+.solo-focus-mother,
+.solo-focus-grow-layer,
+.solo-focus-scroll-container,
+.solo-focus-mother-copy {
+  background-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+body.has-solo-focus .zone-grid-container,
+body.has-solo-focus .zone-hero-section {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body.has-solo-focus .expanded-solo-focus,
+body.has-solo-focus .expanded-solo-focus[data-zone-surface='journey'],
+body.has-solo-focus .expanded-solo-focus[data-zone-surface='tip'] {
+  --journey-bg: transparent;
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
+  background: transparent !important;
+}
+
+body.has-solo-focus .solo-focus-shell .card-top-label,
+body.has-solo-focus .solo-focus-shell .solo-focus-architect-headline,
+body.has-solo-focus .solo-focus-shell .solo-focus-architect-prose,
+body.has-solo-focus .solo-focus-shell .data-label,
+body.has-solo-focus .solo-focus-shell .data-value,
+body.has-solo-focus .solo-focus-shell .solo-focus-mother-copy span,
+body.has-solo-focus .solo-focus-shell .solo-focus-data-stack span,
+body.has-solo-focus .solo-focus-shell .solo-focus-question-label,
+body.has-solo-focus .solo-focus-shell .question-text,
+body.has-solo-focus .solo-focus-shell .solo-focus-description,
+body.has-solo-focus .solo-focus-shell .solo-focus-insight,
+body.has-solo-focus .solo-focus-shell .solo-focus-category,
+body.has-solo-focus .solo-focus-shell .solo-focus-content-text {
+  color: var(--color-yellow) !important;
+  fill: var(--color-yellow) !important;
+}
+
+body.has-solo-focus .solo-focus-mother-copy {
+  position: relative;
+}
+
+body.has-solo-focus .solo-focus-nav-container {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  padding: 0 40px;
+  display: flex;
+  justify-content: space-between;
+  z-index: 100;
+  margin-top: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+body.has-solo-focus .solo-focus-journey-nav.solo-focus-journey-nav--inset {
+  position: static;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  margin-top: 40px;
+  padding: 0;
+  z-index: auto;
+}
+
+body.has-solo-focus .expanded-solo-focus .solo-focus-shell {
+  border-radius: 0 !important;
+  padding: 20px !important;
 }
 
 /*
@@ -2812,7 +2904,57 @@ h3.solo-focus-question-label.zz-h3 {
   margin-top: 10px !important;
 }
 .expanded-solo-focus .impact-to-trinity {
-  margin-top: 20px !important;
+  margin-top: 40px !important;
+}
+
+/* Solo Focus mother stack — locked vertical rhythm (40px between major blocks). */
+.expanded-solo-focus .solo-focus-mother-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+}
+.expanded-solo-focus .solo-focus-mother-stack > * + * {
+  margin-top: 40px;
+}
+.expanded-solo-focus .solo-focus-mother-stack .solo-focus-mother-metrics > * + * {
+  margin-top: 40px;
+}
+.expanded-solo-focus .solo-focus-mother-metrics .solo-focus-journey-nav--inset {
+  margin-top: 0;
+}
+.expanded-solo-focus .solo-focus-architect-headline {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  min-height: calc(3 * 0.92 * var(--zz-h3-mobile));
+}
+@media (min-width: 1024px) {
+  .expanded-solo-focus .solo-focus-architect-headline {
+    min-height: calc(3 * 0.92 * var(--zz-h3-desktop));
+  }
+}
+.expanded-solo-focus .solo-focus-true-tip-sections--mother .solo-focus-architect-lead {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  min-height: calc(4 * 0.95 * var(--zz-h4-mobile));
+}
+.expanded-solo-focus .solo-focus-true-tip-sections--mother .solo-focus-architect-body {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 /* Space below mother Trinity before the child card (Journey: child shell is the loop). */
 .expanded-solo-focus .solo-focus-loop.trinity-to-question {
@@ -2893,15 +3035,17 @@ h3.solo-focus-question-label.zz-h3 {
   max-width: 100%;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
   overflow: hidden;
   overflow-wrap: break-word;
   word-break: break-word;
-  min-height: calc(2 * 0.92 * var(--zz-h3-mobile));
+  min-height: calc(3 * 0.92 * var(--zz-h3-mobile));
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus .solo-focus-architect-headline {
     font-size: var(--zz-h3-desktop) !important;
+    min-height: calc(3 * 0.92 * var(--zz-h3-desktop));
   }
 }
 .expanded-solo-focus .solo-focus-architect-headline + .solo-focus-true-tip-sections {
@@ -3557,6 +3701,55 @@ h3.solo-focus-question-label.zz-h3 {
 .expanded-solo-focus .solo-focus-action-btn.zz-shimmer-cta:hover {
   background-color: var(--zz-hover-bg) !important;
   color: var(--zz-hover-text) !important;
+}
+
+/* Trinity — hover: yellow disc, purple Marvin label + stroke icons (beats inline rest colours). */
+@media (hover: hover) {
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover,
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-trinity-cta:hover,
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover {
+    background-color: var(--color-yellow) !important;
+    color: var(--color-purple) !important;
+  }
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover .circle-btn-label-stack,
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover .circle-btn-label-stack > span,
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover svg,
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .solo-focus-ask-zai-visual,
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .solo-focus-ask-zai-visual svg {
+    color: var(--color-purple) !important;
+    stroke: var(--color-purple) !important;
+  }
+}
+
+body.has-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover,
+body.has-solo-focus .solo-focus-trinity--80 .solo-focus-trinity-cta:hover,
+body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover {
+  background-color: var(--color-yellow) !important;
+  color: var(--color-purple) !important;
+}
+
+body.has-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover .circle-btn-label-stack,
+body.has-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover .circle-btn-label-stack > span,
+body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover svg,
+body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .solo-focus-ask-zai-visual,
+body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .solo-focus-ask-zai-visual svg {
+  color: var(--color-purple) !important;
+  stroke: var(--color-purple) !important;
+}
+
+body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__label.nav-label,
+body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__arrow {
+  color: var(--color-pink) !important;
+}
+
+body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:hover .solo-focus-journey-nav__label,
+body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:focus-visible .solo-focus-journey-nav__label,
+body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:hover .solo-focus-journey-nav__arrow,
+body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:focus-visible .solo-focus-journey-nav__arrow,
+body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:hover .solo-focus-journey-nav__arrow svg,
+body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:focus-visible .solo-focus-journey-nav__arrow svg {
+  color: var(--color-yellow) !important;
+  stroke: var(--color-yellow) !important;
 }
 .expanded-solo-focus .circle-btn:focus-visible,
 .expanded-solo-focus .solo-focus-action-btn:focus-visible {
@@ -5234,7 +5427,8 @@ h3.solo-focus-question-label.zz-h3 {
   letter-spacing: 0.04em;
   color: color-mix(in srgb, var(--zai-ink) 72%, transparent);
 }
-.ask-zai-deep-dive-answer {
+.ask-zai-deep-dive-answer,
+.ask-zai-deep-dive-bubble--zai {
   font-family: var(--font-roboto), sans-serif;
   font-weight: 800;
   font-size: 1.125rem;
@@ -5242,8 +5436,48 @@ h3.solo-focus-question-label.zz-h3 {
   margin: 0;
   color: var(--zai-ink);
 }
+.ask-zai-deep-dive-bubble--zai {
+  background: var(--zai-field-bg) !important;
+  color: var(--zai-ink) !important;
+  border-radius: 30px;
+  padding: 15px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.ask-zai-deep-dive-audit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--ulm-dark) 6%, var(--zai-field-bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ulm-dark) 12%, transparent);
+}
+.ask-zai-deep-dive-audit__heading {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--zai-ink);
+}
+.ask-zai-deep-dive-audit__summary {
+  font-family: var(--font-roboto), sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--zai-ink);
+}
+.ask-zai-deep-dive-audit__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ask-zai-deep-dive-audit__line {
+  font-family: var(--font-roboto), sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--zai-ink) 88%, transparent);
+}
 @media (min-width: 768px) {
-  .ask-zai-deep-dive-answer { font-size: 1.25rem; }
+  .ask-zai-deep-dive-answer,
+  .ask-zai-deep-dive-bubble--zai { font-size: 1.25rem; }
 }
 .ask-zai-deep-dive-input {
   width: 100%;
@@ -6890,6 +7124,38 @@ html.zz-zai-document body {
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .text-data {
     color: var(--zz-hover-text) !important;
   }
+  /* Zone bento + Today's Tips — category row: pink at rest, yellow on hover (Solo Focus nav lock). */
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-header__label,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon svg,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-header__label,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon svg {
+    color: var(--color-pink) !important;
+    stroke: var(--color-pink) !important;
+  }
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-header__label,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon svg,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-header__label,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon svg {
+    color: var(--color-yellow) !important;
+    stroke: var(--color-yellow) !important;
+  }
+  /* Discovery tip tiles (yellow face): purple header → yellow on hover. */
+  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited) .zone-bento-card-header__label,
+  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited) .zone-bento-card-icon,
+  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited) .zone-bento-card-icon svg {
+    color: var(--color-purple) !important;
+    stroke: var(--color-purple) !important;
+  }
+  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited):hover .zone-bento-card-header__label,
+  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited):hover .zone-bento-card-icon,
+  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited):hover .zone-bento-card-icon svg {
+    color: var(--color-yellow) !important;
+    stroke: var(--color-yellow) !important;
+  }
   /* Visited (pink) — no hover colour change */
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover,
   .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover {
@@ -7639,13 +7905,21 @@ select,
   display: none;
 }
 @media (min-width: 768px) {
-  .zone-anchor .zone-hero-copy h2.zone-welcome,
-  .zone-anchor .zone-hero-copy h2.zone-welcome-block {
-    font-size: var(--zz-h2-tablet) !important;
+  .zone-anchor .zone-hero-copy h3.zone-welcome,
+  .zone-anchor .zone-hero-copy h3.zone-welcome-block,
+  .zone-anchor .zone-hero-copy .zone-welcome.zz-h3 {
+    font-size: var(--zz-h3-mobile) !important;
     max-width: none !important;
     width: max-content;
     white-space: nowrap;
     overflow: visible;
+  }
+}
+@media (min-width: 1024px) {
+  .zone-anchor .zone-hero-copy h3.zone-welcome,
+  .zone-anchor .zone-hero-copy h3.zone-welcome-block,
+  .zone-anchor .zone-hero-copy .zone-welcome.zz-h3 {
+    font-size: var(--zz-h3-desktop) !important;
   }
 }
 @media (min-width: 1024px) {
@@ -7662,8 +7936,9 @@ select,
     gap: 0.1em;
     overflow: visible;
   }
-  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy h2.zone-welcome,
-  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy h2.zone-welcome-block {
+  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy h3.zone-welcome,
+  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy h3.zone-welcome-block,
+  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy .zone-welcome.zz-h3 {
     white-space: normal;
     width: 100%;
     max-width: min(92vw, 28rem) !important;
@@ -7906,10 +8181,12 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
   }
 }
 
-/* Zone welcome — canonical H2 (`.zz-h2`); layout only — no custom font-size */
-.zone-anchor h2.zone-welcome,
-.zone-anchor h2.zone-welcome-block {
+/* Zone welcome — H3 scale (`.zz-h3`); layout only */
+.zone-anchor h3.zone-welcome,
+.zone-anchor h3.zone-welcome-block,
+.zone-anchor .zone-welcome.zz-h3 {
   font-family: var(--font-marvin) !important;
+  font-size: var(--zz-h3-mobile) !important;
   font-weight: bold !important;
   letter-spacing: -0.02em !important;
   line-height: 0.8 !important;
@@ -7923,12 +8200,21 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
   overflow: visible !important;
   white-space: normal;
 }
-.zone-anchor.zone-anchor--wall-loading h2.zone-welcome,
-.zone-anchor.zone-anchor--wall-loading h2.zone-welcome-block {
+@media (min-width: 1024px) {
+  .zone-anchor h3.zone-welcome,
+  .zone-anchor h3.zone-welcome-block,
+  .zone-anchor .zone-welcome.zz-h3 {
+    font-size: var(--zz-h3-desktop) !important;
+  }
+}
+.zone-anchor.zone-anchor--wall-loading h3.zone-welcome,
+.zone-anchor.zone-anchor--wall-loading h3.zone-welcome-block,
+.zone-anchor.zone-anchor--wall-loading .zone-welcome.zz-h3 {
   text-align: center;
   margin-inline: auto;
 }
-.zone-anchor h2.zone-welcome.zone-welcome-name {
+.zone-anchor h3.zone-welcome.zone-welcome-name,
+.zone-anchor .zone-welcome.zone-welcome-name.zz-h3 {
   text-transform: none !important;
 }
 
@@ -7943,9 +8229,10 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
   .zone-anchor {
     align-items: stretch !important;
   }
-  .zone-anchor .zone-hero-copy h2.zone-welcome,
-  .zone-anchor .zone-hero-copy h2.zone-welcome-block {
-    font-size: var(--zz-h2-mobile) !important;
+  .zone-anchor .zone-hero-copy h3.zone-welcome,
+  .zone-anchor .zone-hero-copy h3.zone-welcome-block,
+  .zone-anchor .zone-hero-copy .zone-welcome.zz-h3 {
+    font-size: var(--zz-h3-mobile) !important;
     max-width: 100% !important;
     width: 100%;
     white-space: normal;
@@ -8008,12 +8295,63 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
   align-self: stretch;
 }
 
-/* Zone grid: profile card same size as other cards, uses data-value (small numbers) */
+/* Zone grid: profile card — same purple / pink / yellow contract as journey bentos */
 .zone-hero-card {
-  background-color: var(--color-pink);
+  background-color: var(--color-purple);
   border-radius: 60px;
   padding: var(--padding-bento) !important;
   box-sizing: border-box;
+}
+
+/* Profile hero — single ink (no pink label / yellow body mix); beats grid bento header split */
+.groovy-zone-grid .zone-hero-card.bento-card-groovy {
+  background-color: var(--color-purple) !important;
+  color: var(--color-yellow) !important;
+  --journey-bg: var(--color-purple);
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
+}
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .zone-bento-card-header__label,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon svg,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .card-headline,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-label,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-value,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-value .data-stamp-metric,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-stamp-figures,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-symbol-unit,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-carbon-units,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-co2-mark,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-co2-sub {
+  color: var(--journey-text) !important;
+  stroke: var(--journey-text) !important;
+  -webkit-text-fill-color: var(--journey-text) !important;
+}
+@media (hover: hover) {
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover {
+    background: var(--zz-hover-bg) !important;
+    background-color: var(--zz-hover-bg) !important;
+    color: var(--zz-hover-text) !important;
+    --journey-bg: var(--zz-hover-bg);
+    --journey-text: var(--zz-hover-text);
+    --color-ink: var(--zz-hover-text);
+  }
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-header__label,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon svg,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .card-headline,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-label,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-value,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-value .data-stamp-metric,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-stamp-figures,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-symbol-unit,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-carbon-units,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-co2-mark,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-co2-sub {
+    color: var(--zz-hover-text) !important;
+    stroke: var(--zz-hover-text) !important;
+    -webkit-text-fill-color: var(--zz-hover-text) !important;
+  }
 }
 
 .zone-hero-value {
@@ -8558,13 +8896,15 @@ p,
   font-weight: bold !important;
   letter-spacing: var(--zz-track-marvin) !important;
   text-transform: uppercase !important;
-  -webkit-line-clamp: 3;
-  min-height: calc(2 * 0.92 * var(--zz-h3-mobile));
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  min-height: calc(3 * 0.92 * var(--zz-h3-mobile));
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus h1.solo-focus-architect-headline,
   .expanded-solo-focus .solo-focus-architect-headline {
     font-size: var(--zz-h3-desktop) !important;
+    min-height: calc(3 * 0.92 * var(--zz-h3-desktop));
   }
 }
 
@@ -8578,6 +8918,9 @@ p,
   font-weight: 700 !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  min-height: calc(4 * 0.95 * var(--zz-h4-mobile));
 }
 @media (min-width: 768px) {
   .expanded-solo-focus h4.solo-focus-architect-lead {

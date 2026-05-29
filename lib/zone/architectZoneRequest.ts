@@ -11,6 +11,8 @@ import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 export function buildContentArchitectCardPayload(args: {
   vm: ZoneViewModel
   journeyAnswers: Record<JourneyId, Record<string, string>>
+  /** Display town from geocode (e.g. Littlehampton) — Warm Auditor paragraph 1. */
+  localityName?: string
   localCouncil?: string
   localGridGPerKwh?: number
   /** Neon or resolver fallback — grounds home journey copy in live £/kWh. */
@@ -35,6 +37,10 @@ export function buildContentArchitectCardPayload(args: {
     }
   }
   const live = args.liveUnitRates
+  const townInk =
+    args.localityName?.trim() ||
+    undefined
+
   return JOURNEY_ORDER.map((journey_key) => {
     const j = byKey.get(journey_key)
     if (!j) {
@@ -43,7 +49,7 @@ export function buildContentArchitectCardPayload(args: {
         money_gbp: 0,
         carbon_kg: 0,
         baseline_title: journey_key.toUpperCase(),
-        locality: args.localCouncil ?? args.profile?.postcode,
+        locality: townInk ?? args.localCouncil,
         price_cap_gbp: BASELINE_2026_CAP_GBP,
         journey_answers: args.journeyAnswers[journey_key] ?? {},
       } satisfies ContentArchitectCardInput
@@ -76,7 +82,7 @@ export function buildContentArchitectCardPayload(args: {
     household_size: args.profile?.household_size,
     postcode: args.profile?.postcode,
     tenure: args.journeyAnswers.home?.tenure ?? args.journeyAnswers.home?.housing_tenure,
-    locality: args.localCouncil ?? args.profile?.postcode,
+    locality: townInk ?? args.localCouncil,
     local_grid_g_per_kwh: args.localGridGPerKwh,
     price_cap_gbp: BASELINE_2026_CAP_GBP,
     live_elec_gbp_per_kwh: j.journey_key === 'home' && live ? live.elecGbpPerKwh : undefined,

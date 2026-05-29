@@ -4,7 +4,7 @@
  * Set GEMINI_FREE_TIER=1 for cheaper Google models (still counts toward AI Studio cap if key is paid).
  */
 
-import { ZONE_WARM_AUDITOR_VOICE } from '@/lib/zone/zoneVoice'
+import { ZONE_WARM_AUDITOR_THREE_BEAT, ZONE_WARM_AUDITOR_VOICE } from '@/lib/zone/zoneVoice'
 
 export type GeminiModelTier = 'zone' | 'article' | 'chat'
 
@@ -67,7 +67,9 @@ export const EDITORIAL_MAGAZINE_CONSTRAINT = `${ULM_LEAD_AUDITOR_SYSTEM}
 
 ${ZONE_WARM_AUDITOR_VOICE}
 
-CRITICAL: UK English, human benefit first. No bullet points. Never open with "Here is your advice", "As an AI", or repeat the postcode twice in one sentence. No dashboard field names or "your zone pattern is learned". Exactly three paragraphs in architect_prose when requested: (1) localized why for their area, (2) the £ and kg logic from evidence, (3) one concrete next step with warmth.`
+${ZONE_WARM_AUDITOR_THREE_BEAT}
+
+CRITICAL: UK English, human benefit first. No bullet points. Never open with "Here is your advice" or "As an AI". No dashboard field names. Use town/locality in paragraph 1 — never spell out a full postcode in architect_prose. Payoff (£/kg) appears once in paragraph 3 only.`
 
 export function resolveGeminiTier(tag?: string | null): GeminiModelTier {
   const t = (tag ?? '').toLowerCase()

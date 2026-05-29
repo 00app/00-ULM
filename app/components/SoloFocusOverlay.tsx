@@ -18,10 +18,8 @@ import {
   SHIMMER_FOCUS,
   soloFocusSlamMotionProps,
   SOLO_FOCUS_ZIP_SHUT_SEC,
-  STACCATO_DROP_PX,
   STACCATO_DURATION_SEC,
   STACCATO_EASE,
-  STACCATO_TWEEN,
 } from '@/lib/animations'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import {
@@ -64,12 +62,14 @@ import {
   zoneSurfaceStyleProps,
 } from '@/lib/journeyColors'
 import { SoloFocusProseStack } from '@/app/components/SoloFocusProseStack'
+import { SoloFocusMotherStack } from '@/app/components/SoloFocusMotherStack'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
-import { PulseDiagnosticFab } from '@/app/components/debug/PulseWidget'
+import { SoloFocusViewportUtilityStrip } from '@/app/components/SoloFocusViewportUtilityStrip'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
+import { useSoloFocusHudBodyClass } from '@/lib/hooks/useSoloFocusHudBodyClass'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
 import {
@@ -82,15 +82,8 @@ import {
   type ResearchCategoryCoverageRow,
 } from '@/lib/researchSyncClient'
 import { resolveBirthedCardId, scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
-import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
-import { getTipVerificationFollowUp } from '@/lib/zone/tipVerification'
-import { runTipVerificationDeepScrape } from '@/lib/zone/tipVerificationDeepScrape'
-import {
-  isCardVisited,
-  markCardVisited,
-  recordCardVisitHandoff,
-} from '@/lib/zone/visitedCards'
+import { isCardVisited } from '@/lib/zone/visitedCards'
 import { shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
 
@@ -149,6 +142,7 @@ export interface SoloFocusOverlayProps {
   }) => void
   /** Linear 13-journey audit rail (wraps on `JOURNEY_ORDER`). */
   onNavigateJourney?: (journeyId: JourneyId) => void
+  soloFocusJourneyRing?: readonly JourneyId[]
 }
 
 function triggerHaptic(p: 'light' | 'medium' | 'heavy') {
@@ -200,7 +194,10 @@ export function SoloFocusOverlay({
   isCardVisited: isCardVisitedProp = false,
   onTipVerificationComplete,
   onNavigateJourney,
+  soloFocusJourneyRing,
 }: SoloFocusOverlayProps) {
+  useSoloFocusHudBodyClass(true)
+
   const cardVisitedLock =
     isCardVisitedProp || (cardId?.trim() ? isCardVisited(cardId) : false)
   const { setHeroTotals, state, toggleLike } = useApp()
@@ -208,20 +205,6 @@ export function SoloFocusOverlay({
   const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(title ?? ''))
   const useEstimated =
     auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
-  const activeFollowUp = useMemo(
-    () =>
-      tipVerificationMode && journeyId && !cardVisitedLock
-        ? getTipVerificationFollowUp(journeyId, discoveryFollowUp ?? undefined)
-        : cardVisitedLock
-          ? undefined
-          : discoveryFollowUp,
-    [tipVerificationMode, journeyId, discoveryFollowUp, cardVisitedLock]
-  )
-  const [trapComplete, setTrapComplete] = useState(
-    () => cardVisitedLock || !activeFollowUp
-  )
-  const [verificationPending, setVerificationPending] = useState(false)
-  const [tipVerified, setTipVerified] = useState(false)
   const sfStorageKey = `zz_sf_view_${cardId ?? 'solo-overlay'}`
   const [viewState, setViewState] = useState<OverlayViewState>(() => {
     if (typeof window === 'undefined') return 'QUESTION'
@@ -487,7 +470,9 @@ export function SoloFocusOverlay({
     (preSplitAuditor.length >= 3
       ? preSplitAuditor.slice(0, 3).join('\n\n')
       : (insightDisplay || '').trim() || rawInsight)
-  const trueTipSectionsEl = (
+  const showMotherComputing =
+    !overlayResearchSettled && researchCategoryCoverage != null
+  const trueTipSectionsEl = !showMotherComputing ? (
     <SoloFocusProseStack
       headline={recommendationTitle}
       insightSource={insightParaSource}
@@ -496,10 +481,11 @@ export function SoloFocusOverlay({
       carbonKg={carbonTargetKg}
       userPostcode={profilePostcode ?? state.profile?.postcode}
       sourceDisplayName={sourceName}
+      auditHeaderLocality={state.locationState?.locationName ?? undefined}
       locality={state.locationState?.locationName ?? undefined}
       postcode={profilePostcode ?? state.profile?.postcode ?? undefined}
     />
-  )
+  ) : null
   const sourceFooter = partnerHttp
     ? ''
     : 'No live retailer link this week — figures still come from your saved audit row.'
@@ -532,12 +518,12 @@ export function SoloFocusOverlay({
     }
   }, [sfStorageKey])
 
-  /** Zone tip / pink discovery reopen — show article (RESULT), not an empty QUESTION shell. */
+  /** Zone expand — mother card is always RESULT; loop questions run on close (pattern-shift). */
   useEffect(() => {
-    if (!isZoneMotherChild || activeFollowUp) return
+    if (!isZoneMotherChild) return
     if (viewState === 'RESULT') return
     persistViewState('RESULT')
-  }, [isZoneMotherChild, activeFollowUp, viewState, persistViewState])
+  }, [isZoneMotherChild, viewState, persistViewState])
 
   useEffect(() => {
     const prev = overlayViewStatePrev.current
@@ -559,15 +545,6 @@ export function SoloFocusOverlay({
     mq.addListener(fn)
     return () => mq.removeListener(fn)
   }, [])
-
-  useEffect(() => {
-    setTrapComplete(!activeFollowUp)
-    if (!activeFollowUp) setTipVerified(false)
-  }, [activeFollowUp])
-
-  const isRockHabitTip = String(cardId ?? '').trim().startsWith('rock-')
-
-  /* Zone expand always opens RESULT content card; +1 verification uses child shell when activeFollowUp is set. */
 
   useEffect(() => {
     if (viewState !== 'RESULT' || !discoverySnap) {
@@ -631,73 +608,6 @@ export function SoloFocusOverlay({
     likeFn(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
   }, [activeCardId, cardId, onLike, toggleLike, displayTitle, displayMoneyValue, loopJourneyKey])
 
-  const handleVerificationAnswer = useCallback(
-    async (answerRaw: string) => {
-      if (cardVisitedLock || !activeFollowUp || verificationPending || !journeyId) return
-      const answer = answerRaw.trim()
-      if (!answer) return
-      const pc = (profilePostcode ?? state.profile?.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
-      if (pc.length < 4) return
-      triggerHaptic('medium')
-      setVerificationPending(true)
-      setLoopZipCollapsing(true)
-      try {
-        const result = await runTipVerificationDeepScrape({
-          postcode: pc,
-          journeyKey: loopJourneyKey,
-          questionId: activeFollowUp.targetField,
-          answer,
-        })
-        const morphMoney = result.morphCard?.data?.money
-        const sav =
-          result.meta?.savingAmountGbp ??
-          result.meta?.verifiedSaving ??
-          (morphMoney ? parseMoneyGbpFromImpactDisplay(String(morphMoney)) : null)
-        if (sav != null && sav > 0) {
-          setHeroTotalsOverride({ money: Math.round(sav), carbon: carbonTargetKg })
-          setTipVerified(true)
-        }
-        if (result.coverage) {
-          onTipVerificationComplete?.({
-            moneyGbp: sav ?? motherMoneyTargetGbp,
-            carbonKg: carbonTargetKg,
-            coverage: result.coverage,
-          })
-        }
-        setDiscoverySnap({ questionId: activeFollowUp.targetField, answerValue: answer })
-        setTrapComplete(true)
-        const visitId = String(cardId ?? '').trim()
-        if (visitId) {
-          markCardVisited(visitId)
-          void recordCardVisitHandoff({
-            cardId: visitId,
-            journeyKey: loopJourneyKey,
-            title: displayTitle,
-          })
-        }
-        onDiscoveryTrapComplete?.()
-      } finally {
-        setVerificationPending(false)
-        setLoopZipCollapsing(false)
-      }
-    },
-    [
-      activeFollowUp,
-      verificationPending,
-      journeyId,
-      profilePostcode,
-      state.profile?.postcode,
-      loopJourneyKey,
-      carbonTargetKg,
-      motherMoneyTargetGbp,
-      onTipVerificationComplete,
-      onDiscoveryTrapComplete,
-      cardId,
-      cardVisitedLock,
-      displayTitle,
-    ]
-  )
-
   const handleTrinityAskZai = useCallback(() => {
     triggerHaptic('medium')
     setAskZaiDeepDiveOpen(true)
@@ -745,6 +655,7 @@ export function SoloFocusOverlay({
         isExiting={false}
       >
       <PulseExpandedSync providerName={diagnosticProvider} sourceUrl={diagnosticUrl} />
+      <SoloFocusViewportUtilityStrip onClose={requestClose} />
         <motion.div
           className={`solo-focus-stack solo-focus-rail flex flex-col justify-start w-full items-center min-w-[280px] max-w-[800px] md:w-[90%] lg:w-[800px] ${isZoneMotherChild ? 'px-4 sm:px-0' : ''}`}
         >
@@ -758,167 +669,54 @@ export function SoloFocusOverlay({
                   transformOrigin: 'top center',
                   willChange: 'transform',
                 }}
-                className="solo-focus-shell solo-focus-mother solo-focus-content-stack w-full min-w-0 rounded-[60px] p-[40px] relative"
+                className="solo-focus-shell solo-focus-mother solo-focus-content-stack w-full min-w-0"
               >
-            <div className="solo-focus-expanded-toolbar solo-focus-mother-columns w-full min-w-0">
-              <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
-                <div className="solo-focus-mother-body flex flex-col gap-2 w-full min-w-0 flex-1">
-                {resolvedOpenUrl.trim() ? (
-                  <motion.div
-                    className="solo-focus-insight-bridge w-full min-w-0"
-                    variants={FADE_VARIANTS}
-                    onClick={() => triggerHaptic('light')}
-                  >
-                    <span
-                      className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
-                      style={{ color: 'var(--journey-text)' }}
-                    >
-                      {zoneCategoryLabel}
-                    </span>
-                    <motion.h1
-                      className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left zz-shimmer-focus"
-                      style={{
-                        color: 'var(--journey-text)',
-                        margin: 0,
-                        padding: 0,
-                      }}
-                      initial={reducePagerMotion ? false : SHIMMER_FOCUS.initial}
-                      animate={reducePagerMotion ? { opacity: 1 } : SHIMMER_FOCUS.animate}
-                      transition={SHIMMER_FOCUS.transition}
-                    >
-                      {recommendationTitle}
-                    </motion.h1>
-                    {trueTipSectionsEl}
-                  </motion.div>
-                ) : (
-                  <>
-                    {!resolvedOpenUrl.trim() && researchCategoryCoverage != null && !overlayResearchSettled ? (
-                      <p
-                        className="zz-label m-0 opacity-80"
-                        style={{ color: 'var(--journey-text)', letterSpacing: '0.04em' }}
-                      >
-                        Computing…
-                      </p>
-                    ) : null}
-                    <span
-                      className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
-                      style={{ color: 'var(--journey-text)' }}
-                    >
-                      {zoneCategoryLabel}
-                    </span>
-                    <motion.h1
-                      className="solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left zz-shimmer-focus"
-                      style={{
-                        color: 'var(--journey-text)',
-                        margin: 0,
-                        padding: 0,
-                      }}
-                      initial={reducePagerMotion ? false : SHIMMER_FOCUS.initial}
-                      animate={reducePagerMotion ? { opacity: 1 } : SHIMMER_FOCUS.animate}
-                      transition={SHIMMER_FOCUS.transition}
-                    >
-                      {recommendationTitle}
-                    </motion.h1>
-                    {trueTipSectionsEl}
-                  </>
-                )}
-
-                <div className="solo-focus-mother-metrics w-full min-w-0">
-                <MotherCardRenderer
-                  categoryLabel=""
-                  headline={null}
-                  narrative={null}
-                  sourceFooter={sourceFooter}
-                  verifiedSourceCitation={null}
-                  verifiedDataBadge={Boolean(dbVerifiedFromResearchTable) || tipVerified}
-                  moneyGbp={animatedMoneyGbp}
-                  carbonKg={animatedCarbonKg}
-                  impactPulse={impactAnswerPulse}
-                  ctaUrl={soloHandoff.ctaUrl}
-                  ctaJourneyId={journeyId}
-                  ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : effectiveHandoffLabel}
-                  isLiked={isLiked}
-                  onLike={handleTrinityLike}
-                  onAskZai={handleTrinityAskZai}
+                <SoloFocusMotherStack
+                  bodyKey={`overlay-hero-body-${activeSiblingIndex}-${String(activeCardId ?? 'base')}`}
+                  zoneCategoryLabel={zoneCategoryLabel}
+                  headline={recommendationTitle}
+                  showComputing={showMotherComputing}
+                  prose={trueTipSectionsEl}
+                  headlineMotion={
+                    reducePagerMotion
+                      ? undefined
+                      : {
+                          initial: SHIMMER_FOCUS.initial,
+                          animate: SHIMMER_FOCUS.animate,
+                          transition: SHIMMER_FOCUS.transition,
+                        }
+                  }
+                  metrics={
+                    <>
+                      <MotherCardRenderer
+                        categoryLabel=""
+                        headline={null}
+                        narrative={null}
+                        sourceFooter={sourceFooter}
+                        verifiedSourceCitation={null}
+                        verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
+                        moneyGbp={animatedMoneyGbp}
+                        carbonKg={animatedCarbonKg}
+                        impactPulse={impactAnswerPulse}
+                        ctaUrl={soloHandoff.ctaUrl}
+                        ctaJourneyId={journeyId}
+                        ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : effectiveHandoffLabel}
+                        isLiked={isLiked}
+                        onLike={handleTrinityLike}
+                        onAskZai={handleTrinityAskZai}
+                      />
+                      {onNavigateJourney && journeyId ? (
+                        <SoloFocusJourneyNav
+                          journeyId={focusCategoryJourneyId}
+                          availableJourneyIds={soloFocusJourneyRing}
+                          onNavigate={onNavigateJourney}
+                          className="solo-focus-journey-nav--inset"
+                        />
+                      ) : null}
+                    </>
+                  }
                 />
-                </div>
-              </div>
-                {onNavigateJourney && journeyId ? (
-                  <SoloFocusJourneyNav
-                    journeyId={journeyId}
-                    onNavigate={onNavigateJourney}
-                    className="solo-focus-journey-nav--inset"
-                  />
-                ) : null}
-              </div>
-              <div
-                className="solo-focus-utility-strip flex flex-col items-end"
-                style={{ gap: 20 }}
-                aria-label="Solo focus actions"
-              >
-                <motion.button
-                  type="button"
-                  aria-label="Close"
-                  className="solo-focus-close-circle"
-                  onClick={requestClose}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={INDUSTRIAL_OPACITY_SNAP}
-                  style={{ transformOrigin: 'top right' }}
-                >
-                  <BackArrowDownLeft size={24} />
-                </motion.button>
-                <PulseDiagnosticFab />
-              </div>
-            </div>
               </motion.div>
-
-              {activeFollowUp && !trapComplete && !isRockHabitTip ? (
-                <motion.div
-                  className="solo-focus-shell solo-focus-child solo-focus-content-stack w-full min-w-0 rounded-[60px] p-[40px] relative mt-4"
-                  initial={reducePagerMotion ? false : { opacity: 0, y: STACCATO_DROP_PX }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={reducePagerMotion ? { duration: 0.12 } : STACCATO_TWEEN}
-                >
-                  <div className="solo-focus-loop question-container w-full min-w-0 flex flex-col items-center">
-                    <h3
-                      className="question-text solo-focus-question-label text-marvin text-center m-0"
-                      style={{ color: 'var(--journey-text)', maxWidth: 'min(92vw, 28rem)' }}
-                    >
-                      {activeFollowUp.question}
-                    </h3>
-                    <div
-                      className="flex flex-wrap justify-center w-full"
-                      style={{ gap: 16, maxWidth: 400, marginTop: 24 }}
-                    >
-                      {activeFollowUp.options.map((opt, optionIndex) => (
-                        <ProfileAnswerBtn
-                          key={opt}
-                          reduceMotion={reducePagerMotion}
-                          optionIndex={optionIndex}
-                          className=""
-                          disabled={verificationPending || cardVisitedLock}
-                          onClick={() => void handleVerificationAnswer(opt)}
-                          aria-label={opt.replace(/_/g, ' ')}
-                        >
-                          <span className="profile-answer-btn__text zz-h4">
-                            {opt.replace(/_/g, '\n')}
-                          </span>
-                        </ProfileAnswerBtn>
-                      ))}
-                    </div>
-                    {verificationPending ? (
-                      <p
-                        className="zz-label m-0 mt-6 opacity-80 text-center"
-                        style={{ color: 'var(--journey-text)' }}
-                      >
-                        Verifying your audit…
-                      </p>
-                    ) : null}
-                  </div>
-                </motion.div>
-              ) : null}
           </>
           )}
 
@@ -936,11 +734,7 @@ export function SoloFocusOverlay({
         regionalAvg={String(displayCarbonValue).replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0'}
         scrapedSource={sourceLabel || sourceUrl || ''}
         postcode={profilePostcode ?? state.profile?.postcode}
-        suggestedQuestions={[
-          'Why this shift saves money',
-          'What is the carbon trade-off',
-          'What is the next concrete step',
-        ]}
+        localityName={state.locationState?.locationName ?? undefined}
       />
       {!isZoneMotherChild && (
       <motion.div className="fixed right-5 top-5 z-50">

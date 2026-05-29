@@ -125,7 +125,7 @@ export function buildLocalizedResearchPrefix(params: {
   if (uc) lines.push('', 'Additional context:', uc)
   lines.push(
     '',
-    'Synthesis rules: use only £/year figures and https URLs present in scraped markdown below; if absent, state uncertainty — never fabricate grant amounts or retailer deals.'
+    'Synthesis rules: Warm Auditor voice — three paragraphs (friction → April 2026 lever → payoff once). Open with town/locality from context, never a raw postcode in prose. Use only £/year figures and https URLs present in scraped markdown; if absent, stay conservative — never fabricate grant amounts or retailer deals.'
   )
   return lines.join('\n')
 }

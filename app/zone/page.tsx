@@ -13,6 +13,11 @@ import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitiz
 import { ZAI_AUDIT_COMPLETE_EVENT } from '@/lib/zai/zoneSync'
 import { buildGroovyGridItems, type GroovyGridCell } from '@/lib/zone/gridOrder'
 import {
+  journeyKeysFromDisplayItems,
+  resolveJourneyCellForSoloFocusNav,
+  soloFocusJourneyNeighbors,
+} from '@/lib/zone/soloFocusJourneyNav'
+import {
   markCardVisited,
   mergeVisitedFromServer,
   readDeepDiveInProgressCardId,
@@ -21,6 +26,7 @@ import {
   setDeepDiveInProgress,
 } from '@/lib/zone/visitedCards'
 import { rememberSoloFocusOpen, readSessionMemory } from '@/lib/zone/sessionMemory'
+import { useSoloFocusHudBodyClass } from '@/lib/hooks/useSoloFocusHudBodyClass'
 import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import type { ZoneViewModel, ZoneJourneyCard, ZoneTipCard, NeonJourneyResearchRow } from '@/lib/logic/zone'
 import {
@@ -398,6 +404,7 @@ export default function ZonePage() {
   }, [refreshKey])
 
   const isFocusViewOpen = Boolean(expandedCardId || expandedTipId)
+  useSoloFocusHudBodyClass(isFocusViewOpen)
 
   const closeAnySoloFocus = useCallback(() => {
     setExpandedCardId(null)
@@ -1380,21 +1387,7 @@ export default function ZonePage() {
       }
 
       if (hasResearchFeed) {
-        setViewModel(
-          dbConnected
-            ? vmLive
-            : {
-                ...vmLive,
-                hero: {
-                  ...vmLive.hero,
-                  title: 'connect',
-                  data: {
-                    money: '£0',
-                    carbon: '0kg CO₂',
-                  },
-                },
-              }
-        )
+        setViewModel(vmLive)
         setVmSyncStamp(Date.now())
       }
     })()
@@ -1563,6 +1556,7 @@ export default function ZonePage() {
     const cards = buildContentArchitectCardPayload({
       vm,
       journeyAnswers,
+      localityName: state.locationState?.locationName,
       localCouncil: localData?.council,
       localGridGPerKwh: localData?.localCarbonG,
       liveUnitRates: homeUnitRates ?? undefined,
@@ -1703,6 +1697,10 @@ export default function ZonePage() {
     ]
   )
   const displayItems: GroovyItem[] = useMemo(() => [...groovyItems], [groovyItems])
+  const soloFocusJourneyRing = useMemo(
+    () => journeyKeysFromDisplayItems(displayItems),
+    [displayItems]
+  )
 
   useEffect(() => {
     if (!hydrated || sessionRestoreDone.current || displayItems.length === 0) return
@@ -1910,6 +1908,17 @@ export default function ZonePage() {
     return out
   }, [researchCategoryCoverage])
 
+  const architectHeadlineByJourney = useMemo(() => {
+    const out: Partial<Record<JourneyId, string>> = {}
+    for (const j of viewModel.journeys) {
+      if (j.journey_key && j.title?.trim()) out[j.journey_key] = j.title.trim()
+    }
+    for (const t of viewModel.tips) {
+      if (t.journey_key && t.title?.trim()) out[t.journey_key] = t.title.trim()
+    }
+    return out
+  }, [viewModel.journeys, viewModel.tips])
+
   const rockHabitsWithOffers = useMemo(() => {
     const capped = capRockHabitsPerJourney(rockVisibleHabits).slice(0, MAX_ROCK_SAVING_TIPS_RAIL)
     return capped.map((h) => {
@@ -1924,23 +1933,26 @@ export default function ZonePage() {
       if (expandedCardId?.trim()) markCardVisited(expandedCardId)
       setExpandedTipId(null)
       setExpandedFromTip(null)
-      for (const c of displayItems) {
-        if (c.type === 'journey' && c.item.journey_key === target) {
-          openZoneJourneySoloFocus(c.item)
-          return
-        }
-      }
+      const cell = resolveJourneyCellForSoloFocusNav(
+        target,
+        (key) =>
+          displayItems.find(
+            (c): c is GroovyItem & { type: 'journey' } =>
+              c.type === 'journey' && c.item.journey_key === key
+          )?.item,
+        soloFocusJourneyRing
+      )
+      if (cell) openZoneJourneySoloFocus(cell)
     },
-    [displayItems, expandedCardId, expandedTipId, openZoneJourneySoloFocus],
+    [displayItems, expandedCardId, expandedTipId, openZoneJourneySoloFocus, soloFocusJourneyRing],
   )
 
   const openNextJourneyFromExpanded = useCallback(
     (jid: JourneyId) => {
-      const idx = JOURNEY_ORDER.indexOf(jid)
-      const nextKey = JOURNEY_ORDER[(idx + 1) % JOURNEY_ORDER.length]!
-      navigateJourneyInSoloFocus(nextKey)
+      const { next } = soloFocusJourneyNeighbors(jid, soloFocusJourneyRing)
+      navigateJourneyInSoloFocus(next)
     },
-    [navigateJourneyInSoloFocus],
+    [navigateJourneyInSoloFocus, soloFocusJourneyRing],
   )
 
   /** Oversized slot-machine numbers: strict journey-sum totals + liked Rock habits. */
@@ -2050,46 +2062,46 @@ export default function ZonePage() {
         >
           <motion.div
             variants={STACCATO_CHILD_VARIANTS}
-            className="zone-hero-grid w-full"
+            className="zone-hero-section zone-hero-grid w-full"
             aria-live="polite"
           >
             <div className="zone-hero-copy">
-              <motion.h2
-                className="zz-h2 zone-welcome zone-welcome-block zone-welcome-name m-0"
+              <motion.h3
+                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-name m-0"
                 style={{ color: 'var(--color-yellow)' }}
                 variants={STACCATO_CHILD_VARIANTS}
                 initial="hidden"
                 animate="visible"
               >
                 {zoneWelcome.nameLine}
-              </motion.h2>
-              <motion.h2
-                className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+              </motion.h3>
+              <motion.h3
+                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-savings m-0"
                 style={{ color: 'var(--color-yellow)' }}
                 variants={STACCATO_CHILD_VARIANTS}
                 initial="hidden"
                 animate="visible"
               >
                 {zoneWelcome.savingsLeadLine}
-              </motion.h2>
-              <motion.h2
-                className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+              </motion.h3>
+              <motion.h3
+                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-savings m-0"
                 style={{ color: 'var(--color-yellow)' }}
                 variants={STACCATO_CHILD_VARIANTS}
                 initial="hidden"
                 animate="visible"
               >
                 {zoneWelcome.savingsMoneyLine}
-              </motion.h2>
-              <motion.h2
-                className="zz-h2 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+              </motion.h3>
+              <motion.h3
+                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-savings m-0"
                 style={{ color: 'var(--color-yellow)' }}
                 variants={STACCATO_CHILD_VARIANTS}
                 initial="hidden"
                 animate="visible"
               >
                 {zoneWelcome.savingsCarbonLine}
-              </motion.h2>
+              </motion.h3>
             </div>
             <ZoneDesktopNavRail />
           </motion.div>
@@ -2124,6 +2136,7 @@ export default function ZonePage() {
         {/* 2. BENTO WALL — hidden until first card hydrates; then cards reveal one-by-one */}
         <motion.div
           className={[
+            'zone-grid-container',
             'zone-container',
             zoneHandoffStaging && !patternShiftJourneyId
               ? 'zone-container--pulse-prerender'
@@ -2235,16 +2248,11 @@ export default function ZonePage() {
                             if (!zoneInteractable) e.preventDefault()
                           }}
                           className={`zone-hero-card bento-card-groovy flex flex-col flex-1 min-h-0 h-full w-full justify-between cursor-pointer no-underline text-inherit${sentinelHeroPing ? ' sentinel-hero-ping' : ''}`}
-                          style={{
-                            color: 'var(--color-yellow)',
-                            ['--color-ink' as string]: 'var(--color-yellow)',
-                          }}
                         >
                           <div className="flex flex-col shrink-0 gap-[clamp(10px,2.5cqw,16px)]">
                             <ZoneBentoCardHeader
                               journeyId="profile"
                               label="YOUR PROFILE"
-                              textColor="var(--color-yellow)"
                               iconKind="profile"
                             />
                             <h3 className="card-headline m-0 min-w-0" lang="en">Check out your stats</h3>
@@ -2254,25 +2262,28 @@ export default function ZonePage() {
                             className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 flex-shrink-0"
                           >
                             <div className="data-stack data-stack--tight">
-                              <span className="data-label" style={{ color: 'var(--color-yellow)' }}>{ENGINE_UI_LABELS.profileWasteMoney}</span>
-                              <span className="data-value data-stamp-metric sentinel-live-countup" style={{ color: 'var(--color-ink)' }}>
-                                {dbConnected ? (
-                                  <StampedMoneyGbp gbp={displayMoney} live={heroLiveGrounded} />
+                              <span className="data-label">{ENGINE_UI_LABELS.profileWasteMoney}</span>
+                              <span className="data-value data-stamp-metric sentinel-live-countup">
+                                {hydrated ? (
+                                  <StampedMoneyGbp
+                                    gbp={displayMoney}
+                                    live={heroLiveGrounded && dbConnected}
+                                  />
                                 ) : (
                                   <span className="zz-body-bold uppercase zz-shimmer-focus" aria-live="polite">
-                                    connect
+                                    …
                                   </span>
                                 )}
                               </span>
                             </div>
                             <div className="data-stack data-stack--tight">
-                              <span className="data-label" style={{ color: 'var(--color-yellow)' }}>{ENGINE_UI_LABELS.profileWasteCarbon}</span>
-                              <span className="data-value data-stamp-metric sentinel-live-countup" style={{ color: 'var(--color-ink)' }}>
-                                {dbConnected ? (
+                              <span className="data-label">{ENGINE_UI_LABELS.profileWasteCarbon}</span>
+                              <span className="data-value data-stamp-metric sentinel-live-countup">
+                                {hydrated ? (
                                   <StampedCarbonKg kg={displayCarbon} />
                                 ) : (
                                   <span className="zz-body-bold uppercase zz-shimmer-focus" aria-live="polite">
-                                    connect
+                                    …
                                   </span>
                                 )}
                               </span>
@@ -2561,6 +2572,7 @@ export default function ZonePage() {
                       }}
                       onSwipeNextJourney={openNextJourneyFromExpanded}
                       onNavigateJourney={navigateJourneyInSoloFocus}
+                      soloFocusJourneyRing={soloFocusJourneyRing}
                     />
                     </div>
                   )}
@@ -2584,6 +2596,7 @@ export default function ZonePage() {
             </h2>
             <RockSavingTips
               habits={rockHabitsWithOffers}
+              architectHeadlineByJourney={architectHeadlineByJourney}
               likedCardIds={state.likedCards}
               visitedTipIds={visitedCardIds}
               onOpenTip={(id) => {
@@ -2765,6 +2778,7 @@ export default function ZonePage() {
                 verifiedAuditCategory={tipAuditMatches ? tip.journey_key : null}
                 researchCategoryCoverage={researchCategoryCoverage}
                 onNavigateJourney={navigateJourneyInSoloFocus}
+                soloFocusJourneyRing={soloFocusJourneyRing}
               />
             </>
           )
