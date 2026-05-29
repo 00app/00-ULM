@@ -14,7 +14,18 @@ if [[ -z "$URL" ]]; then
 fi
 
 echo "→ Promote ${URL} to production…"
-vercel promote "$URL" --yes
+set +e
+promote_out="$(vercel promote "$URL" --yes 2>&1)"
+promote_code=$?
+set -e
+if [[ "$promote_code" -ne 0 ]]; then
+  if echo "$promote_out" | grep -qiE 'already the current production|409'; then
+    echo "✓ Already on production (promote skipped)."
+  else
+    echo "$promote_out" >&2
+    exit "$promote_code"
+  fi
+fi
 
 echo "→ Health"
 curl -sf --max-time 25 "https://00-ulm.vercel.app/api/health?live=1" && echo ""
