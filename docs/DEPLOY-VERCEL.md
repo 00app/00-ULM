@@ -32,14 +32,21 @@ Production alias **`https://00-ulm.vercel.app`** should then serve this build.
 | Layer | What runs |
 | --- | --- |
 | **`vercel.json` `buildCommand`** | `npm run verify` then `node scripts/build-with-manifest-fix.js` |
-| **`package.json` `lint`** | `node node_modules/eslint/bin/eslint.js app lib` (direct — no nested `npm run`) |
-| **`package.json` `typecheck`** | `node node_modules/typescript/bin/tsc --noEmit -p tsconfig.typecheck.json` |
-| **`next.config.js`** | `eslint.ignoreDuringBuilds` + `typescript.ignoreBuildErrors` (Next build does not re-lint/re-tsc) |
+| **`package.json` `lint`** | `eslint app lib` (flat config: `eslint.config.mjs`) |
+| **`package.json` `typecheck`** | `tsc --noEmit -p tsconfig.typecheck.json` |
+| **`next.config.js`** | No `eslint` key (Next 16 removed it — native Vercel Lint crashes). `typescript.ignoreBuildErrors` only. |
+| **`vercel.json` `installCommand`** | `npm ci --include=dev` (checks + build see eslint/tsc) |
 | **`npm run deploy`** | verify → `vercel deploy --prod` → wait Ready → **`scripts/vercel-promote-latest.sh`** |
 
 Missing or nested check scripts caused Vercel *internal error* on native Lint/Typecheck; direct binaries fix that.
 
-**Dashboard (required once if checks keep failing):** **Settings** → **Build & Deployment** → **Deployment Checks** → set native **Lint** / **Typecheck** to **not required**, or delete them and use GitHub **Lint** / **Typecheck** from `.github/workflows/vercel-production-gate.yml` only.
+**Dashboard (fix “internal error” on native Lint/Typecheck):**
+
+1. **Project 00-ulm** → **Settings** → **Build and Deployment** → **Deployment Checks**
+2. **Remove** or mark **not required** the built-in **Lint** and **Typecheck** checks (Next 16 + flat ESLint often yields *internal error* with no log).
+3. **Add** → **GitHub Actions** → require jobs **`Lint`** and **`Typecheck`** from `.github/workflows/vercel-production-gate.yml` (exact names).
+
+Until step 3 is done, a green **build** can still show **Checks Failed** — run `npm run promote` so `00-ulm.vercel.app` serves the Ready deployment.
 
 **Staged but build green:** run `npm run promote` (promotes latest Ready prod deployment to `00-ulm.vercel.app`).
 

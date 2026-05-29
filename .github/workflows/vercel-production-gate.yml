@@ -1,5 +1,5 @@
-# Satisfies Vercel Deployment Checks when configured to use GitHub (job names must match).
-# Native Lint/Typecheck are skipped — package.json has no `lint` / `typecheck` scripts (see tsc:check, lint:ci).
+# Satisfies Vercel Deployment Checks when project uses GitHub Actions (job names must be Lint + Typecheck).
+# Vercel → Settings → Deployment Checks → GitHub Actions → require these jobs (not broken native Next checks).
 name: Vercel production gate
 
 on:
@@ -26,7 +26,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run lint:ci
+      - run: npm run lint
 
   Typecheck:
     name: Typecheck
@@ -39,4 +39,4 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run tsc:check
+      - run: npm run typecheck
