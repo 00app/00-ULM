@@ -250,9 +250,29 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" \
 
 ```bash
 npm run verify
+
+# Neon row (needs DATABASE_URL — not an empty line in .env.local)
 npm run db:log-research
+# or explicitly use production pull:
+npm run db:log-research:prod
+
+# Bucket mode on production (paste CRON_SECRET from Vercel env, not empty)
+export CRON_SECRET="$(grep '^CRON_SECRET=' .env.production.local | cut -d= -f2-)"
+curl -sS -H "Authorization: Bearer ${CRON_SECRET}" \
+  'https://00-ulm.vercel.app/api/health/diagnostics' | jq '.bucket_failover'
+
 npm run db:audit
 bash scripts/verify-env-and-health.sh
+```
+
+**If `DATABASE_URL missing`:** your `.env.local` may have `DATABASE_URL=` with no value. Refresh:
+
+```bash
+vercel pull --yes --environment=production
+cp .vercel/.env.production.local .env.local
+# or copy the known-good file if vercel pull wrote an empty URI:
+cp .env.production.local .env.local
+npm run db:log-research
 ```
 
 ---
