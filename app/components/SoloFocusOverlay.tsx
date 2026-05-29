@@ -41,9 +41,7 @@ import {
   composeScrapedInsightDescription,
   buildResearchResultsTrueTipBody,
   isRawResearchDump,
-  polishTrueTipParagraphsForHeadline,
   stripExpandedCardTitleNoise,
-  toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
   resolveSoloFocusHandoffUrls,
 } from '@/lib/soloFocusCopy'
@@ -60,7 +58,12 @@ import {
 } from '@/lib/brains/constants'
 import { normalizeCategoryToJourneyKey, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { resolveFocusCategoryJourneyId } from '@/lib/zone/focusCategory'
-import { resolveZoneSurfaceKind, zoneSurfaceStyleProps } from '@/lib/journeyColors'
+import {
+  resolveZoneSurfaceKind,
+  zoneExpandedJourneySurfaceStyleProps,
+  zoneSurfaceStyleProps,
+} from '@/lib/journeyColors'
+import { SoloFocusProseStack } from '@/app/components/SoloFocusProseStack'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
 import { PulseDiagnosticFab } from '@/app/components/debug/PulseWidget'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
@@ -484,48 +487,19 @@ export function SoloFocusOverlay({
     (preSplitAuditor.length >= 3
       ? preSplitAuditor.slice(0, 3).join('\n\n')
       : (insightDisplay || '').trim() || rawInsight)
-  const trueTipParagraphs = polishTrueTipParagraphsForHeadline(
-    recommendationTitle,
-    toThreeTrueTipParagraphs(insightParaSource, {
-      journeyId: String(displayJourneyId ?? journeyId ?? 'home'),
-      moneyGbp: motherMoneyTargetGbp,
-      carbonKg: carbonTargetKg,
-      userPostcode: profilePostcode ?? state.profile?.postcode,
-      sourceDisplayName: sourceName,
-    })
+  const trueTipSectionsEl = (
+    <SoloFocusProseStack
+      headline={recommendationTitle}
+      insightSource={insightParaSource}
+      journeyId={String(displayJourneyId ?? journeyId ?? 'home')}
+      moneyGbp={motherMoneyTargetGbp}
+      carbonKg={carbonTargetKg}
+      userPostcode={profilePostcode ?? state.profile?.postcode}
+      sourceDisplayName={sourceName}
+      locality={state.locationState?.locationName ?? undefined}
+      postcode={profilePostcode ?? state.profile?.postcode ?? undefined}
+    />
   )
-  const trueTipSectionsEl = trueTipParagraphs.some((p) => p.trim().length > 0) ? (
-    <div className="solo-focus-true-tip-sections flex flex-col gap-0 w-full min-w-0 mt-1">
-      {trueTipParagraphs.map((para, i) => {
-        if (!para?.trim()) return null
-        const proseClass =
-          'solo-focus-architect-prose solo-focus-copy-width solo-focus-content-text text-left m-0'
-        const proseStyle = { color: 'var(--journey-text)' as const }
-        if (i === 0) {
-          return (
-            <motion.h4
-              key={`architect-p-${i}`}
-              className={`${proseClass} solo-focus-architect-lead text-marvin zz-h4`}
-              style={proseStyle}
-              variants={FADE_VARIANTS}
-            >
-              {para}
-            </motion.h4>
-          )
-        }
-        return (
-          <motion.p
-            key={`architect-p-${i}`}
-            className={proseClass}
-            style={proseStyle}
-            variants={FADE_VARIANTS}
-          >
-            {para}
-          </motion.p>
-        )
-      })}
-    </div>
-  ) : null
   const sourceFooter = partnerHttp
     ? ''
     : 'No live retailer link this week — figures still come from your saved audit row.'
@@ -749,7 +723,10 @@ export function SoloFocusOverlay({
         cardId,
         category,
       })
-  const overlaySurfaceVars = zoneSurfaceStyleProps(overlaySurfaceKind)
+  const overlaySurfaceVars =
+    overlaySurfaceKind === 'journey'
+      ? zoneExpandedJourneySurfaceStyleProps()
+      : zoneSurfaceStyleProps(overlaySurfaceKind)
 
   const overlay = (
     <>
@@ -785,7 +762,7 @@ export function SoloFocusOverlay({
               >
             <div className="solo-focus-expanded-toolbar solo-focus-mother-columns w-full min-w-0">
               <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
-                <div className="flex flex-col gap-0 w-full min-w-0">
+                <div className="solo-focus-mother-body flex flex-col gap-2 w-full min-w-0 flex-1">
                 {resolvedOpenUrl.trim() ? (
                   <motion.div
                     className="solo-focus-insight-bridge w-full min-w-0"
@@ -846,6 +823,7 @@ export function SoloFocusOverlay({
                   </>
                 )}
 
+                <div className="solo-focus-mother-metrics w-full min-w-0">
                 <MotherCardRenderer
                   categoryLabel=""
                   headline={null}
@@ -863,7 +841,15 @@ export function SoloFocusOverlay({
                   onLike={handleTrinityLike}
                   onAskZai={handleTrinityAskZai}
                 />
+                </div>
               </div>
+                {onNavigateJourney && journeyId ? (
+                  <SoloFocusJourneyNav
+                    journeyId={journeyId}
+                    onNavigate={onNavigateJourney}
+                    className="solo-focus-journey-nav--inset"
+                  />
+                ) : null}
               </div>
               <div
                 className="solo-focus-utility-strip flex flex-col items-end"
@@ -940,9 +926,6 @@ export function SoloFocusOverlay({
         </ExpandedCardShell>
 
       </motion.div>
-      {onNavigateJourney && journeyId ? (
-        <SoloFocusJourneyNav journeyId={journeyId} onNavigate={onNavigateJourney} />
-      ) : null}
       <AskZaiDeepDiveSheet
         open={askZaiDeepDiveOpen}
         onClose={() => setAskZaiDeepDiveOpen(false)}

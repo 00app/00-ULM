@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { type JourneyId } from '@/lib/journeys'
 import {
   resolveZoneSurfaceKind,
+  zoneExpandedJourneySurfaceStyleProps,
   zoneSurfaceStyleProps,
   type ZoneSurfaceKind,
 } from '@/lib/journeyColors'
@@ -23,6 +24,7 @@ import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
 import { PulseDiagnosticFab } from '@/app/components/debug/PulseWidget'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { SoloFocusJourneyNav } from '@/app/components/SoloFocusJourneyNav'
+import { SoloFocusProseStack } from '@/app/components/SoloFocusProseStack'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
 import {
@@ -55,16 +57,13 @@ import {
   zoneCardHeadlineFromRaw,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   MAX_ZONE_CARD_HEADLINE_WORDS,
-  polishTrueTipParagraphsForHeadline,
   resolveExpandedTrueTipInsight,
   resolveSoloFocusHandoffUrls,
   stripExpandedCardTitleNoise,
-  toThreeTrueTipParagraphs,
   wrapResultSupportingAsterisks,
   isAcceptableZoneJourneyHeadline,
 } from '@/lib/soloFocusCopy'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
-import { personalizeTrueTipPlaceLead } from '@/lib/zone/localityCopy'
 import {
   shouldShowZoneEstimatedInsightStrip,
   ZONE_ESTIMATED_INSIGHT_STRIP,
@@ -865,48 +864,19 @@ export function JourneyBentoCard({
       sourceDisplayName: verifiedSourceName ?? undefined,
       auditHeaderLocality: state.locationState?.locationName ?? undefined,
     })
-    const trueTipParagraphs = personalizeTrueTipPlaceLead(
-      polishTrueTipParagraphsForHeadline(
-        recommendationTitle,
-        toThreeTrueTipParagraphs(insightDisplay, {
-          journeyId: focusCategoryJourneyId,
-          moneyGbp: motherMoneyTargetGbp,
-          carbonKg: carbonTargetKg,
-          userPostcode: profilePostcode ?? state.profile?.postcode,
-          sourceDisplayName: verifiedSourceName ?? sourceName,
-          auditHeaderLocality: state.locationState?.locationName ?? undefined,
-        })
-      ),
-      {
-        locality: state.locationState?.locationName ?? undefined,
-        postcode: profilePostcode ?? state.profile?.postcode ?? undefined,
-      }
-    )
-    const trueTipSectionsEl = trueTipParagraphs.some((p) => p.trim().length > 0) ? (
-      <div className="solo-focus-true-tip-sections flex flex-col gap-0 w-full min-w-0 mt-1">
-        {trueTipParagraphs.map((para, i) => {
-          if (!para?.trim()) return null
-          const proseClass =
-            'solo-focus-architect-prose solo-focus-copy-width solo-focus-content-text text-left m-0'
-          const proseStyle = { color: 'var(--journey-text)' as const }
-          if (i === 0) {
-            return (
-              <h4
-                key={`architect-p-${i}`}
-                className={`${proseClass} solo-focus-architect-lead text-marvin zz-h4`}
-                style={proseStyle}
-              >
-                {para}
-              </h4>
-            )
-          }
-          return (
-            <p key={`architect-p-${i}`} className={proseClass} style={proseStyle}>
-              {para}
-            </p>
-          )
-        })}
-      </div>
+    const trueTipSectionsEl = !showCardComputing ? (
+      <SoloFocusProseStack
+        headline={recommendationTitle}
+        insightSource={insightDisplay}
+        journeyId={focusCategoryJourneyId}
+        moneyGbp={motherMoneyTargetGbp}
+        carbonKg={carbonTargetKg}
+        userPostcode={profilePostcode ?? state.profile?.postcode}
+        sourceDisplayName={verifiedSourceName ?? sourceName}
+        auditHeaderLocality={state.locationState?.locationName ?? undefined}
+        locality={state.locationState?.locationName ?? undefined}
+        postcode={profilePostcode ?? state.profile?.postcode ?? undefined}
+      />
     ) : null
 
     const diagnosticProviderJourney = resolveSuppliedByDisplayName({
@@ -967,7 +937,9 @@ export function JourneyBentoCard({
             className="expanded-solo-focus view-expanded solo-focus-mobile-expand"
             style={
               {
-                ...surfaceVars,
+                ...(surfaceKind === 'journey'
+                  ? zoneExpandedJourneySurfaceStyleProps()
+                  : surfaceVars),
                 transformOrigin: '50% 50%',
               } as React.CSSProperties
             }
@@ -1002,7 +974,7 @@ export function JourneyBentoCard({
             >
             <div className="solo-focus-expanded-toolbar solo-focus-mother-columns w-full min-w-0">
               <div className="solo-focus-mother-copy flex-1 min-w-0 flex flex-col items-stretch w-full min-w-0">
-                <div key={motherShimmerKey} className="flex flex-col gap-2 w-full min-w-0">
+                <div key={motherShimmerKey} className="solo-focus-mother-body flex flex-col gap-2 w-full min-w-0 flex-1">
             {showCardComputing ? (
               <p
                 className="zz-label m-0 opacity-80"
@@ -1027,8 +999,9 @@ export function JourneyBentoCard({
             >
               {recommendationTitle}
             </motion.h1>
-            {!showCardComputing ? trueTipSectionsEl : null}
+            {trueTipSectionsEl}
 
+            <div className="solo-focus-mother-metrics w-full min-w-0">
             <MotherCardRenderer
               categoryLabel=""
               headline={null}
@@ -1048,7 +1021,15 @@ export function JourneyBentoCard({
               onLike={onLike ? handleTrinityLike : undefined}
               onAskZai={showAskZaiTrinity || _onAskZai ? handleTrinityAskZai : undefined}
             />
+            </div>
                 </div>
+                {onNavigateJourney ? (
+                  <SoloFocusJourneyNav
+                    journeyId={journeyId}
+                    onNavigate={onNavigateJourney}
+                    className="solo-focus-journey-nav--inset"
+                  />
+                ) : null}
               </div>
               <div
                 className="solo-focus-utility-strip flex flex-col items-end"
@@ -1075,9 +1056,6 @@ export function JourneyBentoCard({
         </motion.div>
       </ExpandedCardShell>
             </motion.div>
-      {onNavigateJourney ? (
-        <SoloFocusJourneyNav journeyId={journeyId} onNavigate={onNavigateJourney} />
-      ) : null}
       <AskZaiDeepDiveSheet
         open={askZaiDeepDiveOpen}
         onClose={() => setAskZaiDeepDiveOpen(false)}

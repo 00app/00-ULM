@@ -966,6 +966,42 @@ p,
   transform: rotate(-90deg);
 }
 
+.solo-focus-mother-copy {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.solo-focus-journey-nav--inset {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  transform: none;
+  width: 100%;
+  margin-top: 20px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.solo-focus-mother-metrics {
+  margin-top: 20px !important;
+}
+
+.solo-focus-mother-metrics .solo-focus-impact-hero.insight-to-impact {
+  margin-top: 0 !important;
+}
+
+.solo-focus-journey-nav__btn:hover .solo-focus-journey-nav__label,
+.solo-focus-journey-nav__btn:focus-visible .solo-focus-journey-nav__label {
+  color: var(--color-pink);
+}
+
+.solo-focus-journey-nav__btn:hover .solo-focus-journey-nav__arrow,
+.solo-focus-journey-nav__btn:focus-visible .solo-focus-journey-nav__arrow {
+  color: var(--color-yellow);
+}
+
 .pager-pip {
   appearance: none;
   background: currentColor;
@@ -1066,6 +1102,12 @@ p,
 .expanded-solo-focus .solo-focus-shell {
   background-color: var(--journey-bg) !important;
   color: var(--journey-text) !important;
+}
+
+.expanded-solo-focus[data-zone-surface='journey'] .solo-focus-shell {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  box-shadow: none !important;
 }
 
 .expanded-solo-focus .solo-focus-question-label,

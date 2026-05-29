@@ -215,6 +215,25 @@ export function getZoneSurfaceTokens(kind: ZoneSurfaceKind): ZoneSurfaceTokens {
   }
 }
 
+const ULM_DARK = '#1a1a1a'
+
+/** Expanded journey Solo Focus — white audit document (not purple bento). */
+export function zoneExpandedJourneySurfaceStyleProps(): Record<string, string> {
+  return {
+    '--journey-bg': '#ffffff',
+    '--journey-text': ULM_DARK,
+    '--color-ink': ULM_DARK,
+    '--journey-accent': COLOR_PINK,
+    '--journey-on-accent': COLOR_YELLOW,
+    '--journey-cta-bg': COLOR_PINK,
+    '--journey-cta-text': COLOR_YELLOW,
+    '--sf-answer-bg': COLOR_YELLOW,
+    '--sf-answer-text': ULM_DARK,
+    '--sf-answer-hover-bg': COLOR_PINK,
+    '--sf-answer-hover-text': COLOR_YELLOW,
+  }
+}
+
 /** CSS custom properties for bento / expanded Solo Focus shells. */
 export function zoneSurfaceStyleProps(kind: ZoneSurfaceKind): Record<string, string> {
   const t = getZoneSurfaceTokens(kind)

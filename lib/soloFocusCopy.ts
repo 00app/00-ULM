@@ -400,6 +400,32 @@ export function dedupeTrueTipOpeningParagraph(headline: string, firstParagraph: 
   return firstParagraph
 }
 
+/** Solo Focus with £/kg below — subheading + body only (no payoff paragraph). */
+export function layoutSoloFocusProseBlocks(
+  headline: string,
+  triple: [string, string, string],
+  opts: { journeyId: string; moneyGbp: number; carbonKg: number }
+): { subheading: string; body: string[] } {
+  const j = coerceJourneyId(opts.journeyId)
+  const blocks = dedupeTrueTipParagraphs(
+    triple
+      .map((p) => p.trim())
+      .filter(
+        (p) =>
+          p.length > 0 &&
+          !isBoilerplateProseParagraph(p) &&
+          !paragraphRepeatsPayoffStamp(p, j, opts.moneyGbp, opts.carbonKg)
+      )
+  )
+  const subheading = blocks[0] ?? ''
+  const subKey = compactAlnumKey(subheading)
+  const body = blocks.slice(1).filter((p) => {
+    const k = compactAlnumKey(p)
+    return k.length >= 12 && k !== subKey
+  })
+  return { subheading, body }
+}
+
 export function polishTrueTipParagraphsForHeadline(
   headline: string,
   paras: [string, string, string]
@@ -999,18 +1025,23 @@ export function toThreeTrueTipParagraphs(
     userPostcode?: string | null
     sourceDisplayName?: string | null
     auditHeaderLocality?: string | null
+    /** When false, omit £/kg payoff paragraph (metrics row carries savings). */
+    includePayoffParagraph?: boolean
   }
 ): [string, string, string] {
   const j = coerceJourneyId(options?.journeyId ?? 'home')
   const money = options?.moneyGbp ?? 0
   const carbon = options?.carbonKg ?? 0
+  const includePayoff = options?.includePayoffParagraph !== false
   const pack3 = (a: string, b: string, c: string): [string, string, string] => {
-    const third = normalizeTrueTipThirdParagraph(j, c, money, carbon)
+    const third = includePayoff
+      ? normalizeTrueTipThirdParagraph(j, c, money, carbon)
+      : stripAuditorFluffParagraph(c)
     const payoff = payoffSentence(j, money, carbon)
     let parts = dedupeTrueTipParagraphs([
       stripAuditorFluffParagraph(a),
       stripAuditorFluffParagraph(b),
-      stripAuditorFluffParagraph(third),
+      ...(third.trim() ? [third] : []),
     ]).filter((p) => p.trim().length > 0 && !isBoilerplateProseParagraph(p))
     parts = parts.filter((p) => !paragraphRepeatsPayoffStamp(p, j, money, carbon))
     const src = (options?.sourceDisplayName ?? '').trim() || 'UK Government'
@@ -1023,18 +1054,25 @@ export function toThreeTrueTipParagraphs(
       carbonKg: carbon,
       locality: options?.auditHeaderLocality ?? '',
     })
-    while (parts.length < 2) {
+    const targetLen = includePayoff ? 3 : 2
+    while (parts.length < targetLen) {
       const pad = narrative[parts.length] ?? narrative[0]!
-      if (pad && !parts.includes(pad)) parts.push(pad)
-      else break
+      if (pad && !parts.includes(pad) && !paragraphRepeatsPayoffStamp(pad, j, money, carbon)) {
+        parts.push(pad)
+      } else break
     }
-    parts.push(payoff)
-    parts = dedupeTrueTipParagraphs(parts).slice(0, 3)
-    while (parts.length < 3) {
+    if (includePayoff) {
       parts.push(payoff)
+      parts = dedupeTrueTipParagraphs(parts).slice(0, 3)
+      while (parts.length < 3) {
+        parts.push(payoff)
+      }
+    } else {
+      parts = dedupeTrueTipParagraphs(parts).slice(0, 2)
     }
-    const out = parts.slice(0, 3).map((p) => humanizeTrueTipParagraph(p))
-    return [out[0]!, out[1]!, out[2]!]
+    const out = parts.map((p) => humanizeTrueTipParagraph(p))
+    while (out.length < 3) out.push('')
+    return [out[0] ?? '', out[1] ?? '', out[2] ?? '']
   }
 
   const padMechanicalThird = (a: string, b: string): [string, string, string] =>

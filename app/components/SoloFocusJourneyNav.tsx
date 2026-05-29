@@ -19,7 +19,7 @@ export function SoloFocusJourneyNav({ journeyId, onNavigate, className = '' }: S
 
   return (
     <nav
-      className={`solo-focus-journey-nav solo-focus-pager-rail--fixed ${className}`.trim()}
+      className={`solo-focus-journey-nav ${className}`.trim()}
       aria-label="Journey navigation"
     >
       <button
