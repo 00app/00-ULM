@@ -64,6 +64,10 @@ import {
 } from '@/lib/soloFocusCopy'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { personalizeTrueTipPlaceLead } from '@/lib/zone/localityCopy'
+import {
+  shouldShowZoneEstimatedInsightStrip,
+  ZONE_ESTIMATED_INSIGHT_STRIP,
+} from '@/lib/zone/zoneAuditUi'
 import { useApp } from '@/app/context/AppContext'
 import { normalizeCategoryToJourneyKey, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { useCountUp } from '@/lib/utils/useCountUp'
@@ -389,8 +393,16 @@ export function JourneyBentoCard({
     streamPending: insightGenerationPending,
     journeyId: focusJourneyKey,
   })
+  const collapsedMoneyGbp = parseMoneyGbpFromDisplay(moneyValue || '0')
+  const showEstimatedInsightStrip = shouldShowZoneEstimatedInsightStrip({
+    auditState,
+    researchSettled,
+    moneyGbp: collapsedMoneyGbp,
+  })
   const showCardComputing =
-    !researchSettled && (insightGenerationPending || researchCategoryCoverage != null)
+    !researchSettled &&
+    !showEstimatedInsightStrip &&
+    (insightGenerationPending || researchCategoryCoverage != null)
   /** ✓ True data — Neon coverage `verified` (derived from `verified_saving` / `saving_amount_gbp` on latest row). */
   const dbVerifiedFromResearchTable =
     researchCategoryCoverage != null ? journeyResearchCov?.verified === true : null
@@ -1125,6 +1137,11 @@ export function JourneyBentoCard({
       >
         {headline}
       </motion.h3>
+      {showEstimatedInsightStrip ? (
+        <p className="zone-estimated-insight-strip m-0 min-w-0" aria-live="polite">
+          {ZONE_ESTIMATED_INSIGHT_STRIP}
+        </p>
+      ) : null}
       {/* Only one savings display allowed — shown in the bottom data grid */}
       <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
         <div className="data-stack data-stack--tight">

@@ -180,7 +180,7 @@ Built in **`lib/zone/buildZoneViewModel.ts`**, rendered as **`JourneyBentoCard`*
 |------------|--------|
 | **Headline** | `zoneCardHeadlineFromRaw` ← Neon `agent_headline` → Content Architect → cleaned title; **5–8 words** on grid (`cleanZonePreviewHeadline`, `isZonePreviewHeadlineNoise`) |
 | **SAVE / CARBON** | `formatZoneCardMoney` / carbon from impact + stream |
-| **Insight strip** | Short label or “Computing…” when `insightGenerationPending` |
+| **Insight strip** | **Estimated** — *“Estimated from your profile — local audit still loading.”* when `auditState === ESTIMATED_AUDIT'` and research not settled but profile £ shows (`lib/zone/zoneAuditUi.ts`). **Computing** — spark icon when still loading and no estimated strip. |
 | **Category colour** | `lib/journeyColors.ts` |
 | **Visited (pink)** | Mother tile: pink after loop + `completeCleanBirth`. Discovery inject: pink on close. `.zone-card--visited` — see **Director's Order** in [HANDBOOK.md](HANDBOOK.md) |
 | **Source line** | `source. …` attribution — **not** long prose |

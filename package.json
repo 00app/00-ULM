@@ -80,6 +80,7 @@
     "db:repair-mechanical": "tsx scripts/repair-latest-research-row.ts --mechanical-only --limit=20",
     "db:repair-row726": "tsx scripts/repair-latest-research-row.ts --id=726",
     "db:audit": "tsx scripts/audit-neon-tables.ts",
+    "zone:audit-gates": "tsx scripts/audit-zone-research-gates.ts",
     "db:verify-discovery": "tsx scripts/verify-discovery-schema.ts"
   },
   "dependencies": {
