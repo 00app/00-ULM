@@ -44,6 +44,10 @@ import {
   stripZaiChatMarkdown,
   ZAI_FALLBACK_UNCERTAIN,
 } from '@/lib/zai/chatBoundaries'
+import {
+  formatZaiResearchSourceLine,
+  loadZaiResearchSourceHint,
+} from '@/lib/zai/loadResearchSourceHint'
 
 export const runtime = 'nodejs';
 export const maxDuration = 60
@@ -617,7 +621,28 @@ export async function POST(req: NextRequest) {
       journeyAnswersForContext,
       profileForContext?.transport_baseline
     )
-    const scrapedSourceLine = expandedContext?.scraped_source ? ` source tip: "${expandedContext.scraped_source}".` : ''
+    let scrapedSourceLine = ''
+    if (isExpandedContext && categoryLabel) {
+      try {
+        const pool = getDbPool()
+        const researchHint = await loadZaiResearchSourceHint(pool, {
+          category: categoryLabel,
+          postcode: effectivePostcode,
+          userId: session?.userId ?? null,
+        })
+        scrapedSourceLine = formatZaiResearchSourceLine(
+          researchHint,
+          typeof expandedContext.scraped_source === 'string' ? expandedContext.scraped_source : null
+        )
+      } catch {
+        scrapedSourceLine = formatZaiResearchSourceLine(
+          null,
+          typeof expandedContext.scraped_source === 'string' ? expandedContext.scraped_source : null
+        )
+      }
+    } else if (expandedContext?.scraped_source) {
+      scrapedSourceLine = formatZaiResearchSourceLine(null, String(expandedContext.scraped_source))
+    }
     const journeyFormQuestionLine =
       isExpandedContext &&
       typeof expandedContext.journey_question_label === 'string' &&

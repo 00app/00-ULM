@@ -21,6 +21,7 @@ import {
   buildDeepDiveQuestionPills,
   type DeepDiveProfileSlice,
 } from '@/lib/zai/deepDiveAudit'
+import { scrapeAreaHintFromLocality } from '@/lib/zai/scrapeAreaHint'
 
 const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
 
@@ -158,10 +159,7 @@ export function AskZaiDeepDiveSheet({
     (question: string) => {
       const pc = String(postcode ?? '').replace(/\s+/g, '').trim()
       if (pc.length < 4) return
-      const areaHint =
-        pc.startsWith('BN') || pc.startsWith('RH') || pc.startsWith('PO')
-          ? 'West Sussex'
-          : 'UK'
+      const areaHint = scrapeAreaHintFromLocality(locality)
       triggerScrapeSyncForCategory({
         postcode: pc,
         category: journeyKey,
@@ -176,7 +174,7 @@ export function AskZaiDeepDiveSheet({
         bestOfferHint: `Search for energy grants and lifestyle shifts available in ${areaHint}, UK for a residential property in May 2026. User question: ${question.slice(0, 200)}`,
       })
     },
-    [journeyKey, postcode, state.profile]
+    [journeyKey, locality, postcode, state.profile]
   )
 
   const continueInZai = useCallback(
