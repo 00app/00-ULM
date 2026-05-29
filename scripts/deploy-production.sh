@@ -12,6 +12,8 @@ fi
 FORCE=()
 if [[ "${1:-}" == "--force" ]]; then
   FORCE=(--force)
+  echo "→ --force: skipping Vercel build cache (CLI) — also set VERCEL_FORCE_NO_BUILD_CACHE=1 in Project Settings if checks stay red."
+  export VERCEL_FORCE_NO_BUILD_CACHE=1
 fi
 
 SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
