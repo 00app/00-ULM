@@ -30,6 +30,7 @@
 | **Questions** | 13 journeys × 3 in `lib/journeys.ts`; Solo Focus = 1 Q; loop = `loopQuestions.ts` |
 | **Discovery birth** | Only `POST /api/answers` → `injectNewDiscoveryCard` (cap 3/journey) |
 | **Zai** | Read-only on chat; scrape only on Deep Dive **Search deeper** |
+| **Credit** | `MODEL_STRATEGY=bucket_failover`; no `?force=true`; JIT max 4 URLs; Hermes weekly repair only |
 | **Deploy** | `npm run verify` → `npm run deploy` → `npm run promote` if Staged |
 | **Hermes** | Weekly `repair-mechanical` — not daily broad scrape in bucket mode |
 
@@ -82,10 +83,13 @@ npm run deploy               # verify → remote build → promote
 ### Synthesized (read first)
 
 - [Quick start](#quick-start) · [Core principles](#core-principles-always-true) · [Master checklist](#master-checklist-release-audit)
+- [Pipeline connection map](#pipeline-connection-map-how-it-wires-together)
+- [API registry & auth](#api-registry--auth)
+- [AI credit spend control](#ai-credit-spend-control-boundaries)
+- [Scrape URL registry](#scrape-url-registry-firecrawl-seeds)
 - [Journey questions & the loop](#journey-questions-the-loop)
 - [Mechanical truth](#mechanical-truth-zone--carbon)
 - [Enforced loop & credit boundaries](#enforced-loop--credit-boundaries)
-- [Pipeline audit — APIs, scrape URLs, credit](#pipeline-audit--apis-connections-scrape-urls-credit-control)
 - [Data & view model](#data--view-model)
 - [Neon hot path](#neon-hot-path-what-actually-fills)
 - [Director's Order](#directors-order-zone--frozen-product-sequence)
@@ -108,11 +112,272 @@ npm run deploy               # verify → remote build → promote
 - [Hermes vs JIT](#annex-hermes-vs-jit-scrape) · [Hermes VPS setup](#annex-hermes-vps-setup)
 - [Motion DNA](#annex-motion-dna) · [Deploy Vercel](#annex-vercel-deploy--checks)
 - [Dev test & audit](#annex-dev-test--audit-runbook) · [UK public APIs](#annex-uk-public-apis)
-- [Pipeline audit & credit control](#annex-pipeline-audit--apis-boundaries-scrape-urls-credit-control) (full URL tables)
 
 **Regenerate annexes:** `python3 scripts/consolidate-handbook.py`
 
 <!-- SYNTHESIZED:START -->
+---
+
+## Pipeline connection map (how it wires together)
+
+End-to-end: **profile postcode** → **free Tier A hydrate** → **Zone VM** → **earned JIT scrape** → **Neon `research_results`** → **Solo Focus copy** → **Zai read-only explain**.
+
+```mermaid
+flowchart LR
+  subgraph client [Browser]
+    Profile["/profile"]
+    Zone["/zone"]
+    SF["Solo Focus"]
+    Zai["/zai"]
+  end
+  subgraph free [Tier A — no Firecrawl]
+    LI["POST /api/local-intelligence"]
+    Geo["GET /api/geocode/postcode"]
+    Pulse["GET /api/pulse/living"]
+    Impact["buildUserImpact"]
+  end
+  subgraph paid [Tier B/C — costs credits]
+    SSGET["GET /api/scrape-sync"]
+    SSPOST["POST /api/scrape-sync"]
+    Ans["POST /api/answers"]
+    FC["Firecrawl scrape"]
+    Gem["Gemini triplet"]
+  end
+  subgraph neon [Neon]
+    RR["research_results"]
+    JA["journey_answers_jsonb"]
+  end
+  Profile --> LI --> Geo
+  Profile --> Zone
+  Zone --> SSGET --> RR
+  Zone --> Impact
+  SF --> Ans --> SSPOST --> FC --> Gem --> RR
+  RR --> SF
+  RR --> Zai
+  Ans --> JA
+  Ans --> Impact
+```
+
+| Stage | Route / module | Reads | Writes | Premium? |
+|-------|----------------|-------|--------|----------|
+| Onboard | `/profile` → `POST /api/local-intelligence` | Postcodes.io, Carbon Intensity | session, localStorage | **No** |
+| Locality label | `GET /api/geocode/postcode` | Nominatim (server proxy) | `profile_locality_name` | **No** |
+| Zone load | `GET /api/scrape-sync?postcode=&user_id=` | `research_results`, coverage | client VM | **No** (read); repair may scrape |
+| Answer loop | `POST /api/answers` | profile, answers | `journey_answers_jsonb`, impact, optional discovery | **Hybrid** — one category JIT when earned |
+| Zone VM | `buildZoneViewModel` | impact + Neon + injections | bento cells | **No** |
+| Solo Focus copy | `resolveExpandedTrueTipInsight` | `architect_prose`, impact | display only | **No** (uses cached Neon) |
+| Zai chat | `POST /api/zai` | genome, `research_results` URLs/£ | transcript | **Gemini only** — **no Firecrawl** |
+| Deep Dive scrape | `AskZaiDeepDiveSheet` → scrape-sync | same as JIT | optional row refresh | **Yes** — user-initiated only |
+| Hermes cron | `GET /api/cron/zone-research?repair=1` | incomplete rows | backfill `research_results` | **Yes** — batch capped (`limit=`) |
+| Sentinel | `POST /api/sentinel` | live grid + optional FC | tip rail only | **Optional FC** — not main copy path |
+
+**Canonical discovery birth:** `POST /api/answers` → `injectNewDiscoveryCard` (not Zai, not cron). Supplemental: `/api/zone/injections`, `/api/research/question-card` (share injection cap).
+
+**Code index:** `app/api/scrape-sync/route.ts` · `app/api/answers/route.ts` · `lib/agents/researchAgent.ts` · `lib/intelligence/researchProfilePayload.ts` · `lib/zone/buildZoneViewModel.ts` · `lib/brains/buildUserImpact.ts`.
+
+---
+
+## API registry & auth
+
+### Identity & profile
+
+| API | Method | Role | Auth |
+|-----|--------|------|------|
+| `/api/user` | POST/GET | Session user create/hydrate | cookie |
+| `/api/auth/login`, `signup`, `logout` | — | Session auth | — |
+| `/api/local-intelligence` | POST | Postcode → council, ward, carbon context | session / body |
+| `/api/geocode/postcode` | GET | Nominatim proxy → locality name | public read |
+
+### Zone & research (credit-sensitive)
+
+| API | Method | Role | Auth | Firecrawl? |
+|-----|--------|------|------|------------|
+| `/api/scrape-sync` | GET | Hydrate Zone; `?repair=1` backfill headlines | session, `user_id`, or Bearer | repair only |
+| `/api/scrape-sync` | POST | Trigger category research | Bearer / session / postcode+`user_id` | **Yes** — one `journey_key` |
+| `/api/scrape-sync` | GET `?force=true` | Broad multi-category run | Bearer | **Blocked** in bucket mode |
+| `/api/answers` | POST | Save answer, impact, discovery race | session or `user_id` | optional JIT per category |
+| `/api/answers` | GET | Hydrate journey answers | session | No |
+| `/api/cron/zone-research` | GET/POST | Hermes batch repair | Bearer `CRON_SECRET` | repair batch |
+| `/api/cron/repair-mechanical` | GET/POST | Incomplete row backfill | Bearer | capped |
+
+### Supplemental (capped — not MC birth)
+
+| API | Cap | Firecrawl? |
+|-----|-----|------------|
+| `/api/zone/injections` | 3/journey/user | optional |
+| `/api/research/question-card` | 3/journey/user | optional |
+| `/api/zone/tips-refresh` | manifest | optional |
+| `/api/zone/content-architect` | batch polish | Gemini only |
+| `/api/discovery/pulse` | tip patches | No |
+
+### Chat & ops
+
+| API | Role | Firecrawl? |
+|-----|------|------------|
+| `/api/zai` | Forensic mate chat | **No** |
+| `/api/pulse/living` | Ofgem + grid proxy | No |
+| `/api/summary` | Summary narrative | No |
+| `/api/health` | DB ping; `?live=1` liveness | No |
+| `/api/health/diagnostics` | neon/gemini/firecrawl booleans | No |
+
+**CORS:** Browser must **not** call Ofgem or Nominatim directly — use `/api/pulse/living`, `/api/geocode/postcode`, `/api/scrape-sync`.
+
+**Auth secrets:** `CRON_SECRET`, `SCRAPER_SECRET`, `GATEWAY_TOKEN` (≥16 chars) — see `lib/intelligence/scrapeSyncAuth.ts`.
+
+---
+
+## AI credit spend control (boundaries)
+
+### Environment gates (`lib/intelligence/scrapeBoundaries.ts`)
+
+| Variable | Effect |
+|----------|--------|
+| `MODEL_STRATEGY=bucket_failover` | Enables bucket mode — blocks broad scrape by default |
+| `MAX_ITERATIONS=5` | Caps provider failover loops |
+| `ALLOW_BROAD_SCRAPE=1` | Allows `?force=true` and full cron batch (audit only) |
+| `SKIP_FIRECRAWL=1` | No Firecrawl HTTP — mechanical + Neon fallbacks |
+| `FIRE_CRAWL_KEY_2` / `FIRECRAWL_API_KEY` | Required for any scrape (server-only) |
+| `BUCKET_SKIP_GEMINI=1` / `GEMINI_FREE_TIER=1` | Skip Gemini in provider chain |
+| `BUCKET_SKIP_DEEP_GEMINI=1` | Skip second-pass Gemini recovery |
+
+**Verify bucket status (prod):**
+
+```bash
+curl -sS -H "Authorization: Bearer ${CRON_SECRET}" \
+  'https://00-ulm.vercel.app/api/health/diagnostics' | jq '.bucket_failover'
+```
+
+Expect: `enabled: true`, `broadScrapeAllowed: false`, `skipDeepGemini: true`.
+
+### ULM ceilings (`lib/zone/ulmLimits.ts`, `lib/intelligence/manifest.ts`)
+
+| Ceiling | Value | Purpose |
+|---------|-------|---------|
+| `MAX_ZONE_BENTO_CELLS` | 24 | Bento wall cells (excl. hero) |
+| `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` | 3 | Custom discovery rows per user/journey |
+| `INITIAL_ROCK_SAVING_TIPS` | 6 | Rock rail cold start |
+| `MAX_ROCK_SAVING_TIPS_RAIL` | 12 | Rock rail absolute max |
+| JIT seed cap | **4 URLs** (surgical) / **8** (full) | `buildCategoryFirecrawlSeedUrls` |
+| ZeroResearch batch | **8 URLs** max | `runZeroResearch` |
+| Rebirth vault | **5 URLs** max per vault | `urlsForVault` |
+
+### Scrape allowed / forbidden surfaces (`lib/zai/chatBoundaries.ts`)
+
+| Allowed (may hit Firecrawl) | Forbidden (never scrape) |
+|-----------------------------|---------------------------|
+| `zone_answer_loop` — POST `/api/answers` | `zai_chat_turn` — POST `/api/zai` |
+| `tip_verification_plus_one` | `zai_chat_continue_in_zai` |
+| `ask_zai_deep_dive_search_deeper` | `zai_close_audit_complete` |
+| `profile_postcode_step` | `visited_card_close` |
+| `zone_hydration_get` — GET scrape-sync read/repair | broad `?force=true` in bucket mode |
+
+### Guards that stop credit burn
+
+| Guard | Module |
+|-------|--------|
+| One journey per scrape request (lane lock) | `validateSurgicalScrapeContext`, `topicShield` |
+| Visited card → no re-scrape on re-open | `visitedCards.ts`, `researchSyncClient.ts` |
+| Pink visited close → no inject / no loop | `patternShiftClose.ts` |
+| Employed + affluent → skip grant-heavy URLs | `buildCategoryFirecrawlSeedUrls` (`skipGrantSeeds`) |
+| Hermes weekly repair only — not daily broad pulse | `HERMES-VPS-SETUP` annex |
+| Zai chat read-only — no web browse | `assertNoScrapeOnZaiChat` |
+
+### Hybrid cost tiers (summary)
+
+| Tier | Surface | Firecrawl | Gemini |
+|------|---------|-----------|--------|
+| **A** | Profile, geocode, pulse | No | No |
+| **B** | Zone VM, collapsed bento | No | No |
+| **B′** | Cached `research_results` display | Only if row empty | Only if row empty |
+| **C** | Solo Focus answer → JIT spawn | **Yes** — surgical | **Yes** — triplet only |
+| **D** | `/zai` chat | **No** | **Yes** — read-only context |
+
+Full spec: annex [Hybrid data pipeline](#annex-hybrid-data-pipeline-cost-tiers).
+
+---
+
+## Scrape URL registry (Firecrawl seeds)
+
+**Source of truth in code:** `lib/intelligence/researchProfilePayload.ts` (`JOURNEY_FIRECRAWL_SEEDS`), `lib/zone/trustedJourneyUrls.ts`, `lib/agents/researchAgent.ts` (`UK_2026_SEED_URLS`), `lib/agents/actionVaults.ts` (rebirth vault), `lib/agents/nineDomainResearchSeeds.ts` (Hermes grid).
+
+### Trusted CTA fallback (one per journey — BUY/Claim handoff)
+
+| Journey | URL |
+|---------|-----|
+| home | `https://www.energysavingtrust.org.uk/advice/reducing-home-heat-loss/` |
+| utilities | `https://www.moneysavingexpert.com/utilities/how-to-switch-gas-electricity/` |
+| grants | `https://www.gov.uk/apply-boiler-upgrade-scheme` |
+| solar | `https://mcscertified.com/find-an-installer/` |
+| travel | `https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/` |
+| holidays | `https://www.eurostar.com/uk-en/deals` |
+| food | `https://www.lovefoodhatewaste.com` |
+| shopping | `https://wrap.org.uk/taking-action/food-waste` |
+| money | `https://www.moneysavingexpert.com/utilities/how-to-switch-gas-electricity/` |
+| tech | `https://www.backmarket.co.uk` |
+| water | `https://www.waterwise.org.uk/save-water/` |
+| waste | `https://www.recyclenow.com` |
+| carbon | `https://www.carbontrust.com/resources` |
+
+Default if unknown: `https://www.gov.uk/`
+
+### Per-journey Firecrawl seeds (`JOURNEY_FIRECRAWL_SEEDS`)
+
+| Journey | HTTPS seeds (deduped; max 4 surgical / 8 full) |
+|---------|--------------------------------------------------|
+| **utilities** | moneysavingexpert.com/utilities/how-to-switch-gas-electricity · ofgem.gov.uk/energy-advice-households/energy-price-cap · energysavingtrust.org.uk · (+ home_power: BUS or Octopus smart / EST electric heating) |
+| **home** | gov.uk/apply-boiler-upgrade-scheme · energysavingtrust.org.uk · which.co.uk/money/saving-energy |
+| **grants** | gov.uk/apply-boiler-upgrade-scheme · gov.uk/energy-company-obligation · energysavingtrust.org.uk/advice/grants-and-loans |
+| **travel** | nationalrail.co.uk/railcards · thetrainline.com · gov.uk/guidance/rail-fares-and-season-tickets |
+| **holidays** | eurostar.com/uk-en · visitbritain.com · nationalrail.co.uk |
+| **food** | lovefoodhatewaste.com · which.co.uk/reviews/food-and-drink |
+| **money** | moneysavingexpert.com/utilities · gov.uk/apply-warm-home-discount-scheme |
+| **shopping** | which.co.uk/money/shopping |
+| **tech** | backmarket.co.uk/en-gb |
+| **waste** | gov.uk/recycling-collections |
+| **water** | waterwise.org.uk |
+| **solar** | gov.uk/government/publications/solar-energy-uk |
+| **carbon** | ofgem.gov.uk |
+
+**Always added per build:** `trustedUrlForJourney(journeyKey)`.
+
+**Non-surgical only:** generic UK trio (Ofgem cap, BUS, EST) · `gov.uk/find-local-council/{postcode}` · council org slug from Postcodes.io.
+
+**Employed + not low-income:** grant-heavy URLs stripped unless journey = `grants` (`GRANT_HEAVY_URL_MARKERS` in code).
+
+### Employment-aware extra seeds
+
+**Employed + not low-income:** EST solar/export pages · Octopus smart/agile/export · gov.uk cycle-to-work · MSE utilities · Which saving-energy.
+
+**Unemployed or low-income:** warm-homes-local-grant · ECO4 · warm-home-discount · EST grants-and-loans · find-energy-grants-help-pay-bills.
+
+### Broad / cron seeds (use sparingly — high credit)
+
+**`UK_2026_SEED_URLS`** (`researchAgent.ts`): Ofgem cap · BUS · ECO4 · EST · Which saving-energy · MSE utilities · octopus.energy/blog · consumerreports.org/money/energy — batch max **8**.
+
+**`NINE_DOMAIN_GRID_SEED_URLS`** (Hermes grid): Ofgem cap · MSE cheapenergyclub + utilities · gov.uk energy grants · improve-energy-efficiency · ECO4 · olioex · hiyacar · justpark · ccwater · gov.uk recycling · freight emissions guidance · EV tax exemption · MSE shopping.
+
+### Rebirth vault URLs (discovery race — optional)
+
+| Vault | Journeys | URLs (max 5) |
+|-------|----------|--------------|
+| **A** | home, carbon, waste | Ofgem cap · gov.uk improve-energy-efficiency · find-energy-grants · BUS · MSE cheapenergyclub · MSE utilities · EST |
+| **B** | travel, holidays, tech | gov.uk EV tax exemption · hiyacar · liftshare · karshare · turo GB |
+| **C** | food, shopping, money, default | olioex · toogoodtogo · ethicalconsumer · freegle · MSE shopping |
+
+Module: `lib/agents/actionVaults.ts` · `lib/agents/rebirthVaultDiscovery.ts`.
+
+### Dynamic locality (postcode-driven)
+
+| Pattern | When |
+|---------|------|
+| `https://www.gov.uk/find-local-council/{POSTCODE}` | postcode ≥ 4 chars, non-surgical |
+| `https://www.gov.uk/government/organisations/{councilSlug}` | council from Postcodes.io |
+| User-context regions | only via `buildDynamicLocalitySeedUrls` — never hardcoded in UI |
+
+### Offer URL guards
+
+Pipeline: `research_results.offer_url` → `sanitizeZoneOfferUrl` (`lib/zone/offerUrlGuard.ts`) → CTA. Blocks bare gov.uk homepages, dead BUS paths, cross-category landings. Falls back to **TRUSTED_JOURNEY_URLS**.
+
 ---
 
 ## Journey questions (“the loop”)
@@ -150,130 +415,6 @@ npm run deploy               # verify → remote build → promote
 | Deep Dive scrape | **Search deeper** only | `AskZaiDeepDiveSheet` |
 
 **Ceilings:** `MAX_ZONE_BENTO_CELLS` = 24 · `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3 · Rock rail 6→12 (`lib/zone/ulmLimits.ts`).
-
----
-
-## Pipeline audit — APIs, connections, scrape URLs, credit control
-
-**Full tables:** [PIPELINE-AUDIT-CREDIT.md](PIPELINE-AUDIT-CREDIT.md) (also annex below after `python3 scripts/consolidate-handbook.py`).
-
-### How it connects (one screen)
-
-```
-/profile → local-intelligence + geocode (free)
-    → /zone → GET /api/scrape-sync → buildUserImpact + buildZoneViewModel
-    → Solo Focus answer → POST /api/answers → (optional) POST /api/scrape-sync [surgical]
-         → Firecrawl (1 journey) → Gemini triplet → Neon research_results
-    → /zai → POST /api/zai (read Neon only — NO Firecrawl)
-Hermes (weekly) → GET /api/cron/zone-research?repair=1 (backfill, not daily broad scrape)
-```
-
-### API quick map
-
-| Route | Pays Firecrawl/Gemini? | Role |
-|-------|------------------------|------|
-| `GET /api/scrape-sync` | Only `?repair=1` / pending backfill | Hydrate wall; rate **24/min** |
-| `POST /api/scrape-sync` | **Yes** (surgical) | `journey_key` + postcode + profile required |
-| `GET /api/scrape-sync?force=true` | **Blocked** in `bucket_failover` | Set `ALLOW_BROAD_SCRAPE=1` for one-off audits only |
-| `POST /api/answers` | Optional per category | **Canonical** discovery birth → `injectNewDiscoveryCard` |
-| `POST /api/zai` | Gemini chat only | **No scrape** — URLs/£ from `research_results` |
-| `POST /api/zone/injections` | Sometimes | Supplemental — cap 3/journey |
-| `POST /api/research/question-card` | Sometimes | Supplemental Ask card |
-| `GET /api/cron/zone-research` | Repair batch | Hermes; Bearer `CRON_SECRET` |
-| `GET /api/health/diagnostics` | No | `bucket_failover` booleans |
-
-### Scrape surfaces (`lib/zai/chatBoundaries.ts`)
-
-| Allowed | Forbidden |
-|---------|-----------|
-| `zone_answer_loop` (`POST /api/answers`) | `zai_chat_turn` |
-| `tip_verification_plus_one` | `zai_chat_continue_in_zai` |
-| `ask_zai_deep_dive_search_deeper` | `visited_card_close` |
-| `profile_postcode_step` | `zai_close_audit_complete` |
-| `zone_hydration_get` (read/repair) | |
-
-### Surgical gates (`lib/intelligence/scrapeBoundaries.ts`)
-
-- Postcode **≥ 4** chars · **`journey_key`** required (one category per request)
-- **`profileData`** anchor required on POST
-- **`MODEL_STRATEGY=bucket_failover`** + **`MAX_ITERATIONS=5`** (default)
-- **`SKIP_FIRECRAWL=1`** or missing key → mechanical fallback only
-- Visited categories skipped on repair GET (`last_visited_at` / guest `visited_journey_keys`)
-
-**Verify prod:**
-
-```bash
-curl -sS -H "Authorization: Bearer $CRON_SECRET" \
-  'https://00-ulm.vercel.app/api/health/diagnostics' | jq '.bucket_failover'
-```
-
-### Research paths (what burns credits vs what births cards)
-
-| Path | Discovery card? | Notes |
-|------|-----------------|-------|
-| `POST /api/answers` → `injectNewDiscoveryCard` | **Yes — canonical** | Cap **3**/journey |
-| `POST /api/scrape-sync` POST | No (persists row) | Surgical Firecrawl + Gemini persist |
-| `POST /api/zone/injections` | Supplemental | Capped |
-| `POST /api/research/question-card` | Supplemental | Capped |
-| `runRebirthVaultDiscovery` | Race only | Action Vault URLs (`actionVaults.ts`) |
-| Hermes `repair-mechanical` | Backfill copy/£ | Not MC answer birth |
-
-### Scrape URL sources (audit checklist)
-
-| Set | Module | When used |
-|-----|--------|-----------|
-| **Per-journey surgical** | `JOURNEY_FIRECRAWL_SEEDS` in `researchProfilePayload.ts` | Every category POST |
-| **Trusted CTA fallback** | `TRUSTED_JOURNEY_URLS` in `trustedJourneyUrls.ts` | Missing/bad `offer_url` |
-| **UK 2026 batch (8 max)** | `UK_2026_SEED_URLS` in `researchAgent.ts` | Broad research / auditor (5 URL cap in auditor) |
-| **Nine-domain grid** | `nineDomainResearchSeeds.ts` | Researcher bootstrap |
-| **Employment-aware** | `buildEmploymentAwareResearchSeeds` | Employed → solar/tariffs; low income → ECO/WHD |
-| **Dynamic locality** | `buildDynamicLocalitySeedUrls` | `gov.uk/find-local-council/{postcode}` |
-| **Action Vault A/B/C** | `actionVaults.ts` | Rebirth race only (max 5 URLs) |
-| **Sentinel** | `sentinel.ts` | `gov.uk/energy-advice-households` adjunct |
-
-**Employed rule:** grant-heavy gov URLs **skipped** on non-grants journeys when employed (`skipGrantSeeds`).
-
-### Credit-control env (Vercel Production)
-
-| Variable | Effect |
-|----------|--------|
-| `MODEL_STRATEGY=bucket_failover` | Surgical-only default |
-| `MAX_ITERATIONS=5` | Caps research loops |
-| `ALLOW_BROAD_SCRAPE=1` | Allows `?force=true` (avoid in prod) |
-| `SKIP_FIRECRAWL=1` | No Firecrawl charges |
-| `FIRE_CRAWL_KEY_2` | Firecrawl auth |
-| `GEMINI_API_KEY` | Gemini (server-only) |
-| `BUCKET_SKIP_GEMINI` / `BUCKET_SKIP_DEEP_GEMINI` | Cheaper failover path |
-| `VERCEL_FORCE_NO_BUILD_CACHE=1` | Clean build (dashboard ghost checks unrelated) |
-
-### Pipeline audit commands
-
-```bash
-npm run verify
-
-# Neon row (needs DATABASE_URL — not an empty line in .env.local)
-npm run db:log-research
-# or explicitly use production pull:
-npm run db:log-research:prod
-
-# Bucket mode on production (paste CRON_SECRET from Vercel env, not empty)
-export CRON_SECRET="$(grep '^CRON_SECRET=' .env.production.local | cut -d= -f2-)"
-curl -sS -H "Authorization: Bearer ${CRON_SECRET}" \
-  'https://00-ulm.vercel.app/api/health/diagnostics' | jq '.bucket_failover'
-
-npm run db:audit
-bash scripts/verify-env-and-health.sh
-```
-
-**If `DATABASE_URL missing`:** your `.env.local` may have `DATABASE_URL=` with no value. Refresh:
-
-```bash
-vercel pull --yes --environment=production
-cp .vercel/.env.production.local .env.local
-# or copy the known-good file if vercel pull wrote an empty URI:
-cp .env.production.local .env.local
-npm run db:log-research
-```
 
 ---
 
@@ -354,404 +495,6 @@ Full rules: annex [Zai, Deep Dive & question registry](#annex-zai-deep-dive--que
 
 ## Annexes (full source docs)
 
-
----
-
-## Annex: Pipeline audit — APIs, boundaries, scrape URLs, credit {#annex-pipeline-audit--apis-boundaries-scrape-urls-credit-control}
-
-*Source file: `PIPELINE-AUDIT-CREDIT.md`*
-
-
-Single reference for **how data moves**, **what may trigger paid APIs** (Firecrawl / Gemini), and **hard ceilings**. Code is source of truth; this doc mirrors it for audits.
-
-**Related:** [HANDBOOK.md](HANDBOOK.md) · [HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md) · [INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md) · [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md)
-
----
-
-#### 1. End-to-end pipeline (user → Neon → UI)
-
-```mermaid
-flowchart TB
-  subgraph onboard [Onboarding — Tier A free]
-    P[/profile 8 steps/]
-    LI[POST /api/local-intelligence]
-    GEO[GET /api/geocode/postcode]
-    P --> LI
-    P --> GEO
-  end
-
-  subgraph zone [Zone — Tier B free maths]
-    Z[/zone]
-    SS_GET[GET /api/scrape-sync]
-    VM[buildZoneViewModel]
-    IMP[buildUserImpact]
-    Z --> SS_GET
-    SS_GET --> VM
-    IMP --> VM
-  end
-
-  subgraph earn [Earned research — Tier B prime / C]
-    ANS[POST /api/answers]
-    SS_POST[POST /api/scrape-sync]
-    FC[Firecrawl scrape]
-    GEM[Gemini triplet]
-    NEON[(research_results)]
-    ANS --> SS_POST
-    SS_POST --> FC
-    FC --> GEM
-    GEM --> NEON
-    NEON --> SS_GET
-  end
-
-  subgraph zai [Zai — Tier D read-only]
-    ZAI[POST /api/zai]
-    ZAI -.->|no Firecrawl| NEON
-  end
-
-  onboard --> zone
-  zone --> earn
-  zone --> zai
-```
-
-| Tier | When | Firecrawl | Gemini |
-|------|------|-----------|--------|
-| **A** | Profile postcode step | No | No |
-| **B** | Zone grid £/kg | No | No (uses cached `research_results` if present) |
-| **B′** | Empty Neon row | Surgical seed URL(s) only | Triplet on persist |
-| **C** | `POST /api/answers` | Category + profile locked | Hybrid / discovery race |
-| **D** | `/zai` chat | **Never** | Chat only |
-| **Hermes** | Weekly cron repair | `?repair=1` backfill | Repair copy only |
-
----
-
-#### 2. API connection map
-
-##### Identity & profile
-
-| Route | Method | Connects to | Credit |
-|-------|--------|-------------|--------|
-| `/api/user` | POST/GET | Session, `user_profiles` | No |
-| `/api/local-intelligence` | POST | Postcodes.io, council context | No |
-| `/api/geocode/postcode` | GET | Server Nominatim proxy | No |
-
-##### Zone hydrate & research
-
-| Route | Method | Connects to | Credit |
-|-------|--------|-------------|--------|
-| `/api/scrape-sync` | GET | Neon `research_results`, `scraped[]`, coverage | Read; `?repair=1` may Firecrawl+Gemini |
-| `/api/scrape-sync` | POST | `validateSurgicalScrapeContext` → Firecrawl → `persistResearchResult` | **Yes** (surgical) |
-| `/api/scrape-sync` | GET `?force=true` | Broad `runZeroResearch` | **Blocked** in `bucket_failover` unless `ALLOW_BROAD_SCRAPE=1` |
-| `/api/answers` | POST | `buildUserImpact`, discovery race, optional `triggerScrapeSyncForCategory` | Gemini on race; scrape optional |
-| `/api/answers` | GET | Hydrate `journey_answers_jsonb` | No |
-
-##### Supplemental (capped)
-
-| Route | Method | Role | Cap |
-|-------|--------|------|-----|
-| `/api/zone/injections` | POST | Trap follow-up card | 3/journey |
-| `/api/research/question-card` | POST | Free-form Ask card | 3/journey |
-| `/api/zone/content-architect` | POST | Polish `architect_prose` | Batch/async |
-| `/api/zone/tips-refresh` | POST | Refresh tip tiles | Throttled |
-
-##### Cron & ops
-
-| Route | Method | Role |
-|-------|--------|------|
-| `/api/cron/zone-research` | GET/POST | Hermes batch; use `?repair=1` |
-| `/api/cron/repair-mechanical` | GET | Backfill £/headline without full crawl |
-| `/api/health/diagnostics` | GET | `bucket_failover` status (Bearer `CRON_SECRET` or session) |
-
-##### Zai & Sentinel
-
-| Route | Method | Firecrawl | Notes |
-|-------|--------|-----------|-------|
-| `/api/zai` | POST | **No** | `research_results` URLs/£ only — not `architect_prose` |
-| `/api/sentinel` | POST | Optional single gov.uk page | Tip rail only — not main copy path |
-
-##### Client CORS rule
-
-Browser **must not** call Ofgem or Nominatim directly. Use `/api/pulse/living`, `/api/geocode/postcode`, `/api/scrape-sync`.
-
----
-
-#### 3. Research path matrix (what births cards vs burns credits)
-
-| Path | Trigger | Firecrawl | Discovery card? | Cap |
-|------|---------|-----------|-----------------|-----|
-| **`POST /api/answers`** → `injectNewDiscoveryCard` | MC / loop answer | Optional category JIT | **Yes — canonical** | 3/journey |
-| **`POST /api/scrape-sync`** (POST body) | Answer, tip +1, dev bootstrap | Surgical | Persists row; may feed VM | Rate 24/min |
-| **`GET /api/scrape-sync?repair=1`** | Zone load, Hermes | Backfill missing fields | No inject | Visited skip |
-| **`POST /api/zone/injections`** | Trap close | Sometimes | Supplemental | 3/journey |
-| **`POST /api/research/question-card`** | Ask Zai free-form | Sometimes | Supplemental | 3/journey |
-| **`runRebirthVaultDiscovery`** | Discovery race entrant | Action Vault URLs | Race winner only | — |
-| **Sentinel `inject-sentinel-*`** | `useSentinel` | Rare | Tip rail | Not loop birth |
-| **Hermes cron** | Weekly | `repair-mechanical` | Backfill Neon | Batch limit |
-
-**Code:** `lib/agents/discoveryBirthRace.ts` · `lib/zone/patternShiftClose.ts` · `lib/zone/visitedCards.ts`
-
----
-
-#### 4. Scrape surfaces (allowed vs forbidden)
-
-**Module:** `lib/zai/chatBoundaries.ts`
-
-##### Allowed to trigger JIT scrape
-
-| Surface | Entry |
-|---------|--------|
-| `zone_answer_loop` | `POST /api/answers` → server discovery / supplemental |
-| `tip_verification_plus_one` | `runTipVerificationDeepScrape` |
-| `ask_zai_deep_dive_search_deeper` | Deep Dive sheet only |
-| `profile_postcode_step` | Profile locality seed |
-| `zone_hydration_get` | `GET /api/scrape-sync` read/repair |
-
-##### Forbidden (no new Firecrawl)
-
-| Surface | Why |
-|---------|-----|
-| `zai_chat_turn` | Read Neon + transcript only |
-| `zai_chat_continue_in_zai` | Handoff read-only |
-| `zai_close_audit_complete` | VM refresh only |
-| `visited_card_close` | Pink lock — no inject/scrape burn |
-
-**Assert:** `assertNoScrapeOnZaiChat()` throws if chat tries to scrape.
-
----
-
-#### 5. Surgical scrape gates (`bucket_failover`)
-
-**Module:** `lib/intelligence/scrapeBoundaries.ts`
-
-| Check | Rule |
-|-------|------|
-| Postcode | ≥ 4 chars, uppercased — **POSTCODE DNA** |
-| `journey_key` | Required — **one category per request** (Topic Shield) |
-| `profileData` | Required anchor (postcode + profile fields) |
-| Broad scrape | `GET ?force=true` and full cron batch **blocked** unless `ALLOW_BROAD_SCRAPE=1` |
-| `MAX_ITERATIONS` | Default **5** (env, max 12) |
-| `SKIP_FIRECRAWL=1` or missing key | Mechanical + Neon fallback only |
-| `shouldSkipDeepGeminiSearch` | True in bucket mode |
-
-**Verify production:**
-
-```bash
-curl -sS -H "Authorization: Bearer $CRON_SECRET" \
-  'https://00-ulm.vercel.app/api/health/diagnostics' | jq '.bucket_failover'
-```
-
-Expect: `enabled: true`, `broadScrapeAllowed: false`, `skipDeepGemini: true` (when env set).
-
-##### Env vars (credit control)
-
-| Variable | Purpose |
-|----------|---------|
-| `MODEL_STRATEGY=bucket_failover` | Enables surgical gates + provider failover |
-| `MAX_ITERATIONS=5` | Caps research loop iterations |
-| `ALLOW_BROAD_SCRAPE=1` | **Dev only** — allows `?force=true` |
-| `SKIP_FIRECRAWL=1` | No Firecrawl HTTP |
-| `FIRE_CRAWL_KEY_2` / `FIRECRAWL_API_KEY` | Firecrawl auth |
-| `GEMINI_API_KEY` | Gemini (server-only) |
-| `BUCKET_SKIP_GEMINI=1` | Failover skips Gemini |
-| `BUCKET_SKIP_DEEP_GEMINI=1` | No second-pass deep search |
-| `VERCEL_FORCE_NO_BUILD_CACHE=1` | Optional — clean Vercel build (dashboard checks unrelated) |
-
----
-
-#### 6. ULM ceilings (product + Neon)
-
-**Module:** `lib/zone/ulmLimits.ts` · `lib/intelligence/manifest.ts`
-
-| Ceiling | Value |
-|---------|-------|
-| Bento cells (hero excluded) | **24** |
-| Discovery injects per user per journey | **3** |
-| Discovery tips visible per journey on wall | **1** |
-| Rock rail cold start | **6** |
-| Rock rail absolute max | **12** |
-| Cards per category on wall | **2** (design target — `perCategoryCardCap`) |
-
----
-
-#### 7. Scrape URL catalogue (control spend)
-
-Only **HTTPS** seeds below. Surgical POST uses **`buildCategoryFirecrawlSeedUrls`** (`lib/intelligence/researchProfilePayload.ts`) — merges journey seeds + employment + trusted fallback; **max ~8 URLs** per broad `runZeroResearch` batch (`researchAgent.ts`).
-
-##### 7.1 Per-journey surgical seeds (`JOURNEY_FIRECRAWL_SEEDS`)
-
-| Journey | URLs (priority order) |
-|---------|------------------------|
-| **utilities** | MSE switch · Ofgem cap · EST |
-| **home** | BUS apply · EST · Which? energy |
-| **grants** | BUS · ECO · EST grants |
-| **travel** | National Rail railcards · Trainline · gov.uk rail fares |
-| **holidays** | Eurostar · Visit Britain · National Rail |
-| **food** | Love Food Hate Waste · Which? food |
-| **money** | MSE utilities · Warm Home Discount |
-| **shopping** | Which? shopping |
-| **tech** | Back Market |
-| **waste** | gov.uk recycling |
-| **water** | Waterwise |
-| **solar** | gov.uk solar publication |
-| **carbon** | Ofgem |
-
-##### 7.2 Trusted CTA fallbacks (`TRUSTED_JOURNEY_URLS`)
-
-**Module:** `lib/zone/trustedJourneyUrls.ts` — used when model omits `offer_url` or sanitizer blocks bad gov paths.
-
-| Journey | Fallback URL |
-|---------|----------------|
-| home | energysavingtrust.org.uk/reducing-home-heat-loss |
-| utilities | moneysavingexpert.com/utilities/how-to-switch |
-| grants | gov.uk/apply-boiler-upgrade-scheme |
-| solar | mcscertified.com/find-an-installer |
-| travel | nationalrail.co.uk/railcards |
-| holidays | eurostar.com/uk-en/deals |
-| food | lovefoodhatewaste.com |
-| shopping | wrap.org.uk/food-waste |
-| money | moneysavingexpert.com/utilities/how-to-switch |
-| tech | backmarket.co.uk |
-| water | waterwise.org.uk/save-water |
-| waste | recyclenow.com |
-| carbon | carbontrust.com/resources |
-
-Default: `https://www.gov.uk/`
-
-##### 7.3 UK 2026 core batch (`UK_2026_SEED_URLS`)
-
-**Module:** `lib/agents/researchAgent.ts` — used in broad research / auditor (max **5** URLs in auditor, **8** in ZeroResearch batch).
-
-| URL |
-|-----|
-| Ofgem live price cap (see `OFGEM_LIVE_PRICE_CAP_URL` in `scraper.ts`) |
-| gov.uk/apply-boiler-upgrade-scheme |
-| gov.uk/energy-company-obligation |
-| energysavingtrust.org.uk |
-| which.co.uk/money/saving-energy |
-| moneysavingexpert.com/utilities |
-| octopus.energy/blog |
-| consumerreports.org/money/energy |
-
-##### 7.4 Nine-domain grid seeds (`NINE_DOMAIN_GRID_SEED_URLS`)
-
-**Module:** `lib/agents/nineDomainResearchSeeds.ts` — researcher / grid bootstrap mix.
-
-- ofgem.gov.uk/energy-advice-households/energy-price-cap  
-- moneysavingexpert.com/cheapenergyclub  
-- moneysavingexpert.com/utilities  
-- gov.uk/find-energy-grants-help-pay-bills  
-- gov.uk/improve-energy-efficiency  
-- gov.uk/energy-company-obligation  
-- olioex.com  
-- hiyacar.co.uk  
-- justpark.com  
-- ccwater.org.uk/.../leaks-and-save-water  
-- gov.uk/.../recycling-rubbish-waste  
-- gov.uk/.../road-freight-logistics-emissions  
-- gov.uk/.../vehicle-tax-exemption-for-electric-vehicles  
-- moneysavingexpert.com/shopping  
-
-##### 7.5 Employment-aware extra seeds
-
-**Module:** `buildEmploymentAwareResearchSeeds` in `researchProfilePayload.ts`
-
-**Employed / not low income:** EST solar/export, Octopus smart/agile/export, cycle-to-work, MSE, Which? energy.
-
-**Unemployed / low income:** Warm Homes Local Grant, ECO, Warm Home Discount, EST grants, find-energy-grants.
-
-**Rule:** Employed users **skip grant-heavy URLs** on non-grants journeys (`skipGrantSeeds`).
-
-##### 7.6 Dynamic locality (postcode-driven)
-
-| Pattern | Example |
-|---------|---------|
-| Local council finder | `gov.uk/find-local-council/{POSTCODE}` |
-| Council org page | `gov.uk/government/organisations/{council-slug}` |
-| International context | ecologie.gouv.fr (only when user context mentions FR regions) |
-
-##### 7.7 Rebirth Action Vaults (`actionVaults.ts`)
-
-Used by **`runRebirthVaultDiscovery`** (race entrant, not default path). Max **5** URLs per vault:
-
-| Vault | Journeys | Hosts |
-|-------|----------|-------|
-| **A** | home, carbon, waste | Ofgem, gov.uk efficiency/grants/BUS, MSE, EST |
-| **B** | travel, holidays, tech | gov.uk EV tax, Hiyacar, Liftshare, Karshare, Turo |
-| **C** | food, shopping, money | Olio, Too Good To Go, Ethical Consumer, Freegle, MSE shopping |
-
-##### 7.8 Sentinel (adjunct)
-
-- `https://www.gov.uk/energy-advice-households`  
-- Scotland heat pump: `homeenergyscotland.org/...` when applicable  
-
-##### 7.9 Free-tier APIs (no Firecrawl)
-
-| API | Route | Module |
-|-----|-------|--------|
-| Carbon Intensity | — | `lib/intelligence/nesoGridClient.ts` |
-| Postcodes.io | `/api/local-intelligence` | geocode stack |
-| OpenEPC (optional) | profile hydrate | `lib/intelligence/openEpcClient.ts` |
-| Ofgem pulse proxy | `/api/pulse/living` | `lib/logic/pulse.ts` |
-
----
-
-#### 8. Visited / pink guards (no credit burn)
-
-| Guard | Module | Behaviour |
-|-------|--------|-----------|
-| Visited journey keys on repair | `scrape-sync` GET | Skips re-scrape categories already visited |
-| `shouldSkipInjectionOnCardClose` | `visitedCards.ts` | No inject on tip close |
-| `shouldCloseMarkPinkOnly` | `directorsOrder.ts` | Discovery child → pink, no loop |
-| `cardVisitedLock` | Zone page | No follow-up scrape on re-open |
-| Rate limit | `scrape-sync` | **24** requests/minute per id |
-
----
-
-#### 9. Solo Focus copy rules (no extra API spend)
-
-| Rule | Code |
-|------|------|
-| Max **2** prose blocks (H4 lead + 1 Roboto body) | `MAX_SOLO_FOCUS_PROSE_BLOCKS`, `resolveSoloFocusDisplayProse` |
-| No third `architectActionLine` in Solo Focus | `shouldShowSoloFocusArchitectActionLine` → false |
-| £ in prose → hide payoff duplicate | `proseContainsMoneyStamp`, `shouldOmitPayoffLine` |
-| Zai never repeats card 3-beat | `ZAI_READ_ONLY_TRUTH_RULES` |
-
----
-
-#### 10. Audit commands
-
-```bash
-npm run verify
-npm run db:test
-npm run db:log-research
-npm run db:audit
-export CRON_SECRET="$(grep '^CRON_SECRET=' .env.local | cut -d= -f2-)"
-curl -sS -H "Authorization: Bearer ${CRON_SECRET}" \
-  'https://00-ulm.vercel.app/api/health/diagnostics' | jq
-bash scripts/verify-env-and-health.sh   # BASE_URL=https://00-ulm.vercel.app
-curl -sS 'https://00-ulm.vercel.app/api/geocode/postcode?postcode=SW1A1AA' | jq
-```
-
-**SQL (Neon):** latest research row per category — see [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md).
-
----
-
-#### 11. File index (pipeline code)
-
-| Path | Role |
-|------|------|
-| `lib/intelligence/scrapeBoundaries.ts` | Bucket / surgical / Firecrawl skip |
-| `lib/intelligence/researchProfilePayload.ts` | Per-journey Firecrawl URL builder |
-| `lib/agents/researchAgent.ts` | Firecrawl HTTP, persist, UK_2026_SEED_URLS |
-| `lib/agents/actionVaults.ts` | Rebirth vault URL sets |
-| `lib/zone/trustedJourneyUrls.ts` | CTA fallbacks |
-| `lib/zai/chatBoundaries.ts` | Scrape allow/forbid surfaces |
-| `lib/researchSyncClient.ts` | Client `triggerScrapeSyncForCategory` |
-| `app/api/scrape-sync/route.ts` | Hydrate, repair, POST trigger |
-| `app/api/answers/route.ts` | Canonical discovery birth |
-| `lib/brains/buildUserImpact.ts` | £/kg engine |
-| `lib/zone/buildZoneViewModel.ts` | Zone VM |
-| `lib/zone/mechanicalTruth.ts` | COMPUTING vs stream |
-| `lib/soloFocusCopy.ts` | Headlines, prose dedupe, max-2 |
 
 ---
 
