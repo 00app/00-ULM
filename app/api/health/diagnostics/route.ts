@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import pool, { pingDatabase } from '@/lib/db'
+import pool, { getDatabaseConnectionInfo, pingDatabase } from '@/lib/db'
 import { ROCK_HABIT_COUNT, ROCK_HABITS } from '@/lib/rock/habitsCatalog'
 import { getSessionFromRequest } from '@/lib/auth'
 import {
@@ -95,6 +95,9 @@ export async function GET(request: NextRequest) {
   const bucket = bucketFailoverStatus()
   const bucketProviders = listConfiguredBucketProviders()
 
+  const debugMode = authed && request.nextUrl.searchParams.get('debug') === '1'
+  const databaseConnectionInfo = debugMode ? getDatabaseConnectionInfo() : null
+
   /** Zone Intelligence Strip polls this without a session — expose capability booleans only. */
   if (!authed) {
     return NextResponse.json({
@@ -144,5 +147,6 @@ export async function GET(request: NextRequest) {
     rockHabitCount: ROCK_HABIT_COUNT,
     rockCatalogPath: 'lib/rock/habitsCatalog.ts',
     rockTipProviderSample,
+    databaseConnectionInfo: databaseConnectionInfo ?? undefined,
   })
 }

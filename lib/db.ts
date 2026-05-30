@@ -56,6 +56,65 @@ export function mergeSslModeRequire(connectionString: string): string {
   return `${t}${joiner}sslmode=require`
 }
 
+function maskDatabasePassword(connectionString: string): string | null {
+  if (!connectionString) return null
+  return connectionString.replace(/:\/\/([^:/?#]+):[^@]+@/, '://$1:***@')
+}
+
+function parseDatabaseUrl(connectionString: string) {
+  if (!connectionString) {
+    return { host: null, database: null, user: null, sslmode: null }
+  }
+
+  try {
+    const url = new URL(connectionString)
+    return {
+      host: url.host || null,
+      database: url.pathname?.slice(1) || null,
+      user: url.username || null,
+      sslmode: url.searchParams.get('sslmode') || null,
+    }
+  } catch {
+    const match = connectionString.match(
+      /^postgres(?:ql)?:\/\/([^:/?#]+):([^@]+)@([^/]+)\/([^?]+)(?:\?(.*))?$/i
+    )
+    if (!match) {
+      return { host: null, database: null, user: null, sslmode: null }
+    }
+    const [, user, , host, database, query] = match
+    const sslmode = query?.split('&').find((part) => part.startsWith('sslmode='))?.split('=')[1] ?? null
+    return { host, database, user, sslmode }
+  }
+}
+
+export type DatabaseConnectionInfo = {
+  configured: boolean
+  hasDatabaseUrl: boolean
+  host: string | null
+  database: string | null
+  user: string | null
+  sslmode: string | null
+  isNeonServerless: boolean
+  maskedConnectionString: string | null
+}
+
+export function getDatabaseConnectionInfo(): DatabaseConnectionInfo {
+  const raw = process.env.DATABASE_URL?.trim() ?? ''
+  const resolved = raw ? mergeSslModeRequire(sanitizeNeonConnectionString(raw)) : ''
+  const parsed = parseDatabaseUrl(resolved)
+
+  return {
+    configured: isDatabaseConfigured(),
+    hasDatabaseUrl: Boolean(raw),
+    host: parsed.host,
+    database: parsed.database,
+    user: parsed.user,
+    sslmode: parsed.sslmode,
+    isNeonServerless: shouldUseNeonServerless(resolved),
+    maskedConnectionString: maskDatabasePassword(resolved),
+  }
+}
+
 /** True when a real Neon/Vercel DATABASE_URL is configured (not dev localhost fallback). */
 export function isDatabaseConfigured(): boolean {
   const raw = process.env.DATABASE_URL?.trim() ?? ''

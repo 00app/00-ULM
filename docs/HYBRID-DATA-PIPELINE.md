@@ -7,7 +7,7 @@ Full product loop: **[ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md)**. **How
 | Tier | Surface | Premium (Gemini / Firecrawl) |
 |------|---------|------------------------------|
 | **A** | Profile onboarding (8 steps + postcode) | **None** — Postcodes.io, Carbon Intensity API, optional OpenEPC |
-| **B** | Zone grid (`buildZoneViewModel`) | **None** for baseline £/kg on 12 journey tiles |
+| **B** | Zone grid (`buildZoneViewModel`) | **None** for baseline £/kg on 13 journey tiles |
 | **B′** | Cached `research_results` tip copy | **Only if row empty** — surgical seed URL + Gemini triplet |
 | **C** | Solo Focus answer (`POST /api/answers`) | **Hybrid spawn** when `MODEL_STRATEGY=bucket_failover` — locked £/kg + editorial Gemini |
 | **D** | `/zai` chat | **None** — read-only Neon + genome; no Firecrawl |

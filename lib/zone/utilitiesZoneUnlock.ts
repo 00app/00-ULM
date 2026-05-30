@@ -1,6 +1,6 @@
 /**
  * UTILITIES is the 13th Zone category — born on the wall only after profile **power type**.
- * (12 journey tiles visible before; utilities unlocks when `profile_home_power` is set.)
+ * (13 journey tiles visible before; utilities unlocks when `profile_home_power` is set.)
  */
 
 export type ProfilePowerTypeFields = {

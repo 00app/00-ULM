@@ -31,43 +31,16 @@ function loadEnvFile(relPath: string) {
   }
 }
 
-const ENV_FALLBACKS = ['.env.local', '.env.production.local', '.vercel/.env.production.local'] as const
-
-function resolveDatabaseUrlFromEnv(): { url: string; source: string } {
+async function main() {
   const envArgIdx = process.argv.indexOf('--env-file')
   const envFile =
     envArgIdx >= 0 && process.argv[envArgIdx + 1] ? process.argv[envArgIdx + 1] : undefined
-  if (envFile) {
-    loadEnvFile(envFile)
-    const url = sanitizeNeonConnectionString(process.env.DATABASE_URL?.trim() ?? '')
-    if (url) return { url, source: envFile }
-  } else {
-    loadEnvLocal({ preferLocal: true })
-    let url = sanitizeNeonConnectionString(process.env.DATABASE_URL?.trim() ?? '')
-    if (url) return { url, source: '.env.local' }
-    for (const rel of ENV_FALLBACKS.slice(1)) {
-      if (!fs.existsSync(path.join(process.cwd(), rel))) continue
-      loadEnvFile(rel)
-      url = sanitizeNeonConnectionString(process.env.DATABASE_URL?.trim() ?? '')
-      if (url) return { url, source: rel }
-    }
-  }
-  return { url: '', source: '' }
-}
-
-async function main() {
-  const { url, source } = resolveDatabaseUrlFromEnv()
+  if (envFile) loadEnvFile(envFile)
+  else loadEnvLocal({ preferLocal: true })
+  const url = sanitizeNeonConnectionString(process.env.DATABASE_URL?.trim() ?? '')
   if (!url) {
-    console.error(
-      'DATABASE_URL missing or empty in .env.local — run:\n' +
-        '  vercel pull --yes --environment=production\n' +
-        '  cp .vercel/.env.production.local .env.local\n' +
-        'Or: npm run db:log-research:prod'
-    )
+    console.error('DATABASE_URL missing — set in .env.local')
     process.exit(1)
-  }
-  if (source && source !== '.env.local') {
-    console.error(`→ Using DATABASE_URL from ${source}`)
   }
 
   const sql = neon(url)

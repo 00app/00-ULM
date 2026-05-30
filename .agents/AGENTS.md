@@ -20,7 +20,7 @@ The card state machine enforces structural safety. Any revisit or closing behavi
 
 | Card Type | Lifecycle State / Action | Expected Transition | state (Atomic Pink) |
 |:---|:---|:---|:---:|
-| **Mother Category Bento** (12 Journeys) | First open -> answer option selected -> **RESULT** shown -> close card. | Triggers **`DiscoveryTakeover`** (exactly one loop question per journey). Once answered, client spawns new discovery child. | **Atomic Pink** `#FF00FF` (`completeCleanBirth`) |
+| **Mother Category Bento** (13 Journeys) | First open -> answer option selected -> **RESULT** shown -> close card. | Triggers **`DiscoveryTakeover`** (exactly one loop question per journey). Once answered, client spawns new discovery child. | **Atomic Pink** `#FF00FF` (`completeCleanBirth`) |
 | **Discovery Child** (`inject-*`) | Open Solo Focus -> view local verified audit details -> close card. | Closes immediately to grid. No loop question is mounted. | **Atomic Pink** `#FF00FF` (`shouldCloseMarkPinkOnly`) |
 | **Rock Tip** (Habits Rail) | Open habit list -> read tips -> close card. | Closes immediately to grid. No loop question or takeover. | **Atomic Pink** `#FF00FF` (`shouldCloseToGridOnly`) |
 | **Revisited Card** (Pink) | Open pink bento card -> close card. | Closes immediately to grid. No loop takeover or second questions. | Remains **Atomic Pink** (`hasLoopDoneForJourney`) |

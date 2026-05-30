@@ -3,7 +3,7 @@ import { TRUE_WIN_RAILS } from '@/lib/zone/trueWinRails'
 /** Mechanical Zone tip cards when Gemini / Firecrawl are skipped or fail. */
 export function fallbackZoneTips(postcodeNorm: string | null): unknown[] {
   const locality = postcodeNorm ? ` ${postcodeNorm}` : ''
-  const OFGEM_CAP_URL = 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap'
+  const DEFAULT_CAP_URL = ''
   return [
     {
       id: 'inject-fallback-home-cap',
@@ -11,11 +11,11 @@ export function fallbackZoneTips(postcodeNorm: string | null): unknown[] {
       journey_key: 'home',
       category: 'home',
       data: { money: `£${Math.round(TRUE_WIN_RAILS.energyCapGbp * 0.08)}`, carbon: '140 kg CO₂' },
-      source: OFGEM_CAP_URL,
-      sourceLabel: 'Ofgem',
+      source: DEFAULT_CAP_URL,
+      sourceLabel: 'Energy Advice',
       dominant_win: 'money',
       explanation: ['Use official cap context to cut standby and heating drift this month.'],
-      actions: { actionType: 'learn', learnUrl: OFGEM_CAP_URL },
+      actions: { actionType: 'learn', learnUrl: DEFAULT_CAP_URL },
     },
     {
       id: 'inject-fallback-travel-mode',

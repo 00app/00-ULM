@@ -218,8 +218,21 @@ export function calculateTravel(
   const ozevLine = `OZEV £${TRUTH_2026_MARCH.EV_GRANT_NEW_GBP} chargepoint grant (flats & renters) from 1 Apr 2026 — £500 per socket (was £350).`
   const travelExplain =
     isEv || a.fuel_type === 'HYBRID'
-      ? [ozevLine, 'How you get around shapes your carbon — claim the verified grant before you size the install.']
-      : ['How you get around shapes your carbon.']
+      ? [
+          ozevLine,
+          'your ev or hybrid runs at ~4p/mile versus 18p/mile for petrol at april 2026 fuel prices — the gap widens further as smart overnight charging drops below the peak rate.',
+          'home chargepoint installation takes one half-day — claim the ozev grant before you book, as installer slots fill 6–8 weeks ahead.',
+        ]
+      : isPetrol || isDiesel
+        ? [
+            'petrol and diesel commuting at uk averages costs £1,400–£2,200/yr in fuel alone — switching one 10-mile round trip per week to rail cuts ~120 kg co₂e and often the same in cash.',
+            'one day per week remote removes 20% of your annual commute footprint without hardware or kit changes.',
+            'the defra transport emission factor for petrol is 0.165 kg co₂e per km — every 6 km you avoid saves 1 kg.',
+          ]
+        : [
+            'your transport pattern already sits below the uk car-commuter average — every trip not made by car avoids 0.165 kg co₂e per km.',
+            'bus and train travel emits 5–10x less per passenger km than a solo petrol car — rail is cheaper than fuel once you account for parking.',
+          ]
   return {
     carbonKg: Math.round(Math.max(0, carbon)),
     moneyGbp: Math.max(0, money),
@@ -242,42 +255,123 @@ export function calculateFood(a: Record<string, string>): ImpactResult {
           : 1800
   const organic = String(a.organic_shopping ?? a.food_waste ?? '').toUpperCase()
   const money = organic === 'HIGH' ? 280 : organic === 'SOME' || organic === 'MEDIUM' ? 150 : 80
-  return { carbonKg: carbon, moneyGbp: money, source: 'wrap uk', explanation: ['UK food emissions vary with what we eat.'] }
+  // own_produce saving not yet in profile questions — map when added
+  return {
+    carbonKg: carbon,
+    moneyGbp: money,
+    source: 'wrap uk',
+    explanation: [
+      'diet is the largest controllable carbon lever in a uk household — a meat-heavy diet runs ~1,800 kg/yr versus 800 kg for plant-based at wrap uk averages.',
+      'two meat-free meals per week drops annual food carbon by ~300 kg — no income penalty, no calorie change, no equipment.',
+      'organic and local produce cuts embedded transport and synthetic nitrogen emissions — pair with a weekly meal plan to stop buying what you discard.',
+    ],
+  }
 }
 
 export function calculateShopping(a: Record<string, string>): ImpactResult {
+  // Map profile question keys: retail_channel, repair_mindset, online_deliveries
+  const channel = String(a.retail_channel ?? a.buy_new ?? '').toUpperCase()
+  const repair = String(a.repair_mindset ?? '').toUpperCase()
+  const deliveries = String(a.online_deliveries ?? '').toUpperCase()
+
+  const isSecondHand = channel === 'SECOND_HAND'
+  const isMixed = channel === 'MIXED'
+  const repairsFirst = repair === 'REPAIR_FIRST'
+  const highDeliveries = deliveries === 'DAILY' || deliveries === 'WEEKLY'
+
+  // Default £200/month non-food discretionary (UK average — WRAP)
   const monthly = Number(a.monthly_spend ?? 200)
   const annualSpend = monthly * 12
-  const carbon = Math.max(0, annualSpend * 2.5)
-  const money =
-    a.buy_new === 'OFTEN' ? Math.round(annualSpend * 0.2) :
-    a.buy_new === 'SOMETIMES' ? Math.round(annualSpend * 0.1) : 0
+
+  // Carbon: new goods embed ~2.5 kg CO₂e per £ (WRAP UK lifecycle average)
+  const carbonMultiplier = isSecondHand ? 0.4 : isMixed ? 0.7 : 1.0
+  const carbonKg = Math.round(Math.max(0, annualSpend * 2.5 * carbonMultiplier))
+
+  // Money: circular economy saving stack
+  let moneyGbp = 0
+  if (!isSecondHand) moneyGbp += Math.round(annualSpend * 0.15) // second-hand saves ~15% avg
+  if (!repairsFirst) moneyGbp += Math.round(annualSpend * 0.07) // repair vs replace saving
+  if (highDeliveries) moneyGbp += 80 // delivery consolidation saves £80+/yr
+
   return {
-    carbonKg: Math.round(carbon),
-    moneyGbp: Math.max(0, money),
-    source: 'uk retail emissions',
-    explanation: ['Buying less new cuts emissions and spending.'],
+    carbonKg,
+    moneyGbp: Math.max(0, moneyGbp),
+    source: 'wrap uk',
+    explanation: [
+      'new goods embed ~2.5 kg co₂e per £ spent across their full lifecycle — buying second-hand cuts that carbon by 60% and the cost by 30–70%.',
+      'uk households spend ~£2,400/yr on non-food discretionary items — repairing instead of replacing extends product life and removes manufacturing carbon from your footprint.',
+      'consolidating weekly online deliveries into one slot cuts last-mile van emissions — daily delivery runs generate 4x the carbon of a single weekly collection.',
+    ],
   }
 }
 
 export function calculateMoney(a: Record<string, string>): ImpactResult {
-  const money = a.finances_tight === 'YES' ? 250 : 0
+  // Map profile question keys: monthly_energy_bill, tariff_type, green_investments
+  const greenInvestments = String(a.green_investments ?? '').toUpperCase()
+  const tariff = String(a.tariff_type ?? '').toUpperCase()
+  const monthlyBill = Number(a.monthly_energy_bill ?? 0)
+
+  let money = 0
+
+  // April 2026 green levy shift — £150 off dual-fuel bills
+  money += TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP
+
+  // Green investment potential
+  if (greenInvestments === 'HIGH') money += 300
+  else if (greenInvestments === 'SOME') money += 150
+  else money += 60
+
+  // Tariff optimisation headroom
+  if (tariff === 'VARIABLE' || tariff === 'UNKNOWN') money += 120
+  else if (tariff === 'FIXED') money += 40
+
+  // Monthly bill → switching saving (8% at uk averages)
+  if (monthlyBill > 0) {
+    money += Math.round(monthlyBill * 12 * 0.08)
+  } else {
+    money += 80 // default switching saving
+  }
+
   return {
     carbonKg: 0,
-    moneyGbp: money,
-    source: 'uk household spending',
+    moneyGbp: Math.max(0, money),
+    source: 'ofgem + gov.uk',
     explanation: [
-      'Warm Home Discount expanded to ~6m households; £150 rebate — eligibility widened for hard-to-heat homes from April 2026.',
-      '£15bn Warm Homes Plan: broader support for bills efficiency — pair with your biggest cost bucket below.',
-      'Where you spend most affects budget and carbon.',
+      `green levies moved off dual-fuel bills from april 2026 — £${TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP} off the typical household cap before any switching or green investment move.`,
+      'a variable or unknown tariff is the highest-risk position heading into the next ofgem window — locking into a fixed below the april £1,641 cap sets your cost floor.',
+      'ethical current accounts, isas, and pension switches earn market-rate returns without funding fossil extraction — no income penalty for moving your cash.',
     ],
     claimOfferUrl: 'https://www.gov.uk/apply-warm-home-discount-scheme',
   }
 }
 
 export function calculateCarbon(a: Record<string, string>): ImpactResult {
-  const carbon = a.tracking === 'NO' ? 300 : 0
-  return { carbonKg: carbon, moneyGbp: 0, source: 'carbon trust uk', explanation: ['Tracking your carbon helps you see where to act.'] }
+  // Map profile question keys: footprint_awareness, carbon_removal, tonne_reduction_timeline
+  const awareness = String(a.footprint_awareness ?? a.tracking ?? '').toUpperCase()
+  const removal = String(a.carbon_removal ?? '').toUpperCase()
+  const timeline = String(a.tonne_reduction_timeline ?? '').toUpperCase()
+
+  // Carbon gap: unknown or rough footprint = untracked waste above baseline
+  const carbonKg = awareness === 'NO' ? 300 : awareness === 'ROUGH' ? 150 : 80
+
+  // Money: removal schemes and precision tracking tools
+  let moneyGbp = 0
+  if (removal === 'HIGH') moneyGbp = 140
+  else if (removal === 'SOME') moneyGbp = 80
+  if (timeline === 'THIS_YEAR') moneyGbp += 60
+  else if (timeline === 'ONE_TO_THREE') moneyGbp += 30
+
+  return {
+    carbonKg,
+    moneyGbp,
+    source: 'carbon trust uk',
+    explanation: [
+      'the uk domestic baseline is 12,000 kwh and 1 tonne co₂e per year — most households run 1.5–2.5x that before transport is added.',
+      'tracking your three largest energy habits for 30 days — heating, driving, flying — locates where 80% of your footprint actually lives.',
+      'carbon removal is not the same as offsetting — gold standard biochar and direct air capture remove co₂ already in the atmosphere; offsets only prevent future emissions elsewhere.',
+    ],
+    claimOfferUrl: removal !== 'NONE' && removal !== '' ? 'https://www.goldstandard.org/take-action/offset-your-emissions' : undefined,
+  }
 }
 
 export function calculateGrants(a: Record<string, string>): ImpactResult {
@@ -292,7 +386,11 @@ export function calculateGrants(a: Record<string, string>): ImpactResult {
     carbonKg,
     moneyGbp,
     source: 'gov.uk grants',
-    explanation: ['UK grant routes stack with boiler age and eligibility signals.'],
+    explanation: [
+      `the boiler upgrade scheme pays £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString()} toward an air-source heat pump — rising to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString()} for oil and lpg properties from july 2026.`,
+      'eco4 targets band e, f, g rated homes — if you are on qualifying benefits and your property is hard-to-heat, a full fabric upgrade may cost you nothing.',
+      'grants stack: bus + warm home discount + local authority flex fund can combine for eligible households — check eligibility before booking any installer.',
+    ],
     claimOfferUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
   }
 }
@@ -310,7 +408,11 @@ export function calculateSolar(a: Record<string, string>): ImpactResult {
     carbonKg,
     moneyGbp,
     source: 'mcs solar uk',
-    explanation: ['South-facing low-shade roofs with daytime use export more value.'],
+    explanation: [
+      'a south-facing, unshaded 4kw system generates ~3,800 kwh/yr at uk averages — against the 12,000 kwh baseline that is 32% of your annual draw before smart export.',
+      'daytime self-consumption is where solar earns most — running dishwasher and washing machine at noon, or charging an ev, tightens payback to 6–8 years.',
+      'the smart export guarantee pays for every kwh you push to the grid — at octopus 15p/kwh export rate, a full system earns £250–400/yr on top of import savings.',
+    ],
   }
 }
 
@@ -326,7 +428,11 @@ export function calculateWater(a: Record<string, string>): ImpactResult {
     carbonKg,
     moneyGbp,
     source: 'waterwise uk',
-    explanation: ['Showers, butts, and rainwater cut hot-water energy.'],
+    explanation: [
+      'heating water is the second-largest energy draw in most uk homes — switching from baths to showers cuts hot-water demand by up to 40% at no cost.',
+      'a water butt cuts mains garden use by 50–70 litres per watering session in summer — large gardens see the biggest payback on water bills and pump energy.',
+      'aerators on taps and showerheads cost under £10 each and cut water flow by 30% without changing pressure — fastest return on any water measure.',
+    ],
   }
 }
 
@@ -355,7 +461,11 @@ export function calculateTech(a: Record<string, string>): ImpactResult {
     carbonKg,
     moneyGbp,
     source: 'uk tech emissions',
-    explanation: ['Smart heat and metering trim waste without new kit every year.'],
+    explanation: [
+      'a smart thermostat cuts heating by 10–15% on average — programme down by 1°c and save ~£80/yr at april 2026 gas rates of 5.74p/kwh.',
+      'smart plugs on always-on devices cut standby draw — uk households waste £35–60/yr on standby across tv, router, and gaming kit left in standby.',
+      'a smart meter ends estimated billing and shows real-time cost — users who can see spend in-app reduce usage by ~3% without any other behaviour change.',
+    ],
   }
 }
 
@@ -367,21 +477,56 @@ export function calculateWaste(a: Record<string, string>): ImpactResult {
     collection === 'NO' || collection === 'NEVER' ? 350 : collection === 'PARTIAL' || collection === 'SOMETIMES' ? 175 : 80
   let moneyGbp = compost === 'NO' ? 100 : compost === 'SHARED' ? 60 : 30
   if (soft === 'NEVER') moneyGbp += 40
-  return { carbonKg: carbon, moneyGbp, source: 'wrap uk', explanation: ['Recycling and composting reduce landfill.'] }
+  return {
+    carbonKg: carbon,
+    moneyGbp,
+    source: 'wrap uk',
+    explanation: [
+      'food waste is responsible for ~8% of global greenhouse gases — the average uk household throws away £700 of food per year, most of it avoidable.',
+      'composting diverts wet organic waste from landfill, where it releases methane at 25x the global warming impact of co₂ over 100 years.',
+      'soft plastic collection has expanded to most uk supermarkets — separate carrier bags and film from your kerbside bin to stop it going to energy-from-waste incineration.',
+    ],
+  }
 }
 
 export function calculateHolidays(a: Record<string, string>): ImpactResult {
   const flights = String(a.annual_flights ?? a.fly_frequency ?? '').toUpperCase()
   const duration = String(a.flight_duration ?? a.long_haul ?? '').toUpperCase()
+  const hasOffsets = String(a.carbon_offsets ?? '').toUpperCase() === 'YES'
   const carbon =
     flights === 'THREE_PLUS' || flights === 'OFTEN'
       ? 2200
       : flights === 'ONE_TWO' || flights === 'YEARLY'
         ? 1100
         : 0
+
+  // No flights — return £0 (not £120 minimum)
+  if (carbon === 0) {
+    return {
+      carbonKg: 0,
+      moneyGbp: 0,
+      source: 'defra aviation factors',
+      explanation: [
+        'no flights this year — your holiday carbon sits in the lowest uk bracket already.',
+        'train travel within the uk and europe emits 5–10x less per passenger than the equivalent short-haul flight and often costs less booked 8–12 weeks ahead.',
+        'if you do fly next year, economy class over business cuts your per-seat carbon by ~3x — seat count drives each passenger share of the aircraft total.',
+      ],
+    }
+  }
+
   let moneyGbp = duration === 'LONG_HAUL' || duration === 'YES' ? 320 : duration === 'MEDIUM' ? 200 : 120
-  if (String(a.carbon_offsets ?? '').toUpperCase() === 'YES') moneyGbp = Math.round(moneyGbp * 0.85)
-  return { carbonKg: carbon, moneyGbp, source: 'defra aviation factors', explanation: ['Flying is one of the highest-carbon choices.'] }
+  if (hasOffsets) moneyGbp = Math.round(moneyGbp * 0.85)
+
+  return {
+    carbonKg: carbon,
+    moneyGbp,
+    source: 'defra aviation factors',
+    explanation: [
+      'one long-haul return flight adds ~2.0 tonnes co₂e — that doubles the 1-tonne annual domestic baseline in a single trip.',
+      'switching one short-haul flight to eurostar cuts that journey carbon by 90% and often matches door-to-door time from central london to paris or amsterdam.',
+      'gold standard and verra-verified removal credits are the highest-integrity offset available — but they do not substitute for fewer flights, only partially balance what you cannot avoid.',
+    ],
+  }
 }
 
 export interface GeneralProfile {
