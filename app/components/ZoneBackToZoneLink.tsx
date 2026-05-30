@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { FixedViewportPortal } from '@/app/components/FixedViewportPortal'
+import { CloseXOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { ROUTES } from '@/lib/routes'
-import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 
 type ZoneBackToZoneLinkProps = {
   /** @default 'Back to Zone' */
@@ -24,7 +24,7 @@ export default function ZoneBackToZoneLink({ ariaLabel = 'Back to Zone', classNa
         aria-label={ariaLabel}
       >
         <span className="zz-back-arrow" aria-hidden>
-          <BackArrowDownLeft size={24} />
+          <CloseXOutlineIcon size={24} />
         </span>
       </Link>
     </FixedViewportPortal>

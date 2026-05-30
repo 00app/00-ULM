@@ -16,6 +16,8 @@ import {
   journeyKeysFromDisplayItems,
   resolveJourneyCellForSoloFocusNav,
   soloFocusJourneyNeighbors,
+  soloFocusNavRingFromDisplayItems,
+  type SoloFocusNavEntry,
 } from '@/lib/zone/soloFocusJourneyNav'
 import {
   markCardVisited,
@@ -1697,6 +1699,10 @@ export default function ZonePage() {
     ]
   )
   const displayItems: GroovyItem[] = useMemo(() => [...groovyItems], [groovyItems])
+  const soloFocusNavRing = useMemo(
+    () => soloFocusNavRingFromDisplayItems(displayItems),
+    [displayItems]
+  )
   const soloFocusJourneyRing = useMemo(
     () => journeyKeysFromDisplayItems(displayItems),
     [displayItems]
@@ -1926,6 +1932,30 @@ export default function ZonePage() {
       return url ? { ...h, learn_url: url } : h
     })
   }, [rockVisibleHabits, rockOfferByJourney])
+
+  const navigateSoloFocusEntry = useCallback(
+    (entry: SoloFocusNavEntry) => {
+      if (expandedTipId?.trim()) markCardVisited(expandedTipId)
+      if (expandedCardId?.trim()) markCardVisited(expandedCardId)
+      if (entry.kind === 'journey') {
+        setExpandedTipId(null)
+        setExpandedFromTip(null)
+        const cell = displayItems.find(
+          (c): c is GroovyItem & { type: 'journey' } =>
+            c.type === 'journey' && c.item.id === entry.cardId
+        )?.item
+        if (cell) openZoneJourneySoloFocus(cell)
+        return
+      }
+      setExpandedCardId(null)
+      setExpandedFromTip(null)
+      const isDiscovery = entry.cardId.startsWith('inject-')
+      if (openSoloFocus(entry.cardId, isDiscovery ? 'discovery' : 'tip')) {
+        setExpandedTipId(entry.cardId)
+      }
+    },
+    [displayItems, expandedCardId, expandedTipId, openSoloFocus, openZoneJourneySoloFocus]
+  )
 
   const navigateJourneyInSoloFocus = useCallback(
     (target: JourneyId) => {
@@ -2572,6 +2602,8 @@ export default function ZonePage() {
                       }}
                       onSwipeNextJourney={openNextJourneyFromExpanded}
                       onNavigateJourney={navigateJourneyInSoloFocus}
+                      onNavigateSoloFocus={navigateSoloFocusEntry}
+                      soloFocusNavRing={soloFocusNavRing}
                       soloFocusJourneyRing={soloFocusJourneyRing}
                     />
                     </div>
@@ -2778,6 +2810,8 @@ export default function ZonePage() {
                 verifiedAuditCategory={tipAuditMatches ? tip.journey_key : null}
                 researchCategoryCoverage={researchCategoryCoverage}
                 onNavigateJourney={navigateJourneyInSoloFocus}
+                onNavigateSoloFocus={navigateSoloFocusEntry}
+                soloFocusNavRing={soloFocusNavRing}
                 soloFocusJourneyRing={soloFocusJourneyRing}
               />
             </>

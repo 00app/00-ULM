@@ -13,6 +13,8 @@ export type SoloFocusProseStackProps = {
   auditHeaderLocality?: string | null
   locality?: string | null
   postcode?: string | null
+  /** Discovery inject cards — lead only (no Roboto body block). */
+  leadOnly?: boolean
 }
 
 export function SoloFocusProseStack({
@@ -26,6 +28,7 @@ export function SoloFocusProseStack({
   auditHeaderLocality,
   locality,
   postcode,
+  leadOnly = false,
 }: SoloFocusProseStackProps) {
   const { lead, body } = resolveSoloFocusDisplayProse({
     headline,
@@ -54,7 +57,7 @@ export function SoloFocusProseStack({
           {lead}
         </h4>
       ) : null}
-      {body ? (
+      {body && !leadOnly ? (
         <p
           className="solo-focus-architect-prose solo-focus-architect-body solo-focus-copy-width solo-focus-content-text text-left m-0 zz-body-bold text-sm md:text-base lg:text-lg leading-relaxed"
           style={proseStyle}

@@ -1,9 +1,25 @@
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { formatZoneCategoryLabel } from '@/lib/soloFocusCopy'
+import type { GroovyGridCell } from '@/lib/zone/gridOrder'
+
+export type SoloFocusNavEntry = {
+  cardId: string
+  journeyKey: JourneyId
+  kind: 'journey' | 'tip'
+  /** Nav rail label — mother cards use category; discovery tips use singular (e.g. grant). */
+  label: string
+}
 
 export type SoloFocusJourneyNeighbors = {
   prev: JourneyId
   next: JourneyId
+  prevLabel: string
+  nextLabel: string
+}
+
+export type SoloFocusNavNeighbors = {
+  prev: SoloFocusNavEntry
+  next: SoloFocusNavEntry
   prevLabel: string
   nextLabel: string
 }
@@ -19,6 +35,39 @@ export function journeyKeysFromDisplayItems(
     }
   }
   return keys
+}
+
+/** Wall-order ring — mother journey cells + nested discovery/baseline tips. */
+export function soloFocusNavRingFromDisplayItems(items: ReadonlyArray<GroovyGridCell>): SoloFocusNavEntry[] {
+  const ring: SoloFocusNavEntry[] = []
+  for (const cell of items) {
+    if (cell.type === 'journey') {
+      ring.push({
+        cardId: cell.item.id,
+        journeyKey: cell.item.journey_key,
+        kind: 'journey',
+        label: formatZoneCategoryLabel(cell.item.journey_key),
+      })
+    } else if (cell.type === 'tip') {
+      const jid = (cell.tip.journey_key ?? 'home') as JourneyId
+      ring.push({
+        cardId: cell.tip.id,
+        journeyKey: jid,
+        kind: 'tip',
+        label: singularSoloFocusNavLabel(jid),
+      })
+    }
+  }
+  return ring
+}
+
+/** Discovery / inject tips — singular lowercase label + arrow in nav (e.g. grant ↘). */
+export function singularSoloFocusNavLabel(journeyKey: JourneyId): string {
+  const full = formatZoneCategoryLabel(journeyKey).toLowerCase()
+  if (full === 'utilities') return 'utility'
+  if (full.endsWith('ies')) return `${full.slice(0, -3)}y`
+  if (full.endsWith('s')) return full.slice(0, -1)
+  return full
 }
 
 function neighborRing(availableOnWall?: readonly JourneyId[]): readonly JourneyId[] {
@@ -41,6 +90,24 @@ export function soloFocusJourneyNeighbors(
     next,
     prevLabel: formatZoneCategoryLabel(prev),
     nextLabel: formatZoneCategoryLabel(next),
+  }
+}
+
+export function soloFocusNavNeighbors(
+  currentCardId: string,
+  ring: readonly SoloFocusNavEntry[]
+): SoloFocusNavNeighbors | null {
+  if (ring.length === 0) return null
+  const i = ring.findIndex((e) => e.cardId === currentCardId)
+  const idx = i >= 0 ? i : 0
+  const len = ring.length
+  const prev = ring[(idx - 1 + len) % len]!
+  const next = ring[(idx + 1) % len]!
+  return {
+    prev,
+    next,
+    prevLabel: prev.label,
+    nextLabel: next.label,
   }
 }
 

@@ -988,7 +988,7 @@ p,
 }
 
 .solo-focus-mother-metrics {
-  margin-top: 20px !important;
+  margin-top: 0 !important;
 }
 
 .solo-focus-mother-metrics .solo-focus-impact-hero.insight-to-impact {
@@ -2180,6 +2180,7 @@ body, p, span, input, button, textarea, select,
 
 /* CO₂ — subscript digit uses Marvin (zone hero / stamps), not default subscript face */
 .data-carbon-units .data-co2-sub,
+.data-label .data-co2-sub,
 .intro-co2-sub {
   font-family: var(--font-marvin) !important;
   font-size: 0.65em !important;
@@ -2570,7 +2571,7 @@ body, p, span, input, button, textarea, select,
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus .solo-focus-rail {
-    max-width: 800px;
+    max-width: 880px;
   }
 }
 /* Strict physical split: Mother (A) above Child (B). */
@@ -2907,8 +2908,9 @@ h3.solo-focus-question-label.zz-h3 {
   margin-top: 40px !important;
 }
 
-/* Solo Focus mother stack — mobile column; md+ bento grid (copy | metrics). */
-.expanded-solo-focus .solo-focus-mother-grid.solo-focus-mother-stack {
+/* Solo Focus mother stack — single column all breakpoints; centred content slab. */
+.expanded-solo-focus .solo-focus-mother-grid.solo-focus-mother-stack,
+.expanded-solo-focus .solo-focus-mother-stack {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -2918,66 +2920,73 @@ h3.solo-focus-question-label.zz-h3 {
   gap: 0;
   box-shadow: none;
 }
-.expanded-solo-focus .solo-focus-mother-copy-col > * + *,
-.expanded-solo-focus .solo-focus-mother-metrics-col > * + * {
+.expanded-solo-focus .solo-focus-mother-stack > * + * {
   margin-top: 40px;
 }
-.expanded-solo-focus .solo-focus-mother-stack .solo-focus-mother-metrics-col .solo-focus-mother-metrics > * + *,
-.expanded-solo-focus .solo-focus-mother-metrics-col > .solo-focus-impact-hero + *,
-.expanded-solo-focus .solo-focus-mother-metrics-col > * + .solo-focus-trinity {
-  margin-top: 40px;
-}
-@media (min-width: 768px) {
-  .expanded-solo-focus .solo-focus-mother-grid.solo-focus-mother-stack {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    max-width: 72rem;
-    margin-inline: auto;
-    padding-inline: 2.5rem;
-    align-items: end;
-  }
-  .expanded-solo-focus .solo-focus-mother-copy-col > * + * {
-    margin-top: 40px;
-  }
-  .expanded-solo-focus .solo-focus-mother-metrics-col {
-    justify-content: flex-end;
-  }
-}
-@media (min-width: 1024px) {
-  .expanded-solo-focus .solo-focus-mother-grid.solo-focus-mother-stack {
-    gap: 3rem;
-    padding-inline: 2.5rem;
-  }
+.expanded-solo-focus .solo-focus-mother-stack .solo-focus-architect-headline + .solo-focus-true-tip-sections,
+.expanded-solo-focus .solo-focus-mother-stack .solo-focus-architect-headline + .solo-focus-true-tip-sections--mother {
+  margin-top: 10px !important;
 }
 .expanded-solo-focus .solo-focus-mother-stack .solo-focus-mother-metrics > * + * {
   margin-top: 40px;
 }
 .expanded-solo-focus .solo-focus-mother-metrics .solo-focus-journey-nav--inset {
-  margin-top: 0;
+  margin-top: 40px;
+  width: 100%;
+}
+.expanded-solo-focus .solo-focus-shell-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+@media (min-width: 768px) {
+  .expanded-solo-focus .solo-focus-shell-wrap,
+  .expanded-solo-focus .solo-focus-rail {
+    max-width: 640px;
+  }
+}
+@media (min-width: 1024px) {
+  .expanded-solo-focus .solo-focus-shell-wrap,
+  .expanded-solo-focus .solo-focus-rail {
+    max-width: 880px;
+  }
+}
+.solo-focus-utility-strip--shell-lock {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translateY(calc(-100% - 20px));
+  z-index: 260;
+  pointer-events: auto;
+}
+.solo-focus-utility-strip--shell-lock .solo-focus-close-circle {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
 }
 .expanded-solo-focus .solo-focus-architect-headline {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  min-height: calc(3 * 0.92 * var(--zz-h3-mobile));
+  display: block;
+  overflow: visible;
+  overflow-wrap: break-word;
+  word-break: normal;
+  min-height: 0;
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus .solo-focus-architect-headline {
-    min-height: calc(3 * 0.92 * var(--zz-h3-desktop));
+    min-height: 0;
   }
 }
 .expanded-solo-focus .solo-focus-true-tip-sections--mother .solo-focus-architect-lead {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
-  line-clamp: 5;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
   overflow: hidden;
-  overflow-wrap: anywhere;
-  min-height: calc(4 * 0.95 * var(--zz-h4-mobile));
+  overflow-wrap: break-word;
+  word-break: normal;
+  min-height: 0;
 }
 .expanded-solo-focus .solo-focus-true-tip-sections--mother .solo-focus-architect-body {
   display: -webkit-box;
@@ -3064,19 +3073,16 @@ h3.solo-focus-question-label.zz-h3 {
   padding: 0;
   text-align: left;
   max-width: 100%;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  overflow: hidden;
+  display: block;
+  overflow: visible;
   overflow-wrap: break-word;
-  word-break: break-word;
-  min-height: calc(3 * 0.92 * var(--zz-h3-mobile));
+  word-break: normal;
+  min-height: 0;
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus .solo-focus-architect-headline {
     font-size: var(--zz-h3-desktop) !important;
-    min-height: calc(3 * 0.92 * var(--zz-h3-desktop));
+    min-height: 0;
   }
 }
 .expanded-solo-focus .solo-focus-architect-headline + .solo-focus-true-tip-sections {
@@ -4645,6 +4651,15 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   right: calc(12px + env(safe-area-inset-right, 0px));
   z-index: 250;
 }
+/* Likes / Zai / Settings / Solo Focus — pink disc + yellow X (not purple back). */
+.zz-back-btn.zz-modal-close-btn {
+  background: var(--color-pink);
+  color: var(--color-yellow);
+}
+.zz-back-btn.zz-modal-close-btn:hover {
+  background: var(--zz-hover-bg);
+  color: var(--zz-hover-text);
+}
 
 /* Optional: nested fixed UI — stay above nextjs-portal (100) and base .zz-back-btn stacking */
 .zz-back-btn.zz-back-btn--overlay {
@@ -4663,9 +4678,17 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   color: var(--color-yellow) !important;
   
 }
+.expanded-solo-focus .zz-back-btn.zz-modal-close-btn {
+  background: var(--color-pink) !important;
+  color: var(--color-yellow) !important;
+}
 .expanded-solo-focus .zz-back-btn:hover {
   background: var(--color-yellow) !important;
   color: var(--color-purple) !important;
+}
+.expanded-solo-focus .zz-back-btn.zz-modal-close-btn:hover {
+  background: var(--zz-hover-bg) !important;
+  color: var(--zz-hover-text) !important;
 }
 
 /* Settings page — close uses .zz-back-btn (top-right) */
@@ -6974,7 +6997,35 @@ html.zz-zai-document body {
 .zz-profile-page {
   background: transparent;
   color: var(--color-yellow);
+  justify-content: center;
+  align-items: center;
+  min-height: 100dvh;
+  box-sizing: border-box;
+}
+
+/* Input focus: lift step above mobile keyboard; recentre when keyboard closes. */
+.zz-profile-page--keyboard {
   justify-content: flex-start;
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+}
+
+.zz-profile-page .profile-step-slam {
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+  align-items: center;
+  text-align: center;
+}
+
+.zz-profile-page .profile-question-headline {
+  margin-inline: auto;
+  align-items: center;
+  text-align: center;
+  max-width: min(92vw, 28rem);
+}
+
+.zz-profile-page .profile-step-slam > .profile-step-controls {
+  margin-inline: auto;
 }
 
 /* Zone Solo Focus + loop takeover — same centred MC stack as `/profile` steps. */
@@ -6993,30 +7044,10 @@ html.zz-zai-document body {
   margin-inline: auto;
 }
 
-/* Mobile + tablet: top-aligned step (unchanged). Desktop: centre question + answers in viewport. */
+/* Desktop: same centred stack; larger headline only. */
 @media (min-width: 1024px) {
-  .zz-profile-page {
-    justify-content: center;
-    align-items: center;
-  }
-
-  .zz-profile-page .profile-step-slam {
-    width: 100%;
-    max-width: 520px;
-    margin-inline: auto;
-    align-items: center;
-    text-align: center;
-  }
-
   .zz-profile-page .profile-question-headline {
-    margin-inline: auto;
-    align-items: center;
-    text-align: center;
-    max-width: min(92vw, 28rem);
-  }
-
-  .zz-profile-page .profile-step-slam > .profile-step-controls {
-    margin-inline: auto;
+    font-size: var(--zz-h2-desktop);
   }
 }
 
@@ -8937,15 +8968,17 @@ p,
   font-weight: bold !important;
   letter-spacing: var(--zz-track-marvin) !important;
   text-transform: uppercase !important;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  min-height: calc(3 * 0.92 * var(--zz-h3-mobile));
+  display: block !important;
+  overflow: visible !important;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+  min-height: 0 !important;
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus h1.solo-focus-architect-headline,
   .expanded-solo-focus .solo-focus-architect-headline {
     font-size: var(--zz-h3-desktop) !important;
-    min-height: calc(3 * 0.92 * var(--zz-h3-desktop));
+    min-height: 0 !important;
   }
 }
 

@@ -178,9 +178,12 @@ export interface JourneyBentoCardProps {
   onEmbeddedAnswerSuccess?: (info: { cardId?: string; journeyId: JourneyId }) => void
   /** Swipe down at scroll top: open next visible journey on the Zone wall (mobile). */
   onSwipeNextJourney?: (journeyId: JourneyId) => void
-  /** Bottom rail: jump to prev/next journey in `JOURNEY_ORDER` (wraps). */
+  /** Bottom rail: jump to prev/next card on the Zone wall (wraps). */
   onNavigateJourney?: (journeyId: JourneyId) => void
-  /** Journey mother cards on the Zone wall — drives prev/next labels and targets. */
+  onNavigateSoloFocus?: (entry: import('@/lib/zone/soloFocusJourneyNav').SoloFocusNavEntry) => void
+  /** Wall-order ring — mother journey cells + discovery tips. */
+  soloFocusNavRing?: readonly import('@/lib/zone/soloFocusJourneyNav').SoloFocusNavEntry[]
+  /** @deprecated Prefer `soloFocusNavRing`. */
   soloFocusJourneyRing?: readonly JourneyId[]
   /**
    * After the last question in this journey is answered: close expanded view and let the shell
@@ -243,6 +246,8 @@ export function JourneyBentoCard({
   onEmbeddedAnswerSuccess,
   onSwipeNextJourney,
   onNavigateJourney,
+  onNavigateSoloFocus,
+  soloFocusNavRing,
   soloFocusJourneyRing,
   hasLocalGrant = false,
   isPriorityAlert = false,
@@ -949,6 +954,7 @@ export function JourneyBentoCard({
           providerName={diagnosticProviderJourney}
           sourceUrl={diagnosticUrlJourney}
         />
+        <div className="solo-focus-shell-wrap w-full min-w-0">
         <SoloFocusViewportUtilityStrip onClose={() => beginCloseWithPatternShift()} />
 
         <motion.div className="solo-focus-rail w-full min-w-0">
@@ -996,11 +1002,14 @@ export function JourneyBentoCard({
                     onLike={onLike ? handleTrinityLike : undefined}
                     onAskZai={showAskZaiTrinity || _onAskZai ? handleTrinityAskZai : undefined}
                   />
-                  {onNavigateJourney ? (
+                  {onNavigateJourney || onNavigateSoloFocus ? (
                     <SoloFocusJourneyNav
                       journeyId={focusCategoryJourneyId}
+                      currentCardId={cardId ?? `journey-${journeyId}`}
+                      navRing={soloFocusNavRing}
+                      onNavigateEntry={onNavigateSoloFocus}
+                      onNavigate={onNavigateJourney ?? (() => {})}
                       availableJourneyIds={soloFocusJourneyRing}
-                      onNavigate={onNavigateJourney}
                       className="solo-focus-journey-nav--inset"
                     />
                   ) : null}
@@ -1010,6 +1019,7 @@ export function JourneyBentoCard({
             </motion.div>
         </motion.div>
         </motion.div>
+        </div>
       </ExpandedCardShell>
             </motion.div>
       <AskZaiDeepDiveSheet

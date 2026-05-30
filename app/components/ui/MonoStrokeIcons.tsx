@@ -106,3 +106,24 @@ export function OpenNEOutlineIcon({ size = 18, className, style }: IconProps) {
     </MonoStrokeSvg>
   )
 }
+
+/** Modal / overlay close — 1px rounded stroke (Likes, Zai, Settings, Solo Focus). */
+export function CloseXOutlineIcon({ size = 24, className, style }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={MONO_ICON_VIEWBOX}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={style}
+      aria-hidden
+    >
+      <path d="M7 7 17 17M17 7 7 17" />
+    </svg>
+  )
+}

@@ -11,6 +11,7 @@ interface InputFieldProps {
   width?: string | number
   className?: string
   autoFocus?: boolean
+  onFocusLift?: () => void
   onBlurViewportReset?: () => void
   /** HTML autocomplete token (e.g. `given-name`, `postal-code`). */
   autoComplete?: string
@@ -28,6 +29,7 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function InputF
     width,
     className,
     autoFocus = false,
+    onFocusLift,
     onBlurViewportReset,
     autoComplete,
     name,
@@ -41,6 +43,7 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function InputF
 
   const handleFocus = (e: FocusEvent<HTMLInputElement>) => {
     e.target.select()
+    onFocusLift?.()
   }
 
   const handleBlur = (e: FocusEvent<HTMLInputElement>) => {

@@ -33,9 +33,8 @@ import type { ZoneTipCard } from '@/lib/logic/zone'
 import { useApp } from '@/app/context/AppContext'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import {
-  headlineFromTitle,
+  headlineFromExpandedHook,
   formatZoneCategoryLabel,
-  MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   composeScrapedInsightDescription,
   buildResearchResultsTrueTipBody,
   isRawResearchDump,
@@ -84,7 +83,7 @@ import {
 import { resolveBirthedCardId, scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
 import { isCardVisited } from '@/lib/zone/visitedCards'
-import { shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
+import { isDiscoveryInjectCard, shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
 
 export interface SoloFocusOverlayProps {
@@ -140,8 +139,10 @@ export interface SoloFocusOverlayProps {
     carbonKg: number
     coverage: Record<string, ResearchCategoryCoverageRow> | null
   }) => void
-  /** Linear 13-journey audit rail (wraps on `JOURNEY_ORDER`). */
+  /** Linear wall-order rail (mother + discovery tips). */
   onNavigateJourney?: (journeyId: JourneyId) => void
+  onNavigateSoloFocus?: (entry: import('@/lib/zone/soloFocusJourneyNav').SoloFocusNavEntry) => void
+  soloFocusNavRing?: readonly import('@/lib/zone/soloFocusJourneyNav').SoloFocusNavEntry[]
   soloFocusJourneyRing?: readonly JourneyId[]
 }
 
@@ -194,6 +195,8 @@ export function SoloFocusOverlay({
   isCardVisited: isCardVisitedProp = false,
   onTipVerificationComplete,
   onNavigateJourney,
+  onNavigateSoloFocus,
+  soloFocusNavRing,
   soloFocusJourneyRing,
 }: SoloFocusOverlayProps) {
   useSoloFocusHudBodyClass(true)
@@ -415,9 +418,10 @@ export function SoloFocusOverlay({
           String(displayTitle || displayRecommendation || title).trim() ||
           displayRecommendation
   const isZoneMotherChild = !startInQuestionMode
-  const recommendationTitle = headlineFromTitle(
+  const overlayFocusJourney = normalizeCategoryToJourneyKey(String(displayJourneyId ?? journeyId ?? 'home'))
+  const recommendationTitle = headlineFromExpandedHook(
     stripExpandedCardTitleNoise(String(effectiveTitleRaw)),
-    MAX_EXPANDED_VIEW_HEADLINE_WORDS
+    overlayFocusJourney
   )
   let sourceName = sourceLabel
   if (!sourceName && resolvedOpenUrl) {
@@ -472,6 +476,7 @@ export function SoloFocusOverlay({
       : (insightDisplay || '').trim() || rawInsight)
   const showMotherComputing =
     !overlayResearchSettled && researchCategoryCoverage != null
+  const isDiscoveryMotherCard = isDiscoveryInjectCard(cardId)
   const trueTipSectionsEl = !showMotherComputing ? (
     <SoloFocusProseStack
       headline={recommendationTitle}
@@ -484,11 +489,13 @@ export function SoloFocusOverlay({
       auditHeaderLocality={state.locationState?.locationName ?? undefined}
       locality={state.locationState?.locationName ?? undefined}
       postcode={profilePostcode ?? state.profile?.postcode ?? undefined}
+      leadOnly={isDiscoveryMotherCard}
     />
   ) : null
-  const sourceFooter = partnerHttp
-    ? ''
-    : 'No live retailer link this week — figures still come from your saved audit row.'
+  const sourceFooter =
+    isDiscoveryMotherCard || partnerHttp
+      ? ''
+      : 'No live retailer link this week — figures still come from your saved audit row.'
   const overlayCtaKind = inferRevenueCtaKind({
     journey: (journeyId ?? 'home') as JourneyId,
     actionType: tipNeedsSwitching
@@ -655,9 +662,10 @@ export function SoloFocusOverlay({
         isExiting={false}
       >
       <PulseExpandedSync providerName={diagnosticProvider} sourceUrl={diagnosticUrl} />
+        <div className="solo-focus-shell-wrap w-full min-w-0">
       <SoloFocusViewportUtilityStrip onClose={requestClose} />
         <motion.div
-          className={`solo-focus-stack solo-focus-rail flex flex-col justify-start w-full items-center min-w-[280px] max-w-[800px] md:w-[90%] lg:w-[800px] ${isZoneMotherChild ? 'px-4 sm:px-0' : ''}`}
+          className="solo-focus-stack solo-focus-rail flex flex-col justify-start w-full min-w-0"
         >
           {/* Card A: The Mother */}
           {isZoneMotherChild && (
@@ -705,11 +713,14 @@ export function SoloFocusOverlay({
                         onLike={handleTrinityLike}
                         onAskZai={handleTrinityAskZai}
                       />
-                      {onNavigateJourney && journeyId ? (
+                      {(onNavigateJourney || onNavigateSoloFocus) && journeyId ? (
                         <SoloFocusJourneyNav
                           journeyId={focusCategoryJourneyId}
+                          currentCardId={cardId ?? activeCardId ?? undefined}
+                          navRing={soloFocusNavRing}
+                          onNavigateEntry={onNavigateSoloFocus}
+                          onNavigate={onNavigateJourney ?? (() => {})}
                           availableJourneyIds={soloFocusJourneyRing}
-                          onNavigate={onNavigateJourney}
                           className="solo-focus-journey-nav--inset"
                         />
                       ) : null}
@@ -721,6 +732,7 @@ export function SoloFocusOverlay({
           )}
 
         </motion.div>
+        </div>
         </ExpandedCardShell>
 
       </motion.div>

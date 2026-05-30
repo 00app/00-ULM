@@ -29,7 +29,7 @@ Zai is the **only** product bot (no secondary chat widget).
 | `MAX_ROCK_SAVING_TIPS_RAIL` | **12** |
 | `ULM_KWH_PER_TONNE_CO2E` | **12_000** (12k/1t auditor copy) |
 
-Grid discovery tips on wall: still **1 earned inject per category** via `perCategoryCardCap` (12 journeys + injects ≤ 24).
+Grid discovery tips on wall: still **1 earned inject per category** via `perCategoryCardCap` (13 journeys + injects ≤ 24).
 
 ---
 
@@ -64,7 +64,8 @@ Grid discovery tips on wall: still **1 earned inject per category** via `perCate
 | Surface | Words |
 |---------|-------|
 | Zone bento | **5–8** — `enforceHeadlineWordLimits(text, false)` |
-| Solo Focus / expanded hook | **10–20** — `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when weak; else `enforceHeadlineWordLimits(text, true)` |
+| Solo Focus / expanded hook | **20–24** — `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when weak; else `enforceHeadlineWordLimits(text, true)` |
+| Solo Focus Marvin lead | **≤30** — `resolveSoloFocusDisplayProse`; `buildAuditorDetectionParagraph` when lead lacks town opener |
 | Prose beats | ≤ **40** words / paragraph |
 
 Full scrape → copy → presentation pipeline: **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)**.

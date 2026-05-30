@@ -1,35 +1,26 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { FixedViewportPortal } from '@/app/components/FixedViewportPortal'
-import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
-import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
+import { CloseXOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 
 type SoloFocusViewportUtilityStripProps = {
   onClose: () => void
 }
 
-/** Close — portaled top-right (matches Likes / Zai / Settings modal close). */
+/** Close — same viewport lock + X glyph as Likes / Zai / Settings (.zz-back-btn--viewport-lock). */
 export function SoloFocusViewportUtilityStrip({ onClose }: SoloFocusViewportUtilityStripProps) {
   return (
     <FixedViewportPortal>
-      <div
-        className="solo-focus-utility-strip solo-focus-utility-strip--viewport-lock flex flex-col items-end"
-        aria-label="Solo focus actions"
+      <button
+        type="button"
+        className="zz-back-btn zz-back-btn--viewport-lock zz-modal-close-btn"
+        aria-label="Close"
+        onClick={onClose}
       >
-        <motion.button
-          type="button"
-          aria-label="Close"
-          className="solo-focus-close-circle"
-          onClick={onClose}
-          initial={false}
-          animate={{ opacity: 1, y: 0 }}
-          transition={INDUSTRIAL_OPACITY_SNAP}
-          style={{ transformOrigin: 'top right' }}
-        >
-          <BackArrowDownLeft size={24} />
-        </motion.button>
-      </div>
+        <span className="zz-back-arrow" aria-hidden>
+          <CloseXOutlineIcon size={24} />
+        </span>
+      </button>
     </FixedViewportPortal>
   )
 }

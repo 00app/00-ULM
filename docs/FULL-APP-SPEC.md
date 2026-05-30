@@ -10,7 +10,7 @@ Operational architecture for the UK postcode-driven energy auditor: what talks t
 
 ## 1. Product overview
 
-Zero Zero is a UK-first web app. A user provides a **postcode** and a short **profile** (household, transport, goals). The app shows a **Zone** — a bento grid of 12 journey domains (home, grants, solar, travel, etc.) with savings and carbon hints. Tapping a card opens **Solo Focus**: answer embedded questions, see a researched recommendation, then optionally **spawn** a sharper “child” insight.
+Zero Zero is a UK-first web app. A user provides a **postcode** and a short **profile** (household, transport, goals). The app shows a **Zone** — a bento grid of 13 journey domains (home, grants, solar, travel, etc.) with savings and carbon hints. Tapping a card opens **Solo Focus**: answer embedded questions, see a researched recommendation, then optionally **spawn** a sharper “child” insight.
 
 ### 1.1 Metaphor: brain, stomach, memory, nervous system
 
@@ -134,7 +134,7 @@ flowchart LR
 | Intro | `/`, `/intro` | Logo glitch (Style A) → kinetic words → lockup **CREATE A / PROFILE TO / START.** at **profile H2 scale** → CREATE → profile. Geolocation may seed `profile_postcode`. `?skip=1` skips logo. |
 | Profile | `/profile` | Stepped onboarding: name (**given-name**, first token only), **postcode** (`postal-code`, hydrate `profile_postcode`), household, home type, transport, age, employment, goal. Full-sentence fade per step. |
 | Summary | `/profile/summary` | Kinetic **HELLO → name → locality** (`IntroWordCycle`, opacity ticker only). Impact totals. Handshake scrape. |
-| Zone | `/zone` | 12 journey cards + Saving Tips; hydrates from Neon via scrape-sync. |
+| Zone | `/zone` | 13 journey cards + Saving Tips; hydrates from Neon via scrape-sync. |
 | Solo Focus | Overlay on Zone | Questions → answer → zip-shut → result / morph card. |
 | Zai | `/zai` | Free-form chat (Gemini), separate from MC answer birth path. |
 | Other | `/likes`, `/settings` | Saved cards, reset/session. |
@@ -189,13 +189,14 @@ Passed as `?user_id=` on **GET scrape-sync** and in **POST** bodies for trigger/
 
 ---
 
-## 5. Journey questions and answers (12 × 3)
+## 5. Journey questions and answers (13 × 3)
 
 **Source of truth:** `lib/journeys.ts`
 
 | Journey key | Example question ids |
 |-------------|----------------------|
 | `home` | `property_type`, `insulation_level`, `glazing_type` |
+| `utilities` | `tariff_type`, `supplier_switch`, `monthly_energy_band` |
 | `grants` | `boiler_age`, `income_benefits`, `prior_eco_bus` |
 | `solar` | `roof_orientation`, `roof_shading`, `daytime_occupancy` |
 | `travel` | `commute_distance`, `ev_hybrid`, `public_transport` |
@@ -208,7 +209,7 @@ Passed as `?user_id=` on **GET scrape-sync** and in **POST** bodies for trigger/
 | `waste` | `food_waste_collection`, `composting`, `soft_plastics` |
 | `carbon` | `footprint_awareness`, `carbon_removal`, `tonne_reduction_timeline` |
 
-- **12 domains**, **3 questions each** (`JOURNEY_ORDER`).
+- **13 domains**, **3 questions each** (`JOURNEY_ORDER`).
 - Question labels are **behavioural** — no £/kg in copy.
 - **Next question:** `lib/zone/questionHandler.ts` → `getNextQuestion(journeyId, answers)`.
 
@@ -339,7 +340,7 @@ The browser must **not** call Ofgem or Nominatim directly. Use `/api/pulse/livin
 
 ### 7.3 Grid layout
 
-**Wall order:** `WALL_JOURNEY_ORDER` in `app/zone/page.tsx` — same 12 keys, 3×4 bento.
+**Wall order:** `WALL_JOURNEY_ORDER` in `app/zone/page.tsx` — same 13 keys, bento grid.
 
 **Motion:** Style B mechanical snap (`STACCATO_*` stagger). See `lib/animations.ts` and `.cursor/rules/mechanical-pulse.mdc`.
 
@@ -382,16 +383,16 @@ sequenceDiagram
 
 | Piece | Source / code |
 |-------|----------------|
-| H1 (**10–20 words**) | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when DB title weak; `stripExpandedCardTitleNoise` |
-| Lead (H4) | Town from `locationState.locationName` — `personalizeTrueTipPlaceLead` (`lib/zone/localityCopy.ts`) |
-| Three paragraphs | `architect_prose` via `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` (label-free beats; one `payoffSentence`) |
+| H1 (**20–24 words**) | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when DB title weak; `stripExpandedCardTitleNoise` |
+| Lead (H4, **≤30 words**) | `resolveSoloFocusDisplayProse` + `buildAuditorDetectionParagraph` (`lib/zone/localityCopy.ts`) |
+| Body (optional) | `architect_prose` via `buildResearchResultsTrueTipBody` — max 1 Roboto block when lead present |
 | SAVE / CARBON | Verified £ from `research_results` when settled |
 | CTA | `offer_url` → `IndustrialHandoffButton` (`resolveRevenueCtaLabel`) |
 | Source link | `source_url` / `verifiedAuditSourceUrl` |
 | No-offer footer | Calm UK line when no HTTPS partner URL (not “Fresh Audit…”) |
 | Fallback CTA | `/zai` if no offer URL |
 
-**Layout:** Marvin hook H1 + Marvin H4 lead + two Roboto body paragraphs + payoff (≤ `MAX_TRUE_TIP_PARAGRAPH_WORDS` each). Guards: `isRawResearchDump`, `dedupeTrueTipParagraphs`, `isMechanicalScaffoldParagraph`.
+**Layout:** Marvin hook H1 (20–24 words) + Marvin H4 lead (≤30 words) + optional Roboto body — max 2 prose blocks; metrics row owns £/CO₂. Guards: `isRawResearchDump`, `dedupeTrueTipParagraphs`, `isMechanicalScaffoldParagraph`, `ensureLocalityAuditorLead`.
 
 **Copy resolver:** `resolveExpandedTrueTipInsight` · `buildResearchResultsTrueTipBody` · `toThreeTrueTipParagraphs` · `resolveSoloFocusInsightDisplay`.
 
@@ -501,7 +502,7 @@ Or `POST /api/scrape-sync` with `{ trigger: true, postcode, category, user_id }`
 ### 11.3 Four-step loop
 
 1. **Trigger (Hermes):** Cron hits `/api/cron/zone-research`.
-2. **Extraction:** Firecrawl scrape → Gemini maps to twelve journey categories → persist.
+2. **Extraction:** Firecrawl scrape → Gemini maps to thirteen journey categories → persist.
 3. **Consumption (Zone):** Bento tiles + Solo Focus expanded copy from Neon.
 4. **Expansion (user):** `POST /api/answers` → discovery → `injectNewDiscoveryCard`; supplemental Ask/inject paths capped at 3 per journey.
 
@@ -580,7 +581,7 @@ Pre-login profile + answers by `zz_sid` cookie.
 | Table | Note |
 |-------|------|
 | `journey_answers` | Normalized per-question rows; dual-write in some paths |
-| `journey_questions` | Seeded via `npm run db:evolve-12-domains` |
+| `journey_questions` | Seeded via `npm run db:evolve-13-domains` |
 | `cards`, `micro_answers` | Legacy — not on Zone hot path |
 | `user_actioned_cards`, `likes` | User actions |
 | `activity_status` | SSO activity visibility |
@@ -629,7 +630,7 @@ flowchart TB
 
 | State | Zone hero | Journey tiles |
 |-------|-----------|---------------|
-| Clean Neon, first load | “Analyzing your postcode…”, £0 | 12× **COMPUTING — …**, **—** metrics |
+| Clean Neon, first load | "Analyzing your postcode…", £0 | 13× **COMPUTING — …**, **—** metrics |
 | After research rows | Personalised totals | Real £, headlines, LIVE/ESTIMATED badges |
 | Stale client cache | May flash old £ | Hard refresh; `DATA_VERSION` bump clears cache |
 
@@ -682,7 +683,7 @@ See `.env.example`. Never commit `.env.local`.
 npm run db:log-research      # latest research_results row
 npm run db:test              # Neon connectivity
 npm run db:columns           # column listing
-npm run db:evolve-12-domains # journey_questions for all 12 keys
+npm run db:evolve-13-domains # journey_questions for all 13 keys
 bash scripts/verify-env-and-health.sh
 ```
 
@@ -730,7 +731,7 @@ curl -sS "https://00-ulm.vercel.app/api/health"
 ## 19. Deploy and prep
 
 ```bash
-npm run prep:live          # db:test + db:evolve-12-domains + build:clean
+npm run prep:live          # db:test + db:evolve-13-domains + build:clean
 npm run deploy:force       # vercel deploy --prod (scripts/deploy-production.sh)
 ```
 
@@ -738,4 +739,4 @@ npm run deploy:force       # vercel deploy --prod (scripts/deploy-production.sh)
 
 ---
 
-*Last updated: conversation spec consolidation. For motion and product rules, see `.cursor/rules/zero-zero-prime-directive.mdc` and [HANDBOOK.md](HANDBOOK.md).*
+*Last updated: 2026-05-30 — 13-domain calc engine fix (shopping/money/carbon answer key alignment, holidays £0 floor, Zai-voice explanation rewrites). For motion and product rules, see `.cursor/rules/zero-zero-prime-directive.mdc` and [HANDBOOK.md](HANDBOOK.md).*

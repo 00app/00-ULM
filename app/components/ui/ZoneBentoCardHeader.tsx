@@ -31,12 +31,12 @@ export function ZoneBentoCardHeader({
   const categoryText = label ?? formatZoneCategoryLabel(String(journeyId ?? 'home'))
 
   return (
-    <div className="zone-bento-card-header w-full shrink-0">
+    <div
+      className="zone-bento-card-header w-full shrink-0"
+      style={textColor ? { color: textColor } : undefined}
+    >
       <div className="zone-bento-card-header__label-wrap min-w-0">
-        <span
-          className="card-top-label zone-bento-card-header__label m-0 min-w-0"
-          style={textColor ? { color: textColor } : undefined}
-        >
+        <span className="card-top-label zone-bento-card-header__label m-0 min-w-0">
           {categoryText}
         </span>
         {showPlus ? (

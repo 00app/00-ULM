@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { FixedViewportPortal } from '@/app/components/FixedViewportPortal'
+import { CloseXOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { ROUTES } from '@/lib/routes'
 
 type ZoneModalCloseLinkProps = {
@@ -32,8 +33,8 @@ export default function ZoneModalCloseLink({
           router.push(ROUTES.ZONE)
         }}
       >
-        <span className="zz-modal-close-glyph" aria-hidden>
-          ×
+        <span className="zz-back-arrow" aria-hidden>
+          <CloseXOutlineIcon size={24} />
         </span>
       </button>
     </FixedViewportPortal>

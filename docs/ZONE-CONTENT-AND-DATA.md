@@ -219,9 +219,9 @@ Ceilings: **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** · **`MAX_ZONE_BENTO_CE
 
 | Zone | Content |
 |------|---------|
-| **H1 (Marvin)** | **10–20 word** hook (`headlineFromExpandedHook`) — 2–3 lines; no postcodes/tariff dumps in title |
-| **Lead (Marvin H4)** | First paragraph only — **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), never raw postcode |
-| **Body** | Two **Roboto Bold** paragraphs + payoff — `buildResearchResultsTrueTipBody` / `resolveExpandedTrueTipInsight` |
+| **H1 (Marvin)** | **20–24 word** hook (`headlineFromExpandedHook`) — 3–4 lines; no postcodes/tariff dumps in title |
+| **Lead (Marvin H4)** | Locality audit opener — **≤30 words**; **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), never raw postcode |
+| **Body** | Optional **Roboto Bold** body — max 2 prose blocks total (lead + body); metrics row owns £/CO₂ stamp |
 | **Metrics** | Verified £ + CO₂e from stored row |
 | **Trinity** | Ask Zai → deep dive; Continue in Zai → handoff; RECLAIM / BUY → `MotherCardRenderer` + `IndustrialHandoffButton` |
 | **Questions** | **One** registry Q per open — zip-shut MC answer → **RESULT**; close → loop question (`DiscoveryTakeover`) |
@@ -255,7 +255,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Function | Purpose |
 |----------|---------|
 | `stripExpandedCardTitleNoise` | Clean Solo Focus H1 |
-| `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **10–20 word** Marvin hook; per-journey fallback when DB title is thin, jargon, or off-topic (e.g. travel: rail/bus commute swap — not generic “near you” padding) |
+| `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook; per-journey fallback when DB title is thin, jargon, or off-topic (e.g. travel: rail/bus commute swap — not generic “near you” padding) |
 | `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp` | Drop duplicate payoff / repeated blocks before render |
 | `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *optimization plan*, *green funding frameworks*, thin *“Your X is high-value”* |
 | `collapseDuplicateProseParagraphs` | No repeated sentences within a block |
@@ -269,7 +269,8 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Surface | Limit | Enforcer |
 |---------|-------|----------|
 | Zone bento | **5–8** | `enforceHeadlineWordLimits(text, false)` |
-| Solo Focus expanded hook | **10–20** (~2–3 lines) | `headlineFromExpandedHook` → per-journey `EXPANDED_JOURNEY_HOOK` when title is weak or generic spring filler (`isGenericSpringHeadline`); mechanical proof via `lib/zone/auditorNarrative.ts` (no shared “policy and tariff pressure…” block) |
+| Solo Focus expanded hook | **20–24** (~3–4 lines) | `headlineFromExpandedHook` → per-journey `EXPANDED_JOURNEY_HOOK` when title is weak or generic spring filler (`isGenericSpringHeadline`); mechanical proof via `lib/zone/auditorNarrative.ts` (no shared “policy and tariff pressure…” block) |
+| Solo Focus Marvin lead (H4) | **≤30** words | `resolveSoloFocusDisplayProse` + `buildAuditorDetectionParagraph` when lead lacks town opener |
 | Paragraph | ≤ **40** words each | `MAX_TRUE_TIP_PARAGRAPH_WORDS` |
 
 ### After an answer
@@ -353,7 +354,8 @@ Full boundaries + question registry: **[ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUES
 |-----------|-------------|------------|
 | Grid headline | `agent_headline` + Architect + cleaners | `soloFocusCopy`, `contentArchitect` |
 | Grid £/kg | `buildUserImpact` + `journeyHasStreamData` | `calculations.ts` |
-| Expanded H1 | 10–20 word hook, 2–3 lines | `headlineFromExpandedHook`, `stripExpandedCardTitleNoise` |
+| Expanded H1 | 20–24 word hook, 3–4 lines | `headlineFromExpandedHook`, `stripExpandedCardTitleNoise` |
+| Expanded lead (H4) | ≤30 words; town from `locationState` | `resolveSoloFocusDisplayProse`, `buildAuditorDetectionParagraph`, `localityCopy.ts` |
 | Expanded lead (H4) | Town from `locationState` | `localityCopy.ts`, `personalizeTrueTipPlaceLead` |
 | Expanded body | `architect_prose` or auditor fallback | `buildResearchResultsTrueTipBody`, `toThreeTrueTipParagraphs` |
 | No-offer footer | When no HTTPS partner URL | *“No live retailer link this week — figures still come from your saved audit row.”* (`JourneyBentoCard`, `SoloFocusOverlay`) — not “Fresh Audit…” dev-speak |

@@ -26,7 +26,7 @@
 | **Postcode-first** | All locality flows use user `profile.postcode` / session — no demo postcode in UI |
 | **Mechanical truth** | Empty Neon → `COMPUTING — JOURNEY`, metrics `—`, not fake £12k |
 | **Copy** | Per-journey headlines (`EXPANDED_JOURNEY_HOOK`), no generic spring H1 on every card |
-| **Prose** | Max 2 blocks in Solo Focus (lead + 1 body); no duplicate payoff; no generic “policy and tariff pressure…” |
+| **Prose** | Max 2 blocks in Solo Focus (Marvin lead ≤30 words + optional body); no duplicate payoff; no generic “policy and tariff pressure…” |
 | **Questions** | 13 journeys × 3 in `lib/journeys.ts`; Solo Focus = 1 Q; loop = `loopQuestions.ts` |
 | **Discovery birth** | Only `POST /api/answers` → `injectNewDiscoveryCard` (cap 3/journey) |
 | **Zai** | Read-only on chat; scrape only on Deep Dive **Search deeper** |
@@ -855,9 +855,9 @@ Ceilings: **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** · **`MAX_ZONE_BENTO_CE
 
 | Zone | Content |
 |------|---------|
-| **H1 (Marvin)** | **10–20 word** hook (`headlineFromExpandedHook`) — 2–3 lines; no postcodes/tariff dumps in title |
-| **Lead (Marvin H4)** | First paragraph only — **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), never raw postcode |
-| **Body** | Two **Roboto Bold** paragraphs + payoff — `buildResearchResultsTrueTipBody` / `resolveExpandedTrueTipInsight` |
+| **H1 (Marvin)** | **20–24 word** hook (`headlineFromExpandedHook`) — 3–4 lines; no postcodes/tariff dumps in title |
+| **Lead (Marvin H4)** | Locality audit opener — **≤30 words**; **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), never raw postcode |
+| **Body** | Optional **Roboto Bold** body — max 2 prose blocks total (lead + body); metrics row owns £/CO₂ stamp |
 | **Metrics** | Verified £ + CO₂e from stored row |
 | **Trinity** | Ask Zai → deep dive; Continue in Zai → handoff; RECLAIM / BUY → `MotherCardRenderer` + `IndustrialHandoffButton` |
 | **Questions** | **One** registry Q per open — zip-shut MC answer → **RESULT**; close → loop question (`DiscoveryTakeover`) |
@@ -891,7 +891,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Function | Purpose |
 |----------|---------|
 | `stripExpandedCardTitleNoise` | Clean Solo Focus H1 |
-| `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **10–20 word** Marvin hook; per-journey fallback when DB title is thin, jargon, or off-topic (e.g. travel: rail/bus commute swap — not generic “near you” padding) |
+| `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook; per-journey fallback when DB title is thin, jargon, or off-topic (e.g. travel: rail/bus commute swap — not generic “near you” padding) |
 | `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp` | Drop duplicate payoff / repeated blocks before render |
 | `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *optimization plan*, *green funding frameworks*, thin *“Your X is high-value”* |
 | `collapseDuplicateProseParagraphs` | No repeated sentences within a block |
@@ -905,7 +905,8 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Surface | Limit | Enforcer |
 |---------|-------|----------|
 | Zone bento | **5–8** | `enforceHeadlineWordLimits(text, false)` |
-| Solo Focus expanded hook | **10–20** (~2–3 lines) | `headlineFromExpandedHook` → per-journey `EXPANDED_JOURNEY_HOOK` when title is weak or generic spring filler (`isGenericSpringHeadline`); mechanical proof via `lib/zone/auditorNarrative.ts` (no shared “policy and tariff pressure…” block) |
+| Solo Focus expanded hook | **20–24** (~3–4 lines) | `headlineFromExpandedHook` → per-journey `EXPANDED_JOURNEY_HOOK` when title is weak or generic spring filler (`isGenericSpringHeadline`); mechanical proof via `lib/zone/auditorNarrative.ts` (no shared “policy and tariff pressure…” block) |
+| Solo Focus Marvin lead (H4) | **≤30** words | `resolveSoloFocusDisplayProse` + `buildAuditorDetectionParagraph` when lead lacks town opener |
 | Paragraph | ≤ **40** words each | `MAX_TRUE_TIP_PARAGRAPH_WORDS` |
 
 ##### After an answer
@@ -989,8 +990,8 @@ Full boundaries + question registry: **[ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUES
 |-----------|-------------|------------|
 | Grid headline | `agent_headline` + Architect + cleaners | `soloFocusCopy`, `contentArchitect` |
 | Grid £/kg | `buildUserImpact` + `journeyHasStreamData` | `calculations.ts` |
-| Expanded H1 | 10–20 word hook, 2–3 lines | `headlineFromExpandedHook`, `stripExpandedCardTitleNoise` |
-| Expanded lead (H4) | Town from `locationState` | `localityCopy.ts`, `personalizeTrueTipPlaceLead` |
+| Expanded H1 | 20–24 word hook, 3–4 lines | `headlineFromExpandedHook`, `stripExpandedCardTitleNoise` |
+| Expanded lead (H4) | ≤30 words; town from `locationState` | `resolveSoloFocusDisplayProse`, `buildAuditorDetectionParagraph`, `localityCopy.ts` |
 | Expanded body | `architect_prose` or auditor fallback | `buildResearchResultsTrueTipBody`, `toThreeTrueTipParagraphs` |
 | No-offer footer | When no HTTPS partner URL | *“No live retailer link this week — figures still come from your saved audit row.”* (`JourneyBentoCard`, `SoloFocusOverlay`) — not “Fresh Audit…” dev-speak |
 | BUY link | `offer_url` → sanitizer → trusted fallback | `offerUrlGuard`, `trustedJourneyUrls` |
@@ -1903,7 +1904,7 @@ Operational contract for infra, data flow, UX, and verification. **Secrets belon
 Presentation contract (bento headlines, three-paragraph Solo Focus, Today's Tips rail, offer URL guards, tone): **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)** §6–10.
 
 - **Mobile locality:** Long placenames use **`formatSummaryLocalityKineticToken`** (`lib/brains/summaryLogic.ts`) + **`IntroWordCycle`** with **`opacityTicker`** on `/profile/summary` (word-by-word opacity only — no intro glitch). **`/` + `/intro`** keep the logo glitch (Style A). Kinetic order is **HELLO → name → locality** then bridge + waste beats; single-word towns **over seven characters** get Marvin clamp + squeeze (Littlehampton path).
-- **Expanded Solo Focus:** **Marvin** hook H1 (**10–20 words** — **`headlineFromExpandedHook`** + per-journey **`EXPANDED_JOURNEY_HOOK`** when title is thin) + **Marvin H4 lead** (town from **`locationState.locationName`**, not postcode) + two **Roboto** body paragraphs + **one** payoff (`payoffSentence`, deduped). Zone bento: **5–8 words** via **`headlineFromTitle`**. Voice: **`lib/zone/zoneVoice.ts`**. Gemini triplet in **`lib/agents/researchAgent.ts`** → **`architect_prose`**; locality fallbacks are warm UK prose (no CTA-bridge scaffolding).
+- **Expanded Solo Focus:** **Marvin** hook H1 (**20–24 words** — **`headlineFromExpandedHook`** + per-journey **`EXPANDED_JOURNEY_HOOK`** when title is thin) + **Marvin H4 lead** (**≤30 words**; town from **`locationState.locationName`**, not postcode) + optional **Roboto** body (max 2 prose blocks; metrics row owns £/CO₂). Zone bento: **5–8 words** via **`headlineFromTitle`**. Voice: **`lib/zone/zoneVoice.ts`**. Gemini triplet in **`lib/agents/researchAgent.ts`** → **`architect_prose`**; locality fallbacks are warm UK prose (no CTA-bridge scaffolding).
 - **CTA:** Expanded cards use **`MotherCardRenderer`** + **`IndustrialHandoffButton`** with **`ctaUrl`** from **`offer_url`** / verified source, falling back to **`/zai`** audit URL when no partner link exists (`JourneyBentoCard`).
 
 ---
@@ -2006,7 +2007,8 @@ Grid discovery tips on wall: still **1 earned inject per category** via `perCate
 | Surface | Words |
 |---------|-------|
 | Zone bento | **5–8** — `enforceHeadlineWordLimits(text, false)` |
-| Solo Focus / expanded hook | **10–20** — `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when weak; else `enforceHeadlineWordLimits(text, true)` |
+| Solo Focus / expanded hook | **20–24** — `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when weak; else `enforceHeadlineWordLimits(text, true)` |
+| Solo Focus Marvin lead | **≤30** — `resolveSoloFocusDisplayProse`; `buildAuditorDetectionParagraph` when lead lacks town opener |
 | Prose beats | ≤ **40** words / paragraph |
 
 Full scrape → copy → presentation pipeline: **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)**.
@@ -2490,8 +2492,8 @@ sequenceDiagram
 
 | Piece | Source / code |
 |-------|----------------|
-| H1 (**10–20 words**) | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when DB title weak; `stripExpandedCardTitleNoise` |
-| Lead (H4) | Town from `locationState.locationName` — `personalizeTrueTipPlaceLead` (`lib/zone/localityCopy.ts`) |
+| H1 (**20–24 words**) | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when DB title weak; `stripExpandedCardTitleNoise` |
+| Lead (H4, **≤30 words**) | Town from `locationState.locationName` — `resolveSoloFocusDisplayProse` + `buildAuditorDetectionParagraph` (`lib/zone/localityCopy.ts`) |
 | Three paragraphs | `architect_prose` via `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` (label-free beats; one `payoffSentence`) |
 | SAVE / CARBON | Verified £ from `research_results` when settled |
 | CTA | `offer_url` → `IndustrialHandoffButton` (`resolveRevenueCtaLabel`) |
@@ -2499,7 +2501,7 @@ sequenceDiagram
 | No-offer footer | Calm UK line when no HTTPS partner URL (not “Fresh Audit…”) |
 | Fallback CTA | `/zai` if no offer URL |
 
-**Layout:** Marvin hook H1 + Marvin H4 lead + two Roboto body paragraphs + payoff (≤ `MAX_TRUE_TIP_PARAGRAPH_WORDS` each). Guards: `isRawResearchDump`, `dedupeTrueTipParagraphs`, `isMechanicalScaffoldParagraph`.
+**Layout:** Marvin hook H1 (20–24 words) + Marvin H4 lead (≤30 words) + optional Roboto body — max 2 prose blocks; metrics row owns £/CO₂. Guards: `isRawResearchDump`, `dedupeTrueTipParagraphs`, `isMechanicalScaffoldParagraph`, `ensureLocalityAuditorLead`.
 
 **Copy resolver:** `resolveExpandedTrueTipInsight` · `buildResearchResultsTrueTipBody` · `toThreeTrueTipParagraphs` · `resolveSoloFocusInsightDisplay`.
 

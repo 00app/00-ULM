@@ -16,8 +16,8 @@ export type SoloFocusMotherStackProps = {
 }
 
 /**
- * Canonical Solo Focus mother column — category → H1 → prose → metrics (SAVE/CARBON + Trinity + nav).
- * md+: 2-column grid (copy | metrics). Journey bento + tip overlay must share this stack.
+ * Canonical Solo Focus mother stack — single column on all breakpoints:
+ * Label → H1 → lead (+ optional body) → SAVE/CARBON → Trinity → nav.
  */
 export function SoloFocusMotherStack({
   zoneCategoryLabel,
@@ -47,29 +47,25 @@ export function SoloFocusMotherStack({
     <div className={`solo-focus-expanded-toolbar w-full min-w-0${shellClassName ? ` ${shellClassName}` : ''}`}>
       <div
         key={bodyKey}
-        className="solo-focus-mother-body solo-focus-mother-grid solo-focus-mother-stack w-full min-w-0 flex-1"
+        className="solo-focus-mother-body solo-focus-mother-stack w-full min-w-0 flex-1 flex flex-col items-stretch"
       >
-        <div className="solo-focus-mother-copy-col flex flex-col items-stretch w-full min-w-0 min-h-0">
-          {showComputing ? (
-            <p
-              className="zz-label m-0 opacity-80"
-              style={{ color: 'var(--journey-text)', letterSpacing: '0.04em' }}
-            >
-              Computing…
-            </p>
-          ) : null}
-          <span
-            className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
-            style={{ color: 'var(--journey-text)' }}
+        {showComputing ? (
+          <p
+            className="zz-label m-0 opacity-80"
+            style={{ color: 'var(--journey-text)', letterSpacing: '0.04em' }}
           >
-            {zoneCategoryLabel}
-          </span>
-          {headlineEl}
-          {prose}
-        </div>
-        <div className="solo-focus-mother-metrics-col w-full min-w-0 flex flex-col justify-end">
-          <div className="solo-focus-mother-metrics w-full min-w-0">{metrics}</div>
-        </div>
+            Computing…
+          </p>
+        ) : null}
+        <span
+          className="card-top-label solo-focus-zone-category m-0 text-left w-full block"
+          style={{ color: 'var(--journey-text)' }}
+        >
+          {zoneCategoryLabel}
+        </span>
+        {headlineEl}
+        {prose}
+        <div className="solo-focus-mother-metrics w-full min-w-0">{metrics}</div>
       </div>
     </div>
   )

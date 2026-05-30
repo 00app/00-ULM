@@ -10,25 +10,43 @@
  * | Slot | Source | Rule |
  * |------|--------|------|
  * | Label | `formatZoneCategoryLabel(journeyId)` | UPPERCASE journey key, journey yellow |
- * | H1 | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | 10–20 words; no generic spring filler |
- * | Lead | `SoloFocusProseStack` H4 | Locality via `locationName` — town, not postcode |
+ * | H1 | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | 20–24 words; no generic spring filler |
+ * | Lead | `SoloFocusProseStack` H4 | Locality via `locationName` — town, not postcode; ≤30 words |
  * | Body | Roboto | Max {@link MAX_SOLO_FOCUS_PROSE_BLOCKS} blocks total (lead + body); no £ if metrics stamp |
+ * | Discovery inject | `leadOnly` on overlay | Lead only — no body block, no no-offer footer |
  * | Impact | `MotherCardRenderer` SAVE/CARBON | Single stamp — hide `payoffSentence` text when prose already has £ |
- * | Trinity | Ask Zai · Continue · RECLAIM/BUY | `SoloFocusActionTrinity` / industrial handoff |
+ * | Trinity | Ask Zai · Like · BUY/CLAIM | `SoloFocusActionTrinity` / industrial handoff |
+ * | Nav | `soloFocusNavRingFromDisplayItems` | Wall order — mother + discovery tips; tip labels singular (grant ↘) |
+ *
+ * ## Layout (single column — all breakpoints)
+ *
+ * Label → H1 → lead (+ optional body) → SAVE/CARBON → Trinity → prev/next nav.
+ * H1→lead gap: 10px. All other stack gaps: 40px.
+ * Content max-width: 100% mobile · 640px tablet (768+) · 880px desktop (1024+), centred.
+ * Close: viewport-locked pink X — same as Likes / Zai / Settings (`.zz-back-btn--viewport-lock`).
  *
  * @see docs/HANDBOOK.md — Launch verification + Director's Order
  */
-
-export const SOLO_FOCUS_UI_CONTRACT = {
-  maxProseBlocks: MAX_SOLO_FOCUS_PROSE_BLOCKS,
-  headlineWordsMin: 10,
-  headlineWordsMax: 20,
-} as const
 
 import type { JourneyId } from '@/lib/journeys'
 import { hasLoopDoneForJourney } from '@/lib/zone/loopMemory'
 import { MAX_SOLO_FOCUS_PROSE_BLOCKS } from '@/lib/zone/zoneVoice'
 import { isCardVisited, shouldSkipInjectionOnCardClose } from '@/lib/zone/visitedCards'
+
+export const SOLO_FOCUS_UI_CONTRACT = {
+  maxProseBlocks: MAX_SOLO_FOCUS_PROSE_BLOCKS,
+  headlineWordsMin: 20,
+  headlineWordsMax: 24,
+  leadWordsMax: 30,
+  bodyWordsMax: 40,
+  headlineToLeadGapPx: 10,
+  stackGapPx: 40,
+  contentMaxWidthTabletPx: 640,
+  contentMaxWidthDesktopPx: 880,
+  tabletMinWidthPx: 768,
+  desktopMinWidthPx: 1024,
+  layout: 'single-column',
+} as const
 
 /** Client-birthed discovery / achievement cells (`inject-*`, not sentinel/fallback). */
 export function isDiscoveryInjectCard(cardId: string | null | undefined): boolean {

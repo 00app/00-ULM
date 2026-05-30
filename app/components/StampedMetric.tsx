@@ -25,17 +25,26 @@ export function StampedMoneyGbp({ gbp, live }: { gbp: number; live?: boolean }) 
   )
 }
 
-/** CARBON row: digits + KG|T + CO₂ (each unit fragment stamped). */
-export function StampedCarbonKg({ kg }: { kg: number }) {
+/** CARBON row: digits + KG|T (+ optional CO₂ suffix when label does not carry it). */
+export function StampedCarbonKg({
+  kg,
+  omitCo2Suffix = false,
+}: {
+  kg: number
+  /** Solo Focus — label reads CO₂ OFFSET; value is figures + mass unit only. */
+  omitCo2Suffix?: boolean
+}) {
   const p = getCarbonStampParts(kg)
   return (
     <>
       <span className="data-stamp-figures tabular-nums">{p.digits}</span>
       <span className="data-carbon-units" aria-hidden>
         <span className="data-symbol-unit">{p.massUnit}</span>
-        <span className="data-symbol-unit data-co2-mark">
-          CO<span className="data-co2-sub">2</span>
-        </span>
+        {!omitCo2Suffix ? (
+          <span className="data-symbol-unit data-co2-mark">
+            CO<span className="data-co2-sub">2</span>
+          </span>
+        ) : null}
       </span>
     </>
   )

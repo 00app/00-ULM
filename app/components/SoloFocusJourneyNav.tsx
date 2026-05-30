@@ -1,13 +1,21 @@
 'use client'
 
 import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
-import { soloFocusJourneyNeighbors } from '@/lib/zone/soloFocusJourneyNav'
+import {
+  soloFocusJourneyNeighbors,
+  soloFocusNavNeighbors,
+  type SoloFocusNavEntry,
+} from '@/lib/zone/soloFocusJourneyNav'
 import type { JourneyId } from '@/lib/journeys'
 
 export type SoloFocusJourneyNavProps = {
   journeyId: JourneyId
   onNavigate: (target: JourneyId) => void
-  /** Mother journey cards on the Zone wall — prev/next skip categories not on the grid (e.g. locked UTILITIES). */
+  /** Wall-order ring — prev/next walk mother + discovery tip cells. */
+  navRing?: readonly SoloFocusNavEntry[]
+  currentCardId?: string | null
+  onNavigateEntry?: (entry: SoloFocusNavEntry) => void
+  /** @deprecated Prefer `navRing` — journey-only fallback when ring omitted. */
   availableJourneyIds?: readonly JourneyId[]
   className?: string
 }
@@ -19,10 +27,19 @@ function triggerHaptic() {
 export function SoloFocusJourneyNav({
   journeyId,
   onNavigate,
+  navRing,
+  currentCardId,
+  onNavigateEntry,
   availableJourneyIds,
   className = '',
 }: SoloFocusJourneyNavProps) {
-  const { prev, next, prevLabel, nextLabel } = soloFocusJourneyNeighbors(journeyId, availableJourneyIds)
+  const useWallRing = Boolean(navRing?.length && currentCardId && onNavigateEntry)
+  const wallNeighbors = useWallRing
+    ? soloFocusNavNeighbors(currentCardId!, navRing!)
+    : null
+  const journeyNeighbors = soloFocusJourneyNeighbors(journeyId, availableJourneyIds)
+  const prevLabel = wallNeighbors?.prevLabel ?? journeyNeighbors.prevLabel
+  const nextLabel = wallNeighbors?.nextLabel ?? journeyNeighbors.nextLabel
   const isInset = className.includes('solo-focus-journey-nav--inset')
 
   return (
@@ -35,7 +52,11 @@ export function SoloFocusJourneyNav({
         className="solo-focus-journey-nav__btn solo-focus-journey-nav__btn--prev"
         onClick={() => {
           triggerHaptic()
-          onNavigate(prev)
+          if (wallNeighbors && onNavigateEntry) {
+            onNavigateEntry(wallNeighbors.prev)
+            return
+          }
+          onNavigate(journeyNeighbors.prev)
         }}
         aria-label={`Previous: ${prevLabel}`}
       >
@@ -47,7 +68,11 @@ export function SoloFocusJourneyNav({
         className="solo-focus-journey-nav__btn solo-focus-journey-nav__btn--next"
         onClick={() => {
           triggerHaptic()
-          onNavigate(next)
+          if (wallNeighbors && onNavigateEntry) {
+            onNavigateEntry(wallNeighbors.next)
+            return
+          }
+          onNavigate(journeyNeighbors.next)
         }}
         aria-label={`Next: ${nextLabel}`}
       >

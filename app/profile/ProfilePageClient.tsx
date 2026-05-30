@@ -44,7 +44,7 @@ const PROFILE_QUESTIONS = [
     options: [
       'GAS',
       'ELECTRIC',
-      { label: 'MIXED\nBOTH', value: 'MIX', ariaLabel: 'Mixed both — gas and electric' },
+      { label: 'MIXED', value: 'MIX', ariaLabel: 'Mixed — gas and electric' },
       'OTHER',
     ],
   },
@@ -156,6 +156,15 @@ export default function ProfilePageClient() {
   const hydratedRef = useRef(false)
   const [profileHydrated, setProfileHydrated] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
+  const [keyboardLift, setKeyboardLift] = useState(false)
+
+  const recenterProfileStep = useCallback(() => {
+    setKeyboardLift(false)
+    if (typeof window === 'undefined') return
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+  }, [])
 
   useLayoutEffect(() => {
     if (PROFILE_QUESTIONS.length === 0) return
@@ -210,18 +219,17 @@ export default function ProfilePageClient() {
     setProfileHydrated(true)
   }, [qParam, setStep])
 
-  /** Mobile: recentre question block when the software keyboard dismisses. */
+  /** Mobile: lift step when software keyboard opens; recenter when it closes. */
   useEffect(() => {
     if (typeof window === 'undefined') return
     const vv = window.visualViewport
-    const resetLayout = () => {
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-      document.documentElement.scrollTop = 0
-      document.body.scrollTop = 0
-    }
     const sync = () => {
       const gap = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0
-      if (gap < 48) resetLayout()
+      if (gap > 72) {
+        setKeyboardLift(true)
+        return
+      }
+      recenterProfileStep()
     }
     if (vv) {
       vv.addEventListener('resize', sync)
@@ -235,7 +243,11 @@ export default function ProfilePageClient() {
       }
       window.removeEventListener('focusout', sync)
     }
-  }, [step])
+  }, [step, recenterProfileStep])
+
+  useEffect(() => {
+    recenterProfileStep()
+  }, [step, recenterProfileStep])
 
   const setValue = useCallback((id: string, value: string) => {
     const nextValue =
@@ -514,8 +526,10 @@ export default function ProfilePageClient() {
     if (!current || submittingRef.current || isSubmitting) return
     const trimmed = readLiveFieldValue()
     if (current.type === 'input' && !trimmed) return
+    inputRef.current?.blur()
+    recenterProfileStep()
     advanceProfileStep({ ...values, [current.id]: trimmed })
-  }, [current, values, isSubmitting, advanceProfileStep, readLiveFieldValue])
+  }, [current, values, isSubmitting, advanceProfileStep, readLiveFieldValue, recenterProfileStep])
 
   if (!current) return null
 
@@ -580,14 +594,16 @@ export default function ProfilePageClient() {
     gap: 40,
   }
 
+  const profileShellClass = keyboardLift ? 'zz-profile-page zz-profile-page--keyboard' : 'zz-profile-page'
+
   if (!profileHydrated || !current) {
     return (
-      <main className="zz-profile-page" style={profileShellStyle} aria-busy="true" aria-label="Loading profile" />
+      <main className={profileShellClass} style={profileShellStyle} aria-busy="true" aria-label="Loading profile" />
     )
   }
 
   return (
-    <main className="zz-profile-page" style={profileShellStyle}>
+    <main className={profileShellClass} style={profileShellStyle}>
       <AnimatePresence mode="wait">
         <motion.div
           key={step}
@@ -625,9 +641,8 @@ export default function ProfilePageClient() {
                 value={currentVal}
                 onChange={(v) => setValue(current.id, v)}
                 onAdvance={handleNext}
-                onBlurViewportReset={() => {
-                  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-                }}
+                onFocusLift={() => setKeyboardLift(true)}
+                onBlurViewportReset={recenterProfileStep}
                 placeholder={
                   (current as { label: string; placeholder?: string }).placeholder ?? current.label
                 }
@@ -644,6 +659,8 @@ export default function ProfilePageClient() {
                 onClick={() => {
                   const trimmed = readLiveFieldValue()
                   if (!trimmed || isSubmitting) return
+                  inputRef.current?.blur()
+                  recenterProfileStep()
                   advanceProfileStep({ ...values, [current.id]: trimmed })
                 }}
                 aria-label="Continue"

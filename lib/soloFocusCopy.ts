@@ -6,14 +6,15 @@ import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { sanitizeAgentMarkdown, stripMarkdownForProseDisplay } from '@/lib/agents/zeroHunterMarkdown'
 import {
+  buildAuditorDetectionParagraph,
   buildAuditorNarrativeParagraphs,
   isGenericAuditorProofParagraph,
   payoffSentence,
 } from '@/lib/zone/auditorNarrative'
+import { personalizeTrueTipPlaceLead, resolveSoloFocusPlaceLabel } from '@/lib/zone/localityCopy'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
-import { personalizeTrueTipPlaceLead } from '@/lib/zone/localityCopy'
 import { MAX_SOLO_FOCUS_PROSE_BLOCKS } from '@/lib/zone/zoneVoice'
 
 function coerceJourneyId(id: string): JourneyId {
@@ -209,6 +210,104 @@ const MECHANICAL_SCAFFOLD_PROSE_RE =
 const THIN_FLUFF_PROSE_RE =
   /^your\s+\w+\s+is\s+high[- ]?value\.?$/i
 
+/** Brains tile fallback — not a locality audit lead for Solo Focus. */
+const GENERIC_CALCULATION_INSIGHT_RE =
+  /\b(?:your home is running efficiently|above the efficient regional baseline|optimise tariff and controls first)\b/i
+
+/** Static recommendation / tile copy — no postcode audit opener. */
+const GENERIC_RECOMMENDATION_LEAD_RE =
+  /\b(?:if you stay on gas|electric homes save most|smart tariff \+ insulation|still move the needle|energy saving trust has \d{4} guides|off-peak or smart tariff pricing)\b/i
+
+export function isGenericCalculationInsight(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  return GENERIC_CALCULATION_INSIGHT_RE.test(t)
+}
+
+/** Brains / morph one-liners and tariff filler without an `In [place]` audit lead. */
+export function isGenericNonLocalityLead(text: string): boolean {
+  const t = text.trim()
+  if (!t) return true
+  if (isGenericCalculationInsight(t)) return true
+  if (GENERIC_RECOMMENDATION_LEAD_RE.test(t)) return true
+  return false
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** True when paragraph 1 already carries the Marvin locality audit opener. */
+export function hasLocalityAuditorLeadShape(text: string, placeLabel: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  if (/\bquietly slip away on\b/i.test(t)) return true
+  if (/\bin\s+(?:your area|[A-Z])/i.test(t) && /\babout £[\d,]+(?:\.\d+)? a year can\b/i.test(t)) {
+    return true
+  }
+  if (placeLabel !== 'your area') {
+    const esc = escapeRegExp(placeLabel)
+    if (new RegExp(`\\bIn\\s+${esc}\\b`, 'i').test(t) && /\b£\d/.test(t)) return true
+  }
+  return false
+}
+
+function ensureLocalityAuditorLead(
+  triple: [string, string, string],
+  params: {
+    journeyId: string
+    moneyGbp: number
+    carbonKg: number
+    locality?: string | null
+    postcode?: string | null
+    userPostcode?: string | null
+    sourceDisplayName?: string | null
+  }
+): [string, string, string] {
+  const placeLabel = resolveSoloFocusPlaceLabel({
+    locality: params.locality,
+    postcode: params.postcode,
+  })
+  const j = coerceJourneyId(params.journeyId)
+  const [a, , c] = triple
+  const lead = a.trim()
+  if (hasLocalityAuditorLeadShape(lead, placeLabel)) {
+    return triple
+  }
+
+  const detection = buildAuditorDetectionParagraph({
+    placeLabel,
+    moneyGbp: params.moneyGbp,
+    journey: j,
+  })
+
+  let demoted = ''
+  if (lead && !isGenericNonLocalityLead(lead) && !isBoilerplateProseParagraph(lead)) {
+    demoted = lead
+  }
+
+  let b = triple[1] ?? ''
+  if (!b.trim()) {
+    if (demoted) {
+      b = demoted
+    } else {
+      const src = (params.sourceDisplayName ?? '').trim() || 'UK Government'
+      const pc = (params.userPostcode ?? '').trim() || ''
+      const paras = buildAuditorNarrativeParagraphs({
+        userPostcode: pc,
+        sourceName: src,
+        journey: j,
+        moneyGbp: params.moneyGbp,
+        carbonKg: params.carbonKg,
+        locality: params.locality ?? '',
+      })
+      b = paras[1] ?? ''
+    }
+  }
+
+  return [detection, b, c]
+}
+
 /** Marketing / AI bridge — never a Solo Focus body block. */
 const BRIDGE_PHRASE_PROSE_RE =
   /\b(?:here(?:'s| is) how you can|in conclusion|to summarize|unlock your potential|you could save|as an ai|i can help|absolutely!?|great news)\b/i
@@ -229,7 +328,9 @@ export function isBoilerplateProseParagraph(text: string): boolean {
     BRIDGE_PHRASE_PROSE_RE.test(t) ||
     isCtaBridgeParagraph(t) ||
     isMechanicalScaffoldParagraph(t) ||
-    isGenericAuditorProofParagraph(t)
+    isGenericAuditorProofParagraph(t) ||
+    isGenericCalculationInsight(t) ||
+    isGenericNonLocalityLead(t)
   )
 }
 
@@ -456,10 +557,17 @@ export function dedupeTrueTipOpeningParagraph(headline: string, firstParagraph: 
 export function layoutSoloFocusProseBlocks(
   headline: string,
   triple: [string, string, string],
-  opts: { journeyId: string; moneyGbp: number; carbonKg: number; omitPayoffLine?: boolean }
+  opts: {
+    journeyId: string
+    moneyGbp: number
+    carbonKg: number
+    omitPayoffLine?: boolean
+    placeLabel?: string
+  }
 ): { subheading: string; body: string | null } {
   const j = coerceJourneyId(opts.journeyId)
   const omitPayoff = opts.omitPayoffLine === true
+  const placeLabel = opts.placeLabel ?? 'your area'
   const blocks = dedupeTrueTipParagraphs(
     triple
       .map((p) => p.trim())
@@ -468,14 +576,42 @@ export function layoutSoloFocusProseBlocks(
           p.length > 0 &&
           !isBoilerplateProseParagraph(p) &&
           !paragraphRepeatsPayoffStamp(p, j, opts.moneyGbp, opts.carbonKg) &&
-          !(omitPayoff && proseContainsMoneyStamp(p))
+          !(
+            omitPayoff &&
+            proseContainsMoneyStamp(p) &&
+            !hasLocalityAuditorLeadShape(p, placeLabel)
+          )
       )
   )
   const capped = blocks.slice(0, MAX_SOLO_FOCUS_PROSE_BLOCKS)
   let subheading = capped[0] ?? ''
   subheading = dedupeTrueTipOpeningParagraph(headline, subheading) || subheading
+  subheading = subheading.trim()
   const subKey = compactAlnumKey(subheading)
   let body: string | null = null
+
+  const second = capped[1]?.trim()
+  if (second && !isBoilerplateProseParagraph(second)) {
+    const leadWords = splitHeadlineWords(subheading).length
+    const mergedRaw = `${subheading} ${second}`.replace(/\s+/g, ' ').trim()
+    const mergedWords = splitHeadlineWords(mergedRaw).length
+    if (leadWords < MAX_SOLO_FOCUS_LEAD_WORDS && mergedWords <= MAX_SOLO_FOCUS_LEAD_WORDS) {
+      subheading = mergedRaw
+      for (let i = 2; i < capped.length; i++) {
+        const candidate = capped[i]!.trim()
+        if (!candidate) continue
+        const k = compactAlnumKey(candidate)
+        if (k.length < 12 || k === subKey) continue
+        body = candidate
+        break
+      }
+      return {
+        subheading: clampWords(subheading, MAX_SOLO_FOCUS_LEAD_WORDS),
+        body: body ? clampWords(body, MAX_TRUE_TIP_PARAGRAPH_WORDS) : null,
+      }
+    }
+  }
+
   for (let i = 1; i < capped.length; i++) {
     const candidate = capped[i]!.trim()
     if (!candidate) continue
@@ -484,7 +620,10 @@ export function layoutSoloFocusProseBlocks(
     body = candidate
     break
   }
-  return { subheading: subheading.trim(), body: body?.trim() || null }
+  return {
+    subheading: clampWords(subheading.trim(), MAX_SOLO_FOCUS_LEAD_WORDS),
+    body: body ? clampWords(body.trim(), MAX_TRUE_TIP_PARAGRAPH_WORDS) : null,
+  }
 }
 
 /** Strict display contract: audit lead + optional impact body (never a third prose block). */
@@ -501,6 +640,10 @@ export function resolveSoloFocusDisplayProse(args: {
   postcode?: string | null
 }): { lead: string; body: string | null } {
   const omitPayoffLine = shouldOmitPayoffLine(args.insightSource)
+  const placeLabel = resolveSoloFocusPlaceLabel({
+    locality: args.locality,
+    postcode: args.postcode,
+  })
   const triple = polishTrueTipParagraphsForHeadline(
     args.headline,
     toThreeTrueTipParagraphs(args.insightSource, {
@@ -517,13 +660,38 @@ export function resolveSoloFocusDisplayProse(args: {
     locality: args.locality ?? undefined,
     postcode: args.postcode ?? undefined,
   }) as [string, string, string]
-  const { subheading, body } = layoutSoloFocusProseBlocks(args.headline, personalized, {
+  const withLocalityLead = ensureLocalityAuditorLead(personalized, {
+    journeyId: args.journeyId,
+    moneyGbp: args.moneyGbp,
+    carbonKg: args.carbonKg,
+    locality: args.locality,
+    postcode: args.postcode,
+    userPostcode: args.userPostcode,
+    sourceDisplayName: args.sourceDisplayName,
+  })
+  const { subheading, body } = layoutSoloFocusProseBlocks(args.headline, withLocalityLead, {
     journeyId: args.journeyId,
     moneyGbp: args.moneyGbp,
     carbonKg: args.carbonKg,
     omitPayoffLine,
+    placeLabel,
   })
-  return { lead: subheading, body }
+
+  if (hasLocalityAuditorLeadShape(subheading, placeLabel)) {
+    return { lead: subheading, body }
+  }
+
+  const detection = buildAuditorDetectionParagraph({
+    placeLabel,
+    moneyGbp: args.moneyGbp,
+    journey: coerceJourneyId(args.journeyId),
+  })
+  let bodyOut = body
+  const demoted = subheading.trim()
+  if (demoted && !bodyOut && !isGenericNonLocalityLead(demoted) && !isBoilerplateProseParagraph(demoted)) {
+    bodyOut = demoted
+  }
+  return { lead: detection, body: bodyOut }
 }
 
 /** Content-architect imperative — not a third prose block when audit copy is complete. */
@@ -554,9 +722,11 @@ export function polishTrueTipParagraphsForHeadline(
 /** Zone / bento card face — Marvin stamp (5–8 words). */
 export const MIN_ZONE_CARD_HEADLINE_WORDS = 5
 export const MAX_ZONE_CARD_HEADLINE_WORDS = 8
-/** Solo Focus hook H1 — Marvin, ~2–3 lines (more words than bento face). */
-export const MIN_EXPANDED_VIEW_HEADLINE_WORDS = 10
-export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 20
+/** Solo Focus hook H1 — Marvin, ~3–4 lines (20–24 words). */
+export const MIN_EXPANDED_VIEW_HEADLINE_WORDS = 20
+export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 24
+/** Solo Focus Marvin lead (H4 subheading) — richer locality audit line. */
+export const MAX_SOLO_FOCUS_LEAD_WORDS = 30
 /** @deprecated Use {@link MIN_ZONE_CARD_HEADLINE_WORDS} or {@link MIN_EXPANDED_VIEW_HEADLINE_WORDS}. */
 export const MIN_HEADLINE_WORDS = MIN_ZONE_CARD_HEADLINE_WORDS
 /** Each True Tip paragraph — readable auditor copy, not tariff tables. */
@@ -740,21 +910,42 @@ export function headlineFromTitle(
   return `${words.slice(0, maxWords).join(' ')}...`
 }
 
-/** Expanded Solo Focus hook when DB title is thin or off-topic. */
+/** Neon/agent fragment that is only a tail of the canonical journey hook — prefer full hook. */
+function isPartialExpandedJourneyHook(resolved: string, journeyHook: string): boolean {
+  const r = compactAlnumKey(resolved)
+  const h = compactAlnumKey(journeyHook)
+  if (r.length < 20 || h.length < 24 || r === h) return false
+  return h.includes(r) && r.length <= h.length * 0.88
+}
+
+/** Expanded Solo Focus hook when DB title is thin or off-topic (~20 words each). */
 const EXPANDED_JOURNEY_HOOK: Partial<Record<JourneyId, string>> = {
-  travel: 'ONE RAIL OR BUS COMMUTE A WEEK STILL CUTS FUEL AND FARE WASTE',
-  holidays: 'SHORT HAUL BY TRAIN BEATS A FLIGHT FOR COST AND CARBON',
-  home: 'SEAL DRAUGHTS AND LOFT GAPS BEFORE YOU CHASE A NEW BOILER',
-  utilities: 'LINE UP YOUR TARIFF WITH THE APRIL CAP BEFORE YOU LOCK IN',
-  grants: 'CHECK BUS HEAT PUMP GRANT RULES BEFORE YOU BOOK AN INSTALLER',
-  solar: 'SIZE SOLAR TO YOUR ROOF AND DAYTIME USE NOT A GENERIC KIT',
-  food: 'PLAN MEALS AROUND WHAT YOU ALREADY HAVE TO CUT FOOD WASTE',
-  shopping: 'REPAIR AND REUSE BEFORE YOU REPLACE ANOTHER HOME ITEM',
-  money: 'MOVE IDLE CASH TO A CLEANER ACCOUNT WITHOUT LOSING ACCESS',
-  tech: 'CUT STANDBY DRAW ON PLUGS YOU LEAVE ON ALL NIGHT',
-  water: 'FIT AERATORS AND FIX DRIPS BEFORE THE METER TICKS UP',
-  waste: 'SORT AND COMPOST AT HOME TO EASE COUNCIL BIN PRESSURE',
-  carbon: 'TRACK ONE BIG ENERGY HABIT AND TRIM WHAT YOU DO NOT NEED',
+  travel:
+    'SWAP ONE CAR COMMUTE EACH WEEK FOR RAIL OR BUS AND CUT FUEL BILLS WITHOUT BUYING A NEW TICKET OR PASS',
+  holidays:
+    'PICK SHORT HAUL TRIPS BY TRAIN INSTEAD OF FLYING AND KEEP MORE CASH WHILE TRIMMING HOLIDAY CARBON EVERY YEAR',
+  home:
+    'SEAL DRAUGHTS AND LOFT GAPS AROUND YOUR HOME BEFORE YOU CHASE A NEW BOILER AND PAY FOR WASTED HEAT EACH WINTER',
+  utilities:
+    'LINE UP YOUR GAS AND ELECTRIC TARIFF WITH THE APRIL CAP BEFORE YOU LOCK IN A DEAL THAT BEATS YOUR CURRENT BILL',
+  grants:
+    'CHECK BUS HEAT PUMP AND INSULATION GRANT RULES FOR YOUR HOME BEFORE YOU BOOK AN INSTALLER OR PAY FULL PRICE',
+  solar:
+    'SIZE SOLAR TO YOUR ROOF AND DAYTIME USE NOT A GENERIC KIT THAT EXPORTS POWER YOU NEVER USE AT HOME OR WORK',
+  food:
+    'PLAN MEALS AROUND WHAT YOU ALREADY HAVE IN THE CUPBOARD AND FRIDGE TO CUT FOOD WASTE AND SHOP SPEND EACH WEEK',
+  shopping:
+    'REPAIR AND REUSE HOME GEAR BEFORE YOU REPLACE ANOTHER ITEM AND SEND WORKING KIT STRAIGHT TO LANDFILL OR TIP',
+  money:
+    'MOVE IDLE CASH TO A CLEANER SAVINGS OR CURRENT ACCOUNT WITHOUT LOSING ACCESS OR PAYING HIDDEN FEES EVERY MONTH',
+  tech:
+    'CUT STANDBY DRAW ON PLUGS AND CHARGERS YOU LEAVE ON ALL NIGHT AND STOP QUIET ELECTRICITY LEAKS ADDING UP',
+  water:
+    'FIT AERATORS FIX DRIPS AND SHORT SHOWERS AT HOME BEFORE THE WATER METER TICKS UP AND YOUR BILL CLIMBS AGAIN',
+  waste:
+    'SORT RECYCLE AND COMPOST AT HOME EACH WEEK TO EASE COUNCIL BIN PRESSURE AND CUT WASTE CHARGES ON EVERY COLLECTION',
+  carbon:
+    'TRACK ONE BIG ENERGY HABIT AT HOME EACH MONTH AND TRIM WHAT YOU DO NOT NEED BEFORE YOU BUY OFFSETS OR KITS',
 }
 
 /** Expanded Solo Focus H1 — hook headline with 2–3 line word budget. */
@@ -771,7 +962,8 @@ export function headlineFromExpandedHook(
     isLowQualityZoneHeadline(resolved) ||
     isGenericSpringHeadline(resolved) ||
     words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS ||
-    (jid != null && headlineConflictsWithJourney(jid, resolved))
+    (jid != null && headlineConflictsWithJourney(jid, resolved)) ||
+    Boolean(journeyHook && isPartialExpandedJourneyHook(resolved, journeyHook))
   if (jid && journeyHook && (weak || isGenericSpringHeadline(prepared || title))) {
     return enforceHeadlineWordLimits(journeyHook, true, jid)
   }
@@ -879,7 +1071,12 @@ export function composeScrapedInsightDescription(
 ): string {
   const raw = parts
     .map((p) => (typeof p === 'string' ? p.trim() : ''))
-    .filter((p) => p.length > 0 && !COMPUTING_PLACEHOLDER_RE.test(p))
+    .filter(
+      (p) =>
+        p.length > 0 &&
+        !COMPUTING_PLACEHOLDER_RE.test(p) &&
+        !isGenericCalculationInsight(p)
+    )
     .join(' ')
     .replace(/\s+/g, ' ')
     .replace(/\bin your area\.?/gi, '')
@@ -955,6 +1152,18 @@ export function resolveSoloFocusInsightDisplay(args: {
       ]
     }
     if (sentences.length === 1) {
+      if (isGenericNonLocalityLead(sentences[0]!)) {
+        const src = (args.sourceDisplayName ?? '').trim() || 'UK Government'
+        const pc = (args.userPostcode ?? '').trim() || 'your postcode'
+        return buildAuditorNarrativeParagraphs({
+          userPostcode: pc,
+          sourceName: src,
+          journey: j,
+          moneyGbp: args.moneyGbp,
+          carbonKg: args.carbonKg,
+          locality: args.auditHeaderLocality ?? '',
+        })
+      }
       const src = (args.sourceDisplayName ?? '').trim() || 'UK Government'
       const pc = (args.userPostcode ?? '').trim() || 'your postcode'
       return buildAuditorNarrativeParagraphs({
@@ -1229,6 +1438,9 @@ export function toThreeTrueTipParagraphs(
       carbonKg: options?.carbonKg ?? 0,
       locality: options?.auditHeaderLocality ?? '',
     })
+    if (isGenericNonLocalityLead(only)) {
+      return pack3(paras[0]!, paras[1] ?? paras[0]!, paras[2] ?? payoffSentence(j, money, carbon))
+    }
     return pack3(only, paras[1] ?? paras[0]!, paras[2] ?? payoffSentence(j, money, carbon))
   }
 
