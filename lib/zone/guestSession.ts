@@ -6,7 +6,7 @@
 import type { NextRequest } from 'next/server'
 import type { NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { sealGuestSessionId, unsealGuestSessionId } from '@/lib/sessionCookieSign'
+import { isSessionSigningConfigured, sealGuestSessionId, unsealGuestSessionId } from '@/lib/sessionCookieSign'
 
 export const GUEST_SESSION_COOKIE = 'zz_sid'
 export const GUEST_SESSION_MAX_AGE = 60 * 60 * 24 * 365
@@ -22,7 +22,17 @@ export function getGuestSessionCookieOptions(maxAge = GUEST_SESSION_MAX_AGE) {
 }
 
 export function setGuestSessionCookie(res: NextResponse, sessionId: string): void {
-  res.cookies.set(GUEST_SESSION_COOKIE, sealGuestSessionId(sessionId), getGuestSessionCookieOptions())
+  if (!isSessionSigningConfigured()) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[guestSession] SESSION_SECRET missing (≥16 chars) — zz_sid cookie skipped')
+    }
+    return
+  }
+  try {
+    res.cookies.set(GUEST_SESSION_COOKIE, sealGuestSessionId(sessionId), getGuestSessionCookieOptions())
+  } catch (err) {
+    console.error('[guestSession] cookie set failed:', err instanceof Error ? err.message : err)
+  }
 }
 
 export function parseGuestSessionCookie(raw: string | undefined | null): string | null {
