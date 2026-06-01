@@ -4,6 +4,21 @@ import { isAcceptableZoneJourneyHeadline } from '@/lib/soloFocusCopy'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { isCardVisited } from '@/lib/zone/visitedCards'
 
+const SESSION_USER_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function browserHasSessionCookie(): boolean {
+  if (typeof document === 'undefined') return false
+  return document.cookie.split(';').some((cookie) => cookie.trim().startsWith('session='))
+}
+
+export function browserCanTriggerScrapeSync(): boolean {
+  if (typeof window === 'undefined') return false
+  if (browserHasSessionCookie()) return true
+  const rawId = (localStorage.getItem('userId') ?? localStorage.getItem('user_id') ?? '').trim()
+  return rawId.length > 0 && SESSION_USER_UUID_RE.test(rawId)
+}
+
 /** Latest row per `research_results.category` from GET /api/scrape-sync. */
 export type ResearchCategoryCoverageRow = {
   insightReady: boolean
@@ -65,6 +80,8 @@ export function triggerScrapeSyncForCategory(params: {
   answerValue?: string | null
   isAchievementCard?: boolean
 }): void {
+  if (!browserCanTriggerScrapeSync()) return
+
   const pc = String(params.postcode ?? '')
     .replace(/\s+/g, '')
     .trim()

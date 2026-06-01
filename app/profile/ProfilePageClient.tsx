@@ -25,6 +25,7 @@ import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
 import { persistHomePowerFromProfile, profileHomePowerToEnergyType } from '@/lib/profile/homePower'
 import { PROFILE_GOAL_WEIGHTS, type ProfileGoalValue } from '@/lib/profile/goalWeighting'
 import { syncSessionState } from '@/lib/sessionStateSync'
+import { browserCanTriggerScrapeSync } from '@/lib/researchSyncClient'
 import { flushSync } from 'react-dom'
 
 /** Software-keyboard lift — phones only; tablet (768+) and desktop stay centred. */
@@ -355,19 +356,21 @@ export default function ProfilePageClient() {
         postcode: pc,
         profileData,
       }
-      void fetch('/api/scrape-sync', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...scrapeBody, category: 'home' }),
-      }).catch(() => {})
-      if (values.powerType?.trim()) {
+      if (browserCanTriggerScrapeSync()) {
         void fetch('/api/scrape-sync', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...scrapeBody, category: 'utilities' }),
+          body: JSON.stringify({ ...scrapeBody, category: 'home' }),
         }).catch(() => {})
+        if (values.powerType?.trim()) {
+          void fetch('/api/scrape-sync', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...scrapeBody, category: 'utilities' }),
+          }).catch(() => {})
+        }
       }
     }, 400)
     return () => window.clearTimeout(tid)

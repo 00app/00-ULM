@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, readLocationStateFromStorage } from '@/app/context/AppContext'
+import { browserCanTriggerScrapeSync } from '@/lib/researchSyncClient'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import { syncFallbackGridIntensityGPerKwh } from '@/lib/brains/liveGridCarbonFactor'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
@@ -486,24 +487,7 @@ export default function ProfileSummaryPage() {
     const handshakeAbortTimer = window.setTimeout(() => handshakeAbort.abort(), 8000)
     handshakePromiseRef.current = (async () => {
       try {
-        await Promise.allSettled([
-          fetch('/api/scrape-sync', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            signal: handshakeAbort.signal,
-            body: JSON.stringify({
-              trigger: true,
-              postcode: pc,
-              category: 'home',
-              profileData: {
-                home_type: profileFromStorage?.homeType ?? undefined,
-                transport_baseline: profileFromStorage?.transport ?? undefined,
-                household: profileFromStorage?.livingSituation ?? undefined,
-                goal: profileFromStorage?.goal ?? undefined,
-              },
-            }),
-          }),
+        const requests = [
           fetch(`/api/scrape-sync?postcode=${encodeURIComponent(pc)}`, {
             credentials: 'include',
             signal: handshakeAbort.signal,
@@ -513,7 +497,29 @@ export default function ProfileSummaryPage() {
             credentials: 'include',
             signal: handshakeAbort.signal,
           }),
-        ])
+        ]
+        if (browserCanTriggerScrapeSync()) {
+          requests.unshift(
+            fetch('/api/scrape-sync', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              signal: handshakeAbort.signal,
+              body: JSON.stringify({
+                trigger: true,
+                postcode: pc,
+                category: 'home',
+                profileData: {
+                  home_type: profileFromStorage?.homeType ?? undefined,
+                  transport_baseline: profileFromStorage?.transport ?? undefined,
+                  household: profileFromStorage?.livingSituation ?? undefined,
+                  goal: profileFromStorage?.goal ?? undefined,
+                },
+              }),
+            })
+          )
+        }
+        await Promise.allSettled(requests)
       } finally {
         window.clearTimeout(handshakeAbortTimer)
       }
