@@ -116,13 +116,13 @@ nextjs-portal > * {
   --font-label: var(--font-marvin);
 
   /* Authorised palette only */
-  --color-yellow: #FDFD00;
+  --color-yellow: #FFD700;
   --color-purple: #7800ce;
   --color-pink: #FF00FF;
   --color-intro-type: var(--color-yellow);
 
   /* Ask Zai + deep-dive — ULM yellow field, ULM dark ink (mechanical-pulse / postcode-first) */
-  --ulm-yellow: #FFD700;
+  --ulm-yellow: var(--color-yellow);
   --ulm-dark: #1A1A1A;
   --zai-deep-blue: #141268;
   --zai-field-bg: var(--ulm-yellow);
@@ -266,7 +266,7 @@ body {
 }
 
 .zz-blob--yellow {
-  background-color: #fdfd00;
+  background-color: var(--color-yellow);
 }
 
 .zz-blob--pink {
@@ -421,12 +421,29 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: max(40px, env(safe-area-inset-top, 0px)) 40px max(40px, env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  overflow: visible;
   background: transparent !important;
   background-color: transparent !important;
   pointer-events: none;
 }
+
+.app-boot-glitch .zz-atomic-logo-wrap {
+  overflow: visible;
+  flex-shrink: 0;
+  transform-origin: center center;
+  padding: 20px 0;
+  margin: auto;
+}
+
 .intro-boot-glitch {
   pointer-events: auto;
+}
+
+/* Zone wall hydrate — same viewport-centred lock as route boot */
+.zone-wall-loading-overlay {
+  z-index: 160;
 }
 
 /* Inline glitch logo under ASK ZAI — transparent; same mesh as app shell */
@@ -441,10 +458,14 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 120px;
+  overflow: visible;
   background: transparent;
 }
-.zone-inline-loading-logo .zz-glitch-wrap {
+.zone-inline-loading-logo .zz-glitch-wrap,
+.zone-inline-loading-logo .zz-atomic-logo-wrap {
   margin-inline: auto;
+  overflow: visible;
+  transform-origin: center center;
 }
 
 /* Summary → Zone handoff: full-viewport glitch then pulse (grid hidden underneath) */
@@ -477,11 +498,15 @@ body {
   max-width: calc(100vw - 80px);
 }
 
-/* Wall hydrating — centre anchor cluster; no panel behind glitch */
+/* Wall hydrating — centre anchor cluster; logo is viewport-fixed via AppBootGlitch portal */
 .zone-anchor.zone-anchor--wall-loading {
   align-items: center;
   width: 100%;
   background: transparent !important;
+}
+.zone-anchor.zone-anchor--wall-loading .zone-hero-section {
+  visibility: hidden;
+  pointer-events: none;
 }
 .zone-anchor.zone-anchor--wall-loading .zone-hero-grid {
   width: 100%;
@@ -1051,7 +1076,7 @@ p,
 /* 0-0 MVP Final Lock */
 :root {
   --color-purple: #7800CE;
-  --color-yellow: #FDFD00;
+  --color-yellow: #FFD700;
   --color-pink: #FF00FF;
 }
 
@@ -1061,7 +1086,7 @@ p,
 /* Sign-Go Button */
 .btn-sign-go {
   background: #FF00FF !important;
-  color: #FDFD00 !important;
+  color: var(--color-yellow) !important;
   font-family: 'Roboto', sans-serif;
   font-weight: 800;
   transition: all 0.12s linear !important;
@@ -1487,7 +1512,7 @@ main.zone > .zone-content-rail {
   grid-auto-flow: dense;
   row-gap: 20px;
   column-gap: 20px;
-  padding: 0;
+  padding: 10px 0;
   margin: 0 auto;
   width: 100%;
   max-width: min(1400px, 100%);
@@ -1519,7 +1544,7 @@ main.zone > .zone-content-rail {
     grid-auto-flow: row;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 0;
+    padding: 10px 0;
   }
   .groovy-zone-grid > * {
     grid-column: 1 !important;
@@ -1544,7 +1569,7 @@ main.zone > .zone-content-rail {
     max-width: 920px;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 0;
+    padding: 10px 0;
   }
   .groovy-zone-grid > * {
     width: auto;
@@ -1571,7 +1596,7 @@ main.zone > .zone-content-rail {
     max-width: 1200px;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 0;
+    padding: 10px 0;
   }
   .groovy-zone-grid > .bento-hero-span {
     grid-column: 1 / -1;
@@ -1594,7 +1619,7 @@ main.zone > .zone-content-rail {
     max-width: 1280px;
     row-gap: 20px;
     column-gap: 20px;
-    padding: 0;
+    padding: 10px 0;
   }
 }
 
@@ -1792,7 +1817,8 @@ body, p, span, input, button, textarea, select,
   .settings-hero-card.settings-bento-card.bento-card-groovy,
   .expanded-solo-focus .solo-focus-shell,
   .likes-page .bento-card-groovy {
-    padding: 20px !important;
+    padding-block: 30px !important;
+    padding-inline: 30px !important;
   }
 }
 
@@ -1888,20 +1914,25 @@ body, p, span, input, button, textarea, select,
   letter-spacing: -0.02em !important;
 }
 
-/* Zone bento — locked header row (label + optional “+” + category icon). */
+/* Zone bento — locked header row (label + optional “+”). */
 .zone-bento-card-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--zone-card-category-icon-size);
-  column-gap: clamp(8px, 2cqw, 12px);
+  display: flex;
   align-items: center;
   width: 100%;
-  min-height: var(--zone-card-category-icon-size);
+  min-width: 0;
   box-sizing: border-box;
+}
+.bento-card-groovy .zone-bento-card-header {
+  color: inherit;
+}
+.bento-card-groovy .zone-bento-card-header__label,
+.bento-card-groovy .zone-bento-card-header__plus {
+  color: var(--journey-text, var(--color-ink, currentColor));
 }
 .zone-bento-card-header__label-wrap {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 0.2em;
   min-width: 0;
 }
 .zone-bento-card-header__label {
@@ -1927,6 +1958,18 @@ body, p, span, input, button, textarea, select,
   .zone-bento-card-header__plus {
     font-size: var(--zz-h4-desktop);
   }
+}
+/* Bento tiles — no category icons (label + copy only). */
+.bento-card-groovy .zone-bento-card-header__icon-slot,
+.bento-card-groovy .zone-bento-card-icon,
+.bento-card-groovy .card-top-arrow.card-top-arrow--hint {
+  display: none !important;
+}
+/* Rock strip — category label matches card ink (not pink header drift). */
+.rock-saving-tips-grid .bento-card-groovy .zone-bento-card-header,
+.rock-saving-tips-grid .bento-card-groovy .zone-bento-card-header__label,
+.rock-saving-tips-grid .bento-card-groovy .zone-bento-card-header__plus {
+  color: var(--journey-text, var(--color-ink, currentColor)) !important;
 }
 .zone-bento-card-header__icon-slot {
   display: flex;
@@ -1982,10 +2025,56 @@ body, p, span, input, button, textarea, select,
   height: 100%;
 }
 
-/* Zone bento journey tiles — max 3 lines (spec: kinetic grid card headline) */
+/* Zone bento journey tiles — wrap full 8–10 word stamp (no mid-word ellipsis). */
 .bento-card-groovy .card-headline {
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  overflow: visible;
+  text-overflow: clip;
+  display: block;
+  -webkit-box-orient: unset;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  height: auto;
+  max-height: none;
+}
+
+.groovy-zone-grid .bento-card-groovy .card-headline,
+.groovy-zone-grid button.bento-card-groovy .card-headline,
+.groovy-zone-grid .span-tall-block .card-headline {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  display: block !important;
+  -webkit-box-orient: unset !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  height: auto !important;
+  max-height: none !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  text-wrap: balance;
+  white-space: normal !important;
+}
+
+/* Today's tips — full 8–10 word stamp (no character clip). */
+.rock-saving-tips-grid .card-headline {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  display: block !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  height: auto !important;
+  max-height: none !important;
+  white-space: normal !important;
+  text-wrap: balance;
+}
+
+.zai-interface .zai-profile-answer-link {
+  color: var(--color-yellow) !important;
+  text-decoration: underline;
+}
+
+.zai-interface .zai-like-btn {
+  border: none !important;
+  box-shadow: none !important;
 }
 /* Data stack — label over number; 0px flex gap (no absolute positioning on labels) */
 .data-stack {
@@ -4778,8 +4867,8 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   width: 100%;
   max-width: min(1240px, 100%);
   margin: 0 auto 20px;
-  padding-left: clamp(12px, 4vw, 24px);
-  padding-right: clamp(12px, 4vw, 24px);
+  padding-left: 0;
+  padding-right: 0;
   box-sizing: border-box;
 }
 .settings-hero-inner {
@@ -4789,8 +4878,8 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   width: 100%;
   max-width: min(1240px, 100%);
   margin: 0 auto;
-  padding-left: clamp(12px, 4vw, 24px);
-  padding-right: clamp(12px, 4vw, 24px);
+  padding-left: 0;
+  padding-right: 0;
   padding-bottom: 32px;
   box-sizing: border-box;
 }
@@ -5176,31 +5265,6 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   letter-spacing: var(--zz-track-circle-marvin) !important;
 }
 
-/* Flight Deck — diagnostics trigger (next to Reset) */
-.settings-flight-deck-btn {
-  width: 56px;
-  height: 56px;
-  min-width: 56px;
-  min-height: 56px;
-  border-radius: 50%;
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--color-purple);
-  background: transparent;
-  color: var(--color-purple);
-  cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
-  transition: background-color 0.12s linear, color 0.12s linear, border-color 0.12s linear;
-}
-.settings-flight-deck-btn:hover,
-.settings-flight-deck-btn--active {
-  background: var(--color-yellow);
-  color: var(--color-purple);
-  border-color: var(--color-yellow);
-}
 .settings-reset-flight-deck {
   display: inline-flex;
   align-items: center;
@@ -5309,6 +5373,12 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   letter-spacing: 0.06em;
   text-transform: lowercase;
   color: color-mix(in srgb, var(--zai-ink, var(--color-purple)) 70%, transparent);
+}
+
+.mechanical-diagnostics-sheet__map-link {
+  color: var(--color-yellow);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .settings-section-title {
@@ -7004,9 +7074,11 @@ html.zz-zai-document body {
 }
 
 /* Input focus: lift step above mobile keyboard; recentre when keyboard closes. */
-.zz-profile-page--keyboard {
-  justify-content: flex-start;
-  padding-top: max(12px, env(safe-area-inset-top, 0px));
+@media (max-width: 767px) {
+  .zz-profile-page--keyboard {
+    justify-content: flex-start;
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
+  }
 }
 
 .zz-profile-page .profile-step-slam {
@@ -7185,48 +7257,20 @@ html.zz-zai-document body {
     --color-ink: var(--zz-hover-text);
   }
   .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .card-top-label,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-header__label,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-header__plus,
   .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .card-headline,
   .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-label,
   .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-value,
   .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .text-data,
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .card-top-label,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-header__label,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-header__plus,
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .card-headline,
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-label,
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-value,
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .text-data {
     color: var(--zz-hover-text) !important;
-  }
-  /* Zone bento + Today's Tips — category row: pink at rest, yellow on hover (Solo Focus nav lock). */
-  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-header__label,
-  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon,
-  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon svg,
-  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-header__label,
-  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon,
-  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon svg {
-    color: var(--color-pink) !important;
-    stroke: var(--color-pink) !important;
-  }
-  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-header__label,
-  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon,
-  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon svg,
-  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-header__label,
-  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon,
-  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon svg {
-    color: var(--color-yellow) !important;
-    stroke: var(--color-yellow) !important;
-  }
-  /* Discovery tip tiles (yellow face): purple header → yellow on hover. */
-  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited) .zone-bento-card-header__label,
-  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited) .zone-bento-card-icon,
-  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited) .zone-bento-card-icon svg {
-    color: var(--color-purple) !important;
-    stroke: var(--color-purple) !important;
-  }
-  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited):hover .zone-bento-card-header__label,
-  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited):hover .zone-bento-card-icon,
-  .groovy-zone-grid .bento-card-groovy[data-zone-surface='tip']:not(.zone-card--visited):hover .zone-bento-card-icon svg {
-    color: var(--color-yellow) !important;
-    stroke: var(--color-yellow) !important;
   }
   /* Visited (pink) — no hover colour change */
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover,
@@ -7239,11 +7283,15 @@ html.zz-zai-document body {
     --color-ink: var(--color-yellow);
   }
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .card-top-label,
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .zone-bento-card-header__label,
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .zone-bento-card-header__plus,
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .card-headline,
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .data-label,
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .data-value,
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .text-data,
   .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .card-top-label,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .zone-bento-card-header__label,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .zone-bento-card-header__plus,
   .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .card-headline,
   .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .data-label,
   .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .data-value,
@@ -7262,6 +7310,8 @@ html.zz-zai-document body {
   }
   .settings-page .settings-bento-card.bento-card-groovy:hover .card-top-label,
   .settings-page .settings-bento-card.bento-card-groovy:hover .card-headline,
+  .settings-page .settings-bento-card.bento-card-groovy:hover .card-top-arrow,
+  .settings-page .settings-bento-card.bento-card-groovy:hover .card-top-arrow svg,
   .settings-page .settings-bento-card.bento-card-groovy:hover .data-label,
   .settings-page .settings-bento-card.bento-card-groovy:hover .data-value,
   .likes-page .bento-card-groovy:hover .card-top-label,
@@ -7269,6 +7319,9 @@ html.zz-zai-document body {
   .likes-page .bento-card-groovy:hover .data-label,
   .likes-page .bento-card-groovy:hover .data-value {
     color: var(--zz-hover-text) !important;
+  }
+  .settings-page .settings-bento-card.bento-card-groovy:hover .card-top-arrow svg {
+    stroke: var(--zz-hover-text) !important;
   }
   .zz-profile-page .zz-input:hover {
     background: var(--zz-hover-bg);
@@ -7972,6 +8025,7 @@ select,
   flex-direction: column;
   align-items: flex-start;
   gap: 0.06em;
+  padding-inline: 30px;
 }
 .zone-desktop-nav-rail {
   display: none;
@@ -8128,6 +8182,7 @@ select,
   pointer-events: auto;
   width: min(var(--max-w-zone), calc(100vw - 32px));
   max-width: min(var(--max-w-zone), calc(100vw - 32px));
+  background-color: rgba(255, 215, 0, 1);
 }
 body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
   padding-bottom: calc(40px + 80px + 40px + env(safe-area-inset-bottom, 0px));
@@ -8973,6 +9028,9 @@ p,
   overflow-wrap: break-word !important;
   word-break: normal !important;
   min-height: 0 !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  max-height: none !important;
 }
 @media (min-width: 1024px) {
   .expanded-solo-focus h1.solo-focus-architect-headline,

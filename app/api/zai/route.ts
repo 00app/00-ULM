@@ -23,6 +23,7 @@ import {
   generateGatewayText,
   isAiGatewayConfigured,
   isBucketFailoverEnabled,
+  hasAnyBucketLlmProvider,
   CHAT_GATEWAY_MODEL_CHAIN,
   GEMINI_DIRECT_CHAT,
 } from "@/lib/intelligence/aiGateway";
@@ -300,7 +301,8 @@ async function polishZaiReplyAndLearn(args: {
 export async function POST(req: NextRequest) {
   // Read at request time so Vercel runtime env is available (not build-cached)
   const runtimeKey = process.env.GEMINI_API_KEY?.trim()
-  if (!runtimeKey && !isAiGatewayConfigured()) {
+  const bucketLlm = isBucketFailoverEnabled() && hasAnyBucketLlmProvider()
+  if (!runtimeKey && !isAiGatewayConfigured() && !bucketLlm) {
     return NextResponse.json(
       { answer: "i'm not configured yet. try again later." },
       { status: 503 }

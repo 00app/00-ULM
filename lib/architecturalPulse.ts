@@ -4,11 +4,15 @@ import { formatMoneyValue, compactAuditValue } from '@/lib/format'
 /** Warm Marvin + Roboto before summary ticker / intro type (avoids sans-serif flash). */
 export function preloadAppFonts(): Promise<void> {
   if (typeof document === 'undefined') return Promise.resolve()
+  const marvinFamily = '"Marvin Visions Bold"'
   return Promise.all([
     document.fonts.load('700 16px var(--font-roboto)'),
     document.fonts.load('800 16px var(--font-roboto)'),
-    document.fonts.load('700 20px "Marvin Visions Bold"'),
-    document.fonts.load('900 50px "Marvin Visions Bold"'),
+    document.fonts.load(`700 20px ${marvinFamily}`),
+    document.fonts.load(`900 50px ${marvinFamily}`),
+    document.fonts.load(`900 70px ${marvinFamily}`),
+    document.fonts.load(`900 90px ${marvinFamily}`),
+    document.fonts.ready,
   ])
     .then(() => undefined)
     .catch(() => undefined)
@@ -32,7 +36,15 @@ export const ARCHITECTURAL_PULSE_WORDS = [
 export const ARCHITECTURAL_PULSE_DWELL_MS = Math.round(1200 * INTRO_TYPE_MOTION_SCALE)
 
 /** Max wait after DONE. before punch-through if scrape-sync is still in flight. */
-export const ZONE_READY_MAX_WAIT_MS = 14_000
+export const ZONE_READY_MAX_WAIT_MS =
+  typeof process !== 'undefined' && process.env.NODE_ENV === 'development' ? 90_000 : 14_000
+
+/** Second/third scrape-sync attempts after cold webpack compile (dev only). */
+export const ZONE_SCRAPE_SYNC_RETRY_WAIT_MS =
+  typeof process !== 'undefined' && process.env.NODE_ENV === 'development' ? 120_000 : 14_000
+
+export const ZONE_SCRAPE_SYNC_MAX_ATTEMPTS =
+  typeof process !== 'undefined' && process.env.NODE_ENV === 'development' ? 3 : 1
 
 /** Clean Birth: max wait on post-answer pulse before Zone reveal (card + words). */
 export const CLEAN_BIRTH_PULSE_MAX_WAIT_MS = 4_500

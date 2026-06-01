@@ -142,7 +142,17 @@ export default function DiagnosticsSheet({
                 </motion.div>
               ))}
             </motion.div>
-            <p className="mechanical-diagnostics-sheet__footer m-0">use less, more.</p>
+            <p className="mechanical-diagnostics-sheet__footer m-0">
+              use less, more.{' '}
+              <a
+                href="https://github.com/00app/00-ULM/blob/main/docs/INTELLIGENCE-LOOP-MANIFEST.md"
+                className="mechanical-diagnostics-sheet__map-link"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Intelligence loop map →
+              </a>
+            </p>
           </motion.div>
         </>
       ) : null}

@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { resolveFirecrawlApiKey } from '@/lib/sentinel/api-config'
 import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 import { readGuestSessionId } from '@/lib/requestAuth'
@@ -36,10 +37,13 @@ import {
   scrapeSyncBearerMatches,
   scrapeSyncTriggerRequested,
 } from '@/lib/intelligence/scrapeSyncAuth'
+import { scrapeSyncHeavyResearchAllowed } from '@/lib/intelligence/scrapeSyncResearchAuth'
 import { foldCoverageRowsForZone, researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import {
   assertBroadResearchBlocked,
+  shouldPreferMechanicalTripletInBucket,
+  shouldSkipFirecrawlScrape,
   validateSurgicalScrapeContext,
 } from '@/lib/intelligence/scrapeBoundaries'
 import {
@@ -105,9 +109,10 @@ function resolveResearchUserId(
   return null
 }
 
-/** Firecrawl gate — `FIRE_CRAWL_KEY_2` must match Production Vercel exactly. */
+/** Firecrawl gate — skipped when SKIP_FIRECRAWL=1 (hybrid EPC/NESO + Groq bucket). */
 function firecrawlMissingResponse(): NextResponse | null {
-  const scraperKey = process.env.FIRE_CRAWL_KEY_2?.trim() || ''
+  if (shouldSkipFirecrawlScrape()) return null
+  const scraperKey = resolveFirecrawlApiKey()
   if (!scraperKey) {
     return NextResponse.json({ error: 'Scraper not configured' }, { status: 503 })
   }
@@ -446,7 +451,8 @@ export async function GET(request: NextRequest) {
         userId: researchUserId,
         postcode,
         profileData: Object.keys(profileData).length > 0 ? profileData : null,
-        limit: tier2Repair ? 8 : 4,
+        limit: tier2Repair ? 4 : 2,
+        mechanicalOnly: shouldPreferMechanicalTripletInBucket(),
       })
       const tier2Coverage = await loadResearchCategoryCoverageResolved(researchUserId, postcode)
       const folded = tier2Coverage ? foldCoverageRowsForZone(tier2Coverage) : {}
@@ -491,6 +497,9 @@ export async function GET(request: NextRequest) {
 
     /** Lightweight backfill — rows with £ but missing agent_headline / architect_prose (no full Firecrawl loop). */
     if (postcode.length >= 4 && repairHeadlines && !forceResearch) {
+      if (!scrapeSyncHeavyResearchAllowed(sessionUserId, request)) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
       const visitedForRepair = await loadVisitedJourneyKeys(
         researchUserId,
         resolveGuestSessionId(request)
@@ -500,8 +509,9 @@ export async function GET(request: NextRequest) {
         userId: researchUserId,
         postcode,
         profileData: Object.keys(profileData).length > 0 ? profileData : null,
-        limit: 8,
+        limit: 4,
         skipVisitedCategories: visitedForRepair,
+        mechanicalOnly: shouldPreferMechanicalTripletInBucket(),
       })
       researchCategoryCoverage = await loadResearchCategoryCoverageResolved(researchUserId, postcode)
       if (researchCategoryCoverage) {
@@ -522,7 +532,7 @@ export async function GET(request: NextRequest) {
 
     /** GET without `force=true` must stay fast (Zone load, Vercel deployment checks). Heavy research: POST trigger or GET `?force=true`. */
     if (postcode && forceResearch) {
-      if (!sessionUserId && !serviceBearer) {
+      if (!scrapeSyncHeavyResearchAllowed(sessionUserId, request)) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
       const broadBlock = assertBroadResearchBlocked('GET scrape-sync ?force=true (multi-category ZeroResearch)')
@@ -825,7 +835,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Bearer, signed-in session, or server guest cookie (`zz_sid`) for POST trigger. */
+/** Bearer or signed-in session for POST trigger (guest cookie cannot start full scrape). */
 async function scrapeSyncPostAuthDenied(
   request: NextRequest,
   opts: { allowSessionTrigger: boolean; body?: Record<string, unknown> }
@@ -835,7 +845,6 @@ async function scrapeSyncPostAuthDenied(
   if (opts.allowSessionTrigger) {
     const session = await getSessionFromRequest().catch(() => null)
     if (session?.userId) return null
-    if (readGuestSessionId(request)) return null
   }
 
   const { status, body } = scrapeSyncAuthDeniedResponse()
@@ -873,7 +882,7 @@ async function parseScrapeSyncPostBody(request: NextRequest): Promise<Record<str
 
 /**
  * POST — Upsert crawler payload into scraped_summary (001 Crawler → dashboard).
- * Auth: Bearer `SCRAPER_SECRET` / `CRON_SECRET` / `GATEWAY_TOKEN`, or signed-in session for `trigger` POST.
+ * Auth: Bearer `SCRAPER_SECRET` / `CRON_SECRET`, or signed-in session for `trigger` POST (not guest-only).
  * Trigger mode: JSON `{ "trigger": true, "postcode": "SW1A1AA" }` or query `?postcode=&force=true` with empty body.
  */
 export async function POST(request: NextRequest) {
@@ -995,7 +1004,8 @@ export async function POST(request: NextRequest) {
         userId,
         postcode,
         profileData: pd,
-        limit: 4,
+        limit: 2,
+        mechanicalOnly: shouldPreferMechanicalTripletInBucket(),
       })
       const coverage = await loadResearchCategoryCoverageByPostcode(postcode)
       const categoriesWithInsight = Object.entries(coverage).filter(

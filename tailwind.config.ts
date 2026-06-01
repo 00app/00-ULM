@@ -5,7 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        yellow: '#FDFD00',
+        yellow: '#FFD700',
         pink: '#FF00FF',
         purple: '#7800ce',
       },

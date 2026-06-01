@@ -84,6 +84,7 @@ import { resolveBirthedCardId, scheduleSoloFocusRebirthOpen } from '@/lib/soloFo
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
 import { isCardVisited } from '@/lib/zone/visitedCards'
 import { isDiscoveryInjectCard, shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
+import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
 
 export interface SoloFocusOverlayProps {
@@ -403,12 +404,6 @@ export function SoloFocusOverlay({
   })
   const resolvedOpenUrl = soloHandoff.ctaUrl.trim()
 
-  /** ✓ True data — Neon `research_results.verified` (via scrape-sync coverage). */
-  const dbVerifiedFromResearchTable =
-    researchCategoryCoverage != null && covLookupKey
-      ? journeyResearchCov?.verified === true
-      : null
-
   const effectiveTitleRaw =
     discoveryRebirthTip && rebirthDiscoveryTitle?.trim()
       ? rebirthDiscoveryTitle.trim()
@@ -489,7 +484,6 @@ export function SoloFocusOverlay({
       auditHeaderLocality={state.locationState?.locationName ?? undefined}
       locality={state.locationState?.locationName ?? undefined}
       postcode={profilePostcode ?? state.profile?.postcode ?? undefined}
-      leadOnly={isDiscoveryMotherCard}
     />
   ) : null
   const sourceFooter =
@@ -594,6 +588,7 @@ export function SoloFocusOverlay({
 
   const requestClose = useCallback(() => {
     triggerHaptic('medium')
+    clearSoloFocusMemory()
     const visitId = String(cardId ?? activeCardId ?? '').trim()
     const isRockHabitTip = visitId.startsWith('rock-')
     onPatternShiftClose?.(loopJourneyKey, {
@@ -702,7 +697,6 @@ export function SoloFocusOverlay({
                         narrative={null}
                         sourceFooter={sourceFooter}
                         verifiedSourceCitation={null}
-                        verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
                         moneyGbp={animatedMoneyGbp}
                         carbonKg={animatedCarbonKg}
                         impactPulse={impactAnswerPulse}

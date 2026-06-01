@@ -119,13 +119,13 @@ function SettingsBentoCard({
             type="button"
             onClick={onEditClick}
             className="card-top-arrow flex items-center justify-center flex-shrink-0 border-0 p-0 cursor-pointer bg-transparent"
-            style={{ width: 42, height: 42, color: textColor }}
+            style={{ width: 42, height: 42 }}
             aria-label={`Edit: ${label}`}
           >
             <PencilIcon />
           </button>
         ) : editHref ? (
-          <Link href={editHref} className="card-top-arrow flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42, color: textColor }} aria-label={`Edit: ${label}`}>
+          <Link href={editHref} className="card-top-arrow flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42 }} aria-label={`Edit: ${label}`}>
             <PencilIcon />
           </Link>
         ) : (
@@ -475,7 +475,7 @@ export default function SettingsPage() {
                     <span className="card-top-label" style={{ color: 'var(--color-yellow)' }}>
                       {card.title.toUpperCase()}
                     </span>
-                    <div className="card-top-arrow flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42, color: 'var(--color-yellow)' }} aria-hidden>
+                    <div className="card-top-arrow flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42 }} aria-hidden>
                       <PencilIcon />
                     </div>
                   </div>

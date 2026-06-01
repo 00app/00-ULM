@@ -12,8 +12,9 @@
  * | Label | `formatZoneCategoryLabel(journeyId)` | UPPERCASE journey key, journey yellow |
  * | H1 | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | 20–24 words; no generic spring filler |
  * | Lead | `SoloFocusProseStack` H4 | Locality via `locationName` — town, not postcode; ≤30 words |
- * | Body | Roboto | Max {@link MAX_SOLO_FOCUS_PROSE_BLOCKS} blocks total (lead + body); no £ if metrics stamp |
- * | Discovery inject | `leadOnly` on overlay | Lead only — no body block, no no-offer footer |
+ * | Body | — | **Lead-only UI** (May 2026) — no Roboto architect body; SAVE/CARBON metrics row owns £/kg |
+ * | Discovery inject | overlay | Same lead-only stack — no no-offer footer |
+ * | Rock tips | `ZoneBentoCardHeader` | Label ink = headline ink at rest + hover (`--journey-text`) |
  * | Impact | `MotherCardRenderer` SAVE/CARBON | Single stamp — hide `payoffSentence` text when prose already has £ |
  * | Trinity | Ask Zai · Like · BUY/CLAIM | `SoloFocusActionTrinity` / industrial handoff |
  * | Nav | `soloFocusNavRingFromDisplayItems` | Wall order — mother + discovery tips; tip labels singular (grant ↘) |

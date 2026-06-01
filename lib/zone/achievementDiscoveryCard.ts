@@ -3,7 +3,7 @@ import { validateInjectionCard } from '@/lib/zone/injections'
 import type { ZoneTipCard } from '@/lib/logic/zone'
 import { buildDiscoveryInjectionId } from '@/lib/zone/discoveryCard'
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
-import { zoneCardHeadlineFromRaw } from '@/lib/soloFocusCopy'
+import { clampZoneBentoHeadline } from '@/lib/soloFocusCopy'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
 
 /** Pink (#FF00FF) achievement card — server + client safe. */
@@ -27,8 +27,7 @@ export function buildAchievementDiscoveryCard(params: {
   const id = buildDiscoveryInjectionId(params.journeyId, params.questionId, params.answerValue)
   const url = params.offerUrl?.trim().startsWith('http') ? params.offerUrl.trim() : undefined
   const prose = typeof params.body === 'string' ? params.body.trim() : ''
-  const journeyFallback = `${params.journeyId.replace(/-/g, ' ').toUpperCase()} SAVING`
-  const title = zoneCardHeadlineFromRaw(params.title, journeyFallback)
+  const title = clampZoneBentoHeadline(params.title, params.journeyId)
   const raw = {
     id,
     title,

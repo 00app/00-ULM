@@ -3921,9 +3921,15 @@ npm run db:log-research      # latest research_results row
 
 If `db:test` passes but pool scripts fail: save `.env.local`, remove stale `export DATABASE_URL=...` from your shell, or set `DATABASE_USE_NEON_SERVERLESS=0` for CLI scripts.
 
+**Local dev loads `.env.local` first:** `next.config.js` calls `loadEnvLocal({ preferLocal: true })` so exported shell vars cannot mask the file during `next dev`.
+
+**Env files:** use **`.env.local` only** for day-to-day dev. `.env.vercel.pull` / `.env.production.local` are pull snapshots — not alternate runtime configs. See [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md) § UAT gate.
+
 ---
 
 #### App + API smoke
+
+**Full UAT gate:** [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md) § UAT gate (commands + browser checklist + production blockers).
 
 ```bash
 npm run verify
@@ -3946,6 +3952,8 @@ npm run deploy                # verify + remote build + auto-promote
 | Zone grid | `/zone` — 13 journeys (`JOURNEY_ORDER`), visited pink/yellow; localhost one-shot bootstrap (`devResearchBootstrap.ts`). After pulse, cards should stagger in without flash/stall (no post-bootstrap `refreshKey` polls). |
 | Research gates | `npm run zone:audit-gates -- YOURPOSTCODE` — per-journey settled / headline / prose failures from Neon |
 | Solo Focus answer | one question → one discovery card; hybrid if bucket_failover |
+| Solo Focus copy | Marvin H1 + **lead only** — no Roboto architect body (`SoloFocusProseStack`) |
+| Rock strip | Category label colour = headline at rest + hover |
 | Zai | `/zai` — stream, no scrape; pills under last Zai bubble |
 | Deep Dive | unvisited card → **Search deeper** only (scrape) |
 
@@ -4186,7 +4194,7 @@ No `.env` keys required for APIs 1–6. Firecrawl/Gemini still need keys for **s
 | 2 | `/profile` | Onboarding genome | Context + `POST /api/local-intelligence` → `locationName` |
 | 3 | `/profile/summary` | Review totals | Atomic ticker → Zone handoff |
 | 4 | `/zone` | 13 category cards | `GET /api/scrape-sync`, `buildZoneViewModel`, mechanical truth |
-| 5 | Solo Focus | Open card | Marvin hook H1 + town-based lead + 3-beat prose |
+| 5 | Solo Focus | Open card | Marvin hook H1 + town-based lead only (metrics row owns £/CO₂e) |
 | 6 | Answer | MC / loop | `POST /api/answers`, discovery, optional scrape |
 | 7 | Close | Return to grid | Pink on birth; visited → grid only (no loop takeover) |
 

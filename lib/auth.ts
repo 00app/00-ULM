@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import pool from '@/lib/db'
 import crypto from 'crypto'
 import type { NextResponse } from 'next/server'
-import { sealSessionToken, unsealSessionToken } from '@/lib/sessionCookieSign'
+import { assertSessionSecretConfigured, sealSessionToken, unsealSessionToken } from '@/lib/sessionCookieSign'
 
 /** v1.8.14 — Hard kill; sessions never gate on third-party messaging env. */
 const DISALLOW_OUTBOUND = true
@@ -16,6 +16,7 @@ function generateToken(): string {
 }
 
 export async function createSession(userId: string, sessionDays: number = SESSION_DAYS): Promise<string> {
+  assertSessionSecretConfigured()
   const token = generateToken()
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + sessionDays)
@@ -47,6 +48,7 @@ export function setSessionCookieOnResponse(
   token: string,
   maxAgeSeconds?: number
 ): void {
+  assertSessionSecretConfigured()
   const { name, options } = getSessionCookieAttributes(maxAgeSeconds)
   res.cookies.set(name, sealSessionToken(token), options)
 }

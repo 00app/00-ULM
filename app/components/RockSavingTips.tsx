@@ -4,15 +4,12 @@ import React, { useState, useCallback, useEffect } from 'react'
 import type { JourneyId } from '@/lib/journeys'
 import type { RockHabit } from '@/lib/rock/types'
 import { ROCK_HABITS, habitToTipCard } from '@/lib/rock/habitsCatalog'
+import { zoneCardDomId } from '@/lib/zone/soloFocusReturn'
 import InputField from '@/app/components/InputField'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
-import {
-  cleanZonePreviewHeadline,
-  headlineFromTitle,
-  MAX_ZONE_CARD_HEADLINE_WORDS,
-} from '@/lib/soloFocusCopy'
+import { clampZoneBentoHeadline, cleanZonePreviewHeadline } from '@/lib/soloFocusCopy'
 
 /** Industrial lock: Tips/settings are pink base with yellow items. */
 const ROCK_CARD_BG = 'var(--color-pink)' as const
@@ -123,7 +120,7 @@ export function RockSavingTips({
   if (six.length === 0) return null
 
   return (
-    <section className="rock-saving-tips-section w-full text-left pb-16 pt-2 box-border" aria-label="Today's tips">
+    <section className="rock-saving-tips-section w-full text-left pt-2 box-border" aria-label="Today's tips">
       <div className="groovy-zone-grid mx-auto w-full rock-saving-tips-grid">
         {six.map((h) => {
           const tip = habitToTipCard(h)
@@ -132,10 +129,11 @@ export function RockSavingTips({
           const tipBg = visited ? ROCK_CARD_BG : 'var(--color-purple)'
           const tipInk = 'var(--color-yellow)' as const
           const jid = h.journey_key
-          const architectRaw = jid ? architectHeadlineByJourney?.[jid]?.trim() : ''
-          const tipHeadline = headlineFromTitle(
-            cleanZonePreviewHeadline(architectRaw || h.title),
-            MAX_ZONE_CARD_HEADLINE_WORDS
+          void architectHeadlineByJourney
+          /* Rock habits keep their own stamp — never mirror the journey wall architect line. */
+          const tipHeadline = clampZoneBentoHeadline(
+            cleanZonePreviewHeadline(h.title) || h.title,
+            jid ?? 'carbon'
           )
           const gbp = parseMoneyGbpFromDisplay(String(tip.data.money ?? '0'))
           const kg = parseCarbonKgFromDisplay(String(tip.data.carbon ?? '0'))
@@ -144,6 +142,7 @@ export function RockSavingTips({
             <button
               key={tip.id}
               type="button"
+              id={zoneCardDomId(tip.id)}
               onClick={() => onOpenTip(tip.id)}
               data-zone-surface="tip"
               className={[
@@ -160,10 +159,7 @@ export function RockSavingTips({
                 boxShadow: 'none',
               }}
             >
-              <ZoneBentoCardHeader
-                journeyId={jid ?? 'carbon'}
-                textColor={tipInk}
-              />
+              <ZoneBentoCardHeader journeyId={jid ?? 'carbon'} />
               <h3 className="card-headline m-0 min-w-0" lang="en">
                 {tipHeadline}
               </h3>

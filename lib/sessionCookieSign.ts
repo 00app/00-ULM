@@ -5,9 +5,24 @@ const SEP = '.'
 const SESSION_TOKEN_RE = /^[a-f0-9]{64}$/
 const GUEST_SESSION_ID_RE = /^sess_[a-f0-9]{48}$/
 
+function isProduction(): boolean {
+  return process.env.NODE_ENV === 'production'
+}
+
 function sessionSecret(): string | null {
   const s = process.env.SESSION_SECRET?.trim()
   return s && s.length >= 16 ? s : null
+}
+
+/** Fail fast when production would issue unsigned cookies. */
+export function assertSessionSecretConfigured(): void {
+  if (isProduction() && !sessionSecret()) {
+    throw new Error('SESSION_SECRET must be set (≥16 characters) in production')
+  }
+}
+
+export function isSessionSigningConfigured(): boolean {
+  return sessionSecret() != null
 }
 
 function hmacSig(payload: string, secret: string): string {
@@ -17,9 +32,8 @@ function hmacSig(payload: string, secret: string): string {
 function signPayload(payload: string): string {
   const secret = sessionSecret()
   if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[sessionCookieSign] SESSION_SECRET missing in production — refusing to seal')
-      return payload
+    if (isProduction()) {
+      throw new Error('SESSION_SECRET must be set (≥16 characters) in production')
     }
     return payload
   }
@@ -30,16 +44,18 @@ function verifySigned(signed: string): string | null {
   const trimmed = signed.trim()
   if (!trimmed) return null
 
+  const secret = sessionSecret()
+  if (!secret) {
+    if (isProduction()) return null
+    if (SESSION_TOKEN_RE.test(trimmed) || GUEST_SESSION_ID_RE.test(trimmed)) return trimmed
+    return null
+  }
+
   const dot = trimmed.lastIndexOf(SEP)
-  if (dot <= 0) return trimmed
+  if (dot <= 0) return null
 
   const payload = trimmed.slice(0, dot)
   const sig = trimmed.slice(dot + 1)
-  const secret = sessionSecret()
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') return null
-    return payload
-  }
 
   const expected = hmacSig(payload, secret)
   if (sig.length !== expected.length) return null
@@ -56,13 +72,11 @@ export function sealSessionToken(token: string): string {
   return signPayload(token)
 }
 
-/** Parse `session` cookie → raw DB token (unsigned legacy cookies still accepted). */
+/** Parse `session` cookie → raw DB token (HMAC required when `SESSION_SECRET` is set). */
 export function unsealSessionToken(signed: string): string | null {
   const payload = verifySigned(signed)
-  if (!payload) return null
-  if (SESSION_TOKEN_RE.test(payload)) return payload
-  if (SESSION_TOKEN_RE.test(signed.trim())) return signed.trim()
-  return null
+  if (!payload || !SESSION_TOKEN_RE.test(payload)) return null
+  return payload
 }
 
 /** Seal guest `zz_sid` session id. */
@@ -70,11 +84,9 @@ export function sealGuestSessionId(sessionId: string): string {
   return signPayload(sessionId)
 }
 
-/** Parse `zz_sid` cookie → raw session id (unsigned legacy cookies still accepted). */
+/** Parse `zz_sid` cookie → raw session id (HMAC required when `SESSION_SECRET` is set). */
 export function unsealGuestSessionId(signed: string): string | null {
   const payload = verifySigned(signed)
-  if (payload && GUEST_SESSION_ID_RE.test(payload)) return payload
-  const raw = signed.trim()
-  if (GUEST_SESSION_ID_RE.test(raw)) return raw
-  return null
+  if (!payload || !GUEST_SESSION_ID_RE.test(payload)) return null
+  return payload
 }

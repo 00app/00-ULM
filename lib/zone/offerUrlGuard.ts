@@ -19,6 +19,12 @@ function hostOf(url: string): string {
   }
 }
 
+/** Ofgem price-cap / household advice — utilities tile only. */
+export function isOfgemPriceCapUrl(url: string): boolean {
+  const trimmed = url.trim()
+  return /ofgem\.gov\.uk/i.test(trimmed) && /price-cap|energy-advice/i.test(trimmed)
+}
+
 function isGenericGovHomepage(url: string): boolean {
   try {
     const u = new URL(url.trim())
@@ -41,6 +47,7 @@ export function sanitizeZoneOfferUrl(
   if (!isHttpsUrl(trimmed)) return fallback
   if (BLOCKED_PATH_RE.test(trimmed)) return fallback
   if (isGenericGovHomepage(trimmed)) return fallback
+  if (journeyKey !== 'utilities' && isOfgemPriceCapUrl(trimmed)) return fallback
 
   const host = hostOf(trimmed)
   if (journeyKey === 'home' && host === 'gov.uk' && /apply-boiler-upgrade|boiler-upgrade/i.test(trimmed)) {

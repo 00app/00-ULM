@@ -27,6 +27,14 @@ import { PROFILE_GOAL_WEIGHTS, type ProfileGoalValue } from '@/lib/profile/goalW
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { flushSync } from 'react-dom'
 
+/** Software-keyboard lift — phones only; tablet (768+) and desktop stay centred. */
+const PROFILE_MOBILE_KEYBOARD_MQ = '(max-width: 767px)'
+
+function isProfileMobileKeyboardViewport(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia(PROFILE_MOBILE_KEYBOARD_MQ).matches
+}
+
 const PROFILE_QUESTIONS = [
   { id: 'name', label: 'name', type: 'input' as const, placeholder: 'alex' },
   { id: 'postcode', label: 'postcode', type: 'input' as const, placeholder: 'postcode' },
@@ -160,10 +168,15 @@ export default function ProfilePageClient() {
 
   const recenterProfileStep = useCallback(() => {
     setKeyboardLift(false)
-    if (typeof window === 'undefined') return
+    if (!isProfileMobileKeyboardViewport()) return
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
     document.documentElement.scrollTop = 0
     document.body.scrollTop = 0
+  }, [])
+
+  const liftProfileStepForKeyboard = useCallback(() => {
+    if (!isProfileMobileKeyboardViewport()) return
+    setKeyboardLift(true)
   }, [])
 
   useLayoutEffect(() => {
@@ -224,6 +237,10 @@ export default function ProfilePageClient() {
     if (typeof window === 'undefined') return
     const vv = window.visualViewport
     const sync = () => {
+      if (!isProfileMobileKeyboardViewport()) {
+        setKeyboardLift(false)
+        return
+      }
       const gap = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0
       if (gap > 72) {
         setKeyboardLift(true)
@@ -641,7 +658,7 @@ export default function ProfilePageClient() {
                 value={currentVal}
                 onChange={(v) => setValue(current.id, v)}
                 onAdvance={handleNext}
-                onFocusLift={() => setKeyboardLift(true)}
+                onFocusLift={liftProfileStepForKeyboard}
                 onBlurViewportReset={recenterProfileStep}
                 placeholder={
                   (current as { label: string; placeholder?: string }).placeholder ?? current.label

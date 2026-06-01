@@ -4,6 +4,65 @@ Quick runbook for local work on Zero Zero (00-00) after ULM / hybrid pipeline ch
 
 ---
 
+## UAT gate (pre-ship)
+
+Run in order from repo root. **All green locally** before browser UAT; **production Neon** must be fixed separately (see blockers below).
+
+| # | Check | Command | Pass criteria |
+|---|--------|---------|----------------|
+| 1 | Static gate | `npm run verify` | Exit 0 — typecheck + lint |
+| 2 | Neon CLI | `npm run db:test` | Ping + 15 public tables |
+| 3 | Local app DB | `curl -s http://127.0.0.1:3000/api/health` | `"database":"connected"` (dev running) |
+| 4 | Env probe | `npm run verify:env` | Keys present; diagnostics 200 if `CRON_SECRET` set |
+| 5 | Hermes auth | `npm run hermes:ping` | Liveness + diagnostics **200** (hits production URL) |
+| 6 | Research gates | `npm run zone:audit-gates -- YOURPOSTCODE` | Know settled vs missing (seed if needed) |
+| 7 | Pipeline ready | `npm run dev:pipeline-ready` | verify + env + health (optional `--seed POSTCODE`) |
+
+**Browser UAT checklist**
+
+| Surface | Verify |
+|---------|--------|
+| `/profile` → `/profile/summary` → `/zone` | Postcode-driven locality; atomic summary ticker |
+| Zone grid | 13 journeys; purple/yellow hover swap; visited pink |
+| Solo Focus | Marvin H1 + **lead only** (no Roboto proof paragraph); SAVE/CARBON stamp |
+| Rock strip | TECH/HOLIDAYS labels **same colour as headline** at rest + hover |
+| Settings | Circle CTAs; WIRING diagnostics; pencil icons visible on card hover |
+| Ask Zai dock | Yellow pill; portaled above nav |
+| Loop answer | One MC → one discovery card birth |
+
+### Env files (one source of truth)
+
+| File | Use |
+|------|-----|
+| **`.env.local`** | **Local dev only** — edit this day-to-day |
+| `.env.example` | Template (committed, no secrets) |
+| `.env.vercel.pull` | Snapshot from `vercel env pull` — reference / merge source |
+| `.env.production.local` | Hermes ping auth file; prod DB repair scripts — **not** for `next dev` |
+| `.env.production` | Legacy dump — safe to delete |
+
+**Refresh local secrets:**
+
+```bash
+vercel pull --yes --environment=production
+vercel env pull .env.local --environment=production --yes
+# Paste fresh Neon pooler DATABASE_URL if password rotated
+npm run env:merge   # optional — merges exported shell vars into .env.local
+```
+
+**Stale shell `DATABASE_URL`:** if `db:test` passes but `/api/health` fails locally, run `unset DATABASE_URL`. `next.config.js` loads `.env.local` with `preferLocal: true` so the file wins over exported vars.
+
+### Known blockers (audit snapshot)
+
+| Layer | Status | Action |
+|-------|--------|--------|
+| Local Neon | ✅ when `.env.local` + `preferLocal` | `npm run dev:3000` |
+| Production `/api/health` | ❌ `database: disconnected` | Update `DATABASE_URL` in Vercel Production → redeploy |
+| Production diagnostics | ⚠️ `neon: false`, gemini + firecrawl OK | Same Neon URL fix |
+| Hermes auth bridge | ✅ CRON_SECRET → 200 | VPS cron OK; DB backfill blocked until prod Neon fixed |
+| `zone:audit-gates` | ✅ script fixed | Requires postcode arg; exit 1 if journeys missing |
+
+---
+
 ## Do you need new SQL?
 
 | Change | SQL required? |
@@ -167,6 +226,8 @@ npm run db:log-research      # latest research_results row
 
 If `db:test` passes but pool scripts fail: save `.env.local`, remove stale `export DATABASE_URL=...` from your shell, or set `DATABASE_USE_NEON_SERVERLESS=0` for CLI scripts.
 
+**Local dev loads `.env.local` first:** `next.config.js` calls `loadEnvLocal({ preferLocal: true })` so exported shell vars cannot mask the file during `next dev`.
+
 ---
 
 ## App + API smoke
@@ -192,6 +253,8 @@ npm run deploy                # verify + remote build + auto-promote
 | Zone grid | `/zone` — 13 journeys (`JOURNEY_ORDER`), visited pink/yellow; localhost one-shot bootstrap (`devResearchBootstrap.ts`). After pulse, cards should stagger in without flash/stall (no post-bootstrap `refreshKey` polls). |
 | Research gates | `npm run zone:audit-gates -- YOURPOSTCODE` — per-journey settled / headline / prose failures from Neon |
 | Solo Focus answer | one question → one discovery card; hybrid if bucket_failover |
+| Solo Focus copy | Marvin H1 + **lead only** — no Roboto architect body (`SoloFocusProseStack`) |
+| Rock strip | Category label colour = headline at rest + hover |
 | Zai | `/zai` — stream, no scrape; pills under last Zai bubble |
 | Deep Dive | unvisited card → **Search deeper** only (scrape) |
 
@@ -284,7 +347,8 @@ Optional: `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` with `OPENROUTER_MODEL=meta-ll
 
 | Symptom | Fix |
 |---------|-----|
-| `password authentication failed` | Neon console → reset password → paste new pooler URL into `.env.local` + Vercel |
+| `password authentication failed` | Neon console → reset password → paste new pooler URL into `.env.local` + Vercel Production → redeploy |
+| Production `neon: false` in diagnostics | Same — Vercel `DATABASE_URL` stale; local `.env.local` can be correct while prod is not |
 | `verify` ESLint warning only | Pre-existing `SoloFocusOverlay` hooks — not a build blocker |
 
 ### Local dev — stop credit burn

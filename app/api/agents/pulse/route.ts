@@ -2,10 +2,11 @@
  * ZeroHunter heartbeat — cron / internal agent pulse.
  * Top “unspent” users → run price-cap + grant scrape → inject Discovery Card if saving > £50.
  *
- * Auth: `Authorization: Bearer <GATEWAY_TOKEN>` or `CRON_SECRET`.
+ * Auth: `Authorization: Bearer <GATEWAY_TOKEN>` (not `CRON_SECRET`).
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { gatewayTokenMatches } from '@/lib/gatewayAuth'
 import { getTopUnspentUsersForPulse, getJourneyAnswersForUser } from '@/lib/db/neon'
 import { runZeroHunterForUserProfile } from '@/lib/agents/zeroHunterRun'
 import { validateInjectionCard } from '@/lib/zone/injections'
@@ -15,14 +16,8 @@ import { persistZoneTipInjectBody } from '@/lib/zone/persistZoneTipInject'
 export const dynamic = 'force-dynamic'
 
 function authorizePulse(req: NextRequest): boolean {
-  const expected =
-    process.env.GATEWAY_TOKEN?.trim() ||
-    process.env.CRON_SECRET?.trim()
-  if (!expected) return process.env.NODE_ENV !== 'production'
-  const got =
-    req.headers.get('authorization')?.replace(/^Bearer\s+/i, '')?.trim() ??
-    req.headers.get('x-gateway-token')?.trim()
-  return got === expected
+  if (gatewayTokenMatches(req)) return true
+  return process.env.NODE_ENV !== 'production'
 }
 
 export async function POST(req: NextRequest) {

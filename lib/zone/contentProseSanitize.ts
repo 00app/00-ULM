@@ -17,7 +17,11 @@ export function stripContentSystemLeakage(text: string): string {
   for (const re of LEAKAGE_PATTERNS) {
     t = t.replace(re, ' ')
   }
-  return t.replace(/\s+/g, ' ').replace(/\s+([,.!?])/g, '$1').trim()
+  return t
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/\s+/g, ' ').replace(/\s+([,.!?])/g, '$1').trim())
+    .filter(Boolean)
+    .join('\n\n')
 }
 
 /** Ensure stored source / CTA URLs are absolute HTTPS links. */

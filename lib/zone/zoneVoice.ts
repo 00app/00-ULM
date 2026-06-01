@@ -48,7 +48,7 @@ ${ZONE_WARM_AUDITOR_VOICE}
 
 ${ZONE_WARM_AUDITOR_THREE_BEAT}
 
-Headlines: uppercase functional labels (5–8 words) — specific benefit, not marketing slogans (e.g. "LOFT TOP-UP PAYS BACK", "RAIL BEATS SHORT-HAUL FLIGHTS"). No postcodes in headlines.
+Headlines: uppercase functional labels (8–10 words) — specific benefit, not marketing slogans (e.g. "LOFT TOP-UP PAYS BACK THIS WINTER", "RAIL BEATS SHORT-HAUL FLIGHTS FROM TOWN"). No postcodes in headlines.
 When locality is in the card JSON, the first sentence of paragraph 1 must name that town or neighbourhood.
 actionLine: one short warm imperative (e.g. "Check your loft depth this weekend").
 `.trim()

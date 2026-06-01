@@ -47,7 +47,13 @@ import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import { attachSessionCookieToResponse, resolveAnswersUser } from '@/lib/answers/resolveAnswersUser'
 import { processCalculatedLoopSpawn } from '@/lib/zone/engineDataRouter'
-import { isBucketFailoverMode } from '@/lib/intelligence/scrapeBoundaries'
+import {
+  isBucketFailoverMode,
+  hasAnyResearchLlmProvider,
+  shouldSkipFirecrawlScrape,
+  shouldSkipGeminiInBucket,
+} from '@/lib/intelligence/scrapeBoundaries'
+import { buildDiscoveryInjectionId, buildDiscoveryInjectionCardAsync } from '@/lib/zone/discoveryCard'
 
 /** v1.8.14 — Production lock: answers route must not initiate third-party messaging. */
 const DISALLOW_OUTBOUND = true
@@ -181,6 +187,9 @@ export async function POST(request: NextRequest) {
       }).catch(() => {})
     }
 
+    const hybridBirthEnabled =
+      soloFocus && isBucketFailoverMode() && Boolean(postcodeNorm && postcodeNorm.length >= 4)
+
     const discoveryRacePromise = (async () => {
       let payload: {
         recommendation_copy: string
@@ -189,8 +198,7 @@ export async function POST(request: NextRequest) {
       } | null = null
       try {
         payload = await raceDiscoveryBirth({
-          hybrid:
-            soloFocus && isBucketFailoverMode() && postcodeNorm && postcodeNorm.length >= 4
+          hybrid: hybridBirthEnabled
               ? async () => {
                   const h = await processCalculatedLoopSpawn({
                     userId: user_id,
@@ -208,7 +216,31 @@ export async function POST(request: NextRequest) {
                   }
                 }
               : undefined,
-          structured: async () => {
+          structured: hybridBirthEnabled
+            ? async () => {
+                const stableId = buildDiscoveryInjectionId(
+                  jKey as JourneyId,
+                  qKey,
+                  String(value)
+                )
+                const fallbackCard = await buildDiscoveryInjectionCardAsync(
+                  jKey as JourneyId,
+                  qKey,
+                  String(value),
+                  stableId
+                )
+                if (!fallbackCard) return null
+                const copy =
+                  (fallbackCard.explanation?.[0] ?? '').slice(0, 500) ||
+                  'check gov.uk and energy saving trust for 2026 grants and tariffs that match your answer.'
+                const source = fallbackCard.cta?.url ?? fallbackCard.source ?? 'https://www.gov.uk/'
+                return {
+                  recommendation_copy: copy,
+                  source_url: source,
+                  new_card_data: fallbackCard,
+                }
+              }
+            : async () => {
             const s = await runDiscoveryStructuredPipeline({
               journeyId: jKey as JourneyId,
               questionId: qKey,
@@ -241,7 +273,11 @@ export async function POST(request: NextRequest) {
             }
           },
           rebirthVault:
-            soloFocus && resolvedFirecrawlKey && process.env.GEMINI_API_KEY?.trim()
+            soloFocus &&
+            resolvedFirecrawlKey &&
+            !shouldSkipFirecrawlScrape() &&
+            hasAnyResearchLlmProvider() &&
+            !shouldSkipGeminiInBucket()
               ? async () =>
                   runRebirthVaultDiscovery({
                     journeyId: jKey as JourneyId,
@@ -299,9 +335,9 @@ export async function POST(request: NextRequest) {
 
     const canLiveResearch = Boolean(
       process.env.DATABASE_URL?.trim() &&
-        (resolvedFirecrawlKey || process.env.GEMINI_API_KEY?.trim())
+        ((resolvedFirecrawlKey && !shouldSkipFirecrawlScrape()) || hasAnyResearchLlmProvider())
     )
-    if (canLiveResearch) {
+    if (canLiveResearch && !hybridBirthEnabled) {
       const researchPayload = {
         postcode: profileRow?.postcode ?? null,
         profileData: profileData as ResearchProfileData | null,
@@ -315,6 +351,14 @@ export async function POST(request: NextRequest) {
       } else {
         void triggerSupplementalResearch(researchPayload)
       }
+    } else if (canLiveResearch && hybridBirthEnabled && (homeJustFinished || journeyJustFinished)) {
+      void triggerSupplementalResearch({
+        postcode: profileRow?.postcode ?? null,
+        profileData: profileData as ResearchProfileData | null,
+        persistToNeon: true as const,
+        userId: user_id,
+        category: jKey,
+      })
     }
 
     const [homeUnitRates, gridCarbon] = await Promise.all([

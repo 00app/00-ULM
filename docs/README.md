@@ -24,7 +24,7 @@ Open **`HANDBOOK.md`** to check everything in one place. The annex sections are 
 | [FULL-APP-SPEC.md](FULL-APP-SPEC.md) | Full architecture, APIs, DB |
 | [PRODUCT-ARCHITECTURE-SPEC.md](PRODUCT-ARCHITECTURE-SPEC.md) | Product architecture notes |
 | [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) | Vercel CI, promote, Node |
-| [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md) | Local smoke, SQL, Hermes |
+| [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md) | Local smoke, SQL, Hermes, **UAT gate** |
 | [MOTION-FAMILY.md](MOTION-FAMILY.md) | Motion DNA (delivery only) |
 | [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md) | Oracle VPS cron |
 | [HERMES-ULM-JIT-BRIEF.md](HERMES-ULM-JIT-BRIEF.md) | JIT scrape vs Hermes |

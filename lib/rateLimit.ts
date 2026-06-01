@@ -5,7 +5,7 @@
  */
 
 const WINDOW_MS = 15 * 60 * 1000 // 15 minutes
-const MAX_ATTEMPTS_PER_IP = 10
+const MAX_ATTEMPTS_PER_IP = 8
 const MAX_FAILED_PER_EMAIL = 5
 const LOCKOUT_MS = 15 * 60 * 1000 // 15 min lockout after max failed for an email
 

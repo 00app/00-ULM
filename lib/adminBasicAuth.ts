@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import type { NextRequest } from 'next/server'
 
 /**
@@ -14,6 +15,13 @@ export function isAdminPasswordConfigured(): boolean {
   return Boolean(process.env.ADMIN_PASSWORD?.trim())
 }
 
+function timingSafeStringEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a, 'utf8')
+  const bb = Buffer.from(b, 'utf8')
+  if (ba.length !== bb.length) return false
+  return crypto.timingSafeEqual(ba, bb)
+}
+
 function adminPasswordMatches(authHeader: string | null): boolean {
   const password = process.env.ADMIN_PASSWORD?.trim()
   if (!password || !authHeader?.trim().toLowerCase().startsWith('basic ')) return false
@@ -22,7 +30,7 @@ function adminPasswordMatches(authHeader: string | null): boolean {
     const decoded = Buffer.from(encoded, 'base64').toString('utf8')
     const colon = decoded.indexOf(':')
     const suppliedPassword = colon >= 0 ? decoded.slice(colon + 1) : decoded
-    return suppliedPassword === password
+    return timingSafeStringEqual(suppliedPassword, password)
   } catch {
     return false
   }
@@ -30,7 +38,8 @@ function adminPasswordMatches(authHeader: string | null): boolean {
 
 function legacyBasicHeaderMatches(authHeader: string | null): boolean {
   const expected = process.env.ADMIN_BASIC_AUTH?.trim() || process.env.ADMIN_AUTH_HEADER?.trim() || ''
-  return Boolean(expected && authHeader === expected)
+  if (!expected || !authHeader) return false
+  return timingSafeStringEqual(authHeader.trim(), expected)
 }
 
 export function adminBasicAuthMatches(request: NextRequest): boolean {

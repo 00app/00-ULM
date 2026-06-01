@@ -69,7 +69,7 @@ const MIN_LEN = 16
 
 /** Bearer / header values accepted for POST /api/scrape-sync (server + Hermes). */
 export function configuredScrapeSyncBearerKeys(): string[] {
-  const names = ['SCRAPER_SECRET', 'CRON_SECRET', 'GATEWAY_TOKEN'] as const
+  const names = ['SCRAPER_SECRET', 'CRON_SECRET'] as const
   const out: string[] = []
   for (const name of names) {
     const v = normalizeSecret(process.env[name])
@@ -113,7 +113,7 @@ export function scrapeSyncAuthDeniedResponse(): {
         error: 'API auth not configured',
         hint:
           'Set SCRAPER_SECRET or CRON_SECRET (≥16 chars) on this Vercel environment, then redeploy. Send Authorization: Bearer <same secret>.',
-        expects: ['SCRAPER_SECRET', 'CRON_SECRET', 'GATEWAY_TOKEN'],
+        expects: ['SCRAPER_SECRET', 'CRON_SECRET'],
       },
     }
   }

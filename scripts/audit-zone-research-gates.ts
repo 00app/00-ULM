@@ -135,11 +135,11 @@ async function main() {
       r.status === 'settled' ? '✓' : r.status === 'missing' ? '○' : '✗'
     if (r.status === 'unsettled') unsettled += 1
     if (r.status === 'missing') missing += 1
-    const £ =
+    const savingLabel =
       r.savingGbp != null && r.savingGbp > 0 ? ` £${Math.round(r.savingGbp)}` : ''
     const issues = r.issues.length ? ` — ${r.issues.join(', ')}` : ''
     console.log(
-      `${mark} ${r.journeyId.padEnd(11)} ${r.status.padEnd(10)}${£}${r.hasOffer ? ' offer' : ''}${issues}`
+      `${mark} ${r.journeyId.padEnd(11)} ${r.status.padEnd(10)}${savingLabel}${r.hasOffer ? ' offer' : ''}${issues}`
     )
     if (r.status === 'unsettled') {
       const row = coverage[r.journeyId] ?? coverage[r.journeyId.toLowerCase()]

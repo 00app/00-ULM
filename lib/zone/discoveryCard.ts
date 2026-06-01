@@ -12,8 +12,9 @@ import {
 } from '@/lib/brains/calculations'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { validateInjectionCard } from '@/lib/zone/injections'
-import { zoneCardHeadlineFromRaw } from '@/lib/soloFocusCopy'
+import { clampZoneBentoHeadline } from '@/lib/soloFocusCopy'
 import { decodeUtf8Base64Url, encodeUtf8Base64Url } from '@/lib/zone/base64url'
+import { shouldSkipGeminiInBucket } from '@/lib/intelligence/scrapeBoundaries'
 
 /** Reversible token for answer text (pulse can decode back to full option string). */
 function discoveryAnswerToken(answerValue: string): string {
@@ -60,7 +61,7 @@ export function parseDiscoveryInjectionId(id: string): {
 
 async function geminiDiscoveryHeadline(context: string, fallback: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY?.trim()
-  if (!key) return fallback
+  if (!key || shouldSkipGeminiInBucket()) return fallback
   try {
     const { GoogleGenerativeAI } = await import('@google/generative-ai')
     const genAI = new GoogleGenerativeAI(key)
@@ -96,7 +97,7 @@ export async function buildDiscoveryInjectionCardAsync(
 
   const ctx = `journey=${journeyId} question=${questionId} answer=${answerValue} benchmark £${saving.gbp}`
   const geminiTitle = await geminiDiscoveryHeadline(ctx, rec.headline)
-  const title = zoneCardHeadlineFromRaw(geminiTitle, rec.headline)
+  const title = clampZoneBentoHeadline(geminiTitle || rec.headline, rec.gridJourneyKey)
 
   const raw = {
     id,

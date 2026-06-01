@@ -18,7 +18,9 @@ import {
 } from '@/lib/intelligence/researchProfilePayload'
 import { readHomePowerFromGenome } from '@/lib/data/utilitiesFreeApis'
 import { buildUtilitiesResearchContext } from '@/lib/intelligence/utilitiesLaneRules'
-import { shouldSkipDeepGeminiSearch } from '@/lib/intelligence/scrapeBoundaries'
+import { shouldSkipDeepGeminiSearch, shouldSkipFirecrawlScrape, shouldPreferMechanicalTripletInBucket } from '@/lib/intelligence/scrapeBoundaries'
+import { isLlmRateLimited } from '@/lib/intelligence/llmRateLimit'
+import { listConfiguredBucketProviders } from '@/lib/intelligence/bucketFailover'
 import {
   buildLaneLockPromptBlock,
   buildPostcodeDnaBlock,
@@ -39,6 +41,7 @@ import {
 } from '@/lib/agents/researcher'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { stripContentSystemLeakage } from '@/lib/zone/contentProseSanitize'
+import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { ZONE_WARM_AUDITOR_THREE_BEAT } from '@/lib/zone/zoneVoice'
 import { polishWarmAuditorProse } from '@/lib/zone/warmAuditorCopy'
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
@@ -56,9 +59,12 @@ import {
 } from '@/lib/intelligence/researchCategories'
 import { buildAffluenceAuditorPromptBlock } from '@/lib/zone/affluenceCheck'
 import {
+  clampZoneBentoHeadline,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   MAX_ZONE_CARD_HEADLINE_WORDS,
+  MIN_ZONE_CARD_HEADLINE_WORDS,
   stripExpandedCardTitleNoise,
+  ZONE_BENTO_HOOK,
   zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
 
@@ -399,7 +405,7 @@ export async function runZeroResearch(params: {
 
 /**
  * Intelligence loop — **Architect (Gemini)** on Vercel: raw Firecrawl markdown → structured JSON for Neon.
- * Output keys align with `research_results`: `category`, `saving_amount_gbp`, `offer_url`, `agent_headline` (6–8 words zone card),
+ * Output keys align with `research_results`: `category`, `saving_amount_gbp`, `offer_url`, `agent_headline` (8–10 words zone card),
  * `architect_prose` (exactly three paragraphs, \\n\\n separated, max 40 words each, no UI section labels in text). Carbon kg for Zone
  * cards comes from `buildUserImpact` / scrapes, not a separate `verified_saving_kg` column on this row (see
  * `verified_saving` / impact pipeline elsewhere).
@@ -869,7 +875,7 @@ From the markdown below, return ONLY valid JSON (no markdown code fence) with ex
 - "category": one of: ${journeyList} — the single best thematic fit for the main opportunity in the text.
 - "saving_amount_gbp": non-negative number with up to two decimal places — annual GBP saving grounded in the scraped text (use 0 only if truly none inferable).
 - "offer_url": one https URL copied verbatim from the markdown or citation context. If no live URL exists, return an empty string.
-- "agent_headline": **Zone card heading** — **6 to 8 words**, punchy and benefit-driven (e.g. "leapfrog your energy bills this month"). No colons. No section labels.
+- "agent_headline": **Zone card heading** — **8 to 10 words**, punchy and benefit-driven (e.g. "line up your tariff with the april cap before you switch deals"). No colons. No section labels.
 - "expanded_headline": **Expanded Solo Focus hook heading** — **10 to 20 words** (2–3 lines); benefit-led lifestyle hook for their town/setup, not a postcode. Optional; if omitted, agent_headline may be reused.
 - "architect_prose": exactly **THREE** paragraphs for Solo Focus (blank line between). **Hard cap: each paragraph at most ${MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH} words.**
 ${ZONE_WARM_AUDITOR_THREE_BEAT}
@@ -878,14 +884,14 @@ ${ZONE_WARM_AUDITOR_THREE_BEAT}
 
 Markdown:
 ---
-${markdown.slice(0, 28_000)}`
+${markdown.slice(0, shouldPreferMechanicalTripletInBucket() ? 12_000 : 28_000)}`
   try {
     const tag = normalizeResearchCategory(options?.categoryHint ?? '') || 'architect-triplet'
     const { text } = await generateResearchText({
       prompt,
       tag,
       tier: 'article',
-      maxOutputTokens: 1536,
+      maxOutputTokens: shouldPreferMechanicalTripletInBucket() ? 512 : 1536,
       temperature: 0.32,
       models: options?.model?.trim()
         ? [`google/${options.model.trim().replace(/^google\//, '')}`, ...ARTICLE_GATEWAY_MODEL_CHAIN]
@@ -922,12 +928,24 @@ async function resolveResearchTripletWithRecovery(params: {
   if (params.skipGemini) {
     return { markdown: params.markdown, triplet: null, extraCitations: [] }
   }
+  if (
+    isLlmRateLimited(listConfiguredBucketProviders()) ||
+    shouldPreferMechanicalTripletInBucket()
+  ) {
+    return { markdown: params.markdown, triplet: null, extraCitations: [] }
+  }
   let markdown = params.markdown
   const extraCitations: ResearchCitation[] = []
   const extractOpts = { categoryHint: params.categoryHint ?? null }
+  const bucketMode = shouldSkipDeepGeminiSearch()
 
   const alreadyHasDeepGemini = /## deep gemini search/i.test(markdown)
-  if (isWeakResearchMarkdown(markdown) && !alreadyHasDeepGemini && params.postcode?.trim()) {
+  if (
+    !bucketMode &&
+    isWeakResearchMarkdown(markdown) &&
+    !alreadyHasDeepGemini &&
+    params.postcode?.trim()
+  ) {
     const local = await getLocalData(params.postcode).catch(() => null)
     const localityContext = local
       ? [local.locality, local.council, local.region].filter(Boolean).join(', ')
@@ -960,13 +978,13 @@ async function resolveResearchTripletWithRecovery(params: {
     params.profileData,
     extractOpts
   )
-  if (researchTripletNeedsRecovery(triplet)) {
+  if (!bucketMode && researchTripletNeedsRecovery(triplet)) {
     triplet = await extractResearchTripletWithGemini(markdown, params.postcode, params.profileData, {
       ...extractOpts,
       model: RESEARCH_RECOVERY_MODEL,
     })
   }
-  if (researchTripletNeedsRecovery(triplet) && params.postcode?.trim()) {
+  if (!bucketMode && researchTripletNeedsRecovery(triplet) && params.postcode?.trim()) {
     const local = await getLocalData(params.postcode).catch(() => null)
     const localityContext = local
       ? [local.locality, local.council, local.region].filter(Boolean).join(', ')
@@ -1025,7 +1043,16 @@ export async function repairResearchResultsMissingHeadlines(params: {
   try {
     const incomplete = `(agent_headline IS NULL OR TRIM(agent_headline) = '')
            OR architect_prose IS NULL OR TRIM(architect_prose) = ''
-           OR saving_amount_gbp IS NULL OR COALESCE(saving_amount_gbp, 0) <= 0`
+           OR saving_amount_gbp IS NULL OR COALESCE(saving_amount_gbp, 0) <= 0
+           OR (
+             agent_headline IS NOT NULL
+             AND cardinality(regexp_split_to_array(trim(agent_headline), '\\s+')) < ${MIN_ZONE_CARD_HEADLINE_WORDS}
+           )
+           OR (
+             offer_url ILIKE '%ofgem.gov.uk%'
+             AND (offer_url ILIKE '%price-cap%' OR offer_url ILIKE '%energy-advice%')
+             AND LOWER(COALESCE(category, '')) NOT IN ('utilities', 'bills')
+           )`
     if (rowId != null) {
       const r = await pool.query<Row>(
         `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
@@ -1093,21 +1120,23 @@ export async function repairResearchResultsMissingHeadlines(params: {
     })
     if (mechanical) {
       try {
+        const journeyKey = normalizeCategoryToJourneyKey(mechanical.category)
         await pool.query(
           `UPDATE research_results
            SET agent_headline = $2,
                architect_prose = $3,
                saving_amount_gbp = COALESCE($4::numeric, saving_amount_gbp),
-               category = COALESCE($5, category)
+               category = COALESCE($5, category),
+               offer_url = COALESCE($6, offer_url),
+               source_url = COALESCE($6, source_url)
            WHERE id::text = $1`,
           [
             row.id,
-            normalizeGeminiAgentHeadline(mechanical.agent_headline) ?? mechanical.agent_headline,
+            clampZoneBentoHeadline(mechanical.agent_headline, journeyKey),
             mechanical.architect_prose,
             mechanical.saving_amount_gbp,
-            row.offer_url?.includes('ofgem')
-              ? 'bills'
-              : normalizeResearchCategory(row.category),
+            mechanical.category,
+            mechanical.offer_url,
           ]
         )
         repaired += 1
@@ -1133,7 +1162,12 @@ export async function repairResearchResultsMissingHeadlines(params: {
       skipGemini: false,
       categoryHint: row.category,
     })
-    const headline = normalizeGeminiAgentHeadline(triplet?.agent_headline)
+    const headline = clampZoneBentoHeadline(
+      normalizeGeminiAgentHeadline(triplet?.agent_headline, MAX_ZONE_CARD_HEADLINE_WORDS) ??
+        triplet?.agent_headline ??
+        '',
+      normalizeCategoryToJourneyKey(row.category ?? triplet?.category ?? 'home')
+    )
     const architect = normalizeArchitectProseThreeParagraphs(triplet?.architect_prose)
     const saving = normalizeSavingAmountGbp(triplet?.saving_amount_gbp)
     if (!headline && !architect && saving == null) continue
@@ -1190,6 +1224,8 @@ function mechanicalCategoryTripletFallback(params: {
   saving_amount_gbp: number
   agent_headline: string
   architect_prose: string
+  offer_url: string
+  category: string
 } | null {
   let cat = normalizeResearchCategory(params.category)
   const outward = outwardFromPostcode(params.postcode)
@@ -1272,13 +1308,17 @@ function mechanicalCategoryTripletFallback(params: {
     }
 
     const targetCat = cat || 'home'
+    const journeyKey = normalizeCategoryToJourneyKey(targetCat)
     const fallback = fallbacks[targetCat] ?? fallbacks.home
     const prose = normalizeArchitectProseThreeParagraphs(fallback.prose)
     if (!prose) return null
+    const hook = ZONE_BENTO_HOOK[journeyKey] ?? fallback.headline
     return {
       saving_amount_gbp: fallback.gbp,
-      agent_headline: fallback.headline,
+      agent_headline: clampZoneBentoHeadline(hook, journeyKey),
       architect_prose: prose,
+      offer_url: trustedUrlForJourney(journeyKey),
+      category: journeyKey,
     }
   }
 
@@ -1303,7 +1343,13 @@ function mechanicalCategoryTripletFallback(params: {
         `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — air-source heat pumps receive a flat £${gbp.toLocaleString('en-GB')} grant in England & Wales; oil and LPG homes may access £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nWe stack that grant against your heating bill baseline so you see installer cash plus lower running costs, not generic SEO.\n\nExecute the audited step in the CTA — BUS application link below while installers still have MCS slots — confirm eligibility before you sign a quote.`
       ) ?? ''
     if (!architect_prose) return null
-    return { saving_amount_gbp: gbp, agent_headline, architect_prose }
+    return {
+      saving_amount_gbp: gbp,
+      agent_headline: clampZoneBentoHeadline(agent_headline, 'grants'),
+      architect_prose,
+      offer_url: trustedUrlForJourney('grants'),
+      category: 'grants',
+    }
   }
 
   if (url.includes('ofgem') && /price-cap|energy-advice/i.test(url)) {
@@ -1319,7 +1365,13 @@ function mechanicalCategoryTripletFallback(params: {
         `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£${gbp} green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nExecute the audited step in the CTA — Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`
       ) ?? ''
     if (!architect_prose) return null
-    return { saving_amount_gbp: gbp, agent_headline, architect_prose }
+    return {
+      saving_amount_gbp: gbp,
+      agent_headline: clampZoneBentoHeadline(agent_headline, 'utilities'),
+      architect_prose,
+      offer_url: trustedUrlForJourney('utilities'),
+      category: 'utilities',
+    }
   }
 
   return null
@@ -1450,7 +1502,7 @@ export async function persistResearchResult(params: {
     const providerName =
       params.providerName?.trim() ||
       (mergedCitations[0]?.source_name ? String(mergedCitations[0].source_name).trim() : null)
-    const mergedCategory =
+    let mergedCategory =
       normalizeResearchCategory(params.category) ??
       markdownTriplet?.category ??
       geminiTriplet?.category ??
@@ -1476,13 +1528,13 @@ export async function persistResearchResult(params: {
       explicitTriplet?.offer_url ??
       (deepResolved?.startsWith('http') ? deepResolved : null) ??
       citationFallback
-    const mergedOffer = mergedOfferRaw?.slice(0, 2048) ?? null
+    let mergedOffer = mergedOfferRaw?.slice(0, 2048) ?? null
 
     const explicitHttpSource =
       typeof params.sourceUrl === 'string' && params.sourceUrl.trim().startsWith('http')
         ? params.sourceUrl.trim().slice(0, 2048)
         : null
-    const mergedSourceForDb =
+    let mergedSourceForDb =
       explicitHttpSource ??
       (citationFallback ? citationFallback.slice(0, 2048) : null) ??
       (mergedOffer?.startsWith('http') ? mergedOffer : null)
@@ -1496,29 +1548,51 @@ export async function persistResearchResult(params: {
       normalizeArchitectProseThreeParagraphs(geminiTriplet?.architect_prose?.trim()) ??
       null
 
+    const journeyKeyForHeadline = normalizeCategoryToJourneyKey(mergedCategory ?? 'home')
     let mergedAgentHeadline =
-      normalizeGeminiAgentHeadline(params.agentHeadline ?? undefined) ??
-      normalizeGeminiAgentHeadline(markdownTriplet?.agent_headline) ??
-      normalizeGeminiAgentHeadline(geminiTriplet?.agent_headline) ??
+      normalizeGeminiAgentHeadline(params.agentHeadline ?? undefined, MAX_ZONE_CARD_HEADLINE_WORDS) ??
+      normalizeGeminiAgentHeadline(markdownTriplet?.agent_headline, MAX_ZONE_CARD_HEADLINE_WORDS) ??
+      normalizeGeminiAgentHeadline(geminiTriplet?.agent_headline, MAX_ZONE_CARD_HEADLINE_WORDS) ??
       null
 
+    const headlineWordCount = mergedAgentHeadline
+      ? mergedAgentHeadline.split(/\s+/).filter(Boolean).length
+      : 0
     const tripletEmpty =
       (savingForDb == null || savingForDb <= 0) &&
       !mergedAgentHeadline &&
       !mergedArchitectProse
-    if (tripletEmpty && mergedOffer) {
+    const needsMechanicalHeadline =
+      headlineWordCount > 0 && headlineWordCount < MIN_ZONE_CARD_HEADLINE_WORDS
+    if ((tripletEmpty || needsMechanicalHeadline) && (mergedOffer || mergedCategory)) {
       const mechanical = mechanicalCategoryTripletFallback({
         category: mergedCategory,
-        offerUrl: mergedOffer,
+        offerUrl: mergedOffer ?? trustedUrlForJourney(journeyKeyForHeadline),
         localityContext: params.localityContext ?? null,
         postcode: params.postcode ?? null,
       })
       if (mechanical) {
-        savingForDb = mechanical.saving_amount_gbp
-        mergedAgentHeadline =
-          normalizeGeminiAgentHeadline(mechanical.agent_headline) ?? mechanical.agent_headline
-        mergedArchitectProse = mechanical.architect_prose
+        if (savingForDb == null || savingForDb <= 0) savingForDb = mechanical.saving_amount_gbp
+        mergedAgentHeadline = mechanical.agent_headline
+        if (!mergedArchitectProse) mergedArchitectProse = mechanical.architect_prose
+        if (mechanical.offer_url) mergedOffer = mechanical.offer_url
+        if (mechanical.category) mergedCategory = mechanical.category
       }
+    }
+
+    if (mergedAgentHeadline) {
+      mergedAgentHeadline = clampZoneBentoHeadline(
+        mergedAgentHeadline,
+        normalizeCategoryToJourneyKey(mergedCategory ?? 'home')
+      )
+    }
+
+    const journeyKeyFinal = normalizeCategoryToJourneyKey(mergedCategory ?? 'home')
+    if (mergedOffer?.startsWith('http')) {
+      mergedOffer = sanitizeZoneOfferUrl(mergedOffer, journeyKeyFinal)
+    }
+    if (mergedSourceForDb?.startsWith('http')) {
+      mergedSourceForDb = sanitizeZoneOfferUrl(mergedSourceForDb, journeyKeyFinal)
     }
 
     const highImpact = params.isHighImpact === true
@@ -1575,6 +1649,118 @@ export async function persistResearchResult(params: {
   } catch (e) {
     console.warn('[researchAgent] persistResearchResult failed:', e)
   }
+}
+
+/**
+ * DB-only mechanical seed — all 13 Zone wall journeys for a postcode (no dev server / Firecrawl).
+ * Replaces any existing row per journey+postcode before insert.
+ */
+export async function seedMechanicalJourneysForPostcode(
+  postcode: string
+): Promise<{ seeded: number; journeys: string[]; failed: string[] }> {
+  const pc = postcode.replace(/\s+/g, '').trim().toUpperCase()
+  if (pc.length < 5) throw new Error('postcode required (e.g. SW1A1AA)')
+
+  let locality: string | null = null
+  try {
+    const local = await getLocalData(pc)
+    locality =
+      local?.locality?.trim() ||
+      local?.council?.trim() ||
+      local?.region?.trim() ||
+      null
+  } catch {
+    /* optional geocode */
+  }
+
+  const pool = getDbPool()
+  const seeded: string[] = []
+  const failed: string[] = []
+
+  for (const journey of JOURNEY_IDS) {
+    try {
+      const mechanical = mechanicalCategoryTripletFallback({
+        category: journey,
+        offerUrl: trustedUrlForJourney(journey),
+        localityContext: locality,
+        postcode: pc,
+      })
+      if (!mechanical) {
+        failed.push(journey)
+        continue
+      }
+
+      const journeyKey = normalizeCategoryToJourneyKey(mechanical.category)
+      const headline = clampZoneBentoHeadline(mechanical.agent_headline, journeyKey)
+      const offerUrl = sanitizeZoneOfferUrl(mechanical.offer_url, journeyKey)
+
+      await pool.query(
+        `DELETE FROM research_results
+         WHERE REPLACE(COALESCE(postcode, ''), ' ', '') = $1
+           AND LOWER(COALESCE(category, '')) = $2`,
+        [pc, journey]
+      )
+
+      await pool.query(
+        `INSERT INTO research_results (
+           postcode, category, saving_amount_gbp, agent_headline, architect_prose,
+           offer_url, source_url, markdown, citations, verified, locality_context
+         ) VALUES ($1, $2, $3::numeric, $4, $5, $6, $7, $8, $9::jsonb, true, $10)`,
+        [
+          pc,
+          journeyKey,
+          mechanical.saving_amount_gbp,
+          headline,
+          mechanical.architect_prose,
+          offerUrl,
+          offerUrl,
+          `# ${journeyKey} — mechanical 12k/1t seed\n\nPostcode ${pc}. Trusted journey URL and 8–10 word headline.`,
+          JSON.stringify([
+            {
+              source_name: 'Zero Zero mechanical seed',
+              url: offerUrl,
+              snippet: `Mechanical seed for ${journeyKey}`,
+            },
+          ]),
+          locality,
+        ]
+      )
+      seeded.push(journeyKey)
+    } catch (e) {
+      console.warn(`[researchAgent] seed ${journey} failed:`, e)
+      failed.push(journey)
+    }
+  }
+
+  if (failed.length > 0) {
+    console.warn(`[researchAgent] seed incomplete for ${pc}: ${failed.join(', ')}`)
+  }
+
+  return { seeded: seeded.length, journeys: seeded, failed }
+}
+
+/** Seed mechanical 13-journey wall for distinct user postcodes (Hermes / ops). */
+export async function seedMechanicalJourneysForDistinctPostcodes(
+  limit = 5
+): Promise<{ postcodes: string[]; totalSeeded: number }> {
+  const pool = getDbPool()
+  const cap = Math.min(Math.max(limit, 1), 20)
+  const r = await pool.query<{ pc: string }>(
+    `SELECT DISTINCT REPLACE(UPPER(TRIM(postcode)), ' ', '') AS pc
+     FROM users
+     WHERE postcode IS NOT NULL
+       AND length(REPLACE(UPPER(TRIM(postcode)), ' ', '')) >= 5
+     ORDER BY pc
+     LIMIT $1`,
+    [cap]
+  )
+  const postcodes = r.rows.map((row) => row.pc).filter(Boolean)
+  let totalSeeded = 0
+  for (const pc of postcodes) {
+    const { seeded } = await seedMechanicalJourneysForPostcode(pc)
+    totalSeeded += seeded
+  }
+  return { postcodes, totalSeeded }
 }
 
 export { triggerSupplementalResearch }
@@ -1675,16 +1861,20 @@ export async function runTriggerResearchForCategory(params: {
     .join('\n\n---\n\n')
 
   const citations: ResearchCitation[] = []
-  const firecrawl = await fetchCategoryFirecrawlResearch({
-    postcode: pc,
-    category: cat,
-    profileData: params.profileData ?? null,
-    userContext: params.userContext ?? null,
-    surgical: true,
-  })
-  if (firecrawl.markdown.length > 80) {
-    markdown = `${markdown}\n\n---\n\n${firecrawl.markdown}`
-    citations.push(...firecrawl.citations)
+  let firecrawlSourceCount = 0
+  if (!shouldSkipFirecrawlScrape()) {
+    const firecrawl = await fetchCategoryFirecrawlResearch({
+      postcode: pc,
+      category: cat,
+      profileData: params.profileData ?? null,
+      userContext: params.userContext ?? null,
+      surgical: true,
+    })
+    firecrawlSourceCount = firecrawl.citations.length
+    if (firecrawl.markdown.length > 80) {
+      markdown = `${markdown}\n\n---\n\n${firecrawl.markdown}`
+      citations.push(...firecrawl.citations)
+    }
   }
 
   const deep = await deepGeminiSearchUkEnergyMarkdown({
@@ -1716,10 +1906,11 @@ export async function runTriggerResearchForCategory(params: {
     sourceUrl: primaryCitation?.url?.trim().startsWith('http')
       ? primaryCitation.url.trim()
       : PRICE_CAP_SOURCE_URL,
+    skipResearchGeminiExtraction: shouldPreferMechanicalTripletInBucket(),
     invokePayload: {
       trigger: 'scrape-sync-fast',
       category: cat,
-      firecrawl_sources: firecrawl.citations.length,
+      firecrawl_sources: firecrawlSourceCount,
     },
   })
 

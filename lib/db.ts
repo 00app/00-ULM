@@ -1,5 +1,18 @@
-import { neon, Pool as NeonPool } from '@neondatabase/serverless'
+import { neon, neonConfig, Pool as NeonPool } from '@neondatabase/serverless'
 import { Pool as PgPool } from 'pg'
+
+/** Node scripts (tsx) — Neon Pool uses WebSockets; HTTP `neon()` works without this. */
+if (typeof window === 'undefined') {
+  try {
+    // Next.js webpack can bundle ws with a broken optional bufferutil — disable native deps.
+    process.env.WS_NO_BUFFER_UTIL = process.env.WS_NO_BUFFER_UTIL ?? '1'
+    process.env.WS_NO_UTF_8_VALIDATE = process.env.WS_NO_UTF_8_VALIDATE ?? '1'
+    const ws = require('ws') as typeof import('ws')
+    neonConfig.webSocketConstructor = ws as unknown as typeof WebSocket
+  } catch {
+    /* edge / minimal runtimes */
+  }
+}
 
 export type DbPool = NeonPool | PgPool
 
@@ -45,15 +58,27 @@ export function sanitizeNeonConnectionString(connectionString: string): string {
  * Force `sslmode=require` on the connection URI query string only.
  * Avoids `new URL()` on full postgres URIs — WHATWG parsing can corrupt passwords
  * that contain reserved characters (e.g. `@`, `#`) if not perfectly percent-encoded.
+ *
+ * Appends `uselibpqcompat=true` so node-pg v8+ does not emit the v9 sslmode
+ * deprecation warning on every first pool connect (Neon pooler uses require).
  */
 export function mergeSslModeRequire(connectionString: string): string {
   const t = connectionString.trim()
   if (!t) return t
-  if (/\bsslmode=[^&]*/i.test(t)) {
-    return t.replace(/\bsslmode=[^&]*/gi, 'sslmode=require')
+  let out = t
+  if (/\bsslmode=[^&]*/i.test(out)) {
+    if (!/\bsslmode=verify-full\b/i.test(out)) {
+      out = out.replace(/\bsslmode=[^&]*/gi, 'sslmode=require')
+    }
+  } else {
+    const joiner = out.includes('?') ? '&' : '?'
+    out = `${out}${joiner}sslmode=require`
   }
-  const joiner = t.includes('?') ? '&' : '?'
-  return `${t}${joiner}sslmode=require`
+  if (!/\buselibpqcompat=/i.test(out)) {
+    const joiner = out.includes('?') ? '&' : '?'
+    out = `${out}${joiner}uselibpqcompat=true`
+  }
+  return out
 }
 
 function maskDatabasePassword(connectionString: string): string | null {
@@ -143,10 +168,15 @@ function resolveConnectionString(): string {
   return mergeSslModeRequire(resolved)
 }
 
-/** Prefer Neon serverless Pool (HTTP-backed) over node-pg TCP pool for Neon hosts. */
+/**
+ * Neon serverless WebSocket Pool vs node-pg TCP pooler.
+ * Local Next dev + webpack: WebSocket pool flakes (`bufferUtil.mask is not a function`);
+ * TCP to `-pooler` host is stable. Production Vercel defaults to Neon Pool unless overridden.
+ */
 function shouldUseNeonServerless(connectionString: string): boolean {
   if (process.env.DATABASE_USE_NEON_SERVERLESS === '0') return false
   if (process.env.DATABASE_USE_NEON_SERVERLESS === '1') return true
+  if (process.env.NODE_ENV !== 'production') return false
   const u = connectionString.toLowerCase()
   return u.includes('neon.tech') || u.includes('.neon.build')
 }

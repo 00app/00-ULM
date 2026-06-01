@@ -9,7 +9,7 @@ import type { ZoneTipCard } from '@/lib/logic/zone'
 import { buildDiscoveryInjectionCardAsync, buildDiscoveryInjectionId } from '@/lib/zone/discoveryCard'
 import { enforceTrueWinRails, TRUE_WIN_RAILS } from '@/lib/zone/trueWinRails'
 import { generateResearchText } from '@/lib/intelligence/aiGateway'
-import { isBucketFailoverMode } from '@/lib/intelligence/scrapeBoundaries'
+import { isBucketFailoverMode, shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
 
 export interface DiscoveryStructuredResponse {
   recommendation_copy: string
@@ -55,15 +55,18 @@ export async function runDiscoveryStructuredPipeline(params: {
 }): Promise<DiscoveryStructuredResponse | null> {
   const { journeyId, questionId, answerValue, postcode, profileData, userId } = params
 
-  const researchBlock = await Promise.race([
-    triggerSupplementalResearch({
-      postcode: postcode ?? undefined,
-      profileData: profileData ?? undefined,
-      persistToNeon: true,
-      userId,
-    }),
-    new Promise<null>((r) => setTimeout(() => r(null), 4500)),
-  ])
+  const skipResearchFetch = isBucketFailoverMode() && shouldSkipFirecrawlScrape()
+  const researchBlock = skipResearchFetch
+    ? null
+    : await Promise.race([
+        triggerSupplementalResearch({
+          postcode: postcode ?? undefined,
+          profileData: profileData ?? undefined,
+          persistToNeon: true,
+          userId,
+        }),
+        new Promise<null>((r) => setTimeout(() => r(null), 4500)),
+      ])
   const researchMd = researchBlock?.markdown?.slice(0, 4000) ?? ''
 
   const stableId = buildDiscoveryInjectionId(journeyId, questionId, answerValue)

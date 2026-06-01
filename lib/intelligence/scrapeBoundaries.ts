@@ -5,6 +5,7 @@
 
 import type { JourneyId } from '@/lib/journeys'
 import { resolveSurgicalJourneyKey } from '@/lib/intelligence/topicShield'
+import { resolveFirecrawlApiKey } from '@/lib/sentinel/api-config'
 
 export function isBucketFailoverMode(): boolean {
   return process.env.MODEL_STRATEGY?.trim().toLowerCase() === 'bucket_failover'
@@ -36,8 +37,7 @@ export function resolveMaxIterations(): number {
 export function shouldSkipFirecrawlScrape(): boolean {
   const v = process.env.SKIP_FIRECRAWL?.trim().toLowerCase() ?? ''
   if (v === '1' || v === 'true' || v === 'yes') return true
-  const key = process.env.FIRE_CRAWL_KEY_2?.trim() ?? ''
-  return key.length === 0
+  return resolveFirecrawlApiKey().length === 0
 }
 
 /** Skip second-pass Gemini deep search when on bucket mode (Firecrawl surgical + triplet extraction only). */
@@ -47,10 +47,42 @@ export function shouldSkipDeepGeminiSearch(): boolean {
   return v === '1' || v === 'true' || v === 'yes'
 }
 
+/**
+ * Bucket mode: prefer mechanical triplets for JIT scrape-sync (no Groq TPM storm).
+ * Set ALLOW_LLM_TRIPLET=1 to opt back into LLM extraction on triggers/repair.
+ */
+export function shouldPreferMechanicalTripletInBucket(): boolean {
+  if (!isBucketFailoverMode()) return false
+  const allow = process.env.ALLOW_LLM_TRIPLET?.trim().toLowerCase() ?? ''
+  if (allow === '1' || allow === 'true' || allow === 'yes') return false
+  return true
+}
+
+/**
+ * Bucket mode: skip batch content-architect LLM (Groq 413 / TPM storms).
+ * Zone already has Neon headlines; mechanical polish from card £/kg is enough locally.
+ * Set ALLOW_CONTENT_ARCHITECT_LLM=1 to opt back into Gemini/Groq batch polish.
+ */
+export function shouldSkipContentArchitectLlm(): boolean {
+  if (!isBucketFailoverMode()) return false
+  const allow = process.env.ALLOW_CONTENT_ARCHITECT_LLM?.trim().toLowerCase() ?? ''
+  if (allow === '1' || allow === 'true' || allow === 'yes') return false
+  return true
+}
+
 export type SurgicalScrapeContext = {
   postcode: string
   journeyKey: string | null
   hasProfileAnchor: boolean
+}
+
+/** Any configured LLM for research/chat (Groq/Mistral/OpenRouter and/or non-skipped Gemini). */
+export function hasAnyResearchLlmProvider(): boolean {
+  if (process.env.GROQ_API_KEY?.trim()) return true
+  if (process.env.MISTRAL_API_KEY?.trim()) return true
+  if (process.env.OPENROUTER_API_KEY?.trim()) return true
+  if (process.env.GEMINI_API_KEY?.trim() && !shouldSkipGeminiInBucket()) return true
+  return false
 }
 
 export function validateSurgicalScrapeContext(params: {
@@ -103,6 +135,7 @@ export function bucketFailoverStatus(): {
   maxIterations: number
   broadScrapeAllowed: boolean
   skipDeepGemini: boolean
+  preferMechanicalTriplet: boolean
   providers: { gemini: boolean; groq: boolean; mistral: boolean; openrouter: boolean }
 } {
   return {
@@ -110,6 +143,7 @@ export function bucketFailoverStatus(): {
     maxIterations: resolveMaxIterations(),
     broadScrapeAllowed: isBroadResearchAllowed(),
     skipDeepGemini: shouldSkipDeepGeminiSearch(),
+    preferMechanicalTriplet: shouldPreferMechanicalTripletInBucket(),
     providers: {
       gemini:
         Boolean(process.env.GEMINI_API_KEY?.trim()) && !shouldSkipGeminiInBucket(),

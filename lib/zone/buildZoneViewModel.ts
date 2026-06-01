@@ -40,6 +40,8 @@ import {
   isAcceptableZoneJourneyHeadline,
   isZonePreviewHeadlineNoise,
   MAX_ZONE_CARD_HEADLINE_WORDS,
+  clampZoneBentoHeadline,
+  ZONE_BENTO_HOOK,
   normalizeCardHeadlineKey,
   headlineFromArchitectProse,
   zoneCardHeadlineFromRaw,
@@ -331,35 +333,10 @@ function buildCompactHeadline(params: {
   moneyGbp: number
   journeyAnswers: Record<JourneyId, Record<string, string>>
 }): string {
+  const hook = ZONE_BENTO_HOOK[params.journey]
+  if (hook) return clampZoneBentoHeadline(hook, params.journey)
   const reason = reasonForJourney(params.journey, params.journeyAnswers)
-  switch (params.journey) {
-    case 'tech':
-      return 'KILL STANDBY WASTE'
-    case 'holidays':
-      return 'OPTIMIZE TRAVEL'
-    case 'home':
-      return 'CUT HOME COST LEAKS'
-    case 'utilities':
-      return 'TRIM UTILITY BILLS'
-    case 'travel':
-      return 'TRIM COMMUTE SPEND'
-    case 'food':
-      return 'CUT FOOD WASTE'
-    case 'shopping':
-      return 'SLOW BUY CYCLE'
-    case 'money':
-      return 'STABILIZE MONTHLY BILLS'
-    case 'carbon':
-      return 'LOWER GRID LOAD'
-    case 'waste':
-      return 'SHRINK BIN LEAKS'
-    case 'grants':
-      return 'CHECK GRANT ELIGIBILITY'
-    case 'solar':
-      return 'SIZE SOLAR TO YOUR ROOF'
-    default:
-      return reason
-  }
+  return clampZoneBentoHeadline(reason, params.journey)
 }
 
 function teaserTitleFromOffer(input?: string | null): string | null {
@@ -371,11 +348,9 @@ function teaserTitleFromOffer(input?: string | null): string | null {
   if (!clean) return null
   const firstSentence = clean.split(/[.!?]/)[0]?.trim() ?? clean
   if (firstSentence.length < 12) return null
-  const words = firstSentence.split(/\s+/).filter(Boolean)
-  if (words.length === 0) return null
-  const clipped = words.slice(0, 8).join(' ')
-  const preview = cleanZonePreviewHeadline(`${clipped}${words.length > 8 ? '...' : ''}`)
-  return preview.length >= 3 ? preview : null
+  const preview = cleanZonePreviewHeadline(firstSentence)
+  if (!preview || preview.length < 6) return null
+  return clampZoneBentoHeadline(preview)
 }
 
 function previewTitleFromNeon(
@@ -389,14 +364,19 @@ function previewTitleFromNeon(
     if (t.length < 6 || isZonePreviewHeadlineNoise(t)) return null
     if (!isAcceptableZoneJourneyHeadline(journeyKey, t)) return null
     const resolved = zoneCardHeadlineFromRaw(t, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
-    return resolved.length >= 6 ? resolved : null
+    return resolved.length >= 6
+      ? clampZoneBentoHeadline(resolved, journeyKey)
+      : null
   })()
   if (fromHeadline) return fromHeadline
   if (!neon?.architectProse?.trim()) return null
   const fromProse = headlineFromArchitectProse(neon.architectProse)
   if (!fromProse || fromProse.length < 6) return null
   if (!isAcceptableZoneJourneyHeadline(journeyKey, fromProse)) return null
-  return zoneCardHeadlineFromRaw(fromProse, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
+  return clampZoneBentoHeadline(
+    zoneCardHeadlineFromRaw(fromProse, fallback, MAX_ZONE_CARD_HEADLINE_WORDS),
+    journeyKey
+  )
 }
 
 function profileDrivenJourneyTitle(
@@ -862,10 +842,8 @@ export function buildZoneViewModel({
 
   const council = localData?.council
 
-  // JOURNEY CARDS — 13 domains; UTILITIES tile only after profile power type (12 visible before)
-  const journeyCards: ZoneJourneyCard[] = JOURNEY_ORDER.filter(
-    (journeyKey) => journeyKey !== 'utilities' || isUtilitiesZoneCardUnlocked(profile)
-  ).map((journeyKey) => {
+  // JOURNEY CARDS — all 13 domains on the wall (utilities shows COMPUTING until power type is set)
+  const journeyCards: ZoneJourneyCard[] = JOURNEY_ORDER.map((journeyKey) => {
     const impact = journeyImpacts[journeyKey] as ScrapedOverlayResult
     const hasStream =
       journeyHasStreamData(journeyKey, streamOpts) ||
@@ -950,15 +928,14 @@ export function buildZoneViewModel({
       journeyAnswers,
     })
     const titleFallback = baselineTitle || compactFallback
-    const mechanicalHeadline = zoneCardHeadlineFromRaw(
-      titleFallback,
-      compactFallback,
-      MAX_ZONE_CARD_HEADLINE_WORDS
+    const mechanicalHeadline = clampZoneBentoHeadline(
+      zoneCardHeadlineFromRaw(titleFallback, compactFallback, MAX_ZONE_CARD_HEADLINE_WORDS),
+      journeyKey
     )
     const hasMechanicalHeadline =
       Boolean(mechanicalHeadline?.trim()) &&
       isAcceptableZoneJourneyHeadline(journeyKey, mechanicalHeadline)
-    const title = hasStream
+    const titleRaw = hasStream
       ? (previewTitleFromNeon(neon, titleFallback, journeyKey) ??
         (offerTeaserTitle &&
         isAcceptableZoneJourneyHeadline(journeyKey, offerTeaserTitle)
@@ -972,6 +949,7 @@ export function buildZoneViewModel({
       : hasMechanicalHeadline
         ? mechanicalHeadline
         : computingJourneyTitle(journeyKey)
+    const title = clampZoneBentoHeadline(titleRaw, journeyKey)
     const showGridImpact = hasStream || hasMechanicalHeadline || moneyGbp > 0 || carbonKg > 0
     const sourceUrl = sanitizeZoneOfferUrl(
       ensureAbsoluteHttpsUrl(source.url) ?? source.url,
@@ -1196,7 +1174,7 @@ export function buildZoneViewModel({
   ]
   void generalCards // legacy 9+3 fillers; 12-domain wall uses `journeyCards` only
 
-  /** Act-now wall: 12 journey tiles only (`app/zone` filters `journey-*`). */
+  /** Act-now wall: 13 journey tiles (`app/zone` filters `journey-*`). */
   const journeys: ZoneJourneyCard[] = journeyCards
 
   // TIPS - Top 3 journeys by carbon impact
@@ -1267,13 +1245,9 @@ export function buildZoneViewModel({
     const titleFallback = profileTitle || compactFallback
     let title =
       previewTitleFromNeon(neon, titleFallback, journeyKey) ??
-      zoneCardHeadlineFromRaw(titleFallback, compactFallback, MAX_ZONE_CARD_HEADLINE_WORDS)
+      clampZoneBentoHeadline(titleFallback, journeyKey)
     if (journeyKey === 'home' && needsSwitching) {
-      title = zoneCardHeadlineFromRaw(
-        'switch to a greener tariff',
-        'switch to a greener tariff',
-        MAX_ZONE_CARD_HEADLINE_WORDS
-      )
+      title = clampZoneBentoHeadline('switch to a greener tariff before you renew your deal', journeyKey)
     }
     let tipMoneyGbp = dynamicJourneyValues[journeyKey].moneyGbp
     if (neon?.savingGbp != null && Number.isFinite(neon.savingGbp) && neon.savingGbp > 0) {
@@ -1361,10 +1335,9 @@ export function buildZoneViewModel({
       tips[tips.length - 1] = {
         id: 'tip-home-switching',
         variant: 'card-compact' as const,
-        title: zoneCardHeadlineFromRaw(
-          'switch to a greener tariff',
-          'switch to a greener tariff',
-          MAX_ZONE_CARD_HEADLINE_WORDS
+        title: clampZoneBentoHeadline(
+          'switch to a greener tariff before you renew your deal',
+          'home'
         ),
         journey_key: 'home',
         category: 'home',
@@ -1423,9 +1396,7 @@ export function buildZoneViewModel({
     normalizePrimaryGoal(profile?.goal)
   )
 
-  const expectedJourneyTiles = JOURNEY_ORDER.filter(
-    (journeyKey) => journeyKey !== 'utilities' || isUtilitiesZoneCardUnlocked(profile)
-  ).length
+  const expectedJourneyTiles = JOURNEY_ORDER.length
   if (journeys.length !== expectedJourneyTiles) {
     console.warn(
       `[Zone] Expected ${expectedJourneyTiles} journey tiles, got ${journeys.length}`

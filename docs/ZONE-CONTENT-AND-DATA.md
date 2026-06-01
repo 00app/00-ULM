@@ -198,6 +198,7 @@ Separate from 12 journey bentos:
 - **`RockSavingTips`** — heading **Today's Tips** (`aria-label="Today's tips"`)
 - Habits + learn URLs from **`lib/rock/habitsCatalog.ts`**
 - Same visit styling when opened
+- **Label colour lock:** category label (`ZoneBentoCardHeader`) uses `--journey-text` at rest and on hover — same as `card-headline`. Rock grid is excluded from main Zone `data-zone-surface='tip'` purple-header override (`app/globals.css`).
 
 ### Discovery & injects
 
@@ -221,7 +222,7 @@ Ceilings: **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** · **`MAX_ZONE_BENTO_CE
 |------|---------|
 | **H1 (Marvin)** | **20–24 word** hook (`headlineFromExpandedHook`) — 3–4 lines; no postcodes/tariff dumps in title |
 | **Lead (Marvin H4)** | Locality audit opener — **≤30 words**; **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), never raw postcode |
-| **Body** | Optional **Roboto Bold** body — max 2 prose blocks total (lead + body); metrics row owns £/CO₂ stamp |
+| **Body** | **Not rendered in UI** (May 2026) — `SoloFocusProseStack` is **lead-only**; £/CO₂e live in the metrics row. Neon `architect_prose` still stored for polish / Zai context paths. |
 | **Metrics** | Verified £ + CO₂e from stored row |
 | **Trinity** | Ask Zai → deep dive; Continue in Zai → handoff; RECLAIM / BUY → `MotherCardRenderer` + `IndustrialHandoffButton` |
 | **Questions** | **One** registry Q per open — zip-shut MC answer → **RESULT**; close → loop question (`DiscoveryTakeover`) |
@@ -236,7 +237,7 @@ Persona: **trusted UK mate** — calm, empathetic, data-honest; at most one line
 |--------|--------|------|
 | **Neon `research_results`** | `researchAgent` / scrape-sync | Three paragraphs from Gemini + surgical scrape; locality from geocode / profile |
 | **Content Architect** | `POST /api/zone/content-architect` | Batch polish: friction / lever / action; category locks; `ZONE_CONTENT_ARCHITECT_VOICE` |
-| **Solo Focus display** | `resolveExpandedTrueTipInsight` → `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` | Prefer DB `architect_prose`; **one** payoff line via `payoffSentence` (stamped £/CO₂e) — **no** CTA-bridge / “Execute the…” / duplicate stamp paragraphs |
+| **Solo Focus display** | `resolveSoloFocusDisplayProse` | Marvin **lead only** (H4); no Roboto body block — metrics row owns £/CO₂e |
 | **Locality** | `lib/zone/localityCopy.ts` | `resolveSoloFocusPlaceLabel` + `personalizeTrueTipPlaceLead` — town in lead, not postcode |
 | **Sanitizer** | `lib/zone/contentProseSanitize.ts` | Strip leakage, demo postcodes, cross-category pollution on read |
 

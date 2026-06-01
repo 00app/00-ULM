@@ -1,8 +1,9 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import IntroWordCycle from '@/app/components/IntroWordCycle'
-import { ARCHITECTURAL_PULSE_WORDS } from '@/lib/architecturalPulse'
+import { ARCHITECTURAL_PULSE_WORDS, preloadAppFonts } from '@/lib/architecturalPulse'
 import { INTRO_ROUTE_WORD_EXIT_MS } from '@/lib/animations'
 import { atomicWordHoldMs } from '@/lib/motion-family'
 
@@ -25,6 +26,18 @@ export function ArchitecturalPulse({
   overlayZIndex = 200,
   inline = false,
 }: Props) {
+  const [fontsReady, setFontsReady] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    void preloadAppFonts().then(() => {
+      if (alive) setFontsReady(true)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
   return (
     <motion.div
       className="architectural-pulse-overlay zz-profile-page mode-ui"
@@ -57,18 +70,20 @@ export function ArchitecturalPulse({
             }
       }
     >
-      <IntroWordCycle
-        words={WORDS}
-        preserveCase
-        trailingPeriod={false}
-        gapMs={0}
-        wordDurations={DWELLS}
-        wordExitMs={INTRO_ROUTE_WORD_EXIT_MS}
-        opacityTicker
-        fitToViewportPaddingPx={inline ? 40 : 0}
-        onComplete={onComplete}
-        holdFinalWord
-      />
+      {fontsReady ? (
+        <IntroWordCycle
+          words={WORDS}
+          preserveCase
+          trailingPeriod={false}
+          gapMs={0}
+          wordDurations={DWELLS}
+          wordExitMs={INTRO_ROUTE_WORD_EXIT_MS}
+          opacityTicker
+          fitToViewportPaddingPx={inline ? 40 : 0}
+          onComplete={onComplete}
+          holdFinalWord
+        />
+      ) : null}
     </motion.div>
   )
 }

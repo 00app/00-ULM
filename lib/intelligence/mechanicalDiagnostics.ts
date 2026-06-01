@@ -1,6 +1,7 @@
 /**
  * Mechanical Truth diagnostics — shared checks for Settings Flight Deck + Zone strip.
- * Binds to GET /api/health, GET /api/health/diagnostics, scrape-sync, local-intelligence.
+ * Binds to GET /api/health (provider flags), GET /api/health/diagnostics (session),
+ * GET /api/scrape-sync, GET /api/local-intelligence.
  */
 
 import { MANIFEST_NEON_POOLER_HOST } from '@/lib/intelligence/manifest'
@@ -25,6 +26,16 @@ export type MechanicalDiagnosticsSnapshot = {
   loading: boolean
 }
 
+type HealthProviders = {
+  gemini?: boolean
+  firecrawl?: boolean
+  firecrawlEnv?: string | null
+  skipFirecrawl?: boolean
+  geminiZoneModel?: string
+  bucketFailover?: boolean
+  researchForceDirectGemini?: boolean
+}
+
 function outwardPostcode(pc: string): string {
   const m = pc.replace(/\s+/g, '').toUpperCase().match(/^([A-Z]{1,2}\d{1,2}[A-Z]?)/)
   return m?.[1] ?? pc.slice(0, 4).toUpperCase()
@@ -47,13 +58,47 @@ export async function pollMechanicalDiagnostics(params: {
 
   let apiGemini = false
   let apiFirecrawl = false
+  let skipFirecrawl = false
+  let firecrawlEnv: string | null = null
+  let geminiZoneModel = 'gemini-2.5-flash'
+  let bucketFailover = false
+  let researchForceDirect = true
   let apiAiGateway = false
   let apiAiGatewayOk = false
   let apiAiGatewayDetail: string | null = null
   let dbLatencyMs: number | null = null
+  let lastResearchScrapedAt: string | null = null
 
   try {
-    const res = await fetch('/api/health/diagnostics', { cache: 'no-store' })
+    const res = await fetch('/api/health', { cache: 'no-store', credentials: 'include' })
+    if (res.ok) {
+      const h = (await res.json()) as { providers?: HealthProviders; latencyMs?: number }
+      const p = h.providers
+      if (p) {
+        apiGemini = Boolean(p.gemini)
+        apiFirecrawl = Boolean(p.firecrawl)
+        skipFirecrawl = Boolean(p.skipFirecrawl)
+        firecrawlEnv =
+          typeof p.firecrawlEnv === 'string' && p.firecrawlEnv.trim() ? p.firecrawlEnv.trim() : null
+        if (typeof p.geminiZoneModel === 'string' && p.geminiZoneModel.trim()) {
+          geminiZoneModel = p.geminiZoneModel.trim()
+        }
+        bucketFailover = Boolean(p.bucketFailover)
+        researchForceDirect = p.researchForceDirectGemini !== false
+      }
+      if (typeof h.latencyMs === 'number' && Number.isFinite(h.latencyMs)) {
+        dbLatencyMs = h.latencyMs
+      }
+    }
+  } catch {
+    /* non-blocking */
+  }
+
+  try {
+    const res = await fetch('/api/health/diagnostics', {
+      cache: 'no-store',
+      credentials: 'include',
+    })
     if (res.ok) {
       const d = (await res.json()) as {
         gemini?: boolean
@@ -63,9 +108,11 @@ export async function pollMechanicalDiagnostics(params: {
         aiGatewayDetail?: string | null
         dbLatencyMs?: number | null
         neon?: boolean
+        lastResearchScrapedAt?: string | null
+        bucket_failover?: { enabled?: boolean }
       }
-      apiGemini = Boolean(d.gemini)
-      apiFirecrawl = Boolean(d.firecrawl)
+      if (d.gemini === true) apiGemini = true
+      if (d.firecrawl === true && !skipFirecrawl) apiFirecrawl = true
       apiAiGateway = Boolean(d.aiGateway)
       apiAiGatewayOk = Boolean(d.aiGatewayOk)
       apiAiGatewayDetail =
@@ -76,9 +123,13 @@ export async function pollMechanicalDiagnostics(params: {
         dbLatencyMs = d.dbLatencyMs
       }
       if (d.neon === false) params = { ...params, dbConnected: false }
+      if (typeof d.lastResearchScrapedAt === 'string' && d.lastResearchScrapedAt.trim()) {
+        lastResearchScrapedAt = d.lastResearchScrapedAt.trim()
+      }
+      if (d.bucket_failover?.enabled === true) bucketFailover = true
     }
   } catch {
-    /* keep defaults */
+    /* session diagnostics optional */
   }
 
   let liveLocalOk = Boolean(params.localityLabel?.trim())
@@ -87,6 +138,7 @@ export async function pollMechanicalDiagnostics(params: {
     try {
       const res = await fetch(`/api/local-intelligence?postcode=${encodeURIComponent(pc)}`, {
         cache: 'no-store',
+        credentials: 'include',
       })
       if (res.ok) {
         const data = (await res.json()) as { locality?: string; council?: string; localCarbonG?: number }
@@ -109,16 +161,21 @@ export async function pollMechanicalDiagnostics(params: {
 
   let meta = null
   let coverage: Record<string, ResearchCategoryCoverageRow> | null = null
+  let scrapeSyncOk = false
+  let scrapeSource: string | null = null
   if (pc.length >= 4) {
     try {
       const res = await fetch(
         appendResearchUserIdQuery(`/api/scrape-sync?postcode=${encodeURIComponent(pc)}`),
-        { cache: 'no-store' }
+        { cache: 'no-store', credentials: 'include' }
       )
+      scrapeSyncOk = res.ok
       if (res.ok) {
         const data = await res.json()
         meta = parseResearchMetaFromApi(data)
         coverage = parseCoverageFromApi(data)
+        const src = (data as { source?: string }).source
+        scrapeSource = typeof src === 'string' ? src : null
       }
     } catch {
       /* non-blocking */
@@ -129,15 +186,28 @@ export async function pollMechanicalDiagnostics(params: {
   const covRows = coverage ? Object.values(coverage) : []
   const pipelineOk = ticks.moneyOk && ticks.proseOk && ticks.offerOk
   const injectReady = covRows.some((c) => c.insightReady && c.hasOffer)
+  const categoriesReady = covRows.filter((c) => c.insightReady).length
 
   const neonDetail = params.dbConnected
     ? `${neonRegionLabel()}${dbLatencyMs != null ? ` · ${Math.round(dbLatencyMs)}ms` : ''}`
     : params.dbHealthHint?.trim() || 'GET /api/health failed'
 
+  const geminiDetail = apiGemini
+    ? `${geminiZoneModel} · GEMINI_API_KEY set`
+    : 'GEMINI_API_KEY unset — add to .env.local and restart dev'
+
+  const firecrawlDetail = skipFirecrawl
+    ? 'SKIP_FIRECRAWL=1 — Firecrawl off (mechanical + Neon only)'
+    : apiFirecrawl
+      ? `Seed matrix · ${firecrawlEnv ?? 'Firecrawl key'}`
+      : 'Unset — FIRE_CRAWL_KEY_3 → KEY_2 → FIRECRAWL_API_KEY'
+
   const gatewayDetail = !apiAiGateway
-    ? 'Direct Gemini (GATEWAY_TOKEN optional)'
+    ? researchForceDirect
+      ? 'Research: direct Gemini · GATEWAY_TOKEN optional for agents'
+      : 'Direct Gemini (GATEWAY_TOKEN optional)'
     : apiAiGatewayOk
-      ? 'Authorization: GATEWAY_TOKEN'
+      ? 'Vercel AI Gateway · GATEWAY_TOKEN or session'
       : apiAiGatewayDetail ?? 'Gateway probe pending'
 
   const localityDetail =
@@ -151,6 +221,24 @@ export async function pollMechanicalDiagnostics(params: {
     ticks.moneyHint ??
     (ticks.moneyOk ? 'saving_amount_gbp > 0' : 'Awaiting surgical scrape')
 
+  const bucketDetail = bucketFailover
+    ? 'MODEL_STRATEGY=bucket_failover · Groq/Mistral/OpenRouter chain'
+    : 'Direct Gemini + Firecrawl (default)'
+
+  const scrapeDetail = !pc.length
+    ? 'Set postcode in profile'
+    : scrapeSyncOk
+      ? scrapeSource === 'pending'
+        ? 'GET ok · Neon empty — JIT scrape on Tip +1'
+        : `GET ok · ${categoriesReady} categor${categoriesReady === 1 ? 'y' : 'ies'} in coverage`
+      : 'GET failed — check session or dev server'
+
+  const loopDetail = lastResearchScrapedAt
+    ? `Last Neon row · ${new Date(lastResearchScrapedAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}`
+    : pipelineOk
+      ? 'Firecrawl → Gemini triplet → Neon research_results'
+      : 'Earned on Tip +1 · weekly cron · Hermes repair'
+
   return [
     {
       id: 'neon',
@@ -162,19 +250,31 @@ export async function pollMechanicalDiagnostics(params: {
       id: 'gemini',
       component: 'GEMINI API',
       ok: apiGemini,
-      detail: apiGemini ? '1.5 Flash (Surgical Mode)' : 'GEMINI_API_KEY unset',
+      detail: geminiDetail,
     },
     {
       id: 'firecrawl',
       component: 'FIRECRAWL API',
-      ok: apiFirecrawl,
-      detail: apiFirecrawl ? 'Seed Matrix Active' : 'FIRE_CRAWL_KEY_2 unset',
+      ok: apiFirecrawl || skipFirecrawl,
+      detail: firecrawlDetail,
     },
     {
       id: 'gateway',
       component: 'AI GATEWAY',
       ok: apiGemini && (!apiAiGateway || apiAiGatewayOk),
       detail: gatewayDetail,
+    },
+    {
+      id: 'bucket',
+      component: 'MODEL STRATEGY',
+      ok: apiGemini || bucketFailover,
+      detail: bucketDetail,
+    },
+    {
+      id: 'scrape',
+      component: 'SCRAPE-SYNC',
+      ok: scrapeSyncOk,
+      detail: scrapeDetail,
     },
     {
       id: 'money',
@@ -205,6 +305,12 @@ export async function pollMechanicalDiagnostics(params: {
       component: 'TRUE TIP ROW',
       ok: pipelineOk || injectReady,
       detail: pipelineOk ? 'Discovery pipeline live' : injectReady ? 'Category insight ready' : 'Tip +1 earns scrape',
+    },
+    {
+      id: 'loop',
+      component: 'INTELLIGENCE LOOP',
+      ok: pipelineOk || Boolean(lastResearchScrapedAt),
+      detail: loopDetail,
     },
   ]
 }

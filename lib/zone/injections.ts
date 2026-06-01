@@ -8,7 +8,7 @@ import { JOURNEY_IDS } from '@/lib/journeys'
 import type { ZoneTipCard } from './buildZoneViewModel'
 import { isHttpsUrl, trustedUrlForJourney } from './trustedJourneyUrls'
 import { shieldOfferUrl } from '@/lib/zone/urlShield'
-import { normalizeCardHeadlineKey, zoneCardHeadlineFromRaw } from '@/lib/soloFocusCopy'
+import { clampZoneBentoHeadline, normalizeCardHeadlineKey } from '@/lib/soloFocusCopy'
 
 /** Normalize learn/cta/source to a trusted https URL (call for cards that skip validateInjectionCard). */
 export function ensureInjectionCardUrls(card: ZoneTipCard): void {
@@ -81,8 +81,7 @@ export function validateInjectionCard(raw: unknown): ZoneTipCard | null {
   const category = (JOURNEY_IDS as readonly string[]).includes(String(o.category ?? o.journey_key ?? 'home'))
     ? ((o.category as JourneyId) ?? jkey)
     : jkey
-  const journeyFallback = `${String(jkey).replace(/-/g, ' ').toUpperCase()} SAVING`
-  const title = zoneCardHeadlineFromRaw(rawTitle, journeyFallback)
+  const title = clampZoneBentoHeadline(rawTitle, jkey)
   if (!title) return null
   const data = o.data as Record<string, unknown> | undefined
   const moneyStr = typeof data?.money === 'string' ? data.money : typeof data?.cash === 'string' ? data.cash : null

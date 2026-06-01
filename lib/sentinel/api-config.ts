@@ -1,11 +1,33 @@
 /**
- * Server-side API keys for Firecrawl and Gemini. Firecrawl: `FIRE_CRAWL_KEY_2` only (Vercel Production).
+ * Server-side API keys for Firecrawl and Gemini.
+ * Firecrawl: `FIRE_CRAWL_KEY_3` → `FIRE_CRAWL_KEY_2` → legacy `FIRECRAWL_API_KEY`.
  */
 import Firecrawl from '@mendable/firecrawl-js'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-/** Resolved Firecrawl key (env name is FIRE_CRAWL_KEY_2). */
-export const FIRECRAWL_API_KEY = process.env.FIRE_CRAWL_KEY_2?.trim() || ''
+export function resolveFirecrawlApiKey(): string {
+  return (
+    process.env.FIRE_CRAWL_KEY_3?.trim() ||
+    process.env.FIRE_CRAWL_KEY_2?.trim() ||
+    process.env.FIRECRAWL_API_KEY?.trim() ||
+    ''
+  )
+}
+
+/** Which env var supplied the Firecrawl key (Flight Deck label only — never the secret). */
+export function resolveFirecrawlEnvSlot():
+  | 'FIRE_CRAWL_KEY_3'
+  | 'FIRE_CRAWL_KEY_2'
+  | 'FIRECRAWL_API_KEY'
+  | null {
+  if (process.env.FIRE_CRAWL_KEY_3?.trim()) return 'FIRE_CRAWL_KEY_3'
+  if (process.env.FIRE_CRAWL_KEY_2?.trim()) return 'FIRE_CRAWL_KEY_2'
+  if (process.env.FIRECRAWL_API_KEY?.trim()) return 'FIRECRAWL_API_KEY'
+  return null
+}
+
+/** Resolved Firecrawl key for scrapers and Sentinel. */
+export const FIRECRAWL_API_KEY = resolveFirecrawlApiKey()
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY?.trim() ?? ''
 
 export function getFirecrawlClient(): Firecrawl | null {

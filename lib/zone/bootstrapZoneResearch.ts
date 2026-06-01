@@ -7,7 +7,12 @@ import {
 } from '@/lib/researchSyncClient'
 import { getDevBootstrapJourneys } from '@/lib/zone/devResearchBootstrap'
 
-const BOOTSTRAP_STAGGER_MS = 2_500
+/** Local dev: wider stagger so free-tier Groq TPM is not exhausted on bootstrap. */
+const BOOTSTRAP_STAGGER_MS =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 12_000
+    : 2_500
 
 export function countSettledJourneys(
   cov: Record<string, ResearchCategoryCoverageRow> | null | undefined,

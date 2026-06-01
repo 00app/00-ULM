@@ -10,6 +10,7 @@
 import { generateText, gateway } from 'ai'
 import {
   generateWithBucketFailover,
+  hasAnyBucketLlmProvider,
   isBucketFailoverEnabled,
   listConfiguredBucketProviders,
 } from '@/lib/intelligence/bucketFailover'
@@ -24,7 +25,7 @@ import {
   ZONE_GATEWAY_MODEL_CHAIN,
 } from '@/lib/intelligence/geminiModels'
 
-export { isBucketFailoverEnabled, listConfiguredBucketProviders } from '@/lib/intelligence/bucketFailover'
+export { isBucketFailoverEnabled, listConfiguredBucketProviders, hasAnyBucketLlmProvider } from '@/lib/intelligence/bucketFailover'
 export {
   bucketFailoverStatus,
   isBucketFailoverMode,

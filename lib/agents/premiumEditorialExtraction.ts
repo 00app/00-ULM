@@ -7,6 +7,7 @@ import {
   extractHybridEditorialTriplet,
   type ResearchProfileData,
 } from '@/lib/agents/researchAgent'
+import { hasAnyResearchLlmProvider } from '@/lib/intelligence/scrapeBoundaries'
 
 export type PremiumEditorialInput = {
   postcode: string
@@ -50,7 +51,7 @@ function buildFactualAnchorMarkdown(input: PremiumEditorialInput): string {
 export async function runPremiumEditorialExtraction(
   input: PremiumEditorialInput
 ): Promise<PremiumEditorialResult | null> {
-  if (!process.env.GEMINI_API_KEY?.trim()) return null
+  if (!hasAnyResearchLlmProvider()) return null
 
   const markdown = buildFactualAnchorMarkdown(input)
   const lockedGbp = Math.max(0, Math.round(input.factualMoneyValue))

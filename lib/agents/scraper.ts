@@ -3,6 +3,7 @@
  */
 
 import Firecrawl from '@mendable/firecrawl-js'
+import { resolveFirecrawlApiKey } from '@/lib/sentinel/api-config'
 import { shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
 
 /** Ofgem: check if energy price cap is rising or falling (households). */
@@ -16,9 +17,9 @@ export const PETROL_PRICES_UK_URL = 'https://www.petrolprices.com/'
 const MIN_MARKDOWN_CHARS = 500
 const BOT_BLOCK_RETRY_WAIT_MS = 3000
 
-/** Production / local: `FIRE_CRAWL_KEY_2` only. */
+/** Production / local: `FIRE_CRAWL_KEY_3` → `FIRE_CRAWL_KEY_2` → `FIRECRAWL_API_KEY`. */
 export function getFirecrawlApiKey(): string {
-  return process.env.FIRE_CRAWL_KEY_2?.trim() || ''
+  return resolveFirecrawlApiKey()
 }
 
 export function hasFirecrawlApiKey(): boolean {

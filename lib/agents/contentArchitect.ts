@@ -9,10 +9,15 @@ import {
   isAcceptableZoneJourneyHeadline,
   isLowQualityZoneHeadline,
   isZonePreviewHeadlineNoise,
-  zoneCardHeadlineFromRaw,
+  clampZoneBentoHeadline,
   MAX_ZONE_CARD_HEADLINE_WORDS,
 } from '@/lib/soloFocusCopy'
 import { GEMINI_PRECISION_TEMPERATURE, GEMINI_DIRECT_ZONE } from '@/lib/intelligence/geminiModels'
+import {
+  generateResearchText,
+  hasAnyBucketLlmProvider,
+  isBucketFailoverEnabled,
+} from '@/lib/intelligence/aiGateway'
 import {
   MARCH_2026_ECONOMY,
   PRICE_CAP_SAVING_APRIL_1,
@@ -29,6 +34,8 @@ import {
   stripContentSystemLeakage,
 } from '@/lib/zone/contentProseSanitize'
 import { ZONE_CONTENT_ARCHITECT_VOICE } from '@/lib/zone/zoneVoice'
+import { shouldSkipContentArchitectLlm } from '@/lib/intelligence/scrapeBoundaries'
+import { isLlmRateLimited } from '@/lib/intelligence/llmRateLimit'
 
 export type ArchitectJourneyPayload = {
   headline: string
@@ -108,9 +115,9 @@ export function architectHeadlineForZoneCard(
 ): string {
   const arch = clampArchitectHeadline(archHeadline)
   if (!arch || isLowQualityZoneHeadline(arch)) {
-    return zoneCardHeadlineFromRaw(fallback, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
+    return clampZoneBentoHeadline(fallback, journeyKey)
   }
-  return zoneCardHeadlineFromRaw(arch, fallback, MAX_ZONE_CARD_HEADLINE_WORDS)
+  return clampZoneBentoHeadline(arch, journeyKey)
 }
 
 export function clampArchitectHeadline(s: string): string {
@@ -285,6 +292,59 @@ export async function generateCardContext(
   return batch[journey_key] ?? null
 }
 
+function formatCompactGbp(n: number): string {
+  const v = Math.max(0, Math.round(n))
+  if (v >= 1000) return `£${(v / 1000).toFixed(1).replace(/\.0$/, '')}k`
+  return `£${v}`
+}
+
+function formatCompactCarbonKg(n: number): string {
+  const v = Math.max(0, Math.round(n))
+  if (v >= 1000) return `${(v / 1000).toFixed(1).replace(/\.0$/, '')}t`
+  return `${v}kg`
+}
+
+function mechanicalArchitectPayload(c: ContentArchitectCardInput): ArchitectJourneyPayload {
+  const locality = c.locality?.trim() || 'your area'
+  const moneyLabel = c.money_compact?.trim() || formatCompactGbp(c.money_gbp)
+  const carbonLabel = c.carbon_compact?.trim() || formatCompactCarbonKg(c.carbon_kg)
+  const headlineRaw =
+    c.baseline_title?.trim() ||
+    `${moneyLabel} ${c.journey_key.replace(/_/g, ' ')} audit ${locality}`.slice(0, MAX_HEADLINE_CHARS)
+  const url = c.source_url?.trim() || TRUSTED_JOURNEY_URLS[c.journey_key]
+  const host = (() => {
+    try {
+      return new URL(url).hostname.replace(/^www\./, '').toUpperCase()
+    } catch {
+      return 'GOV.UK'
+    }
+  })()
+  const insightSeed = [
+    c.baseline_insight?.trim() ||
+      `${locality} still leaks measurable cash and carbon on this row until you match the fix to your setup.`,
+    'April 2026 UK cap and grant frames define the practical lever — stay conservative and tie claims to the linked source.',
+    `Target ~${moneyLabel} and ~${carbonLabel} CO₂e — open ${url} this week and execute one audited step.`,
+  ].join('\n\n')
+  return {
+    headline: clampArchitectHeadline(
+      clampZoneBentoHeadline(headlineRaw, c.journey_key)
+    ),
+    insight: normaliseInsightEditorialSandwich(insightSeed, c.journey_key),
+    actionLine: `Open ${host} and execute this week.`.slice(0, 200),
+    suppliedBy: (c.source_hint?.trim() || host).slice(0, 48).toUpperCase(),
+  }
+}
+
+function buildMechanicalArchitectBatch(
+  cards: ContentArchitectCardInput[]
+): Partial<Record<JourneyId, ArchitectJourneyPayload>> {
+  const out: Partial<Record<JourneyId, ArchitectJourneyPayload>> = {}
+  for (const c of cards) {
+    out[c.journey_key] = mechanicalArchitectPayload(c)
+  }
+  return out
+}
+
 /**
  * Batch all Zone category cards in one Gemini call (lower latency + consistent voice).
  */
@@ -292,18 +352,16 @@ export async function generateCardContextsBatch(
   cards: ContentArchitectCardInput[]
 ): Promise<Partial<Record<JourneyId, ArchitectJourneyPayload>>> {
   const key = process.env.GEMINI_API_KEY?.trim()
+  const skipGemini =
+    process.env.BUCKET_SKIP_GEMINI === '1' || process.env.GEMINI_FREE_TIER === '1'
+  const useBucket = isBucketFailoverEnabled() && hasAnyBucketLlmProvider()
+  const canDirectGemini = Boolean(key) && !skipGemini
   const out: Partial<Record<JourneyId, ArchitectJourneyPayload>> = {}
-  if (!key || cards.length === 0) return out
-
-  const { GoogleGenerativeAI } = await import('@google/generative-ai')
-  const genAI = new GoogleGenerativeAI(key)
-  const model = genAI.getGenerativeModel({
-    model: process.env.GEMINI_ZONE_MODEL?.trim() || GEMINI_DIRECT_ZONE,
-    generationConfig: {
-      temperature: GEMINI_PRECISION_TEMPERATURE,
-      maxOutputTokens: 4096,
-    },
-  })
+  if (cards.length === 0) return out
+  if (shouldSkipContentArchitectLlm() || isLlmRateLimited()) {
+    return buildMechanicalArchitectBatch(cards)
+  }
+  if (!useBucket && !canDirectGemini) return buildMechanicalArchitectBatch(cards)
 
   const lifestyleShift = cards.some((c) => c.flags?.includes('lifestyle_shift'))
   const lifestyleBlock = lifestyleShift
@@ -352,8 +410,31 @@ ${JSON.stringify(cards).slice(0, 12000)}
 
 Return a single JSON object whose keys are exactly those journey_key values present in the input. No markdown fences, no prose.`
 
+  const prompt = `${system}\n\n${user}`
+
   try {
-    const text = (await model.generateContent(`${system}\n\n${user}`)).response.text()
+    let text: string
+    if (useBucket) {
+      const result = await generateResearchText({
+        prompt,
+        tag: 'content-architect',
+        tier: 'article',
+        maxOutputTokens: useBucket ? 1536 : 4096,
+        temperature: GEMINI_PRECISION_TEMPERATURE,
+      })
+      text = result.text
+    } else {
+      const { GoogleGenerativeAI } = await import('@google/generative-ai')
+      const genAI = new GoogleGenerativeAI(key!)
+      const model = genAI.getGenerativeModel({
+        model: process.env.GEMINI_ZONE_MODEL?.trim() || GEMINI_DIRECT_ZONE,
+        generationConfig: {
+          temperature: GEMINI_PRECISION_TEMPERATURE,
+          maxOutputTokens: 4096,
+        },
+      })
+      text = (await model.generateContent(prompt)).response.text()
+    }
     const parsed = extractJsonObject(text)
     if (!parsed) return out
 
@@ -363,7 +444,11 @@ Return a single JSON object whose keys are exactly those journey_key values pres
       if (row) out[k] = row
     }
   } catch {
-    return out
+    return buildMechanicalArchitectBatch(cards)
+  }
+
+  if (Object.keys(out).length === 0) {
+    return buildMechanicalArchitectBatch(cards)
   }
 
   return out

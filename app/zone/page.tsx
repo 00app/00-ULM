@@ -27,7 +27,12 @@ import {
   recordCardVisitHandoff,
   setDeepDiveInProgress,
 } from '@/lib/zone/visitedCards'
-import { rememberSoloFocusOpen, readSessionMemory } from '@/lib/zone/sessionMemory'
+import { rememberSoloFocusOpen, readSessionMemory, clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
+import {
+  scrollToSoloFocusReturn,
+  type SoloFocusReturnTarget,
+  zoneCardDomId,
+} from '@/lib/zone/soloFocusReturn'
 import { useSoloFocusHudBodyClass } from '@/lib/hooks/useSoloFocusHudBodyClass'
 import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import type { ZoneViewModel, ZoneJourneyCard, ZoneTipCard, NeonJourneyResearchRow } from '@/lib/logic/zone'
@@ -82,7 +87,7 @@ import {
 import { setExpandCard } from '@/lib/expandStorage'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { DISCOVERY_INJECT_EVENT } from '@/lib/discoveryInject'
-import { AtomicLogo } from '@/app/components/Logo'
+import { AppBootGlitch } from '@/app/components/AppBootGlitch'
 import { DiscoveryTakeover } from '@/app/components/DiscoveryTakeover'
 import { pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
 import {
@@ -101,8 +106,11 @@ import { spawnAchievementWhenLoopPoolExhausted } from '@/lib/zone/spawnAchieveme
 import {
   SESSION_SUMMARY_TO_ZONE,
   ZONE_READY_MAX_WAIT_MS,
+  ZONE_SCRAPE_SYNC_MAX_ATTEMPTS,
+  ZONE_SCRAPE_SYNC_RETRY_WAIT_MS,
   buildZoneWelcomeCopy,
   computeIsZoneReady,
+  preloadAppFonts,
 } from '@/lib/architecturalPulse'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import {
@@ -112,8 +120,10 @@ import {
 } from '@/lib/zone/bentoPersona'
 import {
   MAX_ZONE_CARD_HEADLINE_WORDS,
+  clampZoneBentoHeadline,
   formatZoneCategoryLabel,
   normalizeCardHeadlineKey,
+  resolveZoneGridTipHeadline,
   zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
@@ -412,8 +422,21 @@ export default function ZonePage() {
     setExpandedCardId(null)
     setExpandedFromTip(null)
     setExpandedTipId(null)
+    clearSoloFocusMemory()
     closeSoloFocus()
   }, [closeSoloFocus])
+
+  const soloFocusReturnRef = useRef<SoloFocusReturnTarget | null>(null)
+
+  const rememberSoloFocusReturn = useCallback((target: SoloFocusReturnTarget) => {
+    soloFocusReturnRef.current = target
+  }, [])
+
+  const returnToSoloFocusOrigin = useCallback(() => {
+    const target = soloFocusReturnRef.current
+    soloFocusReturnRef.current = null
+    scrollToSoloFocusReturn(target)
+  }, [])
 
   const pinAchievementCard = useCallback((card: ZoneTipCard) => {
     if (!card.achievement_discovery) return
@@ -441,12 +464,14 @@ export default function ZonePage() {
         loopCloseCardIdRef.current = null
         setPatternShiftJourneyId(null)
         setIsZoneVisible(true)
+        returnToSoloFocusOrigin()
         return
       }
       if (!shouldOpenLoopTakeover(meta?.cardId, journeyId)) {
         loopCloseCardIdRef.current = null
         setPatternShiftJourneyId(null)
         setIsZoneVisible(true)
+        returnToSoloFocusOrigin()
         return
       }
       const nextBeat = pickNextLoopQuestion(journeyId)
@@ -461,8 +486,9 @@ export default function ZonePage() {
       setIsZoneVisible(true)
       setCleanBirthRevealKey((k) => k + 1)
       setVmSyncStamp(Date.now())
+      returnToSoloFocusOrigin()
     },
-    [closeAnySoloFocus, pinAchievementCard]
+    [closeAnySoloFocus, pinAchievementCard, returnToSoloFocusOrigin]
   )
 
   const completeCleanBirth = useCallback(() => {
@@ -491,7 +517,8 @@ export default function ZonePage() {
       }
       setVisitedCardIds(readVisitedCardIds())
     }
-  }, [closeAnySoloFocus, pinnedAchievements.length, viewModel.journeys])
+    returnToSoloFocusOrigin()
+  }, [closeAnySoloFocus, pinnedAchievements.length, viewModel.journeys, returnToSoloFocusOrigin])
 
   /** Set synchronously before expand setState so the recovery guard does not close Solo Focus mid-open. */
   const soloFocusExpandIntentRef = useRef<string | null>(null)
@@ -655,17 +682,26 @@ export default function ZonePage() {
   }, [sentinel.liveImpact, sentinel.lastRefreshed, sentinel.wasSkipped])
 
   useEffect(() => {
+    void preloadAppFonts()
+  }, [])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
+    let cancelled = false
     try {
-      if (sessionStorage.getItem(SESSION_SUMMARY_TO_ZONE) === '1') {
-        sessionStorage.removeItem(SESSION_SUMMARY_TO_ZONE)
-        setHeroFromSummaryHandoff(true)
-        setSummaryGridStaggerKey((k) => k + 1)
-        setPulseWordsComplete(false)
-        setArchitecturalPulsePhase('pulse')
-      }
+      if (sessionStorage.getItem(SESSION_SUMMARY_TO_ZONE) !== '1') return
+      sessionStorage.removeItem(SESSION_SUMMARY_TO_ZONE)
+      setHeroFromSummaryHandoff(true)
+      setSummaryGridStaggerKey((k) => k + 1)
+      setPulseWordsComplete(false)
+      void preloadAppFonts().then(() => {
+        if (!cancelled) setArchitecturalPulsePhase('pulse')
+      })
     } catch {
       //
+    }
+    return () => {
+      cancelled = true
     }
   }, [])
 
@@ -850,123 +886,156 @@ export default function ZonePage() {
     const url = appendResearchUserIdQuery(`/api/scrape-sync?postcode=${encodeURIComponent(postcode)}`)
     const syncGen = ++scrapeSyncGenRef.current
     let clearHydrationPhases: (() => void) | null = null
-    const controller = new AbortController()
-    const abortTimer = window.setTimeout(() => controller.abort(), ZONE_READY_MAX_WAIT_MS)
-    setEngineStatus('scraping')
-    clearHydrationPhases = scheduleZoneEngineHydrationPhases((phase) => setEngineStatus(phase))
-    fetch(url, { signal: controller.signal })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        const parsedMeta = parseResearchMetaFromApi(data)
-        const verifiedSaving = parsedMeta?.verifiedSaving
-        const savingAmountGbp = parsedMeta?.savingAmountGbp
-        const architectProse = parsedMeta?.architectProse
-        setResearchMeta(parsedMeta)
-        const vjkRaw = Array.isArray((data as { visited_journey_keys?: unknown })?.visited_journey_keys)
-          ? (data as { visited_journey_keys: unknown[] }).visited_journey_keys
-          : []
-        const vjk = vjkRaw.filter((j): j is string => typeof j === 'string' && j.length > 0)
-        if (vjk.length > 0) {
-          setDbVisitedJourneyKeys(new Set(vjk))
-          for (const j of vjk) bumpCategoryIntent(j, 'visited')
-        }
-        const next = parseZoneCoverageFromApi(data)
-        if (next) {
-          setResearchCategoryCoverage(next)
-          setInsightPendingKeys((prev) => {
-            const n = new Set(prev)
-            for (const jid of prev) {
-              const row = next[jid]
-              if (
-                row?.insightReady ||
-                (row?.latestSavingGbp ?? 0) > 0 ||
-                (row?.latestVerifiedGbp ?? 0) > 0 ||
-                row?.hasOffer
-              ) {
-                n.delete(jid)
-              }
+    let abortTimer: number | undefined
+    let retryTimer: number | undefined
+    let controller: AbortController | null = null
+
+    const applyScrapePayload = (data: unknown) => {
+      const parsedMeta = parseResearchMetaFromApi(data)
+      const verifiedSaving = parsedMeta?.verifiedSaving
+      const savingAmountGbp = parsedMeta?.savingAmountGbp
+      const architectProse = parsedMeta?.architectProse
+      setResearchMeta(parsedMeta)
+      const vjkRaw = Array.isArray((data as { visited_journey_keys?: unknown })?.visited_journey_keys)
+        ? (data as { visited_journey_keys: unknown[] }).visited_journey_keys
+        : []
+      const vjk = vjkRaw.filter((j): j is string => typeof j === 'string' && j.length > 0)
+      if (vjk.length > 0) {
+        setDbVisitedJourneyKeys(new Set(vjk))
+        for (const j of vjk) bumpCategoryIntent(j, 'visited')
+      }
+      const next = parseZoneCoverageFromApi(data)
+      if (next) {
+        setResearchCategoryCoverage(next)
+        setInsightPendingKeys((prev) => {
+          const n = new Set(prev)
+          for (const jid of prev) {
+            const row = next[jid]
+            if (
+              row?.insightReady ||
+              (row?.latestSavingGbp ?? 0) > 0 ||
+              (row?.latestVerifiedGbp ?? 0) > 0 ||
+              row?.hasOffer
+            ) {
+              n.delete(jid)
             }
-            return n
-          })
-        } else {
-          setResearchCategoryCoverage(null)
-        }
-        setLiveResearchData(
-          Boolean(
-            data?.source === 'database' ||
-              data?.source === 'research_results' ||
-              verifiedSaving != null ||
-              savingAmountGbp != null ||
-              parsedMeta?.deepLink ||
-              architectProse
-          )
-        )
-        const rawRates = data?.home_unit_rates as { elecGbpPerKwh?: unknown; gasGbpPerKwh?: unknown } | undefined
-        if (rawRates && typeof rawRates === 'object') {
-          const e = Number(rawRates.elecGbpPerKwh)
-          const g = Number(rawRates.gasGbpPerKwh)
-          if (Number.isFinite(e) && Number.isFinite(g) && e > 0 && g > 0) {
-            setHomeUnitRates({ elecGbpPerKwh: e, gasGbpPerKwh: g })
-          } else {
-            setHomeUnitRates(null)
           }
+          return n
+        })
+      } else {
+        setResearchCategoryCoverage(null)
+      }
+      setLiveResearchData(
+        Boolean(
+          (data as { source?: string })?.source === 'database' ||
+            (data as { source?: string })?.source === 'research_results' ||
+            verifiedSaving != null ||
+            savingAmountGbp != null ||
+            parsedMeta?.deepLink ||
+            architectProse
+        )
+      )
+      const rawRates = (data as { home_unit_rates?: { elecGbpPerKwh?: unknown; gasGbpPerKwh?: unknown } })
+        ?.home_unit_rates
+      if (rawRates && typeof rawRates === 'object') {
+        const e = Number(rawRates.elecGbpPerKwh)
+        const g = Number(rawRates.gasGbpPerKwh)
+        if (Number.isFinite(e) && Number.isFinite(g) && e > 0 && g > 0) {
+          setHomeUnitRates({ elecGbpPerKwh: e, gasGbpPerKwh: g })
         } else {
           setHomeUnitRates(null)
         }
-        setRatesSourceUrl(typeof data?.rates_source_url === 'string' ? data.rates_source_url : null)
-        const src = typeof data?.source === 'string' ? data.source : ''
-        const covReady = next != null && Object.keys(next).length > 0
-        const feedReady =
-          src === 'database' ||
-          src === 'research_results' ||
-          src === 'defaults' ||
-          covReady ||
-          verifiedSaving != null ||
-          (savingAmountGbp != null && savingAmountGbp > 0) ||
-          Boolean(architectProse?.trim()) ||
-          (Array.isArray(data?.scraped) && data.scraped.length > 0 && src !== 'pending')
-        if (feedReady || src === 'pending') setVmResolved(true)
-
-        if (data?.scraped && Array.isArray(data.scraped)) {
-          type ScrapedJourneyRow = {
-            journey_key: string
-            scraped_at: string
-            carbon_value: number
-            money_value: number
-            deep_content_tip?: string
-            high_saving?: boolean
-          }
-          const map: Record<string, { scraped_at: string; carbon_value: number; money_value: number; deep_content_tip?: string; high_saving?: boolean }> = {}
-          data.scraped.forEach((s: ScrapedJourneyRow) => {
-            map[s.journey_key] = {
-              scraped_at: s.scraped_at,
-              carbon_value: s.carbon_value,
-              money_value: s.money_value,
-              deep_content_tip: s.deep_content_tip,
-              high_saving: s.high_saving,
-            }
-          })
-          setScraped(map as Record<JourneyId, { scraped_at: string; carbon_value: number; money_value: number; deep_content_tip?: string; high_saving?: boolean }>)
-        }
-      })
-      .catch(() => {
-        setLiveResearchData(false)
-        setResearchMeta(null)
-        setResearchCategoryCoverage(null)
+      } else {
         setHomeUnitRates(null)
-        setRatesSourceUrl(null)
-        setVmResolved(true)
-      })
-      .finally(() => {
-        window.clearTimeout(abortTimer)
-        clearHydrationPhases?.()
-        if (syncGen !== scrapeSyncGenRef.current) return
-        setEngineStatus('idle')
-        setVmResolved(true)
-      })
+      }
+      setRatesSourceUrl(typeof (data as { rates_source_url?: unknown })?.rates_source_url === 'string' ? (data as { rates_source_url: string }).rates_source_url : null)
+      const src = typeof (data as { source?: unknown })?.source === 'string' ? (data as { source: string }).source : ''
+      const covReady = next != null && Object.keys(next).length > 0
+      const feedReady =
+        src === 'database' ||
+        src === 'research_results' ||
+        src === 'defaults' ||
+        covReady ||
+        verifiedSaving != null ||
+        (savingAmountGbp != null && savingAmountGbp > 0) ||
+        Boolean(architectProse?.trim()) ||
+        (Array.isArray((data as { scraped?: unknown[] })?.scraped) &&
+          (data as { scraped: unknown[] }).scraped.length > 0 &&
+          src !== 'pending')
+      if (feedReady || src === 'pending') setVmResolved(true)
+
+      const scraped = (data as { scraped?: unknown })?.scraped
+      if (scraped && Array.isArray(scraped)) {
+        type ScrapedJourneyRow = {
+          journey_key: string
+          scraped_at: string
+          carbon_value: number
+          money_value: number
+          deep_content_tip?: string
+          high_saving?: boolean
+        }
+        const map: Record<string, { scraped_at: string; carbon_value: number; money_value: number; deep_content_tip?: string; high_saving?: boolean }> = {}
+        scraped.forEach((s: ScrapedJourneyRow) => {
+          map[s.journey_key] = {
+            scraped_at: s.scraped_at,
+            carbon_value: s.carbon_value,
+            money_value: s.money_value,
+            deep_content_tip: s.deep_content_tip,
+            high_saving: s.high_saving,
+          }
+        })
+        setScraped(map as Record<JourneyId, { scraped_at: string; carbon_value: number; money_value: number; deep_content_tip?: string; high_saving?: boolean }>)
+      }
+    }
+
+    const finishAttempt = () => {
+      if (abortTimer != null) window.clearTimeout(abortTimer)
+      abortTimer = undefined
+      clearHydrationPhases?.()
+      if (syncGen !== scrapeSyncGenRef.current) return
+      setEngineStatus('idle')
+      setVmResolved(true)
+    }
+
+    const runAttempt = (attempt: number) => {
+      if (syncGen !== scrapeSyncGenRef.current) return
+      controller?.abort()
+      controller = new AbortController()
+      const waitMs = attempt === 0 ? ZONE_READY_MAX_WAIT_MS : ZONE_SCRAPE_SYNC_RETRY_WAIT_MS
+      abortTimer = window.setTimeout(() => controller?.abort(), waitMs)
+      if (attempt === 0) {
+        setEngineStatus('scraping')
+        clearHydrationPhases = scheduleZoneEngineHydrationPhases((phase) => setEngineStatus(phase))
+      }
+
+      fetch(url, { signal: controller.signal })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (syncGen !== scrapeSyncGenRef.current) return
+          if (data) applyScrapePayload(data)
+          finishAttempt()
+        })
+        .catch(() => {
+          if (syncGen !== scrapeSyncGenRef.current) return
+          if (attempt + 1 < ZONE_SCRAPE_SYNC_MAX_ATTEMPTS) {
+            retryTimer = window.setTimeout(() => runAttempt(attempt + 1), 1500)
+            return
+          }
+          setLiveResearchData(false)
+          setResearchMeta(null)
+          setResearchCategoryCoverage(null)
+          setHomeUnitRates(null)
+          setRatesSourceUrl(null)
+          setVmResolved(true)
+          finishAttempt()
+        })
+    }
+
+    runAttempt(0)
     return () => {
-      controller.abort()
-      window.clearTimeout(abortTimer)
+      controller?.abort()
+      if (abortTimer != null) window.clearTimeout(abortTimer)
+      if (retryTimer != null) window.clearTimeout(retryTimer)
       clearHydrationPhases?.()
     }
   }, [scrapePostcode, hydrated])
@@ -1721,6 +1790,11 @@ export default function ZonePage() {
     )
     sessionRestoreDone.current = true
     if (journeyCell) {
+      rememberSoloFocusReturn({
+        cardId: focus.cardId,
+        journeyKey: focus.journeyId,
+        surface: 'journey',
+      })
       if (openSoloFocus(journeyCell.item.id, 'journey')) {
         setExpandedCardId(journeyCell.item.id)
         setExpandedFromTip(null)
@@ -1729,6 +1803,16 @@ export default function ZonePage() {
       return
     }
     if (tipCell) {
+      const tipId = tipCell.tip.id
+      rememberSoloFocusReturn({
+        cardId: tipId,
+        journeyKey: (tipCell.tip.journey_key ?? 'home') as JourneyId,
+        surface: tipId.startsWith('inject-')
+          ? 'discovery'
+          : tipId.startsWith('rock-')
+            ? 'rock'
+            : 'grid-tip',
+      })
       if (tipCell.tip.id.startsWith('inject-')) {
         if (openSoloFocus(tipCell.tip.id, 'discovery')) {
           setExpandedCardId(null)
@@ -1741,7 +1825,7 @@ export default function ZonePage() {
         setExpandedTipId(tipCell.tip.id)
       }
     }
-  }, [hydrated, displayItems, openSoloFocus])
+  }, [hydrated, displayItems, openSoloFocus, rememberSoloFocusReturn])
 
   const zoneHandoffStaging = architecturalPulsePhase === 'pulse'
 
@@ -1836,6 +1920,19 @@ export default function ZonePage() {
     (item: ZoneJourneyCard, fromTip?: ZoneTipCard | null) => {
       if (!zoneInteractable) return
       soloFocusExpandIntentRef.current = item.id
+      rememberSoloFocusReturn(
+        fromTip
+          ? {
+              cardId: fromTip.id,
+              journeyKey: (fromTip.journey_key ?? item.journey_key) as JourneyId,
+              surface: fromTip.id.startsWith('inject-') ? 'discovery' : 'grid-tip',
+            }
+          : {
+              cardId: item.id,
+              journeyKey: item.journey_key,
+              surface: 'journey',
+            }
+      )
       setExpandedTipId(null)
       setExpandedFromTip(fromTip ?? null)
       setExpandedCardId(item.id)
@@ -1869,6 +1966,7 @@ export default function ZonePage() {
       homeSupportTitle,
       homeSupportOfferUrl,
       openSoloFocus,
+      rememberSoloFocusReturn,
     ]
   )
 
@@ -2136,17 +2234,10 @@ export default function ZonePage() {
             <ZoneDesktopNavRail />
           </motion.div>
           {showInlineLoadingLogo && !zoneHandoffStaging ? (
-            <motion.div
-              variants={STACCATO_CHILD_VARIANTS}
-              initial="hidden"
-              animate="visible"
-              className="zone-inline-loading-logo"
-              role="status"
-              aria-live="polite"
-              aria-label="Loading your savings wall"
-            >
-              <AtomicLogo loop width={100} />
-            </motion.div>
+            <AppBootGlitch
+              label="Loading your savings wall"
+              className="app-boot-glitch app-boot-atomic zone-wall-loading-overlay"
+            />
           ) : null}
           {sentinelPulseLabel ? (
             <motion.p
@@ -2283,7 +2374,6 @@ export default function ZonePage() {
                             <ZoneBentoCardHeader
                               journeyId="profile"
                               label="YOUR PROFILE"
-                              iconKind="profile"
                             />
                             <h3 className="card-headline m-0 min-w-0" lang="en">Check out your stats</h3>
                           </div>
@@ -2341,10 +2431,14 @@ export default function ZonePage() {
                         : 'var(--color-yellow)'
                     const tipTextColor = tipInk
                     const semanticWin = tip.dominant_win ?? 'money'
-                    const tipHeadline = zoneCardHeadlineFromRaw(
-                      tip.title,
-                      `${(tip.journey_key || 'tip').replace(/-/g, ' ').toUpperCase()} SAVING`,
-                      MAX_ZONE_CARD_HEADLINE_WORDS
+                    /* Category nested tips → parent journey Solo Focus (full article + question + loop). */
+                    const journeyCell = groovyItems.find(
+                      (c): c is GroovyItem & { type: 'journey' } =>
+                        c.type === 'journey' && c.item.journey_key === tip.journey_key
+                    )
+                    const tipHeadline = resolveZoneGridTipHeadline(
+                      tip,
+                      journeyCell?.item.title ?? null
                     )
                     const patch = tipDataPatches[tip.id]
                     const moneyDisp = (patch?.money ?? tip.data.money ?? '').replace(/^£\s*/, '').trim() || '0'
@@ -2353,16 +2447,16 @@ export default function ZonePage() {
                     const greenPulse = isDiscoveryInject && !tip.achievement_discovery && carbonKgNum > 500
                     const snapBloomIn = discoverySnapTipId === tip.id
                     const isAchievementDiscovery = Boolean(tip.achievement_discovery)
-                    /* Category nested tips → parent journey Solo Focus (full article + question + loop). */
-                    const journeyCell = groovyItems.find(
-                      (c): c is GroovyItem & { type: 'journey' } =>
-                        c.type === 'journey' && c.item.journey_key === tip.journey_key
-                    )
                     const handleTipClick = () => {
                       if (!zoneInteractable) return
                       /* Discovery injections: own Solo Focus + context trap; do not hijack journey tile expand. */
                       if (tip.id.startsWith('inject-')) {
                         soloFocusExpandIntentRef.current = tip.id
+                        rememberSoloFocusReturn({
+                          cardId: tip.id,
+                          journeyKey: (tip.journey_key ?? 'home') as JourneyId,
+                          surface: 'discovery',
+                        })
                         rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
                         if (!openSoloFocus(tip.id, 'discovery')) return
                         setExpandedCardId(null)
@@ -2374,6 +2468,11 @@ export default function ZonePage() {
                         openZoneJourneySoloFocus(journeyCell.item, tip)
                       } else {
                         soloFocusExpandIntentRef.current = tip.id
+                        rememberSoloFocusReturn({
+                          cardId: tip.id,
+                          journeyKey: (tip.journey_key ?? 'home') as JourneyId,
+                          surface: 'grid-tip',
+                        })
                         rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
                         if (!openSoloFocus(tip.id, 'tip')) return
                         setExpandedCardId(null)
@@ -2384,6 +2483,7 @@ export default function ZonePage() {
                     return (
                       <motion.button
                         type="button"
+                        id={zoneCardDomId(tip.id)}
                         data-zone-surface="tip"
                         className={[
                           'bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left',
@@ -2623,7 +2723,7 @@ export default function ZonePage() {
             animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
             transition={FAMILY_TRANSITION_ATOMIC}
           >
-            <h2 className="text-marvin text-xl text-[#FDFD00] lowercase mb-6">
+            <h2 className="text-marvin text-xl text-[var(--color-yellow)] lowercase mb-6">
               today&apos;s tips
             </h2>
             <RockSavingTips
@@ -2649,6 +2749,11 @@ export default function ZonePage() {
                   /* ignore */
                 }
                 if (!openSoloFocus(id, 'tip')) return
+                rememberSoloFocusReturn({
+                  cardId: id,
+                  journeyKey: (rockHabit?.journey_key ?? 'home') as JourneyId,
+                  surface: 'rock',
+                })
                 setExpandedCardId(null)
                 setExpandedFromTip(null)
                 setExpandedTipId(id)

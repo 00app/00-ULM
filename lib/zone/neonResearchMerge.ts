@@ -2,6 +2,7 @@ import type { NeonJourneyResearchRow } from '@/lib/zone/buildZoneViewModel'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import {
+  clampZoneBentoHeadline,
   cleanZonePreviewHeadline,
   headlineFromArchitectProse,
   isAcceptableZoneJourneyHeadline,
@@ -61,6 +62,9 @@ export function coverageRowToNeon(
       (journeyKey == null || isAcceptableZoneJourneyHeadline(journeyKey, fromProse))
         ? fromProse
         : null
+  }
+  if (hl && journeyKey != null) {
+    hl = clampZoneBentoHeadline(hl, journeyKey)
   }
   if (sav > 0 || (ap != null && ap.length > 0) || (hl != null && hl.length > 0)) {
     return { savingGbp: sav, architectProse: ap, agentHeadline: hl }

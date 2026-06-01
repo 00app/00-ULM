@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { shutdownDbPool } from '@/lib/db'
-import { repairResearchResultsMissingHeadlines } from '@/lib/agents/researchAgent'
+import {
+  repairResearchResultsMissingHeadlines,
+  seedMechanicalJourneysForDistinctPostcodes,
+  seedMechanicalJourneysForPostcode,
+} from '@/lib/agents/researchAgent'
+import { JOURNEY_IDS } from '@/lib/journeys'
 import { normalizeSecret } from '@/lib/intelligence/normalizeSecret'
 
 export const runtime = 'nodejs'
-/** BUS + Ofgem SQL backfill only — no Firecrawl, no Gemini. */
-export const maxDuration = 60
+/** Mechanical 13-journey seed + headline/URL repair — no Firecrawl, no Gemini. */
+export const maxDuration = 120
 export const dynamic = 'force-dynamic'
 
 function authorizeCron(request: NextRequest): boolean {
@@ -17,8 +22,10 @@ function authorizeCron(request: NextRequest): boolean {
 }
 
 /**
- * Fast Hermes repair pulse — mechanical triplets for BUS + Ofgem URLs only.
- * `GET /api/cron/repair-mechanical?limit=6` (Bearer CRON_SECRET).
+ * Hermes mechanical repair — seed 13 Zone journeys and backfill short headlines / wrong Ofgem URLs.
+ * `GET /api/cron/repair-mechanical?postcode=SW1A1AA`
+ * `GET /api/cron/repair-mechanical?seed=all&limit=5`
+ * `GET /api/cron/repair-mechanical?limit=6` (row repair only)
  */
 async function runRepairMechanical(request: NextRequest): Promise<Response> {
   if (!authorizeCron(request)) {
@@ -27,8 +34,34 @@ async function runRepairMechanical(request: NextRequest): Promise<Response> {
 
   const raw = request.nextUrl.searchParams.get('limit') ?? '6'
   const limit = Math.min(30, Math.max(1, parseInt(raw, 10) || 6))
+  const postcode = request.nextUrl.searchParams.get('postcode')?.replace(/\s+/g, '').trim().toUpperCase()
+  const seedAll = request.nextUrl.searchParams.get('seed') === 'all'
 
   try {
+    if (postcode && postcode.length >= 5) {
+      const { seeded, journeys } = await seedMechanicalJourneysForPostcode(postcode)
+      return NextResponse.json({
+        ok: true,
+        mode: 'seed_mechanical',
+        postcode,
+        seeded,
+        expected: JOURNEY_IDS.length,
+        journeys,
+      })
+    }
+
+    if (seedAll) {
+      const batch = await seedMechanicalJourneysForDistinctPostcodes(limit)
+      return NextResponse.json({
+        ok: true,
+        mode: 'seed_mechanical_batch',
+        postcodes: batch.postcodes,
+        totalSeeded: batch.totalSeeded,
+        expectedPerPostcode: JOURNEY_IDS.length,
+        limit,
+      })
+    }
+
     const repaired = await repairResearchResultsMissingHeadlines({
       limit,
       mechanicalOnly: true,
@@ -38,7 +71,7 @@ async function runRepairMechanical(request: NextRequest): Promise<Response> {
       mode: 'repair_mechanical',
       repaired,
       limit,
-      note: 'BUS gov.uk + Ofgem price-cap rows only. Deploy this route if Hermes was timing out on zone-research?repair=1.',
+      note: 'Repairs incomplete rows (short headlines, wrong Ofgem URLs). Pass ?postcode= or ?seed=all to re-seed all 13 journeys.',
     })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'repair_mechanical failed'

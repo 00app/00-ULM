@@ -14,6 +14,13 @@ import {
   resolveMaxIterations,
   shouldSkipGeminiInBucket,
 } from '@/lib/intelligence/scrapeBoundaries'
+import {
+  isProviderCoolingDown,
+  isRateLimitError,
+  markProviderCooldownFromError,
+  parseRetryAfterMs,
+  sleepMs,
+} from '@/lib/intelligence/llmRateLimit'
 
 export type BucketGenerateParams = {
   prompt: string
@@ -40,7 +47,7 @@ export function isBucketFailoverEnabled(): boolean {
 function isFailoverEligible(err: unknown): boolean {
   const msg = (err instanceof Error ? err.message : String(err)).toLowerCase()
   return (
-    /429|quota|rate.?limit|resource.?exhausted|503|502|504|overload|credit|billing|spend|cap|unavailable|timeout|econnreset|fetch failed/.test(
+    /429|403|forbidden|dunning|quota|rate.?limit|resource.?exhausted|503|502|504|overload|credit|billing|spend|cap|unavailable|timeout|econnreset|fetch failed/.test(
       msg
     ) || msg.includes('gemini_api_key unset')
   )
@@ -121,7 +128,7 @@ async function generateGroqBucket(params: BucketGenerateParams): Promise<BucketG
     apiKey: key,
     model,
     prompt: params.prompt,
-    maxOutputTokens: params.maxOutputTokens ?? 1536,
+    maxOutputTokens: params.maxOutputTokens ?? 768,
     temperature: params.temperature ?? GEMINI_PRECISION_TEMPERATURE,
   })
   return { text, modelId: model, viaGateway: false, provider: 'groq', usedFallback: true }
@@ -187,6 +194,7 @@ function bucketSteps(): BucketStep[] {
 
 /**
  * Try providers in order until one succeeds or MAX_ITERATIONS attempts exhausted.
+ * Respects per-provider cooldown after 429; skips immediate re-hit on the same provider.
  */
 export async function generateWithBucketFailover(
   params: BucketGenerateParams
@@ -198,13 +206,33 @@ export async function generateWithBucketFailover(
       'bucket_failover: no providers configured (set GROQ_API_KEY, MISTRAL_API_KEY, OPENROUTER_API_KEY, or enable Gemini)'
     )
   }
-  const maxAttempts = Math.min(resolveMaxIterations(), steps.length * 2)
+  const maxAttempts = Math.min(resolveMaxIterations(), steps.length)
   let lastErr: unknown = null
   let stepIndex = 0
+  let rateLimitStreak = 0
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const step = steps[stepIndex % steps.length]!
     stepIndex += 1
+
+    if (isProviderCoolingDown(step.id)) {
+      if (steps.length === 1) {
+        const waitMs = parseRetryAfterMs(
+          lastErr instanceof Error ? lastErr.message : String(lastErr ?? '')
+        )
+        if (waitMs && rateLimitStreak < 1) {
+          rateLimitStreak += 1
+          await sleepMs(waitMs)
+        } else {
+          throw lastErr instanceof Error
+            ? lastErr
+            : new Error(`${step.id} cooling down — rate limit active`)
+        }
+      } else {
+        continue
+      }
+    }
+
     try {
       const result = await step.run(params, tier)
       if (attempt > 0) {
@@ -216,11 +244,23 @@ export async function generateWithBucketFailover(
     } catch (e) {
       lastErr = e
       const eligible = isFailoverEligible(e)
-      console.warn(
-        `[bucketFailover] ${step.id} failed (attempt ${attempt + 1}/${maxAttempts}):`,
-        e instanceof Error ? e.message : e
-      )
+      if (isRateLimitError(e)) {
+        markProviderCooldownFromError(step.id, e)
+        rateLimitStreak += 1
+      }
+      if (eligible) {
+        console.warn(
+          `[bucketFailover] ${step.id} failed (attempt ${attempt + 1}/${maxAttempts}):`,
+          e instanceof Error ? e.message.slice(0, 200) : e
+        )
+      } else {
+        console.warn(
+          `[bucketFailover] ${step.id} failed (attempt ${attempt + 1}/${maxAttempts}):`,
+          e instanceof Error ? e.message.slice(0, 200) : e
+        )
+      }
       if (!eligible && attempt === 0 && steps.length === 1) break
+      if (isRateLimitError(e) && steps.length === 1) break
     }
   }
 
@@ -231,4 +271,9 @@ export async function generateWithBucketFailover(
 
 export function listConfiguredBucketProviders(): BucketProviderId[] {
   return bucketSteps().map((s) => s.id)
+}
+
+/** True when bucket_failover has at least one LLM provider (Groq/Mistral/OpenRouter and/or Gemini). */
+export function hasAnyBucketLlmProvider(): boolean {
+  return bucketSteps().length > 0
 }

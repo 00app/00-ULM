@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 import { adminBasicAuthMatches } from '@/lib/adminBasicAuth'
+import { gatewayTokenMatches } from '@/lib/gatewayAuth'
 import type { PulseMetric } from '@/lib/adminPulse'
 import { FIRECRAWL_API_KEY } from '@/lib/sentinel/api-config'
 
@@ -13,24 +14,13 @@ const FIRECRAWL_SCRAPE_URL = 'https://api.firecrawl.dev/v1/scrape'
 /** Matches {@link app/api/zai/route.ts} primary model for a real key/network check. */
 const GEMINI_PULSE_MODEL = process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash'
 
-function hasGatewayAuth(request: NextRequest): boolean {
-  const expected =
-    process.env.GATEWAY_TOKEN?.trim() ||
-    process.env.CRON_SECRET?.trim()
-  if (!expected) return false
-  const got =
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')?.trim() ??
-    request.headers.get('x-gateway-token')?.trim()
-  return got === expected
-}
-
 /**
  * Live dependency probe: Neon SQL, Gemini completion, Firecrawl scrape.
- * Auth: Basic (same as root `proxy`), signed-in session (cookie), or bearer tokens like `/api/health/diagnostics`.
+ * Auth: Basic (same as root `proxy`), signed-in session (cookie), or `GATEWAY_TOKEN` bearer.
  */
 export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest().catch(() => null)
-  if (!session && !hasGatewayAuth(request) && !adminBasicAuthMatches(request)) {
+  if (!session && !gatewayTokenMatches(request) && !adminBasicAuthMatches(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

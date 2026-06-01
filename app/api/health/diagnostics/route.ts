@@ -10,24 +10,14 @@ import {
   isAiGatewayConfigured,
   probeAiGatewayConnection,
 } from '@/lib/intelligence/aiGateway'
+import { gatewayTokenMatches } from '@/lib/gatewayAuth'
+import { resolveFirecrawlApiKey } from '@/lib/sentinel/api-config'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * Server-side nervous-system checks (no secret values exposed — booleans + timestamps only).
- */
-function hasGatewayAuth(request: NextRequest): boolean {
-  const expected = process.env.GATEWAY_TOKEN?.trim() || process.env.CRON_SECRET?.trim()
-  if (!expected) return false
-  const got =
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')?.trim() ??
-    request.headers.get('x-gateway-token')?.trim()
-  return got === expected
-}
-
 export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest().catch(() => null)
-  const authed = Boolean(session) || hasGatewayAuth(request)
+  const authed = Boolean(session) || gatewayTokenMatches(request)
 
   let neonOk = false
   let dbLatencyMs: number | null = null
@@ -80,7 +70,7 @@ export async function GET(request: NextRequest) {
       : null
 
   const gemini = Boolean(process.env.GEMINI_API_KEY?.trim())
-  const firecrawl = Boolean(process.env.FIRE_CRAWL_KEY_2?.trim())
+  const firecrawl = Boolean(resolveFirecrawlApiKey())
   const aiGatewayKey = hasAiGatewayApiKey()
   const aiGatewayConfigured = isAiGatewayConfigured()
   const gatewaySnap = getGatewayHealthSnapshot()
@@ -98,24 +88,11 @@ export async function GET(request: NextRequest) {
   const debugMode = authed && request.nextUrl.searchParams.get('debug') === '1'
   const databaseConnectionInfo = debugMode ? getDatabaseConnectionInfo() : null
 
-  /** Zone Intelligence Strip polls this without a session — expose capability booleans only. */
+  /** Unsigned clients — DB reachability only (no provider / bucket surface map). */
   if (!authed) {
     return NextResponse.json({
       neon: neonOk,
-      dbLatencyMs,
-      gemini,
-      firecrawl,
-      bucket_failover: bucket.enabled,
-      bucket_providers: bucketProviders,
-      bucket_broad_scrape: bucket.broadScrapeAllowed,
-      aiGateway: aiGatewayConfigured,
-      aiGatewayOk: gatewayOperational,
-      aiGatewayFallback: gatewaySnap.usingFallback,
-      aiGatewayDetail: !aiGatewayConfigured
-        ? 'Set AI_GATEWAY_API_KEY, VERCEL_AI_GATEWAY_API_KEY, or AI_GATEWAY — or use direct GEMINI_API_KEY.'
-        : researchForceDirect && !gatewayLiveOk
-          ? 'Research uses direct Gemini; gateway reserved for Zai / failover.'
-          : null,
+      status: neonOk ? 'ok' : 'degraded',
       public: true,
     })
   }

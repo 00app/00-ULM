@@ -31,7 +31,7 @@ export async function GET() {
   }
 }
 
-const USER_CREATE_MAX_PER_MINUTE = 10
+const USER_CREATE_MAX_PER_MINUTE = 5
 /** Profile-only (no password) sessions are shorter-lived to reduce abuse impact. */
 const PROFILE_ONLY_SESSION_DAYS = 7
 
@@ -133,10 +133,7 @@ export async function POST(request: NextRequest) {
     setSessionCookieOnResponse(res, token, PROFILE_ONLY_SESSION_DAYS * 24 * 60 * 60)
     return res
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json(
-      { error: 'Failed to create user', details: message },
-      { status: 500 }
-    )
+    console.error('[api/user] POST error:', error)
+    return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
   }
 }

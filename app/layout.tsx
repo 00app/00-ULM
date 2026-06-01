@@ -13,7 +13,7 @@ const roboto = Roboto({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-roboto',
-  preload: true,
+  preload: false,
 })
 
 const siteUrl = getSiteUrl()
@@ -109,7 +109,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Marvin: `@font-face` in globals.css. Body: Roboto via next/font. */}
+        {/* Marvin: early fetch so pulse / summary ticker never start on fallback sans. */}
         <link
           rel="preload"
           href="/assets/Marvin%20Visions%20Bold.ttf"

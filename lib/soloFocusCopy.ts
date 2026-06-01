@@ -119,6 +119,7 @@ export function isAcceptableZoneJourneyHeadline(journey: JourneyId, headline: st
   if (!prepared || isLowQualityZoneHeadline(prepared)) return false
   if (isEnergyAuditDebrisHeadline(prepared)) return false
   if (headlineConflictsWithJourney(journey, prepared)) return false
+  if (headlineEndsIncomplete(prepared)) return false
   return true
 }
 
@@ -126,7 +127,8 @@ export function isAcceptableZoneJourneyHeadline(journey: JourneyId, headline: st
 export function isZonePreviewHeadlineNoise(text: string): boolean {
   const t = text.replace(/\s+/g, ' ').trim()
   if (t.length < 3) return true
-  if (t.length > 52) return true
+  /* 8–10 word hooks are ~55–85 chars — do not treat as noise (was 52 → mid-word clips). */
+  if (t.length > 160) return true
   if (ZONE_PREVIEW_NOISE_RE.test(t)) return true
   if (/\b[A-Z]{1,2}\d[A-Z0-9]?\s?\d[A-Z]{2}\b/i.test(t)) return true
   if (/\d+\.?\d*\s*p(?:\/|\s*)?(?:kwh|day)\b/i.test(t)) return true
@@ -161,15 +163,16 @@ export function cleanZonePreviewHeadline(raw: string): string {
   if (isEnergyAuditDebrisHeadline(t)) return ''
   if (isZonePreviewHeadlineNoise(t)) {
     const action = t.match(
-      /\b(loft|solar|tariff|radiator|boiler|grant|insulation|commute|kwh|seal|foil|switch|upgrade|ev|heat pump)[^.!?]{0,36}/i
+      /\b(loft|solar|tariff|radiator|boiler|grant|insulation|commute|kwh|seal|foil|switch|upgrade|ev|heat pump)[^.!?]{12,120}/i
     )
     if (action?.[0] && !isZonePreviewHeadlineNoise(action[0])) {
-      t = action[0].trim()
+      t = trimHeadlineToMaxWords(action[0].trim(), MAX_ZONE_CARD_HEADLINE_WORDS)
     } else {
       return ''
     }
   }
-  return t.slice(0, 45)
+  /* Word limits applied later via clampZoneBentoHeadline — never hard-slice characters (mid-word clips). */
+  return t
 }
 
 /** Drop report-style headers / metadata blocks from architect prose (jump to insight). */
@@ -626,7 +629,7 @@ export function layoutSoloFocusProseBlocks(
   }
 }
 
-/** Strict display contract: audit lead + optional impact body (never a third prose block). */
+/** Strict display contract: Marvin audit lead only — £/CO₂e live in the metrics row. */
 export function resolveSoloFocusDisplayProse(args: {
   headline: string
   insightSource: string
@@ -669,7 +672,7 @@ export function resolveSoloFocusDisplayProse(args: {
     userPostcode: args.userPostcode,
     sourceDisplayName: args.sourceDisplayName,
   })
-  const { subheading, body } = layoutSoloFocusProseBlocks(args.headline, withLocalityLead, {
+  const { subheading } = layoutSoloFocusProseBlocks(args.headline, withLocalityLead, {
     journeyId: args.journeyId,
     moneyGbp: args.moneyGbp,
     carbonKg: args.carbonKg,
@@ -678,7 +681,7 @@ export function resolveSoloFocusDisplayProse(args: {
   })
 
   if (hasLocalityAuditorLeadShape(subheading, placeLabel)) {
-    return { lead: subheading, body }
+    return { lead: subheading, body: null }
   }
 
   const detection = buildAuditorDetectionParagraph({
@@ -686,12 +689,7 @@ export function resolveSoloFocusDisplayProse(args: {
     moneyGbp: args.moneyGbp,
     journey: coerceJourneyId(args.journeyId),
   })
-  let bodyOut = body
-  const demoted = subheading.trim()
-  if (demoted && !bodyOut && !isGenericNonLocalityLead(demoted) && !isBoilerplateProseParagraph(demoted)) {
-    bodyOut = demoted
-  }
-  return { lead: detection, body: bodyOut }
+  return { lead: detection, body: null }
 }
 
 /** Content-architect imperative — not a third prose block when audit copy is complete. */
@@ -719,9 +717,9 @@ export function polishTrueTipParagraphsForHeadline(
   ]
 }
 
-/** Zone / bento card face — Marvin stamp (5–8 words). */
-export const MIN_ZONE_CARD_HEADLINE_WORDS = 5
-export const MAX_ZONE_CARD_HEADLINE_WORDS = 8
+/** Zone / bento card face — Marvin stamp (8–10 words). */
+export const MIN_ZONE_CARD_HEADLINE_WORDS = 8
+export const MAX_ZONE_CARD_HEADLINE_WORDS = 10
 /** Solo Focus hook H1 — Marvin, ~3–4 lines (20–24 words). */
 export const MIN_EXPANDED_VIEW_HEADLINE_WORDS = 20
 export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 24
@@ -779,7 +777,83 @@ function splitHeadlineWords(title: string): string[] {
   return title
     .split(/\s+/)
     .filter(Boolean)
-    .map((w) => w.replace(/\.{2,}|…$/g, ''))
+    .map((w) => w.replace(/[.!?]+$/g, '').replace(/\.{2,}|…$/g, ''))
+    .filter(Boolean)
+}
+
+/** Strip terminal punctuation before word limits (period re-applied at display). */
+function stripHeadlineTerminalPunctuation(text: string): string {
+  return text
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[.!?…]+$/g, '')
+    .trim()
+}
+
+/**
+ * Zone wall + Solo Focus H1 — complete sentence with a full stop (word limits unchanged).
+ */
+export function ensureHeadlineSentenceEnd(text: string): string {
+  const t = stripHeadlineTerminalPunctuation(text)
+  if (!t) return t
+  return `${t}.`
+}
+
+const INCOMPLETE_HEADLINE_ENDINGS = new Set([
+  'your',
+  'the',
+  'a',
+  'an',
+  'on',
+  'in',
+  'at',
+  'to',
+  'for',
+  'with',
+  'before',
+  'after',
+  'and',
+  'or',
+  'but',
+  'of',
+  'from',
+  'by',
+  'each',
+  'every',
+  'new',
+  'one',
+  'our',
+  'my',
+  'you',
+  'not',
+])
+
+/** Two-letter tokens that can end a valid zone stamp (e.g. EV, UK). */
+const VALID_SHORT_HEADLINE_ENDINGS = new Set(['uk', 'ev', 'co', 'go', 'up', 'no', 'so', 'do'])
+
+/** Headline ends on a article/preposition — not a complete stamp. */
+function headlineEndsIncomplete(text: string): boolean {
+  const words = splitHeadlineWords(text)
+  if (words.length === 0) return true
+  const last = words[words.length - 1].replace(/[^a-z]/gi, '').toLowerCase()
+  if (INCOMPLETE_HEADLINE_ENDINGS.has(last)) return true
+  /* Legacy 45-char DB clips — e.g. "…BEFORE YOU C" (mid-word). */
+  if (last.length === 1) return true
+  if (last.length === 2 && !VALID_SHORT_HEADLINE_ENDINGS.has(last)) return true
+  return false
+}
+
+function trimHeadlineToMaxWords(
+  text: string,
+  maxWords: number,
+  minWords = 1
+): string {
+  let words = splitHeadlineWords(text)
+  if (words.length > maxWords) words = words.slice(0, maxWords)
+  while (words.length > minWords && headlineEndsIncomplete(words.join(' '))) {
+    words = words.slice(0, -1)
+  }
+  return words.join(' ')
 }
 
 /** True when a headline is agent jargon or only generic filler tokens. */
@@ -835,7 +909,7 @@ export function headlineFromArchitectProse(
  * Zone bento / tip face — strip jargon, never pad with "RIGHT NOW THIS MONTH", fall back when empty.
  */
 /**
- * Programmatic headline contract — Zone 5–8 words; expanded Solo Focus 10–20 words (hook, 2–3 lines).
+ * Programmatic headline contract — Zone 8–10 words; expanded Solo Focus 20–24 words (hook, 2–3 lines).
  * @param expanded — when true, uses expanded hook bounds.
  */
 export function enforceHeadlineWordLimits(
@@ -846,20 +920,39 @@ export function enforceHeadlineWordLimits(
   const min = expanded ? MIN_EXPANDED_VIEW_HEADLINE_WORDS : MIN_ZONE_CARD_HEADLINE_WORDS
   const max = expanded ? MAX_EXPANDED_VIEW_HEADLINE_WORDS : MAX_ZONE_CARD_HEADLINE_WORDS
   const jid = journeyId ? coerceJourneyId(String(journeyId)) : undefined
-  const journeyHook = jid ? EXPANDED_JOURNEY_HOOK[jid] : undefined
-  const fallback = expanded
-    ? journeyHook ?? 'save money on home bills near you'
-    : 'save money on home bills near you'
+  const journeyHook = jid ? (expanded ? EXPANDED_JOURNEY_HOOK[jid] : ZONE_BENTO_HOOK[jid]) : undefined
+  const fallback = journeyHook ?? 'save money on home bills near you'
   const source =
     isGenericSpringHeadline(text) && journeyHook ? journeyHook : text
-  const resolved = zoneCardHeadlineFromRaw(source, fallback, max)
+  const resolved = trimHeadlineToMaxWords(
+    zoneCardHeadlineFromRaw(source, fallback, max).replace(/\.{3,}$|…$/g, '').trim(),
+    max
+  )
   const words = splitHeadlineWords(resolved)
-  if (words.length < min) {
-    const fb = splitHeadlineWords(zoneCardHeadlineFromRaw(fallback, fallback, max))
-    return fb.length >= min ? fb.join(' ') : resolved
+  const needsHook =
+    words.length < min ||
+    headlineEndsIncomplete(resolved) ||
+    (jid != null && headlineConflictsWithJourney(jid, resolved)) ||
+    isLowQualityZoneHeadline(resolved)
+  if (needsHook && journeyHook) {
+    return ensureHeadlineSentenceEnd(
+      trimHeadlineToMaxWords(
+        zoneCardHeadlineFromRaw(journeyHook, journeyHook, max).replace(/\.{3,}$|…$/g, '').trim(),
+        max,
+        min
+      )
+    )
   }
-  if (words.length > max) return `${words.slice(0, max).join(' ')}...`
-  return words.join(' ')
+  if (words.length < min) {
+    const fb = trimHeadlineToMaxWords(
+      zoneCardHeadlineFromRaw(fallback, fallback, max).replace(/\.{3,}$|…$/g, '').trim(),
+      max,
+      min
+    )
+    const fbWords = splitHeadlineWords(fb)
+    return ensureHeadlineSentenceEnd(fbWords.length >= min ? fb : resolved)
+  }
+  return ensureHeadlineSentenceEnd(resolved)
 }
 
 export function zoneCardHeadlineFromRaw(
@@ -867,18 +960,17 @@ export function zoneCardHeadlineFromRaw(
   fallback: string,
   maxWords: number = MAX_ZONE_CARD_HEADLINE_WORDS
 ): string {
+  const minWords = maxWords <= MAX_ZONE_CARD_HEADLINE_WORDS ? MIN_ZONE_CARD_HEADLINE_WORDS : MIN_EXPANDED_VIEW_HEADLINE_WORDS
   const candidates = [prepareZoneHeadlineSource(raw), prepareZoneHeadlineSource(fallback), fallback.trim()]
   for (const candidate of candidates) {
     if (!candidate || isLowQualityZoneHeadline(candidate)) continue
     const words = splitHeadlineWords(candidate)
     if (words.length === 0) continue
-    if (words.length <= maxWords) return words.join(' ')
-    return `${words.slice(0, maxWords).join(' ')}...`
+    return trimHeadlineToMaxWords(words.join(' '), maxWords, minWords)
   }
   const words = splitHeadlineWords(fallback)
-  if (words.length === 0) return 'SAVE MONEY LOCALLY'
-  if (words.length <= maxWords) return words.join(' ')
-  return `${words.slice(0, maxWords).join(' ')}...`
+  if (words.length === 0) return 'save money on home bills near you'
+  return trimHeadlineToMaxWords(words.join(' '), maxWords, minWords)
 }
 
 /** Normalize headline text for duplicate card detection on the Zone wall. */
@@ -901,13 +993,13 @@ export function headlineFromTitle(
     const words = splitHeadlineWords(title)
     if (words.length > 0 && !isLowQualityZoneHeadline(words.join(' '))) {
       if (words.length <= maxWords) return words.join(' ')
-      return `${words.slice(0, maxWords).join(' ')}...`
+      return words.slice(0, maxWords).join(' ')
     }
     return ''
   }
   const words = splitHeadlineWords(prepared)
-  if (words.length <= maxWords) return words.join(' ')
-  return `${words.slice(0, maxWords).join(' ')}...`
+  const minWords = maxWords <= MAX_ZONE_CARD_HEADLINE_WORDS ? MIN_ZONE_CARD_HEADLINE_WORDS : MIN_EXPANDED_VIEW_HEADLINE_WORDS
+  return trimHeadlineToMaxWords(words.join(' '), maxWords, minWords)
 }
 
 /** Neon/agent fragment that is only a tail of the canonical journey hook — prefer full hook. */
@@ -916,6 +1008,79 @@ function isPartialExpandedJourneyHook(resolved: string, journeyHook: string): bo
   const h = compactAlnumKey(journeyHook)
   if (r.length < 20 || h.length < 24 || r === h) return false
   return h.includes(r) && r.length <= h.length * 0.88
+}
+
+/** Zone bento wall — 8–10 word Marvin stamp per journey (not Solo Focus). */
+export const ZONE_BENTO_HOOK: Partial<Record<JourneyId, string>> = {
+  home: 'seal draughts and loft gaps before you chase a new boiler',
+  utilities: 'line up your tariff with the april cap then switch deals',
+  grants: 'check bus heat pump and insulation grants before you book today',
+  solar: 'size solar to your roof and match the power you use daily',
+  travel: 'swap one car commute each week for rail or bus saves fuel',
+  holidays: 'pick short haul trips by train not plane and keep more cash',
+  food: 'plan meals from food you already have and cut waste weekly',
+  shopping: 'repair and reuse home gear before you buy another new item',
+  money: 'move idle cash to cleaner savings without paying hidden fees',
+  tech: 'cut standby draw on plugs and chargers left on overnight at home',
+  water: 'fit aerators fix drips and shorten showers before your bill climbs',
+  waste: 'sort recycle and compost at home each week to cut bin charges',
+  carbon: 'track one big energy habit monthly and trim what you waste',
+}
+
+/** Discovery inject bento — distinct 8–10 word stamp when wall tile already uses ZONE_BENTO_HOOK. */
+const ZONE_GRID_INJECT_HOOK: Partial<Record<JourneyId, string>> = {
+  home: 'check bus and heat pump grant rules before you book an installer visit',
+  utilities: 'match your meter to the april cap before you switch energy deal',
+  grants: 'stack bus boiler and insulation grants before you pay full install price',
+  solar: 'book a roof survey before you sign a solar export contract',
+  travel: 'try one rail swap this month before you renew car fuel spend',
+  holidays: 'pick a train route for your next break before you book flights',
+  food: 'start a weekly meal plan from what is already in your fridge',
+  shopping: 'repair one item this month before you buy another replacement',
+  money: 'move idle cash to a better rate before fees eat your interest',
+  tech: 'turn off standby on five devices you leave on overnight at home',
+  water: 'fix one dripping tap and fit an aerator before the bill rises',
+  waste: 'set up food waste caddy collection before you pay landfill charges',
+  carbon: 'log your biggest energy habit this month before you buy offsets',
+}
+
+/**
+ * Grid discovery / inject tip — 8–10 words; if it matches the journey wall tile headline, use prose or a distinct line.
+ */
+export function resolveZoneGridTipHeadline(
+  tip: { title?: string; journey_key?: string; explanation?: string[] },
+  journeyWallTitle?: string | null
+): string {
+  const jkey = tip.journey_key ?? 'carbon'
+  const fallback = `${String(jkey).replace(/-/g, ' ').toUpperCase()} SAVING`
+  let headline = clampZoneBentoHeadline(
+    zoneCardHeadlineFromRaw(tip.title ?? '', fallback, MAX_ZONE_CARD_HEADLINE_WORDS),
+    jkey
+  )
+  const wallKey = journeyWallTitle ? normalizeCardHeadlineKey(journeyWallTitle) : ''
+  if (wallKey && normalizeCardHeadlineKey(headline) === wallKey) {
+    const prose = (tip.explanation ?? []).map((p) => String(p).trim()).filter(Boolean).join('\n\n')
+    const fromProse = prose.length >= 24 ? headlineFromArchitectProse(prose) : null
+    if (fromProse) {
+      headline = clampZoneBentoHeadline(fromProse, jkey)
+    }
+    if (normalizeCardHeadlineKey(headline) === wallKey) {
+      const jid = coerceJourneyId(String(jkey)) ?? 'home'
+      const injectHook = ZONE_GRID_INJECT_HOOK[jid]
+      headline = clampZoneBentoHeadline(injectHook ?? `act on ${jkey.replace(/-/g, ' ')} this week`, jkey)
+    }
+  }
+  return headline
+}
+
+/** Zone bento face — enforce 8–10 words with per-journey hook fallback. */
+export function clampZoneBentoHeadline(text: string, journeyId?: JourneyId | string): string {
+  const jid = journeyId ? coerceJourneyId(String(journeyId)) : undefined
+  const hook = jid ? ZONE_BENTO_HOOK[jid] : undefined
+  const raw = text?.trim() || hook || 'save money on home bills near you'
+  const source =
+    (isLowQualityZoneHeadline(raw) || isGenericSpringHeadline(raw)) && hook ? hook : raw
+  return enforceHeadlineWordLimits(source, false, jid)
 }
 
 /** Expanded Solo Focus hook when DB title is thin or off-topic (~20 words each). */
@@ -948,7 +1113,7 @@ const EXPANDED_JOURNEY_HOOK: Partial<Record<JourneyId, string>> = {
     'TRACK ONE BIG ENERGY HABIT AT HOME EACH MONTH AND TRIM WHAT YOU DO NOT NEED BEFORE YOU BUY OFFSETS OR KITS',
 }
 
-/** Expanded Solo Focus H1 — hook headline with 2–3 line word budget. */
+/** Expanded Solo Focus H1 — 20–24 word complete hook (never a dangling fragment). */
 export function headlineFromExpandedHook(
   title: string,
   journeyId?: string
@@ -956,18 +1121,22 @@ export function headlineFromExpandedHook(
   const jid = journeyId ? coerceJourneyId(journeyId) : undefined
   const journeyHook = jid ? EXPANDED_JOURNEY_HOOK[jid] : undefined
   const prepared = prepareZoneHeadlineSource(title)
-  const resolved = enforceHeadlineWordLimits(prepared || title, true)
+  const resolved = enforceHeadlineWordLimits(prepared || title, true, jid)
   const words = splitHeadlineWords(resolved)
   const weak =
     isLowQualityZoneHeadline(resolved) ||
     isGenericSpringHeadline(resolved) ||
     words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS ||
+    headlineEndsIncomplete(resolved) ||
     (jid != null && headlineConflictsWithJourney(jid, resolved)) ||
     Boolean(journeyHook && isPartialExpandedJourneyHook(resolved, journeyHook))
   if (jid && journeyHook && (weak || isGenericSpringHeadline(prepared || title))) {
     return enforceHeadlineWordLimits(journeyHook, true, jid)
   }
   if (words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && journeyHook) {
+    return enforceHeadlineWordLimits(journeyHook, true, jid)
+  }
+  if (headlineEndsIncomplete(resolved) && journeyHook) {
     return enforceHeadlineWordLimits(journeyHook, true, jid)
   }
   return resolved

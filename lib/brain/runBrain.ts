@@ -8,7 +8,7 @@ import { getLocalData, type LocalIntelligence } from '@/lib/local/getLocalData'
 
 /** Design system — Summary theme */
 export const COLOR_PURPLE = '#7800ce'
-export const COLOR_YELLOW = '#FDFD00'
+export const COLOR_YELLOW = '#FFD700'
 export const COLOR_PINK = '#FF00FF'
 
 /** UK national averages (ONS-style; replace with Nomis/ONS when integrated) */

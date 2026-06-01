@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from 'rea
 import ZoneModalCloseLink from '@/app/components/ZoneModalCloseLink'
 import ZaiComposerDock from '@/app/components/ZaiComposerDock'
 import ZaiSuggestPills from '@/app/components/ZaiSuggestPills'
+import { HeartOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { renderZaiChatProse } from '@/lib/zai/renderChatProse'
 import { motion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
@@ -383,7 +384,10 @@ export default function ZaiPage() {
                       transition={INDUSTRIAL_OPACITY_SNAP}
                     >
                       {msg.meta?.answerHref && msg.meta.answerLabel ? (
-                        <Link href={msg.meta.answerHref} className="zz-body underline">
+                        <Link
+                          href={msg.meta.answerHref}
+                          className="zz-body underline zai-profile-answer-link"
+                        >
                           {msg.meta.answerLabel}
                         </Link>
                       ) : null}
@@ -413,7 +417,7 @@ export default function ZaiPage() {
                         <motion.button
                           type="button"
                           aria-label={state.likedCards.includes(msg.meta.likeId) ? 'Unlike' : 'Like'}
-                          className="circle-btn zai-like-btn"
+                          className="circle-btn zai-like-btn zz-shimmer-cta"
                           onClick={() => handleZaiLike(msg.meta!)}
                           style={{
                             width: 60,
@@ -421,18 +425,16 @@ export default function ZaiPage() {
                             minWidth: 60,
                             minHeight: 60,
                             borderRadius: '50%',
+                            border: 'none',
                             backgroundColor: state.likedCards.includes(msg.meta.likeId)
                               ? 'var(--color-yellow)'
-                              : 'var(--color-purple)',
+                              : 'var(--color-pink)',
                             color: state.likedCards.includes(msg.meta.likeId)
                               ? 'var(--color-purple)'
                               : 'var(--color-yellow)',
-                            border: '2px solid var(--color-yellow)',
                           }}
                         >
-                          <span className="zz-h4" style={{ lineHeight: 1 }}>
-                            {state.likedCards.includes(msg.meta.likeId) ? '♥' : '♡'}
-                          </span>
+                          <HeartOutlineIcon size={22} />
                         </motion.button>
                       ) : null}
                     </motion.div>

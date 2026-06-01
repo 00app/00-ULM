@@ -3,22 +3,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { gatewayTokenMatches } from '@/lib/gatewayAuth'
 import { persistZoneTipInjectBody } from '@/lib/zone/persistZoneTipInject'
 
 export const dynamic = 'force-dynamic'
 
-function authorizeGatewayInject(request: NextRequest): boolean {
-  const expected = process.env.GATEWAY_TOKEN?.trim() || process.env.CRON_SECRET?.trim()
-  if (!expected) return false
-  const got =
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')?.trim() ??
-    request.headers.get('x-gateway-token')?.trim()
-  return got === expected
-}
-
 export async function POST(request: NextRequest) {
   try {
-    if (!authorizeGatewayInject(request)) {
+    if (!gatewayTokenMatches(request)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     const body = await request.json()

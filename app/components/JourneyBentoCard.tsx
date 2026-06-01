@@ -28,11 +28,7 @@ import { SoloFocusProseStack } from '@/app/components/SoloFocusProseStack'
 import { SoloFocusMotherStack } from '@/app/components/SoloFocusMotherStack'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
-import {
-  ZONE_CARD_COMPUTING_ICON_PX,
-} from '@/app/components/ui/ZoneCategoryIcon'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
-import { ZoneAiSparkIcon } from '@/app/components/ui/ZoneAiSparkIcon'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
@@ -57,7 +53,9 @@ import {
   headlineFromTitle,
   formatZoneCategoryLabel,
   zoneCardHeadlineFromRaw,
+  clampZoneBentoHeadline,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
+  MIN_EXPANDED_VIEW_HEADLINE_WORDS,
   MAX_ZONE_CARD_HEADLINE_WORDS,
   resolveExpandedTrueTipInsight,
   shouldShowSoloFocusArchitectActionLine,
@@ -311,10 +309,13 @@ export function JourneyBentoCard({
     cardId,
   })
   const surfaceVars = zoneSurfaceStyleProps(surfaceKind)
-  const headline = zoneCardHeadlineFromRaw(
-    title || String(journeyId ?? ''),
-    formatZoneCategoryLabel(String(journeyId ?? 'home')),
-    MAX_ZONE_CARD_HEADLINE_WORDS
+  const headline = clampZoneBentoHeadline(
+    zoneCardHeadlineFromRaw(
+      title || String(journeyId ?? ''),
+      formatZoneCategoryLabel(String(journeyId ?? 'home')),
+      MAX_ZONE_CARD_HEADLINE_WORDS
+    ),
+    String(journeyId ?? 'home')
   )
 
   const [morphDeck, setMorphDeck] = useState<any[]>(
@@ -400,9 +401,6 @@ export function JourneyBentoCard({
     !researchSettled &&
     !showEstimatedInsightStrip &&
     (insightGenerationPending || researchCategoryCoverage != null)
-  /** ✓ True data — Neon coverage `verified` (derived from `verified_saving` / `saving_amount_gbp` on latest row). */
-  const dbVerifiedFromResearchTable =
-    researchCategoryCoverage != null ? journeyResearchCov?.verified === true : null
   const motherMoneyTargetGbp = verifiedAuditMatchesJourney ? verifiedAuditMoneyGbp : moneyTargetGbp
   const animatedMoneyGbp = useCountUp(motherMoneyTargetGbp, { duration: 520 })
   const animatedCarbonKg = useCountUp(carbonTargetKg, { duration: 520 })
@@ -819,11 +817,15 @@ export function JourneyBentoCard({
       focusJourney.replace(/-/g, ' '),
       MAX_EXPANDED_VIEW_HEADLINE_WORDS
     )
-    const expandedHeadlineSource = isAcceptableZoneJourneyHeadline(focusJourney, cleanedExpandTitle)
-      ? cleanedExpandTitle
-      : isAcceptableZoneJourneyHeadline(focusJourney, tileFallbackTitle)
-        ? tileFallbackTitle
-        : mechanicalFallback
+    const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length
+    const expandedHeadlineSource =
+      isAcceptableZoneJourneyHeadline(focusJourney, cleanedExpandTitle) &&
+      wordCount(cleanedExpandTitle) >= MIN_EXPANDED_VIEW_HEADLINE_WORDS
+        ? cleanedExpandTitle
+        : isAcceptableZoneJourneyHeadline(focusJourney, tileFallbackTitle) &&
+            wordCount(tileFallbackTitle) >= MIN_EXPANDED_VIEW_HEADLINE_WORDS
+          ? tileFallbackTitle
+          : mechanicalFallback
     const recommendationTitle = headlineFromExpandedHook(expandedHeadlineSource, focusJourney)
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =
@@ -992,7 +994,6 @@ export function JourneyBentoCard({
                     }
                     moneyGbp={animatedMoneyGbp}
                     carbonKg={animatedCarbonKg}
-                    verifiedDataBadge={Boolean(dbVerifiedFromResearchTable)}
                     impactPulse={impactAnswerPulse}
                     ctaUrl={soloHandoff.ctaUrl}
                     ctaJourneyId={displayJourneyId as string}
@@ -1104,15 +1105,6 @@ export function JourneyBentoCard({
           </span>
         </div>
       </div>
-      {showCardComputing ? (
-        <div className="mt-2 shrink-0 flex items-center zone-card-computing-foot" aria-label="Computing">
-          <ZoneAiSparkIcon
-            size={ZONE_CARD_COMPUTING_ICON_PX}
-            className="zone-ai-spark-icon"
-            style={{ color: 'currentColor' }}
-          />
-        </div>
-      ) : null}
     </motion.div>
   )
 }

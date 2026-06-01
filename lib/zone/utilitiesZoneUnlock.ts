@@ -1,6 +1,5 @@
 /**
- * UTILITIES is the 13th Zone category — born on the wall only after profile **power type**.
- * (13 journey tiles visible before; utilities unlocks when `profile_home_power` is set.)
+ * UTILITIES is the 13th Zone category — always visible on the wall; richest tariff data after profile power type.
  */
 
 export type ProfilePowerTypeFields = {

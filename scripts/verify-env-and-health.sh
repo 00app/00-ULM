@@ -53,7 +53,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "== Local .env.local (presence + value length only) =="
 if [[ -f .env.local ]]; then
-  for key in DATABASE_URL GEMINI_API_KEY FIRE_CRAWL_KEY_2 CRON_SECRET; do
+  for key in DATABASE_URL GEMINI_API_KEY FIRE_CRAWL_KEY_3 FIRE_CRAWL_KEY_2 FIRECRAWL_API_KEY CRON_SECRET GATEWAY_TOKEN; do
     line="$(grep "^${key}=" .env.local 2>/dev/null | head -1 || true)"
     if [[ -z "$line" ]]; then
       echo "  ${key}: MISSING"
@@ -93,8 +93,8 @@ BASE_URL="${BASE_URL:-http://127.0.0.1:3000}"
 echo "  BASE_URL=$BASE_URL"
 echo ""
 
-echo "  → GET /api/health?live=1 (no database)"
-curl -sS --max-time 20 "${BASE_URL}/api/health?live=1" | jq_bin . || echo '{"note":"curl failed — is the server running?"}'
+echo "  → GET /api/health?live=1 (no database; includes providers{} flags)"
+curl -sS --max-time 20 "${BASE_URL}/api/health?live=1" | jq_bin '.providers // .' || echo '{"note":"curl failed — is the server running?"}'
 echo ""
 
 echo "  → GET /api/health (Neon SELECT 1)"
@@ -111,10 +111,14 @@ elif [[ -n "${GATEWAY_TOKEN:-}" ]]; then
   AUTH_ARGS=(-H "Authorization: Bearer ${GATEWAY_TOKEN}")
 fi
 diag_tmp="${TMPDIR:-/tmp}/zz-diag-$$.json"
-diag_code="$(curl -sS --max-time 25 -o "$diag_tmp" -w '%{http_code}' "${AUTH_ARGS[@]}" "${BASE_URL}/api/health/diagnostics" || printf '000')"
+if [[ ${#AUTH_ARGS[@]} -gt 0 ]]; then
+  diag_code="$(curl -sS --max-time 25 -o "$diag_tmp" -w '%{http_code}' "${AUTH_ARGS[@]}" "${BASE_URL}/api/health/diagnostics" || printf '000')"
+else
+  diag_code="$(curl -sS --max-time 25 -o "$diag_tmp" -w '%{http_code}' "${BASE_URL}/api/health/diagnostics" || printf '000')"
+fi
 echo "  HTTP ${diag_code}"
 if [[ -s "$diag_tmp" ]]; then
-  cat "$diag_tmp" | jq_bin '{neon,dbLatencyMs,gemini,firecrawl,error}' 2>/dev/null || cat "$diag_tmp"
+  cat "$diag_tmp" | jq_bin '{neon,dbLatencyMs,gemini,firecrawl,bucket_failover,aiGateway,aiGatewayOk,error}' 2>/dev/null || cat "$diag_tmp"
 else
   echo "  (empty)"
 fi

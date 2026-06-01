@@ -12,6 +12,7 @@ import {
 } from '@/lib/zone/perCategoryCardCap'
 import { MAX_ZONE_BENTO_CELLS } from '@/lib/zone/ulmLimits'
 import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
+import { normalizeCardHeadlineKey, resolveZoneGridTipHeadline } from '@/lib/soloFocusCopy'
 
 export type GroovyGridCell =
   | { type: 'hero'; hero: ZoneViewModel['hero'] }
@@ -38,6 +39,16 @@ function sortTipsWithinJourney(tips: ZoneTipCard[], goal?: string): ZoneTipCard[
     )
   })
   return list
+}
+
+/** Resolve inject headline and skip tips that still duplicate the journey mother tile. */
+function tipForWallGrid(tip: ZoneTipCard, journeyWallTitle: string | null): ZoneTipCard | null {
+  const resolved = resolveZoneGridTipHeadline(tip, journeyWallTitle)
+  const resolvedKey = normalizeCardHeadlineKey(resolved)
+  const wallKey = journeyWallTitle ? normalizeCardHeadlineKey(journeyWallTitle) : ''
+  if (wallKey && resolvedKey && resolvedKey === wallKey) return null
+  if (resolved === (tip.title ?? '').trim()) return tip
+  return { ...tip, title: resolved }
 }
 
 /** Hero → pinned achievements → each journey in JOURNEY_ORDER with discovery tips nested after parent. */
@@ -94,7 +105,6 @@ export function buildGroovyGridItems(args: {
   }
 
   JOURNEY_ORDER.forEach((jid, index) => {
-    if (jid === 'utilities' && !isUtilitiesZoneCardUnlocked(args.profile)) return
     const item = byJourney.get(jid)
     if (item) {
       // Journey card always placed first for its category (counts as 1 toward the cap)
@@ -107,16 +117,31 @@ export function buildGroovyGridItems(args: {
         })
       }
     }
+    const journeyWallTitle = item?.title ?? null
+    const seenHeadlineKeys = new Set<string>()
+    if (journeyWallTitle) {
+      const wallKey = normalizeCardHeadlineKey(journeyWallTitle)
+      if (wallKey) seenHeadlineKeys.add(wallKey)
+    }
     const nestedDiscovery = sortTipsWithinJourney(discoveryByJourney.get(jid) ?? [], args.profileGoal)
     for (const tip of nestedDiscovery) {
-      // Only add tip if category hasn't hit its 2-card ceiling
+      const gridTip = tipForWallGrid(tip, journeyWallTitle)
+      if (!gridTip) continue
+      const headlineKey = normalizeCardHeadlineKey(gridTip.title ?? '')
+      if (headlineKey && seenHeadlineKeys.has(headlineKey)) continue
+      if (headlineKey) seenHeadlineKeys.add(headlineKey)
       if (!incrementCategory(jid)) break
-      items.push({ type: 'tip', tip })
+      items.push({ type: 'tip', tip: gridTip })
     }
     const nestedBaseline = sortTipsWithinJourney(baselineByJourney.get(jid) ?? [], args.profileGoal)
     for (const tip of nestedBaseline) {
+      const gridTip = tipForWallGrid(tip, journeyWallTitle)
+      if (!gridTip) continue
+      const headlineKey = normalizeCardHeadlineKey(gridTip.title ?? '')
+      if (headlineKey && seenHeadlineKeys.has(headlineKey)) continue
+      if (headlineKey) seenHeadlineKeys.add(headlineKey)
       if (!incrementCategory(jid)) break
-      items.push({ type: 'tip', tip })
+      items.push({ type: 'tip', tip: gridTip })
     }
   })
 
