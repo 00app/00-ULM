@@ -146,6 +146,7 @@ import {
   isAiRouteBlockedClient,
   markAiRouteBlockedFromStatus,
 } from '@/lib/intelligence/aiRouteClientGuard'
+import { waitForProtectedRoutesReady } from '@/lib/client/protectedRouteGate'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
   ENGINE_UI_LABELS,
@@ -1184,7 +1185,10 @@ export default function ZonePage() {
   useEffect(() => {
     if (aiRouteBlocked) return
     let cancelled = false
-    fetch('/api/zone/injections')
+    void (async () => {
+      const sessionReady = await waitForProtectedRoutesReady()
+      if (!sessionReady || cancelled) return
+      fetch('/api/zone/injections', { credentials: 'include' })
       .then((r) => {
         if (markAiRouteBlocked(r.status)) return []
         return r.ok ? r.json() : []
@@ -1228,6 +1232,7 @@ export default function ZonePage() {
       .catch(() => {
         /* Keep optimistic client injections on fetch failure */
       })
+    })()
     return () => {
       cancelled = true
     }
@@ -1677,10 +1682,13 @@ export default function ZonePage() {
 
     void (async () => {
       try {
+        const sessionReady = await waitForProtectedRoutesReady()
+        if (!sessionReady || cancelled) return
         const res = await fetch('/api/zone/content-architect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ cards }),
+          credentials: 'include',
         })
         if (markAiRouteBlocked(res.status)) return
         if (!res.ok || cancelled) return

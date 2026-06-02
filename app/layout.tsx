@@ -109,14 +109,6 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Marvin: early fetch so pulse / summary ticker never start on fallback sans. */}
-        <link
-          rel="preload"
-          href="/assets/Marvin%20Visions%20Bold.ttf"
-          as="font"
-          type="font/ttf"
-          crossOrigin="anonymous"
-        />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
       <body
