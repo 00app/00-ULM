@@ -2,7 +2,7 @@
   "regions": ["lhr1"],
   "framework": "nextjs",
   "installCommand": "npm ci --include=dev",
-  "buildCommand": "npm run build:vercel",
+  "buildCommand": "npm run build:vercel:lean",
   "build": {
     "env": {
       "NODE_OPTIONS": "--max-old-space-size=6144",
