@@ -1,5 +1,6 @@
 /**
- * Tier B/C premium slice — Gemini editorial only; £ and kg are pre-calculated (no AI arithmetic).
+ * Tier B/C premium slice — locked £/kg + research prose via `generateResearchText`.
+ * With `MODEL_STRATEGY=bucket_failover` + `BUCKET_SKIP_GEMINI=1`, prose uses Groq first (not paid Gemini).
  */
 
 import {
@@ -45,8 +46,8 @@ function buildFactualAnchorMarkdown(input: PremiumEditorialInput): string {
 }
 
 /**
- * Gemini 2.5 Flash — label-free 3-paragraph triplet + 6–8 word headline.
- * Does not invoke Firecrawl; optional markdown is factual anchor only.
+ * Bucket-aware triplet + headline (Groq-first when Gemini skipped in bucket mode).
+ * Does not invoke Firecrawl; markdown is a factual anchor only.
  */
 export async function runPremiumEditorialExtraction(
   input: PremiumEditorialInput

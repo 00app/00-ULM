@@ -1,20 +1,38 @@
 import { NextResponse } from 'next/server'
 import { isDatabaseConfigured, pingDatabase } from '@/lib/db'
 import { resolveFirecrawlApiKey, resolveFirecrawlEnvSlot } from '@/lib/sentinel/api-config'
-import { isBucketFailoverMode } from '@/lib/intelligence/scrapeBoundaries'
+import {
+  bucketFailoverStatus,
+  shouldSkipFirecrawlScrape,
+  shouldSkipGeminiInBucket,
+} from '@/lib/intelligence/scrapeBoundaries'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 function providerSnapshot() {
-  const skipFirecrawl = process.env.SKIP_FIRECRAWL?.trim() === '1'
+  const bucket = bucketFailoverStatus()
+  const skipGemini = shouldSkipGeminiInBucket()
+  const researchProviderOrder: string[] = []
+  if (bucket.providers.groq) researchProviderOrder.push(`groq:${process.env.GROQ_MODEL?.trim() || 'llama-3.1-8b-instant'}`)
+  if (bucket.providers.mistral) researchProviderOrder.push('mistral')
+  if (bucket.providers.openrouter) researchProviderOrder.push('openrouter')
+  if (bucket.providers.gemini) {
+    researchProviderOrder.push(
+      `gemini:${process.env.GEMINI_RESEARCH_MODEL?.trim() || process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-2.5-flash'}`
+    )
+  }
   return {
     gemini: Boolean(process.env.GEMINI_API_KEY?.trim()),
-    firecrawl: Boolean(resolveFirecrawlApiKey()) && !skipFirecrawl,
+    firecrawl: Boolean(resolveFirecrawlApiKey()) && !shouldSkipFirecrawlScrape(),
     firecrawlEnv: resolveFirecrawlEnvSlot(),
-    skipFirecrawl,
+    skipFirecrawl: shouldSkipFirecrawlScrape(),
     geminiZoneModel: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-2.5-flash',
-    bucketFailover: isBucketFailoverMode(),
+    bucketFailover: bucket.enabled,
+    bucketSkipGemini: skipGemini,
+    preferMechanicalTriplet: bucket.preferMechanicalTriplet,
+    researchProviderOrder,
+    researchPrimary: researchProviderOrder[0] ?? (bucket.enabled ? 'none' : 'direct-gemini'),
     researchForceDirectGemini:
       process.env.RESEARCH_FORCE_DIRECT_GEMINI?.trim().toLowerCase() !== 'false',
   }

@@ -44,6 +44,13 @@ export function isBucketFailoverEnabled(): boolean {
   return isBucketFailoverMode()
 }
 
+function logBucketProviderUse(tag: string | null | undefined, result: BucketGenerateResult): void {
+  if (process.env.RESEARCH_PROVIDER_LOG?.trim() !== '1') return
+  console.info(
+    `[bucket_failover] ${tag ?? 'research'} via ${result.provider}:${result.modelId}${result.usedFallback ? ' (fallback)' : ''}`
+  )
+}
+
 function isFailoverEligible(err: unknown): boolean {
   const msg = (err instanceof Error ? err.message : String(err)).toLowerCase()
   return (
@@ -110,13 +117,15 @@ async function generateGeminiBucket(
   })
   const text = (await model.generateContent(params.prompt)).response.text()?.trim() ?? ''
   if (text.length < 1) throw new Error(`Gemini empty response (${modelName})`)
-  return {
+  const result: BucketGenerateResult = {
     text,
     modelId: modelName,
     viaGateway: false,
     provider: 'gemini',
     usedFallback: false,
   }
+  logBucketProviderUse(params.tag, result)
+  return result
 }
 
 async function generateGroqBucket(params: BucketGenerateParams): Promise<BucketGenerateResult> {
@@ -131,7 +140,15 @@ async function generateGroqBucket(params: BucketGenerateParams): Promise<BucketG
     maxOutputTokens: params.maxOutputTokens ?? 768,
     temperature: params.temperature ?? GEMINI_PRECISION_TEMPERATURE,
   })
-  return { text, modelId: model, viaGateway: false, provider: 'groq', usedFallback: true }
+  const result: BucketGenerateResult = {
+    text,
+    modelId: model,
+    viaGateway: false,
+    provider: 'groq',
+    usedFallback: true,
+  }
+  logBucketProviderUse(params.tag, result)
+  return result
 }
 
 async function generateMistralBucket(params: BucketGenerateParams): Promise<BucketGenerateResult> {
@@ -146,7 +163,15 @@ async function generateMistralBucket(params: BucketGenerateParams): Promise<Buck
     maxOutputTokens: params.maxOutputTokens ?? 1536,
     temperature: params.temperature ?? GEMINI_PRECISION_TEMPERATURE,
   })
-  return { text, modelId: model, viaGateway: false, provider: 'mistral', usedFallback: true }
+  const result: BucketGenerateResult = {
+    text,
+    modelId: model,
+    viaGateway: false,
+    provider: 'mistral',
+    usedFallback: true,
+  }
+  logBucketProviderUse(params.tag, result)
+  return result
 }
 
 async function generateOpenRouterBucket(
@@ -166,7 +191,15 @@ async function generateOpenRouterBucket(
     temperature: params.temperature ?? GEMINI_PRECISION_TEMPERATURE,
     referer: appUrl,
   })
-  return { text, modelId: model, viaGateway: false, provider: 'openrouter', usedFallback: true }
+  const result: BucketGenerateResult = {
+    text,
+    modelId: model,
+    viaGateway: false,
+    provider: 'openrouter',
+    usedFallback: true,
+  }
+  logBucketProviderUse(params.tag, result)
+  return result
 }
 
 type BucketStep = {

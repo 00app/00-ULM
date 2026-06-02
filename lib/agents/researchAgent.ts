@@ -1393,7 +1393,7 @@ function researchTripletExplicitFromParams(p: {
 }
 
 /**
- * Hybrid pipeline — Gemini editorial only; £ locked in markdown (no AI arithmetic).
+ * Hybrid pipeline — locked £ in markdown; prose via `generateResearchText` (bucket → Groq when configured).
  */
 export async function extractHybridEditorialTriplet(params: {
   markdown: string
