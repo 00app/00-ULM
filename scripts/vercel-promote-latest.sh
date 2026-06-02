@@ -8,8 +8,14 @@ URL="${1:-}"
 if [[ -n "$URL" ]]; then
   echo "→ Waiting for ${URL} to reach Ready…"
   for _ in $(seq 1 72); do
-    inspect="$(vercel inspect "$URL" 2>/dev/null || true)"
-    if echo "$inspect" | grep -qiE 'status\s+●\s+Ready|status\s+Ready|\bReady\b'; then
+    state="$(vercel inspect "$URL" --json 2>/dev/null | node -e "
+      let s=''; process.stdin.on('data',d=>s+=d);
+      process.stdin.on('end',()=>{ try {
+        const j=JSON.parse(s.replace(/^[^\\{]*/,''));
+        process.stdout.write(String(j.readyState||''));
+      } catch { process.stdout.write(''); } });
+    " 2>/dev/null || true)"
+    if [[ "$state" == "READY" ]]; then
       break
     fi
     sleep 5
