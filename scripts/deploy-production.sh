@@ -25,7 +25,7 @@ if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
   exit 1
 fi
 
-echo "→ Local verify (same gate as vercel.json buildCommand)…"
+echo "→ Local verify (typecheck + lint — also runs at start of vercel.json buildCommand)…"
 npm run verify
 
 # Never upload stale .vercel/output — remote build runs install + verify + next build.

@@ -25,13 +25,21 @@ function ensureDeps() {
   const eslintBin = path.join(root, 'node_modules', 'eslint', 'bin', 'eslint.js')
   const tscBin = path.join(root, 'node_modules', 'typescript', 'bin', 'tsc')
   if (existsSync(eslintBin) && existsSync(tscBin)) return 0
+  if (process.env.VERCEL === '1' || process.env.CI === 'true') {
+    console.error(
+      '→ vercel-check: eslint/tsc missing after install — ensure installCommand is npm ci --include=dev'
+    )
+    return 1
+  }
   console.log('→ vercel-check: installing dependencies (npm ci --include=dev)…')
   return run('npm', ['ci', '--include=dev', '--no-audit', '--no-fund'])
 }
 
 function runLint() {
   const eslintBin = path.join(root, 'node_modules', 'eslint', 'bin', 'eslint.js')
-  return run(process.execPath, [eslintBin, 'app', 'lib'])
+  const code = run(process.execPath, [eslintBin, 'app', 'lib'])
+  if (code === 0) console.log('✓ eslint: app lib')
+  return code
 }
 
 function runTypecheck() {
@@ -41,13 +49,15 @@ function runTypecheck() {
     ? run(process.execPath, [nextBin, 'typegen'])
     : run('npm', ['exec', '--', 'next', 'typegen'])
   if (typegenCode !== 0) return typegenCode
-  return run(process.execPath, [
+  const tscCode = run(process.execPath, [
     tscBin,
     '--noEmit',
     '--incremental',
     '-p',
     path.join(root, 'tsconfig.typecheck.json'),
   ])
+  if (tscCode === 0) console.log('✓ tsc: tsconfig.typecheck.json')
+  return tscCode
 }
 
 const installCode = ensureDeps()

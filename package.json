@@ -15,7 +15,7 @@
     "ultimate": "node scripts/npm-sandbox-clean.cjs install && node scripts/ensure-dev-manifests.js && node scripts/build-with-manifest-fix.js",
     "ultimate:dev": "node scripts/ultimate-dev.js",
     "build": "npm run verify && node scripts/build-with-manifest-fix.js",
-    "build:vercel": "npm run typecheck && npm run lint && node scripts/build-with-manifest-fix.js",
+    "build:vercel": "node scripts/vercel-build-gate.mjs",
     "build:vercel:lean": "node scripts/build-with-manifest-fix.js",
     "build:clean": "rm -rf .next && BUILD_CLEAN=0 node scripts/build-with-manifest-fix.js",
     "build:all": "rm -rf .next && node scripts/npm-sandbox-clean.cjs install && node scripts/build-with-manifest-fix.js",
@@ -111,6 +111,8 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@types/pg": "^8.10.9",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
     "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.17",
     "eslint": "^9.39.1",

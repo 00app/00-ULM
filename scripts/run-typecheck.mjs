@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 /**
- * Typecheck entry — ignores extra argv (npm forwards pasted "# comment" tokens to scripts).
+ * Typecheck entry — same gate as CI (`next typegen` + tsc). Ignores extra argv.
  */
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const tsc = path.join(root, 'node_modules/typescript/bin/tsc')
+const vercelCheck = path.join(root, 'scripts', 'vercel-check.mjs')
 
-const result = spawnSync(
-  process.execPath,
-  [tsc, '--noEmit', '-p', path.join(root, 'tsconfig.typecheck.json')],
-  { stdio: 'inherit', cwd: root }
-)
+const result = spawnSync(process.execPath, [vercelCheck, 'typecheck'], {
+  stdio: 'inherit',
+  cwd: root,
+})
 
 process.exit(result.status ?? 1)

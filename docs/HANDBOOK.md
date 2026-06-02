@@ -3659,7 +3659,7 @@ Production alias **`https://00-ulm.vercel.app`** should then serve this build.
 
 | Layer | What runs |
 | --- | --- |
-| **`vercel.json` `buildCommand`** | `npm run verify` then `node scripts/build-with-manifest-fix.js` |
+| **`vercel.json` `buildCommand`** | `node scripts/vercel-build-gate.mjs` — serial typecheck, lint, then production build |
 | **`.npmrc`** | `include=dev` — native Lint/Typecheck jobs get `@types/*` + eslint |
 | **`scripts/vercel-check.mjs`** | Native check entry: `next typegen` + explicit eslint/tsc binaries |
 | **`package.json` `lint` / `typecheck`** | `node scripts/vercel-check.mjs …` (not deprecated `next lint`) |
