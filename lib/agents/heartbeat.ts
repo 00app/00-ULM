@@ -9,8 +9,14 @@ export interface DiscoveryPulseResult {
   geminiPulseNote: string | null
 }
 
+import {
+  isAiRouteBlockedClient,
+  markAiRouteBlockedFromStatus,
+} from '@/lib/intelligence/aiRouteClientGuard'
+
 export async function runDiscoveryPulse(injectionIds: string[]): Promise<DiscoveryPulseResult | null> {
   if (typeof window === 'undefined') return null
+  if (isAiRouteBlockedClient()) return null
   try {
     const res = await fetch('/api/discovery/pulse', {
       method: 'POST',
@@ -18,6 +24,7 @@ export async function runDiscoveryPulse(injectionIds: string[]): Promise<Discove
       body: JSON.stringify({ injectionIds }),
       credentials: 'include',
     })
+    if (markAiRouteBlockedFromStatus(res.status)) return null
     if (!res.ok) return null
     const data = (await res.json()) as DiscoveryPulseResult
     if (!data?.fingerprint || typeof data.patches !== 'object') return null

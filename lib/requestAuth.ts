@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
 import { scrapeSyncBearerMatches } from '@/lib/intelligence/scrapeSyncAuth'
+import { gatewayTokenMatches } from '@/lib/gatewayAuth'
 import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
 import {
   GUEST_SESSION_COOKIE,
@@ -55,7 +56,7 @@ export async function resolveRequestIdentity(
 
 /** Gate expensive AI / Firecrawl routes. Returns 401/429 response or null when allowed. */
 export async function requireAiRouteAuth(request: NextRequest): Promise<NextResponse | null> {
-  if (scrapeSyncBearerMatches(request)) return null
+  if (scrapeSyncBearerMatches(request) || gatewayTokenMatches(request)) return null
   const identity = await resolveRequestIdentity(request)
   if (!identity) return unauthorizedResponse()
 
@@ -72,7 +73,7 @@ export async function requireAiRouteAuth(request: NextRequest): Promise<NextResp
 export async function requireUserOrServiceBearer(
   request: NextRequest
 ): Promise<NextResponse | null> {
-  if (scrapeSyncBearerMatches(request)) return null
+  if (scrapeSyncBearerMatches(request) || gatewayTokenMatches(request)) return null
   const session = await getSessionFromRequest().catch(() => null)
   if (session?.userId) return null
   return unauthorizedResponse()

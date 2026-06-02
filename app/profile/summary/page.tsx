@@ -29,6 +29,10 @@ import { INDUSTRIAL_OPACITY_SNAP, soloFocusSlamMotionProps } from '@/lib/animati
 import { AtomicLogo } from '@/app/components/Logo'
 import { preloadAppFonts } from '@/lib/architecturalPulse'
 import { SESSION_SUMMARY_TO_ZONE } from '@/lib/architecturalPulse'
+import {
+  isAiRouteBlockedClient,
+  markAiRouteBlockedFromStatus,
+} from '@/lib/intelligence/aiRouteClientGuard'
 
 const REDIRECT_NO_PROFILE_MS = 1800
 const PAGE_EXIT_NAV_MS = 550
@@ -492,12 +496,19 @@ export default function ProfileSummaryPage() {
             credentials: 'include',
             signal: handshakeAbort.signal,
           }),
-          fetch('/api/zone/tips-refresh', {
-            method: 'POST',
-            credentials: 'include',
-            signal: handshakeAbort.signal,
-          }),
         ]
+        if (!isAiRouteBlockedClient()) {
+          requests.push(
+            fetch('/api/zone/tips-refresh', {
+              method: 'POST',
+              credentials: 'include',
+              signal: handshakeAbort.signal,
+            }).then((r) => {
+              markAiRouteBlockedFromStatus(r.status)
+              return r
+            })
+          )
+        }
         if (browserCanTriggerScrapeSync()) {
           requests.unshift(
             fetch('/api/scrape-sync', {

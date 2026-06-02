@@ -142,6 +142,10 @@ import {
 } from '@/lib/zone/categoryIntent'
 import { coverageRowToNeon, foldCoverageRowsForZone } from '@/lib/zone/neonResearchMerge'
 import { runDiscoveryPulse, readStoredEconomyFingerprint, writeStoredEconomyFingerprint } from '@/lib/agents/heartbeat'
+import {
+  isAiRouteBlockedClient,
+  markAiRouteBlockedFromStatus,
+} from '@/lib/intelligence/aiRouteClientGuard'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
   ENGINE_UI_LABELS,
@@ -846,6 +850,18 @@ export default function ZonePage() {
   }, [localData, scrapePostcode])
 
   const [dbVisitedJourneyKeys, setDbVisitedJourneyKeys] = useState<Set<string>>(() => new Set())
+  const [aiRouteBlocked, setAiRouteBlocked] = useState(false)
+
+  const markAiRouteBlocked = useCallback((status: number): boolean => {
+    const blocked = markAiRouteBlockedFromStatus(status)
+    if (blocked) setAiRouteBlocked(true)
+    return blocked
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) return
+    setAiRouteBlocked(isAiRouteBlockedClient())
+  }, [hydrated])
 
   useEffect(() => {
     if (!hydrated) return
@@ -1166,9 +1182,13 @@ export default function ZonePage() {
   }, [unlockedCount, hydrated])
 
   useEffect(() => {
+    if (aiRouteBlocked) return
     let cancelled = false
     fetch('/api/zone/injections')
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => {
+        if (markAiRouteBlocked(r.status)) return []
+        return r.ok ? r.json() : []
+      })
       .then((data: unknown) => {
         if (cancelled) return
         const server = Array.isArray(data) ? (data as ZoneTipCard[]) : []
@@ -1211,7 +1231,7 @@ export default function ZonePage() {
     return () => {
       cancelled = true
     }
-  }, [refreshKey])
+  }, [aiRouteBlocked, markAiRouteBlocked, refreshKey])
 
   useEffect(() => {
     const onInject = (e: Event) => {
@@ -1240,13 +1260,19 @@ export default function ZonePage() {
       setVmSyncStamp(Date.now())
       /* Birth on grid only (atomic assembly) — user opens discovery in Solo Focus when ready. */
       if (!isAchievement && detail.id && !readVisitedCardIds().has(detail.id)) {
-        void fetch('/api/zone/tips-refresh', { method: 'POST', credentials: 'include' }).catch(() => {})
+        if (!aiRouteBlocked) {
+          void fetch('/api/zone/tips-refresh', { method: 'POST', credentials: 'include' })
+            .then((r) => {
+              markAiRouteBlocked(r.status)
+            })
+            .catch(() => {})
+        }
         setRefreshKey((k) => k + 1)
       }
     }
     window.addEventListener(DISCOVERY_INJECT_EVENT, onInject)
     return () => window.removeEventListener(DISCOVERY_INJECT_EVENT, onInject)
-  }, [closeSoloFocus, openSoloFocus])
+  }, [aiRouteBlocked, closeSoloFocus, markAiRouteBlocked, openSoloFocus])
 
   useEffect(() => {
     const onAnswerCommitted = (e: Event) => {
@@ -1262,6 +1288,10 @@ export default function ZonePage() {
   }, [])
 
   useEffect(() => {
+    if (aiRouteBlocked) {
+      setTipDataPatches({})
+      return
+    }
     if (effectiveInjectedTips.length === 0) {
       setTipDataPatches({})
       return
@@ -1281,7 +1311,7 @@ export default function ZonePage() {
     return () => {
       cancelled = true
     }
-  }, [effectiveInjectedTips])
+  }, [aiRouteBlocked, effectiveInjectedTips])
 
   useEffect(() => {
     if (!hydrated) return
@@ -1305,6 +1335,7 @@ export default function ZonePage() {
         }
       }
     })
+    if (aiRouteBlocked) return
     const profileFromStorage = readProfileFieldsFromStorage()
     const profile = {
       ...profileFromStorage,
@@ -1651,6 +1682,7 @@ export default function ZonePage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ cards }),
         })
+        if (markAiRouteBlocked(res.status)) return
         if (!res.ok || cancelled) return
         const data = (await res.json()) as {
           byJourney?: Partial<Record<JourneyId, ArchitectJourneyPayload>>
@@ -1681,6 +1713,8 @@ export default function ZonePage() {
     researchCategoryCoverage,
     hydrated,
     scrapePostcode,
+    aiRouteBlocked,
+    markAiRouteBlocked,
   ])
 
   const { achievementTips, discoveryTips, baselineTips } = useMemo(() => {

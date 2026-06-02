@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { JourneyId } from '@/lib/journeys'
+import {
+  isAiRouteBlockedClient,
+  markAiRouteBlockedFromStatus,
+} from '@/lib/intelligence/aiRouteClientGuard'
 
 export const SENTINEL_SYSTEM_PROMPT =
   'You are the Zero Zero Sentinel. You have NO access to the external web. Your ONLY sources of truth are the User\'s Database and the AI Collaboration Chat. Your ONLY mission is to identify the shortest path to saving Money and Carbon. No pleasantries. No drift.'
@@ -218,7 +222,13 @@ export function useSentinel(params: UseSentinelParams): SentinelOutput {
         if (shouldRunScrapeSync) {
           window.localStorage.setItem(SENTINEL_SCRAPE_SYNC_KEY, String(Date.now()))
           // Refresh in-grid tips after 24h sync pull so grant cards can surface.
-          void fetch('/api/zone/tips-refresh', { method: 'POST', credentials: 'include' }).catch(() => {})
+          if (!isAiRouteBlockedClient()) {
+            void fetch('/api/zone/tips-refresh', { method: 'POST', credentials: 'include' })
+              .then((r) => {
+                markAiRouteBlockedFromStatus(r.status)
+              })
+              .catch(() => {})
+          }
         }
         setLastRefreshed(refreshedAt)
         window.localStorage.setItem(SENTINEL_LAST_REFRESH_KEY, String(Date.parse(refreshedAt) || Date.now()))
