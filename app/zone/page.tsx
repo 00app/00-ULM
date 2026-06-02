@@ -129,9 +129,8 @@ import {
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import {
   capDiscoveryTipsForGrid,
-  capRockHabitsPerJourney,
-  dedupeFirstWinByJourney,
   capTipsPerJourney,
+  dedupeFirstWinByJourney,
   isUserDiscoveryInjectTip,
   journeyKeyFromTip,
 } from '@/lib/zone/perCategoryCardCap'
@@ -149,7 +148,7 @@ import {
 } from '@/lib/intelligence/aiRouteClientGuard'
 import { waitForProtectedRoutesReady } from '@/lib/client/protectedRouteGate'
 import { saveLikeCardSnapshot, removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
-import { filterRockHabitsAgainstWall } from '@/lib/zone/filterRockHabits'
+import { prepareRockHabitsForRail } from '@/lib/zone/filterRockHabits'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
   ENGINE_UI_LABELS,
@@ -2092,10 +2091,11 @@ export default function ZonePage() {
   }, [viewModel.journeys, viewModel.tips])
 
   const rockHabitsWithOffers = useMemo(() => {
-    const capped = dedupeFirstWinByJourney(
-      capRockHabitsPerJourney(rockVisibleHabits, 1)
-    ).slice(0, MAX_ROCK_SAVING_TIPS_RAIL)
-    const deduped = filterRockHabitsAgainstWall(capped, viewModel)
+    const deduped = prepareRockHabitsForRail(
+      rockVisibleHabits,
+      viewModel,
+      MAX_ROCK_SAVING_TIPS_RAIL
+    )
     return deduped.map((h) => {
       const url = rockOfferByJourney[h.journey_key]
       return url ? { ...h, learn_url: url } : h

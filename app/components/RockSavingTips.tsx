@@ -3,14 +3,13 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import type { JourneyId } from '@/lib/journeys'
 import type { RockHabit } from '@/lib/rock/types'
-import { ROCK_HABITS, habitToTipCard } from '@/lib/rock/habitsCatalog'
+import { habitToTipCard } from '@/lib/rock/habitsCatalog'
 import { zoneCardDomId } from '@/lib/zone/soloFocusReturn'
 import InputField from '@/app/components/InputField'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { clampZoneBentoHeadline, cleanZonePreviewHeadline } from '@/lib/soloFocusCopy'
-import { dedupeFirstWinByJourney } from '@/lib/zone/perCategoryCardCap'
 
 /** Industrial lock: Tips/settings are pink base with yellow items. */
 const ROCK_CARD_BG = 'var(--color-pink)' as const
@@ -38,21 +37,6 @@ function InstagramGlyph({ className }: { className?: string }) {
   )
 }
 
-/** Six slots max — back-fill from catalog only for journeys not already on the rail (one lane per category). */
-function ensureSixRockHabits(habits: RockHabit[]): RockHabit[] {
-  const seenSlug = new Set(habits.map((h) => h.slug))
-  const seenJourney = new Set(habits.map((h) => h.journey_key))
-  const out = [...habits]
-  for (const h of ROCK_HABITS) {
-    if (out.length >= 6) break
-    if (seenSlug.has(h.slug) || seenJourney.has(h.journey_key)) continue
-    seenSlug.add(h.slug)
-    seenJourney.add(h.journey_key)
-    out.push(h)
-  }
-  return dedupeFirstWinByJourney(out).slice(0, 6)
-}
-
 /**
  * The Rock — six saving-tip tiles: same bento shell as Zone (yellow / purple, `bento-card-groovy`).
  * Grid: 1 col mobile / 2 tablet / 3 desktop (matches Zone rhythm below XL).
@@ -64,7 +48,7 @@ export function RockSavingTips({
   onOpenTip,
   architectHeadlineByJourney,
 }: Props) {
-  const six = ensureSixRockHabits(habits)
+  const six = habits.slice(0, 6)
   const [mobile, setMobile] = useState('')
   const [signupBusy, setSignupBusy] = useState(false)
   const [signupMsg, setSignupMsg] = useState<string | null>(null)
