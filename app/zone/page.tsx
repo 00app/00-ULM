@@ -147,6 +147,8 @@ import {
   markAiRouteBlockedFromStatus,
 } from '@/lib/intelligence/aiRouteClientGuard'
 import { waitForProtectedRoutesReady } from '@/lib/client/protectedRouteGate'
+import { saveLikeCardSnapshot, removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
+import { filterRockHabitsAgainstWall } from '@/lib/zone/filterRockHabits'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
   ENGINE_UI_LABELS,
@@ -300,13 +302,35 @@ export default function ZonePage() {
     (id: string, title?: string, moneyGbp?: number) => {
       const tip = viewModel.tips.find((t) => t.id === id)
       const journey = viewModel.journeys.find((j) => j.id === id)
-      const jid = tip?.journey_key ?? journey?.journey_key
+      const jid = (tip?.journey_key ?? journey?.journey_key ?? 'home') as JourneyId
+      const wallTitle = journey?.title ?? ''
+      const zoneTitle = tip
+        ? clampZoneBentoHeadline(zoneCardHeadlineFromRaw(tip.title ?? title ?? '', wallTitle))
+        : clampZoneBentoHeadline(journey?.title ?? title ?? '')
+      const money =
+        tip?.data?.money ??
+        journey?.data?.money ??
+        (moneyGbp != null && moneyGbp > 0 ? `£${Math.round(moneyGbp)}` : '£0')
+      const carbon = tip?.data?.carbon ?? journey?.data?.carbon ?? '0 kg'
+      const willLike = !(state.likedCards ?? []).includes(id)
+      if (willLike) {
+        saveLikeCardSnapshot({
+          id,
+          journey_key: jid,
+          title: zoneTitle,
+          money: String(money),
+          carbon: String(carbon),
+          kind: id.startsWith('rock-') ? 'rock' : tip ? 'tip' : 'journey',
+        })
+      } else {
+        removeLikeCardSnapshot(id)
+      }
       if (jid) bumpCategoryIntent(jid, 'like')
-      toggleLike(id, title, moneyGbp)
+      toggleLike(id, zoneTitle, moneyGbp)
       setCategoryIntentWeights(readCategoryIntentWeights())
       setRefreshKey((k) => k + 1)
     },
-    [toggleLike, viewModel.tips, viewModel.journeys]
+    [toggleLike, viewModel.tips, viewModel.journeys, state.likedCards]
   )
 
   useEffect(() => {
@@ -1524,7 +1548,7 @@ export default function ZonePage() {
 
   /** Content Architect (Gemini): enrich nine category cards — cached per profile + answers + £/kg. */
   useEffect(() => {
-    if (!hydrated) return
+    if (!hydrated || aiRouteBlocked) return
 
     const journeyAnswers: Record<JourneyId, Record<string, string>> = {} as Record<
       JourneyId,
@@ -2067,11 +2091,12 @@ export default function ZonePage() {
 
   const rockHabitsWithOffers = useMemo(() => {
     const capped = capRockHabitsPerJourney(rockVisibleHabits).slice(0, MAX_ROCK_SAVING_TIPS_RAIL)
-    return capped.map((h) => {
+    const deduped = filterRockHabitsAgainstWall(capped, viewModel)
+    return deduped.map((h) => {
       const url = rockOfferByJourney[h.journey_key]
       return url ? { ...h, learn_url: url } : h
     })
-  }, [rockVisibleHabits, rockOfferByJourney])
+  }, [rockVisibleHabits, rockOfferByJourney, viewModel])
 
   const navigateSoloFocusEntry = useCallback(
     (entry: SoloFocusNavEntry) => {

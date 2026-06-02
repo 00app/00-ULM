@@ -4,6 +4,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { UNIFIED_PROFILE_MEMORY_EVENT, persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { guardLegacyDemoIdentityOnClient } from '@/lib/zone/garyMode'
+import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
+import { removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 
 /** Age persona for tips: Junior | Adult (MID) | Retired */
@@ -269,16 +271,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [userId])
 
   const toggleLike = useCallback((cardId: string, cardTitle?: string, savings?: number) => {
+    let wasLiked = false
     setLikedCards((prev) => {
-      const next = prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId]
-      fetch('/api/likes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ card_id: cardId, card_title: cardTitle, savings: savings }),
-      }).catch(() => {})
-      return next
+      wasLiked = prev.includes(cardId)
+      return wasLiked ? prev.filter((id) => id !== cardId) : [...prev, cardId]
     })
+
+    void (async () => {
+      await ensureProfileSession()
+      try {
+        const res = await fetch('/api/likes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ card_id: cardId, card_title: cardTitle, savings }),
+        })
+        if (!res.ok) {
+          setLikedCards((prev) =>
+            wasLiked
+              ? prev.includes(cardId)
+                ? prev
+                : [...prev, cardId]
+              : prev.filter((id) => id !== cardId)
+          )
+          return
+        }
+        const data = (await res.json().catch(() => ({}))) as { liked?: boolean }
+        if (data.liked === false) removeLikeCardSnapshot(cardId)
+      } catch {
+        setLikedCards((prev) =>
+          wasLiked
+            ? prev.includes(cardId)
+              ? prev
+              : [...prev, cardId]
+            : prev.filter((id) => id !== cardId)
+        )
+      }
+    })()
   }, [])
 
   const setUserId = useCallback((id: string | null) => {

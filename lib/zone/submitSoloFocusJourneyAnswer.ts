@@ -8,6 +8,8 @@ import {
   persistTier2AnswerLocal,
   runTier2MotherChildSwap,
 } from '@/lib/zone/tier2RecursiveSpawner'
+import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
+import { markAiRouteBlockedFromStatus } from '@/lib/intelligence/aiRouteClientGuard'
 
 export type SoloFocusJourneyAnswerResult = {
   ok: boolean
@@ -68,6 +70,7 @@ export async function submitSoloFocusJourneyAnswer(opts: {
   let apiOk = false
 
   try {
+    await ensureProfileSession()
     const res = await fetch('/api/answers', {
       method: 'POST',
       credentials: 'include',
@@ -81,6 +84,9 @@ export async function submitSoloFocusJourneyAnswer(opts: {
         solo_focus: true,
       }),
     })
+    if (res.status === 401 || res.status === 429) {
+      markAiRouteBlockedFromStatus(res.status)
+    }
     if (res.ok) {
       apiOk = true
       const data = (await res.json()) as Record<string, unknown>

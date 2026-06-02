@@ -8,6 +8,7 @@ import {
   isAiRouteBlockedClient,
   markAiRouteBlockedFromStatus,
 } from '@/lib/intelligence/aiRouteClientGuard'
+import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
 
 export const SESSION_BOOTSTRAP_EVENT = 'zz-session-bootstrap'
 
@@ -39,7 +40,10 @@ export function ensureSessionBootstrap(): Promise<SessionBootstrapResult> {
   }
 
   if (!bootstrapPromise) {
-    bootstrapPromise = fetch('/api/session-state', { credentials: 'include', cache: 'no-store' })
+    bootstrapPromise = ensureProfileSession()
+      .then(() =>
+        fetch('/api/session-state', { credentials: 'include', cache: 'no-store' })
+      )
       .then((res) => {
         const sessionReady = res.ok
         if (sessionReady) {

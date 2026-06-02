@@ -24,6 +24,7 @@ import {
   CheckOutlineIcon,
   HeartOutlineIcon,
 } from '@/app/components/ui/MonoStrokeIcons'
+import { readLikeCardSnapshot, removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
 
 const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
 
@@ -85,6 +86,7 @@ export default function LikesPage() {
 
   const handleUnlike = (id: string) => {
     toggleLike(id)
+    removeLikeCardSnapshot(id)
     if (id.startsWith('zai-like-')) removeZaiLike(id)
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([12, 60, 12])
     fetch('/api/likes', {
@@ -202,16 +204,23 @@ export default function LikesPage() {
           })}
           {likedCards.map((card) => {
             const journeyKey = card.journey_key
+            const snap = readLikeCardSnapshot(card.id)
             const bg = getJourneyColorHex(journeyKey)
             const textColor = YELLOW_JOURNEY_IDS.includes(journeyKey) ? 'var(--color-purple)' : 'var(--color-yellow)'
-            const gbp = parseMoneyGbpFromDisplay(String(card.data?.money ?? '0'))
-            const kg = parseCarbonKgFromDisplay(String(card.data?.carbon ?? '0'))
+            const gbp = parseMoneyGbpFromDisplay(snap?.money ?? String(card.data?.money ?? '0'))
+            const kg = parseCarbonKgFromDisplay(snap?.carbon ?? String(card.data?.carbon ?? '0'))
             const isActioned = actionedIds.has(card.id)
-            const offerUrl = 'actions' in card && card.actions ? (card.actions as any).actionUrl ?? (card.actions as any).learnUrl : undefined
+            const offerUrl =
+              snap?.offerUrl ??
+              ('actions' in card && card.actions
+                ? (card.actions as { actionUrl?: string; learnUrl?: string }).actionUrl ??
+                  (card.actions as { learnUrl?: string }).learnUrl
+                : undefined)
+            const headline = snap?.title?.trim() || card.title
             return (
               <article
                 key={card.id}
-                className="bento-card-groovy zz-family-bloom"
+                className="bento-card-groovy zz-family-bloom zone-bento-card"
                 style={{
                   width: '100%',
                   borderRadius: 60,
@@ -229,8 +238,8 @@ export default function LikesPage() {
                     {journeyKey === 'transport' ? 'TRAVEL' : (journeyKey || 'CARD').replace(/-/g, ' ').toUpperCase()}
                   </span>
                 </div>
-                <h3 className="card-headline m-0 min-w-0" style={{ color: textColor }}>
-                  {card.title}
+                <h3 className="card-headline m-0 min-w-0 zone-bento-headline" style={{ color: textColor }}>
+                  {headline}
                 </h3>
                 <div className="card-impact-grid grid grid-cols-2 gap-x-4 gap-y-0" style={{ color: textColor }}>
                   <div className="data-stack data-stack--tight">

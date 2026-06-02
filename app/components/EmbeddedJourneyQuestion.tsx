@@ -434,6 +434,8 @@ export function EmbeddedJourneyQuestion({
         : ''
     const researchUserId =
       typeof window !== 'undefined' ? ensureClientResearchUserId(profilePostcode) : null
+    const { ensureProfileSession } = await import('@/lib/client/ensureProfileSession')
+    await ensureProfileSession()
     const postPromise = fetch('/api/answers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
