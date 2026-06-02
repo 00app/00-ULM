@@ -1,0 +1,50 @@
+---
+description: Lint/typecheck verify gate — must pass before commit or deploy (00-ulm)
+alwaysApply: true
+---
+
+# Verify & deploy gate
+
+## Before commit or deploy
+
+From repo root:
+
+```bash
+npm run verify
+```
+
+Must exit **0**. Do not commit, push, or `npm run deploy` on failure.
+
+Equivalent CI gate: GitHub Actions jobs **Lint** + **Typecheck** (`.github/workflows/vercel-production-gate.yml`).
+
+## What runs
+
+| Step | Entry | Scope |
+| --- | --- | --- |
+| **typecheck** | `scripts/vercel-check.mjs typecheck` → `next typegen` + `tsc -p tsconfig.typecheck.json` | `app/`, `lib/`, `proxy.ts`, `instrumentation.ts` |
+| **lint** | `scripts/vercel-check.mjs lint` → explicit `eslint` binary | same paths |
+
+**Never** add `eslint` to `next.config.js` (Next 16 removed it — Vercel native Lint crashes). **Never** use deprecated `next lint`.
+
+`typescript.ignoreBuildErrors` in `next.config.js` is for `next build` only — real checks run in `vercel-build-gate`, not inside webpack.
+
+## Vercel pipeline
+
+| File | Role |
+| --- | --- |
+| `vercel.json` `buildCommand` | `node scripts/vercel-build-gate.mjs` — serial verify then `build-with-manifest-fix.js` |
+| `scripts/vercel-check.mjs` | Strips `NODE_OPTIONS` during lint/tsc (avoids flaky 8GB runners) |
+| `.npmrc` | `include=dev` — `npm ci` must install eslint + `@types/*` |
+| `npm run deploy` | Local verify → `vercel deploy --prod` → promote → health |
+
+## Dashboard “Checks Failed” with green Build Logs
+
+Often **native** Vercel Lint/Typecheck (*internal error*), not code. Fix in Vercel → **Deployment Checks**: disable native Lint/Typecheck; require GitHub Actions **Lint** + **Typecheck**. Staged but green: `npm run promote`. Full guide: `docs/DEPLOY-VERCEL.md`.
+
+## Agent discipline
+
+After editing `app/**`, `lib/**`, `proxy.ts`, or `instrumentation.ts`:
+
+1. Run `npm run verify`.
+2. Fix all errors in the diff — do not widen `ignoreBuildErrors`, disable ESLint rules, or skip hooks to “get green”.
+3. Only then commit or deploy.
