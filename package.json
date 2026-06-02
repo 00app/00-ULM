@@ -15,6 +15,8 @@
     "ultimate": "node scripts/npm-sandbox-clean.cjs install && node scripts/ensure-dev-manifests.js && node scripts/build-with-manifest-fix.js",
     "ultimate:dev": "node scripts/ultimate-dev.js",
     "build": "npm run verify && node scripts/build-with-manifest-fix.js",
+    "build:vercel": "npm run typecheck && npm run lint && node scripts/build-with-manifest-fix.js",
+    "build:vercel:lean": "node scripts/build-with-manifest-fix.js",
     "build:clean": "rm -rf .next && BUILD_CLEAN=0 node scripts/build-with-manifest-fix.js",
     "build:all": "rm -rf .next && node scripts/npm-sandbox-clean.cjs install && node scripts/build-with-manifest-fix.js",
     "build:next": "node node_modules/.bin/next build",

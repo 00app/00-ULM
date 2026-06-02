@@ -1,5 +1,9 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": ".next/cache/tsconfig.typecheck.tsbuildinfo"
+  },
   "include": [
     "next-env.d.ts",
     "app/**/*.ts",

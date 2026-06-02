@@ -41,7 +41,13 @@ function runTypecheck() {
     ? run(process.execPath, [nextBin, 'typegen'])
     : run('npm', ['exec', '--', 'next', 'typegen'])
   if (typegenCode !== 0) return typegenCode
-  return run(process.execPath, [tscBin, '--noEmit', '-p', path.join(root, 'tsconfig.typecheck.json')])
+  return run(process.execPath, [
+    tscBin,
+    '--noEmit',
+    '--incremental',
+    '-p',
+    path.join(root, 'tsconfig.typecheck.json'),
+  ])
 }
 
 const installCode = ensureDeps()
