@@ -15,6 +15,19 @@ export function getWallMotherJourneyKeys(viewModel: ZoneViewModel): Set<JourneyI
   return keys
 }
 
+function getBlockedWallHeadlineKeys(viewModel: ZoneViewModel): Set<string> {
+  const blocked = new Set<string>()
+  for (const j of viewModel.journeys) {
+    const key = normalizeCardHeadlineKey(j.title ?? '')
+    if (key) blocked.add(key)
+  }
+  for (const t of viewModel.tips) {
+    const key = normalizeCardHeadlineKey(t.title ?? '')
+    if (key) blocked.add(key)
+  }
+  return blocked
+}
+
 type FilterRockOpts = {
   /** When true (default), drop habits whose journey_key matches a journey- mother tile. */
   excludeWallJourneyKeys?: boolean
@@ -28,15 +41,7 @@ export function filterRockHabitsAgainstWall(
 ): RockHabit[] {
   const excludeWallJourneyKeys = opts.excludeWallJourneyKeys !== false
   const wallJourneys = getWallMotherJourneyKeys(viewModel)
-  const blocked = new Set<string>()
-  for (const j of viewModel.journeys) {
-    const key = normalizeCardHeadlineKey(j.title ?? '')
-    if (key) blocked.add(key)
-  }
-  for (const t of viewModel.tips) {
-    const key = normalizeCardHeadlineKey(t.title ?? '')
-    if (key) blocked.add(key)
-  }
+  const blocked = getBlockedWallHeadlineKeys(viewModel)
 
   const seenRock = new Set<string>()
   const seenOfferByJourney = new Set<string>()
@@ -56,8 +61,8 @@ export function filterRockHabitsAgainstWall(
 }
 
 /**
- * Today's Tips rail — complementary to journey mother tiles: no shared journey_key with the wall,
- * one habit per journey, fill up to `limit` from catalog off-wall habits only.
+ * Today's Tips rail — prefer off-wall journeys; then catalog habits whose titles differ from wall hooks.
+ * One habit per journey_key; up to `limit` slots (RockSavingTips shows six).
  */
 export function prepareRockHabitsForRail(
   rotationHabits: RockHabit[],
@@ -65,43 +70,41 @@ export function prepareRockHabitsForRail(
   limit: number
 ): RockHabit[] {
   const wallJourneys = getWallMotherJourneyKeys(viewModel)
-  const offWallRotation = rotationHabits.filter((h) => !wallJourneys.has(h.journey_key))
-  const out = filterRockHabitsAgainstWall(
-    dedupeFirstWinByJourney(capRockHabitsPerJourney(offWallRotation, 1)),
-    viewModel,
-    { excludeWallJourneyKeys: true }
-  )
+  const blockedHeadlines = getBlockedWallHeadlineKeys(viewModel)
+  const out: RockHabit[] = []
+  const seenSlug = new Set<string>()
+  const seenJourney = new Set<string>()
 
-  const seenSlug = new Set(out.map((h) => h.slug))
-  const seenJourney = new Set(out.map((h) => h.journey_key))
-  for (const h of ROCK_HABITS) {
-    if (out.length >= limit) break
-    if (wallJourneys.has(h.journey_key)) continue
-    if (seenSlug.has(h.slug) || seenJourney.has(h.journey_key)) continue
+  const tryAdd = (h: RockHabit, requireOffWall: boolean) => {
+    if (out.length >= limit) return
+    if (seenSlug.has(h.slug) || seenJourney.has(h.journey_key)) return
+    if (requireOffWall && wallJourneys.has(h.journey_key)) return
+    const headlineKey = normalizeCardHeadlineKey(h.title)
+    if (!headlineKey || blockedHeadlines.has(headlineKey)) return
     seenSlug.add(h.slug)
     seenJourney.add(h.journey_key)
     out.push(h)
   }
 
-  // Full bento has all 13 journey mothers — off-wall catalog is empty; fill rail from rotation (headline dedupe only).
+  const offWallRotation = rotationHabits.filter((h) => !wallJourneys.has(h.journey_key))
+  for (const h of dedupeFirstWinByJourney(capRockHabitsPerJourney(offWallRotation, 1))) {
+    tryAdd(h, true)
+  }
+
+  for (const h of ROCK_HABITS) {
+    if (out.length >= limit) break
+    tryAdd(h, true)
+  }
+
   if (out.length < limit) {
     const pool = dedupeFirstWinByJourney(
-      capRockHabitsPerJourney(
-        [...rotationHabits, ...ROCK_HABITS.filter((h) => !seenSlug.has(h.slug))],
-        1
-      )
+      capRockHabitsPerJourney([...rotationHabits, ...ROCK_HABITS.filter((h) => !seenSlug.has(h.slug))], 1)
     )
-    const fallback = filterRockHabitsAgainstWall(pool, viewModel, {
-      excludeWallJourneyKeys: false,
-    })
-    for (const h of fallback) {
+    for (const h of pool) {
       if (out.length >= limit) break
-      if (seenSlug.has(h.slug) || seenJourney.has(h.journey_key)) continue
-      seenSlug.add(h.slug)
-      seenJourney.add(h.journey_key)
-      out.push(h)
+      tryAdd(h, false)
     }
   }
 
-  return dedupeFirstWinByJourney(out).slice(0, limit)
+  return out.slice(0, limit)
 }

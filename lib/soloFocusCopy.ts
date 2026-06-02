@@ -1083,6 +1083,14 @@ export function clampZoneBentoHeadline(text: string, journeyId?: JourneyId | str
   return enforceHeadlineWordLimits(source, false, jid)
 }
 
+/** Rock / Today's Tips — catalog habit titles (3–10 words); never substitute journey wall hooks. */
+export function clampRockTipHeadline(title: string): string {
+  const raw = (cleanZonePreviewHeadline(title) || title).trim()
+  if (!raw) return title.trim()
+  const trimmed = trimHeadlineToMaxWords(raw, MAX_ZONE_CARD_HEADLINE_WORDS, 2)
+  return ensureHeadlineSentenceEnd(trimmed)
+}
+
 /** Expanded Solo Focus hook when DB title is thin or off-topic (~20 words each). */
 const EXPANDED_JOURNEY_HOOK: Partial<Record<JourneyId, string>> = {
   travel:

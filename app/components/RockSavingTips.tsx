@@ -9,7 +9,7 @@ import InputField from '@/app/components/InputField'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
-import { clampZoneBentoHeadline, cleanZonePreviewHeadline } from '@/lib/soloFocusCopy'
+import { clampRockTipHeadline } from '@/lib/soloFocusCopy'
 
 /** Industrial lock: Tips/settings are pink base with yellow items. */
 const ROCK_CARD_BG = 'var(--color-pink)' as const
@@ -115,12 +115,7 @@ export function RockSavingTips({
           const tipBg = visited ? ROCK_CARD_BG : 'var(--color-purple)'
           const tipInk = 'var(--color-yellow)' as const
           const jid = h.journey_key
-          void architectHeadlineByJourney
-          /* Rock habits keep their own stamp — never mirror the journey wall architect line. */
-          const tipHeadline = clampZoneBentoHeadline(
-            cleanZonePreviewHeadline(h.title) || h.title,
-            jid ?? 'carbon'
-          )
+          const tipHeadline = clampRockTipHeadline(h.title)
           const gbp = parseMoneyGbpFromDisplay(String(tip.data.money ?? '0'))
           const kg = parseCarbonKgFromDisplay(String(tip.data.carbon ?? '0'))
 
