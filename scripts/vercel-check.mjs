@@ -16,10 +16,20 @@ if (mode !== 'lint' && mode !== 'typecheck') {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
+/** Lint/tsc must not inherit build heap flags (vercel.json NODE_OPTIONS) — avoids flaky checks on 8GB runners. */
+function verifyEnv() {
+  const env = { ...process.env }
+  delete env.NODE_OPTIONS
+  return env
+}
+
 function run(cmd, args, opts = {}) {
-  const r = spawnSync(cmd, args, { stdio: 'inherit', cwd: root, env: process.env, ...opts })
+  const env = opts.env ?? verifyEnv()
+  const r = spawnSync(cmd, args, { stdio: 'inherit', cwd: root, env, ...opts })
   return r.status ?? 1
 }
+
+const ESLINT_PATHS = ['app', 'lib', 'proxy.ts', 'instrumentation.ts']
 
 function ensureDeps() {
   const eslintBin = path.join(root, 'node_modules', 'eslint', 'bin', 'eslint.js')
@@ -37,8 +47,8 @@ function ensureDeps() {
 
 function runLint() {
   const eslintBin = path.join(root, 'node_modules', 'eslint', 'bin', 'eslint.js')
-  const code = run(process.execPath, [eslintBin, 'app', 'lib'])
-  if (code === 0) console.log('✓ eslint: app lib')
+  const code = run(process.execPath, [eslintBin, ...ESLINT_PATHS])
+  if (code === 0) console.log(`✓ eslint: ${ESLINT_PATHS.join(' ')}`)
   return code
 }
 

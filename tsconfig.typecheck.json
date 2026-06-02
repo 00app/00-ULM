@@ -6,6 +6,8 @@
   },
   "include": [
     "next-env.d.ts",
+    "proxy.ts",
+    "instrumentation.ts",
     "app/**/*.ts",
     "app/**/*.tsx",
     "lib/**/*.ts",

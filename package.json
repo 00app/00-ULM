@@ -14,7 +14,7 @@
     "run": "rm -rf .next node_modules/.cache && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node scripts/ensure-dev-manifests.js && WATCHPACK_POLLING=1 CHOKIDAR_USEPOLLING=true node node_modules/.bin/next dev --webpack -p 3030 -H 0.0.0.0",
     "ultimate": "node scripts/npm-sandbox-clean.cjs install && node scripts/ensure-dev-manifests.js && node scripts/build-with-manifest-fix.js",
     "ultimate:dev": "node scripts/ultimate-dev.js",
-    "build": "npm run verify && node scripts/build-with-manifest-fix.js",
+    "build": "node scripts/vercel-build-gate.mjs",
     "build:vercel": "node scripts/vercel-build-gate.mjs",
     "build:vercel:lean": "node scripts/build-with-manifest-fix.js",
     "build:clean": "rm -rf .next && BUILD_CLEAN=0 node scripts/build-with-manifest-fix.js",

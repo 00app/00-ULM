@@ -17,14 +17,11 @@ function run(cmd, args, env = process.env) {
   if (code !== 0) process.exit(code)
 }
 
-const verifyEnv = { ...process.env }
-delete verifyEnv.NODE_OPTIONS
-
 console.log('→ vercel-build-gate: typecheck')
-run(process.execPath, [vercelCheck, 'typecheck'], verifyEnv)
+run(process.execPath, [vercelCheck, 'typecheck'])
 
 console.log('→ vercel-build-gate: lint')
-run(process.execPath, [vercelCheck, 'lint'], verifyEnv)
+run(process.execPath, [vercelCheck, 'lint'])
 
 console.log('✓ verify passed — starting production build')
 run(process.execPath, [buildScript], process.env)
