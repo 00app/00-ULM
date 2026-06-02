@@ -122,6 +122,7 @@ nextjs-portal > * {
   /* Profile answer selected + liked circle CTAs */
   --brand-select-bg: var(--color-purple);
   --brand-select-fg: var(--color-yellow);
+  --brand-select-color: var(--brand-select-bg);
   --color-intro-type: var(--color-yellow);
 
   /* Ask Zai + deep-dive — ULM yellow field, ULM dark ink (mechanical-pulse / postcode-first) */

@@ -87,6 +87,21 @@ export function dedupeFirstWinByJourney<T extends { journey_key: JourneyId }>(it
   return out
 }
 
+/** Tips with `category` and/or `journey_key` — one row per lane (first wins). */
+export function dedupeFirstWinByCategory<
+  T extends { category?: JourneyId; journey_key?: JourneyId },
+>(items: T[]): T[] {
+  const seen = new Set<JourneyId>()
+  const out: T[] = []
+  for (const item of items) {
+    const key = (item.journey_key ?? item.category) as JourneyId | undefined
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    out.push(item)
+  }
+  return out
+}
+
 export function capRockHabitsPerJourney<T extends { journey_key: JourneyId }>(
   habits: T[],
   maxPerJourney: number = MAX_SAVING_TIPS_PER_JOURNEY

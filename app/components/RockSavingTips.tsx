@@ -10,6 +10,7 @@ import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { clampZoneBentoHeadline, cleanZonePreviewHeadline } from '@/lib/soloFocusCopy'
+import { dedupeFirstWinByJourney } from '@/lib/zone/perCategoryCardCap'
 
 /** Industrial lock: Tips/settings are pink base with yellow items. */
 const ROCK_CARD_BG = 'var(--color-pink)' as const
@@ -37,18 +38,19 @@ function InstagramGlyph({ className }: { className?: string }) {
   )
 }
 
-/** Always six slots — back-fill from catalog if rotation returns fewer. */
+/** Six slots max — back-fill from catalog only for journeys not already on the rail (one lane per category). */
 function ensureSixRockHabits(habits: RockHabit[]): RockHabit[] {
-  const seen = new Set(habits.map((h) => h.slug))
+  const seenSlug = new Set(habits.map((h) => h.slug))
+  const seenJourney = new Set(habits.map((h) => h.journey_key))
   const out = [...habits]
   for (const h of ROCK_HABITS) {
     if (out.length >= 6) break
-    if (!seen.has(h.slug)) {
-      seen.add(h.slug)
-      out.push(h)
-    }
+    if (seenSlug.has(h.slug) || seenJourney.has(h.journey_key)) continue
+    seenSlug.add(h.slug)
+    seenJourney.add(h.journey_key)
+    out.push(h)
   }
-  return out.slice(0, 6)
+  return dedupeFirstWinByJourney(out).slice(0, 6)
 }
 
 /**
