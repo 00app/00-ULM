@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from 'react'
+import { useRouter } from 'next/navigation'
 import ZoneModalCloseLink from '@/app/components/ZoneModalCloseLink'
 import ZaiComposerDock from '@/app/components/ZaiComposerDock'
 import ZaiSuggestPills from '@/app/components/ZaiSuggestPills'
@@ -125,6 +126,7 @@ function syncZaiLikeStorage(meta: ZaiChatMeta, liked: boolean): void {
 }
 
 export default function ZaiPage() {
+  const router = useRouter()
   const reduceMotion = useHydrationSafeReducedMotion()
   const { state, toggleLike } = useApp()
   const pageEnter = familyPageEnterProps(reduceMotion)
@@ -321,8 +323,9 @@ export default function ZaiPage() {
       const liked = state.likedCards.includes(meta.likeId)
       toggleLike(meta.likeId, meta.likeTitle, meta.savingsGbp)
       syncZaiLikeStorage(meta, !liked)
+      if (!liked) router.push('/likes')
     },
-    [state.likedCards, toggleLike]
+    [state.likedCards, toggleLike, router]
   )
 
   return (
@@ -427,10 +430,10 @@ export default function ZaiPage() {
                             borderRadius: '50%',
                             border: 'none',
                             backgroundColor: state.likedCards.includes(msg.meta.likeId)
-                              ? 'var(--color-yellow)'
+                              ? 'var(--brand-select-bg)'
                               : 'var(--color-pink)',
                             color: state.likedCards.includes(msg.meta.likeId)
-                              ? 'var(--color-purple)'
+                              ? 'var(--brand-select-fg)'
                               : 'var(--color-yellow)',
                           }}
                         >

@@ -75,13 +75,27 @@ export function capCategoryWallTips(tips: ZoneTipCard[]): ZoneTipCard[] {
   return capTipsPerJourney(tips.filter(isCategoryWallTip), MAX_DISCOVERY_TIPS_PER_JOURNEY_ON_GRID)
 }
 
+/** First-win per journey lane — strips duplicate category rows before render. */
+export function dedupeFirstWinByJourney<T extends { journey_key: JourneyId }>(items: T[]): T[] {
+  const seen = new Set<JourneyId>()
+  const out: T[] = []
+  for (const item of items) {
+    if (seen.has(item.journey_key)) continue
+    seen.add(item.journey_key)
+    out.push(item)
+  }
+  return out
+}
+
 export function capRockHabitsPerJourney<T extends { journey_key: JourneyId }>(
-  habits: T[]
+  habits: T[],
+  maxPerJourney: number = MAX_SAVING_TIPS_PER_JOURNEY
 ): T[] {
+  const cap = Math.max(1, maxPerJourney)
   const byJourney = new Map<JourneyId, T[]>()
   for (const h of habits) {
     const bucket = byJourney.get(h.journey_key) ?? []
-    if (bucket.length < MAX_SAVING_TIPS_PER_JOURNEY) {
+    if (bucket.length < cap) {
       bucket.push(h)
       byJourney.set(h.journey_key, bucket)
     }

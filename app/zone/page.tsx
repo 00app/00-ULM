@@ -130,6 +130,7 @@ import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import {
   capDiscoveryTipsForGrid,
   capRockHabitsPerJourney,
+  dedupeFirstWinByJourney,
   capTipsPerJourney,
   isUserDiscoveryInjectTip,
   journeyKeyFromTip,
@@ -329,8 +330,9 @@ export default function ZonePage() {
       toggleLike(id, zoneTitle, moneyGbp)
       setCategoryIntentWeights(readCategoryIntentWeights())
       setRefreshKey((k) => k + 1)
+      if (willLike) router.push('/likes')
     },
-    [toggleLike, viewModel.tips, viewModel.journeys, state.likedCards]
+    [toggleLike, viewModel.tips, viewModel.journeys, state.likedCards, router]
   )
 
   useEffect(() => {
@@ -1772,7 +1774,7 @@ export default function ZonePage() {
     return {
       achievementTips: achievements,
       discoveryTips: capDiscoveryTipsForGrid(discovery),
-      baselineTips: dedupeZoneTipCards(baseline),
+      baselineTips: dedupeFirstWinByJourney(dedupeZoneTipCards(baseline)),
     }
   }, [pinnedAchievements, effectiveInjectedTips, viewModel.tips])
 
@@ -2090,7 +2092,9 @@ export default function ZonePage() {
   }, [viewModel.journeys, viewModel.tips])
 
   const rockHabitsWithOffers = useMemo(() => {
-    const capped = capRockHabitsPerJourney(rockVisibleHabits).slice(0, MAX_ROCK_SAVING_TIPS_RAIL)
+    const capped = dedupeFirstWinByJourney(
+      capRockHabitsPerJourney(rockVisibleHabits, 1)
+    ).slice(0, MAX_ROCK_SAVING_TIPS_RAIL)
     const deduped = filterRockHabitsAgainstWall(capped, viewModel)
     return deduped.map((h) => {
       const url = rockOfferByJourney[h.journey_key]

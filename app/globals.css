@@ -119,6 +119,9 @@ nextjs-portal > * {
   --color-yellow: #FFD700;
   --color-purple: #7800ce;
   --color-pink: #FF00FF;
+  /* Profile answer selected + liked circle CTAs */
+  --brand-select-bg: var(--color-purple);
+  --brand-select-fg: var(--color-yellow);
   --color-intro-type: var(--color-yellow);
 
   /* Ask Zai + deep-dive — ULM yellow field, ULM dark ink (mechanical-pulse / postcode-first) */

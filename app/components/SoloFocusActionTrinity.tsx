@@ -61,8 +61,8 @@ export function SoloFocusActionTrinity({
           transition={INDUSTRIAL_OPACITY_SNAP}
           aria-label="Like"
           style={{
-            backgroundColor: isLiked ? 'var(--color-yellow)' : 'var(--color-pink)',
-            color: isLiked ? 'var(--color-purple)' : 'var(--color-yellow)',
+            backgroundColor: isLiked ? 'var(--brand-select-bg)' : 'var(--color-pink)',
+            color: isLiked ? 'var(--brand-select-fg)' : 'var(--color-yellow)',
           }}
         >
           <HeartOutlineIcon size={22} />
