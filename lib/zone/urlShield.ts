@@ -3,6 +3,7 @@
  */
 
 import { isHttpsUrl, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
+import { isKnownDeadOfferUrl } from '@/lib/zone/offerUrlGuard'
 import type { JourneyId } from '@/lib/journeys'
 
 const GENERIC_PATH_RE =
@@ -41,6 +42,7 @@ export function shieldOfferUrl(
 ): string {
   const fallback = trustedUrlForJourney(journeyKey)
   const candidate = typeof raw === 'string' ? raw.trim() : ''
+  if (isKnownDeadOfferUrl(candidate)) return fallback
   if (isDeepLinkedUkOfferUrl(candidate)) return candidate
   return fallback
 }

@@ -156,6 +156,12 @@ export function DiscoveryTakeover({
         questionId: beat.questionId,
         answer: answerValue,
       })
+      const { ensureProfileSession } = await import('@/lib/client/ensureProfileSession')
+      await ensureProfileSession()
+      const storedUserId = (typeof window !== 'undefined'
+        ? (localStorage.getItem('userId') ?? localStorage.getItem('user_id') ?? '')
+        : ''
+      ).trim()
       const rec = getDiscoveryRecommendation(journeyId, beat.questionId, answerValue)
       const fallbackTitle = headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
       const fallbackUrl = rec.actionUrl ?? rec.learnUrl ?? rec.ctaUrl ?? null
@@ -170,6 +176,7 @@ export function DiscoveryTakeover({
           answer_value: answerValue,
           postcode: pc || undefined,
           lifestyle_mode: 'lifestyle_shift',
+          ...(storedUserId ? { user_id: storedUserId } : {}),
         }),
       }).catch(() => {})
 

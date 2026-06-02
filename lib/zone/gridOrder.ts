@@ -13,6 +13,7 @@ import {
 import { MAX_ZONE_BENTO_CELLS } from '@/lib/zone/ulmLimits'
 import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
 import { normalizeCardHeadlineKey, resolveZoneGridTipHeadline } from '@/lib/soloFocusCopy'
+import { uniquifyZoneTipOfferUrl } from '@/lib/zone/zoneOfferUrl'
 
 export type GroovyGridCell =
   | { type: 'hero'; hero: ZoneViewModel['hero'] }
@@ -94,6 +95,9 @@ export function buildGroovyGridItems(args: {
 
   const items: GroovyGridCell[] = [{ type: 'hero', hero: args.viewModel.hero }]
 
+  /** One distinct BUY URL per journey on the wall (no duplicate National Rail tiles). */
+  const seenOfferUrlsByJourney = new Map<JourneyId, Set<string>>()
+
   /** Track how many cells (journey + tips) have been placed per category. */
   const categoryCardCount = new Map<JourneyId, number>()
 
@@ -131,7 +135,10 @@ export function buildGroovyGridItems(args: {
       if (headlineKey && seenHeadlineKeys.has(headlineKey)) continue
       if (headlineKey) seenHeadlineKeys.add(headlineKey)
       if (!incrementCategory(jid)) break
-      items.push({ type: 'tip', tip: gridTip })
+      items.push({
+        type: 'tip',
+        tip: uniquifyZoneTipOfferUrl(gridTip, seenOfferUrlsByJourney),
+      })
     }
     const nestedBaseline = sortTipsWithinJourney(baselineByJourney.get(jid) ?? [], args.profileGoal)
     for (const tip of nestedBaseline) {
@@ -141,7 +148,10 @@ export function buildGroovyGridItems(args: {
       if (headlineKey && seenHeadlineKeys.has(headlineKey)) continue
       if (headlineKey) seenHeadlineKeys.add(headlineKey)
       if (!incrementCategory(jid)) break
-      items.push({ type: 'tip', tip: gridTip })
+      items.push({
+        type: 'tip',
+        tip: uniquifyZoneTipOfferUrl(gridTip, seenOfferUrlsByJourney),
+      })
     }
   })
 

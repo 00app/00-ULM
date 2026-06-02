@@ -305,14 +305,14 @@ Full spec: annex [Hybrid data pipeline](#annex-hybrid-data-pipeline-cost-tiers).
 | Journey | URL |
 |---------|-----|
 | home | `https://www.energysavingtrust.org.uk/advice/reducing-home-heat-loss/` |
-| utilities | `https://www.moneysavingexpert.com/utilities/how-to-switch-gas-electricity/` |
+| utilities | `https://www.moneysavingexpert.com/cheapenergyclub/` |
 | grants | `https://www.gov.uk/apply-boiler-upgrade-scheme` |
 | solar | `https://mcscertified.com/find-an-installer/` |
 | travel | `https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/` |
 | holidays | `https://www.eurostar.com/uk-en/deals` |
 | food | `https://www.lovefoodhatewaste.com` |
 | shopping | `https://wrap.org.uk/taking-action/food-waste` |
-| money | `https://www.moneysavingexpert.com/utilities/how-to-switch-gas-electricity/` |
+| money | `https://www.moneysavingexpert.com/banking/` |
 | tech | `https://www.backmarket.co.uk` |
 | water | `https://www.waterwise.org.uk/save-water/` |
 | waste | `https://www.recyclenow.com` |
@@ -324,13 +324,13 @@ Default if unknown: `https://www.gov.uk/`
 
 | Journey | HTTPS seeds (deduped; max 4 surgical / 8 full) |
 |---------|--------------------------------------------------|
-| **utilities** | moneysavingexpert.com/utilities/how-to-switch-gas-electricity · ofgem.gov.uk/energy-advice-households/energy-price-cap · energysavingtrust.org.uk · (+ home_power: BUS or Octopus smart / EST electric heating) |
+| **utilities** | moneysavingexpert.com/cheapenergyclub · ofgem.gov.uk/energy-advice-households/energy-price-cap · energysavingtrust.org.uk · (+ home_power: BUS or Octopus smart / EST electric heating) |
 | **home** | gov.uk/apply-boiler-upgrade-scheme · energysavingtrust.org.uk · which.co.uk/money/saving-energy |
 | **grants** | gov.uk/apply-boiler-upgrade-scheme · gov.uk/energy-company-obligation · energysavingtrust.org.uk/advice/grants-and-loans |
 | **travel** | nationalrail.co.uk/railcards · thetrainline.com · gov.uk/guidance/rail-fares-and-season-tickets |
-| **holidays** | eurostar.com/uk-en · visitbritain.com · nationalrail.co.uk |
+| **holidays** | eurostar.com/uk-en · visitbritain.com · thetrainline.com |
 | **food** | lovefoodhatewaste.com · which.co.uk/reviews/food-and-drink |
-| **money** | moneysavingexpert.com/utilities · gov.uk/apply-warm-home-discount-scheme |
+| **money** | moneysavingexpert.com/banking · gov.uk/apply-warm-home-discount-scheme |
 | **shopping** | which.co.uk/money/shopping |
 | **tech** | backmarket.co.uk/en-gb |
 | **waste** | gov.uk/recycling-collections |

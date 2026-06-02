@@ -39,6 +39,7 @@ await fetch(`/api/pulse/living?postcode=${encodeURIComponent(postcode)}`)
 | **Geometry** | No drop shadows, no text-shadow (`mechanical-pulse.mdc`). Stable, locked containers — no layout thrash. |
 | **Motion** | No ad-hoc fluid/spring experiments. Use **`lib/motion-family.ts`** only (atomic assembly / approved springs). Framer Motion: **numeric** values (`letterSpacing: 0`, not `"normal"`) to avoid runtime warnings. |
 | **Type** | Marvin Visions Bold = headings/data; Roboto Bold = body. Legibility over decoration. |
+| **Offer URLs** | Max **one** BUY/Claim URL per journey on the wall (`dedupeZoneTipCards` + `gridOrder.ts` via `lib/zone/zoneOfferUrl.ts`). Block known 404s in `offerUrlGuard.ts`; trusted fallbacks in `trustedJourneyUrls.ts`. |
 
 ## Zai chat
 

@@ -7,7 +7,9 @@ import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_IDS } from '@/lib/journeys'
 import type { ZoneTipCard } from './buildZoneViewModel'
 import { isHttpsUrl, trustedUrlForJourney } from './trustedJourneyUrls'
+import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { shieldOfferUrl } from '@/lib/zone/urlShield'
+import { offerUrlKeyForCard } from '@/lib/zone/zoneOfferUrl'
 import { clampZoneBentoHeadline, normalizeCardHeadlineKey } from '@/lib/soloFocusCopy'
 
 /** Normalize learn/cta/source to a trusted https URL (call for cards that skip validateInjectionCard). */
@@ -18,10 +20,10 @@ export function ensureInjectionCardUrls(card: ZoneTipCard): void {
   const fromCta = card.cta?.url && isHttpsUrl(card.cta.url) ? card.cta.url.trim() : ''
   const fromSource = card.source && isHttpsUrl(card.source) ? card.source.trim() : ''
   const learnRaw = fromActions || fromCta || fromSource || fallback
-  const learn = shieldOfferUrl(learnRaw, card.journey_key)
+  const learn = shieldOfferUrl(sanitizeZoneOfferUrl(learnRaw, card.journey_key), card.journey_key)
   const actionRaw =
     card.actions?.actionUrl && isHttpsUrl(card.actions.actionUrl) ? card.actions.actionUrl.trim() : learn
-  const actionUrl = shieldOfferUrl(actionRaw, card.journey_key)
+  const actionUrl = shieldOfferUrl(sanitizeZoneOfferUrl(actionRaw, card.journey_key), card.journey_key)
   card.actions = {
     actionType: card.actions?.actionType ?? 'learn',
     learnUrl: learn,
@@ -162,17 +164,22 @@ export function mergeTipsWithInjections(
   return [...defaultTips, ...injections]
 }
 
-/** Drop duplicate ids and normalized headline matches (first card wins). */
+/** Drop duplicate ids, headlines, and identical offer URLs per journey (first card wins). */
 export function dedupeZoneTipCards(cards: ZoneTipCard[]): ZoneTipCard[] {
   const seenIds = new Set<string>()
   const seenTitles = new Set<string>()
+  const seenOfferByJourney = new Set<string>()
   const out: ZoneTipCard[] = []
   for (const card of cards) {
     if (!card?.id || seenIds.has(card.id)) continue
     const titleKey = normalizeCardHeadlineKey(card.title ?? '')
     if (titleKey && seenTitles.has(titleKey)) continue
+    const urlKey = offerUrlKeyForCard(card)
+    const offerCompound = urlKey ? `${card.journey_key}:${urlKey}` : ''
+    if (offerCompound && seenOfferByJourney.has(offerCompound)) continue
     seenIds.add(card.id)
     if (titleKey) seenTitles.add(titleKey)
+    if (offerCompound) seenOfferByJourney.add(offerCompound)
     out.push(card)
   }
   return out

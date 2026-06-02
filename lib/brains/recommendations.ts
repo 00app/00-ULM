@@ -77,10 +77,10 @@ export function getDiscoveryRecommendation(
         headline: 'RAIL SEASON SHIFT',
         body: 'Replacing one long-haul with rail season tickets often saves £1k–£3k and cuts flight carbon in one move.',
         gridJourneyKey: 'travel',
-        learnUrl: 'https://www.nationalrail.co.uk/',
-        actionUrl: 'https://www.nationalrail.co.uk/',
+        learnUrl: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
+        actionUrl: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
         ctaLabel: 'Compare rail',
-        ctaUrl: 'https://www.nationalrail.co.uk/',
+        ctaUrl: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
       }
     }
     return {

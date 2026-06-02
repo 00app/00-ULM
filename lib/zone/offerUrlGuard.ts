@@ -7,7 +7,13 @@ import { trustedUrlForJourney, isHttpsUrl } from '@/lib/zone/trustedJourneyUrls'
 
 /** Paths that 404 or redirect badly — never surface in BUY / source links. */
 const BLOCKED_PATH_RE =
-  /great-british-insulation-scheme|energy-insulation\/the-great|\/404\b/i
+  /great-british-insulation-scheme|energy-insulation\/the-great|\/404\b|moneysavingexpert\.com\/utilities\/how-to-switch|moneysavingexpert\.com\/utilities\/?$/i
+
+export function isKnownDeadOfferUrl(url: string): boolean {
+  const trimmed = typeof url === 'string' ? url.trim() : ''
+  if (!trimmed) return false
+  return BLOCKED_PATH_RE.test(trimmed)
+}
 
 const GENERIC_GOV_HOSTS = new Set(['www.gov.uk', 'gov.uk'])
 
@@ -45,7 +51,7 @@ export function sanitizeZoneOfferUrl(
   const fallback = trustedUrlForJourney(journeyKey)
   const trimmed = typeof raw === 'string' ? raw.trim() : ''
   if (!isHttpsUrl(trimmed)) return fallback
-  if (BLOCKED_PATH_RE.test(trimmed)) return fallback
+  if (isKnownDeadOfferUrl(trimmed)) return fallback
   if (isGenericGovHomepage(trimmed)) return fallback
   if (journeyKey !== 'utilities' && isOfgemPriceCapUrl(trimmed)) return fallback
 
@@ -62,7 +68,7 @@ export function sanitizeZoneOfferUrl(
 
 export function isUsefulOfferHost(url: string): boolean {
   if (!isHttpsUrl(url)) return false
-  if (BLOCKED_PATH_RE.test(url)) return false
+  if (isKnownDeadOfferUrl(url)) return false
   if (isGenericGovHomepage(url)) return false
   const h = hostOf(url)
   if (!h) return false

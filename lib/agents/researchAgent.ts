@@ -241,7 +241,7 @@ export const UK_2026_SEED_URLS = [
   'https://www.gov.uk/energy-company-obligation',
   'https://energysavingtrust.org.uk/',
   'https://www.which.co.uk/money/saving-energy',
-  'https://www.moneysavingexpert.com/utilities/',
+  'https://www.moneysavingexpert.com/cheapenergyclub/',
   'https://octopus.energy/blog/',
   'https://www.consumerreports.org/money/energy/',
 ]

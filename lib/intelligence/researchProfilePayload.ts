@@ -48,7 +48,7 @@ import { normalizeCategoryToJourneyKey } from '@/lib/zone/trustedJourneyUrls'
 
 const JOURNEY_FIRECRAWL_SEEDS: Partial<Record<JourneyId, string[]>> = {
   utilities: [
-    'https://www.moneysavingexpert.com/utilities/how-to-switch-gas-electricity/',
+    'https://www.moneysavingexpert.com/cheapenergyclub/',
     'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap',
     'https://energysavingtrust.org.uk/',
   ],
@@ -70,14 +70,14 @@ const JOURNEY_FIRECRAWL_SEEDS: Partial<Record<JourneyId, string[]>> = {
   holidays: [
     'https://www.eurostar.com/uk-en',
     'https://www.visitbritain.com/',
-    'https://www.nationalrail.co.uk/',
+    'https://www.thetrainline.com/',
   ],
   food: [
     'https://www.lovefoodhatewaste.com/',
     'https://www.which.co.uk/reviews/food-and-drink',
   ],
   money: [
-    'https://www.moneysavingexpert.com/utilities/',
+    'https://www.moneysavingexpert.com/banking/',
     'https://www.gov.uk/apply-warm-home-discount-scheme',
   ],
   shopping: ['https://www.which.co.uk/money/shopping'],
