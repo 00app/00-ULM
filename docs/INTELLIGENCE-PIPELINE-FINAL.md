@@ -14,6 +14,8 @@ Hermes (Oracle VPS + Vercel cron) sits at the repair layer; the **browser onboar
 
 Profile payload for Firecrawl/Gemini: `buildResearchProfilePayload()` — postcode, house number, home type, power, transport, household, employment, goal.
 
+**Per-field grid unlock table:** [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md).
+
 ## 2. Summary exit (`/profile/summary` phase `exit`)
 
 `runProfileResearchHandshake()`:
