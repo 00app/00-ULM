@@ -3,6 +3,7 @@
  */
 
 import type { JourneyId } from '@/lib/journeys'
+import { humanizeZoneProse } from '@/lib/zone/plainEnglishCopy'
 
 const LEAKAGE_PATTERNS: RegExp[] = [
   /\s*\([^)]*(?:official\s+cap\s+pathway|cap\s+pathway|live\s+pathway)[^)]*\)/gi,
@@ -81,5 +82,5 @@ export function sanitizeArchitectProseForJourney(journey: JourneyId, prose: stri
     .filter(Boolean)
     .join('\n\n')
   if (!t || proseViolatesJourneyCategory(journey, t)) return null
-  return t
+  return humanizeZoneProse(t, journey)
 }

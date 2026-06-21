@@ -23,7 +23,7 @@ If that finished without `Error: Command "npm run verify && …" exited with 1`,
 2. Open deployment **`4924d2f`** (or latest **Staged**)
 3. **⋯** menu → **Promote to Production** (or **Assign to Production Domain**)
 
-Production alias **`https://00-ulm.vercel.app`** should then serve this build.
+Production alias **`https://www.00-00.online`** should then serve this build.
 
 ## 3. Stop the false failures (repo + dashboard)
 
@@ -47,9 +47,9 @@ Missing or nested check scripts caused Vercel *internal error* on native Lint/Ty
 2. **Remove** or mark **not required** the built-in **Lint** and **Typecheck** checks (Next 16 + flat ESLint often yields *internal error* with no log).
 3. **Add** → **GitHub Actions** → require jobs **`Lint`** and **`Typecheck`** from `.github/workflows/vercel-production-gate.yml` (exact names).
 
-Until step 3 is done, a green **build** can still show **Checks Failed** — run `npm run promote` so `00-ulm.vercel.app` serves the Ready deployment.
+Until step 3 is done, a green **build** can still show **Checks Failed** — run `npm run promote` so `www.00-00.online` serves the Ready deployment.
 
-**Staged but build green:** run `npm run promote` (promotes latest Ready prod deployment to `00-ulm.vercel.app`).
+**Staged but build green:** run `npm run promote` (promotes latest Ready prod deployment to `www.00-00.online`).
 
 Optional smoke check: **`GET /api/health?live=1`** (no DB, returns 200).
 
@@ -72,7 +72,7 @@ From repo root (linked to **00-ulm**):
 npm run deploy
 ```
 
-This runs **`npm run verify`**, then **`vercel deploy --prod`** (build on Vercel — **not** `--prebuilt`), then **auto-promote** via `scripts/vercel-promote-latest.sh` so **`00-ulm.vercel.app`** is not left on an old build when dashboard checks fail.
+This runs **`npm run verify`**, then **`vercel deploy --prod`** (build on Vercel — **not** `--prebuilt`), then **auto-promote** via `scripts/vercel-promote-latest.sh` so **`www.00-00.online`** is not left on an old build when dashboard checks fail.
 
 **Staged only (build already green):** `npm run promote`
 

@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isRealLocalityLabel } from '@/lib/brains/summaryLogic'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
-import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -14,7 +14,7 @@ const MAX_PER_MINUTE = 40
 
 export async function GET(request: NextRequest) {
   const id = getClientIdentifier(request)
-  const { ok, retryAfter } = checkRateLimit(`profile-locality:${id}`, MAX_PER_MINUTE)
+  const { ok, retryAfter } = await checkRateLimitAsync(`profile-locality:${id}`, MAX_PER_MINUTE)
   if (!ok) {
     return NextResponse.json(
       { error: 'Too many requests' },

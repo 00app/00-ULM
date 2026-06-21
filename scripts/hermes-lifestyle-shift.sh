@@ -33,7 +33,7 @@ zz_read_env_var() {
 
 ENV_FILE=""
 SECRET_FILE=""
-HOST="${NEXT_PUBLIC_APP_URL:-https://00-ulm.vercel.app}"
+HOST="${NEXT_PUBLIC_APP_URL:-https://www.00-00.online}"
 POSTCODE=""
 CATEGORY="home"
 QUESTION_ID="lifestyle_shift_pattern"

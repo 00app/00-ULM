@@ -4,7 +4,11 @@ import { useCallback, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 import type { JourneyId } from '@/lib/journeys'
-import { getLoopBeatByQuestionId, type LoopAnswerSettingsRow } from '@/lib/zone/loopQuestions'
+import {
+  getLoopBeatByQuestionId,
+  loopQuestionDisplayText,
+  type LoopAnswerSettingsRow,
+} from '@/lib/zone/loopQuestions'
 import { persistLoopAnswerLocal } from '@/lib/zone/loopMemory'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
@@ -115,19 +119,16 @@ export function SettingsLoopEditOverlay({ row, onClose, onSaved }: Props) {
             marginBottom: 0,
             marginLeft: 'auto',
             marginRight: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.06em',
             maxWidth: 'min(92vw, 28rem)',
             textAlign: 'center',
+            whiteSpace: 'pre-line',
           }}
           initial={headlineMotion.initial}
           animate={headlineMotion.animate}
           exit={headlineMotion.exit}
           transition={FAMILY_TRANSITION_LONG}
         >
-          <span style={{ whiteSpace: 'pre-line', display: 'block' }}>{beat.question}</span>
+          {loopQuestionDisplayText(beat)}
         </motion.div>
         <div className="profile-step-controls profile-step-controls--options w-full">
           {beat.options.map((opt, optionIndex) => (

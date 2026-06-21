@@ -8,13 +8,13 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { runBrain } from '@/lib/brain/runBrain'
-import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
 const BRAIN_MAX_PER_MINUTE = 30
 
 export async function GET(req: NextRequest) {
   const id = getClientIdentifier(req)
-  const { ok, retryAfter } = checkRateLimit(`brain:${id}`, BRAIN_MAX_PER_MINUTE)
+  const { ok, retryAfter } = await checkRateLimitAsync(`brain:${id}`, BRAIN_MAX_PER_MINUTE)
   if (!ok) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined })
   }

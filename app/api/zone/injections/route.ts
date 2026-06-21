@@ -22,6 +22,8 @@ import {
 import { discoveryCardFromZoneTip } from '@/lib/types/discovery'
 import { resolveDiscoveryBirthPayload } from '@/lib/zone/discoveryBirthResolve'
 import { MAX_DISCOVERY_INJECTIONS_PER_JOURNEY } from '@/lib/intelligence/manifest'
+import { invalidBodyResponse, zoneInjectionBirthBodySchema } from '@/lib/api/schemas'
+import { captureServerError } from '@/lib/observability/captureError'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,24 +42,6 @@ export async function GET(request: NextRequest) {
     cards = getStoredInjections()
   }
   return NextResponse.json(cards)
-}
-
-interface BirthRequestBody {
-  journey_id?: string
-  journey_key?: string
-  question_id?: string
-  question_key?: string
-  answer?: string
-  answer_value?: string
-  postcode?: string | null
-  profileData?: {
-    postcode?: string | null
-    home_type?: string | null
-    household?: string | null
-    transport_baseline?: string | null
-    goal?: string | null
-  } | null
-  asked_question_ids?: string[]
 }
 
 function normalizeString(v: unknown): string {
@@ -86,18 +70,16 @@ export async function POST(request: NextRequest) {
     const authDenied = await requireAiRouteAuth(request)
     if (authDenied) return authDenied
 
-    const body = (await request.json().catch(() => ({}))) as BirthRequestBody
+    const rawBody = await request.json().catch(() => ({}))
+    const parsed = zoneInjectionBirthBodySchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return invalidBodyResponse(parsed.error)
+    }
+    const body = parsed.data
     const journeyRaw = normalizeString(body.journey_key ?? body.journey_id)
     const questionId = normalizeString(body.question_key ?? body.question_id)
     const answerValue = normalizeString(body.answer_value ?? body.answer)
     const askedQuestionIds = normalizeAskedQuestionIds(body.asked_question_ids)
-
-    if (!journeyRaw || !questionId || !answerValue) {
-      return NextResponse.json(
-        { error: 'Missing required fields: journey_key, question_key, answer_value' },
-        { status: 400 }
-      )
-    }
 
     const currentJourney = (
       JOURNEY_ORDER.includes(journeyRaw as JourneyId)
@@ -189,7 +171,7 @@ export async function POST(request: NextRequest) {
       new_discovery_card: discoveryCardFromZoneTip(guarded),
     })
   } catch (error) {
-    console.error('[zone/injections] birth error:', error)
+    captureServerError(error, { route: '/api/zone/injections', method: 'POST' })
     return NextResponse.json(
       { ok: false, error: 'Failed to birth discovery card' },
       { status: 500 }

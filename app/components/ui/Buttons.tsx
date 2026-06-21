@@ -10,6 +10,7 @@ import { track } from '@vercel/analytics'
 import { motion } from 'framer-motion'
 import type { JourneyId } from '@/lib/journeys'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
+import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 
 import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 
@@ -211,6 +212,12 @@ export function IndustrialHandoffButton({
     } catch {
       // Ignore if analytics fails
     }
+    trackFunnelEvent('cta_click', {
+      journey_id: journeyId ?? undefined,
+      target_url: url,
+      money_value: moneyValue,
+      cta_label: ctaLabel,
+    })
     setTimeout(() => {
       window.open(url, '_blank', 'noopener,noreferrer')
     }, 150)

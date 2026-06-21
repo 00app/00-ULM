@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { createSession, getSessionFromRequest, setSessionCookieOnResponse } from '@/lib/auth'
-import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +14,7 @@ const RESTORE_MAX_PER_MINUTE = 12
 /** Re-issue `session` cookie when client still has `userId` in storage but cookie expired. */
 export async function POST(request: NextRequest) {
   const id = getClientIdentifier(request)
-  const { ok, retryAfter } = checkRateLimit(`restore-session:${id}`, RESTORE_MAX_PER_MINUTE)
+  const { ok, retryAfter } = await checkRateLimitAsync(`restore-session:${id}`, RESTORE_MAX_PER_MINUTE)
   if (!ok) {
     return NextResponse.json(
       { error: 'Too many requests' },

@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Repo** | `https://github.com/00app/00-ULM.git` |
-| **Production** | `https://00-ulm.vercel.app` |
+| **Production** | `https://www.00-00.online` (`00-00.online` → www) |
 | **Rules in code** | `.cursor/rules/` · `lib/journeys.ts` · `lib/zone/ulmLimits.ts` |
 
 **How to use this file**
@@ -25,7 +25,7 @@
 |------|--------|
 | **Postcode-first** | All locality flows use user `profile.postcode` / session — no demo postcode in UI |
 | **Mechanical truth** | Empty Neon → `COMPUTING — JOURNEY`, metrics `—`, not fake £12k |
-| **Copy** | Per-journey headlines (`EXPANDED_JOURNEY_HOOK`), no generic spring H1 on every card |
+| **Copy** | Per-journey headlines (`EXPANDED_JOURNEY_HOOK`) on **mother** tiles; Rock grid + Solo Focus use catalog habits (`clampRockTipHeadline`, `headlineFromRockHabit`) — not wall hooks |
 | **Prose** | Max 2 blocks in Solo Focus (Marvin lead ≤30 words + optional body); no duplicate payoff; no generic “policy and tariff pressure…” |
 | **Questions** | 13 journeys × 3 in `lib/journeys.ts`; Solo Focus = 1 Q; loop = `loopQuestions.ts` |
 | **Discovery birth** | Only `POST /api/answers` → `injectNewDiscoveryCard` (cap 3/journey) |
@@ -51,7 +51,7 @@ npm run deploy               # verify → remote build → promote
 |---------|---------|
 | `npm run db:test` | Neon connectivity |
 | `npm run db:log-research` | Latest `research_results` row |
-| `npm run db:evolve-12-domains` | Seed `journey_questions` for all 13 keys |
+| `npm run db:evolve-13-domains` | Seed `journey_questions` for all 13 keys in `JOURNEY_ORDER` |
 | `npm run promote` | Promote Staged Vercel deployment |
 | `npm run dev:pipeline-ready` | Env + health; optional `--seed POSTCODE` |
 | `bash scripts/verify-env-and-health.sh` | Prod smoke (`BASE_URL=…`) |
@@ -65,7 +65,7 @@ npm run deploy               # verify → remote build → promote
 | Principle | Meaning | Code |
 |-----------|---------|------|
 | **Postcode-first** | Council, grants, scrape, copy tied to user postcode | `AppContext`, `/api/scrape-sync`, `research_results` |
-| **12k / 1t** | ~12,000 kWh ≈ 1 tonne CO₂e annual baseline for auditor framing | `ULM_KWH_PER_TONNE_CO2E`, `lib/brains/constants.ts` |
+| **12k / 1t** | ~12,000 kWh ≈ 1 tonne CO₂e annual baseline for auditor framing | `ULM_KWH_PER_TONNE_CO2E`, `lib/brains/constants.ts` (July 2026 cap **£1,862**) |
 | **Mechanical truth** | No fake £/kg on wall without Neon stream | `lib/zone/mechanicalTruth.ts`, `buildZoneViewModel` |
 | **Mechanical pulse UI** | Yellow `#FDFD00`, pink `#FF00FF`, purple `#7800ce`; no drop shadows | `app/globals.css`, `lib/journeyColors.ts` |
 | **Use less, more** | Max 2 cards/category on wall; 24 bento cells; 3 discovery injects/journey | `lib/zone/ulmLimits.ts`, `perCategoryCardCap` |
@@ -74,7 +74,7 @@ npm run deploy               # verify → remote build → promote
 
 `home` → `utilities` → `grants` → `solar` → `travel` → `holidays` → `food` → `shopping` → `money` → `tech` → `water` → `waste` → `carbon`
 
-**Utilities tile** appears on Zone only when profile **power type** is set (`lib/zone/utilitiesZoneUnlock.ts`).
+**Utilities tile:** always on the Zone wall (13th key). Shows **`COMPUTING`** until profile **power type** is set; full tariff stream unlocks after `profile_home_power` (`lib/zone/utilitiesZoneUnlock.ts`).
 
 ---
 
@@ -244,7 +244,7 @@ flowchart LR
 
 ```bash
 curl -sS -H "Authorization: Bearer ${CRON_SECRET}" \
-  'https://00-ulm.vercel.app/api/health/diagnostics' | jq '.bucket_failover'
+  'https://www.00-00.online/api/health/diagnostics' | jq '.bucket_failover'
 ```
 
 Expect: `enabled: true`, `broadScrapeAllowed: false`, `skipDeepGemini: true`.
@@ -450,10 +450,11 @@ Full scrape → copy → Solo Focus pipeline: annex [Zone content](#annex-zone-c
 | Step | Behaviour |
 |------|-----------|
 | 1 | 13 journey cells + hero crystallize; Rock strip last |
-| 2 | Rock tip close = **`visitedClose`** (no loop) |
-| 3 | Mother: expand → close → **one** loop → answer → discovery child → **pink** (`completeCleanBirth` only) |
-| 4 | Discovery inject child: close → pink immediately (no loop) |
-| 5 | Revisit pink: expand → close → grid only (no `DiscoveryTakeover`) |
+| 2 | Rock tip: grid = catalog title (`clampRockTipHeadline`); expand = **`headlineFromRockHabit`** + habit £/kg — **not** journey mother hook or Neon audit |
+| 3 | Rock tip close = **`visitedClose`** (no loop, no tip verification scrape) |
+| 4 | Mother: expand → close → **one** loop → answer → discovery child → **pink** (`completeCleanBirth` only) |
+| 5 | Discovery inject child: close → pink immediately (no loop) |
+| 6 | Revisit pink: expand → close → grid only (no `DiscoveryTakeover`) |
 
 ---
 
@@ -465,7 +466,7 @@ npm run verify
 npm run build:clean
 ```
 
-**Manual smoke:** profile + `home_power` → summary → zone pulse → one journey loop → pink → reopen (no second loop) → Rock close (no loop).
+**Manual smoke:** profile + `home_power` → summary → zone pulse → one journey loop → pink → reopen (no second loop) → Rock tip expand (habit headline + catalog £/kg, not wall HOME hook) → Rock close (no loop).
 
 **Motion did not change:** `lib/brains/*`, `buildZoneViewModel`, `POST /api/answers` race, question registry.
 
@@ -518,7 +519,7 @@ Related references:
 | Step | Route / Surface | What user does | What system does |
 | --- | --- | --- | --- |
 | 1 | `/` / `/intro` | Lands on intro and starts profile | Loads intro motion, optional postcode prefill from browser/geocode path |
-| 2 | `/profile` | Completes onboarding questions | Saves profile answers to local state and session paths |
+| 2 | `/profile` | Completes onboarding questions (postcode + optional house number) | Saves profile to localStorage / session; `POST /api/local-intelligence` hydrates council + OpenEPC anchor |
 | 3 | `/profile/summary` | Reviews summary headline and totals framing | Builds summary words and transitions into Zone |
 | 4 | `/zone` | Sees hero + 13 category cards | Fetches scrape snapshot, merges deterministic impact + research coverage, then renders cards |
 | 5 | Zone card open (Solo Focus) | Opens a journey/tip card | Opens expanded card shell, loads question/result state |
@@ -553,7 +554,8 @@ flowchart TD
 
 - **Persona:** trusted UK mate — calm, empathetic, data-honest; one line of dry humour per card at most (`lib/zone/zoneVoice.ts`). Numbers still from Neon / `buildUserImpact` only.
 - **Write path:** scrape-sync / `researchAgent` → Neon `architect_prose` + `agent_headline` → optional `content-architect` batch → `buildZoneViewModel` + `contentProseSanitize` on read.
-- **Expanded Solo Focus:** `resolveExpandedTrueTipInsight` uses per-**parent** `journey_key` (`focusCategoryJourneyId`); body via `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` with **`dedupeTrueTipParagraphs`** so the stamped £/CO₂e payoff appears **once**. Weak expanded H1s use **`EXPANDED_JOURNEY_HOOK`** (per journey). Mechanical scaffold lines stripped before display.
+- **Expanded Solo Focus (journey mother):** `resolveExpandedTrueTipInsight` uses per-**parent** `journey_key` (`focusCategoryJourneyId`); body via `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` with **`dedupeTrueTipParagraphs`** so the stamped £/CO₂e payoff appears **once**. Weak expanded H1s use **`EXPANDED_JOURNEY_HOOK`** (per journey). Mechanical scaffold lines stripped before display.
+- **Expanded Solo Focus (Rock / Today's Tips):** `cardId` prefix `rock-` → **`headlineFromRockHabit`** + catalog **`insight`**; £/kg from **`habitToTipCard`** — **not** Neon `researchCategoryCoverage[journey_key]` (habits share journey keys with wall mothers).
 - **Locality in prose:** town name from `AppContext.locationState.locationName` (geocode after profile postcode) — **`lib/zone/localityCopy.ts`**. Raw postcodes never appear in Solo Focus lead copy.
 - **Postcode:** drives APIs and research only — never hardcoded demo labels in `app/` or `lib/` UI paths.
 
@@ -726,7 +728,7 @@ Full table: **[HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md)**.
 |----------------|------|
 | **`research_results`** | Per `category` (journey key): `saving_amount_gbp`, `verified_saving`, `agent_headline`, `architect_prose`, `offer_url`, `source_url`, `user_id`, postcode |
 | **`research_snapshot`** (JSONB) | Invoke metadata (Hermes / hybrid-pipeline / repair flags) — not user-facing prose |
-| **`journey_answers_jsonb`** | 12 domains × 3 behavioural answers |
+| **`journey_answers_jsonb`** | 13 domains × 3 behavioural answers |
 | **`users.user_genome`** | `open_data_anchor` (EPC + grid snapshot at hydrate) |
 | **`scraped_summary`** | Legacy hero aggregates when populated |
 | **`discovery_injections`** | Capped supplemental cards |
@@ -829,11 +831,20 @@ Built in **`lib/zone/buildZoneViewModel.ts`**, rendered as **`JourneyBentoCard`*
 
 ##### Today's Tips rail (Rock)
 
-Separate from 12 journey bentos:
+Separate from 13 journey mother bentos — **not** duplicate wall headlines or journey audit copy.
 
-- **`RockSavingTips`** — heading **Today's Tips** (`aria-label="Today's tips"`)
-- Habits + learn URLs from **`lib/rock/habitsCatalog.ts`**
-- Same visit styling when opened
+| Concern | Rule | Code |
+|---------|------|------|
+| **Catalog** | Static habits + learn URLs | `lib/rock/habitsCatalog.ts` → `habitToTipCard` |
+| **Card IDs** | `rock-{slug}` (e.g. `rock-radiator-bleed`) | `rockCardId()` |
+| **Grid headline** | Short habit title (**3–10 words**) — **never** `ZONE_BENTO_HOOK` / wall mother hook | `clampRockTipHeadline` |
+| **Rail fill** | Prefer journeys **not** on wall; one habit per `journey_key`; dedupe wall headline keys; **6** visible slots (rotation cap **12**) | `prepareRockHabitsForRail`, `filterRockHabitsAgainstWall` |
+| **Fallback** | When every journey has a mother tile, still fill six tips from catalog if titles differ from wall hooks | `prepareRockHabitsForRail` second pass (`requireOffWall: false`) |
+| **UI** | **`RockSavingTips`** — heading **Today's Tips** (`aria-label="Today's tips"`) | `app/components/RockSavingTips.tsx` |
+| **Visit** | Pink on close (`visitedClose`) — **no** loop, **no** tip verification scrape | Director's Order in [HANDBOOK.md](HANDBOOK.md) |
+| **Label colour** | Category label uses `--journey-text` at rest and on hover — Rock grid excluded from main Zone `data-zone-surface='tip'` purple-header override | `app/globals.css` |
+
+**Anti-pattern (fixed):** Rock habits share a `journey_key` with wall mothers (e.g. both `home`). Without the Rock-specific Solo Focus path below, expand reused **`EXPANDED_JOURNEY_HOOK[home]`**, Neon **`architect_prose`**, and mother **£/kg** — so “bleed radiators” opened as “seal draughts…” at £180.
 
 ##### Discovery & injects
 
@@ -849,18 +860,27 @@ Ceilings: **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** · **`MAX_ZONE_BENTO_CE
 
 #### 7. Expanded card — Solo Focus
 
-**Open:** `onExpand` → `rememberSoloFocusOpen` / `openSoloFocus` → **`JourneyBentoCard`** QUESTION chamber (inject tips: **`SoloFocusOverlay`**). Pink lock waits for loop birth — not expand.
+**Open:** `onExpand` → `rememberSoloFocusOpen` / `openSoloFocus` → **`JourneyBentoCard`** QUESTION chamber (inject tips + Rock: **`SoloFocusOverlay`**). Pink lock waits for loop birth — not expand.
+
+##### Two expand paths
+
+| Path | Detect | H1 | £ / CO₂e | Lead prose |
+|------|--------|-----|----------|------------|
+| **Journey mother / discovery** | `journey-*`, `inject-*`, … | `headlineFromExpandedHook` → **`EXPANDED_JOURNEY_HOOK`** when title weak | Neon audit row when settled (`verifiedAuditMoneyGbp`) | `architect_prose` via `buildResearchResultsTrueTipBody` |
+| **Today's Tips (Rock)** | `cardId.startsWith('rock-')` | **`headlineFromRockHabit(title, insight)`** — habit title + catalog insight; **never** journey hook | Catalog `money_gbp` / `carbon_kg` from `habitToTipCard` | Habit `insight` only — **no** `researchCategoryCoverage[journey_key]` |
+
+Rock expand resolves the habit in `app/zone/page.tsx` via `ROCK_BY_SLUG` + `habitToTipCard`; passes `verifiedArchitectProse={null}` and `verifiedAuditMoneyGbp={null}` so journey audit cannot override habit numbers.
 
 ##### Layout (Zai Architect)
 
 | Zone | Content |
 |------|---------|
-| **H1 (Marvin)** | **20–24 word** hook (`headlineFromExpandedHook`) — 3–4 lines; no postcodes/tariff dumps in title |
+| **H1 (Marvin)** | **20–24 word** hook — mother: `headlineFromExpandedHook`; Rock: `headlineFromRockHabit` |
 | **Lead (Marvin H4)** | Locality audit opener — **≤30 words**; **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), never raw postcode |
-| **Body** | Optional **Roboto Bold** body — max 2 prose blocks total (lead + body); metrics row owns £/CO₂ stamp |
-| **Metrics** | Verified £ + CO₂e from stored row |
+| **Body** | **Not rendered in UI** (May 2026) — `SoloFocusProseStack` is **lead-only**; £/CO₂e live in the metrics row. Neon `architect_prose` still stored for polish / Zai context paths. |
+| **Metrics** | Mother: verified £ + CO₂e from Neon when settled; Rock: catalog habit row |
 | **Trinity** | Ask Zai → deep dive; Continue in Zai → handoff; RECLAIM / BUY → `MotherCardRenderer` + `IndustrialHandoffButton` |
-| **Questions** | **One** registry Q per open — zip-shut MC answer → **RESULT**; close → loop question (`DiscoveryTakeover`) |
+| **Questions** | **One** registry Q per open — zip-shut MC answer → **RESULT**; close → loop question (`DiscoveryTakeover`). **Rock:** close only — no loop, no tip verification |
 
 ##### Warm auditor voice (copy — 2026)
 
@@ -872,7 +892,7 @@ Persona: **trusted UK mate** — calm, empathetic, data-honest; at most one line
 |--------|--------|------|
 | **Neon `research_results`** | `researchAgent` / scrape-sync | Three paragraphs from Gemini + surgical scrape; locality from geocode / profile |
 | **Content Architect** | `POST /api/zone/content-architect` | Batch polish: friction / lever / action; category locks; `ZONE_CONTENT_ARCHITECT_VOICE` |
-| **Solo Focus display** | `resolveExpandedTrueTipInsight` → `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` | Prefer DB `architect_prose`; **one** payoff line via `payoffSentence` (stamped £/CO₂e) — **no** CTA-bridge / “Execute the…” / duplicate stamp paragraphs |
+| **Solo Focus display** | `resolveSoloFocusDisplayProse` | Marvin **lead only** (H4); no Roboto body block — metrics row owns £/CO₂e |
 | **Locality** | `lib/zone/localityCopy.ts` | `resolveSoloFocusPlaceLabel` + `personalizeTrueTipPlaceLead` — town in lead, not postcode |
 | **Sanitizer** | `lib/zone/contentProseSanitize.ts` | Strip leakage, demo postcodes, cross-category pollution on read |
 
@@ -883,7 +903,7 @@ Persona: **trusted UK mate** — calm, empathetic, data-honest; at most one line
 Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 
 1. **Friction** — data-backed waste for the category (compact £ / kg).
-2. **Leverage** — April 2026 policy or grant fact from `lib/brains/constants.ts` when relevant.
+2. **Leverage** — July 2026 Ofgem cap or grant fact from `lib/brains/constants.ts` when relevant (April figures kept for policy-step copy only).
 3. **Payoff** — single closing line, e.g. *“We've put about £X a year and around Y CO₂e against your {topic} row — from your saved audit, not a guess.”* (`payoffSentence` in `lib/zone/auditorNarrative.ts` — deduped by `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp`).
 
 ##### Quality gates (`lib/soloFocusCopy.ts`)
@@ -891,7 +911,9 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Function | Purpose |
 |----------|---------|
 | `stripExpandedCardTitleNoise` | Clean Solo Focus H1 |
-| `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook; per-journey fallback when DB title is thin, jargon, or off-topic (e.g. travel: rail/bus commute swap — not generic “near you” padding) |
+| `clampRockTipHeadline` | Today's Tips **grid** — short catalog title; never wall `ZONE_BENTO_HOOK` |
+| `headlineFromRockHabit` | Rock Solo Focus H1 — title + habit insight; **never** `EXPANDED_JOURNEY_HOOK` |
+| `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook for **journey mothers**; per-journey fallback when DB title is thin, jargon, or off-topic (e.g. travel: rail/bus commute swap — not generic “near you” padding) |
 | `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp` | Drop duplicate payoff / repeated blocks before render |
 | `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *optimization plan*, *green funding frameworks*, thin *“Your X is high-value”* |
 | `collapseDuplicateProseParagraphs` | No repeated sentences within a block |
@@ -905,7 +927,9 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Surface | Limit | Enforcer |
 |---------|-------|----------|
 | Zone bento | **5–8** | `enforceHeadlineWordLimits(text, false)` |
-| Solo Focus expanded hook | **20–24** (~3–4 lines) | `headlineFromExpandedHook` → per-journey `EXPANDED_JOURNEY_HOOK` when title is weak or generic spring filler (`isGenericSpringHeadline`); mechanical proof via `lib/zone/auditorNarrative.ts` (no shared “policy and tariff pressure…” block) |
+| Today's Tips grid | **3–10** (catalog title) | `clampRockTipHeadline` |
+| Solo Focus expanded hook (mother) | **20–24** (~3–4 lines) | `headlineFromExpandedHook` → per-journey `EXPANDED_JOURNEY_HOOK` when title is weak or generic spring filler (`isGenericSpringHeadline`); mechanical proof via `lib/zone/auditorNarrative.ts` (no shared “policy and tariff pressure…” block) |
+| Solo Focus expanded hook (Rock) | **20–24** (~3–4 lines) | `headlineFromRockHabit` — habit title + insight; **no** journey hook substitution |
 | Solo Focus Marvin lead (H4) | **≤30** words | `resolveSoloFocusDisplayProse` + `buildAuditorDetectionParagraph` when lead lacks town opener |
 | Paragraph | ≤ **40** words each | `MAX_TRUE_TIP_PARAGRAPH_WORDS` |
 
@@ -990,13 +1014,17 @@ Full boundaries + question registry: **[ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUES
 |-----------|-------------|------------|
 | Grid headline | `agent_headline` + Architect + cleaners | `soloFocusCopy`, `contentArchitect` |
 | Grid £/kg | `buildUserImpact` + `journeyHasStreamData` | `calculations.ts` |
-| Expanded H1 | 20–24 word hook, 3–4 lines | `headlineFromExpandedHook`, `stripExpandedCardTitleNoise` |
+| Expanded H1 (mother) | 20–24 word hook, 3–4 lines | `headlineFromExpandedHook`, `stripExpandedCardTitleNoise` |
+| Expanded H1 (Rock) | 20–24 word hook from habit title + insight | `headlineFromRockHabit` |
+| Today's Tips grid title | Short catalog habit title | `clampRockTipHeadline`, `habitsCatalog` |
 | Expanded lead (H4) | ≤30 words; town from `locationState` | `resolveSoloFocusDisplayProse`, `buildAuditorDetectionParagraph`, `localityCopy.ts` |
+| Expanded lead (H4) | Town from `locationState` | `localityCopy.ts`, `personalizeTrueTipPlaceLead` |
 | Expanded body | `architect_prose` or auditor fallback | `buildResearchResultsTrueTipBody`, `toThreeTrueTipParagraphs` |
 | No-offer footer | When no HTTPS partner URL | *“No live retailer link this week — figures still come from your saved audit row.”* (`JourneyBentoCard`, `SoloFocusOverlay`) — not “Fresh Audit…” dev-speak |
 | BUY link | `offer_url` → sanitizer → trusted fallback | `offerUrlGuard`, `trustedJourneyUrls` |
 | Questions | `lib/journeys.ts` | Static behavioural copy |
-| Today's Tips | Rock catalog | `RockSavingTips`, `habitsCatalog` |
+| Today's Tips grid | Rock catalog + rail filter | `RockSavingTips`, `prepareRockHabitsForRail`, `habitsCatalog` |
+| Rock Solo Focus £/kg | Habit catalog row | `habitToTipCard` — not Neon `research_results` |
 | Pink / yellow visit | `visited_cards` + `POST /api/zone/visit` | `.zone-card--visited` in `globals.css` |
 
 ---
@@ -1040,7 +1068,7 @@ Full boundaries + question registry: **[ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUES
 npm run verify && npm run build
 
 ### Honest empty Zone (prod)
-curl -sS "https://00-ulm.vercel.app/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length)'
+curl -sS "https://www.00-00.online/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length)'
 
 ### Latest Neon row
 npm run db:log-research
@@ -1118,7 +1146,7 @@ Cross-links: **[HANDBOOK.md](HANDBOOK.md)**, **[ZONE-CONTENT-AND-DATA.md](ZONE-C
 
 - **Source of truth:** `lib/journeys.ts` — `JOURNEY_ORDER`, `JOURNEYS`, `isValidJourneyQuestion`, `isJourneyComplete`.
 - **Wall order:** `JOURNEY_ORDER` in `lib/journeys.ts` (13 keys including `utilities` after `home`).
-- **DB sync:** `npm run db:evolve-12-domains` seeds `journey_questions` for all keys in `JOURNEY_ORDER`.
+- **DB sync:** `npm run db:evolve-13-domains` seeds `journey_questions` for all keys in `JOURNEY_ORDER`.
 
 Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on cards comes from **research / scrape**, not from question text.
 
@@ -1130,8 +1158,8 @@ Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on ca
 |------|------|-------------|
 | Route | `app/profile/page.tsx` → `ProfilePageClient.tsx` | — |
 | Name step | `InputField` `autocomplete="given-name"`; `firstNameFromAutofill` on change/blur | `profile_name` — **first token only** (browser may autofill full name) |
-| Postcode step | `autocomplete="postal-code"`; hydrate from `profile_postcode` (`localStorage`, intro geolocation, `SessionStateRehydrate`) · `POST /api/local-intelligence` | Council, ward, `localCarbonG`, grant context → used in VM + summary |
-| Profile fields | name, postcode, `home_type`, **`power type`** (profile step `powerType` → GAS / ELECTRIC / MIX / OTHER), transport, household, employment, goal | `users` + `AppContext` + `localStorage` (`profile_home_power`); seeds journey answers + **unlocks 13th Zone card (UTILITIES)** via `lib/profile/homePower.ts` + `lib/zone/utilitiesZoneUnlock.ts` |
+| Postcode step | `autocomplete="postal-code"`; optional **house number** on same step (`autocomplete="address-line2"`, `profile_house_number`) · hydrate from `profile_postcode` (`localStorage`, intro geolocation, `SessionStateRehydrate`) · `POST /api/local-intelligence` with `{ postcode, house_number? }` | Council, ward, `localCarbonG`, grant context; OpenEPC row matched to address when house number set (`addressMatched` on `OpenEpcProfile`) |
+| Profile fields | name, postcode, optional house number, `home_type`, **`power type`** (profile step `powerType` → GAS / ELECTRIC / MIX / OTHER), transport, household, employment, goal | `users` + `AppContext` + `localStorage` (`profile_home_power`, `profile_house_number`); seeds journey answers + **unlocks 13th Zone card (UTILITIES)** via `lib/profile/homePower.ts` + `lib/zone/utilitiesZoneUnlock.ts` |
 | Motion | Full-sentence fade per step (`STACCATO_TWEEN`, y 10→0) | [HANDBOOK.md](HANDBOOK.md) Motion table |
 | After profile | `/profile/summary` → `/zone` | Summary uses `lib/brains/summaryLogic.ts` + `buildUserImpact` (no UK_2026 back-fill) |
 
@@ -1140,6 +1168,7 @@ Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on ca
 | API | Auth | Used for |
 |-----|------|----------|
 | [postcodes.io](https://postcodes.io) | none | Council / region anchor |
+| [epc.opendatacommunities.org](https://epc.opendatacommunities.org/docs/api/domestic) | HTTP Basic (`OPENEPC_EMAIL` + `OPENEPC_API_KEY`) | Domestic EPC search by postcode; optional house-number filter (`lib/intelligence/epcAddressMatch.ts`) |
 | [carbonintensity.org.uk](https://api.carbonintensity.org.uk) | none | `GET /intensity` (live gCO₂/kWh), `GET /generation` (fuel mix %), regional postcode |
 | [environment.data.gov.uk](https://environment.data.gov.uk/flood-monitoring) | none | Water lane — latest station readings (`/data/readings?_limit=N`) |
 | [api.octopus.energy](https://api.octopus.energy) | none | Indicative Agile p/kWh (electric / mixed homes) |
@@ -1220,7 +1249,7 @@ flowchart TB
 **Verify API (honest empty):**
 
 ```bash
-curl -sS "https://00-ulm.vercel.app/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length)'
+curl -sS "https://www.00-00.online/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length)'
 ### expect: "pending" and 0 until Neon has rows
 ```
 
@@ -1247,7 +1276,7 @@ npm run db:columns
 
 ```bash
 npm run verify
-npm run prep:live           # db:test + db:evolve-12-domains + build:clean
+npm run prep:live           # db:test + db:evolve-13-domains + build:clean
 npm run deploy              # verify + remote build + auto-promote
 npm run promote             # if Vercel Staged but build green
 npm run dev:pipeline-ready  # local env + health; optional -- --seed POSTCODE
@@ -1270,7 +1299,7 @@ Once `research_results` rows exist, see **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTEN
 *Source file: `ZAI-AND-QUESTIONS-RULES.md`*
 
 
-Single reference for **Ask Zai chat**, **Ask Zai Deep Dive**, **profile onboarding**, **journey questions** (12 domains × 3), **Zone loop beats**, and **tip verification (+1)**.
+Single reference for **Ask Zai chat**, **Ask Zai Deep Dive**, **profile onboarding**, **journey questions** (13 domains × 3), **Zone loop beats**, and **tip verification (+1)**.
 
 **Code sources:** `lib/zai/chatRules.ts`, `lib/zai/chatBoundaries.ts`, `lib/zai/chatPrompts.ts`, `lib/zai/deepDiveAudit.ts`, `lib/zai/loadResearchSourceHint.ts`, `lib/zai/scrapeAreaHint.ts`, `app/zai/page.tsx`, `app/components/AskZaiDeepDiveSheet.tsx`, `app/profile/ProfilePageClient.tsx`, `lib/journeys.ts`, `lib/zone/loopQuestions.ts`, `lib/zone/tipVerification.ts`, `lib/zone/visitedCards.ts`, `lib/brains/zai/prompts.ts`, `lib/brains/zai/boundaries.ts`.
 
@@ -1628,7 +1657,7 @@ User may also type a **free-form** question in the sheet input (**Search deeper*
 #### Part 3 — Profile onboarding questions
 
 **Route:** `/profile` → `ProfilePageClient.tsx` (`PROFILE_QUESTIONS`)  
-**Not** the 12-domain journey bank — those are in Part 4.
+**Not** the 13-domain journey bank — those are in Part 4.
 
 | Step | ID | Prompt | Type | Options / placeholder |
 |------|-----|--------|------|------------------------|
@@ -1645,7 +1674,7 @@ After profile: `/profile/summary` → `/zone`.
 
 ---
 
-#### Part 4 — Journey questions (12 domains × 3)
+#### Part 4 — Journey questions (13 domains × 3)
 
 **Source of truth:** `lib/journeys.ts` (`JOURNEYS`, `QUESTIONS_PER_JOURNEY = 3`).
 
@@ -1885,14 +1914,14 @@ Operational contract for infra, data flow, UX, and verification. **Secrets belon
 | **Hermes (Oracle VPS) / Vercel Cron** | **Weekly** Monday **05:00** (`0 5 * * 1`) → **`GET /api/cron/zone-research`** with **`Authorization: Bearer <CRON_SECRET>`**. Per-category JIT scrape still fires on Solo Focus Tip +1 answer. |
 | **Neon (London)** | Canonical pooler hostname is **`MANIFEST_NEON_POOLER_HOST`** in `lib/intelligence/manifest.ts`. It **must** match the host inside `DATABASE_URL` (password only via Neon Console / `vercel env`). |
 | **Credentials** | Set `DATABASE_URL` (full URI). Do **not** commit real passwords; rotate immediately if exposed. |
-| **Firecrawl** | API key: `FIRE_CRAWL_KEY_2` **or** `FIRECRAWL_API_KEY` — both read by `lib/sentinel/api-config.ts` (primary name wins). |
+| **Firecrawl** | API key: `FIRE_CRAWL_KEY_3` → `FIRE_CRAWL_KEY_2` → `FIRECRAWL_API_KEY` (`lib/sentinel/api-config.ts`). `SKIP_FIRECRAWL=1` disables scrapes (mechanical fallbacks only). |
 | **Gemini** | `GEMINI_API_KEY` — extraction, Zai, research triplet. |
 
 ---
 
 #### 2. Scraper and logic loop
 
-- **Firecrawl + Gemini:** Research runs category discovery across **twelve** journey keys in `lib/journeys.ts` (`JOURNEY_ORDER`); locality seeds include Littlehampton / Arun and Les Azerables / Creuse where configured (`lib/agents/researchAgent.ts`).
+- **Firecrawl + Gemini:** Research runs category discovery across **13** journey keys in `lib/journeys.ts` (`JOURNEY_ORDER`); locality seeds include Littlehampton / Arun and Les Azerables / Creuse where configured (`lib/agents/researchAgent.ts`).
 - **Mechanical truth:** Zone tiles and hero totals only show non-zero £/kg when `journeyHasStreamData` (`lib/zone/mechanicalTruth.ts`) — Neon `research_results`, `scraped_summary`, or scrape-sync repair. Empty DB + postcode → `GET /api/scrape-sync` returns `source: "pending"`, `scraped: []`. UK shape defaults in `lib/scraper/uk2026Defaults.ts` are **zero**, not marketing £.
 - **Expansion (canonical birth):** Journey answers in Solo Focus / bento use **`POST /api/answers`** → discovery race → `injectNewDiscoveryCard` when the API returns `new_card_data` / `grid_pulse_card`. **`POST /api/research/question-card`** is the **free-form Ask** path only (not the MC answer birth). **`POST /api/zone/injections`** handles trap follow-ups — all paths share the **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY`** (**3**) cap per user per journey (`lib/intelligence/manifest.ts`).
 - **Data mapping:** On persist, **`saving_amount_gbp`** and **`verified_saving`** are aligned (`lib/agents/researchAgent.ts` → `persistResearchResult`). **`offer_url`** must be HTTPS where possible. Invoke payload JSON is stored in **`research_snapshot`**.
@@ -1916,20 +1945,20 @@ From repo root with **`DATABASE_URL`** in `.env.local`:
 ```bash
 npm run db:log-research      # latest research_results row
 npm run db:test              # Neon connectivity
-npm run db:evolve-12-domains # journey_questions for all 12 keys
+npm run db:evolve-13-domains # journey_questions for all 13 keys
 ```
 
 **Honest empty Zone (production smoke):**
 
 ```bash
-curl -sS "https://00-ulm.vercel.app/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length), .research_category_coverage'
+curl -sS "https://www.00-00.online/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length), .research_category_coverage'
 ### pending + 0 scraped rows + {} coverage  ⇒  UI should show COMPUTING tiles, not £12.5k
 ```
 
 **Fill stream (server; use your Bearer secret, single-quoted in zsh):**
 
 ```bash
-bash scripts/curl-scrape-sync-trigger.sh https://00-ulm.vercel.app BN17
+bash scripts/curl-scrape-sync-trigger.sh https://www.00-00.online BN17
 ```
 
 Logs the latest **`research_results`** row (including **`saving_amount_gbp`**, **`verified_saving`**, **`architect_prose`**, **`offer_url`**) via **`npm run db:log-research`**.
@@ -1972,24 +2001,26 @@ Zai is the **only** product bot (no secondary chat widget).
 | `MAX_ROCK_SAVING_TIPS_RAIL` | **12** |
 | `ULM_KWH_PER_TONNE_CO2E` | **12_000** (12k/1t auditor copy) |
 
-Grid discovery tips on wall: still **1 earned inject per category** via `perCategoryCardCap` (12 journeys + injects ≤ 24).
+Grid discovery tips on wall: still **1 earned inject per category** via `perCategoryCardCap` (13 journeys + injects ≤ 24).
 
 ---
 
 #### 1. Profile (`/profile`)
 
 - 8 steps → `buildUserImpact` baseline; no Gemini/Firecrawl on onboarding.
-- Postcode → `POST /api/local-intelligence` → `hydrateFreeStructuralContext` → `user_genome.open_data_anchor`.
+- Postcode step: optional **house number** (`profile_house_number`) on the same screen — disambiguates OpenEPC rows when a postcode has multiple dwellings.
+- Postcode (+ optional house number) → `POST /api/local-intelligence` (`house_number` in body; GET `?house_number=`) → `hydrateFreeStructuralContext` → `fetchOpendataEpcProfile(postcode, { houseNumber })` → `user_genome.open_data_anchor`.
+- When EPC `addressMatched` and `home_type` unset, onboarding may pre-select **FLAT** / **HOUSE** from register `propertyType` (`lib/epc/mapEpcToProfileHints.ts`) — user can override on the next step.
 - Motion: `STACCATO_TWEEN` questions; summary uses `IntroWordCycle` / `opacityTicker`.
 
 ---
 
 #### 2. Zone (`/zone`)
 
-- **12 domains:** `JOURNEY_ORDER` in `lib/journeys.ts`.
+- **13 domains:** `JOURNEY_ORDER` in `lib/journeys.ts` (`home` → `utilities` → … → `carbon`). All 13 tiles render on the Zone wall; **utilities** stays `COMPUTING` until profile **power type** is set (`lib/zone/utilitiesZoneUnlock.ts`).
 - **Mechanical truth:** empty Neon → `COMPUTING — JOURNEY` / `—`; no fake £.
 - **Visited:** `visited_cards` → pink `#FF00FF` / yellow `#FDFD00` (`.zone-card--visited`).
-- **Rock rail:** navy + yellow; 6-slot rotation; display capped at 12.
+- **Rock rail:** navy + yellow; 6-slot rotation; display capped at 12; grid titles from catalog (`clampRockTipHeadline`); rail excludes wall headline duplicates (`prepareRockHabitsForRail`).
 
 ---
 
@@ -2007,7 +2038,9 @@ Grid discovery tips on wall: still **1 earned inject per category** via `perCate
 | Surface | Words |
 |---------|-------|
 | Zone bento | **5–8** — `enforceHeadlineWordLimits(text, false)` |
-| Solo Focus / expanded hook | **20–24** — `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when weak; else `enforceHeadlineWordLimits(text, true)` |
+| Today's Tips grid | **3–10** — `clampRockTipHeadline` (catalog title; not wall hook) |
+| Solo Focus / expanded hook (mother) | **20–24** — `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when weak; else `enforceHeadlineWordLimits(text, true)` |
+| Solo Focus / expanded hook (Rock) | **20–24** — `headlineFromRockHabit(title, insight)` — **no** `EXPANDED_JOURNEY_HOOK` |
 | Solo Focus Marvin lead | **≤30** — `resolveSoloFocusDisplayProse`; `buildAuditorDetectionParagraph` when lead lacks town opener |
 | Prose beats | ≤ **40** words / paragraph |
 
@@ -2056,8 +2089,8 @@ Full product loop: **[ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md)**. **How
 
 | Tier | Surface | Premium (Gemini / Firecrawl) |
 |------|---------|------------------------------|
-| **A** | Profile onboarding (8 steps + postcode) | **None** — Postcodes.io, Carbon Intensity API, optional OpenEPC |
-| **B** | Zone grid (`buildZoneViewModel`) | **None** for baseline £/kg on 12 journey tiles |
+| **A** | Profile onboarding (8 steps + postcode; optional house number) | **None** — Postcodes.io, Carbon Intensity API, optional OpenEPC |
+| **B** | Zone grid (`buildZoneViewModel`) | **None** for baseline £/kg on 13 journey tiles |
 | **B′** | Cached `research_results` tip copy | **Only if row empty** — surgical seed URL + Gemini triplet |
 | **C** | Solo Focus answer (`POST /api/answers`) | **Hybrid spawn** when `MODEL_STRATEGY=bucket_failover` — locked £/kg + editorial Gemini |
 | **D** | `/zai` chat | **None** — read-only Neon + genome; no Firecrawl |
@@ -2067,8 +2100,9 @@ Full product loop: **[ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md)**. **How
 | Module | Role |
 |--------|------|
 | `lib/intelligence/nesoGridClient.ts` | Regional gCO₂/kWh (Carbon Intensity API) |
-| `lib/intelligence/openEpcClient.ts` | EPC register (needs `OPENEPC_EMAIL` + `OPENEPC_API_KEY`) |
-| `lib/intelligence/freeTierHydration.ts` | Tier A parallel hydrate → `user_genome.open_data_anchor` |
+| `lib/intelligence/openEpcClient.ts` | EPC register (needs `OPENEPC_EMAIL` + `OPENEPC_API_KEY`); optional `houseNumber` filters by register address |
+| `lib/intelligence/epcAddressMatch.ts` | Address-token filter before `pickLatestRow` when house number set |
+| `lib/intelligence/freeTierHydration.ts` | Tier A parallel hydrate → `user_genome.open_data_anchor` (stores `houseNumber` on anchor) |
 | `lib/zone/engineDataRouter.ts` | `processCalculatedLoopSpawn` — deterministic deltas + one discovery card |
 | `lib/agents/premiumEditorialExtraction.ts` | Gemini prose only; £/kg passed in as locked facts |
 | `lib/brains/buildUserImpact.ts` | Single source of truth for Zone tile £/kg |
@@ -2092,7 +2126,7 @@ No VPS change. Hermes still calls `GET/POST /api/cron/zone-research?repair=1` fo
 
 #### Neon
 
-- **`user_genome.open_data_anchor`** — EPC + grid snapshot at postcode hydrate
+- **`user_genome.open_data_anchor`** — EPC + grid snapshot at postcode hydrate (`houseNumber` when provided)
 - **`research_results`** — premium editorial rows with `invokePayload.trigger: hybrid-pipeline`
 - Keep **`journey_answers`** + **`journey_answers_jsonb`** (dual-write)
 
@@ -2114,13 +2148,13 @@ Operational architecture for the UK postcode-driven energy auditor: what talks t
 
 **Related docs:** [HANDBOOK.md](HANDBOOK.md) · [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) · [SENTINEL.md](SENTINEL.md) · [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) · [INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md) · [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) · [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md)
 
-**Production:** https://00-ulm.vercel.app · **Repo:** https://github.com/00app/00-ULM
+**Production:** https://www.00-00.online · **Repo:** https://github.com/00app/00-ULM
 
 ---
 
 #### 1. Product overview
 
-Zero Zero is a UK-first web app. A user provides a **postcode** and a short **profile** (household, transport, goals). The app shows a **Zone** — a bento grid of 12 journey domains (home, grants, solar, travel, etc.) with savings and carbon hints. Tapping a card opens **Solo Focus**: answer embedded questions, see a researched recommendation, then optionally **spawn** a sharper “child” insight.
+Zero Zero is a UK-first web app. A user provides a **postcode** and a short **profile** (household, transport, goals). The app shows a **Zone** — a bento grid of 13 journey domains (home, grants, solar, travel, etc.) with savings and carbon hints. Tapping a card opens **Solo Focus**: answer embedded questions, see a researched recommendation, then optionally **spawn** a sharper “child” insight.
 
 ##### 1.1 Metaphor: brain, stomach, memory, nervous system
 
@@ -2244,7 +2278,7 @@ flowchart LR
 | Intro | `/`, `/intro` | Logo glitch (Style A) → kinetic words → lockup **CREATE A / PROFILE TO / START.** at **profile H2 scale** → CREATE → profile. Geolocation may seed `profile_postcode`. `?skip=1` skips logo. |
 | Profile | `/profile` | Stepped onboarding: name (**given-name**, first token only), **postcode** (`postal-code`, hydrate `profile_postcode`), household, home type, transport, age, employment, goal. Full-sentence fade per step. |
 | Summary | `/profile/summary` | Kinetic **HELLO → name → locality** (`IntroWordCycle`, opacity ticker only). Impact totals. Handshake scrape. |
-| Zone | `/zone` | 12 journey cards + Saving Tips; hydrates from Neon via scrape-sync. |
+| Zone | `/zone` | 13 journey cards + Saving Tips; hydrates from Neon via scrape-sync. |
 | Solo Focus | Overlay on Zone | Questions → answer → zip-shut → result / morph card. |
 | Zai | `/zai` | Free-form chat (Gemini), separate from MC answer birth path. |
 | Other | `/likes`, `/settings` | Saved cards, reset/session. |
@@ -2299,13 +2333,14 @@ Passed as `?user_id=` on **GET scrape-sync** and in **POST** bodies for trigger/
 
 ---
 
-#### 5. Journey questions and answers (12 × 3)
+#### 5. Journey questions and answers (13 × 3)
 
 **Source of truth:** `lib/journeys.ts`
 
 | Journey key | Example question ids |
 |-------------|----------------------|
 | `home` | `property_type`, `insulation_level`, `glazing_type` |
+| `utilities` | `tariff_type`, `supplier_switch`, `monthly_energy_band` |
 | `grants` | `boiler_age`, `income_benefits`, `prior_eco_bus` |
 | `solar` | `roof_orientation`, `roof_shading`, `daytime_occupancy` |
 | `travel` | `commute_distance`, `ev_hybrid`, `public_transport` |
@@ -2318,7 +2353,7 @@ Passed as `?user_id=` on **GET scrape-sync** and in **POST** bodies for trigger/
 | `waste` | `food_waste_collection`, `composting`, `soft_plastics` |
 | `carbon` | `footprint_awareness`, `carbon_removal`, `tonne_reduction_timeline` |
 
-- **12 domains**, **3 questions each** (`JOURNEY_ORDER`).
+- **13 domains**, **3 questions each** (`JOURNEY_ORDER`).
 - Question labels are **behavioural** — no £/kg in copy.
 - **Next question:** `lib/zone/questionHandler.ts` → `getNextQuestion(journeyId, answers)`.
 
@@ -2449,7 +2484,7 @@ The browser must **not** call Ofgem or Nominatim directly. Use `/api/pulse/livin
 
 ##### 7.3 Grid layout
 
-**Wall order:** `WALL_JOURNEY_ORDER` in `app/zone/page.tsx` — same 12 keys, 3×4 bento.
+**Wall order:** `WALL_JOURNEY_ORDER` in `app/zone/page.tsx` — same 13 keys, bento grid.
 
 **Motion:** Style B mechanical snap (`STACCATO_*` stagger). See `lib/animations.ts` and `.cursor/rules/mechanical-pulse.mdc`.
 
@@ -2493,8 +2528,8 @@ sequenceDiagram
 | Piece | Source / code |
 |-------|----------------|
 | H1 (**20–24 words**) | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when DB title weak; `stripExpandedCardTitleNoise` |
-| Lead (H4, **≤30 words**) | Town from `locationState.locationName` — `resolveSoloFocusDisplayProse` + `buildAuditorDetectionParagraph` (`lib/zone/localityCopy.ts`) |
-| Three paragraphs | `architect_prose` via `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` (label-free beats; one `payoffSentence`) |
+| Lead (H4, **≤30 words**) | `resolveSoloFocusDisplayProse` + `buildAuditorDetectionParagraph` (`lib/zone/localityCopy.ts`) |
+| Body (optional) | `architect_prose` via `buildResearchResultsTrueTipBody` — max 1 Roboto block when lead present |
 | SAVE / CARBON | Verified £ from `research_results` when settled |
 | CTA | `offer_url` → `IndustrialHandoffButton` (`resolveRevenueCtaLabel`) |
 | Source link | `source_url` / `verifiedAuditSourceUrl` |
@@ -2576,7 +2611,7 @@ Hermes is the **scheduled HTTP trigger**, not a separate AI runtime.
 
 1. **~05:00 daily** — VPS shell calls:
    ```
-   GET https://00-ulm.vercel.app/api/cron/zone-research?limit=20
+   GET https://www.00-00.online/api/cron/zone-research?limit=20
    Authorization: Bearer <CRON_SECRET>
    ```
 2. Handler (`app/api/cron/zone-research/route.ts`) loads users from **`users`** where postcode is set.
@@ -2597,7 +2632,7 @@ npm run hermes:pulse
 ### VPS / daily batch (limit=20)
 bash scripts/hermes-pulse.sh
 
-bash scripts/curl-scrape-sync-trigger.sh https://00-ulm.vercel.app BN17
+bash scripts/curl-scrape-sync-trigger.sh https://www.00-00.online BN17
 ```
 
 Or `POST /api/scrape-sync` with `{ trigger: true, postcode, category, user_id }`.
@@ -2611,7 +2646,7 @@ Or `POST /api/scrape-sync` with `{ trigger: true, postcode, category, user_id }`
 ##### 11.3 Four-step loop
 
 1. **Trigger (Hermes):** Cron hits `/api/cron/zone-research`.
-2. **Extraction:** Firecrawl scrape → Gemini maps to twelve journey categories → persist.
+2. **Extraction:** Firecrawl scrape → Gemini maps to thirteen journey categories → persist.
 3. **Consumption (Zone):** Bento tiles + Solo Focus expanded copy from Neon.
 4. **Expansion (user):** `POST /api/answers` → discovery → `injectNewDiscoveryCard`; supplemental Ask/inject paths capped at 3 per journey.
 
@@ -2690,7 +2725,7 @@ Pre-login profile + answers by `zz_sid` cookie.
 | Table | Note |
 |-------|------|
 | `journey_answers` | Normalized per-question rows; dual-write in some paths |
-| `journey_questions` | Seeded via `npm run db:evolve-12-domains` |
+| `journey_questions` | Seeded via `npm run db:evolve-13-domains` |
 | `cards`, `micro_answers` | Legacy — not on Zone hot path |
 | `user_actioned_cards`, `likes` | User actions |
 | `activity_status` | SSO activity visibility |
@@ -2739,7 +2774,7 @@ flowchart TB
 
 | State | Zone hero | Journey tiles |
 |-------|-----------|---------------|
-| Clean Neon, first load | “Analyzing your postcode…”, £0 | 12× **COMPUTING — …**, **—** metrics |
+| Clean Neon, first load | "Analyzing your postcode…", £0 | 13× **COMPUTING — …**, **—** metrics |
 | After research rows | Personalised totals | Real £, headlines, LIVE/ESTIMATED badges |
 | Stale client cache | May flash old £ | Hard refresh; `DATA_VERSION` bump clears cache |
 
@@ -2792,21 +2827,21 @@ See `.env.example`. Never commit `.env.local`.
 npm run db:log-research      # latest research_results row
 npm run db:test              # Neon connectivity
 npm run db:columns           # column listing
-npm run db:evolve-12-domains # journey_questions for all 12 keys
+npm run db:evolve-13-domains # journey_questions for all 13 keys
 bash scripts/verify-env-and-health.sh
 ```
 
 **Honest empty Zone:**
 
 ```bash
-curl -sS "https://00-ulm.vercel.app/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length), .research_category_coverage'
+curl -sS "https://www.00-00.online/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length), .research_category_coverage'
 ### pending + 0 scraped + {} coverage ⇒ COMPUTING tiles, not fake £
 ```
 
 **Health:**
 
 ```bash
-curl -sS "https://00-ulm.vercel.app/api/health"
+curl -sS "https://www.00-00.online/api/health"
 ```
 
 ---
@@ -2840,7 +2875,7 @@ curl -sS "https://00-ulm.vercel.app/api/health"
 #### 19. Deploy and prep
 
 ```bash
-npm run prep:live          # db:test + db:evolve-12-domains + build:clean
+npm run prep:live          # db:test + db:evolve-13-domains + build:clean
 npm run deploy:force       # vercel deploy --prod (scripts/deploy-production.sh)
 ```
 
@@ -2848,7 +2883,7 @@ npm run deploy:force       # vercel deploy --prod (scripts/deploy-production.sh)
 
 ---
 
-*Last updated: conversation spec consolidation. For motion and product rules, see `.cursor/rules/zero-zero-prime-directive.mdc` and [HANDBOOK.md](HANDBOOK.md).*
+*Last updated: 2026-05-30 — 13-domain calc engine fix (shopping/money/carbon answer key alignment, holidays £0 floor, Zai-voice explanation rewrites). For motion and product rules, see `.cursor/rules/zero-zero-prime-directive.mdc` and [HANDBOOK.md](HANDBOOK.md).*
 
 ---
 
@@ -3017,7 +3052,7 @@ Sentinel is a **parallel layer** to the main Zone content pipeline (`GET /api/sc
 
 | Capability | Purpose |
 |------------|---------|
-| **Live-Impact** | Ofgem-locked April 2026 rates + regional grid intensity (`app/lib/skills/liveImpact.ts`) |
+| **Live-Impact** | Ofgem-locked July 2026 rates + regional grid intensity (`app/lib/skills/liveImpact.ts`) |
 | **Home mother/child deck** | P1–P3 slides in `journey_state` for `home`; advances after each home answer (max 3) |
 | **Client priorities** | Top 3 heuristic tips (home / travel / waste-shopping) from answers + goal + chat keywords |
 | **Rural grant signal** | Remote postcode prefixes + Firecrawl grant extract → optional `inject-sentinel-rural-support` tip |
@@ -3239,7 +3274,7 @@ npm run verify
 
 
 **Audience:** whoever runs the Oracle VPS cron (`ubuntu@140.238.100.237`) and anyone testing from a Mac.  
-**App:** `https://00-ulm.vercel.app` — Zero Zero intelligence loop.
+**App:** `https://www.00-00.online` — Zero Zero intelligence loop.
 
 This is **not** the Python `hermes` chat CLI schedule. VPS cron uses **`bash scripts/hermes-pulse.sh`** (see [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md)).
 
@@ -3307,7 +3342,7 @@ npm run db:repair-gary
 
 ```bash
 ### BAD — FUNCTION_INVOCATION_TIMEOUT (12 × full Firecrawl+Gemini per user)
-curl -X POST "https://00-ulm.vercel.app/api/cron/zone-research?limit=12" \
+curl -X POST "https://www.00-00.online/api/cron/zone-research?limit=12" \
   -H "Authorization: Bearer YOUR_SECRET"
 ```
 
@@ -3315,7 +3350,7 @@ Use **repair backfill** instead:
 
 ```bash
 ### GOOD — backfill agent_headline / architect_prose / saving_amount_gbp on incomplete rows
-curl -sS -X POST "https://00-ulm.vercel.app/api/cron/zone-research?repair=1&limit=6" \
+curl -sS -X POST "https://www.00-00.online/api/cron/zone-research?repair=1&limit=6" \
   -H "Authorization: Bearer $(grep '^CRON_SECRET=' .env.local | cut -d= -f2- | tr -d '\"')"
 ```
 
@@ -3323,7 +3358,7 @@ Or load secret safely (avoids zsh `!` / `(BN17)` glob bugs):
 
 ```bash
 SECRET=$(grep '^CRON_SECRET=' .env.local | cut -d= -f2- | tr -d '"' | tr -d "'")
-curl -sS -X POST "https://00-ulm.vercel.app/api/cron/zone-research?repair=1&limit=6" \
+curl -sS -X POST "https://www.00-00.online/api/cron/zone-research?repair=1&limit=6" \
   -H "Authorization: Bearer ${SECRET}"
 ```
 
@@ -3392,7 +3427,7 @@ Ensure Production has:
 
 Reference for `ubuntu@140.238.100.237` — Hermes only **HTTP-triggers** Vercel; it does not run Gemini/Firecrawl locally.
 
-**Production target:** `https://00-ulm.vercel.app/api/cron/zone-research`
+**Production target:** `https://www.00-00.online/api/cron/zone-research`
 
 **Operator brief (read first):** [`HERMES-ULM-JIT-BRIEF.md`](./HERMES-ULM-JIT-BRIEF.md) — Ulm JIT, weekly schedule, why `limit=12` timed out, correct curl/Mac commands.
 
@@ -3651,7 +3686,7 @@ If that finished without `Error: Command "npm run verify && …" exited with 1`,
 2. Open deployment **`4924d2f`** (or latest **Staged**)
 3. **⋯** menu → **Promote to Production** (or **Assign to Production Domain**)
 
-Production alias **`https://00-ulm.vercel.app`** should then serve this build.
+Production alias **`https://www.00-00.online`** should then serve this build.
 
 #### 3. Stop the false failures (repo + dashboard)
 
@@ -3659,7 +3694,7 @@ Production alias **`https://00-ulm.vercel.app`** should then serve this build.
 
 | Layer | What runs |
 | --- | --- |
-| **`vercel.json` `buildCommand`** | `node scripts/vercel-build-gate.mjs` — serial typecheck, lint, then production build |
+| **`vercel.json` `buildCommand`** | `node scripts/vercel-build-gate.mjs` — serial typecheck, lint, then `build-with-manifest-fix.js` (verify runs without build `NODE_OPTIONS` to avoid OOM) |
 | **`.npmrc`** | `include=dev` — native Lint/Typecheck jobs get `@types/*` + eslint |
 | **`scripts/vercel-check.mjs`** | Native check entry: `next typegen` + explicit eslint/tsc binaries |
 | **`package.json` `lint` / `typecheck`** | `node scripts/vercel-check.mjs …` (not deprecated `next lint`) |
@@ -3675,9 +3710,9 @@ Missing or nested check scripts caused Vercel *internal error* on native Lint/Ty
 2. **Remove** or mark **not required** the built-in **Lint** and **Typecheck** checks (Next 16 + flat ESLint often yields *internal error* with no log).
 3. **Add** → **GitHub Actions** → require jobs **`Lint`** and **`Typecheck`** from `.github/workflows/vercel-production-gate.yml` (exact names).
 
-Until step 3 is done, a green **build** can still show **Checks Failed** — run `npm run promote` so `00-ulm.vercel.app` serves the Ready deployment.
+Until step 3 is done, a green **build** can still show **Checks Failed** — run `npm run promote` so `www.00-00.online` serves the Ready deployment.
 
-**Staged but build green:** run `npm run promote` (promotes latest Ready prod deployment to `00-ulm.vercel.app`).
+**Staged but build green:** run `npm run promote` (promotes latest Ready prod deployment to `www.00-00.online`).
 
 Optional smoke check: **`GET /api/health?live=1`** (no DB, returns 200).
 
@@ -3700,7 +3735,7 @@ From repo root (linked to **00-ulm**):
 npm run deploy
 ```
 
-This runs **`npm run verify`**, then **`vercel deploy --prod`** (build on Vercel — **not** `--prebuilt`), then **auto-promote** via `scripts/vercel-promote-latest.sh` so **`00-ulm.vercel.app`** is not left on an old build when dashboard checks fail.
+This runs **`npm run verify`**, then **`vercel deploy --prod`** (build on Vercel — **not** `--prebuilt`), then **auto-promote** via `scripts/vercel-promote-latest.sh` so **`www.00-00.online`** is not left on an old build when dashboard checks fail.
 
 **Staged only (build already green):** `npm run promote`
 
@@ -3758,6 +3793,65 @@ Quick runbook for local work on Zero Zero (00-00) after ULM / hybrid pipeline ch
 
 ---
 
+#### UAT gate (pre-ship)
+
+Run in order from repo root. **All green locally** before browser UAT; **production Neon** must be fixed separately (see blockers below).
+
+| # | Check | Command | Pass criteria |
+|---|--------|---------|----------------|
+| 1 | Static gate | `npm run verify` | Exit 0 — typecheck + lint |
+| 2 | Neon CLI | `npm run db:test` | Ping + 15 public tables |
+| 3 | Local app DB | `curl -s http://127.0.0.1:3000/api/health` | `"database":"connected"` (dev running) |
+| 4 | Env probe | `npm run verify:env` | Keys present; diagnostics 200 if `CRON_SECRET` set |
+| 5 | Hermes auth | `npm run hermes:ping` | Liveness + diagnostics **200** (hits production URL) |
+| 6 | Research gates | `npm run zone:audit-gates -- YOURPOSTCODE` | Know settled vs missing (seed if needed) |
+| 7 | Pipeline ready | `npm run dev:pipeline-ready` | verify + env + health (optional `--seed POSTCODE`) |
+
+**Browser UAT checklist**
+
+| Surface | Verify |
+|---------|--------|
+| `/profile` → `/profile/summary` → `/zone` | Postcode-driven locality; atomic summary ticker |
+| Zone grid | 13 journeys; purple/yellow hover swap; visited pink |
+| Solo Focus | Marvin H1 + **lead only** (no Roboto proof paragraph); SAVE/CARBON stamp |
+| Rock strip | TECH/HOLIDAYS labels **same colour as headline** at rest + hover |
+| Settings | Circle CTAs; WIRING diagnostics; pencil icons visible on card hover |
+| Ask Zai dock | Yellow pill; portaled above nav |
+| Loop answer | One MC → one discovery card birth |
+
+##### Env files (one source of truth)
+
+| File | Use |
+|------|-----|
+| **`.env.local`** | **Local dev only** — edit this day-to-day |
+| `.env.example` | Template (committed, no secrets) |
+| `.env.vercel.pull` | Snapshot from `vercel env pull` — reference / merge source |
+| `.env.production.local` | Hermes ping auth file; prod DB repair scripts — **not** for `next dev` |
+| `.env.production` | Legacy dump — safe to delete |
+
+**Refresh local secrets:**
+
+```bash
+vercel pull --yes --environment=production
+vercel env pull .env.local --environment=production --yes
+### Paste fresh Neon pooler DATABASE_URL if password rotated
+npm run env:merge   # optional — merges exported shell vars into .env.local
+```
+
+**Stale shell `DATABASE_URL`:** if `db:test` passes but `/api/health` fails locally, run `unset DATABASE_URL`. `next.config.js` loads `.env.local` with `preferLocal: true` so the file wins over exported vars.
+
+##### Known blockers (audit snapshot)
+
+| Layer | Status | Action |
+|-------|--------|--------|
+| Local Neon | ✅ when `.env.local` + `preferLocal` | `npm run dev:3000` |
+| Production `/api/health` | ❌ `database: disconnected` | Update `DATABASE_URL` in Vercel Production → redeploy |
+| Production diagnostics | ⚠️ `neon: false`, gemini + firecrawl OK | Same Neon URL fix |
+| Hermes auth bridge | ✅ CRON_SECRET → 200 | VPS cron OK; DB backfill blocked until prod Neon fixed |
+| `zone:audit-gates` | ✅ script fixed | Requires postcode arg; exit 1 if journeys missing |
+
+---
+
 #### Do you need new SQL?
 
 | Change | SQL required? |
@@ -3771,7 +3865,7 @@ Quick runbook for local work on Zero Zero (00-00) after ULM / hybrid pipeline ch
 
 ```bash
 npm run init-db
-npm run db:evolve-12-domains
+npm run db:evolve-13-domains
 ```
 
 **Existing production:** no mandatory migration for ULM. Refresh `DATABASE_URL` in Vercel if auth fails.
@@ -3881,7 +3975,7 @@ npm run dev:clean
 
 ##### Vercel CLI `ETIMEDOUT` after “Deployment completed”
 
-Harmless — build and deploy finished; CLI lost the polling connection. Confirm in [Vercel dashboard](https://vercel.com) or `curl https://00-ulm.vercel.app/api/health?live=1`.
+Harmless — build and deploy finished; CLI lost the polling connection. Confirm in [Vercel dashboard](https://vercel.com) or `curl https://www.00-00.online/api/health?live=1`.
 
 ##### `Cannot find the middleware module` (Next 16 + Webpack)
 
@@ -3923,13 +4017,9 @@ If `db:test` passes but pool scripts fail: save `.env.local`, remove stale `expo
 
 **Local dev loads `.env.local` first:** `next.config.js` calls `loadEnvLocal({ preferLocal: true })` so exported shell vars cannot mask the file during `next dev`.
 
-**Env files:** use **`.env.local` only** for day-to-day dev. `.env.vercel.pull` / `.env.production.local` are pull snapshots — not alternate runtime configs. See [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md) § UAT gate.
-
 ---
 
 #### App + API smoke
-
-**Full UAT gate:** [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md) § UAT gate (commands + browser checklist + production blockers).
 
 ```bash
 npm run verify
@@ -3937,7 +4027,7 @@ npm run stack:verify          # env + db:test + hermes:ping
 npm run dev:pipeline-ready    # optional: -- --seed YOURPOSTCODE
 
 npm run verify:env
-### BASE_URL=https://00-ulm.vercel.app npm run verify:env
+### BASE_URL=https://www.00-00.online npm run verify:env
 
 npm run hermes:ping
 npm run deploy                # verify + remote build + auto-promote
@@ -4014,7 +4104,7 @@ Redeploy, then re-check:
 ```bash
 export CRON_SECRET="$(grep '^CRON_SECRET=' .env.local | cut -d= -f2- | tr -d '\"')"
 curl -sS -H "Authorization: Bearer ${CRON_SECRET}" \
-  'https://00-ulm.vercel.app/api/health/diagnostics' | jq '.bucket_failover.enabled'
+  'https://www.00-00.online/api/health/diagnostics' | jq '.bucket_failover.enabled'
 ```
 
 Local hybrid spawn also needs the same in `.env.local` (or `HYBRID_DATA_PIPELINE=1`).
@@ -4046,7 +4136,8 @@ Optional: `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` with `OPENROUTER_MODEL=meta-ll
 
 | Symptom | Fix |
 |---------|-----|
-| `password authentication failed` | Neon console → reset password → paste new pooler URL into `.env.local` + Vercel |
+| `password authentication failed` | Neon console → reset password → paste new pooler URL into `.env.local` + Vercel Production → redeploy |
+| Production `neon: false` in diagnostics | Same — Vercel `DATABASE_URL` stale; local `.env.local` can be correct while prod is not |
 | `verify` ESLint warning only | Pre-existing `SoloFocusOverlay` hooks — not a build blocker |
 
 ##### Local dev — stop credit burn
@@ -4057,7 +4148,7 @@ Optional: `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` with `OPENROUTER_MODEL=meta-ll
 | Many `POST /api/zone/content-architect` ~20s | One batch per profile fingerprint; clear `sessionStorage` keys `zz_architect_*` to force refresh |
 | `npm run hermes:repair-pulse # comment` → `Unknown arg: #` | Run **one command per line** — npm passes `#` to bash |
 | Vercel Lint/Typecheck *internal error* | Build often OK — `npm run promote` or [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) |
-| Staged deployment | `npm run promote` (alias latest Ready prod → `00-ulm.vercel.app`) |
+| Staged deployment | `npm run promote` (alias latest Ready prod → `www.00-00.online`) |
 | Zone stale cards | Clear localStorage; check `NEXT_PUBLIC_DATA_VERSION` in `.env.local` |
 | Hermes 401 | `CRON_SECRET` in `.env.local` must match VPS secret file |
 | `Unknown arg: #` after npm | Remove inline `# comments` on npm lines |
@@ -4144,7 +4235,7 @@ flowchart TB
    - `ukInfrastructure` — carbon, generation mix, EA water sample, Defra AQI sample
    - `octopusMarket` — product count + Agile half-hourly slots (electric / mixed only)
    - Postcode-local grid via `nesoGridClient`
-   - April 2026 **reference** cap p/kWh from `lib/brains/constants` (not invented from Octopus alone)
+   - July 2026 **reference** cap (£1,862 typical dual-fuel) from `lib/brains/constants` (`TRUTH_2026_JULY`); unit p/kWh from same module (not invented from Octopus alone)
 4. **Gemini / Firecrawl:** `formatUtilitiesPublicFeedBlock()` is prepended in `runTriggerResearchForCategory` via `buildUtilitiesResearchContext` — lane lock forbids re-asking power type.
 
 ##### Other journeys
@@ -4194,7 +4285,7 @@ No `.env` keys required for APIs 1–6. Firecrawl/Gemini still need keys for **s
 | 2 | `/profile` | Onboarding genome | Context + `POST /api/local-intelligence` → `locationName` |
 | 3 | `/profile/summary` | Review totals | Atomic ticker → Zone handoff |
 | 4 | `/zone` | 13 category cards | `GET /api/scrape-sync`, `buildZoneViewModel`, mechanical truth |
-| 5 | Solo Focus | Open card | Marvin hook H1 + town-based lead only (metrics row owns £/CO₂e) |
+| 5 | Solo Focus | Open card | Marvin hook H1 + town-based lead + 3-beat prose |
 | 6 | Answer | MC / loop | `POST /api/answers`, discovery, optional scrape |
 | 7 | Close | Return to grid | Pink on birth; visited → grid only (no loop takeover) |
 

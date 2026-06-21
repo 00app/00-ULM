@@ -36,17 +36,19 @@ Grid discovery tips on wall: still **1 earned inject per category** via `perCate
 ## 1. Profile (`/profile`)
 
 - 8 steps → `buildUserImpact` baseline; no Gemini/Firecrawl on onboarding.
-- Postcode → `POST /api/local-intelligence` → `hydrateFreeStructuralContext` → `user_genome.open_data_anchor`.
+- Postcode step: optional **house number** (`profile_house_number`) on the same screen — disambiguates OpenEPC rows when a postcode has multiple dwellings.
+- Postcode (+ optional house number) → `POST /api/local-intelligence` (`house_number` in body; GET `?house_number=`) → `hydrateFreeStructuralContext` → `fetchOpendataEpcProfile(postcode, { houseNumber })` → `user_genome.open_data_anchor`.
+- When EPC `addressMatched` and `home_type` unset, onboarding may pre-select **FLAT** / **HOUSE** from register `propertyType` (`lib/epc/mapEpcToProfileHints.ts`) — user can override on the next step.
 - Motion: `STACCATO_TWEEN` questions; summary uses `IntroWordCycle` / `opacityTicker`.
 
 ---
 
 ## 2. Zone (`/zone`)
 
-- **12 domains:** `JOURNEY_ORDER` in `lib/journeys.ts`.
+- **13 domains:** `JOURNEY_ORDER` in `lib/journeys.ts` (`home` → `utilities` → … → `carbon`). All 13 tiles render on the Zone wall; **utilities** stays `COMPUTING` until profile **power type** is set (`lib/zone/utilitiesZoneUnlock.ts`).
 - **Mechanical truth:** empty Neon → `COMPUTING — JOURNEY` / `—`; no fake £.
 - **Visited:** `visited_cards` → pink `#FF00FF` / yellow `#FDFD00` (`.zone-card--visited`).
-- **Rock rail:** navy + yellow; 6-slot rotation; display capped at 12.
+- **Rock rail:** navy + yellow; 6-slot rotation; display capped at 12; grid titles from catalog (`clampRockTipHeadline`); rail excludes wall headline duplicates (`prepareRockHabitsForRail`).
 
 ---
 
@@ -64,7 +66,9 @@ Grid discovery tips on wall: still **1 earned inject per category** via `perCate
 | Surface | Words |
 |---------|-------|
 | Zone bento | **5–8** — `enforceHeadlineWordLimits(text, false)` |
-| Solo Focus / expanded hook | **20–24** — `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when weak; else `enforceHeadlineWordLimits(text, true)` |
+| Today's Tips grid | **3–10** — `clampRockTipHeadline` (catalog title; not wall hook) |
+| Solo Focus / expanded hook (mother) | **20–24** — `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` when weak; else `enforceHeadlineWordLimits(text, true)` |
+| Solo Focus / expanded hook (Rock) | **20–24** — `headlineFromRockHabit(title, insight)` — **no** `EXPANDED_JOURNEY_HOOK` |
 | Solo Focus Marvin lead | **≤30** — `resolveSoloFocusDisplayProse`; `buildAuditorDetectionParagraph` when lead lacks town opener |
 | Prose beats | ≤ **40** words / paragraph |
 

@@ -53,7 +53,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "== Local .env.local (presence + value length only) =="
 if [[ -f .env.local ]]; then
-  for key in DATABASE_URL GEMINI_API_KEY FIRE_CRAWL_KEY_3 FIRE_CRAWL_KEY_2 FIRECRAWL_API_KEY CRON_SECRET GATEWAY_TOKEN; do
+  for key in DATABASE_URL GEMINI_API_KEY FIRE_CRAWL_KEY_3 FIRE_CRAWL_KEY_2 FIRECRAWL_API_KEY CRON_SECRET GATEWAY_TOKEN TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_PHONE_NUMBER; do
     line="$(grep "^${key}=" .env.local 2>/dev/null | head -1 || true)"
     if [[ -z "$line" ]]; then
       echo "  ${key}: MISSING"
@@ -130,5 +130,5 @@ if [[ "$diag_code" == "401" ]]; then
 fi
 
 echo "== Production one-liner =="
-echo "  BASE_URL=https://00-ulm.vercel.app bash scripts/verify-env-and-health.sh"
+echo "  BASE_URL=https://www.00-00.online bash scripts/verify-env-and-health.sh"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

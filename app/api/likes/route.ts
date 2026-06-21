@@ -7,9 +7,7 @@ import { resolveRequestIdentity } from '@/lib/requestAuth'
 import { guestIpHashFromRequest } from '@/lib/zone/guestSession'
 import { readGuestLikedCardIds, toggleGuestLike } from '@/lib/zone/guestLikes'
 
-/** v1.8.14 — Production lock: likes route must not initiate third-party messaging. */
-const DISALLOW_OUTBOUND = true
-void DISALLOW_OUTBOUND
+/** Likes route does not send SMS. */
 
 export const runtime = 'nodejs'
 

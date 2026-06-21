@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
+import { trackFunnelEvent, trackFunnelEventOnce } from '@/lib/analytics/trackFunnelEvent'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import Link from 'next/link'
@@ -16,7 +17,8 @@ import {
   journeyKeysFromDisplayItems,
   resolveJourneyCellForSoloFocusNav,
   soloFocusJourneyNeighbors,
-  soloFocusNavRingFromDisplayItems,
+  buildSoloFocusNavRing,
+  soloFocusNavNeighbors,
   type SoloFocusNavEntry,
 } from '@/lib/zone/soloFocusJourneyNav'
 import {
@@ -143,6 +145,7 @@ import {
 import { coverageRowToNeon, foldCoverageRowsForZone } from '@/lib/zone/neonResearchMerge'
 import { runDiscoveryPulse, readStoredEconomyFingerprint, writeStoredEconomyFingerprint } from '@/lib/agents/heartbeat'
 import {
+  clearAiRouteBlockedClient,
   isAiRouteBlockedClient,
   markAiRouteBlockedFromStatus,
 } from '@/lib/intelligence/aiRouteClientGuard'
@@ -174,13 +177,14 @@ import {
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import ZoneDesktopNavRail from '@/app/components/ZoneDesktopNavRail'
 import ZoneAskZaiDock from '@/app/components/ZoneAskZaiDock'
+import { RockSavingTips, RockMobileSignupCard } from '@/app/components/RockSavingTips'
 import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
 import {
   AppFloatingNav,
   ZoneCard,
-  RockSavingTips,
   SoloFocusOverlay,
 } from '@/lib/visual'
+import { Footer } from '@/app/components/Footer'
 
 function isDiscoveryTipPayload(x: unknown): x is ZoneTipCard {
   if (!x || typeof x !== 'object') return false
@@ -340,7 +344,7 @@ export default function ZonePage() {
     return () => window.removeEventListener(ZAI_AUDIT_COMPLETE_EVENT, onZaiAuditComplete)
   }, [])
 
-  /** Zone lock: all twelve domains visible on the wall. */
+  /** Zone lock: all 13 domains visible on the wall. */
   const [unlockedCount, setUnlockedCount] = useState(12)
   const [hydrated, setHydrated] = useState(false)
   /** v1.7: index of the journey card that just popped in; cleared after animation. */
@@ -886,6 +890,11 @@ export default function ZonePage() {
 
   useEffect(() => {
     if (!hydrated) return
+    if (process.env.NODE_ENV === 'development') {
+      clearAiRouteBlockedClient()
+      setAiRouteBlocked(false)
+      return
+    }
     setAiRouteBlocked(isAiRouteBlockedClient())
   }, [hydrated])
 
@@ -1105,6 +1114,7 @@ export default function ZonePage() {
       coverage: researchCategoryCoverage,
       profileData: {
         postcode: scrapePostcode,
+        house_number: pf.house_number,
         home_type: pf.home_type,
         transport_baseline: pf.transport_baseline,
         household: pf.household,
@@ -1288,6 +1298,11 @@ export default function ZonePage() {
       setDiscoverySnapTipId(detail.id)
       window.setTimeout(() => setDiscoverySnapTipId((id) => (id === detail.id ? null : id)), 950)
       setVmSyncStamp(Date.now())
+      trackFunnelEvent('discovery_injected', {
+        card_id: detail.id,
+        card_type: 'discovery',
+        journey_id: journeyKeyFromTip(detail) ?? undefined,
+      })
       /* Birth on grid only (atomic assembly) — user opens discovery in Solo Focus when ready. */
       if (!isAchievement && detail.id && !readVisitedCardIds().has(detail.id)) {
         if (!aiRouteBlocked) {
@@ -1309,6 +1324,7 @@ export default function ZonePage() {
       const d = (e as CustomEvent<{ journeyId?: string }>).detail
       if (d?.journeyId) {
         setInsightPendingKeys((s) => new Set(s).add(String(d.journeyId).toLowerCase()))
+        trackFunnelEvent('answer_committed', { journey_id: d.journeyId })
       }
       setVmSyncStamp(Date.now())
       setRefreshKey((k) => k + 1)
@@ -1835,9 +1851,18 @@ export default function ZonePage() {
     ]
   )
   const displayItems: GroovyItem[] = useMemo(() => [...groovyItems], [groovyItems])
-  const soloFocusNavRing = useMemo(
-    () => soloFocusNavRingFromDisplayItems(displayItems),
+  const firstCategoryGridIndex = useMemo(
+    () => displayItems.findIndex((cell) => cell.type !== 'hero'),
     [displayItems]
+  )
+  const soloFocusNavRing = useMemo(
+    () =>
+      buildSoloFocusNavRing(displayItems, [
+        ...discoveryTips,
+        ...achievementTips,
+        ...effectiveInjectedTips,
+      ]),
+    [displayItems, discoveryTips, achievementTips, effectiveInjectedTips]
   )
   const soloFocusJourneyRing = useMemo(
     () => journeyKeysFromDisplayItems(displayItems),
@@ -1954,6 +1979,11 @@ export default function ZonePage() {
     return () => window.clearTimeout(t)
   }, [architecturalPulsePhase])
 
+  useEffect(() => {
+    if (architecturalPulsePhase !== 'done') return
+    trackFunnelEventOnce('zone_ready')
+  }, [architecturalPulsePhase])
+
   /** Last-resort grid reveal — hero visible but bento collapsed. */
   useEffect(() => {
     if (!hydrated || zoneHandoffStaging || architecturalPulsePhase !== 'done') return
@@ -1977,6 +2007,8 @@ export default function ZonePage() {
     !pulseWordsComplete
   const showInlineLoadingLogo = architecturalPulsePhase === 'glitch'
   const zoneRevealCount = Math.min(revealedCardCount, displayItems.length)
+  const showCategorySectionHeading =
+    firstCategoryGridIndex >= 0 && zoneRevealCount > firstCategoryGridIndex
   const gridFullyRevealed =
     architecturalPulsePhase === 'done' &&
     pulseWordsComplete &&
@@ -2079,17 +2111,6 @@ export default function ZonePage() {
     return out
   }, [researchCategoryCoverage])
 
-  const architectHeadlineByJourney = useMemo(() => {
-    const out: Partial<Record<JourneyId, string>> = {}
-    for (const j of viewModel.journeys) {
-      if (j.journey_key && j.title?.trim()) out[j.journey_key] = j.title.trim()
-    }
-    for (const t of viewModel.tips) {
-      if (t.journey_key && t.title?.trim()) out[t.journey_key] = t.title.trim()
-    }
-    return out
-  }, [viewModel.journeys, viewModel.tips])
-
   const rockHabitsWithOffers = useMemo(() => {
     const deduped = prepareRockHabitsForRail(
       rockVisibleHabits,
@@ -2102,28 +2123,74 @@ export default function ZonePage() {
     })
   }, [rockVisibleHabits, rockOfferByJourney, viewModel])
 
+  const resolveZoneTipById = useCallback(
+    (id: string) => {
+      const fromPools =
+        discoveryTips.find((t) => t.id === id) ??
+        achievementTips.find((t) => t.id === id) ??
+        effectiveInjectedTips.find((t) => t.id === id) ??
+        viewModel.tips.find((t) => t.id === id) ??
+        null
+      if (fromPools) return fromPools
+      const tipCell = displayItems.find(
+        (c): c is GroovyItem & { type: 'tip' } => c.type === 'tip' && c.tip.id === id
+      )
+      return tipCell?.tip ?? null
+    },
+    [achievementTips, discoveryTips, displayItems, effectiveInjectedTips, viewModel.tips]
+  )
+
   const navigateSoloFocusEntry = useCallback(
     (entry: SoloFocusNavEntry) => {
+      const activeId = expandedTipId?.trim() || expandedCardId?.trim() || ''
+      if (activeId && activeId === entry.cardId) return
+
       if (expandedTipId?.trim()) markCardVisited(expandedTipId)
       if (expandedCardId?.trim()) markCardVisited(expandedCardId)
+
       if (entry.kind === 'journey') {
         setExpandedTipId(null)
         setExpandedFromTip(null)
-        const cell = displayItems.find(
-          (c): c is GroovyItem & { type: 'journey' } =>
-            c.type === 'journey' && c.item.id === entry.cardId
-        )?.item
+        const cell =
+          displayItems.find(
+            (c): c is GroovyItem & { type: 'journey' } =>
+              c.type === 'journey' && c.item.id === entry.cardId
+          )?.item ??
+          displayItems.find(
+            (c): c is GroovyItem & { type: 'journey' } =>
+              c.type === 'journey' && c.item.journey_key === entry.journeyKey
+          )?.item
         if (cell) openZoneJourneySoloFocus(cell)
         return
       }
+
+      const tip = resolveZoneTipById(entry.cardId)
+      if (!tip) return
+
       setExpandedCardId(null)
       setExpandedFromTip(null)
+      rememberSoloFocusReturn({
+        cardId: tip.id,
+        journeyKey: journeyKeyFromTip(tip),
+        surface: tip.id.startsWith('inject-')
+          ? 'discovery'
+          : tip.id.startsWith('rock-')
+            ? 'rock'
+            : 'grid-tip',
+      })
       const isDiscovery = entry.cardId.startsWith('inject-')
-      if (openSoloFocus(entry.cardId, isDiscovery ? 'discovery' : 'tip')) {
-        setExpandedTipId(entry.cardId)
-      }
+      openSoloFocus(entry.cardId, isDiscovery ? 'discovery' : 'tip')
+      setExpandedTipId(entry.cardId)
     },
-    [displayItems, expandedCardId, expandedTipId, openSoloFocus, openZoneJourneySoloFocus]
+    [
+      displayItems,
+      expandedCardId,
+      expandedTipId,
+      openSoloFocus,
+      openZoneJourneySoloFocus,
+      rememberSoloFocusReturn,
+      resolveZoneTipById,
+    ]
   )
 
   const navigateJourneyInSoloFocus = useCallback(
@@ -2146,12 +2213,65 @@ export default function ZonePage() {
     [displayItems, expandedCardId, expandedTipId, openZoneJourneySoloFocus, soloFocusJourneyRing],
   )
 
+  const showRockStrip =
+    gridFullyRevealed &&
+    !expandedCardId &&
+    !expandedTipId &&
+    zoneInteractable
+
+  const openRockTip = useCallback(
+    (id: string) => {
+      if (!zoneInteractable) return
+      const rockHabit = id.startsWith('rock-') ? ROCK_BY_SLUG.get(id.slice(5)) : undefined
+      markCardVisited(id)
+      void recordCardVisitHandoff({
+        cardId: id,
+        journeyKey: rockHabit?.journey_key,
+        title: rockHabit?.title,
+      })
+      setVisitedCardIds(readVisitedCardIds())
+      try {
+        sessionStorage.removeItem(`zz_sf_view_${id}`)
+        sessionStorage.removeItem(`zz_sf_lane_${id}`)
+        sessionStorage.removeItem(`zz_sf_q_${id}`)
+      } catch {
+        /* ignore */
+      }
+      if (!openSoloFocus(id, 'tip')) return
+      rememberSoloFocusReturn({
+        cardId: id,
+        journeyKey: (rockHabit?.journey_key ?? 'home') as JourneyId,
+        surface: 'rock',
+      })
+      setExpandedCardId(null)
+      setExpandedFromTip(null)
+      setExpandedTipId(id)
+    },
+    [zoneInteractable, openSoloFocus, rememberSoloFocusReturn]
+  )
+
   const openNextJourneyFromExpanded = useCallback(
     (jid: JourneyId) => {
+      const activeId =
+        expandedTipIdRef.current?.trim() ||
+        expandedCardIdRef.current?.trim() ||
+        `journey-${jid}`
+      if (soloFocusNavRing.length > 0) {
+        const neighbors = soloFocusNavNeighbors(activeId, soloFocusNavRing, jid)
+        if (neighbors && neighbors.next.cardId !== activeId) {
+          navigateSoloFocusEntry(neighbors.next)
+          return
+        }
+      }
       const { next } = soloFocusJourneyNeighbors(jid, soloFocusJourneyRing)
       navigateJourneyInSoloFocus(next)
     },
-    [navigateJourneyInSoloFocus, soloFocusJourneyRing],
+    [
+      navigateJourneyInSoloFocus,
+      navigateSoloFocusEntry,
+      soloFocusJourneyRing,
+      soloFocusNavRing,
+    ]
   )
 
   /** Oversized slot-machine numbers: strict journey-sum totals + liked Rock habits. */
@@ -2178,30 +2298,9 @@ export default function ZonePage() {
     [viewModel]
   )
   const rockLikedImpact = sumRockLikedImpact(state.likedCards)
-  /** Profile hero card — waste £/kg summed from journey bento tiles (same as category cards). */
+  /** Profile hero — journey wall totals + liked Rock habits (welcome + hero card share this). */
   const heroMoney = heroWasteTotals.totalMoney + rockLikedImpact.money
   const heroCarbon = heroWasteTotals.totalCarbon + rockLikedImpact.carbon
-  /** Welcome masthead — sum of £/kg on visible journey + tip bento cells. */
-  const zoneGridSavings = useMemo(() => {
-    let totalMoney = 0
-    let totalCarbon = 0
-    for (const cell of displayItems) {
-      if (cell.type === 'journey') {
-        totalMoney += Math.max(
-          0,
-          Number(cell.item.moneyGbp ?? parseMoneyGbpFromDisplay(cell.item.data?.money ?? '0'))
-        )
-        totalCarbon += Math.max(
-          0,
-          Number(cell.item.carbonKg ?? parseCarbonKgFromDisplay(cell.item.data?.carbon ?? '0'))
-        )
-      } else if (cell.type === 'tip') {
-        totalMoney += parseMoneyGbpFromDisplay(cell.tip.data?.money ?? '0')
-        totalCarbon += parseCarbonKgFromDisplay(cell.tip.data?.carbon ?? '0')
-      }
-    }
-    return { totalMoney, totalCarbon }
-  }, [displayItems])
   const welcomeJourneyCount = useMemo(() => {
     const fromStorage = completedJourneys.length
     const fromCards = viewModel.journeys.filter((j) => {
@@ -2212,6 +2311,28 @@ export default function ZonePage() {
     }).length
     return Math.max(fromStorage, fromCards)
   }, [completedJourneys.length, viewModel.journeys])
+  const primaryJourneyKeySet = useMemo(
+    () => new Set(viewModel.primaryMoneyJourneyKeys),
+    [viewModel.primaryMoneyJourneyKeys]
+  )
+  const primaryHeroJourney = useMemo(() => {
+    const leadKey = viewModel.hero.journey_key
+    if (!leadKey) return null
+    return viewModel.journeys.find((j) => j.journey_key === leadKey) ?? null
+  }, [viewModel.journeys, viewModel.hero.journey_key])
+  const primaryHeroWinFigure =
+    primaryHeroJourney && (primaryHeroJourney.moneyGbp ?? 0) > 0
+      ? `${Math.round(primaryHeroJourney.moneyGbp ?? 0).toLocaleString('en-GB')}/yr`
+      : null
+  const primaryHeroLead = useMemo(() => {
+    if (!primaryHeroJourney) return 'Check out your stats'
+    const category = formatZoneCategoryLabel(primaryHeroJourney.journey_key)
+    const line1 = `Biggest win: ${category}`
+    if (primaryHeroWinFigure) {
+      return `${line1}\nBiggest category win: £${primaryHeroWinFigure}`
+    }
+    return line1
+  }, [primaryHeroJourney, primaryHeroWinFigure])
   const displayMoney = useCountUp(heroMoney, { duration: 120 })
   const displayCarbon = useCountUp(heroCarbon, { duration: 120 })
   const heroDataSource = dbConnected && neonVerifiedMoney ? 'VERIFIED AUDIT' : 'ESTIMATED AUDIT'
@@ -2221,10 +2342,10 @@ export default function ZonePage() {
       buildZoneWelcomeCopy(
         state?.profile?.name,
         welcomeJourneyCount,
-        zoneGridSavings.totalMoney,
-        zoneGridSavings.totalCarbon
+        heroMoney,
+        heroCarbon
       ),
-    [state?.profile?.name, welcomeJourneyCount, zoneGridSavings.totalMoney, zoneGridSavings.totalCarbon]
+    [state?.profile?.name, welcomeJourneyCount, heroMoney, heroCarbon]
   )
 
   return (
@@ -2265,6 +2386,15 @@ export default function ZonePage() {
             aria-live="polite"
           >
             <div className="zone-hero-copy">
+              <motion.h3
+                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-time m-0"
+                style={{ color: 'var(--color-yellow)' }}
+                variants={STACCATO_CHILD_VARIANTS}
+                initial="hidden"
+                animate="visible"
+              >
+                {zoneWelcome.timeOfDayLine}
+              </motion.h3>
               <motion.h3
                 className="zz-h3 zone-welcome zone-welcome-block zone-welcome-name m-0"
                 style={{ color: 'var(--color-yellow)' }}
@@ -2340,9 +2470,40 @@ export default function ZonePage() {
           aria-hidden={zoneWallCollapsed}
         >
           <LayoutGroup id="zone-bento-wall">
+          {(['hero', 'categories'] as const).map((wallSection) => (
+          <React.Fragment key={`zone-wall-${wallSection}`}>
+          {wallSection === 'categories' && showRockStrip ? (
+            <motion.div
+              key="zone-rock-strip"
+              className="zone-rock-strip bento-hero-span w-full mt-3 mb-6"
+              initial={FAMILY_ATOMIC_SURFACE_INITIAL}
+              animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
+              transition={FAMILY_TRANSITION_ATOMIC}
+            >
+              <h3 className="zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0">
+                today&apos;s tips
+              </h3>
+              <RockSavingTips
+                habits={rockHabitsWithOffers}
+                likedCardIds={state.likedCards}
+                visitedTipIds={visitedCardIds}
+                onOpenTip={openRockTip}
+              />
+            </motion.div>
+          ) : null}
+          {wallSection === 'categories' && showCategorySectionHeading ? (
+            <motion.h3
+              className="zone-category-section-heading zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0"
+              variants={ZONE_BENTO_CELL_VARIANTS}
+              initial="hidden"
+              animate="visible"
+            >
+              personalised tips
+            </motion.h3>
+          ) : null}
           <motion.div
-            key={`zone-grid-${summaryGridStaggerKey}-${cleanBirthRevealKey}`}
-            data-testid="zone-grid-mounted"
+            key={`zone-grid-${wallSection}-${summaryGridStaggerKey}-${cleanBirthRevealKey}`}
+            data-testid={wallSection === 'categories' ? 'zone-grid-mounted' : 'zone-grid-hero'}
             {...(architecturalPulsePhase === 'punch'
               ? {
                   initial: ZONE_GRID_PUNCH_THROUGH.initial,
@@ -2378,6 +2539,8 @@ export default function ZonePage() {
           >
             {displayItems.map((cell, i) => {
               if (i >= zoneRevealCount) return null
+              if (wallSection === 'hero' && cell.type !== 'hero') return null
+              if (wallSection === 'categories' && cell.type === 'hero') return null
               const cellKey =
                 cell.type === 'hero' ? 'hero' : cell.type === 'tip' ? cell.tip.id : cell.item.id
               const isExpanded = cell.type === 'journey' && expandedCardId === cell.item.id
@@ -2397,8 +2560,8 @@ export default function ZonePage() {
                 researchLoading && (cell.type === 'hero' || cell.type === 'journey')
 
               return (
+                <React.Fragment key={cellKey}>
                 <motion.div
-                  key={cellKey}
                   variants={ZONE_BENTO_CELL_VARIANTS}
                   initial="hidden"
                   animate={
@@ -2410,7 +2573,8 @@ export default function ZonePage() {
                         ? 'ping'
                         : 'visible'
                   }
-                  className={`${spanClass} groovy-cell-radius h-full min-h-0${cell.type === 'hero' ? ' zone-hero-cell' : ''}${skeletonCell ? ' zone-bento-skeleton' : ''}`.trim() || 'groovy-cell-radius'}
+                  className={`${spanClass} groovy-cell-radius h-full min-h-0${cell.type === 'hero' ? ' zone-hero-cell' : ''}${cell.type === 'journey' && primaryJourneyKeySet.has(cell.item.journey_key) ? ' zone-primary-slice-card' : ''}${skeletonCell ? ' zone-bento-skeleton' : ''}`.trim() || 'groovy-cell-radius'}
+                  data-primary-slice={cell.type === 'journey' && primaryJourneyKeySet.has(cell.item.journey_key) ? '1' : undefined}
                   style={{
                     willChange: 'transform',
                     pointerEvents: zoneInteractable && !isHidden ? 'auto' : 'none',
@@ -2446,7 +2610,9 @@ export default function ZonePage() {
                               journeyId="profile"
                               label="YOUR PROFILE"
                             />
-                            <h3 className="card-headline m-0 min-w-0" lang="en">Check out your stats</h3>
+                            <h3 className="card-headline zone-hero-profile-lead m-0 min-w-0" lang="en">
+                              {primaryHeroLead}
+                            </h3>
                           </div>
                           <div
                             key={`zone-hero-metrics-${Math.round(heroMoney)}-${Math.round(heroCarbon)}`}
@@ -2780,57 +2946,20 @@ export default function ZonePage() {
                     </div>
                   )}
                 </motion.div>
+                </React.Fragment>
               )
             })}
           </motion.div>
+          </React.Fragment>
+          ))}
           </LayoutGroup>
         </motion.div>
 
-        {/* The Rock — after summary + full bento ripple; read-only, no loop on close */}
-        {gridFullyRevealed && !expandedCardId && !expandedTipId && zoneInteractable ? (
-          <motion.div
-            className="zone-rock-strip w-full mt-3 mb-10"
-            initial={FAMILY_ATOMIC_SURFACE_INITIAL}
-            animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
-            transition={FAMILY_TRANSITION_ATOMIC}
-          >
-            <h2 className="text-marvin text-xl text-[var(--color-yellow)] lowercase mb-6">
-              today&apos;s tips
-            </h2>
-            <RockSavingTips
-              habits={rockHabitsWithOffers}
-              architectHeadlineByJourney={architectHeadlineByJourney}
-              likedCardIds={state.likedCards}
-              visitedTipIds={visitedCardIds}
-              onOpenTip={(id) => {
-                if (!zoneInteractable) return
-                const rockHabit = id.startsWith('rock-') ? ROCK_BY_SLUG.get(id.slice(5)) : undefined
-                markCardVisited(id)
-                void recordCardVisitHandoff({
-                  cardId: id,
-                  journeyKey: rockHabit?.journey_key,
-                  title: rockHabit?.title,
-                })
-                setVisitedCardIds(readVisitedCardIds())
-                try {
-                  sessionStorage.removeItem(`zz_sf_view_${id}`)
-                  sessionStorage.removeItem(`zz_sf_lane_${id}`)
-                  sessionStorage.removeItem(`zz_sf_q_${id}`)
-                } catch {
-                  /* ignore */
-                }
-                if (!openSoloFocus(id, 'tip')) return
-                rememberSoloFocusReturn({
-                  cardId: id,
-                  journeyKey: (rockHabit?.journey_key ?? 'home') as JourneyId,
-                  surface: 'rock',
-                })
-                setExpandedCardId(null)
-                setExpandedFromTip(null)
-                setExpandedTipId(id)
-              }}
-            />
-          </motion.div>
+        {!expandedCardId && !expandedTipId && !patternShiftJourneyId ? (
+          <>
+            <RockMobileSignupCard />
+            <Footer showReset className="site-footer--zone" />
+          </>
         ) : null}
         </div>
         ) : null}
@@ -2886,12 +3015,16 @@ export default function ZonePage() {
           const tipSanitizedProse = tipCov?.architectProse?.trim()
             ? sanitizeArchitectProseForJourney(tip.journey_key, tipCov.architectProse)
             : null
-          const tipAuditMatches = Boolean(
-            tipCov?.verified === true || (tipSanitizedProse != null && tipSanitizedProse.length > 0)
-          )
-          const tipAuditMoney = tipAuditMatches
-            ? tipCov?.latestSavingGbp ?? tipCov?.latestVerifiedGbp ?? null
-            : null
+          const tipAuditMatches = isRockTip
+            ? false
+            : Boolean(
+                tipCov?.verified === true || (tipSanitizedProse != null && tipSanitizedProse.length > 0)
+              )
+          const tipAuditMoney = isRockTip
+            ? null
+            : tipAuditMatches
+              ? tipCov?.latestSavingGbp ?? tipCov?.latestVerifiedGbp ?? null
+              : null
           return (
             <>
               <SoloFocusOverlay
@@ -2975,13 +3108,15 @@ export default function ZonePage() {
                 tipNeedsSwitching={tipNeedsSwitching}
                 isPriorityHome={tip.journey_key === 'home' && !!localData?.council}
                 verifiedAuditMoneyGbp={tipAuditMoney}
-                verifiedArchitectProse={tipSanitizedProse}
+                verifiedArchitectProse={isRockTip ? null : tipSanitizedProse}
                 verifiedAuditSourceUrl={
-                  tipCov?.latestOfferUrl?.trim().startsWith('http')
-                    ? tipCov.latestOfferUrl.trim()
-                    : tipCov?.latestSourceUrl?.trim().startsWith('http')
-                      ? tipCov.latestSourceUrl.trim()
-                      : null
+                  isRockTip
+                    ? null
+                    : tipCov?.latestOfferUrl?.trim().startsWith('http')
+                      ? tipCov.latestOfferUrl.trim()
+                      : tipCov?.latestSourceUrl?.trim().startsWith('http')
+                        ? tipCov.latestSourceUrl.trim()
+                        : null
                 }
                 verifiedAuditCategory={tipAuditMatches ? tip.journey_key : null}
                 researchCategoryCoverage={researchCategoryCoverage}

@@ -8,7 +8,7 @@ import { getLocalData, type LocalIntelligence } from '@/lib/local/getLocalData'
 import { fetchNesoGridIntensity } from '@/lib/intelligence/nesoGridClient'
 import {
   APRIL_2026_TRUTH_PENCE,
-  PRICE_CAP_APRIL_2026,
+  PRICE_CAP_JULY_2026,
   PRICE_CAP_SOURCE_URL,
 } from '@/lib/brains/constants'
 import { profileHomePowerToEnergyType } from '@/lib/profile/homePower'
@@ -182,7 +182,7 @@ export async function fetchUtilitiesPublicSnapshot(params: {
     region: local?.region,
     localCarbonGPerKwh: grid?.intensityG ?? local?.localCarbonG,
     gridSource: grid?.source ?? 'tier_fallback',
-    referenceCapGbp: PRICE_CAP_APRIL_2026,
+    referenceCapGbp: PRICE_CAP_JULY_2026,
     referenceElecPPerKwh: APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH,
     referenceGasPPerKwh: APRIL_2026_TRUTH_PENCE.GAS_PER_KWH,
     priceCapSourceUrl: PRICE_CAP_SOURCE_URL,

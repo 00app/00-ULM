@@ -1,6 +1,6 @@
 # Zai rules & complete question registry
 
-Single reference for **Ask Zai chat**, **Ask Zai Deep Dive**, **profile onboarding**, **journey questions** (12 domains × 3), **Zone loop beats**, and **tip verification (+1)**.
+Single reference for **Ask Zai chat**, **Ask Zai Deep Dive**, **profile onboarding**, **journey questions** (13 domains × 3), **Zone loop beats**, and **tip verification (+1)**.
 
 **Code sources:** `lib/zai/chatRules.ts`, `lib/zai/chatBoundaries.ts`, `lib/zai/chatPrompts.ts`, `lib/zai/deepDiveAudit.ts`, `lib/zai/loadResearchSourceHint.ts`, `lib/zai/scrapeAreaHint.ts`, `app/zai/page.tsx`, `app/components/AskZaiDeepDiveSheet.tsx`, `app/profile/ProfilePageClient.tsx`, `lib/journeys.ts`, `lib/zone/loopQuestions.ts`, `lib/zone/tipVerification.ts`, `lib/zone/visitedCards.ts`, `lib/brains/zai/prompts.ts`, `lib/brains/zai/boundaries.ts`.
 
@@ -358,7 +358,7 @@ User may also type a **free-form** question in the sheet input (**Search deeper*
 ## Part 3 — Profile onboarding questions
 
 **Route:** `/profile` → `ProfilePageClient.tsx` (`PROFILE_QUESTIONS`)  
-**Not** the 12-domain journey bank — those are in Part 4.
+**Not** the 13-domain journey bank — those are in Part 4.
 
 | Step | ID | Prompt | Type | Options / placeholder |
 |------|-----|--------|------|------------------------|
@@ -375,7 +375,7 @@ After profile: `/profile/summary` → `/zone`.
 
 ---
 
-## Part 4 — Journey questions (12 domains × 3)
+## Part 4 — Journey questions (13 domains × 3)
 
 **Source of truth:** `lib/journeys.ts` (`JOURNEYS`, `QUESTIONS_PER_JOURNEY = 3`).
 

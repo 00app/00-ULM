@@ -34,6 +34,7 @@ import { useApp } from '@/app/context/AppContext'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import {
   headlineFromExpandedHook,
+  headlineFromRockHabit,
   formatZoneCategoryLabel,
   composeScrapedInsightDescription,
   buildResearchResultsTrueTipBody,
@@ -54,7 +55,13 @@ import {
   APRIL_2026_STANDING_PENCE,
 } from '@/lib/brains/constants'
 import { normalizeCategoryToJourneyKey, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
+import { useVisitedCardIds } from '@/lib/hooks/useVisitedCardIds'
+import { applySessionProseVariety } from '@/lib/zone/sessionProseLedger'
 import { resolveFocusCategoryJourneyId } from '@/lib/zone/focusCategory'
+import {
+  mergeMorphDeckIntoNavRing,
+  type SoloFocusNavEntry,
+} from '@/lib/zone/soloFocusJourneyNav'
 import {
   resolveZoneSurfaceKind,
   zoneExpandedJourneySurfaceStyleProps,
@@ -66,7 +73,7 @@ import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
 import { SoloFocusViewportUtilityStrip } from '@/app/components/SoloFocusViewportUtilityStrip'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
-import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
+import { resolveSoloFocusHandoffAttribution } from '@/lib/soloFocusSuppliedBy'
 import { prioritizeMorphCardsForContext } from '@/lib/locationMorphPrioritize'
 import { useSoloFocusHudBodyClass } from '@/lib/hooks/useSoloFocusHudBodyClass'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
@@ -201,6 +208,7 @@ export function SoloFocusOverlay({
   soloFocusJourneyRing,
 }: SoloFocusOverlayProps) {
   useSoloFocusHudBodyClass(true)
+  const { isUnreadCard } = useVisitedCardIds()
 
   const cardVisitedLock =
     isCardVisitedProp || (cardId?.trim() ? isCardVisited(cardId) : false)
@@ -269,24 +277,39 @@ export function SoloFocusOverlay({
     supplied_by?: string | null
   } | null>(null)
 
-  const deck = [
-    {
-      isOriginal: true,
+  const deck = useMemo(
+    () => [
+      {
+        isOriginal: true,
+        category,
+        heading: recommendation,
+        description: insight,
+        impactMoney: null as string | null,
+        impactCarbon: null as string | null,
+        url: offerUrl,
+        sourceUrl,
+        sourceLabel,
+        architectSuppliedBy,
+        title,
+        journey_key: journeyId,
+        id: cardId,
+      },
+      ...morphedCardsQueue,
+    ],
+    [
       category,
-      heading: recommendation,
-      description: insight,
-      impactMoney: null, // use fallback
-      impactCarbon: null, // use fallback
-      url: offerUrl,
+      recommendation,
+      insight,
+      offerUrl,
       sourceUrl,
       sourceLabel,
       architectSuppliedBy,
       title,
-      journey_key: journeyId,
-      id: cardId,
-    },
-    ...morphedCardsQueue,
-  ]
+      journeyId,
+      cardId,
+      morphedCardsQueue,
+    ]
+  )
   const currentMorphData = deck[activeSiblingIndex] || deck[0]
 
   const displayCategory = currentMorphData?.category ?? category
@@ -304,6 +327,35 @@ export function SoloFocusOverlay({
   const zoneCategoryLabel = formatZoneCategoryLabel(focusCategoryJourneyId)
 
   const activeCardId = currentMorphData?.id ?? cardId
+
+  const soloFocusNavRingWithMorph = useMemo(() => {
+    const morphNav = deck
+      .filter((d) => Boolean(d?.id?.trim()))
+      .filter((d, i) => i > 0 || d.id !== cardId)
+    return mergeMorphDeckIntoNavRing(
+      soloFocusNavRing ?? [],
+      focusCategoryJourneyId,
+      morphNav,
+      cardId ?? undefined
+    )
+  }, [deck, cardId, soloFocusNavRing, focusCategoryJourneyId])
+
+  const handleNavigateSoloFocusEntry = useCallback(
+    (entry: SoloFocusNavEntry) => {
+      const deckIdx = deck.findIndex((d) => d?.id === entry.cardId)
+      if (deckIdx >= 0) {
+        setActiveSiblingIndex(deckIdx)
+        return
+      }
+      const motherId = journeyId ? `journey-${journeyId}` : cardId ?? ''
+      if (motherId && entry.kind === 'journey' && entry.cardId === motherId) {
+        setActiveSiblingIndex(0)
+        return
+      }
+      onNavigateSoloFocus?.(entry)
+    },
+    [deck, cardId, journeyId, onNavigateSoloFocus]
+  )
 
   const moneyTargetGbp = parseMoneyGbpFromImpactDisplay(displayMoneyValue)
   const carbonTargetKg = parseCarbonKgFromImpactDisplay(displayCarbonValue)
@@ -413,11 +465,17 @@ export function SoloFocusOverlay({
           String(displayTitle || displayRecommendation || title).trim() ||
           displayRecommendation
   const isZoneMotherChild = !startInQuestionMode
+  const isRockHabitTip = String(cardId ?? activeCardId ?? '').startsWith('rock-')
   const overlayFocusJourney = normalizeCategoryToJourneyKey(String(displayJourneyId ?? journeyId ?? 'home'))
-  const recommendationTitle = headlineFromExpandedHook(
-    stripExpandedCardTitleNoise(String(effectiveTitleRaw)),
-    overlayFocusJourney
-  )
+  const recommendationTitle = isRockHabitTip
+    ? headlineFromRockHabit(
+        String(effectiveTitleRaw),
+        (displayInsight ?? insight ?? '').trim() || undefined
+      )
+    : headlineFromExpandedHook(
+        stripExpandedCardTitleNoise(String(effectiveTitleRaw)),
+        overlayFocusJourney
+      )
   let sourceName = sourceLabel
   if (!sourceName && resolvedOpenUrl) {
     try {
@@ -429,15 +487,18 @@ export function SoloFocusOverlay({
     }
   }
   sourceName = sourceName || 'our partners'
-  const diagnosticProvider = resolveSuppliedByDisplayName({
+  const handoffAttribution = resolveSoloFocusHandoffAttribution({
+    ctaUrl: soloHandoff.ctaUrl,
     researchSuppliedBy: researchAttribution?.supplied_by,
     architectSuppliedBy,
     sourceLabel,
     sourceName,
     liveScrapeSourceUrl: soloHandoff.sourceLinkUrl || undefined,
   })
-  const diagnosticUrl = soloHandoff.sourceLinkUrl
+  const pulseSourceUrl =
+    soloHandoff.ctaUrl?.trim().startsWith('http') ? soloHandoff.ctaUrl.trim() : soloHandoff.sourceLinkUrl
   const researchBackedTrueTip =
+    !isRockHabitTip &&
     verifiedAuditMatchesJourney &&
     verifiedArchitectProse?.trim() &&
     !isRawResearchDump(verifiedArchitectProse)
@@ -464,11 +525,25 @@ export function SoloFocusOverlay({
   const genericCopy = /answer a few questions|personalise your/i
   const insightDisplay =
     scrapedOverlay && !genericCopy.test(scrapedOverlay) ? scrapedOverlay : ''
-  const insightParaSource =
+  const insightParaSourceBase =
     researchBackedTrueTip?.trim() ??
     (preSplitAuditor.length >= 3
       ? preSplitAuditor.slice(0, 3).join('\n\n')
       : (insightDisplay || '').trim() || rawInsight)
+  const insightParaSource =
+    typeof window !== 'undefined' && insightParaSourceBase.trim()
+      ? applySessionProseVariety(insightParaSourceBase, {
+          cardId: cardId ?? activeCardId ?? undefined,
+          journeyId: (displayJourneyId ?? journeyId ?? 'home') as JourneyId,
+          headline: recommendationTitle,
+          moneyGbp: motherMoneyTargetGbp,
+          carbonKg: carbonTargetKg,
+          userPostcode: profilePostcode ?? state.profile?.postcode,
+          sourceDisplayName: handoffAttribution.sourceDisplayName,
+          auditHeaderLocality: state.locationState?.locationName ?? undefined,
+        })
+      : insightParaSourceBase
+  const soloFocusCardId = cardId ?? activeCardId ?? (journeyId ? `journey-${journeyId}` : '')
   const showMotherComputing =
     !overlayResearchSettled && researchCategoryCoverage != null
   const isDiscoveryMotherCard = isDiscoveryInjectCard(cardId)
@@ -480,7 +555,7 @@ export function SoloFocusOverlay({
       moneyGbp={motherMoneyTargetGbp}
       carbonKg={carbonTargetKg}
       userPostcode={profilePostcode ?? state.profile?.postcode}
-      sourceDisplayName={sourceName}
+      sourceDisplayName={handoffAttribution.sourceDisplayName}
       auditHeaderLocality={state.locationState?.locationName ?? undefined}
       locality={state.locationState?.locationName ?? undefined}
       postcode={profilePostcode ?? state.profile?.postcode ?? undefined}
@@ -656,7 +731,7 @@ export function SoloFocusOverlay({
         reduceMotion={reducePagerMotion}
         isExiting={false}
       >
-      <PulseExpandedSync providerName={diagnosticProvider} sourceUrl={diagnosticUrl} />
+      <PulseExpandedSync providerName={handoffAttribution.pulseProviderName} sourceUrl={pulseSourceUrl} />
         <div className="solo-focus-shell-wrap w-full min-w-0">
       <SoloFocusViewportUtilityStrip onClose={requestClose} />
         <motion.div
@@ -677,6 +752,7 @@ export function SoloFocusOverlay({
                 <SoloFocusMotherStack
                   bodyKey={`overlay-hero-body-${activeSiblingIndex}-${String(activeCardId ?? 'base')}`}
                   zoneCategoryLabel={zoneCategoryLabel}
+                  categoryIsNew={isUnreadCard(soloFocusCardId)}
                   headline={recommendationTitle}
                   showComputing={showMotherComputing}
                   prose={trueTipSectionsEl}
@@ -703,6 +779,7 @@ export function SoloFocusOverlay({
                         ctaUrl={soloHandoff.ctaUrl}
                         ctaJourneyId={journeyId}
                         ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : effectiveHandoffLabel}
+                        offerProviderName={soloHandoff.ctaUrl ? handoffAttribution.offerProviderName : null}
                         isLiked={isLiked}
                         onLike={handleTrinityLike}
                         onAskZai={handleTrinityAskZai}
@@ -710,11 +787,12 @@ export function SoloFocusOverlay({
                       {(onNavigateJourney || onNavigateSoloFocus) && journeyId ? (
                         <SoloFocusJourneyNav
                           journeyId={focusCategoryJourneyId}
-                          currentCardId={cardId ?? activeCardId ?? undefined}
-                          navRing={soloFocusNavRing}
-                          onNavigateEntry={onNavigateSoloFocus}
+                          currentCardId={soloFocusCardId}
+                          navRing={soloFocusNavRingWithMorph}
+                          onNavigateEntry={handleNavigateSoloFocusEntry}
                           onNavigate={onNavigateJourney ?? (() => {})}
                           availableJourneyIds={soloFocusJourneyRing}
+                          isUnreadCard={isUnreadCard}
                           className="solo-focus-journey-nav--inset"
                         />
                       ) : null}

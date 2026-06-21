@@ -107,7 +107,7 @@ export const JOURNEYS: Record<JourneyId, JourneyDefinition> = {
       },
       {
         id: 'prior_eco_bus',
-        label: 'Have you had previous ECO4 or BUS grants?',
+        label: 'Have you had previous home insulation or heat pump grants?',
         type: 'options',
         options: ['YES', 'NO', 'UNSURE'],
       },

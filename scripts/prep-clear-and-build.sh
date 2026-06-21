@@ -27,7 +27,7 @@ fi
 echo "== Neon + journey_questions + pending migrations =="
 npm run db:test
 npm run db:apply-pending
-npm run db:evolve-12-domains
+npm run db:evolve-13-domains
 echo ""
 
 echo "== Production build =="

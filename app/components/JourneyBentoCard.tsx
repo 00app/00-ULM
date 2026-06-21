@@ -30,7 +30,7 @@ import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
-import { resolveSuppliedByDisplayName } from '@/lib/soloFocusSuppliedBy'
+import { resolveSoloFocusHandoffAttribution } from '@/lib/soloFocusSuppliedBy'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import { useSoloFocusHudBodyClass } from '@/lib/hooks/useSoloFocusHudBodyClass'
 import {
@@ -85,6 +85,11 @@ import {
   resolveFocusCategoryJourneyId,
 } from '@/lib/zone/focusCategory'
 import {
+  mergeMorphDeckIntoNavRing,
+  stepSoloFocusNavRing,
+  type SoloFocusNavEntry,
+} from '@/lib/zone/soloFocusJourneyNav'
+import {
   triggerScrapeSyncForCategory,
   journeyResearchSettled,
   type ResearchCategoryCoverageRow,
@@ -92,6 +97,7 @@ import {
 import { openOfferUrlInNewTab } from '@/lib/zone/tier2RecursiveSpawner'
 import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
+import { useVisitedCardIds } from '@/lib/hooks/useVisitedCardIds'
 import { setDeepDiveInProgress } from '@/lib/zone/visitedCards'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
 import { shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
@@ -266,6 +272,7 @@ export function JourneyBentoCard({
 }: JourneyBentoCardProps) {
   const reduceMotion = useHydrationSafeReducedMotion()
   const { state } = useApp()
+  const { isUnreadCard } = useVisitedCardIds()
   const profilePostcode =
     (state.profile?.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase() ||
     (typeof window !== 'undefined'
@@ -371,6 +378,34 @@ export function JourneyBentoCard({
       ? `${currentMorphData.impactCarbon}kg CO₂`
       : currentMorphData?.data?.carbon ?? (heroTotalsOverride ? `${heroTotalsOverride.carbon}kg CO₂` : carbonValue)
   const activeCardId = currentMorphData?.id ?? cardId
+
+  const soloFocusNavRingWithMorph = useMemo(
+    () =>
+      mergeMorphDeckIntoNavRing(
+        soloFocusNavRing ?? [],
+        focusCategoryJourneyId,
+        morphDeck,
+        cardId ?? `journey-${journeyId}`
+      ),
+    [soloFocusNavRing, focusCategoryJourneyId, morphDeck, cardId, journeyId]
+  )
+
+  const handleNavigateSoloFocusEntry = useCallback(
+    (entry: SoloFocusNavEntry) => {
+      const morphIdx = morphDeck.findIndex((m) => m?.id === entry.cardId)
+      if (morphIdx >= 0) {
+        setMorphDeckCursor(morphIdx + 1)
+        return
+      }
+      const motherId = cardId ?? `journey-${journeyId}`
+      if (entry.kind === 'journey' && entry.cardId === motherId) {
+        setMorphDeckCursor(0)
+        return
+      }
+      onNavigateSoloFocus?.(entry)
+    },
+    [morphDeck, cardId, journeyId, onNavigateSoloFocus]
+  )
 
   const moneyTargetGbp = parseMoneyGbpFromImpactDisplay(displayMoneyValue)
   const carbonTargetKg = parseCarbonKgFromImpactDisplay(displayCarbonValue)
@@ -682,11 +717,6 @@ export function JourneyBentoCard({
     return () => clearTimeout(t)
   }, [effectiveOpen, discoverySnap, discoverySnap?.questionId, discoverySnap?.answerValue])
 
-  const morphDeckLenRef = useRef(0)
-  useEffect(() => {
-    morphDeckLenRef.current = morphDeck.length
-  }, [morphDeck.length])
-
   /* Re-expand same session: restore result + morph from snapshot (collapse clears morph + attribution only). */
   useEffect(() => {
     if (!effectiveOpen) return
@@ -738,45 +768,54 @@ export function JourneyBentoCard({
     setMorphDeckCursor((c) => Math.max(0, Math.min(c, morphDeck.length)))
   }, [morphDeck.length])
 
-  const goPagerNewer = useCallback(() => {
-    setMorphDeckCursor((c) => {
-      if (c >= morphDeckLenRef.current) return c
-      pagerEnterDir.current = 1
+  const goWallRingStep = useCallback(
+    (delta: -1 | 1) => {
+      const ring = soloFocusNavRingWithMorph
+      if (!ring.length) return
+      const resolvedActive = activeCardId ?? cardId ?? `journey-${journeyId}`
+      const entry = stepSoloFocusNavRing(ring, resolvedActive, focusCategoryJourneyId, delta)
+      if (!entry) return
+      pagerEnterDir.current = delta
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5)
-      return c + 1
-    })
-  }, [])
-
-  const goPagerOlder = useCallback(() => {
-    setMorphDeckCursor((c) => {
-      if (c <= 0) return c
-      pagerEnterDir.current = -1
-      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5)
-      return c - 1
-    })
-  }, [])
+      handleNavigateSoloFocusEntry(entry)
+    },
+    [
+      soloFocusNavRingWithMorph,
+      activeCardId,
+      cardId,
+      journeyId,
+      focusCategoryJourneyId,
+      handleNavigateSoloFocusEntry,
+    ]
+  )
 
   const expandedGestures = useSoloFocusExpandedGestures({
     scrollRef: bodyScrollRef,
-    onSwipeToNewer: goPagerNewer,
-    onSwipeToOlder: goPagerOlder,
+    onSwipeToNewer: () => goWallRingStep(1),
+    onSwipeToOlder: () => goWallRingStep(-1),
     onSwipeUpDismiss: () => {
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15)
       handleCloseStart()
     },
-    onSwipeDownNextJourney: () => onSwipeNextJourney?.(journeyId),
+    onSwipeDownNextJourney: () => {
+      if (soloFocusNavRingWithMorph.length > 0 && onNavigateSoloFocus) {
+        goWallRingStep(1)
+        return
+      }
+      onSwipeNextJourney?.(journeyId)
+    },
     enabled: kineticGrid && (effectiveOpen || isExiting),
   })
 
   useEffect(() => {
     if (!kineticGrid || !effectiveOpen) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') goPagerNewer()
-      if (e.key === 'ArrowLeft') goPagerOlder()
+      if (e.key === 'ArrowRight') goWallRingStep(1)
+      if (e.key === 'ArrowLeft') goWallRingStep(-1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [kineticGrid, effectiveOpen, goPagerNewer, goPagerOlder])
+  }, [kineticGrid, effectiveOpen, goWallRingStep])
 
   useEffect(() => {
     if (isExpanded) return
@@ -836,13 +875,28 @@ export function JourneyBentoCard({
       try { sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '') } catch {}
     }
     const diagnosticUrlJourney = soloHandoff.sourceLinkUrl
+    const handoffAttribution = resolveSoloFocusHandoffAttribution({
+      ctaUrl: soloHandoff.ctaUrl,
+      researchSuppliedBy: researchAttribution?.supplied_by,
+      architectSuppliedBy,
+      sourceLabel: attributionSourceLabel ?? undefined,
+      sourceName,
+      liveScrapeSourceUrl:
+        verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
+          ? verifiedAuditSourceUrl.trim()
+          : pickPrimaryHttpUrl(resolvedOfferUrl) ?? soloHandoff.sourceLinkUrl ?? undefined,
+    })
+    const pulseSourceUrl =
+      soloHandoff.ctaUrl?.trim().startsWith('http') ? soloHandoff.ctaUrl.trim() : diagnosticUrlJourney
     const profileTransport =
       state.profile?.transport ??
       (typeof window !== 'undefined' ? localStorage.getItem('profile_transport') : null)
     const travelFuel = state.journeyAnswers?.travel?.fuel_type ?? null
+    const soloFocusCardId = activeCardId ?? cardId ?? `journey-${journeyId}`
     const insightDisplay = resolveExpandedTrueTipInsight({
       architectProse: verifiedArchitectProse,
       verifiedAuditMatchesJourney,
+      cardId: soloFocusCardId,
       morphParts: [
         journeyId === 'home' && homeSentinelRecard && !currentMorphData ? homeSentinelRecard.description : undefined,
         currentMorphData?.description,
@@ -860,7 +914,7 @@ export function JourneyBentoCard({
       transportBaseline: profileTransport,
       travelFuelType: travelFuel,
       userPostcode: profilePostcode ?? undefined,
-      sourceDisplayName: verifiedSourceName ?? undefined,
+      sourceDisplayName: handoffAttribution.sourceDisplayName,
       auditHeaderLocality: state.locationState?.locationName ?? undefined,
     })
     const trueTipSectionsEl = !showCardComputing ? (
@@ -871,23 +925,13 @@ export function JourneyBentoCard({
         moneyGbp={motherMoneyTargetGbp}
         carbonKg={carbonTargetKg}
         userPostcode={profilePostcode ?? state.profile?.postcode}
-        sourceDisplayName={verifiedSourceName ?? sourceName}
+        sourceDisplayName={handoffAttribution.sourceDisplayName}
         auditHeaderLocality={state.locationState?.locationName ?? undefined}
         locality={state.locationState?.locationName ?? undefined}
         postcode={profilePostcode ?? state.profile?.postcode ?? undefined}
       />
     ) : null
 
-    const diagnosticProviderJourney = resolveSuppliedByDisplayName({
-      researchSuppliedBy: researchAttribution?.supplied_by,
-      architectSuppliedBy,
-      sourceLabel: attributionSourceLabel ?? undefined,
-      sourceName,
-      liveScrapeSourceUrl:
-        verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
-          ? verifiedAuditSourceUrl.trim()
-          : pickPrimaryHttpUrl(resolvedOfferUrl) ?? undefined,
-    })
     const sourceFooter = partnerHttp
       ? ''
       : 'No live retailer link this week — figures still come from your saved audit row.'
@@ -953,8 +997,8 @@ export function JourneyBentoCard({
             onTouchEnd={expandedGestures.onTouchEnd}
           >
         <PulseExpandedSync
-          providerName={diagnosticProviderJourney}
-          sourceUrl={diagnosticUrlJourney}
+          providerName={handoffAttribution.pulseProviderName}
+          sourceUrl={pulseSourceUrl}
         />
         <div className="solo-focus-shell-wrap w-full min-w-0">
         <SoloFocusViewportUtilityStrip onClose={() => beginCloseWithPatternShift()} />
@@ -976,6 +1020,7 @@ export function JourneyBentoCard({
             <SoloFocusMotherStack
               bodyKey={motherShimmerKey}
               zoneCategoryLabel={zoneCategoryLabel}
+              categoryIsNew={isUnreadCard(soloFocusCardId)}
               headline={recommendationTitle}
               showComputing={showCardComputing}
               prose={trueTipSectionsEl}
@@ -999,6 +1044,7 @@ export function JourneyBentoCard({
                     ctaJourneyId={displayJourneyId as string}
                     ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : journeyCtaLabel}
                     ctaSurface={currentMorphData?.high_impact ? 'yellow' : 'pink'}
+                    offerProviderName={soloHandoff.ctaUrl ? handoffAttribution.offerProviderName : null}
                     isLiked={isLiked}
                     onLike={onLike ? handleTrinityLike : undefined}
                     onAskZai={showAskZaiTrinity || _onAskZai ? handleTrinityAskZai : undefined}
@@ -1006,11 +1052,12 @@ export function JourneyBentoCard({
                   {onNavigateJourney || onNavigateSoloFocus ? (
                     <SoloFocusJourneyNav
                       journeyId={focusCategoryJourneyId}
-                      currentCardId={cardId ?? `journey-${journeyId}`}
-                      navRing={soloFocusNavRing}
-                      onNavigateEntry={onNavigateSoloFocus}
+                      currentCardId={soloFocusCardId}
+                      navRing={soloFocusNavRingWithMorph}
+                      onNavigateEntry={handleNavigateSoloFocusEntry}
                       onNavigate={onNavigateJourney ?? (() => {})}
                       availableJourneyIds={soloFocusJourneyRing}
+                      isUnreadCard={isUnreadCard}
                       className="solo-focus-journey-nav--inset"
                     />
                   ) : null}

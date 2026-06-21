@@ -16,6 +16,7 @@ import {
   normaliseVisitedJourneyKeys,
   resolveGuestSessionId,
 } from '@/lib/zone/guestSession'
+import { getAppUrl } from '@/lib/site'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -23,10 +24,8 @@ export const maxDuration = 60
 const ALLOWED = new Set<JourneyId>(JOURNEY_ORDER)
 
 function resolveAppBaseUrl(req: Request): string | null {
-  const configured =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
-  if (configured) return configured.replace(/\/+$/, '')
+  const configured = getAppUrl()
+  if (configured && configured !== 'http://localhost:3000') return configured.replace(/\/+$/, '')
   try {
     const u = new URL(req.url)
     return `${u.protocol}//${u.host}`

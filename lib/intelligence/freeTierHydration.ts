@@ -10,8 +10,13 @@ import { fetchNesoGridIntensity, type NesoGridSnapshot } from '@/lib/intelligenc
 import { fetchPvgisSolarEstimate, type PvgisSolarSnapshot } from '@/lib/intelligence/pvgisClient'
 import { resolveDefraWasteHint, type DefraWasteHint } from '@/lib/intelligence/defraWasteClient'
 
+export type FreeStructuralHydrationOptions = {
+  houseNumber?: string | null
+}
+
 export type FreeStructuralAnchor = {
   postcode: string
+  houseNumber?: string | null
   hydratedAt: string
   epc: OpenEpcProfile
   grid: NesoGridSnapshot | null
@@ -20,14 +25,17 @@ export type FreeStructuralAnchor = {
 }
 
 export async function hydrateFreeStructuralContext(
-  postcode: string
+  postcode: string,
+  options?: FreeStructuralHydrationOptions
 ): Promise<FreeStructuralAnchor | null> {
   const compact = postcode.replace(/\s+/g, '').trim().toUpperCase()
   if (compact.length < 4) return null
 
+  const houseNumber = (options?.houseNumber ?? '').replace(/\s+/g, ' ').trim() || null
+
   const local = await getLocalData(compact).catch(() => null)
   const [epc, grid] = await Promise.all([
-    fetchOpendataEpcProfile(compact),
+    fetchOpendataEpcProfile(compact, { houseNumber }),
     fetchNesoGridIntensity(compact),
   ])
   const solar = await fetchPvgisSolarEstimate({
@@ -39,6 +47,7 @@ export async function hydrateFreeStructuralContext(
 
   return {
     postcode: compact,
+    houseNumber,
     hydratedAt: new Date().toISOString(),
     epc,
     grid,

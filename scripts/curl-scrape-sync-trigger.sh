@@ -3,7 +3,7 @@
 #
 # Usage:
 #   bash scripts/curl-scrape-sync-trigger.sh [https://YOUR.vercel.app] [POSTCODE]
-#   bash scripts/curl-scrape-sync-trigger.sh --env-file .env.production.local https://00-ulm.vercel.app BN17
+#   bash scripts/curl-scrape-sync-trigger.sh --env-file .env.production.local https://www.00-00.online BN17
 #
 # Auth: Authorization: Bearer must match Vercel Production SCRAPER_SECRET or CRON_SECRET (≥16 chars).
 # Firecrawl is separate (FIRE_CRAWL_KEY_2 / FIRECRAWL_API_KEY).
@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-HOST="${POSITIONAL[0]:-${NEXT_PUBLIC_APP_URL:-https://00-ulm.vercel.app}}"
+HOST="${POSITIONAL[0]:-${NEXT_PUBLIC_APP_URL:-https://www.00-00.online}}"
 POSTCODE="${POSITIONAL[1]:-M11AG}"
 CATEGORY="${POSITIONAL[2]:-home}"
 
@@ -115,7 +115,7 @@ if [[ "$HTTP_CODE" == "401" ]]; then
   echo "  2. Vercel → 00-ulm → Settings → Environment Variables → Production → CRON_SECRET" >&2
   echo "  3. Redeploy Production after changing the secret (uncheck build cache once)." >&2
   echo "  4. unset CRON_SECRET SCRAPER_SECRET  # drop stale shell exports" >&2
-  echo "  5. Retry: bash scripts/curl-scrape-sync-trigger.sh --env-file .env.production.local https://00-ulm.vercel.app BN17" >&2
+  echo "  5. Retry: bash scripts/curl-scrape-sync-trigger.sh --env-file .env.production.local https://www.00-00.online BN17" >&2
   exit 1
 fi
 

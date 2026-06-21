@@ -3,10 +3,11 @@
  */
 
 import type { JourneyId } from '@/lib/journeys'
-import { PRICE_CAP_APRIL_2026 } from '@/lib/brains/constants'
+import { PRICE_CAP_JULY_2026 } from '@/lib/brains/constants'
 import { resolveSoloFocusPlaceLabel } from '@/lib/zone/localityCopy'
 import { isLondonPostcode } from '@/lib/zone/verifiedRevenue'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
+import { buildFriendlyDetectionParagraph } from '@/lib/zone/plainEnglishCopy'
 
 function auditTopicPhrase(journey: JourneyId): string {
   const m: Partial<Record<JourneyId, string>> = {
@@ -37,48 +38,147 @@ export function isGenericAuditorProofParagraph(text: string): boolean {
   )
 }
 
-function proofSentence(journey: JourneyId, sourceName: string, postcode?: string): string {
+function proofSentenceBase(journey: JourneyId, sourceName: string, postcode: string | undefined, variant: number): string {
   const london = isLondonPostcode(postcode)
-  const cap = PRICE_CAP_APRIL_2026.toLocaleString('en-GB')
+  const cap = PRICE_CAP_JULY_2026.toLocaleString('en-GB')
+  const v = ((variant % 3) + 3) % 3
   switch (journey) {
     case 'tech':
+      if (v === 1) {
+        return `${sourceName} clock phantom load on routers and consoles — a few timers often trim more kWh than another smart plug advert.`
+      }
+      if (v === 2) {
+        return `${sourceName} still see standby draw as the quiet bill leak — one weekend audit of plugs beats guessing from the statement.`
+      }
       return `${sourceName} reckon standby creep is up about 8% in this April 2026 climate — dull, but very fixable with a few plug changes.`
     case 'home':
-      return `${sourceName} still put heating and background draw at the top of the bill pile — the April 2026 cap sits around £${cap}, so fabric and tariff moves still matter.`
+      if (v === 1) {
+        return `${sourceName} rank draughts and loft gaps ahead of shiny kit — fabric fixes usually land before a boiler swap pays back.`
+      }
+      if (v === 2) {
+        return `${sourceName} keep background heat loss on the watch list — the July 2026 cap near £${cap} means wasted warmth still hurts.`
+      }
+      return `${sourceName} still put heating and background draw at the top of the bill pile — the July 2026 cap sits around £${cap}, so fabric and tariff moves still matter.`
     case 'travel':
       if (london) {
-        return `${sourceName} flag ULEZ and duty as keeping London commute costs stubborn through April 2026 — worth planning swaps before you renew anything.`
+        if (v === 1) {
+          return `${sourceName} price ULEZ and rail against fuel for London hops — the cheaper hop is not always the car on paper.`
+        }
+        return `${sourceName} flag clean-air charges and fuel duty as keeping London commute costs stubborn through April 2026 — worth planning swaps before you renew anything.`
+      }
+      if (v === 1) {
+        return `${sourceName} show season tickets and carnets beating ad-hoc fuel top-ups when your commute is fixed.`
+      }
+      if (v === 2) {
+        return `${sourceName} still see short car hops as the expensive default — one rail day a week often moves both £ and kg.`
       }
       return `${sourceName} show fuel and fares still running hot in the April 2026 economy — small commute shifts add up faster than another loyalty card.`
     case 'utilities':
-      return `${sourceName} tie unit rates and standing charges to the April 2026 cap near £${cap} — the tariff you are on still sets the ceiling on every kWh.`
+      if (v === 1) {
+        return `${sourceName} still peg standing charges to the July 2026 cap — the unit rate you pick sets the real ceiling on every bill.`
+      }
+      if (v === 2) {
+        return `${sourceName} separate gas standing from electric unit moves — dual-fuel bundles are not always the cheapest lock-in.`
+      }
+      return `${sourceName} tie unit rates and standing charges to the July 2026 cap near £${cap} — the tariff you are on still sets the ceiling on every kWh.`
     case 'grants':
-      return `${sourceName} list upgrade grants with fixed caps and installer rules — the £ figure only holds once eligibility and quotes match your home.`
+      if (v === 1) {
+        return `${sourceName} cap installer quotes against grant rules — the headline £ only holds when paperwork and property type match.`
+      }
+      if (v === 2) {
+        return `${sourceName} still treat BUS and insulation schemes as separate tracks — stacking wrongly can void the higher grant.`
+      }
+      return `${sourceName} list heat pump and insulation grants with fixed caps and installer rules — the £ figure only holds once eligibility and quotes match your home.`
     case 'solar':
+      if (v === 1) {
+        return `${sourceName} model export payments against your daytime use — oversized arrays bleed payback if you are out all day.`
+      }
+      if (v === 2) {
+        return `${sourceName} still size arrays from roof pitch and shade — catalogue kW figures rarely match how you use power.`
+      }
       return `${sourceName} size payback from export rates and daylight at your roof pitch — generic kit quotes rarely match how you actually use power.`
     case 'food':
+      if (v === 1) {
+        return `${sourceName} put freezer discipline and meal plans ahead of another delivery pass — waste is still the quiet kitchen leak.`
+      }
+      if (v === 2) {
+        return `${sourceName} track packaging and spoilage together — cupboards already hold most of what shops resell.`
+      }
       return `${sourceName} put food waste and packaging near the top of kitchen-table spend — meal planning beats another delivery subscription.`
     case 'shopping':
+      if (v === 1) {
+        return `${sourceName} favour repair cafés and spare parts — a fix often beats a same-day replacement courier.`
+      }
+      if (v === 2) {
+        return `${sourceName} still rank longevity over flash deals — three cheap buys rarely beat one solid repair.`
+      }
       return `${sourceName} show repair-first and longer-life goods beating impulse replacements — one durable buy often beats three cheap ones.`
     case 'money':
+      if (v === 1) {
+        return `${sourceName} watch dormant balances and rolling contracts — small switches beat another comparison site email.`
+      }
+      if (v === 2) {
+        return `${sourceName} still treat bill drift and idle cash as paired leaks — tidy both before chasing headline rates.`
+      }
       return `${sourceName} track idle cash and bill drift as the quiet leaks — small account and tariff moves compound faster than a new card.`
     case 'carbon':
+      if (v === 1) {
+        return `${sourceName} pair grid intensity with one habit at a time — kg moves faster than buying offsets alone.`
+      }
+      if (v === 2) {
+        return `${sourceName} still rank demand cuts ahead of certificates — trim what you do not need before you offset.`
+      }
       return `${sourceName} map grid intensity and home demand together — one habit change often moves kg faster than offsetting alone.`
     case 'waste':
+      if (v === 1) {
+        return `${sourceName} price extra bin lifts against compost and sort-at-source — council tonnage charges still climb.`
+      }
+      if (v === 2) {
+        return `${sourceName} still split landfill from recycling tariffs — contamination fees undo a good sort week.`
+      }
       return `${sourceName} price landfill and recycling separately — sorting and composting at home still beats paying for extra bin lifts.`
     case 'water':
+      if (v === 1) {
+        return `${sourceName} tie dripping taps to meter step-changes — aerators often land before arguing the standing charge.`
+      }
+      if (v === 2) {
+        return `${sourceName} still pair shower length with sewage rises — hot water moves both £ and litres.`
+      }
       return `${sourceName} link metered water and sewage rises — fixing drips and fitting aerators often beats arguing over the standing charge.`
     case 'holidays':
+      if (v === 1) {
+        return `${sourceName} still favour rail for short hops — domestic flights carry fuel and airport fees you see late.`
+      }
+      if (v === 2) {
+        return `${sourceName} book off-peak trains early — April 2026 leisure fares punish last-minute car hire too.`
+      }
       return `${sourceName} show short-haul rail beating domestic flights on cost and carbon — booking early still matters in the April 2026 market.`
     default:
-      return `${sourceName} anchor this row to your saved answers and the April 2026 cap near £${cap} — verify the offer before you commit.`
+      if (v === 1) {
+        return `${sourceName} line this row to your saved answers — verify the offer before you lock anything in.`
+      }
+      return `${sourceName} anchor this row to your saved answers and the July 2026 cap near £${cap} — verify the offer before you commit.`
   }
+}
+
+function proofSentence(journey: JourneyId, sourceName: string, postcode?: string): string {
+  return proofSentenceBase(journey, sourceName, postcode, 0)
+}
+
+/** Rotating proof beat — stops the same middle paragraph on every wall card. */
+export function proofSentenceVariant(
+  journey: JourneyId,
+  sourceName: string,
+  postcode: string | undefined,
+  variant: number
+): string {
+  return proofSentenceBase(journey, sourceName, postcode, variant)
 }
 
 /** @deprecated Solo Focus no longer surfaces CTA-bridge filler — use {@link payoffSentence}. */
 export function bridgeSentence(journey: JourneyId): string {
   if (journey === 'grants') {
-    return `Apply through the CTA — confirm MCS installer quotes and eligibility before you commit.`
+    return `Use the link below — check you qualify and compare installer quotes before you commit.`
   }
   if (journey === 'tech') {
     return `Cut standby draw via the CTA — swap plugs and timers, then record the kWh drop against your audit.`
@@ -101,15 +201,21 @@ export function buildAuditorDetectionParagraph(params: {
   placeLabel: string
   moneyGbp: number
   journey: JourneyId
+  /** Default false — avoid "In {town}" on every Zone card. */
+  namePlace?: boolean
 }): string {
-  const place = params.placeLabel.trim() || 'your area'
-  const moneyCompact = formatMoneyValue(Math.max(0, Math.round(params.moneyGbp)))
-  const topic = auditTopicPhrase(params.journey)
-  const opener =
-    place === 'your area'
-      ? `In your area, about £${moneyCompact} a year can quietly slip away on ${topic}`
-      : `In ${place}, about £${moneyCompact} a year can quietly slip away on ${topic}`
-  return `${opener} — not to scare you, just to show where a proper fix pays back.`
+  return buildFriendlyDetectionParagraph({
+    ...params,
+    namePlace: params.namePlace ?? false,
+  })
+}
+
+function cardProofVariant(cardId: string | undefined, proofVariant: number | undefined): number {
+  if (proofVariant != null) return proofVariant
+  if (!cardId?.trim()) return 0
+  let h = 0
+  for (let i = 0; i < cardId.length; i++) h = (Math.imul(31, h) + cardId.charCodeAt(i)) | 0
+  return Math.abs(h) % 3
 }
 
 export function buildAuditorNarrativeParagraphs(params: {
@@ -119,6 +225,8 @@ export function buildAuditorNarrativeParagraphs(params: {
   moneyGbp: number
   carbonKg: number
   locality: string
+  cardId?: string
+  proofVariant?: number
 }): string[] {
   const sourceName = params.sourceName.trim() || 'UK Government'
   const placeLabel = resolveSoloFocusPlaceLabel({
@@ -129,8 +237,14 @@ export function buildAuditorNarrativeParagraphs(params: {
     placeLabel,
     moneyGbp: params.moneyGbp,
     journey: params.journey,
+    namePlace: Boolean(params.cardId && cardProofVariant(params.cardId, params.proofVariant) % 2 === 1),
   })
-  const proof = proofSentence(params.journey, sourceName, params.userPostcode)
+  const proof = proofSentenceVariant(
+    params.journey,
+    sourceName,
+    params.userPostcode,
+    cardProofVariant(params.cardId, params.proofVariant)
+  )
   const payoff = payoffSentence(params.journey, params.moneyGbp, params.carbonKg)
   return [detection, proof, payoff]
 }

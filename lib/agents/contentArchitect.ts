@@ -22,6 +22,7 @@ import {
   MARCH_2026_ECONOMY,
   PRICE_CAP_SAVING_APRIL_1,
   TRUTH_2026_MARCH,
+  TRUTH_2026_JULY,
   APRIL_2026_TRUTH_PENCE,
   PRICE_CAP_SOURCE_URL,
 } from '@/lib/brains/constants'
@@ -33,7 +34,7 @@ import {
   sanitizeArchitectProseForJourney,
   stripContentSystemLeakage,
 } from '@/lib/zone/contentProseSanitize'
-import { ZONE_CONTENT_ARCHITECT_VOICE } from '@/lib/zone/zoneVoice'
+import { forensicMateBannedPromptLine, ZONE_CONTENT_ARCHITECT_VOICE } from '@/lib/zone/zoneVoice'
 import { shouldSkipContentArchitectLlm } from '@/lib/intelligence/scrapeBoundaries'
 import { isLlmRateLimited } from '@/lib/intelligence/llmRateLimit'
 
@@ -143,8 +144,8 @@ function thresholdRulesBlock(): string {
 - food: money_gbp > 100 → headline like "SWITCH TO SEASONAL VEG" unless a stronger UK policy beats it.
 - travel: money_gbp > 1000 → headline like "CLAIM EV INSTALL GRANT" (gov.uk chargepoint grant pathway).
 - waste: money_gbp > 50 → headline like "START FOOD COMPOSTING" (WRAP-aligned).
-- grants: money_gbp >= 6500 or flags include bus_eligible_hint → headline like "CLAIM BUS HEAT PUMP GRANT" — air-source £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}; oil/LPG uplift £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} from July 2026 — cite GOV.UK only on grants cards.
-- home: insulation, draughts, fabric — never BUS or heat-pump grant amounts on home cards.
+- grants: money_gbp >= 6500 or flags include bus_eligible_hint → headline like "CHECK HEAT PUMP GRANT RULES" — air-source £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}; oil/LPG uplift £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} from July 2026 — cite GOV.UK only on grants cards. Never use the acronym BUS in user-facing text.
+- home: insulation, draughts, fabric — never heat-pump grant amounts on home cards.
 Use April 2026 context: typical cap saving ~£${PRICE_CAP_SAVING_APRIL_1}/yr when relevant (Ofgem).`
 }
 
@@ -157,8 +158,8 @@ function lockedFactsBlock(): string {
     .map(([k, u]) => `${k}: ${u}`)
     .join('\n')
   return `LOCKED UK FACTS (April–June 2026 — use in paragraph 2 for national policy; do NOT invent different caps, unit pence, grant £ amounts, or new URLs):
-- Boiler Upgrade Scheme (England & Wales): flat £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP} for air-source heat pumps; oil/LPG properties may access £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} from July 2026. Never cite £5,000 BUS amounts.
-- Typical price-cap headline about £${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr; bill composition shift ~£${TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP} (green levy) off dual-fuel statements.
+- Government heat pump grant (England & Wales): up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP} for air-source heat pumps; oil/LPG properties may access up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} from July 2026. Plain English only — say "heat pump grant", not BUS.
+- Typical price-cap headline about £${TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP}/yr; bill composition shift ~£${TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP} (green levy) off dual-fuel statements.
 - Reference unit rates: electricity ~${APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH}p/kWh, gas ~${APRIL_2026_TRUTH_PENCE.GAS_PER_KWH}p/kWh. Ofgem cap hub: ${PRICE_CAP_SOURCE_URL}
 - OZEV flats/renters chargepoint support £${TRUTH_2026_MARCH.EV_GRANT_NEW_GBP} per eligible socket (April 2026 framing).
 - When live_elec_gbp_per_kwh/live_gas_gbp_per_kwh are present on a home card, treat them as the user's grounded bill maths and mention rates_citation_url if provided.
@@ -371,14 +372,15 @@ Lifestyle shift / pattern arbitrage: prioritise behavioural shifts (rail vs flig
 
   const system = `${ZONE_CONTENT_ARCHITECT_VOICE}
 ${lifestyleBlock}
+${forensicMateBannedPromptLine()}
 Market accuracy beats creative writing. If any value is uncertain, stay conservative and tie claims to provided source_url/source_hint.
-No emojis. No repeated sentences.
+No emojis. No repeated sentences. Vary paragraph 1 openers across cards — do not reuse the same lead rhythm on every journey.
 STRICT CATEGORY BOUNDARIES (mandatory — violating a boundary invalidates the card):
 - Each card's copy must match journey_key only. If journey_key is grants and the topic is e-bike schemes, do NOT mention gas boilers, heat pumps, or Ofgem cap maths unless the grant is explicitly BUS/heat-pump.
 - utilities = fuel mix, tariff, supplier, standing charges (no BUS, no loft insulation).
 - home = fabric, draughts, heating habits (no BUS grant £ amounts).
-- grants = BUS, ECO, heat pump funding only (no solar panel install copy, no generic cap essays).
-- solar = PV, export, MCS installs only (no BUS, no boilers, no e-bike).
+- grants = heat pump and insulation grants only (no solar panel install copy, no generic cap essays).
+- solar = solar panels and export only (no heat pump grants, no boilers, no e-bike).
 - travel/holidays/food/shopping/water/waste/money/tech/carbon each need a distinct mechanism — never reuse the same opening sentence across cards.
 Banned in all user-facing text: parenthetical system notes, "(official cap pathway)", "your live pathway is", raw variable names, or conditional dev notes.
 Never invent gov.uk paths (no "great british insulation scheme" URLs). Paragraph 3 must name one concrete action this week and reference the HTTPS source_url for that card.
@@ -392,7 +394,7 @@ Absolute voice constraints:
 Keep headline <= ${MAX_HEADLINE_CHARS} chars, uppercase, no trailing period.
 Insight must follow the 3-beat structure (three paragraphs, blank line between) — see ZONE_WARM_AUDITOR_THREE_BEAT above.
 Paragraph 1 must open with locality (town name) when the card JSON includes locality — never the raw postcode string.
-Paragraph 2 may cite BUS £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP} / £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} only on grants/home-heat cards where relevant.
+Paragraph 2 may cite heat pump grant amounts £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP} / £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} only on grants/home-heat cards where relevant. No acronyms (BUS, ECO4, MCS) in output copy.
 Paragraph 3 holds the single £/kg payoff and the https source_url action — do not repeat payoff figures from paragraph 1.
 Use compact figures only: £1.4k / 0.3t style, never long-form integers in prose.
 When verified_saving_value is provided, cite it in paragraph 3 only (compact £) and mention offer_expiry_date when present.

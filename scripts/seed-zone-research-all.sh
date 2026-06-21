@@ -27,7 +27,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Host + postcode: if first arg looks like a postcode (no scheme), treat as postcode only.
-HOST="${NEXT_PUBLIC_APP_URL:-https://00-ulm.vercel.app}"
+HOST="${NEXT_PUBLIC_APP_URL:-https://www.00-00.online}"
 POSTCODE="M11AG"
 if [[ ${#POSITIONAL[@]} -ge 1 ]]; then
   if [[ "${POSITIONAL[0]}" == http* ]]; then

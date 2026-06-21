@@ -46,6 +46,6 @@ for (const rel of TARGETS) {
 
 console.log(
   freed > 0
-    ? 'purge complete — restart with npm run dev:clean'
+    ? 'purge complete — run npm run dev:clean (first compile may take 2–3 min; open http://127.0.0.1:3000 after [warm-dev] done)'
     : 'nothing to purge (paths already absent)'
 )

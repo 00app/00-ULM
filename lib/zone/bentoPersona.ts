@@ -4,7 +4,7 @@ import type { JourneyId } from '@/lib/journeys'
 export type BentoPersona = 'square' | 'wide' | 'tall'
 
 /**
- * Editorial utility map — asymmetric groovy wall (12 domains).
+ * Editorial utility map — asymmetric groovy wall (13 domains).
  * Hero span is applied separately via `bento-hero-span`.
  */
 export const JOURNEY_BENTO_PERSONA: Record<JourneyId, BentoPersona> = {

@@ -61,6 +61,7 @@ export function resolveScrapePostcode(livePostcode?: string | null, profilePostc
 export function readProfileFieldsFromStorage(): {
   name?: string
   postcode?: string
+  house_number?: string
   household?: string
   home_type?: string
   home_power?: string
@@ -73,6 +74,7 @@ export function readProfileFieldsFromStorage(): {
   return {
     name: safeGetItem('profile_name') ?? undefined,
     postcode: safeGetItem('profile_postcode') ?? undefined,
+    house_number: safeGetItem('profile_house_number') ?? undefined,
     household: safeGetItem('profile_household') ?? undefined,
     home_type: safeGetItem('profile_home_type') ?? undefined,
     home_power: safeGetItem('profile_home_power') ?? undefined,

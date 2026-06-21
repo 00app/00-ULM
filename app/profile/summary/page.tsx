@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { motion } from 'framer-motion'
 import { useApp, readLocationStateFromStorage } from '@/app/context/AppContext'
 import { browserCanTriggerScrapeSync } from '@/lib/researchSyncClient'
+import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import { syncFallbackGridIntensityGPerKwh } from '@/lib/brains/liveGridCarbonFactor'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
@@ -164,6 +165,7 @@ export default function ProfileSummaryPage() {
     } catch {
       //
     }
+    trackFunnelEvent('summary_enter_zone')
     router.push(ROUTES.ZONE)
   }, [router, setHeroTotals])
 

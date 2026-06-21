@@ -9,6 +9,7 @@ import SessionStateRehydrate from '@/app/components/SessionStateRehydrate'
 import RouteFontWarmup from '@/app/components/RouteFontWarmup'
 import NeonWakePing from '@/app/components/NeonWakePing'
 import { PulseExpandedDiagnosticsProvider } from '@/app/context/PulseExpandedDiagnosticsContext'
+import { Footer } from '@/app/components/Footer'
 import { ROUTES } from '@/lib/routes'
 import { usePathname } from 'next/navigation'
 
@@ -32,6 +33,22 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
     [path]
   )
 
+  const showSiteFooter = useMemo(() => {
+    if (
+      fixedViewportStage ||
+      path === ROUTES.ZONE ||
+      path.startsWith(`${ROUTES.ZONE}/`) ||
+      path === ROUTES.PRIVACY ||
+      path === ROUTES.ZAI ||
+      path.startsWith(`${ROUTES.ZAI}/`) ||
+      path === ROUTES.LIKES ||
+      path === ROUTES.SETTINGS
+    ) {
+      return false
+    }
+    return true
+  }, [path, fixedViewportStage])
+
   /** Intro is a fixed-stage sequence — lock viewport (global body padding otherwise exceeds 100vh). Zone is the long wall. */
   useEffect(() => {
     const html = document.documentElement
@@ -51,8 +68,8 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
       html.classList.add('zz-zone-document')
       html.classList.remove('zz-zai-document')
     } else if (onZai) {
-      html.style.overflowY = 'auto'
-      body.style.overflowY = 'auto'
+      html.style.overflowY = 'hidden'
+      body.style.overflowY = 'hidden'
       html.classList.add('zz-zai-document')
       html.classList.remove('zz-zone-document')
       html.classList.remove('zz-intro-document-lock')
@@ -88,6 +105,7 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
         }}
       >
         {children}
+        {showSiteFooter ? <Footer /> : null}
       </div>
     </PulseExpandedDiagnosticsProvider>
   )
@@ -103,6 +121,7 @@ export const APP_PAGES_REGISTRY = [
   { path: ROUTES.ZAI, sourceFile: 'app/zai/page.tsx', name: 'Ask Zai' },
   { path: ROUTES.LIKES, sourceFile: 'app/likes/page.tsx', name: 'Likes' },
   { path: ROUTES.SETTINGS, sourceFile: 'app/settings/page.tsx', name: 'Settings' },
+  { path: ROUTES.PRIVACY, sourceFile: 'app/privacy/page.tsx', name: 'Privacy' },
 ] as const
 
 export type AppPageRegistryEntry = (typeof APP_PAGES_REGISTRY)[number]

@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import type { JourneyId } from '@/lib/journeys'
-import { pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
+import { loopQuestionDisplayText, pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
 import {
   buildAchievementDiscoveryCard,
   injectNewDiscoveryCard,
@@ -317,7 +317,7 @@ export function DiscoveryTakeover({
           <motion.div
             key="clean-birth-question"
             className="zone-loop-question profile-step-slam w-full flex flex-col items-center"
-            style={{ gap: 40, maxWidth: 520 }}
+            style={{ display: 'contents' }}
             initial={stepMotion.initial}
             animate={stepMotion.animate}
             exit={stepMotion.exit}
@@ -325,7 +325,7 @@ export function DiscoveryTakeover({
           >
             <span
               className="card-top-label solo-focus-zone-category m-0 text-center w-full block"
-              style={{ color: 'var(--color-yellow)' }}
+              style={{ color: 'var(--color-yellow)', maxWidth: 520 }}
             >
               {zoneCategoryLabel}
             </span>
@@ -336,22 +336,22 @@ export function DiscoveryTakeover({
                 marginBottom: 0,
                 marginLeft: 'auto',
                 marginRight: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.06em',
                 maxWidth: 'min(92vw, 28rem)',
                 textAlign: 'center',
+                whiteSpace: 'pre-line',
               }}
               initial={headlineMotion.initial}
               animate={headlineMotion.animate}
               exit={headlineMotion.exit}
               transition={FAMILY_TRANSITION_ATOMIC}
             >
-              <span style={{ whiteSpace: 'pre-line', display: 'block' }}>{beat.question}</span>
+              {loopQuestionDisplayText(beat)}
             </motion.div>
 
-            <div className="profile-step-controls profile-step-controls--options w-full">
+            <div
+              className="profile-step-controls profile-step-controls--options w-full"
+              style={{ maxWidth: 520 }}
+            >
               {beat.options.map((opt, optionIndex) => (
                 <ProfileAnswerBtn
                   key={opt.value}

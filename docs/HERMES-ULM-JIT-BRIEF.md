@@ -1,7 +1,7 @@
 # Hermes operator brief — Ulm JIT build (May 2026)
 
 **Audience:** whoever runs the Oracle VPS cron (`ubuntu@140.238.100.237`) and anyone testing from a Mac.  
-**App:** `https://00-ulm.vercel.app` — Zero Zero intelligence loop.
+**App:** `https://www.00-00.online` — Zero Zero intelligence loop.
 
 This is **not** the Python `hermes` chat CLI schedule. VPS cron uses **`bash scripts/hermes-pulse.sh`** (see [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md)).
 
@@ -69,7 +69,7 @@ npm run db:repair-gary
 
 ```bash
 # BAD — FUNCTION_INVOCATION_TIMEOUT (12 × full Firecrawl+Gemini per user)
-curl -X POST "https://00-ulm.vercel.app/api/cron/zone-research?limit=12" \
+curl -X POST "https://www.00-00.online/api/cron/zone-research?limit=12" \
   -H "Authorization: Bearer YOUR_SECRET"
 ```
 
@@ -77,7 +77,7 @@ Use **repair backfill** instead:
 
 ```bash
 # GOOD — backfill agent_headline / architect_prose / saving_amount_gbp on incomplete rows
-curl -sS -X POST "https://00-ulm.vercel.app/api/cron/zone-research?repair=1&limit=6" \
+curl -sS -X POST "https://www.00-00.online/api/cron/zone-research?repair=1&limit=6" \
   -H "Authorization: Bearer $(grep '^CRON_SECRET=' .env.local | cut -d= -f2- | tr -d '\"')"
 ```
 
@@ -85,7 +85,7 @@ Or load secret safely (avoids zsh `!` / `(BN17)` glob bugs):
 
 ```bash
 SECRET=$(grep '^CRON_SECRET=' .env.local | cut -d= -f2- | tr -d '"' | tr -d "'")
-curl -sS -X POST "https://00-ulm.vercel.app/api/cron/zone-research?repair=1&limit=6" \
+curl -sS -X POST "https://www.00-00.online/api/cron/zone-research?repair=1&limit=6" \
   -H "Authorization: Bearer ${SECRET}"
 ```
 

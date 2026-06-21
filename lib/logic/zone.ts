@@ -1,5 +1,6 @@
 export {
   buildZoneViewModel,
+  computePrimaryMoneyJourneyKeys,
   getJourneyImpact,
 } from '@/lib/zone/buildZoneViewModel'
 

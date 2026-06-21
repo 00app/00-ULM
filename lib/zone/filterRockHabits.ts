@@ -4,6 +4,8 @@ import type { RockHabit } from '@/lib/rock/types'
 import type { ZoneViewModel } from '@/lib/logic/zone'
 import { normalizeCardHeadlineKey } from '@/lib/soloFocusCopy'
 import { capRockHabitsPerJourney, dedupeFirstWinByJourney } from '@/lib/zone/perCategoryCardCap'
+import { getUkSeason } from '@/lib/zone/seasonHint'
+import { prioritizeSeasonTipsForVisibleRail, sortRockHabitsBySeasonStable } from '@/lib/zone/seasonRail'
 import { normalizeOfferUrlKey } from '@/lib/zone/trustedJourneyUrls'
 
 /** Journey mother tiles already on the bento wall — Today's Tips must use other lanes. */
@@ -69,6 +71,9 @@ export function prepareRockHabitsForRail(
   viewModel: ZoneViewModel,
   limit: number
 ): RockHabit[] {
+  const season = getUkSeason()
+  const seasonSortedRotation = sortRockHabitsBySeasonStable(rotationHabits, season)
+  const seasonSortedCatalog = sortRockHabitsBySeasonStable(ROCK_HABITS, season)
   const wallJourneys = getWallMotherJourneyKeys(viewModel)
   const blockedHeadlines = getBlockedWallHeadlineKeys(viewModel)
   const out: RockHabit[] = []
@@ -86,19 +91,25 @@ export function prepareRockHabitsForRail(
     out.push(h)
   }
 
-  const offWallRotation = rotationHabits.filter((h) => !wallJourneys.has(h.journey_key))
+  const offWallRotation = seasonSortedRotation.filter((h) => !wallJourneys.has(h.journey_key))
   for (const h of dedupeFirstWinByJourney(capRockHabitsPerJourney(offWallRotation, 1))) {
     tryAdd(h, true)
   }
 
-  for (const h of ROCK_HABITS) {
+  for (const h of seasonSortedCatalog) {
     if (out.length >= limit) break
     tryAdd(h, true)
   }
 
   if (out.length < limit) {
     const pool = dedupeFirstWinByJourney(
-      capRockHabitsPerJourney([...rotationHabits, ...ROCK_HABITS.filter((h) => !seenSlug.has(h.slug))], 1)
+      capRockHabitsPerJourney(
+        [
+          ...seasonSortedRotation,
+          ...seasonSortedCatalog.filter((h) => !seenSlug.has(h.slug)),
+        ],
+        1
+      )
     )
     for (const h of pool) {
       if (out.length >= limit) break
@@ -106,5 +117,5 @@ export function prepareRockHabitsForRail(
     }
   }
 
-  return out.slice(0, limit)
+  return prioritizeSeasonTipsForVisibleRail(out.slice(0, limit), season)
 }

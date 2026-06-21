@@ -20,6 +20,7 @@ When editing `app/**`, `lib/**`, or user-facing copy, **read** (Read tool):
 - `docs/SUPPLEMENTAL-SYSTEMS.md` (Gary mode, pattern shift, rebirth vault, research path matrix)
 - `docs/PROFILE-ANSWERS-ZONE-TECH.md` (12×3 questions, profile/answers API, scrape-sync pending vs stream-filled Zone)
 - `.cursor/rules/mechanical-pulse.mdc`
+- `.cursor/rules/zone-voice-copy.mdc` (Forensic Mate voice, nav labels, banned phrases — `lib/zone/zoneVoice.ts`)
 - `lib/logic/engine.ts` (economic truth, regional grid tiers, audit placeholders)
 
 If they conflict with an explicit user request, **the user wins**; otherwise treat them as the design and interaction contract.

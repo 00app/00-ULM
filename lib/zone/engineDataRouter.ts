@@ -64,6 +64,7 @@ export interface HybridLoopSpawnResult {
 
 export interface StructuralPostcodeAnchor {
   postcode: string
+  houseNumber?: string | null
   epc: OpenEpcProfile
   grid: NesoGridSnapshot | null
   /** `skip_firecrawl` = EPC + NESO only; `full_hydrate` = Tier A parallel bundle. */
@@ -101,23 +102,26 @@ function isHybridPipelineEnabled(): boolean {
  * When SKIP_FIRECRAWL=1 (or no Firecrawl key), skips full Tier A bundle but still grounds £/kg.
  */
 export async function resolveStructuralPostcodeAnchor(
-  postcode: string
+  postcode: string,
+  options?: { houseNumber?: string | null }
 ): Promise<StructuralPostcodeAnchor | null> {
   const compact = postcode.replace(/\s+/g, '').trim().toUpperCase()
   if (compact.length < 4) return null
+  const houseNumber = (options?.houseNumber ?? '').replace(/\s+/g, ' ').trim() || null
 
   if (shouldSkipFirecrawlScrape()) {
     const [epc, grid] = await Promise.all([
-      fetchOpendataEpcProfile(compact),
+      fetchOpendataEpcProfile(compact, { houseNumber }),
       fetchNesoGridIntensity(compact),
     ])
-    return { postcode: compact, epc, grid, source: 'skip_firecrawl' }
+    return { postcode: compact, houseNumber, epc, grid, source: 'skip_firecrawl' }
   }
 
-  const anchor = await hydrateFreeStructuralContext(compact)
+  const anchor = await hydrateFreeStructuralContext(compact, { houseNumber })
   if (!anchor) return null
   return {
     postcode: anchor.postcode,
+    houseNumber: anchor.houseNumber,
     epc: anchor.epc,
     grid: anchor.grid,
     source: 'full_hydrate',
@@ -179,7 +183,12 @@ export async function processCalculatedLoopSpawn(
   const pc = payload.postcode.replace(/\s+/g, '').trim().toUpperCase()
   if (pc.length < 4) return null
 
-  const anchor = await resolveStructuralPostcodeAnchor(pc)
+  const anchor = await resolveStructuralPostcodeAnchor(pc, {
+    houseNumber:
+      typeof payload.profileData?.house_number === 'string'
+        ? payload.profileData.house_number
+        : null,
+  })
   if (!anchor) return null
 
   const { moneyGbp, carbonKg } = calculateDeterministicDeltas({

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Promote newest Ready production deployment to 00-ulm.vercel.app (bypass Staged + failed checks).
+# Promote newest Ready production deployment to www.00-00.online (bypass Staged + failed checks).
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -44,5 +44,5 @@ if [[ "$promote_code" -ne 0 ]]; then
 fi
 
 echo "→ Health"
-curl -sf --max-time 25 "https://00-ulm.vercel.app/api/health?live=1" && echo ""
-curl -sf --max-time 25 "https://00-ulm.vercel.app/api/health" && echo ""
+curl -sf --max-time 25 "https://www.00-00.online/api/health?live=1" && echo ""
+curl -sf --max-time 25 "https://www.00-00.online/api/health" && echo ""

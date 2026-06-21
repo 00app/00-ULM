@@ -5,6 +5,8 @@ import type { ReactNode } from 'react'
 
 export type SoloFocusMotherStackProps = {
   zoneCategoryLabel: string
+  /** Unvisited card — show + on category label. */
+  categoryIsNew?: boolean
   headline: string
   prose?: ReactNode
   metrics: ReactNode
@@ -21,6 +23,7 @@ export type SoloFocusMotherStackProps = {
  */
 export function SoloFocusMotherStack({
   zoneCategoryLabel,
+  categoryIsNew = false,
   headline,
   prose,
   metrics,
@@ -62,6 +65,11 @@ export function SoloFocusMotherStack({
           style={{ color: 'var(--journey-text)' }}
         >
           {zoneCategoryLabel}
+          {categoryIsNew ? (
+            <span className="solo-focus-new-badge" aria-label="New card">
+              +
+            </span>
+          ) : null}
         </span>
         {headlineEl}
         {prose}

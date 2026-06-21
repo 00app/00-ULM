@@ -8,7 +8,6 @@ import {
   FAMILY_ATOMIC_SURFACE_INITIAL,
   FAMILY_TRANSITION_ATOMIC,
 } from '@/lib/motion-family'
-import { HeartOutlineIcon, ZaiSparkIcon } from '@/app/components/ui/MonoStrokeIcons'
 
 type Props = {
   ctaUrl?: string | null
@@ -65,7 +64,9 @@ export function SoloFocusActionTrinity({
             color: isLiked ? 'var(--brand-select-fg)' : 'var(--color-yellow)',
           }}
         >
-          <HeartOutlineIcon size={22} />
+          <span className="circle-btn-label-stack" aria-hidden="true">
+            <span>like</span>
+          </span>
         </motion.button>
       ) : null}
       {showAskZai && onAskZai ? (
@@ -74,14 +75,10 @@ export function SoloFocusActionTrinity({
           className="circle-btn solo-focus-action-btn solo-focus-action-80 solo-focus-ask-zai-btn solo-focus-trinity-zai zz-shimmer-cta"
           onClick={onAskZai}
           transition={INDUSTRIAL_OPACITY_SNAP}
-          aria-label="Ask Zai about this recommendation"
-          style={{
-            backgroundColor: 'var(--color-yellow)',
-            color: 'var(--color-purple)',
-          }}
+          aria-label="Ask about this offer"
         >
-          <span className="solo-focus-ask-zai-visual" aria-hidden>
-            <ZaiSparkIcon size={22} />
+          <span className="circle-btn-label-stack" aria-hidden="true">
+            <span>ask</span>
           </span>
         </motion.button>
       ) : null}

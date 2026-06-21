@@ -4,9 +4,7 @@ import crypto from 'crypto'
 import type { NextResponse } from 'next/server'
 import { assertSessionSecretConfigured, sealSessionToken, unsealSessionToken } from '@/lib/sessionCookieSign'
 
-/** v1.8.14 — Hard kill; sessions never gate on third-party messaging env. */
-const DISALLOW_OUTBOUND = true
-void DISALLOW_OUTBOUND
+/** Auth is independent of Twilio — see `lib/messaging/outboundGate.ts`. */
 
 export const SESSION_COOKIE = 'session'
 const SESSION_DAYS = 30

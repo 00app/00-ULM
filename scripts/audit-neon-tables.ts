@@ -17,7 +17,7 @@ const TABLE_META: Record<string, { status: TableStatus; note: string }> = {
   journey_state: { status: 'hot', note: 'Sentinel home state waterfall' },
   journey_answers: { status: 'hot', note: 'Normalized rows; FK for discovery_injections.parent_answer_id' },
   journey_answers_jsonb: { status: 'hot', note: 'Primary read path for Zone/Zai' },
-  journey_questions: { status: 'hot', note: '12-domain question bank (npm run db:evolve-12-domains)' },
+  journey_questions: { status: 'hot', note: '13-domain question bank (npm run db:evolve-13-domains)' },
   guest_sessions: { status: 'hot', note: 'Guest profile + answers by session_id / IP' },
   cards: { status: 'legacy-unused', note: 'Only /api/cards — no UI callers' },
   card_views: { status: 'legacy-unused', note: 'Never written in app; safe to drop' },

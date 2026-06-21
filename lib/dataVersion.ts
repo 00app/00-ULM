@@ -4,7 +4,7 @@ import { clearLearningCacheLocal } from '@/lib/zone/loopMemory'
  * Data version for Zero Zero — when this changes in production, local data is reset
  * and returning users load from session/IP-based storage.
  */
-/** Bump when journey grid / local cache shape changes (e.g. 9 → 12 domains). */
+/** Bump when journey grid / local cache shape changes (e.g. 9 → 13 domains). */
 export const DATA_VERSION = process.env.NEXT_PUBLIC_DATA_VERSION ?? '2026-05-24-profile-baseline'
 
 export const LOCAL_STORAGE_KEYS = {

@@ -6,6 +6,7 @@ Always apply project rules in `.cursor/rules/`:
 - `postcode-first-architect.mdc` — dynamic postcode, 12k/1t truth, UI ceilings, deploy pipeline
 - `zero-zero-prime-directive.mdc` — motion DNA, intelligence loop
 - `mechanical-pulse.mdc` — typography, geometry, colour lock
+- `zone-voice-copy.mdc` — Forensic Mate copy, nav labels, banned phrases
 - `verify-deploy-gate.mdc` — `npm run verify` before commit/deploy; Vercel lint/typecheck pipeline
 
 Never hardcode BN17 in app/lib/API code. All locality flows through the user's postcode parameter.

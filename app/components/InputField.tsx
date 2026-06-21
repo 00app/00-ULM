@@ -17,6 +17,7 @@ interface InputFieldProps {
   autoComplete?: string
   /** Accessible name for autofill heuristics. */
   name?: string
+  id?: string
 }
 
 const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function InputField(
@@ -33,6 +34,7 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function InputF
     onBlurViewportReset,
     autoComplete,
     name,
+    id,
   },
   ref
 ) {
@@ -70,6 +72,7 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function InputF
         autoComplete ?? (type === 'tel' ? 'tel-national' : undefined)
       }
       name={name}
+      id={id}
       value={value}
       onChange={(e) => onChange?.(e.target.value)}
       onInput={(e) => onChange?.((e.target as HTMLInputElement).value)}

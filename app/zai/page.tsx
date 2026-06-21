@@ -389,7 +389,7 @@ export default function ZaiPage() {
                       {msg.meta?.answerHref && msg.meta.answerLabel ? (
                         <Link
                           href={msg.meta.answerHref}
-                          className="zz-body underline zai-profile-answer-link"
+                          className="zai-profile-answer-link zz-h4"
                         >
                           {msg.meta.answerLabel}
                         </Link>
@@ -456,7 +456,7 @@ export default function ZaiPage() {
       <ZaiComposerDock>
         {loading ? (
           <motion.p
-            className="zz-body zai-connecting m-0 zai-prose-voice"
+            className="zz-h4 zai-connecting m-0"
             animate={{ opacity: [0.45, 1, 0.45] }}
             transition={{
               type: 'tween',
@@ -476,7 +476,7 @@ export default function ZaiPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="ask about a specific shift..."
-            className="zone-ask-zai-pill ask-zai-input border-none outline-none font-bold"
+            className="zone-ask-zai-pill ask-zai-input zai-ask-input border-none outline-none font-bold"
           />
           <motion.button
             type="button"

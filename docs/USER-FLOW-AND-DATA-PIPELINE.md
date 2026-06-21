@@ -15,7 +15,7 @@ Related references:
 | Step | Route / Surface | What user does | What system does |
 | --- | --- | --- | --- |
 | 1 | `/` / `/intro` | Lands on intro and starts profile | Loads intro motion, optional postcode prefill from browser/geocode path |
-| 2 | `/profile` | Completes onboarding questions | Saves profile answers to local state and session paths |
+| 2 | `/profile` | Completes onboarding questions (postcode + optional house number) | Saves profile to localStorage / session; `POST /api/local-intelligence` hydrates council + OpenEPC anchor |
 | 3 | `/profile/summary` | Reviews summary headline and totals framing | Builds summary words and transitions into Zone |
 | 4 | `/zone` | Sees hero + 13 category cards | Fetches scrape snapshot, merges deterministic impact + research coverage, then renders cards |
 | 5 | Zone card open (Solo Focus) | Opens a journey/tip card | Opens expanded card shell, loads question/result state |
@@ -50,7 +50,8 @@ flowchart TD
 
 - **Persona:** trusted UK mate — calm, empathetic, data-honest; one line of dry humour per card at most (`lib/zone/zoneVoice.ts`). Numbers still from Neon / `buildUserImpact` only.
 - **Write path:** scrape-sync / `researchAgent` → Neon `architect_prose` + `agent_headline` → optional `content-architect` batch → `buildZoneViewModel` + `contentProseSanitize` on read.
-- **Expanded Solo Focus:** `resolveExpandedTrueTipInsight` uses per-**parent** `journey_key` (`focusCategoryJourneyId`); body via `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` with **`dedupeTrueTipParagraphs`** so the stamped £/CO₂e payoff appears **once**. Weak expanded H1s use **`EXPANDED_JOURNEY_HOOK`** (per journey). Mechanical scaffold lines stripped before display.
+- **Expanded Solo Focus (journey mother):** `resolveExpandedTrueTipInsight` uses per-**parent** `journey_key` (`focusCategoryJourneyId`); body via `buildResearchResultsTrueTipBody` → `toThreeTrueTipParagraphs` with **`dedupeTrueTipParagraphs`** so the stamped £/CO₂e payoff appears **once**. Weak expanded H1s use **`EXPANDED_JOURNEY_HOOK`** (per journey). Mechanical scaffold lines stripped before display.
+- **Expanded Solo Focus (Rock / Today's Tips):** `cardId` prefix `rock-` → **`headlineFromRockHabit`** + catalog **`insight`**; £/kg from **`habitToTipCard`** — **not** Neon `researchCategoryCoverage[journey_key]` (habits share journey keys with wall mothers).
 - **Locality in prose:** town name from `AppContext.locationState.locationName` (geocode after profile postcode) — **`lib/zone/localityCopy.ts`**. Raw postcodes never appear in Solo Focus lead copy.
 - **Postcode:** drives APIs and research only — never hardcoded demo labels in `app/` or `lib/` UI paths.
 

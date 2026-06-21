@@ -4,6 +4,8 @@
  */
 import { ROCK_HABITS, ROCK_BY_SLUG, ROCK_HABIT_COUNT } from '@/lib/rock/habitsCatalog'
 import type { RockHabit } from '@/lib/rock/types'
+import { getUkSeason } from '@/lib/zone/seasonHint'
+import { sortRockHabitsBySeasonStable } from '@/lib/zone/seasonRail'
 
 const STORAGE_KEY = 'zz_rock_rotation_v1'
 
@@ -67,14 +69,16 @@ function pickFreshSlugs(
   liked: Set<string>,
   need: number
 ): string[] {
+  const season = getUkSeason()
+  const pool = sortRockHabitsBySeasonStable(ROCK_HABITS, season)
   const out: string[] = []
-  for (const h of ROCK_HABITS) {
+  for (const h of pool) {
     if (out.length >= need) break
     if (exclude.has(h.slug) || liked.has(`rock-${h.slug}`)) continue
     out.push(h.slug)
   }
   if (out.length < need) {
-    for (const h of ROCK_HABITS) {
+    for (const h of pool) {
       if (out.length >= need) break
       if (exclude.has(h.slug)) continue
       if (!out.includes(h.slug)) out.push(h.slug)
@@ -89,12 +93,14 @@ function pickReplacementSlug(slotIndex: number, slots: Slot[], liked: Set<string
       .map((s, i) => (i === slotIndex ? null : s.slug))
       .filter((s): s is string => typeof s === 'string')
   )
-  for (const h of ROCK_HABITS) {
+  const season = getUkSeason()
+  const pool = sortRockHabitsBySeasonStable(ROCK_HABITS, season)
+  for (const h of pool) {
     if (exclude.has(h.slug)) continue
     if (liked.has(`rock-${h.slug}`)) continue
     return h.slug
   }
-  for (const h of ROCK_HABITS) {
+  for (const h of pool) {
     if (!exclude.has(h.slug)) return h.slug
   }
   return null

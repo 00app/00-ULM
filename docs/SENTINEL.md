@@ -10,7 +10,7 @@ Sentinel is a **parallel layer** to the main Zone content pipeline (`GET /api/sc
 
 | Capability | Purpose |
 |------------|---------|
-| **Live-Impact** | Ofgem-locked April 2026 rates + regional grid intensity (`app/lib/skills/liveImpact.ts`) |
+| **Live-Impact** | Ofgem-locked July 2026 rates + regional grid intensity (`app/lib/skills/liveImpact.ts`) |
 | **Home mother/child deck** | P1–P3 slides in `journey_state` for `home`; advances after each home answer (max 3) |
 | **Client priorities** | Top 3 heuristic tips (home / travel / waste-shopping) from answers + goal + chat keywords |
 | **Rural grant signal** | Remote postcode prefixes + Firecrawl grant extract → optional `inject-sentinel-rural-support` tip |

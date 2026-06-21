@@ -3,6 +3,7 @@
  * Per-IP and per-email lockout to reduce brute-force risk (OWASP A07).
  * Note: On serverless (e.g. Vercel), each instance has its own map; for strict limits use Redis or similar.
  */
+import { checkRateLimitDistributed } from '@/lib/rateLimitDistributed'
 
 const WINDOW_MS = 15 * 60 * 1000 // 15 minutes
 const MAX_ATTEMPTS_PER_IP = 8
@@ -69,6 +70,16 @@ export function checkRateLimit(
   }
   entry.count += 1
   return { ok: true }
+}
+
+/** Prefer Upstash when configured; otherwise in-memory (per instance). */
+export async function checkRateLimitAsync(
+  key: string,
+  maxPerMinute: number
+): Promise<{ ok: boolean; retryAfter?: number }> {
+  const distributed = await checkRateLimitDistributed(key, maxPerMinute)
+  if (distributed) return distributed
+  return checkRateLimit(key, maxPerMinute)
 }
 
 /** Returns null if allowed; or an error message if rate limited / locked out. */

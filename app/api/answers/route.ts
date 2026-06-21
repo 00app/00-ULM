@@ -46,6 +46,8 @@ import { resolveGridCarbonContextForPostcode } from '@/lib/brains/liveGridCarbon
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import { attachSessionCookieToResponse, resolveAnswersUser } from '@/lib/answers/resolveAnswersUser'
+import { answersPostBodySchema, invalidBodyResponse } from '@/lib/api/schemas'
+import { captureServerError } from '@/lib/observability/captureError'
 import { processCalculatedLoopSpawn } from '@/lib/zone/engineDataRouter'
 import {
   isBucketFailoverMode,
@@ -55,9 +57,7 @@ import {
 } from '@/lib/intelligence/scrapeBoundaries'
 import { buildDiscoveryInjectionId, buildDiscoveryInjectionCardAsync } from '@/lib/zone/discoveryCard'
 
-/** v1.8.14 — Production lock: answers route must not initiate third-party messaging. */
-const DISALLOW_OUTBOUND = true
-void DISALLOW_OUTBOUND
+/** Answers route does not send SMS — mobile welcome is `/api/profile/mobile` only. */
 
 export const dynamic = 'force-dynamic'
 
@@ -79,8 +79,13 @@ export async function GET(_request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const resolved = await resolveAnswersUser(request, body as Record<string, unknown>)
+    const rawBody = await request.json()
+    const bodyParsed = answersPostBodySchema.safeParse(rawBody)
+    if (!bodyParsed.success) {
+      return invalidBodyResponse(bodyParsed.error)
+    }
+    const body = bodyParsed.data
+    const resolved = await resolveAnswersUser(request, rawBody as Record<string, unknown>)
     if (!resolved) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -99,8 +104,8 @@ export async function POST(request: NextRequest) {
       user_id: _bodyUserId,
     } = body
 
-    const jKey = typeof (journey_key ?? journey_id) === 'string' ? (journey_key ?? journey_id).trim() : ''
-    const qKey = typeof (question_key ?? question_id) === 'string' ? (question_key ?? question_id).trim() : ''
+    const jKey = (journey_key ?? journey_id ?? '').trim()
+    const qKey = (question_key ?? question_id ?? '').trim()
     const value = answer_value ?? answer
 
     if (!jKey || !qKey || value === undefined) {
@@ -131,6 +136,13 @@ export async function POST(request: NextRequest) {
     const householdSizeRaw = Number(profileGenome.household_size ?? profileGenome.householdSize)
     const householdSize =
       Number.isFinite(householdSizeRaw) && householdSizeRaw > 0 ? Math.round(householdSizeRaw) : null
+    const openDataAnchor = profileGenome.open_data_anchor as { houseNumber?: string | null } | undefined
+    const houseNumberFromGenome =
+      typeof openDataAnchor?.houseNumber === 'string' && openDataAnchor.houseNumber.trim()
+        ? openDataAnchor.houseNumber.trim()
+        : typeof profileGenome.house_number === 'string' && profileGenome.house_number.trim()
+          ? profileGenome.house_number.trim()
+          : null
     const bodyPostcode =
       typeof bodyPostcodeRaw === 'string'
         ? bodyPostcodeRaw.replace(/\s+/g, '').trim().toUpperCase()
@@ -145,6 +157,7 @@ export async function POST(request: NextRequest) {
     const profileData = profileRow || postcodeNorm
       ? {
           postcode: postcodeNorm ?? profileRow?.postcode ?? null,
+          house_number: houseNumberFromGenome,
           home_type: profileRow?.home_type ?? null,
           household: profileRow?.household ?? null,
           transport_baseline: profileRow?.transport_baseline ?? null,
@@ -552,7 +565,8 @@ export async function POST(request: NextRequest) {
       return attachSessionCookieToResponse(res, user_id)
     }
     return res
-  } catch {
+  } catch (error) {
+    captureServerError(error, { route: '/api/answers', method: 'POST' })
     return NextResponse.json(
       { error: 'Failed to save answer' },
       { status: 500 }

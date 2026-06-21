@@ -8,7 +8,7 @@ All **product and ops** documentation for the **00-00** repo lives in this folde
 |-----|----------|
 | **[HANDBOOK.md](HANDBOOK.md)** | **Master audit doc** — pipeline map, APIs, credit boundaries, scrape URL registry, copy, loops (synthesized front + full annexes) |
 
-Open **`HANDBOOK.md`** to check everything in one place. The annex sections are the full text of each satellite doc (regenerate with `python3 scripts/consolidate-handbook.py` after editing sources).
+Open **`HANDBOOK.md`** to check everything in one place. Annex sections contain the full text of each satellite listed below (regenerate with `python3 scripts/consolidate-handbook.py` after editing sources). If a satellite is not in your local checkout, treat the matching **HANDBOOK annex** as authoritative.
 
 ## Satellite docs (edit these first, then consolidate)
 
@@ -32,6 +32,7 @@ Open **`HANDBOOK.md`** to check everything in one place. The annex sections are 
 | [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) | Gary mode, pattern shift, inject paths |
 | [PUBLIC-UK-APIS.md](PUBLIC-UK-APIS.md) | UK public API reference |
 | [APP-FLOW-AND-PIPELINE.md](APP-FLOW-AND-PIPELINE.md) | Architect spec (routes, governance) |
+| [PRODUCT-ROADMAP.md](PRODUCT-ROADMAP.md) | Phase 0–3 pivot checklist (instrumentation → projects) |
 
 ## Not in `docs/` (by design)
 

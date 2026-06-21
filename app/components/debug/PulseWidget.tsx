@@ -10,6 +10,7 @@ import { motion } from 'framer-motion'
 import { usePulseExpandedDiagnostics } from '@/app/context/PulseExpandedDiagnosticsContext'
 import {
   TRUTH_2026_MARCH,
+  TRUTH_2026_JULY,
   PRICE_CAP_SOURCE_LABEL,
   PRICE_CAP_SOURCE_URL,
 } from '@/lib/brains/constants'
@@ -93,7 +94,7 @@ export function PulseDiagnosticFab() {
     if (!cardMeta) setOpen(false)
   }, [cardMeta])
 
-  const capFigure = TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP
+  const capFigure = TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP
 
   const displaySourceUrl = useMemo(() => {
     const fromCard = cardMeta?.sourceUrl?.trim() ?? ''

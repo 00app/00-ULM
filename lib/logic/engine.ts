@@ -15,6 +15,7 @@ import {
   REG_HI_RURAL_G_PER_KWH,
   REG_URBAN_LEZ_G_PER_KWH,
   TRUTH_2026_MARCH,
+  TRUTH_2026_JULY,
 } from '@/lib/brains/constants'
 
 export {
@@ -23,13 +24,14 @@ export {
   REG_HI_RURAL_G_PER_KWH,
   REG_URBAN_LEZ_G_PER_KWH,
   TRUTH_2026_MARCH,
+  TRUTH_2026_JULY,
   MARCH_2026_ECONOMY,
   PRICE_CAP_SOURCE_URL,
   PRICE_CAP_SOURCE_LABEL,
 } from '@/lib/brains/constants'
 
-/** April 2026 typical household cap (£/yr) — single engine export for calculators. */
-export const ENGINE_PRICE_CAP_TYPICAL_GBP = TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP
+/** July 2026 typical household cap (£/yr) — single engine export for calculators. */
+export const ENGINE_PRICE_CAP_TYPICAL_GBP = TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP
 
 /** Zone hero + settings — profile/journey-answer waste (not “potential”; that’s Zone welcome). */
 export const ENGINE_UI_LABELS = {

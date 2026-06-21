@@ -20,6 +20,7 @@ function readProfileKeys(): Record<string, string> {
   const keys = [
     ['name', 'profile_name'],
     ['postcode', 'profile_postcode'],
+    ['house_number', 'profile_house_number'],
     ['household', 'profile_household'],
     ['home_type', 'profile_home_type'],
     ['home_power', 'profile_home_power'],

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getLocalData } from '@/lib/local/getLocalData'
-import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 import { getSessionFromRequest } from '@/lib/auth'
 import {
   hydrateFreeStructuralContext,
@@ -22,12 +22,13 @@ const LOCAL_INTEL_MAX_PER_MINUTE = 30
 
 export async function GET(req: NextRequest) {
   const id = getClientIdentifier(req)
-  const { ok, retryAfter } = checkRateLimit(`local-intel:${id}`, LOCAL_INTEL_MAX_PER_MINUTE)
+  const { ok, retryAfter } = await checkRateLimitAsync(`local-intel:${id}`, LOCAL_INTEL_MAX_PER_MINUTE)
   if (!ok) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined })
   }
 
   const postcode = req.nextUrl.searchParams.get('postcode')?.trim()
+  const houseNumber = req.nextUrl.searchParams.get('house_number')?.trim() || undefined
   if (!postcode) {
     return NextResponse.json({ error: 'postcode required' }, { status: 400 })
   }
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Could not resolve postcode' }, { status: 404 })
   }
   const session = await getSessionFromRequest()
-  const anchor = await hydrateFreeStructuralContext(postcode)
+  const anchor = await hydrateFreeStructuralContext(postcode, { houseNumber })
   if (session?.userId && anchor) {
     void persistOpenDataAnchors(session.userId, anchor)
   }
@@ -51,13 +52,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const id = getClientIdentifier(req)
-  const { ok, retryAfter } = checkRateLimit(`local-intel:${id}`, LOCAL_INTEL_MAX_PER_MINUTE)
+  const { ok, retryAfter } = await checkRateLimitAsync(`local-intel:${id}`, LOCAL_INTEL_MAX_PER_MINUTE)
   if (!ok) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined })
   }
 
   const body = await req.json().catch(() => ({}))
   const postcode = typeof body?.postcode === 'string' ? body.postcode.trim() : ''
+  const houseNumber =
+    typeof body?.house_number === 'string' ? body.house_number.trim().slice(0, 32) : undefined
   if (!postcode) {
     return NextResponse.json({ error: 'postcode required' }, { status: 400 })
   }
@@ -69,7 +72,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Could not resolve postcode' }, { status: 404 })
   }
   const session = await getSessionFromRequest()
-  const anchor = await hydrateFreeStructuralContext(postcode)
+  const anchor = await hydrateFreeStructuralContext(postcode, { houseNumber })
   if (session?.userId && anchor) {
     void persistOpenDataAnchors(session.userId, anchor)
   }

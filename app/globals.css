@@ -113,6 +113,7 @@ nextjs-portal > * {
   /* Typography — Marvin (display / stamps) + Roboto (all body / UI copy); one body size */
   --font-marvin: 'Marvin Visions Bold', sans-serif;
   /* --font-roboto: set on <html> by next/font (layout.tsx) */
+  --font-body: var(--font-roboto), Roboto, sans-serif;
   --font-label: var(--font-marvin);
 
   /* Authorised palette only */
@@ -197,9 +198,10 @@ nextjs-portal > * {
   --zz-body-weight: 700;
   /* Zai + Deep Dive chat column — matches Zone content rail (~720px) */
   --max-w-zone: min(720px, 100%);
-  /** Zone page — hero, bento wall, Rock rail share one horizontal box */
+  /** Zone page — copy/headings inset; bento tiles full-bleed on mobile (v4.1: 10px) */
   --zone-rail-max: 1280px;
   --zone-rail-gutter: 20px;
+  --zone-rail-gutter-mobile: 30px;
   --zone-card-category-icon-size: 42px;
   /* v2.5 — typography rhythm lock (Marvin / Roboto / Marvin track) — canonical only */
   --zz-lh-heading: 0.8 !important;
@@ -978,10 +980,32 @@ p,
   font-size: 12px;
   font-weight: 600;
   line-height: 1.25;
-  text-transform: lowercase;
   color: #1a1a1a;
   margin: 0;
   letter-spacing: 0.02em;
+}
+
+.solo-focus-journey-nav__label--journey {
+  text-transform: uppercase;
+}
+
+.solo-focus-journey-nav__label--tip {
+  text-transform: lowercase;
+}
+
+.solo-focus-new-badge {
+  display: inline-block;
+  margin-inline-start: 0.2em;
+  font-family: var(--font-marvin), Marvin Visions, sans-serif;
+  font-size: 1.05em;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-yellow);
+  vertical-align: baseline;
+}
+
+.solo-focus-zone-category .solo-focus-new-badge {
+  margin-inline-start: 0.35em;
 }
 
 .solo-focus-journey-nav__arrow {
@@ -1469,13 +1493,29 @@ main.zone > .zone-content-rail {
   box-sizing: border-box;
 }
 
-/* Mobile: inset copy + grids; rail stack stays flush (browser lock). */
+/* Mobile: copy + section labels inset (10px v4.1); bento/Rock grids full-bleed. */
 @media (max-width: 767px) {
-  .zone-wall-stack .zone-anchor,
+  .zone-wall-stack .zone-anchor {
+    padding-inline: var(--zone-rail-gutter-mobile);
+    box-sizing: border-box;
+  }
+
+  .zone-wall-stack .zone-category-section-heading,
+  .zone-wall-stack .zone-rock-strip > h3 {
+    padding-inline: var(--zone-rail-gutter-mobile);
+    padding-block: 30px;
+    box-sizing: border-box;
+  }
+
   .zone-wall-stack .zone-rock-strip,
   .zone-wall-stack .groovy-zone-grid:not(.rock-saving-tips-grid) {
-    padding-inline: var(--zone-rail-gutter);
+    padding-inline: 0;
     box-sizing: border-box;
+  }
+
+  .groovy-zone-grid {
+    padding-top: 0;
+    padding-bottom: 0;
   }
 }
 
@@ -1541,20 +1581,82 @@ main.zone > .zone-content-rail {
   align-self: stretch;
 }
 
+/* Heading + tip cards stack vertically (grid > * defaults to flex-row). */
+.groovy-zone-grid > .zone-rock-strip,
+.zone-wall-stack .zone-rock-strip {
+  flex-direction: column;
+  align-items: stretch;
+  height: auto;
+  min-height: 0;
+  display: flex;
+  width: 100%;
+  max-width: min(1400px, 100%);
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+.groovy-zone-grid > .zone-rock-strip > h3,
+.zone-wall-stack .zone-rock-strip > h3 {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* Section label above category bento — outside grid so row min-height does not stretch it */
+.zone-category-section-heading,
+.zone-rock-strip > h3 {
+  width: 100%;
+  max-width: min(1400px, 100%);
+  margin: 0 auto;
+  padding-block: 30px;
+  padding-inline: 30px;
+  display: block;
+  line-height: 0.8 !important;
+  font-family: var(--font-marvin) !important;
+  font-size: var(--zz-h3-mobile) !important;
+  font-weight: bold !important;
+  letter-spacing: -0.02em !important;
+  text-transform: lowercase !important;
+}
+@media (min-width: 1024px) {
+  .zone-category-section-heading,
+  .zone-rock-strip > h3 {
+    font-size: var(--zz-h3-desktop) !important;
+  }
+}
+
+.zone-wall-stack .zone-rock-signup-wrap {
+  width: 100%;
+  max-width: min(1400px, 100%);
+  margin: 0 auto;
+  padding-inline: 0;
+  box-sizing: border-box;
+}
+
+.groovy-zone-grid > .zone-rock-strip > .rock-saving-tips-section,
+.zone-wall-stack .zone-rock-strip .rock-saving-tips-section {
+  width: 100%;
+  min-width: 0;
+}
+
 /* Mobile: stream of truth — every cell 1×1 (personas ignored). */
 @media (max-width: 767px) {
   .groovy-zone-grid {
     grid-template-columns: 1fr !important;
     grid-auto-flow: row;
     row-gap: 20px;
-    column-gap: 20px;
-    padding: 10px 0;
+    column-gap: 0;
+    padding: 0;
   }
   .groovy-zone-grid > * {
     grid-column: 1 !important;
     grid-row: span 1 !important;
     min-height: clamp(200px, 48vw, 280px);
     min-width: 0;
+  }
+  .groovy-zone-grid > .zone-rock-strip,
+  .zone-wall-stack .zone-rock-strip {
+    min-height: 0;
+    grid-row: auto !important;
   }
   .groovy-zone-grid .span-wide,
   .groovy-zone-grid .span-tall,
@@ -1735,6 +1837,11 @@ body, p, span, input, button, textarea, select,
  * Zone wall — `.card-headline` rhythm (hero + journey + tips).
  * Typography matches `.zone-anchor .zz-anchor-greeting` (same tokens, no separate clamp scale).
  */
+.groovy-zone-grid .zone-hero-card .zone-hero-profile-lead {
+  white-space: pre-line;
+  line-height: 0.8;
+}
+
 .groovy-zone-grid .card-headline {
   flex: 0 1 auto !important;
   height: auto !important;
@@ -1772,16 +1879,30 @@ body, p, span, input, button, textarea, select,
 
 .groovy-zone-grid .card-impact-grid {
   flex-shrink: 0;
-  margin-top: 0 !important;
   width: 100%;
   min-width: 0 !important;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
   column-gap: clamp(0.45rem, 3.5cqw, 1.25rem) !important;
 }
 
-/* Hero /settings tile: pull Potential + Carbon to the bottom when the row is taller than copy */
+/* Pin SAVE / CARBON row to card bottom — headline height varies per tile */
+.groovy-zone-grid .bento-card-groovy > .card-impact-grid,
+.groovy-zone-grid button.bento-card-groovy > .card-impact-grid,
 .groovy-zone-grid .zone-hero-card > .card-impact-grid {
   margin-top: auto !important;
+  align-self: stretch;
+}
+
+.groovy-zone-grid .bento-card-groovy > .card-headline,
+.groovy-zone-grid button.bento-card-groovy > .card-headline {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.groovy-zone-grid .groovy-cell-radius > [id^='zone-journey-'] {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
 }
 
 .groovy-zone-grid .card-impact-grid .data-stack,
@@ -1904,7 +2025,7 @@ body, p, span, input, button, textarea, select,
 }
 
 /* Rock strip: two-column tips — shorter than full-grid cells, same bento tokens */
-.rock-saving-tips-section .bento-card-groovy {
+.rock-saving-tips-grid .bento-card-groovy {
   min-height: clamp(168px, 24vw, 260px) !important;
 }
 
@@ -2071,9 +2192,17 @@ body, p, span, input, button, textarea, select,
   text-wrap: balance;
 }
 
-.zai-interface .zai-profile-answer-link {
-  color: var(--color-yellow) !important;
+.zai-interface .zai-msg-footer .zai-profile-answer-link {
+  color: var(--color-pink) !important;
   text-decoration: underline;
+  text-underline-offset: 3px;
+  text-transform: none !important;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.zai-interface .zai-msg-footer .zai-profile-answer-link:hover {
+  color: var(--color-pink) !important;
+  opacity: 0.88;
 }
 
 .zai-interface .zai-like-btn {
@@ -3000,6 +3129,9 @@ h3.solo-focus-question-label.zz-h3 {
 .expanded-solo-focus .impact-to-trinity {
   margin-top: 40px !important;
 }
+.expanded-solo-focus .trinity-to-offer-provider {
+  margin-top: 40px !important;
+}
 
 /* Solo Focus mother stack — single column all breakpoints; centred content slab. */
 .expanded-solo-focus .solo-focus-mother-grid.solo-focus-mother-stack,
@@ -3381,16 +3513,7 @@ h3.solo-focus-question-label.zz-h3 {
   align-self: stretch;
 }
 
-/* Trinity — Ask Zai: flat yellow disc + Logo (no gradient / no pulse ring) */
-.expanded-solo-focus .solo-focus-ask-zai-visual {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-/* Zai disc — Floating Nav: brand yellow; Solo Focus Trinity: transparent so button uses journey CTA tokens like link/like */
+/* Zai disc — Floating Nav: brand yellow; Solo Focus Trinity uses Marvin label stack like BUY */
 .kinetic-zai-disc {
   position: relative;
   z-index: 1;
@@ -3853,11 +3976,9 @@ h3.solo-focus-question-label.zz-h3 {
   }
   .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover .circle-btn-label-stack,
   .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover .circle-btn-label-stack > span,
-  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover svg,
-  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .solo-focus-ask-zai-visual,
-  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .solo-focus-ask-zai-visual svg {
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .circle-btn-label-stack,
+  .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .circle-btn-label-stack > span {
     color: var(--color-purple) !important;
-    stroke: var(--color-purple) !important;
   }
 }
 
@@ -3870,11 +3991,9 @@ body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover {
 
 body.has-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover .circle-btn-label-stack,
 body.has-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover .circle-btn-label-stack > span,
-body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover svg,
-body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .solo-focus-ask-zai-visual,
-body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .solo-focus-ask-zai-visual svg {
+body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .circle-btn-label-stack,
+body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .circle-btn-label-stack > span {
   color: var(--color-purple) !important;
-  stroke: var(--color-purple) !important;
 }
 
 body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__label.nav-label,
@@ -4388,8 +4507,11 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   padding-top: calc(20px + env(safe-area-inset-top, 0px));
-  padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+  padding-inline: max(16px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  padding-bottom: calc(var(--zai-composer-dock-clearance, 120px) + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-yellow) 38%, transparent) transparent;
 }
 .zai-interface .zai-page-content {
   width: 100%;
@@ -4414,32 +4536,64 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   height: 1px;
   flex-shrink: 0;
 }
-.zai-interface .zai-composer-dock {
+/* Portaled to document.body — must not depend on .zai-interface ancestor */
+.zai-composer-dock {
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: 100%;
   box-sizing: border-box;
 }
-.zai-interface .zai-composer-dock--fixed {
+.zai-composer-dock--fixed {
   position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
+  inset-inline: 0;
   bottom: 0;
-  z-index: 195;
+  z-index: 210;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-inline: max(16px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  padding-top: 20px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--color-purple) 72%, transparent) 42%,
+    var(--color-purple) 100%
+  );
+}
+.zai-composer-dock--fixed .zai-input-row,
+.zai-composer-dock--fixed .zai-connecting {
   width: min(var(--max-w-zone), calc(100vw - 32px));
   max-width: var(--max-w-zone);
-  padding-inline: 0;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  pointer-events: none;
-  background: transparent;
+  margin-inline: auto;
 }
-.zai-interface .zai-composer-dock--fixed > * {
+.zai-composer-dock--fixed > * {
   pointer-events: auto;
 }
-.zai-interface .zai-composer-dock--fixed .zai-connecting {
+.zai-composer-dock--fixed .zai-connecting {
   text-align: center;
   min-height: 1.25rem;
+  color: var(--color-yellow) !important;
+  font-family: var(--font-marvin) !important;
+  font-size: var(--zz-h4-mobile);
+  font-weight: bold;
+  line-height: 0.8 !important;
+  letter-spacing: var(--zz-track-marvin);
+  text-transform: uppercase;
+}
+@media (min-width: 1024px) {
+  .zai-composer-dock--fixed .zai-connecting {
+    font-size: var(--zz-h4-desktop);
+  }
+}
+body.zai-composer-dock-active {
+  --zai-composer-dock-clearance: 132px;
 }
 .zai-interface .zai-intro-bubble {
   width: 100%;
@@ -4499,7 +4653,7 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   color: var(--zai-ink) !important;
 }
 .zai-interface .zai-connecting {
-  color: var(--zai-ink) !important;
+  color: var(--color-yellow) !important;
 }
 
 /* Zai voice — organic lowercase prose (model-led; no forced transform on user bubbles) */
@@ -4583,7 +4737,7 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
 .zai-interface .ask-zai-input::placeholder {
   color: color-mix(in srgb, var(--zai-ink) 72%, transparent);
 }
-/* Zai input row — inside fixed composer dock (composer is portaled outside .zai-interface) */
+/* Zai input row — fixed composer dock (portaled outside .zai-interface) */
 .zai-interface .zai-input-row,
 .zai-composer-dock .zai-input-row {
   display: flex;
@@ -4595,12 +4749,17 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   margin: 0;
 }
 .zai-interface .zai-input-row .ask-zai-input,
-.zai-interface .zai-input-row .zone-ask-zai-pill {
+.zai-interface .zai-input-row .zone-ask-zai-pill,
+.zai-composer-dock .zai-input-row .ask-zai-input,
+.zai-composer-dock .zai-input-row .zone-ask-zai-pill {
   box-shadow: 0 2px 0 color-mix(in srgb, var(--zai-ink) 24%, transparent);
 }
-.zai-interface .zai-ask-input {
+.zai-interface .zai-ask-input,
+.zai-composer-dock .zai-ask-input,
+.zai-composer-dock .zai-input-row .ask-zai-input {
   flex: 1;
   min-width: 0;
+  width: auto;
   height: 54px;
   box-sizing: border-box;
   background: var(--zai-field-bg) !important;
@@ -4609,8 +4768,28 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   border: none !important;
   outline: none !important;
 }
-.zai-interface .zai-ask-input::placeholder {
+.zai-interface .zai-ask-input::placeholder,
+.zai-composer-dock .zai-ask-input::placeholder,
+.zai-composer-dock .ask-zai-input::placeholder {
   color: color-mix(in srgb, var(--zai-ink) 55%, transparent);
+}
+.zai-composer-dock .zone-ask-zai-pill,
+.zai-composer-dock .ask-zai-input {
+  background-color: var(--zai-field-bg);
+  color: var(--zai-ink);
+  border: none;
+  outline: none;
+  border-radius: 9999px;
+  padding: 12px 24px;
+  font-weight: 800;
+  font-size: 1.125rem;
+  caret-color: var(--zai-ink);
+}
+@media (min-width: 768px) {
+  .zai-composer-dock .zone-ask-zai-pill,
+  .zai-composer-dock .ask-zai-input {
+    font-size: 1.25rem;
+  }
 }
 /* Go button: pink default, yellow text; hover yellow bg, purple text; bounce (match other CTAs) */
 .zai-interface .zai-go-btn {
@@ -4644,6 +4823,41 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   }
 }
 .zai-interface .zai-go-btn:disabled {
+  background-color: transparent;
+  color: var(--color-yellow);
+  opacity: 1;
+  cursor: default;
+}
+.zai-composer-dock .zai-go-btn {
+  flex-shrink: 0;
+  width: 56px;
+  min-width: 56px;
+  height: 54px;
+  border-radius: 9999px;
+  font-family: var(--font-roboto);
+  font-weight: 800;
+  font-size: var(--zz-body-size);
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.zai-composer-dock .zai-go-btn:not(:disabled) {
+  background-color: var(--zai-pill-bg);
+  color: var(--zai-pill-text);
+}
+@media (hover: hover) {
+  .zai-composer-dock .zai-go-btn:not(:disabled):hover {
+    background-color: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
+  }
+  .zai-composer-dock .zai-go-btn:not(:disabled):active {
+    transform: scale(var(--zz-press-scale));
+  }
+}
+.zai-composer-dock .zai-go-btn:disabled {
   background-color: transparent;
   color: var(--color-yellow);
   opacity: 1;
@@ -4782,6 +4996,140 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
 .expanded-solo-focus .zz-back-btn.zz-modal-close-btn:hover {
   background: var(--zz-hover-bg) !important;
   color: var(--zz-hover-text) !important;
+}
+
+/* Site footer — Marvin H4 © line + Privacy (Zone + Settings + other surfaces) */
+.site-footer {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 40px) clamp(20px, 3vw, 32px) clamp(32px, 5vw, 48px);
+  box-sizing: border-box;
+  text-align: center;
+}
+.site-footer--with-reset {
+  padding-bottom: clamp(16px, 3vw, 28px);
+}
+.site-footer__reset-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto clamp(20px, 4vw, 32px);
+}
+.site-footer__line {
+  font-family: var(--font-marvin), sans-serif;
+  font-size: var(--zz-h4-mobile);
+  font-weight: 700;
+  line-height: 0.8;
+  letter-spacing: var(--zz-track-circle-marvin);
+  color: var(--journey-text, var(--color-yellow));
+  text-transform: none !important;
+  opacity: 1;
+}
+@media (min-width: 1024px) {
+  .site-footer__line {
+    font-size: var(--zz-h4-desktop);
+  }
+}
+.site-footer__link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font: inherit;
+  letter-spacing: inherit;
+}
+@media (hover: hover) {
+  .site-footer__link:hover {
+    color: var(--color-pink, #ff00ff);
+  }
+}
+/* Zone wall — sit above floating nav rail */
+.site-footer.site-footer--zone {
+  margin-top: clamp(8px, 2vw, 20px);
+  /* Clear fixed bottom rail on desktop; mobile nav is top-right */
+  padding-bottom: calc(clamp(48px, 8vw, 72px) + env(safe-area-inset-bottom, 0px));
+}
+.privacy-page .site-footer {
+  margin-top: clamp(32px, 6vw, 48px);
+}
+
+/* Privacy — transparency manifesto */
+.privacy-page {
+  position: relative;
+  z-index: 2;
+  min-height: 100dvh;
+  padding: clamp(72px, 12vw, 96px) clamp(20px, 4vw, 40px) clamp(48px, 8vw, 72px);
+  box-sizing: border-box;
+  color: var(--journey-text, #fdfd00);
+}
+.privacy-page__inner {
+  max-width: 42rem;
+  margin: 0 auto;
+}
+.privacy-page h2.privacy-page__title {
+  margin: 0 0 0.75rem;
+  font-size: var(--zz-h3-mobile) !important;
+  line-height: 0.8 !important;
+}
+@media (min-width: 1024px) {
+  .privacy-page h2.privacy-page__title {
+    font-size: var(--zz-h3-desktop) !important;
+  }
+}
+.privacy-page__lead {
+  margin: 0 0 2rem;
+  font-family: var(--font-roboto), Roboto, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.45;
+  opacity: 0.9;
+}
+.privacy-page__section {
+  margin-bottom: 2rem;
+}
+.privacy-page__section h3 {
+  margin: 0 0 0.65rem;
+  font-family: var(--font-marvin), Marvin Visions, sans-serif;
+  font-size: var(--zz-h3-mobile, 1.25rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+@media (min-width: 768px) {
+  .privacy-page__section h3 {
+    font-size: var(--zz-h3-desktop, 1.5rem);
+  }
+}
+.privacy-page__section h4 {
+  margin: 1.25rem 0 0.5rem;
+  font-family: var(--font-roboto), Roboto, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.privacy-page__section p {
+  margin: 0 0 0.85rem;
+  font-family: var(--font-roboto), Roboto, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.privacy-page__section code {
+  font-size: 0.85em;
+  font-weight: 700;
+}
+.privacy-page__email {
+  color: var(--color-pink, #ff00ff);
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.privacy-page__email:hover {
+  color: var(--journey-text, #fdfd00);
 }
 
 /* Settings page — close uses .zz-back-btn (top-right) */
@@ -4929,13 +5277,18 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   margin: 10px 0 0;
   max-width: 100%;
   text-align: left;
-  font-family: var(--font-roboto), sans-serif;
-  font-size: var(--zz-body-size);
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: normal;
+  font-family: var(--font-marvin), sans-serif;
+  font-size: var(--zz-h4-mobile);
+  font-weight: 700;
+  line-height: 0.8;
+  letter-spacing: var(--zz-track-circle-marvin);
   color: var(--color-yellow);
-  text-transform: none;
+  text-transform: none !important;
+}
+@media (min-width: 1024px) {
+  .settings-council-blurb {
+    font-size: var(--zz-h4-desktop);
+  }
 }
 .settings-journey-answer-row {
   display: flex;
@@ -4982,7 +5335,8 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
 /* Hero card: pink bg, yellow text (variant of settings bento card) */
 .settings-hero-card .card-top-label,
 .settings-hero-card .card-headline,
-.settings-hero-card .settings-overview-data { color: var(--color-yellow); }
+.settings-hero-card .settings-overview-data,
+.settings-hero-card .settings-council-blurb { color: var(--color-yellow); }
 
 /* Non-hero settings cards: smaller headline (H4) so answers don’t ellipsis; wrap to 2–3 lines */
 .settings-bento-card:not(.settings-hero-card) .card-headline,
@@ -5035,6 +5389,13 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   padding: 30px !important;
   overflow: hidden;
 }
+/* Overview hero — read-only info; no Zone-style hover invert */
+.settings-page .settings-bento-card--info.bento-card-groovy {
+  cursor: default;
+  transition:
+    opacity var(--fussy-snap),
+    transform var(--zz-interaction-duration) var(--zz-interaction-ease);
+}
 .settings-page .settings-overview-impact-grid {
   width: 100%;
   max-width: 100%;
@@ -5052,32 +5413,80 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
 
 /* Rock saving tips grid uses `.groovy-zone-grid` (same as Zone wall). */
 
-/* Rock footer: profile-style zz-input + Go; Instagram */
-.rock-saving-tips-section .zone-rock-signup-wrap {
+/* Rock mobile signup + Instagram — compact strip above site footer */
+.zone-rock-signup-wrap {
   width: 100%;
-  margin-top: 2rem;
+  margin: 0 auto 30px;
   box-sizing: border-box;
 }
 
-.rock-saving-tips-section .rock-mobile-signup-card.bento-card-groovy {
-  min-height: unset !important;
-  padding: var(--padding-bento) !important;
+.zone-rock-signup-wrap .rock-mobile-signup-title {
+  font-family: var(--font-marvin) !important;
+  font-weight: 700 !important;
+  font-size: var(--zz-h3-mobile) !important;
+  line-height: 0.8 !important;
+  letter-spacing: var(--zz-track-marvin) !important;
+  text-transform: uppercase;
 }
-.rock-saving-tips-section .rock-mobile-row {
+
+@media (min-width: 768px) {
+  .zone-rock-signup-wrap .rock-mobile-signup-title {
+    font-size: var(--zz-h3-desktop) !important;
+  }
+}
+
+.zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy {
+  min-height: unset !important;
+  height: auto !important;
+  padding: var(--padding-bento) !important;
+  gap: 12px;
+  margin-top: 30px;
+  margin-bottom: 30px;
+  cursor: default;
+}
+
+.zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:active {
+  transform: none !important;
+}
+
+@media (hover: hover) {
+  .zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:hover {
+    background-color: var(--color-pink) !important;
+    color: var(--color-yellow) !important;
+  }
+
+  .zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:hover .rock-mobile-signup-title,
+  .zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:hover .zz-body {
+    color: var(--color-yellow) !important;
+  }
+
+  .zone-rock-signup-wrap .rock-mobile-row .rock-mobile-zz-input.zz-input:hover {
+    background-color: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
+  }
+
+  .zone-rock-signup-wrap .rock-mobile-row .rock-mobile-zz-input.zz-input:hover::placeholder {
+    color: var(--zz-hover-text);
+  }
+}
+
+.zone-rock-signup-wrap .rock-mobile-row {
   display: flex;
   align-items: stretch;
   gap: 12px;
   width: 100%;
   margin-top: 8px;
 }
-.rock-saving-tips-section .rock-mobile-row .rock-mobile-zz-input.zz-input {
+
+.zone-rock-signup-wrap .rock-mobile-row .rock-mobile-zz-input.zz-input {
   flex: 1;
   min-width: 0;
   max-width: none !important;
   height: 54px;
   box-sizing: border-box;
 }
-.rock-saving-tips-section .rock-mobile-go-btn {
+
+.zone-rock-signup-wrap .rock-mobile-go-btn {
   flex-shrink: 0;
   width: 56px;
   min-width: 56px;
@@ -5092,7 +5501,6 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   line-height: 0.8 !important;
   letter-spacing: var(--zz-track-marvin) !important;
   text-transform: uppercase;
-  /* Flat fill — no UA gloss/gradient/tint (esp. Safari) */
   background-color: var(--color-purple);
   color: var(--color-yellow);
   box-shadow: none;
@@ -5103,45 +5511,56 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   justify-content: center;
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
-.rock-saving-tips-section .rock-mobile-go-btn:hover:not(:disabled) {
+
+.zone-rock-signup-wrap .rock-mobile-go-btn:hover:not(:disabled) {
   background-color: var(--zz-hover-bg);
   color: var(--zz-hover-text);
   filter: none;
 }
-.rock-saving-tips-section .rock-mobile-go-btn:active:not(:disabled) {
+
+.zone-rock-signup-wrap .rock-mobile-go-btn:active:not(:disabled) {
   transform: scale(var(--zz-press-scale));
   filter: none;
 }
-.rock-saving-tips-section .rock-mobile-go-btn:focus-visible {
+
+.zone-rock-signup-wrap .rock-mobile-go-btn:focus-visible {
   outline: 2px solid var(--color-purple);
   outline-offset: 2px;
 }
-.rock-saving-tips-section .rock-mobile-go-btn:disabled {
+
+.zone-rock-signup-wrap .rock-mobile-go-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
-.rock-saving-tips-section .rock-social-row {
+
+.zone-rock-signup-wrap .rock-social-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 16px;
   margin-top: 16px;
 }
-.rock-saving-tips-section .rock-ig-link {
+
+.zone-rock-signup-wrap .rock-ig-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
   border-radius: 9999px;
   background: var(--color-purple);
   color: var(--color-yellow);
   text-decoration: none;
 }
-.rock-saving-tips-section .rock-ig-link svg {
-  width: 28px;
-  height: 28px;
+
+.zone-rock-signup-wrap .rock-ig-link svg,
+.zone-rock-signup-wrap .rock-ig-link__glyph {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .settings-overview-label {
@@ -6254,8 +6673,15 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
 
 html.zz-zai-document,
 html.zz-zai-document body {
-  overflow-y: auto !important;
-  overflow-x: hidden;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+html.zz-zai-document body {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 /* Links: purple background, yellow text */
@@ -7181,6 +7607,38 @@ html.zz-zai-document body {
   gap: 20px;
 }
 
+.zz-profile-page .profile-postcode-stack {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.zz-profile-page .profile-optional-field-label {
+  font-family: var(--font-marvin), var(--font-label), sans-serif;
+  font-size: var(--zz-h4-mobile);
+  font-weight: 900;
+  text-transform: lowercase;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--color-yellow);
+  margin: 0;
+  text-align: center;
+}
+
+.zz-profile-page .profile-optional-suffix {
+  opacity: 0.72;
+  font-weight: 700;
+}
+
+@media (min-width: 1024px) {
+  .zz-profile-page .profile-optional-field-label {
+    font-size: var(--zz-h4-desktop);
+  }
+}
+
 .zz-profile-page .profile-step-controls--options {
   flex-direction: row;
   flex-wrap: wrap;
@@ -7303,7 +7761,7 @@ html.zz-zai-document body {
     color: var(--color-yellow) !important;
   }
   /* Settings + Likes bento tiles */
-  .settings-page .settings-bento-card.bento-card-groovy:hover,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover,
   .likes-page .bento-card-groovy:hover {
     background: var(--zz-hover-bg) !important;
     background-color: var(--zz-hover-bg) !important;
@@ -7312,19 +7770,19 @@ html.zz-zai-document body {
     --journey-text: var(--zz-hover-text);
     --color-ink: var(--zz-hover-text);
   }
-  .settings-page .settings-bento-card.bento-card-groovy:hover .card-top-label,
-  .settings-page .settings-bento-card.bento-card-groovy:hover .card-headline,
-  .settings-page .settings-bento-card.bento-card-groovy:hover .card-top-arrow,
-  .settings-page .settings-bento-card.bento-card-groovy:hover .card-top-arrow svg,
-  .settings-page .settings-bento-card.bento-card-groovy:hover .data-label,
-  .settings-page .settings-bento-card.bento-card-groovy:hover .data-value,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-label,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-headline,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-arrow,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-arrow svg,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .data-label,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .data-value,
   .likes-page .bento-card-groovy:hover .card-top-label,
   .likes-page .bento-card-groovy:hover .card-headline,
   .likes-page .bento-card-groovy:hover .data-label,
   .likes-page .bento-card-groovy:hover .data-value {
     color: var(--zz-hover-text) !important;
   }
-  .settings-page .settings-bento-card.bento-card-groovy:hover .card-top-arrow svg {
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-arrow svg {
     stroke: var(--zz-hover-text) !important;
   }
   .zz-profile-page .zz-input:hover {
@@ -7721,9 +8179,65 @@ body:has(.likes-page) .floating-nav {
   .intro-text-large { font-size: var(--zz-h2-desktop); }
 }
 
-/* Intro decision — stacked sentence lockup (CREATE A / PROFILE TO / START.) */
+/* Intro decision — goal question after kinetic words */
 .intro-decision-screen {
   gap: clamp(1.75rem, 4vw, 3rem);
+}
+.intro-decision-screen .profile-step-controls {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.intro-decision-screen .profile-step-controls--options {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+}
+.intro-decision-screen .profile-answer-btn {
+  width: 100px;
+  height: 100px;
+  min-width: 100px;
+  min-height: 100px;
+  border-radius: 9999px;
+  background: var(--color-pink);
+  color: var(--color-yellow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 4px 4px;
+  transition: background-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.intro-decision-screen .profile-answer-btn .profile-answer-btn__text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  max-width: 100%;
+  margin: 0;
+}
+.intro-decision-screen .profile-answer-btn .profile-answer-btn__text.zz-h4,
+.intro-decision-screen .intro-goal-btn__text {
+  letter-spacing: var(--zz-track-circle-marvin) !important;
+  text-transform: lowercase;
+}
+.intro-decision-screen .profile-answer-btn:hover {
+  background: var(--color-yellow);
+  color: var(--color-purple);
+}
+.intro-decision-screen .profile-answer-btn:active {
+  transform: scale(var(--zz-press-scale));
 }
 .intro-decision-headline {
   display: block;
@@ -7734,7 +8248,7 @@ body:has(.likes-page) .floating-nav {
   text-align: center;
   font-family: var(--font-marvin), var(--font-label), sans-serif;
   font-weight: 900;
-  text-transform: uppercase;
+  text-transform: lowercase;
   letter-spacing: -0.02em !important;
   font-size: var(--zz-h2-mobile);
   line-height: 0.8 !important;
@@ -8029,27 +8543,21 @@ select,
   flex-direction: column;
   align-items: flex-start;
   gap: 0.06em;
-  padding-inline: 30px;
+  padding-inline: 0;
+  box-sizing: border-box;
 }
 .zone-desktop-nav-rail {
   display: none;
-}
-@media (min-width: 768px) {
-  .zone-anchor .zone-hero-copy h3.zone-welcome,
-  .zone-anchor .zone-hero-copy h3.zone-welcome-block,
-  .zone-anchor .zone-hero-copy .zone-welcome.zz-h3 {
-    font-size: var(--zz-h3-mobile) !important;
-    max-width: none !important;
-    width: max-content;
-    white-space: nowrap;
-    overflow: visible;
-  }
 }
 @media (min-width: 1024px) {
   .zone-anchor .zone-hero-copy h3.zone-welcome,
   .zone-anchor .zone-hero-copy h3.zone-welcome-block,
   .zone-anchor .zone-hero-copy .zone-welcome.zz-h3 {
     font-size: var(--zz-h3-desktop) !important;
+    max-width: none !important;
+    width: max-content;
+    white-space: nowrap;
+    overflow: visible;
   }
 }
 @media (min-width: 1024px) {
@@ -8189,7 +8697,7 @@ select,
   background-color: rgba(255, 215, 0, 1);
 }
 body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
-  padding-bottom: calc(40px + 80px + 40px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
 }
 .zone-ask-zai-pill--dock {
   box-shadow: 0 8px 32px color-mix(in srgb, var(--color-purple) 35%, transparent);
@@ -8306,9 +8814,9 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
 @media (max-width: 767px) {
   .zone-anchor .zz-anchor-greeting,
   .zone-anchor h3.zz-anchor-greeting {
-    margin-left: 16px;
-    margin-right: 16px;
-    max-width: calc(100vw - 32px);
+    margin-left: 0;
+    margin-right: 0;
+    max-width: 100%;
   }
 }
 
@@ -8446,6 +8954,8 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon,
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon svg,
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .card-headline,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .zone-hero-mission,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .card-subhead,
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-label,
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-value,
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-value .data-stamp-metric,
@@ -8471,6 +8981,8 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon svg,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .card-headline,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-hero-mission,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .card-subhead,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-label,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-value,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-value .data-stamp-metric,

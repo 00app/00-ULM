@@ -9,6 +9,7 @@ export function syncSessionState(): void {
   const profile = {
     name: localStorage.getItem('profile_name') ?? '',
     postcode: localStorage.getItem('profile_postcode') ?? '',
+    house_number: localStorage.getItem('profile_house_number') ?? '',
     household: localStorage.getItem('profile_household') ?? '',
     home_type: localStorage.getItem('profile_home_type') ?? '',
     home_power: localStorage.getItem('profile_home_power') ?? '',

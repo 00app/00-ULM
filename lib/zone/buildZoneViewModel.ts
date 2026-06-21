@@ -15,7 +15,7 @@ import type { ScrapedDataPoint } from '@/lib/scraper/sources'
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 import { defaultVerifiedArchitectSuppliedBy } from '@/lib/soloFocusSuppliedBy'
 import { getJourneySource, formatSourceLabel } from '@/lib/content/sources'
-import { PRICE_CAP_APRIL_2026, PRICE_CAP_SOURCE_URL, PRICE_CAP_SOURCE_LABEL } from '@/lib/brains/constants'
+import { PRICE_CAP_JULY_2026, PRICE_CAP_SOURCE_URL, PRICE_CAP_SOURCE_LABEL } from '@/lib/brains/constants'
 import { syncFallbackGridIntensityGPerKwh } from '@/lib/brains/liveGridCarbonFactor'
 import {
   computingJourneyTitle,
@@ -191,6 +191,17 @@ export interface ZoneViewModel {
   hero: ZoneHero
   journeys: ZoneJourneyCard[]
   tips: ZoneTipCard[]
+  /** Top 3 journey tiles by £ — Phase 1 primary wall slice (single source for grid + hero lead). */
+  primaryMoneyJourneyKeys: JourneyId[]
+}
+
+/** Top 3 journey keys by moneyGbp (wall primary slice). */
+export function computePrimaryMoneyJourneyKeys(journeys: ZoneJourneyCard[]): JourneyId[] {
+  return [...journeys]
+    .filter((j) => j.id.startsWith('journey-'))
+    .sort((a, b) => (b.moneyGbp ?? 0) - (a.moneyGbp ?? 0))
+    .slice(0, 3)
+    .map((j) => j.journey_key)
 }
 
 // Journey-specific recommendation titles (deterministic)
@@ -704,7 +715,7 @@ export function buildZoneViewModel({
   const userImpact = buildUserImpact({ profile: impactProfile, journeyAnswers }, impactOpts)
 
   const journeyImpacts = userImpact.perJourneyResults
-  const capGbp = Math.max(1, Number(marketContext?.april2026PriceCapGbp ?? PRICE_CAP_APRIL_2026))
+  const capGbp = Math.max(1, Number(marketContext?.april2026PriceCapGbp ?? PRICE_CAP_JULY_2026))
   const livePostcode = (marketContext?.liveProfilePostcode ?? profile?.postcode ?? '').trim() || undefined
   const hasVerifiedSaving = Number.isFinite(marketContext?.verifiedSaving) && Number(marketContext?.verifiedSaving) > 0
   const savingAmt = marketContext?.savingAmountGbp
@@ -772,19 +783,22 @@ export function buildZoneViewModel({
     { totalMoney: 0, totalCarbon: 0 }
   )
 
-  // HERO CARD — highest impact + HIGH_INTENT weight (link clicks / likes / chat pins)
+  // HERO CARD — money-first; intent + carbon only break ties (Phase 1 wall)
   const intentWeights = categoryIntentWeights ?? {}
-  const heroScoreFor = (key: JourneyId) => {
-    const impact = journeyImpacts[key]
-    const base = impact.carbonKg * 0.6 + impact.moneyGbp * 0.4
-    const intentBoost = (intentWeights[key] ?? 0) * 120
-    return base + intentBoost
-  }
   const heroJourney = JOURNEY_ORDER.reduce((max, key) => {
-    return heroScoreFor(key) > heroScoreFor(max) ? key : max
+    const aMoney = Math.max(0, dynamicJourneyValues[key].moneyGbp)
+    const bMoney = Math.max(0, dynamicJourneyValues[max].moneyGbp)
+    if (aMoney !== bMoney) return aMoney > bMoney ? key : max
+    const aIntent = intentWeights[key] ?? 0
+    const bIntent = intentWeights[max] ?? 0
+    if (aIntent !== bIntent) return aIntent > bIntent ? key : max
+    const aCarbon = Math.max(0, dynamicJourneyValues[key].carbonKg)
+    const bCarbon = Math.max(0, dynamicJourneyValues[max].carbonKg)
+    return aCarbon > bCarbon ? key : max
   }, JOURNEY_ORDER[0])
 
   const heroImpact = journeyImpacts[heroJourney]
+  const heroJourneyMoney = Math.max(0, dynamicJourneyValues[heroJourney]?.moneyGbp ?? 0)
   const hasProfile = Boolean(profile?.postcode ?? profile?.home_type ?? profile?.household)
   const profileName = (profile?.name ?? '').trim()
   const profileHomeType = norm(profile?.home_type)
@@ -806,11 +820,15 @@ export function buildZoneViewModel({
       ? heroImpact.explanation
       : [`Your biggest opportunities ${heroContext} come from the areas above. Tap a card to explore.`])
     : ['UK energy bills are still 40%+ above 2021. Tap a card to see where you could stop overpaying — and cut carbon as a bonus.']
+  const biggestWinLine =
+    heroJourneyMoney > 0
+      ? `Biggest annual win right now: ${formatZoneCardMoney(heroJourneyMoney)} in ${heroJourney.toUpperCase()}.`
+      : null
   const heroExplanation =
     heroJourney === 'home' && !baseExplanation.some((s) => s.includes('April 1st'))
-      ? [...baseExplanation, aprilCapLine]
-      : baseExplanation
-  const hero: ZoneHero = {
+      ? [...baseExplanation, ...(biggestWinLine ? [biggestWinLine] : []), aprilCapLine]
+      : [...baseExplanation, ...(biggestWinLine ? [biggestWinLine] : [])]
+  let hero: ZoneHero = {
     id: 'zone-hero',
     variant: 'card-hero',
     title: heroTitle,
@@ -1172,7 +1190,7 @@ export function buildZoneViewModel({
       auditState: vmAuditLive(false),
     },
   ]
-  void generalCards // legacy 9+3 fillers; 12-domain wall uses `journeyCards` only
+  void generalCards // legacy 9+3 fillers; 13-domain wall uses `journeyCards` only
 
   /** Act-now wall: 13 journey tiles (`app/zone` filters `journey-*`). */
   const journeys: ZoneJourneyCard[] = journeyCards
@@ -1409,9 +1427,32 @@ export function buildZoneViewModel({
     console.error('[Zone] Hero card is missing')
   }
 
+  const primaryMoneyJourneyKeys = computePrimaryMoneyJourneyKeys(journeys)
+  const leadKey = primaryMoneyJourneyKeys[0]
+  if (leadKey) {
+    const leadCard = journeys.find((j) => j.journey_key === leadKey)
+    const leadMoney = Math.max(0, leadCard?.moneyGbp ?? 0)
+    const biggestWinLine =
+      leadMoney > 0
+        ? `Biggest annual win right now: ${formatZoneCardMoney(leadMoney)} in ${leadKey.toUpperCase()}.`
+        : null
+    const baseExplanation = hero.explanation ?? []
+    const withoutOldWin = baseExplanation.filter((s) => !/^Biggest annual win right now:/i.test(s))
+    hero = {
+      ...hero,
+      journey_key: leadKey,
+      category: leadKey,
+      explanation:
+        leadKey === 'home' && !withoutOldWin.some((s) => s.includes('April 1st'))
+          ? [...withoutOldWin, ...(biggestWinLine ? [biggestWinLine] : []), aprilCapLine]
+          : [...withoutOldWin, ...(biggestWinLine ? [biggestWinLine] : [])],
+    }
+  }
+
   return {
     hero,
     journeys,
     tips,
+    primaryMoneyJourneyKeys,
   }
 }

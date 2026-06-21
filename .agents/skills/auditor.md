@@ -149,6 +149,6 @@ npm run build:clean
 npm run db:test && npm run db:apply-pending   # Neon wake + migrations
 ```
 
-Production: https://00-ulm.vercel.app · Health: `GET /api/health?live=1`
+Production: https://www.00-00.online · Health: `GET /api/health?live=1`
 
 When auditing generated code or research output, reject any change that breaks the **One Question / One Birth / Pink on close (discovery)** chain above.

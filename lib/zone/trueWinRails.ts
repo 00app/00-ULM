@@ -1,10 +1,10 @@
 import { UK_2026_MONEY_LEAD } from '@/lib/scraper/uk2026Defaults'
 import type { ZoneTipCard } from '@/lib/logic/zone'
 import type { JourneyId } from '@/lib/journeys'
-import { TRUTH_2026_MARCH, MARCH_2026_ECONOMY } from '@/lib/brains/constants'
+import { TRUTH_2026_JULY, MARCH_2026_ECONOMY } from '@/lib/brains/constants'
 
 export const TRUE_WIN_RAILS = {
-  energyCapGbp: TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP,
+  energyCapGbp: TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP,
   avgTariffPencePerKwh: 21.9,
   boilerGrantGbp: MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP,
 } as const

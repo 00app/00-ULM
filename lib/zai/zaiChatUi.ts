@@ -40,6 +40,32 @@ export function looksLikeRecommendation(text: string): boolean {
   )
 }
 
+/** Footer CTA under a Zai reply — states profile destination + question. */
+export function formatProfileAnswerLinkLabel(questionOrHint: string): string {
+  const raw = questionOrHint.trim()
+  if (!raw) return 'Open profile'
+  const sentence = raw.endsWith('?') ? raw : `${raw}?`
+  const normalized =
+    sentence.charAt(0).toLowerCase() + sentence.slice(1)
+  return `Answer in profile: ${normalized}`
+}
+
+export function profileAnswerHref(args?: {
+  journeyKey?: string
+  questionId?: string
+  returnTo?: string
+}): string {
+  const params = new URLSearchParams()
+  const jid = args?.journeyKey?.trim()
+  const qid = args?.questionId?.trim()
+  const returnTo = args?.returnTo?.trim() || ROUTES.ZAI
+  if (jid) params.set('journey', jid)
+  if (qid) params.set('q', qid)
+  if (returnTo) params.set('returnTo', returnTo)
+  const qs = params.toString()
+  return qs ? `${ROUTES.PROFILE}?${qs}` : ROUTES.PROFILE
+}
+
 export function findProfileAnswerLink(
   journeyAnswers?: Record<string, Record<string, string>>
 ): { href: string; label: string } | null {
@@ -52,8 +78,8 @@ export function findProfileAnswerLink(
     const [qid, val] = entries[entries.length - 1]!
     const label = String(val).trim().slice(0, 40)
     return {
-      href: `${ROUTES.PROFILE}?journey=${jid}&q=${encodeURIComponent(qid)}`,
-      label: `your ${jid} answer: ${label}`,
+      href: profileAnswerHref({ journeyKey: jid, questionId: qid }),
+      label: formatProfileAnswerLinkLabel(`update your ${jid} answer (${label})`),
     }
   }
   return null
@@ -71,16 +97,21 @@ export function metaFromAskZaiContext(
     typeof ctx.scraped_source === 'string' && ctx.scraped_source.startsWith('http')
       ? ctx.scraped_source
       : undefined
-  const answerLabel = ctx.journey_question_label?.trim()
-    ? `profile: ${ctx.journey_question_label.trim().toLowerCase()}`
-    : findProfileAnswerLink(journeyAnswers)?.label
+  const profileFallback = findProfileAnswerLink(journeyAnswers)
+  const questionLabel = ctx.journey_question_label?.trim()
+  const answerLabel = questionLabel
+    ? formatProfileAnswerLinkLabel(questionLabel)
+    : profileFallback?.label
+  const answerHref = questionLabel
+    ? profileAnswerHref({ journeyKey: ctx.category })
+    : profileFallback?.href
   return {
     likeId,
     likeTitle: title.slice(0, 120),
     savingsGbp,
     journeyKey: ctx.category || 'home',
     sourceUrl,
-    answerHref: answerLabel ? ROUTES.PROFILE : undefined,
+    answerHref: answerLabel ? answerHref : undefined,
     answerLabel,
     showLike: true,
   }

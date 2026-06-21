@@ -1,5 +1,5 @@
 /**
- * Apply idempotent Neon migrations not covered by init-db / evolve-12-domains.
+ * Apply idempotent Neon migrations not covered by init-db / evolve-13-domains.
  * Run: npm run db:apply-pending
  */
 import fs from 'fs'

@@ -2,7 +2,7 @@
  * The Rock — exactly 60 habits (9 journey categories × balanced mix) for a 30-day × 2 tips/day trickle.
  *
  * `money_gbp` / `carbon_kg` are indicative annual figures, rounded for UX — anchored to April 2026
- * narrative in `lib/brains/constants.ts` (`MARCH_2026_ECONOMY` unit rates, `TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP`, grid intensity 129 g/kWh).
+ * narrative in `lib/brains/constants.ts` (`MARCH_2026_ECONOMY` unit rates, `TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP`, grid intensity 129 g/kWh).
  */
 import type { RockHabit } from '@/lib/rock/types'
 import { trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
@@ -24,6 +24,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 12,
     provider_name: 'Love Food Hate Waste',
     learn_url: 'https://www.lovefoodhatewaste.com',
+    seasons: ['spring', 'summer'],
   },
   {
     slug: 'loft-hatch-seal',
@@ -34,6 +35,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 40,
     provider_name: 'EST',
     learn_url: 'https://www.energysavingtrust.org.uk/advice/reducing-home-heat-loss/',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'router-sleep',
@@ -54,6 +56,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 5,
     provider_name: 'Waterwise',
     learn_url: 'https://www.waterwise.org.uk/save-water/',
+    seasons: ['spring', 'summer'],
   },
   {
     slug: 'speed-cap-60',
@@ -72,6 +75,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 28,
     carbon_kg: 35,
     provider_name: 'Screwfix',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'air-fryer-swap',
@@ -81,6 +85,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 55,
     carbon_kg: 40,
     provider_name: 'Ninja',
+    seasons: ['spring', 'summer'],
   },
   {
     slug: 'tablet-over-tv',
@@ -108,6 +113,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 185,
     carbon_kg: 250,
     provider_name: 'tado',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'draught-excluders',
@@ -117,6 +123,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 25,
     carbon_kg: 30,
     provider_name: 'EST',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'led-everywhere',
@@ -171,6 +178,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 35,
     carbon_kg: 30,
     provider_name: 'BBC Good Food',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'veg-box',
@@ -180,6 +188,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 55,
     carbon_kg: 45,
     provider_name: 'Riverford',
+    seasons: ['spring', 'summer', 'autumn'],
   },
   {
     slug: 'flex-monday',
@@ -234,6 +243,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 400,
     carbon_kg: 350,
     provider_name: 'GOV.UK',
+    seasons: ['spring', 'summer'],
   },
   {
     slug: 'cruise-control',
@@ -288,6 +298,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 0,
     carbon_kg: 45,
     provider_name: 'RHS',
+    seasons: ['spring', 'summer', 'autumn'],
   },
   {
     slug: 'mps-mail',
@@ -351,6 +362,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 150,
     carbon_kg: 300,
     provider_name: 'EST',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'floor-insulation',
@@ -360,6 +372,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 90,
     carbon_kg: 120,
     provider_name: 'Rockwool',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'cylinder-jacket',
@@ -369,6 +382,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 55,
     carbon_kg: 60,
     provider_name: 'British Gas',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'secondary-glaze',
@@ -378,6 +392,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 120,
     carbon_kg: 140,
     provider_name: 'Mighton',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'battery-shift',
@@ -450,6 +465,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 75,
     carbon_kg: 90,
     provider_name: 'Nest',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'radiator-bleed',
@@ -459,6 +475,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 18,
     carbon_kg: 22,
     provider_name: 'EST',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'loft-top-up',
@@ -468,6 +485,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 200,
     carbon_kg: 350,
     provider_name: 'EST',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'curtains-dusk',
@@ -486,6 +504,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 55,
     carbon_kg: 70,
     provider_name: 'Whirlpool',
+    seasons: ['spring', 'summer'],
   },
   {
     slug: 'freezer-defrost',
@@ -513,6 +532,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 40,
     carbon_kg: 30,
     provider_name: 'Morphy Richards',
+    seasons: ['autumn', 'winter'],
   },
   {
     slug: 'greywater-plants',
@@ -522,6 +542,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 0,
     carbon_kg: 8,
     provider_name: 'RHS',
+    seasons: ['spring', 'summer'],
   },
   {
     slug: 'jeans-cold',

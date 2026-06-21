@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
 import { scrapeSyncBearerMatches } from '@/lib/intelligence/scrapeSyncAuth'
 import { gatewayTokenMatches } from '@/lib/gatewayAuth'
-import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 import {
   GUEST_SESSION_COOKIE,
   guestIpHashFromRequest,
@@ -16,7 +16,8 @@ export type RequestIdentity =
   | { kind: 'guest'; sessionId: string }
 
 /** Guest-only LLM / scrape paths — tighter than signed-in users (per-IP, in-memory). */
-const GUEST_AI_MAX_PER_MINUTE = 6
+const GUEST_AI_MAX_PER_MINUTE =
+  process.env.NODE_ENV === 'development' ? 120 : 6
 
 /** Server-issued guest cookie (`zz_sid`) — not localStorage. */
 export function readGuestSessionId(request: NextRequest): string | null {
@@ -62,7 +63,7 @@ export async function requireAiRouteAuth(request: NextRequest): Promise<NextResp
 
   if (identity.kind === 'guest') {
     const id = getClientIdentifier(request)
-    const { ok, retryAfter } = checkRateLimit(`guest-ai:${id}`, GUEST_AI_MAX_PER_MINUTE)
+    const { ok, retryAfter } = await checkRateLimitAsync(`guest-ai:${id}`, GUEST_AI_MAX_PER_MINUTE)
     if (!ok) return tooManyRequestsResponse(retryAfter)
   }
 

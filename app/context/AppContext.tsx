@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { UNIFIED_PROFILE_MEMORY_EVENT, persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { guardLegacyDemoIdentityOnClient } from '@/lib/zone/garyMode'
+import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
 import { removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
@@ -14,6 +15,8 @@ export type ProfileAge = 'JUNIOR' | 'MID' | 'RETIRED'
 export interface AppProfile {
   name: string
   postcode: string
+  /** Optional — disambiguates EPC register rows at the same postcode. */
+  houseNumber?: string
   livingSituation: string
   homeType: string
   /** GAS | ELECTRIC | MIX | OTHER — leading profile question for utilities tile. */
@@ -114,6 +117,7 @@ function readProfileFromStorage(): AppProfile | null {
   if (typeof window === 'undefined') return null
   const name = localStorage.getItem('profile_name') ?? ''
   const postcode = localStorage.getItem('profile_postcode') ?? ''
+  const houseNumber = localStorage.getItem('profile_house_number') ?? ''
   const livingSituation = localStorage.getItem('profile_household') ?? ''
   const homeType = localStorage.getItem('profile_home_type') ?? ''
   const homePower = localStorage.getItem('profile_home_power') ?? ''
@@ -125,6 +129,7 @@ function readProfileFromStorage(): AppProfile | null {
   return {
     name,
     postcode,
+    houseNumber: houseNumber || undefined,
     livingSituation,
     homeType,
     homePower: homePower || undefined,
@@ -342,11 +347,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const openSoloFocus = useCallback((cardId: string, type: 'journey' | 'tip' | 'discovery'): boolean => {
     setSoloFocus({ activeCardId: cardId, activeType: type })
+    trackFunnelEvent('solo_focus_open', { card_id: cardId, card_type: type })
     return true
   }, [])
 
   const closeSoloFocus = useCallback(() => {
-    setSoloFocus({ activeCardId: null, activeType: null })
+    setSoloFocus((prev) => {
+      if (prev.activeCardId) {
+        trackFunnelEvent('solo_focus_close', {
+          card_id: prev.activeCardId,
+          card_type: prev.activeType ?? undefined,
+        })
+      }
+      return { activeCardId: null, activeType: null }
+    })
   }, [])
 
   const state: AppState = useMemo(

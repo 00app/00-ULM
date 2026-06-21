@@ -6,6 +6,7 @@ import {
   isValidJourneyId,
   isValidJourneyQuestion,
 } from '@/lib/journeys'
+import { humanizeZoneHeadline } from '@/lib/zone/plainEnglishCopy'
 import { hasLoopDoneForJourney, readAnsweredLoopQuestionIds } from '@/lib/zone/loopMemory'
 import { safeGetItem } from '@/lib/zone/safeProfileStorage'
 
@@ -24,36 +25,36 @@ export type LoopQuestionBeat = {
   journeyKeys: [JourneyId]
 }
 
-/** Canonical loop bank — each questionId is shown at most once per browser profile. */
+/** Canonical loop bank — each questionId is shown at most once per browser profile. Plain English only (no BUS, ECO4, MCS). */
 export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   {
     questionId: 'travel_rail_vs_flight',
-    question: 'rail instead\nof flying?',
+    question: 'take the train\ninstead of flying?',
     journeyKeys: ['travel'],
     options: [
-      { label: 'YES', value: 'YES — RAIL', ariaLabel: 'Yes — rail' },
-      { label: 'MATH', value: 'SHOW ME THE MATH', ariaLabel: 'Show me the maths' },
+      { label: 'YES', value: 'YES — RAIL', ariaLabel: 'Yes — take the train' },
+      { label: 'MATH', value: 'SHOW ME THE MATH', ariaLabel: 'Show me the savings' },
       { label: 'FLY', value: 'KEEP FLYING', ariaLabel: 'Keep flying' },
     ],
   },
   {
     questionId: 'travel_ev_commute',
-    question: 'ev for your\ncommute?',
+    question: 'try an electric car\nfor your commute?',
     journeyKeys: ['travel'],
     options: [
-      { label: 'YES', value: 'YES — EV', ariaLabel: 'Yes — electric vehicle' },
+      { label: 'YES', value: 'YES — EV', ariaLabel: 'Yes — electric car' },
       { label: 'COMPARE', value: 'COMPARE COSTS', ariaLabel: 'Compare costs' },
-      { label: 'NO', value: 'KEEP PETROL', ariaLabel: 'Keep current car' },
+      { label: 'NO', value: 'KEEP PETROL', ariaLabel: 'Keep my current car' },
     ],
   },
   {
     questionId: 'holidays_local_vs_longhaul',
-    question: 'uk staycations\nnot long-haul?',
+    question: 'holiday in the uk\nnot long flights?',
     journeyKeys: ['holidays'],
     options: [
-      { label: 'YES', value: 'YES — LOCAL', ariaLabel: 'Yes — local holidays' },
+      { label: 'YES', value: 'YES — LOCAL', ariaLabel: 'Yes — stay in the UK' },
       { label: 'MAYBE', value: 'MAYBE', ariaLabel: 'Maybe' },
-      { label: 'LONG', value: 'KEEP LONG-HAUL', ariaLabel: 'Keep long-haul' },
+      { label: 'LONG', value: 'KEEP LONG-HAUL', ariaLabel: 'Keep long-haul trips' },
     ],
   },
   {
@@ -61,7 +62,7 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
     question: 'train to europe\nnot short flights?',
     journeyKeys: ['holidays'],
     options: [
-      { label: 'YES', value: 'YES — TRAIN', ariaLabel: 'Yes — train' },
+      { label: 'YES', value: 'YES — TRAIN', ariaLabel: 'Yes — take the train' },
       { label: 'SHOW', value: 'SHOW ROUTES', ariaLabel: 'Show routes' },
       { label: 'FLY', value: 'KEEP FLYING', ariaLabel: 'Keep flying' },
     ],
@@ -78,7 +79,7 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   },
   {
     questionId: 'food_waste_cut',
-    question: 'cut food waste\nby half?',
+    question: 'cut food waste\nat home?',
     journeyKeys: ['waste'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
@@ -88,20 +89,20 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   },
   {
     questionId: 'money_ev_swap',
-    question: 'swap petrol\nfor an ev?',
+    question: 'switch to electric\nnot petrol?',
     journeyKeys: ['money'],
     options: [
-      { label: 'YES', value: 'YES — EV', ariaLabel: 'Yes — electric vehicle' },
+      { label: 'YES', value: 'YES — EV', ariaLabel: 'Yes — electric car' },
       { label: 'COMPARE', value: 'COMPARE COSTS', ariaLabel: 'Compare costs' },
       { label: 'PETROL', value: 'KEEP PETROL', ariaLabel: 'Keep petrol' },
     ],
   },
   {
     questionId: 'money_smart_tariff',
-    question: 'switch to a\nsmart tariff?',
+    question: 'try a cheaper\nenergy tariff?',
     journeyKeys: ['money'],
     options: [
-      { label: 'YES', value: 'YES — SWITCH', ariaLabel: 'Yes — switch' },
+      { label: 'YES', value: 'YES — SWITCH', ariaLabel: 'Yes — switch tariff' },
       { label: 'COMPARE', value: 'COMPARE', ariaLabel: 'Compare tariffs' },
       { label: 'NO', value: 'STAY PUT', ariaLabel: 'Stay on current tariff' },
     ],
@@ -118,11 +119,11 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   },
   {
     questionId: 'home_heat_pump',
-    question: 'heat pump\nnot gas?',
+    question: 'heat pump instead\nof gas boiler?',
     journeyKeys: ['home'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes — heat pump' },
-      { label: 'CHECK', value: 'CHECK ELIGIBILITY', ariaLabel: 'Check eligibility' },
+      { label: 'CHECK', value: 'CHECK ELIGIBILITY', ariaLabel: 'Check if I qualify' },
       { label: 'GAS', value: 'STAY ON GAS', ariaLabel: 'Stay on gas' },
     ],
   },
@@ -132,23 +133,23 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
     journeyKeys: ['home'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
-      { label: 'QUOTE', value: 'GET QUOTE', ariaLabel: 'Get quote' },
+      { label: 'QUOTE', value: 'GET QUOTE', ariaLabel: 'Get a quote' },
       { label: 'NO', value: 'NOT YET', ariaLabel: 'Not yet' },
     ],
   },
   {
     questionId: 'grants_bus_boiler',
-    question: 'check bus grant\nfor your boiler?',
+    question: 'check heat pump grant\nfor your home?',
     journeyKeys: ['grants'],
     options: [
-      { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
-      { label: 'INFO', value: 'MORE INFO', ariaLabel: 'More info' },
+      { label: 'YES', value: 'YES', ariaLabel: 'Yes — check the grant' },
+      { label: 'INFO', value: 'MORE INFO', ariaLabel: 'Tell me more' },
       { label: 'NO', value: 'NOT ELIGIBLE', ariaLabel: 'Not eligible' },
     ],
   },
   {
     questionId: 'solar_roof_fit',
-    question: 'solar on your\nroof?',
+    question: 'solar panels\non your roof?',
     journeyKeys: ['solar'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
@@ -162,33 +163,33 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
     journeyKeys: ['shopping'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
-      { label: 'SHOW', value: 'SHOW LOCAL', ariaLabel: 'Show local repair' },
+      { label: 'SHOW', value: 'SHOW LOCAL', ariaLabel: 'Show local repair shops' },
       { label: 'NO', value: 'BUY NEW', ariaLabel: 'Buy new' },
     ],
   },
   {
     questionId: 'tech_standby_off',
-    question: 'kill standby\nat night?',
+    question: 'turn off standby\nat night?',
     journeyKeys: ['tech'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
-      { label: 'HOW', value: 'SHOW HOW', ariaLabel: 'Show how' },
+      { label: 'HOW', value: 'SHOW HOW', ariaLabel: 'Show me how' },
       { label: 'NO', value: 'NOT YET', ariaLabel: 'Not yet' },
     ],
   },
   {
     questionId: 'water_meter_save',
-    question: 'water meter\nsave water?',
+    question: 'use less water\non your meter?',
     journeyKeys: ['water'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
-      { label: 'CHECK', value: 'CHECK', ariaLabel: 'Check' },
-      { label: 'NO', value: 'NO METER', ariaLabel: 'No meter' },
+      { label: 'CHECK', value: 'CHECK', ariaLabel: 'Check my options' },
+      { label: 'NO', value: 'NO METER', ariaLabel: 'No water meter' },
     ],
   },
   {
     questionId: 'waste_compost',
-    question: 'compost food\nscraps?',
+    question: 'compost food\nscraps at home?',
     journeyKeys: ['waste'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
@@ -198,12 +199,12 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   },
   {
     questionId: 'carbon_offset_cut',
-    question: 'cut direct\nemissions first?',
+    question: 'cut home energy first\nnot just offsets?',
     journeyKeys: ['carbon'],
     options: [
       { label: 'YES', value: 'YES', ariaLabel: 'Yes' },
-      { label: 'PLAN', value: 'SHOW PLAN', ariaLabel: 'Show plan' },
-      { label: 'OFFSET', value: 'OFFSET ONLY', ariaLabel: 'Offset only' },
+      { label: 'PLAN', value: 'SHOW PLAN', ariaLabel: 'Show me a plan' },
+      { label: 'OFFSET', value: 'OFFSET ONLY', ariaLabel: 'Offsets only' },
     ],
   },
 ]
@@ -259,7 +260,8 @@ export type LoopAnswerSettingsRow = {
 function loopQuestionLabel(beat: LoopQuestionBeat): string {
   const q = beat.question.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
   if (!q) return beat.questionId.replace(/_/g, ' ')
-  return q.charAt(0).toUpperCase() + q.slice(1)
+  const plain = humanizeZoneHeadline(q, beat.journeyKeys[0])
+  return plain.charAt(0).toUpperCase() + plain.slice(1)
 }
 
 function loopAnswerDisplay(beat: LoopQuestionBeat, raw: string): string {
@@ -273,6 +275,16 @@ export function getLoopBeatByQuestionId(questionId: string): LoopQuestionBeat | 
   const qid = questionId.trim()
   if (!qid) return null
   return LOOP_QUESTION_BANK.find((b) => b.questionId === qid) ?? null
+}
+
+/** Display copy for takeover UI — jargon-safe even if an old beat string was cached. */
+export function loopQuestionDisplayText(beat: LoopQuestionBeat): string {
+  const lines = beat.question.split('\n').map((line) => {
+    const t = line.trim()
+    if (!t) return t
+    return humanizeZoneHeadline(t, beat.journeyKeys[0]).toLowerCase()
+  })
+  return lines.join('\n')
 }
 
 /** Answered loop beats for Settings bento grid (`zz_loop_answers_log` + journey_* loop ids). */

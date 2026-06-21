@@ -28,15 +28,17 @@ import {
   MARCH_2026_ECONOMY,
   PRICE_CAP_APRIL_2026,
   TRUTH_2026_MARCH,
+  TRUTH_2026_JULY,
   APRIL_2026_TRUTH_PENCE,
   PRICE_CAP_SAVING_APRIL_1,
+  TYPICAL_ANNUAL_CAP,
 } from '@/lib/brains/constants'
 import type { JourneyId } from '@/lib/journeys'
 import type { EmploymentStatus } from '@/lib/brains/types'
 import { formatZoneCardMoney } from '@/lib/format'
 
-/** April 2026 typical household cap (£/yr) — single import for summary + calculators. */
-export const BASELINE_2026_CAP_GBP = TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP
+/** July 2026 typical household cap (£/yr) — single import for summary + calculators. */
+export const BASELINE_2026_CAP_GBP = TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP
 export const ELEC_UNIT_RATE_PENCE = APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH
 export const GAS_UNIT_RATE_PENCE = APRIL_2026_TRUTH_PENCE.GAS_PER_KWH
 

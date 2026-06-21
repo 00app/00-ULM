@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchLocalityFromNominatim, formatPostcodeFallback } from '@/lib/geocode/resolvePostcodeLocality'
-import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -9,7 +9,7 @@ const GEOCODE_MAX_PER_MINUTE = 60
 
 export async function GET(request: NextRequest) {
   const id = getClientIdentifier(request)
-  const { ok, retryAfter } = checkRateLimit(`geocode-postcode:${id}`, GEOCODE_MAX_PER_MINUTE)
+  const { ok, retryAfter } = await checkRateLimitAsync(`geocode-postcode:${id}`, GEOCODE_MAX_PER_MINUTE)
   if (!ok) {
     return NextResponse.json(
       { error: 'Too many requests' },

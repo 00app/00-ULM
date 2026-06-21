@@ -26,9 +26,9 @@ import { buildZoneViewModel } from '@/lib/logic/zone'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
-import { clearAllAppUserData } from '@/lib/utils/migrate'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import DiagnosticsFlightDeckButton from '@/app/components/DiagnosticsFlightDeckButton'
+import { ResetDataCircleButton } from '@/app/components/ResetDataCircleButton'
 import DiagnosticsSheet from '@/app/components/DiagnosticsSheet'
 import { readCachedProfileLocality } from '@/lib/geocode/resolvePostcodeLocality'
 
@@ -103,7 +103,7 @@ function SettingsBentoCard({
   const bgColor = 'var(--color-pink)'
   const card = (
     <div
-      className={`bento-card-groovy settings-bento-card settings-card-bento flex flex-col justify-between w-full h-full ${isHero ? 'settings-hero-card' : ''}`.trim()}
+      className={`bento-card-groovy settings-bento-card settings-card-bento flex flex-col justify-between w-full h-full${isHero ? ' settings-hero-card settings-bento-card--info' : ''}`.trim()}
       style={{
         backgroundColor: bgColor,
         color: textColor,
@@ -353,12 +353,6 @@ export default function SettingsPage() {
   const animatedMoney = useCountUp(displayMoneyNum, { duration: 900 })
   const animatedCarbon = useCountUp(carbonNum, { duration: 900 })
 
-  const handleReset = () => {
-    clearAllAppUserData()
-    router.push(ROUTES.INTRO)
-    window.location.href = ROUTES.INTRO
-  }
-
   return (
     <motion.div
       className="settings-page"
@@ -410,7 +404,9 @@ export default function SettingsPage() {
                   </span>
                 </div>
                 {localData?.council && (
-                  <p className="settings-council-blurb">{localData.council} initiatives could save you more this year.</p>
+                  <h4 className="settings-council-blurb">
+                    {localData.council} initiatives could save you more this year.
+                  </h4>
                 )}
               </div>
             </SettingsBentoCard>
@@ -564,20 +560,7 @@ export default function SettingsPage() {
           </span>
         </Link>
         <div className="settings-reset-flight-deck flex items-center justify-center gap-3">
-          <motion.button
-            type="button"
-            onClick={handleReset}
-            className="settings-circle-cta settings-circle-cta--pink"
-            whileTap={reduceMotion ? undefined : { scale: 0.985 }}
-            transition={settingsStaggerTransition}
-            aria-label="Reset all data"
-          >
-            <span className="settings-circle-cta__label zz-h4">
-              RESET
-              <br />
-              DATA
-            </span>
-          </motion.button>
+          <ResetDataCircleButton />
           <DiagnosticsFlightDeckButton
             active={diagnosticsOpen}
             onClick={() => setDiagnosticsOpen((v) => !v)}

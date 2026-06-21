@@ -27,6 +27,8 @@ export function clearAiRouteBlockedClient(): void {
  * Returns true when the status was a block signal.
  */
 export function markAiRouteBlockedFromStatus(status: number): boolean {
+  // Dev: 429 is often burst traffic on Zone load (pulse + scrape + sentinel) — do not freeze the wall.
+  if (status === 429 && process.env.NODE_ENV === 'development') return false
   if (status !== 401 && status !== 429) return false
   const s = safeSessionStorage()
   if (s) s.setItem(AI_ROUTE_BLOCKED_KEY, '1')

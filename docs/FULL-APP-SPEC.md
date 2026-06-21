@@ -4,7 +4,7 @@ Operational architecture for the UK postcode-driven energy auditor: what talks t
 
 **Related docs:** [HANDBOOK.md](HANDBOOK.md) · [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) · [SENTINEL.md](SENTINEL.md) · [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) · [INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md) · [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) · [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md)
 
-**Production:** https://00-ulm.vercel.app · **Repo:** https://github.com/00app/00-ULM
+**Production:** https://www.00-00.online · **Repo:** https://github.com/00app/00-ULM
 
 ---
 
@@ -467,7 +467,7 @@ Hermes is the **scheduled HTTP trigger**, not a separate AI runtime.
 
 1. **~05:00 daily** — VPS shell calls:
    ```
-   GET https://00-ulm.vercel.app/api/cron/zone-research?limit=20
+   GET https://www.00-00.online/api/cron/zone-research?limit=20
    Authorization: Bearer <CRON_SECRET>
    ```
 2. Handler (`app/api/cron/zone-research/route.ts`) loads users from **`users`** where postcode is set.
@@ -488,7 +488,7 @@ npm run hermes:pulse
 # VPS / daily batch (limit=20)
 bash scripts/hermes-pulse.sh
 
-bash scripts/curl-scrape-sync-trigger.sh https://00-ulm.vercel.app BN17
+bash scripts/curl-scrape-sync-trigger.sh https://www.00-00.online BN17
 ```
 
 Or `POST /api/scrape-sync` with `{ trigger: true, postcode, category, user_id }`.
@@ -690,14 +690,14 @@ bash scripts/verify-env-and-health.sh
 **Honest empty Zone:**
 
 ```bash
-curl -sS "https://00-ulm.vercel.app/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length), .research_category_coverage'
+curl -sS "https://www.00-00.online/api/scrape-sync?postcode=BN17" | jq '.source, (.scraped | length), .research_category_coverage'
 # pending + 0 scraped + {} coverage ⇒ COMPUTING tiles, not fake £
 ```
 
 **Health:**
 
 ```bash
-curl -sS "https://00-ulm.vercel.app/api/health"
+curl -sS "https://www.00-00.online/api/health"
 ```
 
 ---

@@ -7,7 +7,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org/reverse'
 const GEOCODE_MAX_PER_MINUTE = 60
@@ -21,7 +21,7 @@ function parseCoord(value: string | null): number | null {
 
 export async function GET(req: NextRequest) {
   const id = getClientIdentifier(req)
-  const { ok, retryAfter } = checkRateLimit(`geocode:${id}`, GEOCODE_MAX_PER_MINUTE)
+  const { ok, retryAfter } = await checkRateLimitAsync(`geocode:${id}`, GEOCODE_MAX_PER_MINUTE)
   if (!ok) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined })
   }

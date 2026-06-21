@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: ROUTES.ZAI, changeFrequency: 'monthly', priority: 0.55 },
     { path: ROUTES.LIKES, changeFrequency: 'monthly', priority: 0.45 },
     { path: ROUTES.SETTINGS, changeFrequency: 'monthly', priority: 0.4 },
+    { path: ROUTES.PRIVACY, changeFrequency: 'yearly', priority: 0.35 },
   ]
 
   return entries.map(({ path, changeFrequency, priority }) => ({

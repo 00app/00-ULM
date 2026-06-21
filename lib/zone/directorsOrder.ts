@@ -17,7 +17,7 @@
  * | Rock tips | `ZoneBentoCardHeader` | Label ink = headline ink at rest + hover (`--journey-text`) |
  * | Impact | `MotherCardRenderer` SAVE/CARBON | Single stamp — hide `payoffSentence` text when prose already has £ |
  * | Trinity | Ask Zai · Like · BUY/CLAIM | `SoloFocusActionTrinity` / industrial handoff |
- * | Nav | `soloFocusNavRingFromDisplayItems` | Wall order — mother + discovery tips; tip labels singular (grant ↘) |
+ * | Nav | `soloFocusNavRingFromDisplayItems` | Wall order — left prev / right next; mothers UPPERCASE; tips title fragment (`soloFocusNavLabels.ts`) |
  *
  * ## Layout (single column — all breakpoints)
  *

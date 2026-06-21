@@ -10,6 +10,7 @@ export const ROUTES = {
   ZAI: '/zai',
   LIKES: '/likes',
   SETTINGS: '/settings',
+  PRIVACY: '/privacy',
   /** Ops: dependency heartbeat (session or gateway bearer). */
   ADMIN_PULSE: '/admin/pulse',
 } as const

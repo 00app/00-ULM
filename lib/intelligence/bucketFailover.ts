@@ -181,7 +181,7 @@ async function generateOpenRouterBucket(
   if (!key) throw new Error('OPENROUTER_API_KEY unset')
   const model =
     process.env.OPENROUTER_MODEL?.trim() || 'google/gemini-2.5-flash'
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://00-ulm.vercel.app'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://www.00-00.online'
   const text = await chatCompletions({
     url: 'https://openrouter.ai/api/v1/chat/completions',
     apiKey: key,

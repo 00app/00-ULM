@@ -34,8 +34,8 @@ export function getDiscoveryRecommendation(
 
   if (journeyId === 'grants' && questionId === 'boiler_age' && a === 'OVER_10YR') {
     return {
-      headline: 'BUS GRANT ELIGIBLE',
-      body: 'Boilers over ten years often qualify for the Boiler Upgrade Scheme — accredited installers near your postcode can quote heat pump swaps up to £7,500.',
+      headline: 'HEAT PUMP GRANT ELIGIBLE',
+      body: 'Boilers over ten years often qualify for the government heat pump grant — accredited installers near your postcode can quote swaps up to £7,500.',
       gridJourneyKey: 'grants',
       learnUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
       actionUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
@@ -52,8 +52,8 @@ export function getDiscoveryRecommendation(
   if (journeyId === 'home' && questionId === 'home_heat_pump') {
     if (a.includes('YES') || a.includes('CHECK')) {
       return {
-        headline: 'HEAT PUMP + BUS',
-        body: 'Boiler Upgrade Scheme support can close the gap when your tariff and insulation stack — accredited installers quote against your postcode.',
+        headline: 'HEAT PUMP GRANT CHECK',
+        body: 'Government heat pump grant support can close the gap when your tariff and insulation stack — accredited installers quote against your postcode.',
         gridJourneyKey: 'home',
         learnUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
         actionUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',

@@ -5,6 +5,7 @@ import { useState, useCallback, useEffect, useLayoutEffect, useRef, type CSSProp
 import { motion, AnimatePresence } from 'framer-motion'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import { firstNameFromAutofill } from '@/lib/profile/firstNameFromInput'
+import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { useApp } from '@/app/context/AppContext'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import {
@@ -23,9 +24,9 @@ import { persistProfileLocality, prefetchProfileLocalityForHandoff, resolveProfi
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
 import { persistHomePowerFromProfile, profileHomePowerToEnergyType } from '@/lib/profile/homePower'
-import { PROFILE_GOAL_WEIGHTS, type ProfileGoalValue } from '@/lib/profile/goalWeighting'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { browserCanTriggerScrapeSync } from '@/lib/researchSyncClient'
+import { mapEpcPropertyTypeToHomeTypeHint } from '@/lib/epc/mapEpcToProfileHints'
 import { flushSync } from 'react-dom'
 
 /** Software-keyboard lift — phones only; tablet (768+) and desktop stay centred. */
@@ -79,32 +80,29 @@ const PROFILE_QUESTIONS = [
       { label: 'NOT WORK', value: 'UNEMPLOYED', ariaLabel: 'Not in paid work' },
     ],
   },
-  {
-    id: 'goal',
-    label: 'what is your goal?',
-    type: 'options' as const,
-    options: (Object.keys(PROFILE_GOAL_WEIGHTS) as ProfileGoalValue[]).map((value) => ({
-      label: PROFILE_GOAL_WEIGHTS[value].label,
-      value,
-      weighting: {
-        money: PROFILE_GOAL_WEIGHTS[value].money,
-        carbon: PROFILE_GOAL_WEIGHTS[value].carbon,
-      },
-      theme: PROFILE_GOAL_WEIGHTS[value].theme,
-    })),
-  },
 ]
+
+const PROFILE_GOAL_STORAGE_KEY = 'profile_goal'
 
 const STORAGE_KEYS: Record<string, string> = {
   name: 'profile_name',
   postcode: 'profile_postcode',
+  houseNumber: 'profile_house_number',
   livingSituation: 'profile_household',
   homeType: 'profile_home_type',
   powerType: 'profile_home_power',
   transport: 'profile_transport',
   age: 'profile_age',
   employmentStatus: 'profile_employment_status',
-  goal: 'profile_goal',
+}
+
+function readStoredProfileGoal(): string {
+  if (typeof window === 'undefined') return ''
+  return localStorage.getItem(PROFILE_GOAL_STORAGE_KEY)?.trim() ?? ''
+}
+
+function resolveProfileGoal(v: Record<string, string>): string {
+  return v.goal?.trim() || readStoredProfileGoal()
 }
 
 function isProfileOnboardingComplete(v: Record<string, string>): boolean {
@@ -118,7 +116,7 @@ function isProfileOnboardingComplete(v: Record<string, string>): boolean {
     Boolean(v.transport?.trim()) &&
     Boolean(v.age?.trim()) &&
     Boolean(v.employmentStatus?.trim()) &&
-    Boolean(v.goal?.trim())
+    Boolean(resolveProfileGoal(v))
   )
 }
 
@@ -162,6 +160,7 @@ export default function ProfilePageClient() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submittingRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const houseNumberRef = useRef<HTMLInputElement>(null)
   const hydratedRef = useRef(false)
   const [profileHydrated, setProfileHydrated] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
@@ -203,6 +202,10 @@ export default function ProfilePageClient() {
       if (!val) return
       stored[q.id] = q.id === 'name' ? firstNameFromAutofill(val) : val
     })
+    const storedHouse = localStorage.getItem(STORAGE_KEYS.houseNumber)
+    if (storedHouse) stored.houseNumber = storedHouse
+    const storedGoal = readStoredProfileGoal()
+    if (storedGoal) stored.goal = storedGoal
     if (Object.keys(stored).length > 0) {
       setValues(stored)
     }
@@ -232,6 +235,13 @@ export default function ProfilePageClient() {
     setStep(nextStep)
     setProfileHydrated(true)
   }, [qParam, setStep])
+
+  useEffect(() => {
+    if (!profileHydrated) return
+    if (!resolveProfileGoal(values)) {
+      router.replace('/')
+    }
+  }, [profileHydrated, values, router])
 
   /** Mobile: lift step when software keyboard opens; recenter when it closes. */
   useEffect(() => {
@@ -273,7 +283,9 @@ export default function ProfilePageClient() {
         ? firstNameFromAutofill(value)
         : id === 'postcode'
           ? value.replace(/\s+/g, ' ').trim().toUpperCase()
-          : value
+          : id === 'houseNumber'
+            ? value.replace(/\s+/g, ' ').trim()
+            : value
     if (id === 'postcode' && typeof window !== 'undefined') {
       const prev = (values.postcode ?? localStorage.getItem(STORAGE_KEYS.postcode) ?? '')
         .replace(/\s+/g, '')
@@ -287,7 +299,11 @@ export default function ProfilePageClient() {
     setValues((prev) => ({ ...prev, [id]: nextValue }))
     const key = STORAGE_KEYS[id] ?? id
     if (typeof window !== 'undefined') {
-      localStorage.setItem(key, nextValue)
+      if (id === 'houseNumber' && !nextValue) {
+        localStorage.removeItem(key)
+      } else {
+        localStorage.setItem(key, nextValue)
+      }
       if (id === 'powerType') persistHomePowerFromProfile(nextValue)
       try {
         persistUnifiedUserProfileMemory()
@@ -303,6 +319,7 @@ export default function ProfilePageClient() {
   useEffect(() => {
     const pc = (values.postcode ?? '').replace(/\s+/g, '').trim()
     if (pc.length < 4) return
+    const houseNumber = (values.houseNumber ?? '').trim()
     const tid = window.setTimeout(() => {
       void resolveProfileLocalityForPostcode(pc)
         .then(({ label, source }) => {
@@ -313,7 +330,10 @@ export default function ProfilePageClient() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postcode: pc }),
+        body: JSON.stringify({
+          postcode: pc,
+          ...(houseNumber ? { house_number: houseNumber } : {}),
+        }),
       })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
@@ -331,16 +351,33 @@ export default function ProfilePageClient() {
           if (!locationName) return
           persistProfileLocality(pc, locationName)
           setLocationState({ locationName, local })
+
+          const epc = d?.openDataAnchor?.epc as
+            | { found?: boolean; addressMatched?: boolean; propertyType?: string }
+            | undefined
+          if (epc?.found && epc.addressMatched && !localStorage.getItem('profile_home_type')) {
+            const hint = mapEpcPropertyTypeToHomeTypeHint(epc.propertyType)
+            if (hint) {
+              localStorage.setItem('profile_home_type', hint)
+              setValues((prev) => ({ ...prev, homeType: hint }))
+              try {
+                persistUnifiedUserProfileMemory()
+              } catch {
+                // ignore
+              }
+            }
+          }
         })
         .catch(() => {})
     }, 150)
     return () => window.clearTimeout(tid)
-  }, [values.postcode, setLocationState])
+  }, [values.postcode, values.houseNumber, setLocationState])
 
   useEffect(() => {
     const pc = (values.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
     if (pc.length < 4) return
     const tid = window.setTimeout(() => {
+      const profileGoal = resolveProfileGoal(values)
       const profileData = {
         home_type: values.homeType ?? undefined,
         home_power: values.powerType?.trim().toUpperCase() || undefined,
@@ -348,8 +385,9 @@ export default function ProfilePageClient() {
         transport_baseline: values.transport ?? undefined,
         household: values.livingSituation ?? undefined,
         employment_status: values.employmentStatus ?? undefined,
-        goal: values.goal ?? undefined,
-        primary_goal: values.goal ?? undefined,
+        goal: profileGoal || undefined,
+        primary_goal: profileGoal || undefined,
+        house_number: values.houseNumber?.trim() || undefined,
       }
       const scrapeBody = {
         trigger: true,
@@ -381,32 +419,44 @@ export default function ProfilePageClient() {
     values.transport,
     values.livingSituation,
     values.employmentStatus,
-    values.goal,
+    values.houseNumber,
   ])
 
   const submitProfile = useCallback(
     (finalValues: Record<string, string>, overrideReturnTo?: string) => {
       if (submittingRef.current) return
+      const mergedValues: Record<string, string> = {
+        ...finalValues,
+        goal: resolveProfileGoal(finalValues),
+      }
       let dest = overrideReturnTo || returnTo || ROUTES.PROFILE_SUMMARY
       dest = dest.trim()
       if (!dest.startsWith('http') && !dest.startsWith('/')) dest = `/${dest.replace(/^\/+/, '')}`
-      if (!isProfileOnboardingComplete(finalValues)) {
-        const idx = firstIncompleteProfileStepIndex(finalValues)
+      if (!isProfileOnboardingComplete(mergedValues)) {
+        if (!resolveProfileGoal(mergedValues)) {
+          router.replace('/')
+          return
+        }
+        const idx = firstIncompleteProfileStepIndex(mergedValues)
         if (idx >= 0) setStep(idx)
         return
       }
 
       submittingRef.current = true
       setIsSubmitting(true)
+      trackFunnelEvent('profile_complete', { page: dest })
 
       if (typeof window !== 'undefined') {
-        Object.entries(finalValues).forEach(([id, val]) => {
-          const key = STORAGE_KEYS[id]
-          if (key && typeof val === 'string' && val.trim()) {
-            localStorage.setItem(key, val.trim())
+        Object.entries(mergedValues).forEach(([id, val]) => {
+          const key = id === 'goal' ? PROFILE_GOAL_STORAGE_KEY : STORAGE_KEYS[id]
+          if (!key || typeof val !== 'string') return
+          if (id === 'houseNumber' && !val.trim()) {
+            localStorage.removeItem(key)
+            return
           }
+          if (val.trim()) localStorage.setItem(key, val.trim())
         })
-        if (finalValues.powerType?.trim()) persistHomePowerFromProfile(finalValues.powerType)
+        if (mergedValues.powerType?.trim()) persistHomePowerFromProfile(mergedValues.powerType)
         try {
           persistUnifiedUserProfileMemory()
         } catch {
@@ -424,7 +474,7 @@ export default function ProfilePageClient() {
       refreshProfile()
       if (typeof window !== 'undefined') {
         void (async () => {
-          const pc = (finalValues.postcode ?? '').replace(/\s+/g, '').trim()
+          const pc = (mergedValues.postcode ?? '').replace(/\s+/g, '').trim()
           if (pc.length >= 4) {
             try {
               await Promise.race([
@@ -448,14 +498,14 @@ export default function ProfilePageClient() {
       router.replace(dest)
 
       const payload = {
-        name: finalValues.name ?? '',
-        postcode: finalValues.postcode ?? '',
-        household: finalValues.livingSituation ?? '',
-        home_type: finalValues.homeType ?? '',
-        transport: finalValues.transport ?? '',
-        age_group: (finalValues.age as ProfileAge) ?? undefined,
-        employment_status: finalValues.employmentStatus ?? undefined,
-        goal: finalValues.goal ?? undefined,
+        name: mergedValues.name ?? '',
+        postcode: mergedValues.postcode ?? '',
+        household: mergedValues.livingSituation ?? '',
+        home_type: mergedValues.homeType ?? '',
+        transport: mergedValues.transport ?? '',
+        age_group: (mergedValues.age as ProfileAge) ?? undefined,
+        employment_status: mergedValues.employmentStatus ?? undefined,
+        goal: mergedValues.goal ?? undefined,
       }
 
       void createUser(payload)
@@ -477,9 +527,9 @@ export default function ProfilePageClient() {
               outcode: typeof location.outcode === 'string' ? location.outcode : undefined,
               country: typeof location.country === 'string' ? location.country : undefined,
             }
-            const locationName = formatLocationDisplayName(local, finalValues.postcode ?? '')
+            const locationName = formatLocationDisplayName(local, mergedValues.postcode ?? '')
             if (locationName) {
-              persistProfileLocality(finalValues.postcode ?? '', locationName)
+              persistProfileLocality(mergedValues.postcode ?? '', locationName)
               setLocationState({ locationName, local })
             }
           }
@@ -512,7 +562,12 @@ export default function ProfilePageClient() {
       if (typeof window !== 'undefined') {
         Object.entries(nextValues).forEach(([id, val]) => {
           const key = STORAGE_KEYS[id] ?? id
-          if (typeof val === 'string' && val.trim()) localStorage.setItem(key, val.trim())
+          if (typeof val !== 'string') return
+          if (id === 'houseNumber' && !val.trim()) {
+            localStorage.removeItem(key)
+            return
+          }
+          if (val.trim()) localStorage.setItem(key, val.trim())
         })
         if (nextValues.powerType?.trim()) persistHomePowerFromProfile(nextValues.powerType)
       }
@@ -550,6 +605,21 @@ export default function ProfilePageClient() {
     recenterProfileStep()
     advanceProfileStep({ ...values, [current.id]: trimmed })
   }, [current, values, isSubmitting, advanceProfileStep, readLiveFieldValue, recenterProfileStep])
+
+  const handlePostcodeContinue = useCallback(() => {
+    if (!current || current.id !== 'postcode' || submittingRef.current || isSubmitting) return
+    const trimmedPc = (inputRef.current?.value ?? values.postcode ?? '').trim()
+    if (trimmedPc.replace(/\s+/g, '').length < 4) return
+    const trimmedHouse = (houseNumberRef.current?.value ?? values.houseNumber ?? '').trim()
+    inputRef.current?.blur()
+    houseNumberRef.current?.blur()
+    recenterProfileStep()
+    advanceProfileStep({
+      ...values,
+      postcode: trimmedPc.replace(/\s+/g, ' ').trim().toUpperCase(),
+      houseNumber: trimmedHouse,
+    })
+  }, [current, values, isSubmitting, advanceProfileStep, recenterProfileStep])
 
   if (!current) return null
 
@@ -656,20 +726,55 @@ export default function ProfilePageClient() {
           </motion.div>
           {current.type === 'input' ? (
             <div className="profile-step-controls profile-step-controls--input">
-              <InputField
-                ref={inputRef}
-                value={currentVal}
-                onChange={(v) => setValue(current.id, v)}
-                onAdvance={handleNext}
-                onFocusLift={liftProfileStepForKeyboard}
-                onBlurViewportReset={recenterProfileStep}
-                placeholder={
-                  (current as { label: string; placeholder?: string }).placeholder ?? current.label
-                }
-                autoComplete={current.id === 'name' ? 'given-name' : current.id === 'postcode' ? 'postal-code' : undefined}
-                name={current.id === 'name' ? 'given-name' : current.id === 'postcode' ? 'postal-code' : undefined}
-                autoFocus
-              />
+              {current.id === 'postcode' ? (
+                <div className="profile-postcode-stack">
+                  <InputField
+                    ref={inputRef}
+                    value={currentVal}
+                    onChange={(v) => setValue('postcode', v)}
+                    onAdvance={handlePostcodeContinue}
+                    onFocusLift={liftProfileStepForKeyboard}
+                    onBlurViewportReset={recenterProfileStep}
+                    placeholder={
+                      (current as { label: string; placeholder?: string }).placeholder ?? current.label
+                    }
+                    autoComplete="postal-code"
+                    name="postal-code"
+                    autoFocus
+                  />
+                  <label className="profile-optional-field-label zz-h4" htmlFor="profile-house-number">
+                    house number <span className="profile-optional-suffix">(optional)</span>
+                  </label>
+                  <InputField
+                    ref={houseNumberRef}
+                    id="profile-house-number"
+                    value={values.houseNumber ?? ''}
+                    onChange={(v) => setValue('houseNumber', v)}
+                    onAdvance={handlePostcodeContinue}
+                    onFocusLift={liftProfileStepForKeyboard}
+                    onBlurViewportReset={recenterProfileStep}
+                    placeholder="e.g. 12"
+                    autoComplete="address-line2"
+                    name="house-number"
+                    className="profile-house-number-input"
+                  />
+                </div>
+              ) : (
+                <InputField
+                  ref={inputRef}
+                  value={currentVal}
+                  onChange={(v) => setValue(current.id, v)}
+                  onAdvance={handleNext}
+                  onFocusLift={liftProfileStepForKeyboard}
+                  onBlurViewportReset={recenterProfileStep}
+                  placeholder={
+                    (current as { label: string; placeholder?: string }).placeholder ?? current.label
+                  }
+                  autoComplete={current.id === 'name' ? 'given-name' : undefined}
+                  name={current.id === 'name' ? 'given-name' : undefined}
+                  autoFocus
+                />
+              )}
               <ProfileAnswerBtn
                 reduceMotion={reduceMotion}
                 optionIndex={0}
@@ -677,6 +782,10 @@ export default function ProfilePageClient() {
                 className=""
                 disabled={isSubmitting}
                 onClick={() => {
+                  if (current.id === 'postcode') {
+                    handlePostcodeContinue()
+                    return
+                  }
                   const trimmed = readLiveFieldValue()
                   if (!trimmed || isSubmitting) return
                   inputRef.current?.blur()

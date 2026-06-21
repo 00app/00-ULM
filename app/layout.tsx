@@ -13,7 +13,6 @@ const roboto = Roboto({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-roboto',
-  preload: false,
 })
 
 const siteUrl = getSiteUrl()
@@ -21,11 +20,11 @@ const siteUrl = getSiteUrl()
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Zero Zero — UK energy, carbon & money savings',
+    default: 'Zero Zero | Save Money and Carbon',
     template: '%s | Zero Zero',
   },
   description:
-    'Zero Zero is a UK-first web app that turns your profile and postcode into clearer savings and lower carbon: home energy, travel, food, and habits — with local context and 2026 price-cap-aware guidance. Cut bills, cut CO₂, stay on one lane per journey.',
+    'Track your carbon impact and financial waste. Practical tips to save £10k and 10.7t CO2/year.',
   keywords: [
     'UK energy savings',
     'lower electricity bill UK',
@@ -49,9 +48,9 @@ export const metadata: Metadata = {
     telephone: false,
   },
   openGraph: {
-    title: 'Zero Zero — UK energy, carbon & money savings',
+    title: 'Zero Zero | Save Money and Carbon',
     description:
-      'Personalised UK dashboard for savings and carbon: journeys, local context, and clear next steps — built for 2026 household energy reality.',
+      'Track your carbon impact and financial waste. Practical tips to save £10k and 10.7t CO2/year.',
     type: 'website',
     siteName: 'Zero Zero',
     locale: 'en_GB',
@@ -59,9 +58,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Zero Zero — UK energy, carbon & money savings',
+    title: 'Zero Zero | Save Money and Carbon',
     description:
-      'Cut bills and carbon with a UK-first journey dashboard — local context, savings stamps, and habit wins.',
+      'Track your carbon impact and financial waste. Practical tips to save £10k and 10.7t CO2/year.',
   },
   robots: {
     index: true,
@@ -93,7 +92,7 @@ export default function RootLayout({
     '@type': 'WebApplication',
     name: 'Zero Zero',
     description:
-      'UK-first web app for household energy savings, carbon reduction, and journey-based guidance with local postcode context.',
+      'Track your carbon impact and financial waste. Practical tips to save £10k and 10.7t CO2/year.',
     url: siteUrl,
     applicationCategory: 'LifestyleApplication',
     operatingSystem: 'Any',
@@ -109,6 +108,13 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link
+          rel="preload"
+          href="/assets/Marvin%20Visions%20Bold.ttf"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
       <body

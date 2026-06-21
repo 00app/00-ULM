@@ -6,6 +6,17 @@
 /** Solo Focus mother stack: Marvin lead (H4) + at most one Roboto body — Dieter Rams max-2-blocks. */
 export const MAX_SOLO_FOCUS_PROSE_BLOCKS = 2
 
+/** Prev/next rail — destination labels only; implement in `lib/zone/soloFocusNavLabels.ts`. */
+export const SOLO_FOCUS_NAV_LABEL_VOICE = `
+Solo Focus journey nav shows where prev/next will land in wall order (not the open card).
+- Journey mothers: UPPERCASE category from journey_key (HOME, TRAVEL, GRANTS).
+- Discovery, achievement, and morph tips: 1–2 lowercase words from the card title — a specific noun phrase (loft top-up, rail swap, heat pump grant), not the category name repeated.
+- Never duplicate the same label on both sides of the rail; prefer a title fragment over echoing the mother category.
+- Unvisited cells: yellow Marvin + suffix on category label and nav destination (\`isSoloFocusUnreadCard\`).
+- Session prose: each card distinct — \`applySessionProseVariety\` + rotating \`proofSentenceVariant\` beats; never reuse the same paragraph across the wall.
+- Forensic Mate tone: plain UK words, no marketing closers, no dev-speak (tile, morph, pipeline).
+`.trim()
+
 /** Marketing fluff — never in user-facing Solo Focus / bento copy. */
 export const FORENSIC_MATE_BANNED_PHRASES = [
   'unlock your potential',
@@ -13,9 +24,19 @@ export const FORENSIC_MATE_BANNED_PHRASES = [
   'exciting',
   "don't worry",
   'you could save',
+  'you could be',
+  'you could be leaving',
+  'you could miss',
+  'often pays you back',
+  'pays you back',
   'optimise your journey',
   'as an ai',
 ] as const
+
+/** Single line for LLM system prompts (Content Architect, research triplet). */
+export function forensicMateBannedPromptLine(): string {
+  return `Banned phrases and close paraphrases: ${FORENSIC_MATE_BANNED_PHRASES.join('; ')}. Use forensic verbs (slip, bleed, drain, overlook, hide, reclaim) — never marketing closers.`
+}
 
 export const ZONE_WARM_AUDITOR_VOICE = `
 You write for Zero Zero — a Warm Auditor: a trusted UK mate who is data-honest but empathetic. Short, punchy sentences; lowercase where natural in body copy (headlines stay uppercase).
@@ -38,7 +59,7 @@ Personality:
 export const ZONE_WARM_AUDITOR_THREE_BEAT = `
 Exactly THREE paragraphs, blank line between (Roboto body in the product — no section labels):
 1. Friction — data-backed waste where they live: open with the town/locality name when provided (e.g. "Littlehampton"), not the postcode. One compact £ or habit fact tied to this journey only.
-2. Leverage — one April 2026 UK fix from supplied facts only (BUS/ECO4/price cap/solar grant — only what fits the journey_key). Plain English, one policy or scheme.
+2. Leverage — one April 2026 UK fix from supplied facts only (heat pump grant, home insulation grant, price cap, solar — only what fits the journey_key). Plain English only: never use BUS, ECO4, MCS, or other acronyms users would not say out loud.
 3. Payoff — personal result for their profile: one money/carbon payoff line and one concrete action this week; mention the https source_url. State £/kg payoff once — do not repeat the same saving in paragraph 1 and 3.
 `.trim()
 

@@ -66,6 +66,13 @@ export function buildGroovyGridItems(args: {
 }): GroovyGridCell[] {
   const journeyCardsOnly = args.viewModel.journeys.filter((j) => j.id.startsWith('journey-'))
   const byJourney = new Map(journeyCardsOnly.map((j) => [j.journey_key, j]))
+  const moneySortedJourneys = [...journeyCardsOnly]
+    .sort((a, b) => (b.moneyGbp ?? 0) - (a.moneyGbp ?? 0))
+    .map((j) => j.journey_key)
+  const prioritizedJourneyOrder = [
+    ...moneySortedJourneys,
+    ...JOURNEY_ORDER.filter((jid) => !moneySortedJourneys.includes(jid)),
+  ] as JourneyId[]
   const seenTipIds = new Set<string>()
 
   const discoveryByJourney = new Map<JourneyId, ZoneTipCard[]>()
@@ -108,7 +115,7 @@ export function buildGroovyGridItems(args: {
     return true
   }
 
-  JOURNEY_ORDER.forEach((jid, index) => {
+  prioritizedJourneyOrder.forEach((jid, index) => {
     const item = byJourney.get(jid)
     if (item) {
       // Journey card always placed first for its category (counts as 1 toward the cap)

@@ -12,10 +12,15 @@ import {
 export default function ZaiComposerDock({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
+  useEffect(() => {
+    if (!mounted || typeof document === 'undefined') return
+    document.body.classList.add('zai-composer-dock-active')
+    return () => document.body.classList.remove('zai-composer-dock-active')
+  }, [mounted])
 
   const dock = (
     <motion.div
-      className="zai-composer-dock zai-composer-dock--fixed max-w-zone"
+      className="zai-composer-dock zai-composer-dock--fixed"
       initial={FAMILY_ATOMIC_SURFACE_INITIAL}
       animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
       transition={FAMILY_TRANSITION_ATOMIC}

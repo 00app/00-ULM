@@ -3,6 +3,7 @@ import {
   resolveUnifiedGridIntensityGPerKwh,
   syncFallbackGridIntensityGPerKwh,
 } from '@/lib/brains/liveGridCarbonFactor'
+import { TYPICAL_ANNUAL_CAP } from '@/lib/brains/constants'
 
 export interface LivePulseSnapshot {
   priceCapGbp: number
@@ -14,7 +15,7 @@ export interface LivePulseSnapshot {
 }
 
 const SAFE_SENTINEL = {
-  priceCapGbp: 1641,
+  priceCapGbp: TYPICAL_ANNUAL_CAP,
   electricityPPerKwh: 24.67,
   gasPPerKwh: 5.74,
 } as const

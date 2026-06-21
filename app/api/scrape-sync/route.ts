@@ -26,7 +26,9 @@ import {
   type ResearchProfileData,
 } from '@/lib/agents/researchAgent'
 import { mirrorJourneyAnswersToUserProfilesIfAvailable } from '@/lib/db/userProfilesMirror'
-import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
+import { scrapeSyncPostBodySchema } from '@/lib/api/schemas'
+import { captureServerError } from '@/lib/observability/captureError'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
@@ -371,7 +373,7 @@ async function buildScrapedFromResearchResults(
 /** GET — Return scraped data for dashboard (buildUserImpact options.scraped). Optional ?postcode= triggers fresh regional research. */
 export async function GET(request: NextRequest) {
   const id = getClientIdentifier(request)
-  const { ok, retryAfter } = checkRateLimit(`scrape-sync:${id}`, SCRAPE_SYNC_MAX_PER_MINUTE)
+  const { ok, retryAfter } = await checkRateLimitAsync(`scrape-sync:${id}`, SCRAPE_SYNC_MAX_PER_MINUTE)
   if (!ok) {
     return NextResponse.json(
       { error: 'Too many requests' },
@@ -888,7 +890,7 @@ async function parseScrapeSyncPostBody(request: NextRequest): Promise<Record<str
 export async function POST(request: NextRequest) {
   try {
     const id = getClientIdentifier(request)
-    const { ok, retryAfter } = checkRateLimit(`scrape-sync:${id}`, SCRAPE_SYNC_MAX_PER_MINUTE)
+    const { ok, retryAfter } = await checkRateLimitAsync(`scrape-sync:${id}`, SCRAPE_SYNC_MAX_PER_MINUTE)
     if (!ok) {
       return NextResponse.json(
         { error: 'Too many requests' },
@@ -901,6 +903,20 @@ export async function POST(request: NextRequest) {
       body = await parseScrapeSyncPostBody(request)
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
+    const bodyShape = scrapeSyncPostBodySchema.safeParse(body)
+    if (!bodyShape.success) {
+      return NextResponse.json(
+        {
+          error: 'Invalid request body',
+          issues: bodyShape.error.issues.map((i) => ({
+            path: i.path.join('.'),
+            message: i.message,
+          })),
+        },
+        { status: 400 }
+      )
     }
 
     const isTrigger = scrapeSyncTriggerRequested(request.nextUrl.searchParams, body)

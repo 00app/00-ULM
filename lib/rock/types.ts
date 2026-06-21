@@ -1,4 +1,5 @@
 import type { JourneyId } from '@/lib/journeys'
+import type { UkSeason } from '@/lib/zone/seasonHint'
 
 export interface RockHabit {
   slug: string
@@ -10,4 +11,6 @@ export interface RockHabit {
   provider_name: string
   /** Optional primary https link for Solo Focus / diagnostics; else `trustedUrlForJourney(journey_key)`. */
   learn_url?: string
+  /** When set, tip ranks higher in its UK season on Today's Tips — never hidden off-season. */
+  seasons?: UkSeason[]
 }

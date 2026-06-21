@@ -13,6 +13,11 @@ function looksLikeProseAttribution(s: string): boolean {
   return false
 }
 
+/** Branded short name from a handoff / CTA https URL (e.g. eurostar.com → EUROSTAR). */
+export function offerProviderFromHandoffUrl(url?: string | null): string | null {
+  return hostToVerifiedProviderShort(url)
+}
+
 function hostToVerifiedProviderShort(url?: string | null): string | null {
   if (!url?.startsWith('http')) return null
   try {
@@ -103,4 +108,47 @@ export function resolveSuppliedByDisplayName(params: {
   const sn = params.sourceName?.trim()
   if (sn && sn !== 'our partners') return sn
   return PRICE_CAP_SOURCE_LABEL
+}
+
+export type SoloFocusHandoffAttribution = {
+  /** Below CTA — null when no handoff URL. */
+  offerProviderName: string | null
+  /** Prose / auditor narrative source label. */
+  sourceDisplayName: string
+  /** PulseExpandedSync provider line. */
+  pulseProviderName: string
+}
+
+/**
+ * Single resolver for Solo Focus handoff surfaces — CTA URL wins over research attribution.
+ */
+export function resolveSoloFocusHandoffAttribution(params: {
+  ctaUrl?: string | null
+  researchSuppliedBy?: string | null
+  architectSuppliedBy?: string | null
+  sourceLabel?: string | null
+  sourceName?: string | null
+  liveScrapeSourceUrl?: string | null
+}): SoloFocusHandoffAttribution {
+  const researchFallback = resolveSuppliedByDisplayName({
+    researchSuppliedBy: params.researchSuppliedBy,
+    architectSuppliedBy: params.architectSuppliedBy,
+    sourceLabel: params.sourceLabel,
+    sourceName: params.sourceName,
+    liveScrapeSourceUrl: params.liveScrapeSourceUrl,
+  })
+  const cta = params.ctaUrl?.trim()
+  const fromCta = cta?.startsWith('http') ? offerProviderFromHandoffUrl(cta) : null
+  if (fromCta) {
+    return {
+      offerProviderName: fromCta,
+      sourceDisplayName: fromCta,
+      pulseProviderName: fromCta,
+    }
+  }
+  return {
+    offerProviderName: null,
+    sourceDisplayName: researchFallback,
+    pulseProviderName: researchFallback,
+  }
 }

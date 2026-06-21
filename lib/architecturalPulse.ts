@@ -1,5 +1,6 @@
 import { INTRO_TYPE_MOTION_SCALE } from '@/lib/animations'
 import { formatMoneyValue, compactAuditValue } from '@/lib/format'
+import { formatTimeOfDayGreeting } from '@/lib/zone/timeOfDay'
 
 /** Warm Marvin + Roboto before summary ticker / intro type (avoids sans-serif flash). */
 export function preloadAppFonts(): Promise<void> {
@@ -58,11 +59,16 @@ export type ZoneReadinessInput = {
 }
 
 export type ZoneWelcomeCopy = {
+  timeOfDayLine: string
   nameLine: string
   savingsLeadLine: string
   savingsMoneyLine: string
   savingsCarbonLine: string
 }
+
+/** Profile hero card — under biggest-win category headline (Roboto body). */
+export const ZONE_PROFILE_HERO_MISSION =
+  'with zero zero you save money and do your bit for the planet.'
 
 /** Zone welcome — savings potential from grid journey + tip cards (≥1k → K/T shorthand). */
 export function buildZoneWelcomeCopy(
@@ -83,6 +89,7 @@ export function buildZoneWelcomeCopy(
       : `${carbonCompact.figure}kg co2`
 
   return {
+    timeOfDayLine: formatTimeOfDayGreeting(),
     nameLine: `${first}.`,
     savingsLeadLine: 'we could save',
     savingsMoneyLine: `you ${moneyLabel} and`,

@@ -2,7 +2,7 @@
 # Production / preview smoke — critical pages + APIs (no secrets printed).
 # Usage: bash scripts/production-smoke.sh [BASE_URL]
 set -euo pipefail
-BASE="${1:-https://00-ulm.vercel.app}"
+BASE="${1:-https://www.00-00.online}"
 POSTCODE="${SMOKE_POSTCODE:-BN177DW}"
 
 fail=0

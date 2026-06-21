@@ -37,18 +37,8 @@ function InstagramGlyph({ className }: { className?: string }) {
   )
 }
 
-/**
- * The Rock — six saving-tip tiles: same bento shell as Zone (yellow / purple, `bento-card-groovy`).
- * Grid: 1 col mobile / 2 tablet / 3 desktop (matches Zone rhythm below XL).
- */
-export function RockSavingTips({
-  habits,
-  likedCardIds,
-  visitedTipIds,
-  onOpenTip,
-  architectHeadlineByJourney,
-}: Props) {
-  const six = habits.slice(0, 6)
+/** Mobile signup — static shell; hover only on input + Go button. */
+export function RockMobileSignupCard() {
   const [mobile, setMobile] = useState('')
   const [signupBusy, setSignupBusy] = useState(false)
   const [signupMsg, setSignupMsg] = useState<string | null>(null)
@@ -103,6 +93,76 @@ export function RockSavingTips({
     }
   }, [mobile, signupBusy])
 
+  return (
+    <div className="zone-rock-signup-wrap w-full box-border" aria-label="Mobile signup">
+      <div
+        className="rock-mobile-signup-card bento-card-groovy rock-bento-tile w-full flex flex-col border-0 text-left box-border"
+        style={{
+          backgroundColor: ROCK_CARD_BG,
+          color: ROCK_CARD_TEXT,
+          borderRadius: 60,
+        }}
+      >
+        <h3 className="rock-mobile-signup-title m-0 tracking-wide" lang="en" style={{ color: ROCK_CARD_TEXT }}>
+          Sign up with your mobile
+        </h3>
+        <p className="zz-body m-0 mt-1" style={{ color: ROCK_CARD_TEXT, opacity: 0.92 }}>
+          for tips and new offer drops
+        </p>
+        <div className="rock-mobile-row">
+          <InputField
+            type="tel"
+            value={mobile}
+            onChange={setMobile}
+            onAdvance={submitMobile}
+            placeholder="UK mobile"
+            className="rock-mobile-zz-input"
+            width="100%"
+          />
+          <button
+            type="button"
+            className="rock-mobile-go-btn"
+            disabled={!mobile.trim() || signupBusy}
+            onClick={() => void submitMobile()}
+            aria-label="Save mobile number"
+          >
+            Go
+          </button>
+        </div>
+        {signupMsg ? (
+          <p className="zz-body-bold m-0 mt-3" style={{ color: ROCK_CARD_TEXT }}>
+            {signupMsg}
+          </p>
+        ) : null}
+
+        <div className="rock-social-row">
+          <a
+            href={INSTAGRAM_HREF}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rock-ig-link"
+            aria-label="Zero Zero on Instagram"
+          >
+            <InstagramGlyph className="rock-ig-link__glyph" />
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The Rock — six saving-tip tiles: same bento shell as Zone (yellow / purple, `bento-card-groovy`).
+ * Grid: 1 col mobile / 2 tablet / 3 desktop (matches Zone rhythm below XL).
+ */
+export function RockSavingTips({
+  habits,
+  likedCardIds,
+  visitedTipIds,
+  onOpenTip,
+}: Props) {
+  const six = habits.slice(0, 6)
+
   if (six.length === 0) return null
 
   return (
@@ -144,7 +204,7 @@ export function RockSavingTips({
               <h3 className="card-headline m-0 min-w-0" lang="en">
                 {tipHeadline}
               </h3>
-              <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0">
+              <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
                 <div className="data-stack data-stack--tight">
                   <span className="data-label" style={{ color: tipInk }}>
                     SAVE
@@ -171,65 +231,6 @@ export function RockSavingTips({
             </button>
           )
         })}
-      </div>
-
-      <div className="zone-rock-signup-wrap w-full box-border">
-        <div
-          className="rock-mobile-signup-card bento-card-groovy rock-bento-tile w-full flex flex-col border-0 text-left box-border"
-          style={{
-            backgroundColor: ROCK_CARD_BG,
-            color: ROCK_CARD_TEXT,
-            borderRadius: 60,
-          }}
-        >
-          <h3
-            className="zz-anchor-greeting m-0 tracking-wide"
-            lang="en"
-            style={{ color: ROCK_CARD_TEXT }}
-          >
-            Sign up with your mobile
-          </h3>
-          <p className="zz-body m-0 mt-1" style={{ color: ROCK_CARD_TEXT, opacity: 0.92 }}>
-            for tips and new offer drops
-          </p>
-          <div className="rock-mobile-row">
-            <InputField
-              type="tel"
-              value={mobile}
-              onChange={setMobile}
-              onAdvance={submitMobile}
-              placeholder="UK mobile"
-              className="rock-mobile-zz-input"
-              width="100%"
-            />
-            <button
-              type="button"
-              className="rock-mobile-go-btn"
-              disabled={!mobile.trim() || signupBusy}
-              onClick={() => void submitMobile()}
-              aria-label="Save mobile number"
-            >
-              Go
-            </button>
-          </div>
-          {signupMsg ? (
-            <p className="zz-body-bold m-0 mt-3" style={{ color: ROCK_CARD_TEXT }}>
-              {signupMsg}
-            </p>
-          ) : null}
-
-          <div className="rock-social-row">
-            <a
-              href={INSTAGRAM_HREF}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rock-ig-link"
-              aria-label="Zero Zero on Instagram"
-            >
-              <InstagramGlyph />
-            </a>
-          </div>
-        </div>
       </div>
     </section>
   )

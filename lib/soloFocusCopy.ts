@@ -13,8 +13,10 @@ import {
 } from '@/lib/zone/auditorNarrative'
 import { personalizeTrueTipPlaceLead, resolveSoloFocusPlaceLabel } from '@/lib/zone/localityCopy'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
+import { humanizeZoneHeadline, humanizeZoneProse } from '@/lib/zone/plainEnglishCopy'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
+import { applySessionProseVariety } from '@/lib/zone/sessionProseLedger'
 import { MAX_SOLO_FOCUS_PROSE_BLOCKS } from '@/lib/zone/zoneVoice'
 
 function coerceJourneyId(id: string): JourneyId {
@@ -172,7 +174,7 @@ export function cleanZonePreviewHeadline(raw: string): string {
     }
   }
   /* Word limits applied later via clampZoneBentoHeadline — never hard-slice characters (mid-word clips). */
-  return t
+  return humanizeZoneHeadline(t)
 }
 
 /** Drop report-style headers / metadata blocks from architect prose (jump to insight). */
@@ -245,6 +247,7 @@ export function hasLocalityAuditorLeadShape(text: string, placeLabel: string): b
   const t = text.trim()
   if (!t) return false
   if (/\bquietly slip away on\b/i.test(t)) return true
+  if (/\bcould (?:be leaving|miss(?:\s+about)?)\b/i.test(t) && /\b£[\d,]+/i.test(t)) return true
   if (/\bin\s+(?:your area|[A-Z])/i.test(t) && /\babout £[\d,]+(?:\.\d+)? a year can\b/i.test(t)) {
     return true
   }
@@ -768,9 +771,10 @@ export function isRawResearchDump(prose: string): boolean {
   return tariffSignals || tabley || policyDump
 }
 
-export function humanizeTrueTipParagraph(raw: string): string {
+export function humanizeTrueTipParagraph(raw: string, journeyId?: JourneyId | string): string {
   const cleaned = stripMarkdownForProseDisplay(stripArchitectEmbeddedSectionTitles(raw), 900)
-  return clampWords(cleaned, MAX_TRUE_TIP_PARAGRAPH_WORDS)
+  const plain = humanizeZoneProse(cleaned, journeyId)
+  return clampWords(plain, MAX_TRUE_TIP_PARAGRAPH_WORDS)
 }
 
 function splitHeadlineWords(title: string): string[] {
@@ -1013,25 +1017,25 @@ function isPartialExpandedJourneyHook(resolved: string, journeyHook: string): bo
 /** Zone bento wall — 8–10 word Marvin stamp per journey (not Solo Focus). */
 export const ZONE_BENTO_HOOK: Partial<Record<JourneyId, string>> = {
   home: 'seal draughts and loft gaps before you chase a new boiler',
-  utilities: 'line up your tariff with the april cap then switch deals',
-  grants: 'check bus heat pump and insulation grants before you book today',
-  solar: 'size solar to your roof and match the power you use daily',
-  travel: 'swap one car commute each week for rail or bus saves fuel',
-  holidays: 'pick short haul trips by train not plane and keep more cash',
-  food: 'plan meals from food you already have and cut waste weekly',
+  utilities: 'line up your energy tariff before you lock in a new deal',
+  grants: 'check heat pump and insulation grants before you pay full price',
+  solar: 'size solar to your roof and the power you use each day',
+  travel: 'try one train or bus trip a week instead of the car commute',
+  holidays: 'pick a train for short trips instead of flying when you can',
+  food: 'plan meals from food you already have and cut waste each week',
   shopping: 'repair and reuse home gear before you buy another new item',
-  money: 'move idle cash to cleaner savings without paying hidden fees',
-  tech: 'cut standby draw on plugs and chargers left on overnight at home',
-  water: 'fit aerators fix drips and shorten showers before your bill climbs',
-  waste: 'sort recycle and compost at home each week to cut bin charges',
-  carbon: 'track one big energy habit monthly and trim what you waste',
+  money: 'move idle cash to a better rate without paying hidden fees',
+  tech: 'cut standby on plugs and chargers you leave on overnight',
+  water: 'fix drips and fit aerators before your water bill climbs again',
+  waste: 'sort recycling and compost at home to cut bin charges',
+  carbon: 'track one big energy habit each month and trim what you waste',
 }
 
 /** Discovery inject bento — distinct 8–10 word stamp when wall tile already uses ZONE_BENTO_HOOK. */
 const ZONE_GRID_INJECT_HOOK: Partial<Record<JourneyId, string>> = {
-  home: 'check bus and heat pump grant rules before you book an installer visit',
-  utilities: 'match your meter to the april cap before you switch energy deal',
-  grants: 'stack bus boiler and insulation grants before you pay full install price',
+  home: 'check heat pump grant rules before you book an installer visit',
+  utilities: 'match your meter read before you switch energy supplier',
+  grants: 'stack heat pump and insulation grants before you pay full price',
   solar: 'book a roof survey before you sign a solar export contract',
   travel: 'try one rail swap this month before you renew car fuel spend',
   holidays: 'pick a train route for your next break before you book flights',
@@ -1080,7 +1084,7 @@ export function clampZoneBentoHeadline(text: string, journeyId?: JourneyId | str
   const raw = text?.trim() || hook || 'save money on home bills near you'
   const source =
     (isLowQualityZoneHeadline(raw) || isGenericSpringHeadline(raw)) && hook ? hook : raw
-  return enforceHeadlineWordLimits(source, false, jid)
+  return humanizeZoneHeadline(enforceHeadlineWordLimits(source, false, jid), jid)
 }
 
 /** Rock / Today's Tips — catalog habit titles (3–10 words); never substitute journey wall hooks. */
@@ -1091,18 +1095,32 @@ export function clampRockTipHeadline(title: string): string {
   return ensureHeadlineSentenceEnd(trimmed)
 }
 
+/** Solo Focus for Rock habits — title + insight; never journey EXPANDED_JOURNEY_HOOK. */
+export function headlineFromRockHabit(title: string, insight?: string): string {
+  const t = stripExpandedCardTitleNoise(cleanZonePreviewHeadline(title) || title).trim()
+  let combined = prepareZoneHeadlineSource(t) || t
+  if (splitHeadlineWords(combined).length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && insight?.trim()) {
+    combined = trimHeadlineToMaxWords(
+      `${combined}. ${insight.trim().replace(/\s+/g, ' ')}`,
+      MAX_EXPANDED_VIEW_HEADLINE_WORDS,
+      2
+    )
+  }
+  return enforceHeadlineWordLimits(combined, true, undefined)
+}
+
 /** Expanded Solo Focus hook when DB title is thin or off-topic (~20 words each). */
 const EXPANDED_JOURNEY_HOOK: Partial<Record<JourneyId, string>> = {
   travel:
-    'SWAP ONE CAR COMMUTE EACH WEEK FOR RAIL OR BUS AND CUT FUEL BILLS WITHOUT BUYING A NEW TICKET OR PASS',
+    'TRY ONE TRAIN OR BUS TRIP A WEEK INSTEAD OF THE CAR COMMUTE AND CUT FUEL BILLS WITHOUT A NEW SEASON TICKET',
   holidays:
-    'PICK SHORT HAUL TRIPS BY TRAIN INSTEAD OF FLYING AND KEEP MORE CASH WHILE TRIMMING HOLIDAY CARBON EVERY YEAR',
+    'PICK SHORT TRIPS BY TRAIN INSTEAD OF FLYING WHEN YOU CAN AND KEEP MORE CASH ON HOLIDAY SPEND EACH YEAR',
   home:
-    'SEAL DRAUGHTS AND LOFT GAPS AROUND YOUR HOME BEFORE YOU CHASE A NEW BOILER AND PAY FOR WASTED HEAT EACH WINTER',
+    'SEAL DRAUGHTS AND LOFT GAPS AT HOME BEFORE YOU CHASE A NEW BOILER AND PAY FOR WASTED HEAT EACH WINTER',
   utilities:
-    'LINE UP YOUR GAS AND ELECTRIC TARIFF WITH THE APRIL CAP BEFORE YOU LOCK IN A DEAL THAT BEATS YOUR CURRENT BILL',
+    'LINE UP YOUR GAS AND ELECTRIC TARIFF BEFORE YOU LOCK IN A DEAL THAT BEATS WHAT YOU PAY NOW',
   grants:
-    'CHECK BUS HEAT PUMP AND INSULATION GRANT RULES FOR YOUR HOME BEFORE YOU BOOK AN INSTALLER OR PAY FULL PRICE',
+    'CHECK HEAT PUMP AND INSULATION GRANT RULES AT HOME BEFORE YOU BOOK AN INSTALLER OR PAY FULL PRICE',
   solar:
     'SIZE SOLAR TO YOUR ROOF AND DAYTIME USE NOT A GENERIC KIT THAT EXPORTS POWER YOU NEVER USE AT HOME OR WORK',
   food:
@@ -1139,15 +1157,15 @@ export function headlineFromExpandedHook(
     (jid != null && headlineConflictsWithJourney(jid, resolved)) ||
     Boolean(journeyHook && isPartialExpandedJourneyHook(resolved, journeyHook))
   if (jid && journeyHook && (weak || isGenericSpringHeadline(prepared || title))) {
-    return enforceHeadlineWordLimits(journeyHook, true, jid)
+    return humanizeZoneHeadline(enforceHeadlineWordLimits(journeyHook, true, jid), jid)
   }
   if (words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && journeyHook) {
-    return enforceHeadlineWordLimits(journeyHook, true, jid)
+    return humanizeZoneHeadline(enforceHeadlineWordLimits(journeyHook, true, jid), jid)
   }
   if (headlineEndsIncomplete(resolved) && journeyHook) {
-    return enforceHeadlineWordLimits(journeyHook, true, jid)
+    return humanizeZoneHeadline(enforceHeadlineWordLimits(journeyHook, true, jid), jid)
   }
-  return resolved
+  return humanizeZoneHeadline(resolved, jid)
 }
 
 /** Clean domain for Source link (e.g. gov.uk, ofgem.gov.uk). */
@@ -1312,6 +1330,8 @@ export function resolveSoloFocusInsightDisplay(args: {
   sourceDisplayName?: string | null
   /** v42.8 — strip duplicate "In [locality]" lines (header already shows VERIFIED — LOCALITY). */
   auditHeaderLocality?: string | null
+  /** Wall card id — rotates proof beats and session dedupe. */
+  cardId?: string | null
 }): string {
   const scraped = composeScrapedInsightDescription(args.morphParts, 3).trim()
   const j = coerceJourneyId(args.journeyId)
@@ -1354,9 +1374,24 @@ export function resolveSoloFocusInsightDisplay(args: {
     }
     return []
   }
+  const applyVariety = (text: string) => {
+    const pruned = pruneDuplicateLocalityInsight(text, args.headline, args.auditHeaderLocality, args.journeyId)
+    if (typeof window === 'undefined') return pruned
+    return applySessionProseVariety(pruned, {
+      cardId: args.cardId,
+      journeyId: j,
+      headline: args.headline,
+      moneyGbp: args.moneyGbp,
+      carbonKg: args.carbonKg,
+      userPostcode: args.userPostcode,
+      sourceDisplayName: args.sourceDisplayName,
+      auditHeaderLocality: args.auditHeaderLocality,
+    })
+  }
+
   if (scraped && !GENERIC_SCRAPED.test(scraped)) {
     const joined = toParagraphs(scraped).join('\n\n')
-    return pruneDuplicateLocalityInsight(joined, args.headline, args.auditHeaderLocality, args.journeyId)
+    return applyVariety(joined)
   }
   const pc = (args.userPostcode ?? '').trim() || 'your postcode'
   const src = (args.sourceDisplayName ?? '').trim() || 'UK Government'
@@ -1367,8 +1402,9 @@ export function resolveSoloFocusInsightDisplay(args: {
     moneyGbp: args.moneyGbp,
     carbonKg: args.carbonKg,
     locality: args.auditHeaderLocality ?? '',
+    cardId: args.cardId ?? undefined,
   }).join('\n\n')
-  return pruneDuplicateLocalityInsight(fallback, args.headline, args.auditHeaderLocality, args.journeyId)
+  return applyVariety(fallback)
 }
 
 /** Remove redundant locality / travel-prefixed lines so expanded copy does not repeat the audit header. */
@@ -1432,7 +1468,8 @@ export function buildResearchResultsTrueTipBody(params: {
     .split(/\n\s*\n/)
     .map((p) =>
       humanizeTrueTipParagraph(
-        stripAuditorFluffParagraph(stripArchitectEmbeddedSectionTitles(p.trim()))
+        stripAuditorFluffParagraph(stripArchitectEmbeddedSectionTitles(p.trim())),
+        j
       )
     )
     .filter(
@@ -1505,6 +1542,7 @@ export function resolveExpandedTrueTipInsight(args: {
   userPostcode?: string | null
   sourceDisplayName?: string | null
   auditHeaderLocality?: string | null
+  cardId?: string | null
 }): string {
   const ap = (args.architectProse ?? '').trim()
   const jid = coerceJourneyId(args.journeyId)
@@ -1515,11 +1553,22 @@ export function resolveExpandedTrueTipInsight(args: {
     sanitizedAp.length > 0 &&
     !isRawResearchDump(sanitizedAp)
   ) {
-    return buildResearchResultsTrueTipBody({
+    const fromNeon = buildResearchResultsTrueTipBody({
       architectProse: sanitizedAp,
       verifiedSavingGbp: args.moneyGbp,
       carbonKg: args.carbonKg,
       journeyId: args.journeyId,
+    })
+    if (typeof window === 'undefined') return fromNeon
+    return applySessionProseVariety(fromNeon, {
+      cardId: args.cardId,
+      journeyId: jid,
+      headline: args.headline,
+      moneyGbp: args.moneyGbp,
+      carbonKg: args.carbonKg,
+      userPostcode: args.userPostcode,
+      sourceDisplayName: args.sourceDisplayName,
+      auditHeaderLocality: args.auditHeaderLocality,
     })
   }
   return resolveSoloFocusInsightDisplay({
@@ -1533,6 +1582,7 @@ export function resolveExpandedTrueTipInsight(args: {
     userPostcode: args.userPostcode,
     sourceDisplayName: args.sourceDisplayName,
     auditHeaderLocality: args.auditHeaderLocality,
+    cardId: args.cardId,
   })
 }
 

@@ -1,0 +1,58 @@
+---
+description: Zone + Solo Focus written voice — Forensic Mate tone, nav labels, banned phrases, SAVE not SAVINGS
+globs:
+  - app/**/*.tsx
+  - lib/soloFocusCopy.ts
+  - lib/zone/**/*.ts
+  - lib/brains/**/*.ts
+  - lib/zai/**/*.ts
+alwaysApply: false
+---
+
+# Zone voice & copy
+
+Source of truth: **`lib/zone/zoneVoice.ts`** · quality gates **`lib/soloFocusCopy.ts`** · docs **`docs/ZONE-CONTENT-AND-DATA.md`** §7–10.
+
+## Persona
+
+**Forensic Mate / Warm Auditor** — trusted UK mate, data-honest, calm. One dry line of humour per card at most. Lowercase in body where natural; functional headlines uppercase.
+
+## Hard rules
+
+| Rule | Detail |
+| --- | --- |
+| **SAVE** | Imperative **SAVE** + CARBON on metrics — never "SAVINGS" as a label |
+| **Numbers** | Only £ and kg CO₂e from Neon / `buildUserImpact` — never invent grants or totals |
+| **Locality** | Town name in prose — never raw postcodes in user-facing copy |
+| **Banned** | `FORENSIC_MATE_BANNED_PHRASES` in `zoneVoice.ts` and close paraphrases |
+| **Verbs** | Prefer forensic verbs: slip, bleed, drain, overlook, reclaim — not "unlock", "optimise", "great news" |
+| **Dev-speak** | Never: tile, lane, morph, scrape, pipeline, component, audit trail |
+| **Structure** | No markdown, bullets, or What/Why/How labels in rendered prose |
+| **Variety** | Do not repeat the same opening sentence, payoff, or headline fragment across cards in one session — `applySessionProseVariety` + `proofSentenceVariant` |
+| **New card** | Yellow Marvin **+** on category label and nav destinations when `!isCardVisited(cardId)` — `lib/zone/soloFocusNewCard.ts` |
+
+## Solo Focus nav rail (`SoloFocusJourneyNav`)
+
+Wall order: **left = previous cell**, **right = next cell** (`advanceNavRingIndex` −1 / +1).
+
+| Cell kind | Label | Helper |
+| --- | --- | --- |
+| Journey mother | UPPERCASE category | `formatSoloFocusNavMotherLabel` |
+| Discovery / tip | lowercase title fragment (1–2 words) | `formatSoloFocusNavTipLabel` |
+
+Tips must use **title vocabulary** (e.g. loft top-up, standing charge) — not the category singular echo (utility, grant) unless the title is empty.
+
+## Surfaces
+
+| Surface | Voice module |
+| --- | --- |
+| Bento + Solo Focus prose | `ZONE_WARM_AUDITOR_VOICE`, `resolveSoloFocusDisplayProse` |
+| Content Architect batch | `ZONE_CONTENT_ARCHITECT_VOICE` |
+| Zai chat | `ZAI_EDITORIAL_AUDITOR_DNA` — never scrape on chat turn |
+| Nav rail | `SOLO_FOCUS_NAV_LABEL_VOICE` |
+
+## Before shipping copy changes
+
+1. Run `stripExpandedCardTitleNoise` on Solo Focus H1s.
+2. Check category separation (home ≠ grants wording).
+3. `npm run verify` after `app/` or `lib/` edits.

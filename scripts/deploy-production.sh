@@ -64,11 +64,11 @@ fi
 
 bash "${ROOT}/scripts/vercel-promote-latest.sh" "${DEPLOY_URL:-}"
 
-echo "→ Health https://00-ulm.vercel.app/api/health"
-if curl -sf --max-time 20 "https://00-ulm.vercel.app/api/health"; then
+echo "→ Health https://www.00-00.online/api/health"
+if curl -sf --max-time 20 "https://www.00-00.online/api/health"; then
   echo ""
 else
   echo "⚠️  Health check failed — deployment may still be aliasing." >&2
 fi
 
-echo "✓ Production target: https://00-ulm.vercel.app (commit ${SHA})"
+echo "✓ Production target: https://www.00-00.online (commit ${SHA})"

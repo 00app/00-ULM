@@ -76,7 +76,7 @@ npm run env:merge   # optional — merges exported shell vars into .env.local
 
 ```bash
 npm run init-db
-npm run db:evolve-12-domains
+npm run db:evolve-13-domains
 ```
 
 **Existing production:** no mandatory migration for ULM. Refresh `DATABASE_URL` in Vercel if auth fails.
@@ -186,7 +186,7 @@ npm run dev:clean
 
 ### Vercel CLI `ETIMEDOUT` after “Deployment completed”
 
-Harmless — build and deploy finished; CLI lost the polling connection. Confirm in [Vercel dashboard](https://vercel.com) or `curl https://00-ulm.vercel.app/api/health?live=1`.
+Harmless — build and deploy finished; CLI lost the polling connection. Confirm in [Vercel dashboard](https://vercel.com) or `curl https://www.00-00.online/api/health?live=1`.
 
 ### `Cannot find the middleware module` (Next 16 + Webpack)
 
@@ -238,7 +238,7 @@ npm run stack:verify          # env + db:test + hermes:ping
 npm run dev:pipeline-ready    # optional: -- --seed YOURPOSTCODE
 
 npm run verify:env
-# BASE_URL=https://00-ulm.vercel.app npm run verify:env
+# BASE_URL=https://www.00-00.online npm run verify:env
 
 npm run hermes:ping
 npm run deploy                # verify + remote build + auto-promote
@@ -315,7 +315,7 @@ Redeploy, then re-check:
 ```bash
 export CRON_SECRET="$(grep '^CRON_SECRET=' .env.local | cut -d= -f2- | tr -d '\"')"
 curl -sS -H "Authorization: Bearer ${CRON_SECRET}" \
-  'https://00-ulm.vercel.app/api/health/diagnostics' | jq '.bucket_failover.enabled'
+  'https://www.00-00.online/api/health/diagnostics' | jq '.bucket_failover.enabled'
 ```
 
 Local hybrid spawn also needs the same in `.env.local` (or `HYBRID_DATA_PIPELINE=1`).
@@ -359,7 +359,7 @@ Optional: `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` with `OPENROUTER_MODEL=meta-ll
 | Many `POST /api/zone/content-architect` ~20s | One batch per profile fingerprint; clear `sessionStorage` keys `zz_architect_*` to force refresh |
 | `npm run hermes:repair-pulse # comment` → `Unknown arg: #` | Run **one command per line** — npm passes `#` to bash |
 | Vercel Lint/Typecheck *internal error* | Build often OK — `npm run promote` or [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) |
-| Staged deployment | `npm run promote` (alias latest Ready prod → `00-ulm.vercel.app`) |
+| Staged deployment | `npm run promote` (alias latest Ready prod → `www.00-00.online`) |
 | Zone stale cards | Clear localStorage; check `NEXT_PUBLIC_DATA_VERSION` in `.env.local` |
 | Hermes 401 | `CRON_SECRET` in `.env.local` must match VPS secret file |
 | `Unknown arg: #` after npm | Remove inline `# comments` on npm lines |

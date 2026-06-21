@@ -1,22 +1,37 @@
 import { NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
+import { describeOutboundReadiness } from '@/lib/messaging/outboundGate'
+import { sendMobileWelcomeSms } from '@/lib/messaging/welcomeSms'
 
 export const dynamic = 'force-dynamic'
 
-/** Normalise to +digits (E.164-style). Strips non-digits; 10–15 digits acceptable for international mobiles. */
+/** Normalise UK/international mobiles to E.164 (+digits). */
 function normalizeMobile(input: string): string | null {
   const trimmed = input.trim()
   if (!trimmed) return null
-  const digitsOnly = trimmed.replace(/\D/g, '')
-  if (digitsOnly.length < 10 || digitsOnly.length > 15) return null
-  return `+${digitsOnly}`
+  let digits = trimmed.replace(/\D/g, '')
+  if (!digits) return null
+
+  // UK local: 07… (11 digits) → +447…
+  if (digits.startsWith('0') && digits.length === 11) {
+    digits = `44${digits.slice(1)}`
+  }
+  // Already 44… without +
+  if (digits.startsWith('44') && digits.length >= 12 && digits.length <= 13) {
+    return `+${digits}`
+  }
+  // Generic international: 10–15 digits
+  if (digits.length >= 10 && digits.length <= 15) {
+    return `+${digits}`
+  }
+  return null
 }
 
 /**
- * POST { mobile } — save WhatsApp/Telegram-ready number on the signed-in user row (Neon).
+ * POST { mobile } — save SMS-ready number on the signed-in user row (Neon).
  * Guests: returns ok without DB write; client keeps `zz_profile_mobile` in localStorage.
- * Outbound Hermes/Telegram dispatch is intentionally not wired here — add a worker or webhook later.
+ * Welcome SMS fires when TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_PHONE_NUMBER are set.
  */
 export async function POST(req: Request) {
   let body: unknown
@@ -46,5 +61,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'could not save' }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, persisted: true, mobile })
+  const readiness = describeOutboundReadiness()
+  if (readiness.status !== 'ready') {
+    return NextResponse.json({
+      ok: true,
+      persisted: true,
+      mobile,
+      sms: { sent: false, reason: readiness.reason },
+    })
+  }
+
+  const sms = await sendMobileWelcomeSms(mobile)
+  return NextResponse.json({
+    ok: true,
+    persisted: true,
+    mobile,
+    sms: sms.ok
+      ? { sent: true, sid: sms.sid, status: sms.status }
+      : { sent: false, reason: sms.reason, detail: sms.detail },
+  })
 }

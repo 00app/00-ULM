@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { createSession, getSessionFromRequest, setSessionCookieOnResponse } from '@/lib/auth'
-import { checkRateLimit, getClientIdentifier } from '@/lib/rateLimit'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { mirrorUlmGenomeToUserProfiles } from '@/lib/db/userProfilesMirror'
 import { mapProfileGoalToPrimaryGoal } from '@/lib/zone/affluenceCheck'
@@ -37,7 +37,7 @@ const PROFILE_ONLY_SESSION_DAYS = 7
 
 export async function POST(request: NextRequest) {
   const id = getClientIdentifier(request)
-  const { ok, retryAfter } = checkRateLimit(`user:${id}`, USER_CREATE_MAX_PER_MINUTE)
+  const { ok, retryAfter } = await checkRateLimitAsync(`user:${id}`, USER_CREATE_MAX_PER_MINUTE)
   if (!ok) {
     return NextResponse.json(
       { error: 'Too many requests. Try again later.' },

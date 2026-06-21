@@ -2,7 +2,7 @@
 
 Reference for `ubuntu@140.238.100.237` — Hermes only **HTTP-triggers** Vercel; it does not run Gemini/Firecrawl locally.
 
-**Production target:** `https://00-ulm.vercel.app/api/cron/zone-research`
+**Production target:** `https://www.00-00.online/api/cron/zone-research`
 
 **Operator brief (read first):** [`HERMES-ULM-JIT-BRIEF.md`](./HERMES-ULM-JIT-BRIEF.md) — Ulm JIT, weekly schedule, why `limit=12` timed out, correct curl/Mac commands.
 

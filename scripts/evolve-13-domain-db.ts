@@ -1,8 +1,8 @@
 /**
- * 12-domain DB evolution: ensure `journey_questions` exists and mirror `lib/journeys.ts`
- * (12 categories × 3 loop questions). Uses parameterized queries — no inline commas in SQL.
+ * 13-domain DB evolution: ensure `journey_questions` exists and mirror `lib/journeys.ts`
+ * (13 categories × 3 loop questions). Uses parameterized queries — no inline commas in SQL.
  *
- *   npm run db:evolve-12-domains
+ *   npm run db:evolve-13-domains
  *
  * Does not wipe `research_results`. Do not use ad-hoc `zone_questions` one-liners;
  * the app reads `journey_questions` + in-code `JOURNEYS`.
@@ -20,7 +20,7 @@ async function main() {
     process.exit(1)
   }
 
-  console.log('🛠 Starting DB Evolution...')
+  console.log('🛠 Starting DB Evolution (13 domains)...')
 
   const migrationPath = path.join(
     process.cwd(),
@@ -75,8 +75,8 @@ async function main() {
       `SELECT COUNT(*)::text AS n FROM journey_questions WHERE journey_key = ANY($1::text[])`,
       [[...JOURNEY_ORDER]]
     )
-    console.log('   Row count (12-domain keys):', count.rows[0]?.n ?? '0')
-    console.log('✅ NEON ARMED: 12-DOMAIN DATA CAPTURE ACTIVE')
+    console.log('   Row count (13-domain keys):', count.rows[0]?.n ?? '0')
+    console.log('✅ NEON ARMED: 13-DOMAIN DATA CAPTURE ACTIVE')
   })
 }
 

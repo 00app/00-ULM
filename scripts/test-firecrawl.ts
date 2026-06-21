@@ -30,7 +30,26 @@ async function main() {
         console.log(JSON.stringify(structured.extract, null, 2).slice(0, 4000))
         if (JSON.stringify(structured.extract).length > 4000) console.log('\n… (truncated)')
       } else {
-        console.log('\n⚠️ No extract payload (API may omit extract for this URL or format). Markdown:', Boolean(structured?.markdown))
+        const mdLen = structured?.markdown?.trim().length ?? 0
+        console.log(
+          '\n⚠️ No structured extract (Ofgem often blocks or omits extract).',
+          `Inline markdown: ${mdLen > 0 ? `${mdLen} chars` : 'none'}.`
+        )
+        if (mdLen > 0) {
+          console.log('--- Markdown preview ---')
+          console.log(structured!.markdown!.trim().slice(0, 500))
+          console.log('------------------------')
+        } else {
+          console.log('→ Trying markdown-only scrape (production JIT path)…')
+          const fallback = await scrapeWithFirecrawlUrl(capUrl)
+          const fbLen = fallback?.markdown?.trim().length ?? 0
+          if (fbLen > 0) {
+            console.log(`✅ Markdown-only OK (${fbLen} chars). Title: ${fallback?.title ?? 'N/A'}`)
+            console.log(fallback!.markdown!.trim().slice(0, 500))
+          } else {
+            console.log('⚠️ Markdown-only also empty — use mechanical/repair fallbacks; earned JIT uses category seeds, not this URL alone.')
+          }
+        }
       }
     } catch (error) {
       console.error('\n❌ Zone schema extract error:', error)

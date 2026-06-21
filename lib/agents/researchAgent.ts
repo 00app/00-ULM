@@ -42,7 +42,7 @@ import {
 import { getLocalData } from '@/lib/local/getLocalData'
 import { stripContentSystemLeakage } from '@/lib/zone/contentProseSanitize'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
-import { ZONE_WARM_AUDITOR_THREE_BEAT } from '@/lib/zone/zoneVoice'
+import { forensicMateBannedPromptLine, ZONE_WARM_AUDITOR_THREE_BEAT } from '@/lib/zone/zoneVoice'
 import { polishWarmAuditorProse } from '@/lib/zone/warmAuditorCopy'
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
 import {
@@ -50,6 +50,7 @@ import {
   MARCH_2026_ECONOMY,
   PRICE_CAP_SOURCE_URL,
   TRUTH_2026_MARCH,
+  TRUTH_2026_JULY,
 } from '@/lib/brains/constants'
 import { JOURNEY_IDS } from '@/lib/journeys'
 import {
@@ -96,6 +97,8 @@ export interface ResearchProfileData {
   employment_status?: string | null
   household_income_bracket?: string | null
   primary_goal?: string | null
+  /** Optional house number / name for EPC address disambiguation at postcode. */
+  house_number?: string | null
   [key: string]: string | null | undefined
 }
 
@@ -880,6 +883,7 @@ From the markdown below, return ONLY valid JSON (no markdown code fence) with ex
 - "architect_prose": exactly **THREE** paragraphs for Solo Focus (blank line between). **Hard cap: each paragraph at most ${MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH} words.**
 ${ZONE_WARM_AUDITOR_THREE_BEAT}
   **Banned in prose:** "What:", "Why:", "How:", bullets, markdown (##, **), raw postcodes, "aviation factors", "tariff pressure", "Sure!", "I can help", dev-speak (morph, pipeline, tile).
+  ${forensicMateBannedPromptLine()}
   **Headlines:** agent_headline stays punchy uppercase fragments; architect_prose body is sentence case / lowercase where natural.
 
 Markdown:
@@ -1236,29 +1240,29 @@ function mechanicalCategoryTripletFallback(params: {
   const areaLabel = townRaw || 'your area'
   const areaTag =
     areaLabel.length <= 28 ? areaLabel.toUpperCase() : areaLabel.slice(0, 28).toUpperCase()
-  const capTypical = TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP
+  const capTypical = TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP
 
   if (outward || townRaw) {
     const fallbacks: Record<string, { gbp: number; headline: string; prose: string }> = {
       home: {
         gbp: 180,
         headline: `Home heat audit ${areaTag}`,
-        prose: `Older homes in ${areaLabel} leak heat through lofts, draughts, and lagging gaps — sealing those cuts bills before you chase a new boiler.\n\nApril 2026 bills still track the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel) so every wasted kWh hurts until fabric is fixed.\n\nExecute the audited step in the CTA — Energy Saving Trust advice link below and plan loft and draught-proofing work before winter.`,
+        prose: `Older homes in ${areaLabel} leak heat through lofts, draughts, and lagging gaps — sealing those cuts bills before you chase a new boiler.\n\nJuly 2026 bills still track the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel) so every wasted kWh hurts until fabric is fixed.\n\nExecute the audited step in the CTA — Energy Saving Trust advice link below and plan loft and draught-proofing work before winter.`,
       },
       utilities: {
         gbp: 120,
         headline: `April cap signal ${areaTag}`,
-        prose: `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£120 dual-fuel standing-charge and direct-debit realignment as the immediate target before locking a fixed tariff.\n\nExecute the audited step in the CTA — Ofgem advice portal below to confirm your supplier statement matches the cap rates before you make any switch.`,
+        prose: `${areaLabel} sits under the July 2026 Ofgem price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£120 dual-fuel standing-charge and direct-debit realignment as the immediate target before locking a fixed tariff.\n\nExecute the audited step in the CTA — Ofgem advice portal below to confirm your supplier statement matches the cap rates before you make any switch.`,
       },
       grants: {
         gbp: MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP,
-        headline: `BUS heat pump grant ${areaTag}`,
-        prose: `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — air-source heat pumps receive a flat £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString('en-GB')} grant in England & Wales; oil and LPG homes may access £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nWe stack that grant against your heating bill baseline so you see installer cash plus lower running costs, not generic comparison-site copy.\n\nExecute the audited step in the CTA — BUS application link below while local MCS installers still have capacity — confirm eligibility before you sign a quote.`,
+        headline: `Heat pump grant ${areaTag}`,
+        prose: `${areaLabel} may qualify for the government's heat pump grant in 2026 when your home and energy rating meet GOV.UK rules — many homes get up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString('en-GB')} toward an air-source heat pump; oil and LPG homes may access up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nThat sits beside your heating bills so you see grant cash and lower running costs together, not generic comparison-site chatter.\n\nUse the link below to check you qualify and compare installer quotes before you sign anything.`,
       },
       solar: {
         gbp: 450,
         headline: `Solar export audit ${areaTag}`,
-        prose: `Solar in ${areaLabel} pays when generation, export rate, and daytime use align — typical homes cut import costs once an MCS install is sized to the roof.\n\nApril 2026 import rates still follow the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel), so export and self-use matter for what you buy overnight.\n\nExecute the audited step in the CTA — MCS certified installer directory below and compare export tariffs with your supplier before you lock an install quote.`,
+        prose: `Solar in ${areaLabel} pays when generation, export rate, and daytime use align — typical homes cut import costs once an MCS install is sized to the roof.\n\nJuly 2026 import rates still follow the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel), so export and self-use matter for what you buy overnight.\n\nExecute the audited step in the CTA — MCS certified installer directory below and compare export tariffs with your supplier before you lock an install quote.`,
       },
       travel: {
         gbp: 450,
@@ -1334,13 +1338,13 @@ function mechanicalCategoryTripletFallback(params: {
     const gbp = MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP
     const agent_headline =
       zoneCardHeadlineFromRaw(
-        `BUS heat pump grant in ${areaTag}`,
-        `HEAT PUMP GRANT IN ${areaTag}`,
+        `Heat pump grant in ${areaTag}`,
+        `Heat pump grant in ${areaTag}`,
         MAX_ZONE_CARD_HEADLINE_WORDS
-      ) || `HEAT PUMP GRANT IN ${areaTag}`
+      ) || `Heat pump grant in ${areaTag}`
     const architect_prose =
       normalizeArchitectProseThreeParagraphs(
-        `${areaLabel} qualifies for the 2026 Boiler Upgrade Scheme when your property and EPC meet GOV.UK rules — air-source heat pumps receive a flat £${gbp.toLocaleString('en-GB')} grant in England & Wales; oil and LPG homes may access £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nWe stack that grant against your heating bill baseline so you see installer cash plus lower running costs, not generic SEO.\n\nExecute the audited step in the CTA — BUS application link below while installers still have MCS slots — confirm eligibility before you sign a quote.`
+        `${areaLabel} may qualify for the government's heat pump grant in 2026 when your home and energy rating meet GOV.UK rules — many homes get up to £${gbp.toLocaleString('en-GB')} toward an air-source heat pump; oil and LPG homes may access up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nThat sits beside your heating bills so you see grant cash and lower running costs together, not generic comparison-site chatter.\n\nUse the link below to check you qualify and compare installer quotes before you sign anything.`
       ) ?? ''
     if (!architect_prose) return null
     return {
@@ -1362,7 +1366,7 @@ function mechanicalCategoryTripletFallback(params: {
       ) || `APRIL CAP SIGNAL ${areaTag}`
     const architect_prose =
       normalizeArchitectProseThreeParagraphs(
-        `${areaLabel} sits under the April 2026 Ofgem price-cap frame — typical dual-fuel around £${TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£${gbp} green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nExecute the audited step in the CTA — Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`
+        `${areaLabel} sits under the July 2026 Ofgem price-cap frame — typical dual-fuel around £${TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£${gbp} green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nExecute the audited step in the CTA — Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`
       ) ?? ''
     if (!architect_prose) return null
     return {

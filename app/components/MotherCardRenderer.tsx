@@ -18,6 +18,8 @@ interface MotherCardRendererProps {
   ctaUrl?: string | null
   ctaJourneyId?: string
   ctaLabel?: string
+  /** Company / publisher behind the handoff URL — shown below CTA as h3. */
+  offerProviderName?: string | null
   /** CTA handoff surface — yellow block for Action Vault high-impact rebirth. */
   ctaSurface?: 'pink' | 'yellow'
   isLiked?: boolean
@@ -38,6 +40,7 @@ export function MotherCardRenderer({
   ctaUrl,
   ctaJourneyId,
   ctaLabel = 'CLAIM',
+  offerProviderName,
   ctaSurface = 'pink',
   isLiked = false,
   onLike,
@@ -112,6 +115,14 @@ export function MotherCardRenderer({
           onLike={onLike}
           onAskZai={onAskZai}
         />
+      ) : null}
+      {ctaUrl && offerProviderName?.trim() ? (
+        <h3
+          className="solo-focus-offer-provider zz-h3 text-marvin trinity-to-offer-provider m-0 text-left w-full min-w-0"
+          style={{ color: 'var(--journey-text)' }}
+        >
+          {offerProviderName.trim()}
+        </h3>
       ) : null}
     </>
   )

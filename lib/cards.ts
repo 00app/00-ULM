@@ -1,5 +1,7 @@
+import { getAppUrl } from '@/lib/site'
+
 export const getCards = async () => {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/cards`);
+  const response = await fetch(`${getAppUrl()}/api/cards`);
   const cards = await response.json();
   
   const grouped = cards.reduce((acc: any, c: any) => {

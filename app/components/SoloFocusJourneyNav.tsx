@@ -17,7 +17,33 @@ export type SoloFocusJourneyNavProps = {
   onNavigateEntry?: (entry: SoloFocusNavEntry) => void
   /** @deprecated Prefer `navRing` — journey-only fallback when ring omitted. */
   availableJourneyIds?: readonly JourneyId[]
+  /** Unvisited destination cells show + on the nav label. */
+  isUnreadCard?: (cardId: string) => boolean
   className?: string
+}
+
+function NavDestinationLabel({
+  label,
+  kind,
+  cardId,
+  isUnreadCard,
+}: {
+  label: string
+  kind: 'journey' | 'tip'
+  cardId: string
+  isUnreadCard?: (cardId: string) => boolean
+}) {
+  const isNew = isUnreadCard?.(cardId) ?? false
+  return (
+    <h4 className={`solo-focus-journey-nav__label nav-label solo-focus-journey-nav__label--${kind}`}>
+      {label}
+      {isNew ? (
+        <span className="solo-focus-new-badge" aria-hidden>
+          +
+        </span>
+      ) : null}
+    </h4>
+  )
 }
 
 function triggerHaptic() {
@@ -31,15 +57,19 @@ export function SoloFocusJourneyNav({
   currentCardId,
   onNavigateEntry,
   availableJourneyIds,
+  isUnreadCard,
   className = '',
 }: SoloFocusJourneyNavProps) {
-  const useWallRing = Boolean(navRing?.length && currentCardId && onNavigateEntry)
+  const resolvedCardId = (currentCardId?.trim() || `journey-${journeyId}`).trim()
+  const useWallRing = Boolean(navRing?.length && onNavigateEntry)
   const wallNeighbors = useWallRing
-    ? soloFocusNavNeighbors(currentCardId!, navRing!)
+    ? soloFocusNavNeighbors(resolvedCardId, navRing!, journeyId)
     : null
   const journeyNeighbors = soloFocusJourneyNeighbors(journeyId, availableJourneyIds)
   const prevLabel = wallNeighbors?.prevLabel ?? journeyNeighbors.prevLabel
   const nextLabel = wallNeighbors?.nextLabel ?? journeyNeighbors.nextLabel
+  const prevLabelKind = wallNeighbors?.prev.kind ?? 'journey'
+  const nextLabelKind = wallNeighbors?.next.kind ?? 'journey'
   const isInset = className.includes('solo-focus-journey-nav--inset')
 
   return (
@@ -47,6 +77,7 @@ export function SoloFocusJourneyNav({
       className={`solo-focus-journey-nav${isInset ? '' : ' solo-focus-nav-container'} ${className}`.trim()}
       aria-label="Journey navigation"
     >
+      {/* Left = earlier in wall ring (advanceNavRingIndex −1). Right = next cell (+1). */}
       <button
         type="button"
         className="solo-focus-journey-nav__btn solo-focus-journey-nav__btn--prev"
@@ -58,10 +89,21 @@ export function SoloFocusJourneyNav({
           }
           onNavigate(journeyNeighbors.prev)
         }}
-        aria-label={`Previous: ${prevLabel}`}
+        aria-label={`Previous wall card: ${prevLabel}`}
       >
         <BackArrowDownLeft size={18} className="solo-focus-journey-nav__arrow solo-focus-journey-nav__arrow--prev" />
-        <h4 className="solo-focus-journey-nav__label nav-label">{prevLabel}</h4>
+        {wallNeighbors ? (
+          <NavDestinationLabel
+            label={prevLabel}
+            kind={prevLabelKind}
+            cardId={wallNeighbors.prev.cardId}
+            isUnreadCard={isUnreadCard}
+          />
+        ) : (
+          <h4 className={`solo-focus-journey-nav__label nav-label solo-focus-journey-nav__label--${prevLabelKind}`}>
+            {prevLabel}
+          </h4>
+        )}
       </button>
       <button
         type="button"
@@ -74,9 +116,20 @@ export function SoloFocusJourneyNav({
           }
           onNavigate(journeyNeighbors.next)
         }}
-        aria-label={`Next: ${nextLabel}`}
+        aria-label={`Next wall card: ${nextLabel}`}
       >
-        <h4 className="solo-focus-journey-nav__label nav-label">{nextLabel}</h4>
+        {wallNeighbors ? (
+          <NavDestinationLabel
+            label={nextLabel}
+            kind={nextLabelKind}
+            cardId={wallNeighbors.next.cardId}
+            isUnreadCard={isUnreadCard}
+          />
+        ) : (
+          <h4 className={`solo-focus-journey-nav__label nav-label solo-focus-journey-nav__label--${nextLabelKind}`}>
+            {nextLabel}
+          </h4>
+        )}
         <BackArrowDownLeft size={18} className="solo-focus-journey-nav__arrow solo-focus-journey-nav__arrow--next" />
       </button>
     </nav>
