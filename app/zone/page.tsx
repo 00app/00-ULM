@@ -2125,6 +2125,11 @@ export default function ZonePage() {
     })
   }, [rockVisibleHabits, rockOfferByJourney, viewModel])
 
+  const zoneSignupTipSlugs = useMemo(
+    () => rockHabitsWithOffers.slice(0, 6).map((h) => h.slug),
+    [rockHabitsWithOffers]
+  )
+
   const zoneSignupTips = useMemo(
     (): SignupSmsItem[] =>
       rockHabitsWithOffers.slice(0, 6).map((h) => {
@@ -2992,6 +2997,7 @@ export default function ZonePage() {
           <>
             <RockMobileSignupCard
               tips={zoneSignupTips}
+              tipSlugs={zoneSignupTipSlugs}
               recommendations={zoneSignupRecommendations}
               userName={signupFirstName}
             />

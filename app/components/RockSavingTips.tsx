@@ -17,6 +17,7 @@ const ROCK_CARD_BG = 'var(--color-pink)' as const
 const ROCK_CARD_TEXT = 'var(--color-yellow)' as const
 
 const PROFILE_MOBILE_LS = 'zz_profile_mobile'
+const PROFILE_SMS_OPT_IN_LS = 'zz_profile_sms_opt_in'
 
 const INSTAGRAM_HREF =
   process.env.NEXT_PUBLIC_INSTAGRAM_URL?.trim() || 'https://www.instagram.com/percyzerozero/'
@@ -51,6 +52,7 @@ export function RockMobileSignupCard({
   userName?: string
 }) {
   const [mobile, setMobile] = useState('')
+  const [smsOptIn, setSmsOptIn] = useState(false)
   const [signupBusy, setSignupBusy] = useState(false)
   const [signupMsg, setSignupMsg] = useState<string | null>(null)
 
@@ -58,6 +60,17 @@ export function RockMobileSignupCard({
     try {
       const saved = localStorage.getItem(PROFILE_MOBILE_LS)
       if (saved) setMobile(saved)
+      setSmsOptIn(localStorage.getItem(PROFILE_SMS_OPT_IN_LS) === '1')
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const persistSmsOptIn = useCallback((next: boolean) => {
+    setSmsOptIn(next)
+    try {
+      if (next) localStorage.setItem(PROFILE_SMS_OPT_IN_LS, '1')
+      else localStorage.removeItem(PROFILE_SMS_OPT_IN_LS)
     } catch {
       /* ignore */
     }
@@ -65,7 +78,7 @@ export function RockMobileSignupCard({
 
   const submitMobile = useCallback(async () => {
     const raw = mobile.trim()
-    if (!raw || signupBusy) return
+    if (!raw || signupBusy || !smsOptIn) return
     setSignupBusy(true)
     setSignupMsg(null)
     try {
@@ -75,6 +88,7 @@ export function RockMobileSignupCard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mobile: raw,
+          sms_opt_in: true,
           ...(userName?.trim() ? { userName: userName.trim() } : {}),
           ...(tips?.length ? { tips: [...tips] } : {}),
           ...(tipSlugs?.length ? { tipSlugs: [...tipSlugs] } : {}),
@@ -86,10 +100,15 @@ export function RockMobileSignupCard({
         error?: string
         persisted?: boolean
         mobile?: string
+        welcome?: { sent?: boolean }
         sms?: { sent?: boolean; tipCount?: number; reason?: string; detail?: string }
       } | null
       if (res.status === 401) {
         setSignupMsg('complete your profile first — then we can text you your zone tips.')
+        return
+      }
+      if (res.status === 400 && data?.sms?.reason === 'opt_in_required') {
+        setSignupMsg('tick daily tips to receive texts.')
         return
       }
       if (!res.ok || !data?.ok) {
@@ -111,10 +130,15 @@ export function RockMobileSignupCard({
         /* ignore */
       }
       const smsSent = data.sms?.sent === true
+      const welcomeSent = data.welcome?.sent === true
       setSignupMsg(
         smsSent
-          ? "text sent — check your phone for today's tips and recommendations."
-          : 'saved — we will reach you on this number when SMS is ready.',
+          ? welcomeSent
+            ? "welcome text sent — check your phone for today's tips and recommendations."
+            : "text sent — check your phone for today's tips and recommendations."
+          : welcomeSent
+            ? 'welcome text sent — tips SMS will follow when ready.'
+            : 'saved — we will reach you on this number when SMS is ready.',
       )
       setMobile('')
     } catch {
@@ -122,7 +146,7 @@ export function RockMobileSignupCard({
     } finally {
       setSignupBusy(false)
     }
-  }, [mobile, signupBusy, tips, tipSlugs, recommendations, userName])
+  }, [mobile, signupBusy, smsOptIn, tips, tipSlugs, recommendations, userName])
 
   return (
     <div className="zone-rock-signup-wrap w-full box-border" aria-label="Mobile signup">
@@ -140,6 +164,18 @@ export function RockMobileSignupCard({
         <p className="zz-body m-0 mt-1" style={{ color: ROCK_CARD_TEXT, opacity: 0.92 }}>
           for tips and new offer drops
         </p>
+        <label className="rock-mobile-opt-in-row">
+          <input
+            type="checkbox"
+            className="rock-mobile-opt-in-checkbox"
+            checked={smsOptIn}
+            onChange={(e) => persistSmsOptIn(e.target.checked)}
+            aria-label="Opt in to daily tips and offers by text message"
+          />
+          <span className="rock-mobile-opt-in-label zz-body m-0">
+            text me daily tips &amp; offers (reply STOP anytime)
+          </span>
+        </label>
         <div className="rock-mobile-row">
           <InputField
             type="tel"
@@ -153,7 +189,7 @@ export function RockMobileSignupCard({
           <button
             type="button"
             className="rock-mobile-go-btn"
-            disabled={!mobile.trim() || signupBusy}
+            disabled={!mobile.trim() || !smsOptIn || signupBusy}
             onClick={() => void submitMobile()}
             aria-label="Save mobile number"
           >

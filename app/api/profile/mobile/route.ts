@@ -8,6 +8,7 @@ import {
   type SignupZoneSmsInput,
   normalizeSmsUrl,
 } from '@/lib/messaging/signupZoneSms'
+import { sendMobileWelcomeSms } from '@/lib/messaging/welcomeSms'
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
@@ -67,21 +68,24 @@ function parseSignupItems(raw: unknown, max = 6): SignupSmsItem[] | undefined {
   return out.length ? out : undefined
 }
 
-function parseSignupPayload(body: unknown): SignupZoneSmsInput {
-  if (typeof body !== 'object' || body === null) return {}
+function parseSignupPayload(body: unknown): SignupZoneSmsInput & { smsOptIn: boolean } {
+  if (typeof body !== 'object' || body === null) return { smsOptIn: false }
   const o = body as Record<string, unknown>
   const tips = parseSignupItems(o.tips)
   const recommendations = parseSignupItems(o.recommendations)
+  const smsOptIn = o.sms_opt_in === true || o.smsOptIn === true
   return {
     tipSlugs: parseStringArray(o.tipSlugs, 6),
     tips,
     recommendations: recommendations ?? parseStringArray(o.recommendations, 6),
     userName: typeof o.userName === 'string' ? o.userName.trim() : undefined,
+    smsOptIn,
   }
 }
 
 /**
- * POST { mobile, tips?, recommendations?, userName? } — signed-in users only; save mobile + send SMS.
+ * POST { mobile, sms_opt_in, tips?, recommendations?, userName? } — signed-in users only.
+ * SMS sends only when sms_opt_in is true (explicit PECR consent).
  */
 export async function POST(req: Request) {
   let body: unknown
@@ -100,6 +104,13 @@ export async function POST(req: Request) {
   }
 
   const payload = parseSignupPayload(body)
+  if (!payload.smsOptIn) {
+    return NextResponse.json(
+      { error: 'sms opt-in required', sms: { sent: false, reason: 'opt_in_required' } },
+      { status: 400 }
+    )
+  }
+
   const session = await getSessionFromRequest()
   if (!session?.userId) {
     return NextResponse.json({ error: 'Sign in to save your number and receive SMS' }, { status: 401 })
@@ -131,27 +142,27 @@ export async function POST(req: Request) {
   }
 
   let userName = payload.userName
+  let isNewOrChangedMobile = true
 
   try {
-      const row = await pool.query<{ mobile_sms_opt_in: boolean; name: string | null }>(
-        `SELECT mobile_sms_opt_in, name FROM users WHERE id = $1::uuid`,
+      const row = await pool.query<{
+        mobile_sms_opt_in: boolean
+        name: string | null
+        mobile: string | null
+      }>(
+        `SELECT mobile_sms_opt_in, name, mobile FROM users WHERE id = $1::uuid`,
         [session.userId]
       )
-      if (row.rows[0]?.mobile_sms_opt_in === false) {
-        return NextResponse.json({
-          ok: true,
-          persisted: true,
-          mobile,
-          sms: { sent: false, reason: 'opted_out' },
-        })
-      }
       if (!userName && row.rows[0]?.name?.trim()) {
         userName = row.rows[0].name!.trim()
       }
 
+      const previousMobile = row.rows[0]?.mobile?.trim() ?? ''
+      isNewOrChangedMobile = !previousMobile || previousMobile !== mobile
+
       await pool.query(
-        `UPDATE users SET mobile = $1, mobile_sms_opt_in = true WHERE id = $2::uuid`,
-        [mobile, session.userId]
+        `UPDATE users SET mobile = $1, mobile_sms_opt_in = $2 WHERE id = $3::uuid`,
+        [mobile, payload.smsOptIn, session.userId]
       )
   } catch (e) {
     console.error('[profile/mobile]', e)
@@ -168,11 +179,21 @@ export async function POST(req: Request) {
     })
   }
 
+  let welcomeSent = false
+  if (isNewOrChangedMobile) {
+    const welcome = await sendMobileWelcomeSms(mobile)
+    welcomeSent = welcome.ok
+    if (!welcome.ok) {
+      console.warn('[profile/mobile] welcome SMS failed:', welcome.reason, welcome.detail)
+    }
+  }
+
   const sms = await sendSignupZoneSms(mobile, { ...payload, userName })
   return NextResponse.json({
     ok: true,
     persisted: true,
     mobile,
+    welcome: { sent: welcomeSent },
     sms: sms.ok
       ? {
           sent: true,
