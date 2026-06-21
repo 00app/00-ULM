@@ -37,6 +37,6 @@ while IFS= read -r url; do
   if vercel remove "$url" --yes 2>/dev/null; then
     removed=$((removed + 1))
   fi
-done < <(echo "$list" | awk '/https:\\/\\/00-/{print $2}' | head -20)
+done < <(echo "$list" | grep -oE 'https://00-[^[:space:]]+' | head -20)
 
 echo "→ Pruned ${removed} failed/stale deployment(s)"
