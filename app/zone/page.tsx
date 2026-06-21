@@ -163,7 +163,7 @@ import {
   type ZoneEngineStatus,
 } from '@/lib/zone/engineHydration'
 import { ROCK_BY_SLUG, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/lib/rock/habitsCatalog'
-import { resolveJourneyCardUrl, type SignupSmsItem } from '@/lib/messaging/signupZoneSms'
+import { resolveJourneyCardUrl, type SignupSmsItem } from '@/lib/messaging/signupZoneSmsShared'
 import { replaceRockSlotAfterLike } from '@/lib/rock/rotation'
 import { useRockVisibleHabits } from '@/lib/rock/useRockVisibleHabits'
 import { utcDayIndex } from '@/lib/rock/rotation'

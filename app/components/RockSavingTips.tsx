@@ -10,7 +10,7 @@ import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { clampRockTipHeadline } from '@/lib/soloFocusCopy'
-import type { SignupSmsItem } from '@/lib/messaging/signupZoneSms'
+import type { SignupSmsItem } from '@/lib/messaging/signupZoneSmsShared'
 
 /** Industrial lock: Tips/settings are pink base with yellow items. */
 const ROCK_CARD_BG = 'var(--color-pink)' as const

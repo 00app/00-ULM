@@ -2,53 +2,18 @@ import type { RockHabit } from '@/lib/rock/types'
 import { sendTwilioSms, type SendSmsResult } from '@/lib/messaging/twilioClient'
 import { pickRockTipsForSms } from '@/lib/messaging/pickRockTipsForSms'
 import { clampRockTipHeadline } from '@/lib/soloFocusCopy'
-import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
-import { trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
+import { resolveRockHabitLearnUrl } from '@/lib/rock/resolveRockHabitLearnUrl'
+import {
+  normalizeSmsUrl,
+  type SignupSmsItem,
+  type SignupZoneSmsInput,
+} from '@/lib/messaging/signupZoneSmsShared'
+
+export type { SignupSmsItem, SignupZoneSmsInput } from '@/lib/messaging/signupZoneSmsShared'
+export { normalizeSmsUrl, resolveJourneyCardUrl } from '@/lib/messaging/signupZoneSmsShared'
 
 const SMS_MAX = 1600
 const SMS_RULE = '------------------'
-
-export type SignupSmsItem = {
-  title: string
-  url?: string
-  gbp?: number
-}
-
-export type SignupZoneSmsInput = {
-  userName?: string
-  /** Legacy slug list — used when `tips` omitted. */
-  tipSlugs?: string[]
-  tips?: SignupSmsItem[]
-  recommendations?: Array<string | SignupSmsItem>
-}
-
-export function normalizeSmsUrl(raw: string | undefined | null): string | undefined {
-  const u = raw?.trim()
-  if (!u?.startsWith('https://')) return undefined
-  return u
-}
-
-/** Best https offer/source URL from a journey mother tile. */
-export function resolveJourneyCardUrl(item: {
-  cta?: { url?: string }
-  claimOfferUrl?: string
-  partner_link?: string
-  actions?: { actionUrl?: string; learnUrl?: string }
-  source?: string
-}): string | undefined {
-  for (const raw of [
-    item.cta?.url,
-    item.claimOfferUrl,
-    item.partner_link,
-    item.actions?.actionUrl,
-    item.actions?.learnUrl,
-    item.source,
-  ]) {
-    const url = normalizeSmsUrl(raw)
-    if (url) return url
-  }
-  return undefined
-}
 
 function firstName(raw: string | undefined): string {
   const trimmed = (raw ?? '').trim()
@@ -61,9 +26,7 @@ function cleanLine(raw: string): string {
 }
 
 function rockTipUrl(h: RockHabit): string | undefined {
-  const raw = (h.learn_url?.trim() || trustedUrlForJourney(h.journey_key) || '').trim()
-  if (!raw) return undefined
-  return normalizeSmsUrl(sanitizeZoneOfferUrl(raw, h.journey_key) ?? raw)
+  return normalizeSmsUrl(resolveRockHabitLearnUrl(h))
 }
 
 function normalizeRecommendations(raw: SignupZoneSmsInput['recommendations']): SignupSmsItem[] {
