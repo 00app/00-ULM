@@ -56,6 +56,8 @@ export async function pollMechanicalDiagnostics(params: {
   const pc = (params.scrapePostcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
   const outward = pc.length >= 4 ? outwardPostcode(pc) : ''
 
+  let dbConnected = params.dbConnected
+  let dbHealthHint = params.dbHealthHint?.trim() || null
   let apiGemini = false
   let apiFirecrawl = false
   let skipFirecrawl = false
@@ -71,27 +73,49 @@ export async function pollMechanicalDiagnostics(params: {
 
   try {
     const res = await fetch('/api/health', { cache: 'no-store', credentials: 'include' })
-    if (res.ok) {
-      const h = (await res.json()) as { providers?: HealthProviders; latencyMs?: number }
+    const h = (await res.json().catch(() => null)) as {
+      status?: string
+      database?: string
+      error?: string
+      hint?: string
+      providers?: HealthProviders
+      latencyMs?: number
+    } | null
+    if (res.ok && h?.status === 'ok' && h.database === 'connected') {
+      dbConnected = true
+      dbHealthHint = null
+    } else if (h?.database === 'not_configured') {
+      dbConnected = false
+      dbHealthHint =
+        typeof h.hint === 'string' && h.hint.trim()
+          ? h.hint.trim()
+          : 'DATABASE_URL not configured — run vercel pull and copy to .env.local'
+    } else if (!res.ok) {
+      dbConnected = false
+      dbHealthHint =
+        typeof h?.error === 'string' && h.error.trim()
+          ? h.error.trim()
+          : `GET /api/health → HTTP ${res.status}`
+    }
+    if (h?.providers) {
       const p = h.providers
-      if (p) {
-        apiGemini = Boolean(p.gemini)
-        apiFirecrawl = Boolean(p.firecrawl)
-        skipFirecrawl = Boolean(p.skipFirecrawl)
-        firecrawlEnv =
-          typeof p.firecrawlEnv === 'string' && p.firecrawlEnv.trim() ? p.firecrawlEnv.trim() : null
-        if (typeof p.geminiZoneModel === 'string' && p.geminiZoneModel.trim()) {
-          geminiZoneModel = p.geminiZoneModel.trim()
-        }
-        bucketFailover = Boolean(p.bucketFailover)
-        researchForceDirect = p.researchForceDirectGemini !== false
+      apiGemini = Boolean(p.gemini)
+      apiFirecrawl = Boolean(p.firecrawl)
+      skipFirecrawl = Boolean(p.skipFirecrawl)
+      firecrawlEnv =
+        typeof p.firecrawlEnv === 'string' && p.firecrawlEnv.trim() ? p.firecrawlEnv.trim() : null
+      if (typeof p.geminiZoneModel === 'string' && p.geminiZoneModel.trim()) {
+        geminiZoneModel = p.geminiZoneModel.trim()
       }
-      if (typeof h.latencyMs === 'number' && Number.isFinite(h.latencyMs)) {
-        dbLatencyMs = h.latencyMs
-      }
+      bucketFailover = Boolean(p.bucketFailover)
+      researchForceDirect = p.researchForceDirectGemini !== false
+    }
+    if (typeof h?.latencyMs === 'number' && Number.isFinite(h.latencyMs)) {
+      dbLatencyMs = h.latencyMs
     }
   } catch {
-    /* non-blocking */
+    dbConnected = false
+    dbHealthHint = dbHealthHint ?? 'Network error calling /api/health'
   }
 
   try {
@@ -122,7 +146,8 @@ export async function pollMechanicalDiagnostics(params: {
       if (typeof d.dbLatencyMs === 'number' && Number.isFinite(d.dbLatencyMs)) {
         dbLatencyMs = d.dbLatencyMs
       }
-      if (d.neon === false) params = { ...params, dbConnected: false }
+      if (d.neon === true) dbConnected = true
+      if (d.neon === false) dbConnected = false
       if (typeof d.lastResearchScrapedAt === 'string' && d.lastResearchScrapedAt.trim()) {
         lastResearchScrapedAt = d.lastResearchScrapedAt.trim()
       }
@@ -188,9 +213,9 @@ export async function pollMechanicalDiagnostics(params: {
   const injectReady = covRows.some((c) => c.insightReady && c.hasOffer)
   const categoriesReady = covRows.filter((c) => c.insightReady).length
 
-  const neonDetail = params.dbConnected
+  const neonDetail = dbConnected
     ? `${neonRegionLabel()}${dbLatencyMs != null ? ` · ${Math.round(dbLatencyMs)}ms` : ''}`
-    : params.dbHealthHint?.trim() || 'GET /api/health failed'
+    : dbHealthHint ?? 'GET /api/health failed'
 
   const geminiDetail = apiGemini
     ? `${geminiZoneModel} · GEMINI_API_KEY set`
@@ -243,7 +268,7 @@ export async function pollMechanicalDiagnostics(params: {
     {
       id: 'neon',
       component: 'NEON DATABASE',
-      ok: params.dbConnected,
+      ok: dbConnected,
       detail: neonDetail,
     },
     {

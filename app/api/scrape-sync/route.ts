@@ -33,6 +33,7 @@ import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { getLatestResearchUnitRates } from '@/lib/db/neon'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 import { normaliseVisitedJourneyKeys, resolveGuestSessionId } from '@/lib/zone/guestSession'
+import { compactUkPostcode, sqlResearchPostcodeMatches } from '@/lib/zone/researchPostcodeSql'
 import {
   applyScrapeSyncTriggerFlags,
   scrapeSyncAuthDeniedResponse,
@@ -271,7 +272,7 @@ async function loadVisitedJourneyKeys(
 async function loadResearchCategoryCoverageByPostcode(
   postcode: string
 ): Promise<Record<string, ResearchCategoryCoverageRow>> {
-  const pc = postcode.replace(/\s+/g, '').toUpperCase()
+  const pc = compactUkPostcode(postcode)
   if (pc.length < 4) return {}
   try {
     const cov = await pool.query<{
@@ -286,7 +287,7 @@ async function loadResearchCategoryCoverageByPostcode(
     }>(
       `${RESEARCH_COVERAGE_SELECT}
        FROM research_results rr
-       WHERE REPLACE(COALESCE(rr.postcode, ''), ' ', '') = $1
+       WHERE ${sqlResearchPostcodeMatches('rr.postcode', 1)}
          AND rr.category IS NOT NULL AND btrim(rr.category) <> ''
        ORDER BY lower(trim(rr.category)), rr.created_at DESC NULLS LAST`,
       [pc]
@@ -302,7 +303,7 @@ async function buildScrapedFromResearchResults(
   postcode: string,
   userId: string | null
 ): Promise<ScrapedPayloadItem[] | null> {
-  const pc = postcode.replace(/\s+/g, '').toUpperCase()
+  const pc = compactUkPostcode(postcode)
   if (pc.length < 4) return null
   const toNum = (v: unknown): number => {
     if (v == null) return 0
@@ -321,12 +322,12 @@ async function buildScrapedFromResearchResults(
       userId
         ? `${RESEARCH_COVERAGE_SELECT}
            FROM research_results rr
-           WHERE (rr.user_id = $1::uuid OR REPLACE(COALESCE(rr.postcode, ''), ' ', '') = $2)
+           WHERE (rr.user_id = $1::uuid OR ${sqlResearchPostcodeMatches('rr.postcode', 2)})
              AND rr.category IS NOT NULL AND btrim(rr.category) <> ''
            ORDER BY lower(trim(rr.category)), rr.created_at DESC NULLS LAST`
         : `${RESEARCH_COVERAGE_SELECT}
            FROM research_results rr
-           WHERE REPLACE(COALESCE(rr.postcode, ''), ' ', '') = $1
+           WHERE ${sqlResearchPostcodeMatches('rr.postcode', 1)}
              AND rr.category IS NOT NULL AND btrim(rr.category) <> ''
            ORDER BY lower(trim(rr.category)), rr.created_at DESC NULLS LAST`,
       userId ? [userId, pc] : [pc]
@@ -636,10 +637,10 @@ export async function GET(request: NextRequest) {
           `SELECT ${selectCols}
            FROM research_results
            WHERE user_id = $1::uuid
-              OR REPLACE(COALESCE(postcode, ''), ' ', '') = $2
+              OR ${sqlResearchPostcodeMatches('postcode', 2)}
            ORDER BY created_at DESC NULLS LAST
            LIMIT 1`,
-          [researchUserId, postcode]
+          [researchUserId, compactUkPostcode(postcode)]
         )
         researchMetaRow = byUserOrPc.rows?.[0]
       } else if (researchUserId) {
@@ -657,10 +658,10 @@ export async function GET(request: NextRequest) {
         const byPc = await pool.query(
           `SELECT ${selectCols}
            FROM research_results
-           WHERE REPLACE(COALESCE(postcode, ''), ' ', '') = $1
+           WHERE ${sqlResearchPostcodeMatches('postcode', 1)}
            ORDER BY created_at DESC NULLS LAST
            LIMIT 1`,
-          [postcode]
+          [compactUkPostcode(postcode)]
         )
         researchMetaRow = byPc.rows?.[0]
       }
