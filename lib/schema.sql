@@ -34,6 +34,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS employment_status TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS user_genome JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile_sms_opt_in BOOLEAN NOT NULL DEFAULT true;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
 
 -- =========================

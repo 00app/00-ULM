@@ -37,7 +37,7 @@ Distilled from the June 2026 product review (`claude/forked-project-review-9naqz
 | Session prose variety | Done | `lib/zone/sessionProseLedger.ts` |
 | Buy-link previews | Open | `IndustrialHandoffButton`, `offerUrlGuard.ts` |
 | Likes fragmentation | Open | `AppContext` vs local snapshots |
-| Mobile signup no-op | Open | `app/api/profile/mobile/route.ts` |
+| Mobile signup + Today's Tips SMS | **Done** — rail slugs → `rockTipSms`, `users.mobile` + `mobile_sms_opt_in`, STOP/START webhook | `RockMobileSignupCard`, `lib/messaging/*`, migration `020` |
 
 ## Phase 2 — Projects workspace
 

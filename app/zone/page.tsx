@@ -123,6 +123,7 @@ import {
 import {
   MAX_ZONE_CARD_HEADLINE_WORDS,
   clampZoneBentoHeadline,
+  clampRockTipHeadline,
   formatZoneCategoryLabel,
   normalizeCardHeadlineKey,
   resolveZoneGridTipHeadline,
@@ -162,6 +163,7 @@ import {
   type ZoneEngineStatus,
 } from '@/lib/zone/engineHydration'
 import { ROCK_BY_SLUG, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/lib/rock/habitsCatalog'
+import { resolveJourneyCardUrl, type SignupSmsItem } from '@/lib/messaging/signupZoneSms'
 import { replaceRockSlotAfterLike } from '@/lib/rock/rotation'
 import { useRockVisibleHabits } from '@/lib/rock/useRockVisibleHabits'
 import { utcDayIndex } from '@/lib/rock/rotation'
@@ -2123,6 +2125,37 @@ export default function ZonePage() {
     })
   }, [rockVisibleHabits, rockOfferByJourney, viewModel])
 
+  const zoneSignupTips = useMemo(
+    (): SignupSmsItem[] =>
+      rockHabitsWithOffers.slice(0, 6).map((h) => {
+        const card = habitToTipCard(h)
+        return {
+          title: clampRockTipHeadline(h.title).replace(/\.$/, ''),
+          url: card.source ?? card.actions?.learnUrl ?? card.partner_link,
+          gbp: Math.max(0, Math.round(h.money_gbp)),
+        }
+      }),
+    [rockHabitsWithOffers]
+  )
+
+  const zoneSignupRecommendations = useMemo(
+    (): SignupSmsItem[] =>
+      displayItems
+        .filter((c): c is GroovyItem & { type: 'journey' } => c.type === 'journey')
+        .map((c) => ({
+          title: c.item.title?.trim() ?? '',
+          url: resolveJourneyCardUrl(c.item),
+        }))
+        .filter((r) => r.title)
+        .slice(0, 6),
+    [displayItems]
+  )
+
+  const signupFirstName = useMemo(() => {
+    const raw = state.profile?.name?.trim() ?? ''
+    return raw.split(/\s+/)[0] ?? undefined
+  }, [state.profile?.name])
+
   const resolveZoneTipById = useCallback(
     (id: string) => {
       const fromPools =
@@ -2498,7 +2531,7 @@ export default function ZonePage() {
               initial="hidden"
               animate="visible"
             >
-              personalised tips
+              recommendations
             </motion.h3>
           ) : null}
           <motion.div
@@ -2957,7 +2990,11 @@ export default function ZonePage() {
 
         {!expandedCardId && !expandedTipId && !patternShiftJourneyId ? (
           <>
-            <RockMobileSignupCard />
+            <RockMobileSignupCard
+              tips={zoneSignupTips}
+              recommendations={zoneSignupRecommendations}
+              userName={signupFirstName}
+            />
             <Footer showReset className="site-footer--zone" />
           </>
         ) : null}
@@ -3040,11 +3077,13 @@ export default function ZonePage() {
                 carbonValue={tip.data.carbon || '0 KG CO₂'}
                 offerUrl={offerUrl}
                 sourceUrl={
-                  tipCov?.latestOfferUrl?.trim().startsWith('http')
-                    ? tipCov.latestOfferUrl.trim()
-                    : tipCov?.latestSourceUrl?.trim().startsWith('http')
-                      ? tipCov.latestSourceUrl.trim()
-                      : tip.source || tip.actions?.learnUrl
+                  isRockTip
+                    ? tip.source || tip.actions?.learnUrl || partnerFirst || undefined
+                    : tipCov?.latestOfferUrl?.trim().startsWith('http')
+                      ? tipCov.latestOfferUrl.trim()
+                      : tipCov?.latestSourceUrl?.trim().startsWith('http')
+                        ? tipCov.latestSourceUrl.trim()
+                        : tip.source || tip.actions?.learnUrl
                 }
                 sourceLabel={tip.sourceLabel}
                 architectSuppliedBy={tip.architectSuppliedBy}

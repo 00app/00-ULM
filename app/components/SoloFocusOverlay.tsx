@@ -399,6 +399,7 @@ export function SoloFocusOverlay({
     }
   }
   const partnerHttp = pickFirstHttpUrl(partnerLink ?? undefined)
+  const isRockHabitTip = String(cardId ?? activeCardId ?? '').startsWith('rock-')
   const covLookupKey = focusCategoryJourneyId
   const journeyResearchCov =
     covLookupKey && researchCategoryCoverage ? researchCategoryCoverage[covLookupKey] : undefined
@@ -406,13 +407,13 @@ export function SoloFocusOverlay({
     journeyId: normalizeCategoryToJourneyKey(journeyId ?? 'home'),
   })
   const covOfferHttp =
-    journeyResearchCov?.latestOfferUrl?.trim().startsWith('http')
-      ? journeyResearchCov.latestOfferUrl.trim()
-      : ''
+    isRockHabitTip || !journeyResearchCov?.latestOfferUrl?.trim().startsWith('http')
+      ? ''
+      : journeyResearchCov.latestOfferUrl.trim()
   const covSourceHttp =
-    journeyResearchCov?.latestSourceUrl?.trim().startsWith('http')
-      ? journeyResearchCov.latestSourceUrl.trim()
-      : ''
+    isRockHabitTip || !journeyResearchCov?.latestSourceUrl?.trim().startsWith('http')
+      ? ''
+      : journeyResearchCov.latestSourceUrl.trim()
   const liveDiscoveryUrl =
     [
       covSourceHttp,
@@ -442,14 +443,15 @@ export function SoloFocusOverlay({
     return `/zai?${params.toString()}`
   }
   /** `/zai` only when there is no `research_results` row for this category; otherwise prefer HTTP source / offer. */
-  const allowZaiFallback =
-    researchCategoryCoverage === undefined || researchCategoryCoverage === null
+  const allowZaiFallback = isRockHabitTip
+    ? false
+    : researchCategoryCoverage === undefined || researchCategoryCoverage === null
       ? true
       : journeyResearchCov == null
   const soloHandoff = resolveSoloFocusHandoffUrls({
     journeyKey: String(displayJourneyId || journeyId || 'home'),
-    coverageOfferUrl: journeyResearchCov?.latestOfferUrl,
-    coverageSourceUrl: journeyResearchCov?.latestSourceUrl,
+    coverageOfferUrl: isRockHabitTip ? null : journeyResearchCov?.latestOfferUrl,
+    coverageSourceUrl: isRockHabitTip ? null : journeyResearchCov?.latestSourceUrl,
     fallbackOfferUrl: pickPrimaryHttpUrl(offerUrl, liveDiscoveryUrl, partnerHttp),
     fallbackSourceUrl: pickPrimaryHttpUrl(sourceUrl, covSourceHttp),
     buildZaiUrl: () => (allowZaiFallback ? buildZaiAuditUrl() : ''),
@@ -465,7 +467,6 @@ export function SoloFocusOverlay({
           String(displayTitle || displayRecommendation || title).trim() ||
           displayRecommendation
   const isZoneMotherChild = !startInQuestionMode
-  const isRockHabitTip = String(cardId ?? activeCardId ?? '').startsWith('rock-')
   const overlayFocusJourney = normalizeCategoryToJourneyKey(String(displayJourneyId ?? journeyId ?? 'home'))
   const recommendationTitle = isRockHabitTip
     ? headlineFromRockHabit(
@@ -531,8 +532,9 @@ export function SoloFocusOverlay({
       ? preSplitAuditor.slice(0, 3).join('\n\n')
       : (insightDisplay || '').trim() || rawInsight)
   const insightParaSource =
-    typeof window !== 'undefined' && insightParaSourceBase.trim()
-      ? applySessionProseVariety(insightParaSourceBase, {
+    isRockHabitTip || typeof window === 'undefined' || !insightParaSourceBase.trim()
+      ? insightParaSourceBase
+      : applySessionProseVariety(insightParaSourceBase, {
           cardId: cardId ?? activeCardId ?? undefined,
           journeyId: (displayJourneyId ?? journeyId ?? 'home') as JourneyId,
           headline: recommendationTitle,
@@ -542,7 +544,6 @@ export function SoloFocusOverlay({
           sourceDisplayName: handoffAttribution.sourceDisplayName,
           auditHeaderLocality: state.locationState?.locationName ?? undefined,
         })
-      : insightParaSourceBase
   const soloFocusCardId = cardId ?? activeCardId ?? (journeyId ? `journey-${journeyId}` : '')
   const showMotherComputing =
     !overlayResearchSettled && researchCategoryCoverage != null

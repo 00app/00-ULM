@@ -1099,12 +1099,26 @@ export function clampRockTipHeadline(title: string): string {
 export function headlineFromRockHabit(title: string, insight?: string): string {
   const t = stripExpandedCardTitleNoise(cleanZonePreviewHeadline(title) || title).trim()
   let combined = prepareZoneHeadlineSource(t) || t
-  if (splitHeadlineWords(combined).length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && insight?.trim()) {
-    combined = trimHeadlineToMaxWords(
-      `${combined}. ${insight.trim().replace(/\s+/g, ' ')}`,
-      MAX_EXPANDED_VIEW_HEADLINE_WORDS,
-      2
-    )
+  const insightTrim = insight?.trim().replace(/\s+/g, ' ') ?? ''
+  if (insightTrim && splitHeadlineWords(combined).length < MIN_EXPANDED_VIEW_HEADLINE_WORDS) {
+    const titleKey = compactAlnumKey(combined)
+    const insightKey = compactAlnumKey(insightTrim)
+    const insightRepeatsTitle =
+      (titleKey.length >= 8 && insightKey.includes(titleKey)) ||
+      insightTrim.toLowerCase().startsWith(combined.toLowerCase())
+    if (insightRepeatsTitle) {
+      combined = trimHeadlineToMaxWords(
+        insightTrim,
+        MAX_EXPANDED_VIEW_HEADLINE_WORDS,
+        MIN_EXPANDED_VIEW_HEADLINE_WORDS
+      )
+    } else {
+      combined = trimHeadlineToMaxWords(
+        `${combined}. ${insightTrim}`,
+        MAX_EXPANDED_VIEW_HEADLINE_WORDS,
+        2
+      )
+    }
   }
   return enforceHeadlineWordLimits(combined, true, undefined)
 }

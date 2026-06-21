@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import pool from '@/lib/db'
 import { readTwilioConfig } from '@/lib/messaging/twilioConfig'
 import { validateTwilioWebhook } from '@/lib/messaging/twilioClient'
 import { sendMobileStartSms, sendMobileStopSms, twilioWebhookUrl } from '@/lib/messaging/welcomeSms'
+import { normalizeE164 } from '@/lib/messaging/twilioConfig'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -63,14 +65,26 @@ export async function POST(req: NextRequest) {
 
   const from = params.From?.trim() ?? ''
   const body = (params.Body ?? '').trim().toUpperCase()
+  const fromE164 = from ? normalizeE164(from) : null
+
+  async function setOptIn(optIn: boolean) {
+    if (!fromE164) return
+    try {
+      await pool.query(`UPDATE users SET mobile_sms_opt_in = $1 WHERE mobile = $2`, [optIn, fromE164])
+    } catch (e) {
+      console.error('[twilio/webhook] opt-in update', e)
+    }
+  }
 
   if (body === 'STOP' || body === 'UNSUBSCRIBE' || body === 'CANCEL') {
     if (from) void sendMobileStopSms(from)
+    void setOptIn(false)
     return twiml()
   }
 
   if (body === 'START' || body === 'UNSTOP') {
     if (from) void sendMobileStartSms(from)
+    void setOptIn(true)
     return twiml()
   }
 

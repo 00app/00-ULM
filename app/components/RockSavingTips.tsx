@@ -10,6 +10,7 @@ import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { clampRockTipHeadline } from '@/lib/soloFocusCopy'
+import type { SignupSmsItem } from '@/lib/messaging/signupZoneSms'
 
 /** Industrial lock: Tips/settings are pink base with yellow items. */
 const ROCK_CARD_BG = 'var(--color-pink)' as const
@@ -38,7 +39,17 @@ function InstagramGlyph({ className }: { className?: string }) {
 }
 
 /** Mobile signup — static shell; hover only on input + Go button. */
-export function RockMobileSignupCard() {
+export function RockMobileSignupCard({
+  tips,
+  tipSlugs,
+  recommendations,
+  userName,
+}: {
+  tips?: readonly SignupSmsItem[]
+  tipSlugs?: readonly string[]
+  recommendations?: readonly SignupSmsItem[]
+  userName?: string
+}) {
   const [mobile, setMobile] = useState('')
   const [signupBusy, setSignupBusy] = useState(false)
   const [signupMsg, setSignupMsg] = useState<string | null>(null)
@@ -62,16 +73,27 @@ export function RockMobileSignupCard() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mobile: raw }),
+        body: JSON.stringify({
+          mobile: raw,
+          ...(userName?.trim() ? { userName: userName.trim() } : {}),
+          ...(tips?.length ? { tips: [...tips] } : {}),
+          ...(tipSlugs?.length ? { tipSlugs: [...tipSlugs] } : {}),
+          ...(recommendations?.length ? { recommendations: [...recommendations] } : {}),
+        }),
       })
       const data = (await res.json().catch(() => null)) as {
         ok?: boolean
         error?: string
         persisted?: boolean
         mobile?: string
+        sms?: { sent?: boolean; tipCount?: number; reason?: string; detail?: string }
       } | null
       if (!res.ok || !data?.ok) {
         setSignupMsg(data?.error === 'invalid mobile number' ? 'check your mobile number' : 'something went wrong — try again')
+        return
+      }
+      if (data.sms?.reason === 'opted_out') {
+        setSignupMsg('this number opted out — text START to the zero zero number to rejoin.')
         return
       }
       const canonical = typeof data.mobile === 'string' ? data.mobile : raw
@@ -80,10 +102,13 @@ export function RockMobileSignupCard() {
       } catch {
         /* ignore */
       }
+      const smsSent = data.sms?.sent === true
       setSignupMsg(
-        data.persisted
-          ? "saved — we'll reach you on this number."
-          : 'saved on this device. Sign in to sync to your profile.',
+        smsSent
+          ? "text sent — check your phone for today's tips and recommendations."
+          : data.persisted
+            ? "saved — we'll reach you on this number."
+            : 'saved on this device. Sign in to sync to your profile.',
       )
       setMobile('')
     } catch {
@@ -91,7 +116,7 @@ export function RockMobileSignupCard() {
     } finally {
       setSignupBusy(false)
     }
-  }, [mobile, signupBusy])
+  }, [mobile, signupBusy, tips, tipSlugs, recommendations, userName])
 
   return (
     <div className="zone-rock-signup-wrap w-full box-border" aria-label="Mobile signup">

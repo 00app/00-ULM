@@ -5,7 +5,7 @@
  * narrative in `lib/brains/constants.ts` (`MARCH_2026_ECONOMY` unit rates, `TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP`, grid intensity 129 g/kWh).
  */
 import type { RockHabit } from '@/lib/rock/types'
-import { trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
+import { resolveRockHabitLearnUrl } from '@/lib/rock/resolveRockHabitLearnUrl'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 import { defaultVerifiedArchitectSuppliedBy } from '@/lib/soloFocusSuppliedBy'
@@ -586,11 +586,9 @@ if (ROCK_HABITS.length !== ROCK_HABIT_COUNT) {
   console.warn(`[Rock] Expected ${ROCK_HABIT_COUNT} habits, got ${ROCK_HABITS.length}`)
 }
 
-/** Every habit gets a trusted https offer when catalog omits `learn_url`. */
+/** Every habit gets a topic-aligned https offer when catalog omits `learn_url`. */
 for (const habit of ROCK_HABITS) {
-  if (!habit.learn_url?.trim()) {
-    habit.learn_url = trustedUrlForJourney(habit.journey_key)
-  }
+  habit.learn_url = resolveRockHabitLearnUrl(habit)
 }
 
 export const ROCK_BY_SLUG = new Map(ROCK_HABITS.map((h) => [h.slug, h]))

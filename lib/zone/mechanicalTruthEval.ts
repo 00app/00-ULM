@@ -9,6 +9,13 @@ import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { UK_2026_MONEY_LEAD } from '@/lib/scraper/uk2026Defaults'
 import type { ScrapedDataPoint } from '@/lib/scraper/sources'
 import { buildZoneViewModel } from '@/lib/zone/buildZoneViewModel'
+import { ROCK_HABITS } from '@/lib/rock/habitsCatalog'
+import {
+  habitTopicConflictsWithOfferUrl,
+  resolveRockHabitLearnUrl,
+  rockHabitProviderMatchesUrl,
+} from '@/lib/rock/resolveRockHabitLearnUrl'
+import { headlineFromRockHabit } from '@/lib/soloFocusCopy'
 import { computingJourneyTitle, journeyHasStreamData } from '@/lib/zone/mechanicalTruth'
 
 export type MechanicalTruthEvalResult = {
@@ -183,6 +190,36 @@ function assertScrapedPositiveMoneyIsStream(failures: string[]): void {
   }
 }
 
+function assertRockHabitOfferAlignment(failures: string[]): void {
+  for (const habit of ROCK_HABITS) {
+    const url = resolveRockHabitLearnUrl(habit)
+    if (!url.startsWith('https://')) {
+      failures.push(`Rock habit ${habit.slug}: offer URL must be https (got ${url})`)
+    }
+    if (habitTopicConflictsWithOfferUrl(habit, url)) {
+      failures.push(`Rock habit ${habit.slug}: offer URL topic conflicts with habit copy (${url})`)
+    }
+    if (!rockHabitProviderMatchesUrl(habit, url)) {
+      failures.push(
+        `Rock habit ${habit.slug}: provider "${habit.provider_name}" does not match offer host (${url})`
+      )
+    }
+  }
+
+  const ebike = ROCK_HABITS.find((h) => h.slug === 'e-bike-scheme')
+  if (ebike) {
+    const url = resolveRockHabitLearnUrl(ebike)
+    if (/eurostar/i.test(url)) {
+      failures.push('e-bike-scheme must not resolve to Eurostar')
+    }
+    const headline = headlineFromRockHabit(ebike.title, ebike.insight)
+    const dup = headline.toLowerCase().match(/e-?bike\s+schemes/gi)
+    if (dup && dup.length > 1) {
+      failures.push(`e-bike-scheme headline must not duplicate title tokens (got "${headline}")`)
+    }
+  }
+}
+
 /** Run all mechanical-truth checks. Pure — safe in CI without DB. */
 export function runMechanicalTruthEval(): MechanicalTruthEvalResult {
   const failures: string[] = []
@@ -197,5 +234,6 @@ export function runMechanicalTruthEval(): MechanicalTruthEvalResult {
   assertAllJourneysOnWall(failures)
   assertUk2026ScrapedShapeNotStream(failures)
   assertScrapedPositiveMoneyIsStream(failures)
+  assertRockHabitOfferAlignment(failures)
   return { ok: failures.length === 0, failures }
 }

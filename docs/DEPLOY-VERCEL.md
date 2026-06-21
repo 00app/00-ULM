@@ -87,6 +87,39 @@ npm run hermes:repair-pulse
 
 `hermes:repair-pulse` needs **`/api/cron/repair-mechanical`** on the promoted deployment (included in builds after the Ulm/Hermes commit).
 
+## 7. Twilio SMS (Rock mobile signup)
+
+Set on **Vercel → Project 00-ulm → Environment Variables → Production + Preview** (server-only — never `NEXT_PUBLIC_*` for secrets):
+
+| Variable | Value | Notes |
+| --- | --- | --- |
+| `TWILIO_ACCOUNT_SID` | Live `AC…` | **Live** credentials tab — not Test |
+| `TWILIO_AUTH_TOKEN` | Live auth token | Rotate if pasted in chat; never commit |
+| `TWILIO_PHONE_NUMBER` | `+447576569100` | Twilio **from** number only |
+| `NEXT_PUBLIC_APP_URL` | `https://www.00-00.online` | Webhook base; must match console |
+
+**Do not** add user personal mobiles to Vercel — those land in Neon (`users.mobile`) when saved via **`POST /api/profile/mobile`**.
+
+**Do not** use Twilio **Test** credentials (`ACc6…` / test auth token) in Vercel — those are for Twilio magic test numbers, not production SMS.
+
+**Twilio console (Messaging on `+447576569100`):**
+
+- **A message comes in** → Webhook → `https://www.00-00.online/api/webhooks/twilio` → HTTP POST
+- **Primary handler fails** → same URL (optional)
+
+Or from repo root after env is set: `npm run twilio:configure-webhook`
+
+**Smoke (after promote):**
+
+```bash
+npm run twilio:ping
+```
+
+- **Inbound:** text `STOP` from your phone to the Twilio FROM number
+- **Outbound:** save mobile on Today's Tips rail (signed-in) or `POST /api/profile/mobile`
+
+**Trial account note:** Your account is still on Twilio **Trial** until upgraded. Outbound SMS to signup mobiles requires a **paid/upgraded** account — Verified Caller IDs are not part of app config (remove any personal test numbers from that page if you are going live).
+
 ## Local proof (before you trust Vercel checks)
 
 ```bash

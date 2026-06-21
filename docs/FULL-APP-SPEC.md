@@ -251,7 +251,28 @@ flowchart LR
 | `/api/local-intelligence` | POST | Postcode → council, ward, carbon context, grant hints |
 | `/api/geocode/postcode` | GET | Server Nominatim proxy → locality name |
 
-### 6.2 Zone hydration
+### 6.2 Twilio SMS (Rock mobile signup)
+
+| API | Method | Role | Auth |
+|-----|--------|------|------|
+| `/api/profile/mobile` | POST | Save E.164 mobile; send **Today's Tips** SMS (up to 3 rail slugs) when Twilio ready | session optional (guest ok) |
+| `/api/webhooks/twilio` | POST | Inbound STOP / START / delivery status; persists `mobile_sms_opt_in` on `users` | Twilio webhook |
+
+**Signup SMS copy:** `lib/messaging/signupZoneSms.ts` — Hello + Today's tips (Rock rail) + Recommendations (journey mother titles from Zone).
+
+**UI entry:** `RockMobileSignupCard` below Today's Tips → passes visible habit slugs.
+
+**Env (Vercel Production + Preview, and `.env.local` for dev):** `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`. Optional: `TWILIO_WEBHOOK_URL`, `TWILIO_MESSAGING_ENABLED=0`.
+
+**DB:** `users.mobile` · `users.mobile_sms_opt_in` (default `true`; STOP sets `false`). Migration: `db/migrations/020_users_mobile_sms_opt_in.sql`.
+
+**Hermes:** not involved — signup SMS is synchronous on `POST /api/profile/mobile`. Hermes only triggers weekly research repair (`/api/cron/zone-research`).
+
+**Not in env:** User personal mobiles — Neon `users.mobile` per account. **Live FROM:** `+447576569100` only in `TWILIO_PHONE_NUMBER`. Use **Live** credentials in Vercel (not Test). Upgrade Twilio off Trial for outbound to any signup mobile.
+
+**Code:** `lib/messaging/twilioConfig.ts` · `lib/messaging/twilioClient.ts` · `lib/messaging/outboundGate.ts` · `app/api/webhooks/twilio/route.ts`
+
+### 6.3 Zone hydration
 
 | API | Method | Role |
 |-----|--------|------|
@@ -262,7 +283,7 @@ flowchart LR
 
 **Auth for POST scrape-sync:** Bearer `CRON_SECRET` / `SCRAPER_SECRET`, session, or **postcode + valid `user_id`**.
 
-### 6.3 Answer loop (canonical discovery birth)
+### 6.4 Answer loop (canonical discovery birth)
 
 | API | Method | Role |
 |-----|--------|------|
@@ -273,7 +294,7 @@ flowchart LR
 
 **Handler:** `app/api/answers/route.ts`
 
-### 6.4 Supplemental (capped)
+### 6.5 Supplemental (capped)
 
 | API | Role |
 |-----|------|
@@ -286,7 +307,7 @@ flowchart LR
 
 **Cap:** `MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = **3** per user per journey (`lib/intelligence/manifest.ts`).
 
-### 6.5 Scheduled and operations
+### 6.6 Scheduled and operations
 
 | API | Role |
 |-----|------|
@@ -294,7 +315,7 @@ flowchart LR
 | `/api/health` | DB ping; `?live=1` for liveness only |
 | `/api/health/diagnostics` | Neon / Gemini / Firecrawl booleans; session or Bearer gate |
 
-### 6.6 Chat and misc
+### 6.7 Chat and misc
 
 | API | Role |
 |-----|------|
@@ -304,7 +325,7 @@ flowchart LR
 | `/api/likes`, `/api/actioned` | Saved / actioned cards |
 | `/api/reset` | Session / cache reset |
 
-### 6.7 CORS rule
+### 6.8 CORS rule
 
 The browser must **not** call Ofgem or Nominatim directly. Use `/api/pulse/living`, `/api/geocode/postcode`, `/api/scrape-sync` only.
 
@@ -671,7 +692,12 @@ flowchart TB
 | `CRON_SECRET` | Hermes cron, diagnostics gate | Min 16 chars |
 | `SCRAPER_SECRET` | Optional scrape triggers | |
 | `GATEWAY_TOKEN` | Internal inject/pulse webhooks | |
-| `NEXT_PUBLIC_APP_URL` | Client URL hints | |
+| `NEXT_PUBLIC_APP_URL` | Client URL hints + Twilio webhook base | Must match production domain (`https://www.00-00.online`) |
+| `TWILIO_ACCOUNT_SID` | Outbound SMS + webhook auth | Server-only; Vercel Production + Preview |
+| `TWILIO_AUTH_TOKEN` | Twilio API + signature validation | Server-only; rotate if exposed |
+| `TWILIO_PHONE_NUMBER` | SMS **from** number (E.164) | Not user handsets — Twilio-owned number only |
+| `TWILIO_WEBHOOK_URL` | Optional full webhook URL override | Default: `{NEXT_PUBLIC_APP_URL}/api/webhooks/twilio` |
+| `TWILIO_MESSAGING_ENABLED` | Optional kill switch | `0` disables sends; credentials may stay loaded |
 
 See `.env.example`. Never commit `.env.local`.
 
@@ -685,6 +711,8 @@ npm run db:test              # Neon connectivity
 npm run db:columns           # column listing
 npm run db:evolve-13-domains # journey_questions for all 13 keys
 bash scripts/verify-env-and-health.sh
+npm run twilio:ping          # Twilio credentials (no SMS)
+npm run twilio:configure-webhook  # point FROM number at /api/webhooks/twilio
 ```
 
 **Honest empty Zone:**
@@ -725,6 +753,7 @@ curl -sS "https://www.00-00.online/api/health"
 | Neon DB | `lib/db/neon.ts` |
 | Manifest | `lib/intelligence/manifest.ts` |
 | Animations | `lib/animations.ts` |
+| Twilio SMS | `lib/messaging/welcomeSms.ts`, `app/api/webhooks/twilio/route.ts`, `app/api/profile/mobile/route.ts` |
 
 ---
 
@@ -739,4 +768,4 @@ npm run deploy:force       # vercel deploy --prod (scripts/deploy-production.sh)
 
 ---
 
-*Last updated: 2026-05-30 — 13-domain calc engine fix (shopping/money/carbon answer key alignment, holidays £0 floor, Zai-voice explanation rewrites). For motion and product rules, see `.cursor/rules/zero-zero-prime-directive.mdc` and [HANDBOOK.md](HANDBOOK.md).*
+*Last updated: 2026-05-26 — Twilio SMS (Rock mobile signup, webhook, Vercel env). Prior: 2026-05-30 calc engine fix. For motion and product rules, see `.cursor/rules/zero-zero-prime-directive.mdc` and [HANDBOOK.md](HANDBOOK.md).*
