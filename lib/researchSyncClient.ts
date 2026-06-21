@@ -3,6 +3,7 @@ import type { ResearchProfileData } from '@/lib/agents/researchAgent'
 import { isAcceptableZoneJourneyHeadline } from '@/lib/soloFocusCopy'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { isCardVisited } from '@/lib/zone/visitedCards'
+import { resolveOnboardingResearchJourneys } from '@/lib/zone/onboardingResearchBootstrap'
 
 const SESSION_USER_UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -120,6 +121,113 @@ export function triggerScrapeSyncForCategory(params: {
   }).catch(() => {
     /* non-blocking */
   })
+}
+
+const ONBOARDING_JIT_STORAGE_KEY = 'zz_onboarding_jit_journeys'
+
+function readOnboardingJitTriggered(): Set<string> {
+  if (typeof window === 'undefined') return new Set()
+  try {
+    const raw = sessionStorage.getItem(ONBOARDING_JIT_STORAGE_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.map((v) => String(v).trim().toLowerCase()).filter(Boolean))
+  } catch {
+    return new Set()
+  }
+}
+
+function markOnboardingJitTriggered(journeyKey: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    const set = readOnboardingJitTriggered()
+    set.add(journeyKey.trim().toLowerCase())
+    sessionStorage.setItem(ONBOARDING_JIT_STORAGE_KEY, JSON.stringify([...set]))
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Profile-complete + summary-exit seed — capped goal-aligned JIT scrapes (home, utilities, +2).
+ * Dedupes within the browser session so profile submit + summary handshake do not double-fire.
+ */
+export function triggerOnboardingResearchBootstrap(params: {
+  postcode: string | null | undefined
+  profileData?: ResearchProfileData | null
+  dedupe?: boolean
+}): void {
+  if (!browserCanTriggerScrapeSync()) return
+
+  const pc = String(params.postcode ?? '')
+    .replace(/\s+/g, '')
+    .trim()
+    .toUpperCase()
+  if (pc.length < 4) return
+
+  const profileData = params.profileData ?? undefined
+  const journeys = resolveOnboardingResearchJourneys({
+    goal: profileData?.goal ?? profileData?.primary_goal,
+    home_power: profileData?.home_power,
+  })
+  const triggered = params.dedupe === false ? new Set<string>() : readOnboardingJitTriggered()
+
+  for (const journeyKey of journeys) {
+    if (triggered.has(journeyKey)) continue
+    markOnboardingJitTriggered(journeyKey)
+    triggerScrapeSyncForCategory({
+      postcode: pc,
+      category: journeyKey,
+      profileData,
+    })
+  }
+}
+
+/** Summary exit handshake — GET coverage, optional tips refresh, capped onboarding JIT. */
+export async function runProfileResearchHandshake(params: {
+  postcode: string
+  profileData?: ResearchProfileData | null
+  signal?: AbortSignal
+  includeTipsRefresh?: boolean
+}): Promise<void> {
+  const pc = params.postcode.replace(/\s+/g, '').trim().toUpperCase()
+  if (pc.length < 4) return
+
+  const requests: Promise<Response | void>[] = [
+    fetch(`/api/scrape-sync?postcode=${encodeURIComponent(pc)}`, {
+      credentials: 'include',
+      signal: params.signal,
+    }).catch(() => undefined),
+  ]
+
+  if (params.includeTipsRefresh !== false) {
+    const { isAiRouteBlockedClient, markAiRouteBlockedFromStatus } = await import(
+      '@/lib/intelligence/aiRouteClientGuard'
+    )
+    if (!isAiRouteBlockedClient()) {
+      requests.push(
+        fetch('/api/zone/tips-refresh', {
+          method: 'POST',
+          credentials: 'include',
+          signal: params.signal,
+        })
+          .then((r) => {
+            markAiRouteBlockedFromStatus(r.status)
+            return r
+          })
+          .catch(() => undefined)
+      )
+    }
+  }
+
+  triggerOnboardingResearchBootstrap({
+    postcode: pc,
+    profileData: params.profileData,
+    dedupe: true,
+  })
+
+  await Promise.allSettled(requests)
 }
 
 /** Tier 2 scoped refresh — GET with category + answer (see `fetchTier2ScrapeSync`). */

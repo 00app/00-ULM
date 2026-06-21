@@ -113,6 +113,7 @@ export type DynamicResearchProfileRow = {
   household_income_bracket?: string | null
   primary_goal?: string | null
   home_power?: string | null
+  house_number?: string | null
   user_genome?: Record<string, unknown> | null
   goal?: string | null
 }
@@ -182,6 +183,9 @@ function normalizeDynamicResearchProfile(
       readStringProfileField(profileRow, ['home_power', 'homePower', 'profile_home_power']) ??
       readStringProfileField(usersRow, ['home_power', 'homePower', 'profile_home_power']) ??
       readHomePowerFromGenome(userGenome),
+    house_number:
+      readStringProfileField(profileRow, ['house_number', 'houseNumber']) ??
+      readStringProfileField(userGenome, ['house_number', 'houseNumber']),
     user_genome: userGenome,
   }
 }

@@ -23,9 +23,10 @@ import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import { persistProfileLocality, prefetchProfileLocalityForHandoff, resolveProfileLocalityForPostcode } from '@/lib/geocode/resolvePostcodeLocality'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
-import { persistHomePowerFromProfile, profileHomePowerToEnergyType } from '@/lib/profile/homePower'
+import { persistHomePowerFromProfile } from '@/lib/profile/homePower'
 import { syncSessionState } from '@/lib/sessionStateSync'
-import { browserCanTriggerScrapeSync } from '@/lib/researchSyncClient'
+import { browserCanTriggerScrapeSync, triggerOnboardingResearchBootstrap, triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
+import { buildResearchProfilePayload } from '@/lib/profile/buildResearchProfilePayload'
 import { mapEpcPropertyTypeToHomeTypeHint } from '@/lib/epc/mapEpcToProfileHints'
 import { flushSync } from 'react-dom'
 
@@ -388,38 +389,21 @@ export default function ProfilePageClient() {
     const pc = (profilePostcodeField ?? '').replace(/\s+/g, '').trim().toUpperCase()
     if (pc.length < 4) return
     const tid = window.setTimeout(() => {
+      if (!browserCanTriggerScrapeSync()) return
       const profileGoal = profileGoalField?.trim() || readStoredProfileGoal()
-      const profileData = {
-        home_type: profileHomeTypeField ?? undefined,
-        home_power: profilePowerTypeField?.trim().toUpperCase() || undefined,
-        heating: profileHomePowerToEnergyType(profilePowerTypeField) || undefined,
-        transport_baseline: profileTransportField ?? undefined,
-        household: profileLivingSituationField ?? undefined,
-        employment_status: profileEmploymentStatusField ?? undefined,
-        goal: profileGoal || undefined,
-        primary_goal: profileGoal || undefined,
-        house_number: profileHouseNumberField?.trim() || undefined,
-      }
-      const scrapeBody = {
-        trigger: true,
+      const profileData = buildResearchProfilePayload({
         postcode: pc,
-        profileData,
-      }
-      if (browserCanTriggerScrapeSync()) {
-        void fetch('/api/scrape-sync', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...scrapeBody, category: 'home' }),
-        }).catch(() => {})
-        if (profilePowerTypeField?.trim()) {
-          void fetch('/api/scrape-sync', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...scrapeBody, category: 'utilities' }),
-          }).catch(() => {})
-        }
+        homeType: profileHomeTypeField,
+        powerType: profilePowerTypeField,
+        transport: profileTransportField,
+        livingSituation: profileLivingSituationField,
+        employmentStatus: profileEmploymentStatusField,
+        houseNumber: profileHouseNumberField,
+        goal: profileGoal,
+      })
+      triggerScrapeSyncForCategory({ postcode: pc, category: 'home', profileData })
+      if (profilePowerTypeField?.trim()) {
+        triggerScrapeSyncForCategory({ postcode: pc, category: 'utilities', profileData })
       }
     }, 400)
     return () => window.clearTimeout(tid)
@@ -486,7 +470,68 @@ export default function ProfilePageClient() {
       refreshProfile()
       if (typeof window !== 'undefined') {
         void (async () => {
-          const pc = (mergedValues.postcode ?? '').replace(/\s+/g, '').trim()
+          const pc = (mergedValues.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
+          const payload = {
+            name: mergedValues.name ?? '',
+            postcode: mergedValues.postcode ?? '',
+            household: mergedValues.livingSituation ?? '',
+            home_type: mergedValues.homeType ?? '',
+            transport: mergedValues.transport ?? '',
+            age_group: (mergedValues.age as ProfileAge) ?? undefined,
+            employment_status: mergedValues.employmentStatus ?? undefined,
+            goal: mergedValues.goal ?? undefined,
+            house_number: mergedValues.houseNumber?.trim() || undefined,
+            home_power: mergedValues.powerType?.trim() || undefined,
+          }
+          const profileData = buildResearchProfilePayload(mergedValues, { postcode: pc })
+
+          try {
+            const res = await createUser(payload)
+            const userId = res?.user?.id ?? res?.id
+            if (userId) {
+              localStorage.setItem('userId', String(userId))
+              localStorage.setItem('user_id', String(userId))
+              if (typeof res?.restore_proof === 'string' && res.restore_proof.trim()) {
+                localStorage.setItem('zz_session_restore_proof', res.restore_proof.trim())
+              }
+            }
+            refreshProfile()
+            const location = res?.location
+            if (location && typeof location.council === 'string') {
+              const local: LocalIntelligence = {
+                council: location.council,
+                region: typeof location.region === 'string' ? location.region : location.council,
+                localCarbonG: typeof location.localCarbonG === 'number' ? location.localCarbonG : undefined,
+                ward: typeof location.ward === 'string' ? location.ward : undefined,
+                locality: typeof location.locality === 'string' ? location.locality : undefined,
+                outcode: typeof location.outcode === 'string' ? location.outcode : undefined,
+                country: typeof location.country === 'string' ? location.country : undefined,
+              }
+              const locationName = formatLocationDisplayName(local, mergedValues.postcode ?? '')
+              if (locationName) {
+                persistProfileLocality(mergedValues.postcode ?? '', locationName)
+                setLocationState({ locationName, local })
+              }
+            }
+            try {
+              persistUnifiedUserProfileMemory()
+            } catch {
+              // ignore
+            }
+            void import('@/lib/sessionStateSync').then((m) => m.syncSessionState())
+
+            if (pc.length >= 4) {
+              triggerOnboardingResearchBootstrap({ postcode: pc, profileData, dedupe: true })
+            }
+          } catch {
+            refreshProfile()
+            try {
+              persistUnifiedUserProfileMemory()
+            } catch {
+              // ignore
+            }
+          }
+
           if (pc.length >= 4) {
             try {
               await Promise.race([
@@ -503,8 +548,12 @@ export default function ProfilePageClient() {
               /* offline — summary will retry */
             }
           }
+
           window.location.assign(dest)
-        })()
+        })().finally(() => {
+          submittingRef.current = false
+          setIsSubmitting(false)
+        })
         return
       }
       router.replace(dest)
@@ -518,6 +567,8 @@ export default function ProfilePageClient() {
         age_group: (mergedValues.age as ProfileAge) ?? undefined,
         employment_status: mergedValues.employmentStatus ?? undefined,
         goal: mergedValues.goal ?? undefined,
+        house_number: mergedValues.houseNumber?.trim() || undefined,
+        home_power: mergedValues.powerType?.trim() || undefined,
       }
 
       void createUser(payload)

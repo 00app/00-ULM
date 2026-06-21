@@ -52,6 +52,18 @@ export async function POST(request: NextRequest) {
     const employment_status =
       empIn === 'EMPLOYED' || empIn === 'SELF_EMPLOYED' || empIn === 'UNEMPLOYED' ? empIn : null
 
+    const houseNumber =
+      typeof body?.house_number === 'string' ? body.house_number.trim().slice(0, 32) : ''
+    const homePowerRaw =
+      typeof body?.home_power === 'string' ? body.home_power.trim().toUpperCase().slice(0, 16) : ''
+    const home_power =
+      homePowerRaw === 'GAS' ||
+      homePowerRaw === 'ELECTRIC' ||
+      homePowerRaw === 'MIX' ||
+      homePowerRaw === 'OTHER'
+        ? homePowerRaw
+        : null
+
     const raw = {
       name: typeof body?.name === 'string' ? body.name.trim().slice(0, 200) : '',
       postcode: typeof body?.postcode === 'string' ? body.postcode.replace(/\s+/g, '').trim().slice(0, 20) : '',
@@ -87,6 +99,8 @@ export async function POST(request: NextRequest) {
     if (profile_goal) genomeObj.profile_goal = profile_goal
     if (primary_goal) genomeObj.primary_goal = primary_goal
     if (household_income_bracket) genomeObj.household_income_bracket = household_income_bracket
+    if (houseNumber) genomeObj.house_number = houseNumber
+    if (home_power) genomeObj.home_power = home_power
     const genome = JSON.stringify(genomeObj)
 
     const insertParams = [

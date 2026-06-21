@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp, readLocationStateFromStorage } from '@/app/context/AppContext'
-import { browserCanTriggerScrapeSync } from '@/lib/researchSyncClient'
+import { runProfileResearchHandshake } from '@/lib/researchSyncClient'
+import { buildResearchProfileFromStorage } from '@/lib/profile/buildResearchProfilePayload'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import { syncFallbackGridIntensityGPerKwh } from '@/lib/brains/liveGridCarbonFactor'
@@ -30,10 +31,6 @@ import { INDUSTRIAL_OPACITY_SNAP, soloFocusSlamMotionProps } from '@/lib/animati
 import { AtomicLogo } from '@/app/components/Logo'
 import { preloadAppFonts } from '@/lib/architecturalPulse'
 import { SESSION_SUMMARY_TO_ZONE } from '@/lib/architecturalPulse'
-import {
-  isAiRouteBlockedClient,
-  markAiRouteBlockedFromStatus,
-} from '@/lib/intelligence/aiRouteClientGuard'
 
 const REDIRECT_NO_PROFILE_MS = 1800
 const PAGE_EXIT_NAV_MS = 550
@@ -488,51 +485,16 @@ export default function ProfileSummaryPage() {
       .toUpperCase()
     if (pc.length < 4) return
 
-    const profileFromStorage = getProfileFromStorage()
+    const profileData = buildResearchProfileFromStorage({ postcode: pc })
     const handshakeAbort = new AbortController()
     const handshakeAbortTimer = window.setTimeout(() => handshakeAbort.abort(), 8000)
     handshakePromiseRef.current = (async () => {
       try {
-        const requests = [
-          fetch(`/api/scrape-sync?postcode=${encodeURIComponent(pc)}`, {
-            credentials: 'include',
-            signal: handshakeAbort.signal,
-          }),
-        ]
-        if (!isAiRouteBlockedClient()) {
-          requests.push(
-            fetch('/api/zone/tips-refresh', {
-              method: 'POST',
-              credentials: 'include',
-              signal: handshakeAbort.signal,
-            }).then((r) => {
-              markAiRouteBlockedFromStatus(r.status)
-              return r
-            })
-          )
-        }
-        if (browserCanTriggerScrapeSync()) {
-          requests.unshift(
-            fetch('/api/scrape-sync', {
-              method: 'POST',
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/json' },
-              signal: handshakeAbort.signal,
-              body: JSON.stringify({
-                trigger: true,
-                postcode: pc,
-                category: 'home',
-                profileData: {
-                  home_type: profileFromStorage?.homeType ?? undefined,
-                  transport_baseline: profileFromStorage?.transport ?? undefined,
-                  household: profileFromStorage?.livingSituation ?? undefined,
-                  goal: profileFromStorage?.goal ?? undefined,
-                },
-              }),
-            })
-          )
-        }
-        await Promise.allSettled(requests)
+        await runProfileResearchHandshake({
+          postcode: pc,
+          profileData,
+          signal: handshakeAbort.signal,
+        })
       } finally {
         window.clearTimeout(handshakeAbortTimer)
       }

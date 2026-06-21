@@ -10,6 +10,8 @@ export async function createUser(profile: {
   employment_status?: string
   /** `money` | `carbon` | `balanced` — stored in `users.user_genome.profile_goal`. */
   goal?: string
+  house_number?: string
+  home_power?: string
 }) {
   const response = await fetch('/api/user', {
     method: 'POST',

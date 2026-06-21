@@ -83,6 +83,7 @@ function buildSessionResearchProfileData(
       ? { employment_status: session.employment_status }
       : {}),
     ...(session?.home_power ? { home_power: session.home_power } : {}),
+    ...(session?.house_number ? { house_number: session.house_number } : {}),
     ...(session?.goal ? { goal: session.goal } : {}),
     ...(session?.primary_goal ? { primary_goal: session.primary_goal } : {}),
     ...(opts?.postcode ? { postcode: opts.postcode } : {}),

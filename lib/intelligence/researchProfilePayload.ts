@@ -19,6 +19,7 @@ export type LocalizedProfileInput = {
   household_size?: string | null
   goal?: string | null
   primary_goal?: string | null
+  house_number?: string | null
 }
 
 const GENERIC_UK_RESEARCH_SEEDS = [
@@ -104,6 +105,7 @@ export function buildLocalizedResearchPrefix(params: {
   const p = params.profileData
   if (p?.home_type) lines.push(`home_type: ${p.home_type}`)
   if (p?.home_power) lines.push(`home_power: ${p.home_power}`)
+  if (p?.house_number) lines.push(`house_number: ${p.house_number}`)
   if (p?.household) lines.push(`household: ${p.household}`)
   if (p?.transport_baseline) lines.push(`transport_baseline: ${p.transport_baseline}`)
   if (p?.heating) lines.push(`heating: ${p.heating}`)
