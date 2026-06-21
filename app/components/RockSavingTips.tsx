@@ -88,8 +88,16 @@ export function RockMobileSignupCard({
         mobile?: string
         sms?: { sent?: boolean; tipCount?: number; reason?: string; detail?: string }
       } | null
+      if (res.status === 401) {
+        setSignupMsg('complete your profile first — then we can text you your zone tips.')
+        return
+      }
       if (!res.ok || !data?.ok) {
-        setSignupMsg(data?.error === 'invalid mobile number' ? 'check your mobile number' : 'something went wrong — try again')
+        setSignupMsg(
+          data?.error === 'invalid mobile number'
+            ? 'check your mobile number'
+            : data?.error?.trim() || 'something went wrong — try again'
+        )
         return
       }
       if (data.sms?.reason === 'opted_out') {
@@ -106,9 +114,7 @@ export function RockMobileSignupCard({
       setSignupMsg(
         smsSent
           ? "text sent — check your phone for today's tips and recommendations."
-          : data.persisted
-            ? "saved — we'll reach you on this number."
-            : 'saved on this device. Sign in to sync to your profile.',
+          : 'saved — we will reach you on this number when SMS is ready.',
       )
       setMobile('')
     } catch {

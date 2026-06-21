@@ -12,4 +12,4 @@ if (!ok) {
   process.exit(1)
 }
 
-console.log('[mechanical-truth] OK — 12 checks passed')
+console.log('[mechanical-truth] OK — 13 checks passed')

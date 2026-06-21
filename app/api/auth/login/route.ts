@@ -6,6 +6,8 @@ import { createSession, setSessionCookieOnResponse } from '@/lib/auth'
 import { checkLoginRateLimit, getClientIp, recordLoginAttempt } from '@/lib/rateLimit'
 import bcrypt from 'bcryptjs'
 
+import { withRestoreProof } from '@/lib/sessionRestoreProof'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     recordLoginAttempt(ip, emailTrim, true)
     const token = await createSession(user.id)
-    const res = NextResponse.json({ user_id: user.id })
+    const res = NextResponse.json(withRestoreProof({ user_id: user.id }, user.id))
     setSessionCookieOnResponse(res, token)
     return res
   } catch (error) {

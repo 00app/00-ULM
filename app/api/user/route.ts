@@ -5,6 +5,7 @@ import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { mirrorUlmGenomeToUserProfiles } from '@/lib/db/userProfilesMirror'
 import { mapProfileGoalToPrimaryGoal } from '@/lib/zone/affluenceCheck'
+import { withRestoreProof } from '@/lib/sessionRestoreProof'
 
 export const dynamic = 'force-dynamic'
 
@@ -129,7 +130,9 @@ export async function POST(request: NextRequest) {
       goal: profile_goal ?? undefined,
     })
     const token = await createSession(user.id, PROFILE_ONLY_SESSION_DAYS)
-    const res = NextResponse.json({ id: user.id, user, location: local ?? undefined })
+    const res = NextResponse.json(
+      withRestoreProof({ id: user.id, user, location: local ?? undefined }, String(user.id))
+    )
     setSessionCookieOnResponse(res, token, PROFILE_ONLY_SESSION_DAYS * 24 * 60 * 60)
     return res
   } catch (error: unknown) {

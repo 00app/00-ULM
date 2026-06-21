@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get('x-twilio-signature')
   const url = twilioWebhookUrl()
 
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' || cfg.authToken) {
     const valid = validateTwilioWebhook(cfg.authToken, signature, url, params)
     if (!valid) {
       return NextResponse.json({ error: 'invalid signature' }, { status: 403 })

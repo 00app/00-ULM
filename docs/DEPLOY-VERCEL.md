@@ -151,3 +151,11 @@ If `researchAgent.ts` is on `main`, also push in the **same commit**:
 - `lib/journeys.ts` (`getSoloFocusQuestions`)
 
 Commit **verify + build green locally**, then push the full set — not `zone/page.tsx` alone.
+
+## Security go-live checklist
+
+1. **Rotate secrets** if ever pasted in chat or committed: `TWILIO_AUTH_TOKEN`, `CRON_SECRET`, `GATEWAY_TOKEN`, `SESSION_SECRET` (Vercel → Environment Variables → Production, then redeploy).
+2. **Upstash Redis** — set `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` so login/signup/SMS rate limits apply globally (not per serverless instance).
+3. **Neon migration** — `npm run db:apply-pending` or `psql "$DATABASE_URL" -f db/migrations/020_users_mobile_sms_opt_in.sql` before SMS signup.
+4. **Twilio webhook** — `npm run twilio:configure-webhook` with `NEXT_PUBLIC_APP_URL=https://www.00-00.online`.
+5. **Session restore** — production requires `restore_proof` (HMAC from `SESSION_SECRET`); issued on profile create / login / signup. Users who only have old `userId` in localStorage must complete profile again once after deploy.

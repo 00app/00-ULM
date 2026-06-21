@@ -8,8 +8,13 @@ import {
   type SignupZoneSmsInput,
   normalizeSmsUrl,
 } from '@/lib/messaging/signupZoneSms'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
+
+/** Per-minute caps (distributed when UPSTASH_REDIS_* is set). */
+const MOBILE_SMS_MAX_PER_IP = 3
+const MOBILE_SMS_MAX_PER_NUMBER = 2
 
 /** Normalise UK/international mobiles to E.164 (+digits). */
 function normalizeMobile(input: string): string | null {
@@ -76,7 +81,7 @@ function parseSignupPayload(body: unknown): SignupZoneSmsInput {
 }
 
 /**
- * POST { mobile, tips?, recommendations?, userName? } — save mobile; send Zone signup SMS with URLs.
+ * POST { mobile, tips?, recommendations?, userName? } — signed-in users only; save mobile + send SMS.
  */
 export async function POST(req: Request) {
   let body: unknown
@@ -96,10 +101,38 @@ export async function POST(req: Request) {
 
   const payload = parseSignupPayload(body)
   const session = await getSessionFromRequest()
+  if (!session?.userId) {
+    return NextResponse.json({ error: 'Sign in to save your number and receive SMS' }, { status: 401 })
+  }
+
+  const clientId = getClientIdentifier(req)
+  const ipLimit = await checkRateLimitAsync(`profile-mobile:ip:${clientId}`, MOBILE_SMS_MAX_PER_IP)
+  if (!ipLimit.ok) {
+    return NextResponse.json(
+      { error: 'Too many SMS requests. Try again later.' },
+      {
+        status: 429,
+        headers: ipLimit.retryAfter ? { 'Retry-After': String(ipLimit.retryAfter) } : undefined,
+      }
+    )
+  }
+  const numLimit = await checkRateLimitAsync(
+    `profile-mobile:num:${mobile}`,
+    MOBILE_SMS_MAX_PER_NUMBER
+  )
+  if (!numLimit.ok) {
+    return NextResponse.json(
+      { error: 'Too many messages to this number. Try again later.' },
+      {
+        status: 429,
+        headers: numLimit.retryAfter ? { 'Retry-After': String(numLimit.retryAfter) } : undefined,
+      }
+    )
+  }
+
   let userName = payload.userName
 
-  if (session) {
-    try {
+  try {
       const row = await pool.query<{ mobile_sms_opt_in: boolean; name: string | null }>(
         `SELECT mobile_sms_opt_in, name FROM users WHERE id = $1::uuid`,
         [session.userId]
@@ -120,17 +153,16 @@ export async function POST(req: Request) {
         `UPDATE users SET mobile = $1, mobile_sms_opt_in = true WHERE id = $2::uuid`,
         [mobile, session.userId]
       )
-    } catch (e) {
-      console.error('[profile/mobile]', e)
-      return NextResponse.json({ error: 'could not save' }, { status: 500 })
-    }
+  } catch (e) {
+    console.error('[profile/mobile]', e)
+    return NextResponse.json({ error: 'could not save' }, { status: 500 })
   }
 
   const readiness = describeOutboundReadiness()
   if (readiness.status !== 'ready') {
     return NextResponse.json({
       ok: true,
-      persisted: Boolean(session),
+      persisted: true,
       mobile,
       sms: { sent: false, reason: readiness.reason },
     })
@@ -139,7 +171,7 @@ export async function POST(req: Request) {
   const sms = await sendSignupZoneSms(mobile, { ...payload, userName })
   return NextResponse.json({
     ok: true,
-    persisted: Boolean(session),
+    persisted: true,
     mobile,
     sms: sms.ok
       ? {

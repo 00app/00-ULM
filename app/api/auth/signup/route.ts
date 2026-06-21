@@ -3,11 +3,23 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { createSession, setSessionCookieOnResponse } from '@/lib/auth'
+import { checkRateLimitAsync, getClientIp } from '@/lib/rateLimit'
 import bcrypt from 'bcryptjs'
+import { withRestoreProof } from '@/lib/sessionRestoreProof'
 
 const SALT_ROUNDS = 10
+const SIGNUP_MAX_PER_MINUTE = 5
 
 export async function POST(request: NextRequest) {
+  const id = getClientIp(request)
+  const { ok, retryAfter } = await checkRateLimitAsync(`signup:${id}`, SIGNUP_MAX_PER_MINUTE)
+  if (!ok) {
+    return NextResponse.json(
+      { error: 'Too many sign-up attempts. Try again later.' },
+      { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined }
+    )
+  }
+
   try {
     const body = await request.json()
     const { email, password, name, postcode, household, home_type, transport_baseline, age_group } = body
@@ -40,7 +52,7 @@ export async function POST(request: NextRequest) {
     const user = result.rows[0]
 
     const token = await createSession(user.id)
-    const res = NextResponse.json({ user_id: user.id })
+    const res = NextResponse.json(withRestoreProof({ user_id: user.id }, user.id))
     setSessionCookieOnResponse(res, token)
     return res
   } catch (error: any) {

@@ -16,6 +16,10 @@ import {
   rockHabitProviderMatchesUrl,
 } from '@/lib/rock/resolveRockHabitLearnUrl'
 import { headlineFromRockHabit } from '@/lib/soloFocusCopy'
+import {
+  issueSessionRestoreProof,
+  verifySessionRestoreProof,
+} from '@/lib/sessionRestoreProof'
 import { computingJourneyTitle, journeyHasStreamData } from '@/lib/zone/mechanicalTruth'
 
 export type MechanicalTruthEvalResult = {
@@ -190,6 +194,31 @@ function assertScrapedPositiveMoneyIsStream(failures: string[]): void {
   }
 }
 
+function assertSessionRestoreProof(failures: string[]): void {
+  const prev = process.env.SESSION_SECRET
+  process.env.SESSION_SECRET = 'test-session-secret-min-16-chars'
+  try {
+    const uid = '11111111-1111-4111-8111-111111111111'
+    const proof = issueSessionRestoreProof(uid)
+    if (!proof) {
+      failures.push('issueSessionRestoreProof must return proof when SESSION_SECRET is set')
+      return
+    }
+    if (!verifySessionRestoreProof(uid, proof)) {
+      failures.push('verifySessionRestoreProof must accept freshly issued proof')
+    }
+    if (verifySessionRestoreProof('22222222-2222-4222-8222-222222222222', proof)) {
+      failures.push('verifySessionRestoreProof must reject wrong user_id')
+    }
+    if (verifySessionRestoreProof(uid, `${proof}x`)) {
+      failures.push('verifySessionRestoreProof must reject tampered proof')
+    }
+  } finally {
+    if (prev === undefined) delete process.env.SESSION_SECRET
+    else process.env.SESSION_SECRET = prev
+  }
+}
+
 function assertRockHabitOfferAlignment(failures: string[]): void {
   for (const habit of ROCK_HABITS) {
     const url = resolveRockHabitLearnUrl(habit)
@@ -235,5 +264,6 @@ export function runMechanicalTruthEval(): MechanicalTruthEvalResult {
   assertUk2026ScrapedShapeNotStream(failures)
   assertScrapedPositiveMoneyIsStream(failures)
   assertRockHabitOfferAlignment(failures)
+  assertSessionRestoreProof(failures)
   return { ok: failures.length === 0, failures }
 }

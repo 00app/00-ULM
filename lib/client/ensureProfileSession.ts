@@ -1,3 +1,8 @@
+import {
+  persistSessionRestoreProof,
+  readSessionRestoreProof,
+} from '@/lib/client/sessionRestoreProofStorage'
+
 const SESSION_COOKIE_RE = /(?:^|;\s*)session=/
 const USER_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -32,15 +37,28 @@ export async function ensureProfileSession(): Promise<boolean> {
   if (!profileLooksComplete()) return false
   const userId = readStoredUserId()
   if (!userId) return false
+  const restoreProof = readSessionRestoreProof()
 
   if (!restorePromise) {
     restorePromise = fetch('/api/auth/restore-session', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId }),
+      body: JSON.stringify({
+        user_id: userId,
+        ...(restoreProof ? { restore_proof: restoreProof } : {}),
+      }),
     })
-      .then((res) => res.ok)
+      .then(async (res) => {
+        if (!res.ok) return false
+        try {
+          const data = (await res.json()) as { restore_proof?: string }
+          persistSessionRestoreProof(data.restore_proof)
+        } catch {
+          /* ignore */
+        }
+        return true
+      })
       .catch(() => false)
       .finally(() => {
         restorePromise = null
@@ -53,3 +71,5 @@ export async function ensureProfileSession(): Promise<boolean> {
 export function hasAuthenticatedSessionHint(): boolean {
   return hasSessionCookie() || Boolean(readStoredUserId())
 }
+
+export { persistSessionRestoreProof }

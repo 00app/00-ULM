@@ -514,6 +514,9 @@ export default function ProfilePageClient() {
           if (typeof window !== 'undefined' && userId) {
             localStorage.setItem('userId', String(userId))
             localStorage.setItem('user_id', String(userId))
+            if (typeof res?.restore_proof === 'string' && res.restore_proof.trim()) {
+              localStorage.setItem('zz_session_restore_proof', res.restore_proof.trim())
+            }
           }
           refreshProfile()
           const location = res?.location
