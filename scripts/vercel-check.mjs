@@ -47,8 +47,8 @@ function ensureDeps() {
 
 function runLint() {
   const eslintBin = path.join(root, 'node_modules', 'eslint', 'bin', 'eslint.js')
-  const code = run(process.execPath, [eslintBin, ...ESLINT_PATHS])
-  if (code === 0) console.log(`✓ eslint: ${ESLINT_PATHS.join(' ')}`)
+  const code = run(process.execPath, [eslintBin, '--max-warnings', '0', ...ESLINT_PATHS])
+  if (code === 0) console.log(`✓ eslint: ${ESLINT_PATHS.join(' ')} (0 warnings)`)
   return code
 }
 

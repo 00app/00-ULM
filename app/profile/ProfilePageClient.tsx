@@ -373,21 +373,32 @@ export default function ProfilePageClient() {
     return () => window.clearTimeout(tid)
   }, [values.postcode, values.houseNumber, setLocationState])
 
+  const {
+    postcode: profilePostcodeField,
+    homeType: profileHomeTypeField,
+    powerType: profilePowerTypeField,
+    transport: profileTransportField,
+    livingSituation: profileLivingSituationField,
+    employmentStatus: profileEmploymentStatusField,
+    houseNumber: profileHouseNumberField,
+    goal: profileGoalField,
+  } = values
+
   useEffect(() => {
-    const pc = (values.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
+    const pc = (profilePostcodeField ?? '').replace(/\s+/g, '').trim().toUpperCase()
     if (pc.length < 4) return
     const tid = window.setTimeout(() => {
-      const profileGoal = resolveProfileGoal(values)
+      const profileGoal = profileGoalField?.trim() || readStoredProfileGoal()
       const profileData = {
-        home_type: values.homeType ?? undefined,
-        home_power: values.powerType?.trim().toUpperCase() || undefined,
-        heating: profileHomePowerToEnergyType(values.powerType) || undefined,
-        transport_baseline: values.transport ?? undefined,
-        household: values.livingSituation ?? undefined,
-        employment_status: values.employmentStatus ?? undefined,
+        home_type: profileHomeTypeField ?? undefined,
+        home_power: profilePowerTypeField?.trim().toUpperCase() || undefined,
+        heating: profileHomePowerToEnergyType(profilePowerTypeField) || undefined,
+        transport_baseline: profileTransportField ?? undefined,
+        household: profileLivingSituationField ?? undefined,
+        employment_status: profileEmploymentStatusField ?? undefined,
         goal: profileGoal || undefined,
         primary_goal: profileGoal || undefined,
-        house_number: values.houseNumber?.trim() || undefined,
+        house_number: profileHouseNumberField?.trim() || undefined,
       }
       const scrapeBody = {
         trigger: true,
@@ -401,7 +412,7 @@ export default function ProfilePageClient() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...scrapeBody, category: 'home' }),
         }).catch(() => {})
-        if (values.powerType?.trim()) {
+        if (profilePowerTypeField?.trim()) {
           void fetch('/api/scrape-sync', {
             method: 'POST',
             credentials: 'include',
@@ -413,13 +424,14 @@ export default function ProfilePageClient() {
     }, 400)
     return () => window.clearTimeout(tid)
   }, [
-    values.postcode,
-    values.homeType,
-    values.powerType,
-    values.transport,
-    values.livingSituation,
-    values.employmentStatus,
-    values.houseNumber,
+    profilePostcodeField,
+    profileHomeTypeField,
+    profilePowerTypeField,
+    profileTransportField,
+    profileLivingSituationField,
+    profileEmploymentStatusField,
+    profileHouseNumberField,
+    profileGoalField,
   ])
 
   const submitProfile = useCallback(

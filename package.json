@@ -51,6 +51,8 @@
     "deploy": "bash scripts/deploy-production.sh",
     "deploy:force": "bash scripts/deploy-production.sh --force",
     "promote": "bash scripts/vercel-promote-latest.sh",
+    "deploy:green": "bash scripts/vercel-green-deploy.sh",
+    "deploy:prune": "bash scripts/vercel-prune-failed-deployments.sh",
     "prep:live": "bash scripts/prep-clear-and-build.sh",
     "ship": "node scripts/build-with-manifest-fix.js && vercel --prod --yes",
     "init-db": "tsx scripts/init-db.ts",
