@@ -85,6 +85,15 @@ export function buildDeepDiveAuditTrail(input: DeepDiveAuditInput): string[] {
   return lines
 }
 
+/** One-line plain-English context for the Ask sheet (no audit jargon). */
+export function buildDeepDivePlainSummary(input: DeepDiveAuditInput): string {
+  const place = input.localityName?.trim() || 'your area'
+  const spend = String(input.personalSpend ?? '').replace(/[^\d.]/g, '') || '0'
+  const carbon = String(input.regionalAvg ?? '').replace(/[^\d.]/g, '') || '0'
+  const category = (input.categoryLabel || formatZoneCategoryLabel(input.journeyKey)).toLowerCase()
+  return `about £${spend} a year and ${carbon} kg co₂e on this ${category} card — from your profile and live research for ${place}.`
+}
+
 export function buildDeepDiveCalculationSummary(input: DeepDiveAuditInput): string {
   const category = input.categoryLabel || formatZoneCategoryLabel(input.journeyKey)
   const place = input.localityName?.trim() || 'your area'

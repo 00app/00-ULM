@@ -26,6 +26,7 @@ import {
   type ResearchProfileData,
 } from '@/lib/agents/researchAgent'
 import { mirrorJourneyAnswersToUserProfilesIfAvailable } from '@/lib/db/userProfilesMirror'
+import { loadOfferAvoidHintForUser } from '@/lib/zone/loadOfferAvoidHint'
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 import { scrapeSyncPostBodySchema } from '@/lib/api/schemas'
 import { captureServerError } from '@/lib/observability/captureError'
@@ -1005,6 +1006,10 @@ export async function POST(request: NextRequest) {
       userContext = `${userContext}\n\nJIT Topic Shield — journey_key: ${category} (exclusive domain; stop at triplet)`
       if (bestOfferHint.length > 0) {
         userContext = `${userContext}\n\nBEST OFFER / ACTION URL PRIORITY:\n${bestOfferHint}`
+      }
+      const offerAvoidHint = await loadOfferAvoidHintForUser(userId, category)
+      if (offerAvoidHint.length > 0) {
+        userContext = `${userContext}\n\nUSER OFFER FEEDBACK — AVOID:\n${offerAvoidHint}`
       }
       const lifestyleShift = isLifestyleShiftMode(body)
       if (lifestyleShift) {

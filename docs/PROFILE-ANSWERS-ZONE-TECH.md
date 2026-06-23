@@ -30,6 +30,22 @@ Cross-links: **[HANDBOOK.md](HANDBOOK.md)**, **[ZONE-CONTENT-AND-DATA.md](ZONE-C
 
 Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on cards comes from **research / scrape**, not from question text.
 
+### 1.1 How MC answers influence Zone
+
+| Influence type | Mechanism |
+|----------------|-----------|
+| **£ / kg on journey tile** | `buildUserImpact` → per-journey calculators in `lib/brains/calculations.ts` (when stream data exists) |
+| **Headline / title tweaks** | `profileDrivenJourneyTitle`, `grantsJourneyTitleForProfile`, Neon `agent_headline` when settled |
+| **Scrape context** | Every answer → `runLoopSpawnResearch`; journey 3/3 → `triggerSupplementalResearch` |
+| **Discovery birth** | `POST /api/answers` → `injectNewDiscoveryCard` → tip slot on wall |
+| **Genome modifier** | +0.08 per answered Q → wall formula via `getGenomeModifier` |
+
+**Strong calculator mapping:** grants (`boiler_age`, `income_benefits`, `prior_eco_bus`), solar trio, travel (`commute_distance`, `ev_hybrid`), utilities `tariff_type`, money trio, tech/water/waste/food/holidays/carbon as documented in `calculations.ts`.
+
+**Weak / scrape-only (known gaps):** home `property_type` / `insulation_level` / `glazing_type`; utilities `supplier_switch` / `monthly_energy_band`; travel `public_transport`; food `own_produce`. These still persist, trigger research, and bump genome modifier.
+
+Full matrix: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) § Journey MC questions.
+
 ---
 
 ## 2. Profile onboarding

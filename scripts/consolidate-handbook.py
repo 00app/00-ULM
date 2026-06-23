@@ -10,6 +10,7 @@ SYNTH_START = "<!-- SYNTHESIZED:START -->"
 SYNTH_END = "<!-- SYNTHESIZED:END -->"
 
 SOURCES = [
+    ("APP-OVERVIEW-AND-TESTING.md", "App overview & testing (full)", "annex-app-overview--testing-full"),
     ("USER-FLOW-AND-DATA-PIPELINE.md", "User flow & runtime pipeline", "annex-user-flow--runtime-pipeline"),
     ("ZONE-CONTENT-AND-DATA.md", "Zone content, scrape & presentation", "annex-zone-content-scrape--presentation"),
     ("PROFILE-ANSWERS-ZONE-TECH.md", "Profile, journey questions & mechanical truth", "annex-profile-journey-questions--mechanical-truth"),

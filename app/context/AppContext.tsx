@@ -7,6 +7,17 @@ import { guardLegacyDemoIdentityOnClient } from '@/lib/zone/garyMode'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
 import { removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
+import { readDislikedCardIds, recordOfferSignal, writeDislikedCardIds, OFFER_PREFERENCE_CHANGED_EVENT } from '@/lib/zone/offerSignals'
+import {
+  readIndifferentCardIds,
+  saveIndifferentCardSnapshot,
+  writeIndifferentCardIds,
+} from '@/lib/client/indifferentCardSnapshots'
+import {
+  readAllDislikeCardSnapshots,
+  removeDislikeCardSnapshot,
+  saveDislikeCardSnapshot,
+} from '@/lib/client/dislikeCardSnapshots'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 
 /** Age persona for tips: Junior | Adult (MID) | Retired */
@@ -72,6 +83,8 @@ export function readLocationStateFromStorage(): { locationName: string; local: L
 export interface AppState {
   profile: AppProfile | null
   likedCards: string[]
+  dislikedCards: string[]
+  indifferentCardIds: string[]
   userId: string | null
   /** Set from API response on answer submit; zone hero uses this for instant update. */
   heroTotals: HeroTotals | null
@@ -92,6 +105,12 @@ interface AppContextValue {
   state: AppState
   setUserId: (userId: string | null) => void
   toggleLike: (cardId: string, cardTitle?: string, savings?: number) => void
+  toggleDislike: (
+    cardId: string,
+    cardTitle?: string,
+    savings?: number,
+    journeyKey?: string
+  ) => void
   refreshProfile: () => void
   setHeroTotals: (totals: HeroTotals | null) => void
   setLocationState: (next: { locationName: string; local: LocalIntelligence | null } | null) => void
@@ -145,6 +164,12 @@ const AppContext = createContext<AppContextValue | null>(null)
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<AppProfile | null>(null)
   const [likedCards, setLikedCards] = useState<string[]>([])
+  const [dislikedCards, setDislikedCards] = useState<string[]>(() =>
+    typeof window !== 'undefined' ? readDislikedCardIds() : []
+  )
+  const [indifferentCardIds, setIndifferentCardIds] = useState<string[]>(() =>
+    typeof window !== 'undefined' ? readIndifferentCardIds() : []
+  )
   const [userId, setUserIdState] = useState<string | null>(null)
   const [heroTotals, setHeroTotalsState] = useState<HeroTotals | null>(null)
   const [locationState, setLocationStateState] = useState<{ locationName: string; local: LocalIntelligence | null } | null>(null)
@@ -269,10 +294,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [heroTotals])
 
   useEffect(() => {
+    const syncPrefs = () => {
+      setDislikedCards(readDislikedCardIds())
+      setIndifferentCardIds(readIndifferentCardIds())
+    }
+    window.addEventListener(OFFER_PREFERENCE_CHANGED_EVENT, syncPrefs)
+    return () => window.removeEventListener(OFFER_PREFERENCE_CHANGED_EVENT, syncPrefs)
+  }, [])
+
+  useEffect(() => {
     fetch('/api/likes', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : { liked_card_ids: [] }))
       .then((data) => setLikedCards(Array.isArray(data?.liked_card_ids) ? data.liked_card_ids : []))
       .catch(() => setLikedCards([]))
+    fetch('/api/offer-signals', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { disliked_card_ids: [], indifferent_card_ids: [] }))
+      .then((data) => {
+        const disliked = Array.isArray(data?.disliked_card_ids) ? data.disliked_card_ids : []
+        const indifferent = Array.isArray(data?.indifferent_card_ids) ? data.indifferent_card_ids : []
+        setDislikedCards(disliked)
+        setIndifferentCardIds(indifferent)
+        writeDislikedCardIds(disliked)
+        writeIndifferentCardIds(indifferent)
+        for (const snap of data?.dislike_snapshots ?? []) {
+          if (snap?.id && snap?.journey_key) {
+            saveDislikeCardSnapshot({
+              id: String(snap.id),
+              journey_key: String(snap.journey_key) as JourneyId,
+              title: String(snap.title ?? ''),
+            })
+          }
+        }
+        for (const snap of data?.indifferent_snapshots ?? []) {
+          if (snap?.id && snap?.journey_key) {
+            saveIndifferentCardSnapshot({
+              id: String(snap.id),
+              journey_key: String(snap.journey_key) as JourneyId,
+              title: String(snap.title ?? ''),
+            })
+          }
+        }
+      })
+      .catch(() => {
+        setDislikedCards(readDislikedCardIds())
+        setIndifferentCardIds(readIndifferentCardIds())
+      })
   }, [userId])
 
   const toggleLike = useCallback((cardId: string, cardTitle?: string, savings?: number) => {
@@ -281,6 +347,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       wasLiked = prev.includes(cardId)
       return wasLiked ? prev.filter((id) => id !== cardId) : [...prev, cardId]
     })
+    if (!wasLiked) {
+      setDislikedCards((prev) => {
+        const next = prev.filter((id) => id !== cardId)
+        writeDislikedCardIds(next)
+        return next
+      })
+    }
 
     void (async () => {
       await ensureProfileSession()
@@ -314,6 +387,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     })()
   }, [])
+
+  const toggleDislike = useCallback(
+    (cardId: string, cardTitle?: string, savings?: number, journeyKey?: string) => {
+      let wasDisliked = false
+      setDislikedCards((prev) => {
+        wasDisliked = prev.includes(cardId)
+        const next = wasDisliked ? prev.filter((id) => id !== cardId) : [...prev, cardId]
+        writeDislikedCardIds(next)
+        return next
+      })
+      if (!wasDisliked) {
+        setLikedCards((prev) => prev.filter((id) => id !== cardId))
+        removeLikeCardSnapshot(cardId)
+        if (journeyKey) {
+          saveDislikeCardSnapshot({
+            id: cardId,
+            journey_key: journeyKey.replace(/^journey-/, '') as JourneyId,
+            title: cardTitle ?? cardId,
+          })
+        }
+      } else {
+        removeDislikeCardSnapshot(cardId)
+      }
+
+      void (async () => {
+        await ensureProfileSession()
+        if (wasDisliked) return
+        recordOfferSignal({
+          card_id: cardId,
+          signal: 'dislike',
+          card_title: cardTitle,
+          money_gbp: savings,
+          journey_key: journeyKey,
+        })
+      })()
+    },
+    []
+  )
 
   const setUserId = useCallback((id: string | null) => {
     setUserIdState(id)
@@ -364,8 +475,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const state: AppState = useMemo(
-    () => ({ profile, likedCards, userId, heroTotals, journeyAnswers, locationState, soloFocus }),
-    [profile, likedCards, userId, heroTotals, journeyAnswers, locationState, soloFocus]
+    () => ({
+      profile,
+      likedCards,
+      dislikedCards,
+      indifferentCardIds,
+      userId,
+      heroTotals,
+      journeyAnswers,
+      locationState,
+      soloFocus,
+    }),
+    [profile, likedCards, dislikedCards, indifferentCardIds, userId, heroTotals, journeyAnswers, locationState, soloFocus]
   )
 
   const value: AppContextValue = useMemo(
@@ -373,13 +494,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       state,
       setUserId,
       toggleLike,
+      toggleDislike,
       refreshProfile,
       setHeroTotals,
       setLocationState,
       openSoloFocus,
       closeSoloFocus,
     }),
-    [state, setUserId, toggleLike, refreshProfile, setHeroTotals, setLocationState, openSoloFocus, closeSoloFocus]
+    [state, setUserId, toggleLike, toggleDislike, refreshProfile, setHeroTotals, setLocationState, openSoloFocus, closeSoloFocus]
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

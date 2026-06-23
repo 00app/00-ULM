@@ -7,6 +7,7 @@ All **product and ops** documentation for the **00-00** repo lives in this folde
 | Doc | Use when |
 |-----|----------|
 | **[HANDBOOK.md](HANDBOOK.md)** | **Master audit doc** — pipeline map, APIs, credit boundaries, scrape URL registry, copy, loops (synthesized front + full annexes) |
+| **[APP-OVERVIEW-AND-TESTING.md](APP-OVERVIEW-AND-TESTING.md)** | **Full app overview** — content sources, £/kg calculations, testing matrix |
 
 Open **`HANDBOOK.md`** to check everything in one place. Annex sections contain the full text of each satellite listed below (regenerate with `python3 scripts/consolidate-handbook.py` after editing sources). If a satellite is not in your local checkout, treat the matching **HANDBOOK annex** as authoritative.
 
@@ -17,6 +18,8 @@ Open **`HANDBOOK.md`** to check everything in one place. Annex sections contain 
 | [USER-FLOW-AND-DATA-PIPELINE.md](USER-FLOW-AND-DATA-PIPELINE.md) | User flow, category contract, deploy checklist |
 | [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) | Scrape, copy, bento, Solo Focus, tone |
 | [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) | Questions, answers API, scrape-sync |
+| [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) | Profile + MC questions → JIT, grid, offers, SMS |
+| [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md) | Trigger matrix, content retrieval, URL precedence |
 | [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md) | Zai boundaries + question registry |
 | [HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md) | API cost tiers |
 | [ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md) | Ceilings, spawn, headline limits |

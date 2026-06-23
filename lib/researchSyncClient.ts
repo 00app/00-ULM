@@ -3,6 +3,7 @@ import type { ResearchProfileData } from '@/lib/agents/researchAgent'
 import { isAcceptableZoneJourneyHeadline } from '@/lib/soloFocusCopy'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { isCardVisited } from '@/lib/zone/visitedCards'
+import { buildClientOfferAvoidHint } from '@/lib/zone/offerSignals'
 import { resolveOnboardingResearchJourneys } from '@/lib/zone/onboardingResearchBootstrap'
 
 const SESSION_USER_UUID_RE =
@@ -102,8 +103,10 @@ export function triggerScrapeSyncForCategory(params: {
     profileData: params.profileData && Object.keys(params.profileData).length > 0 ? params.profileData : undefined,
   }
   const hint = typeof params.bestOfferHint === 'string' ? params.bestOfferHint.trim() : ''
-  if (hint.length > 0) {
-    body.best_offer_hint = hint.slice(0, 1200)
+  const avoidHint = buildClientOfferAvoidHint(cat)
+  const mergedHint = [hint, avoidHint].filter(Boolean).join('\n\n')
+  if (mergedHint.length > 0) {
+    body.best_offer_hint = mergedHint.slice(0, 1200)
   }
   if (params.lifestyleShift) {
     body.lifestyle_mode = 'shift'

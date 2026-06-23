@@ -34,11 +34,35 @@ Cross-links: [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md), [
 | **Home type** | flat / house | `profile_home_type` | `user_genome.home_type` | `home` journey seeds | Home tile baseline; insulation/EPC framing |
 | **Power type** | gas / electric / mix / other | `profile_home_power` | `user_genome.home_power` | Adds **`utilities`** to onboarding JIT list | **Unlocks UTILITIES tile** (13th card); Agile/Octopus + tariff lane |
 | **Transport** | walk / bike / public / car / mix | `profile_transport` | `user_genome.transport_baseline` | `travel` priority when goal-aligned | Travel tile sort; commute impact |
-| **Age** | junior / mid / retired | `profile_age` | `user_genome.age` | Affluence auditor block in Gemini prompts | Summary staccato; persona hints |
+| **Age** | junior / mid / retired | `profile_age` | `users.age_group` | `age_group` in `buildResearchProfilePayload` → Gemini persona | `personaBoost` tip sort (JUNIOR→tech, RETIRED→home) |
 | **Employment** | employed / self-employed / not in work | `profile_employment_status` | `user_genome.employment_status` | **`buildEmploymentAwareResearchSeeds`** — grants vs agile tariffs | Grants **title** rewrite; **filters means-tested tips** off Rock rail for employed users |
 | **Goal** | intro: save money / reduce carbon / both | `profile_goal` | `users.primary_goal` | Picks **+2 goal-aligned JIT journeys** (see below) | **`goalSortWeights`** — hero tile order; tip rail ranking |
 
-Payload assembly: `buildResearchProfilePayload()` / `buildResearchProfileFromStorage()` → every Firecrawl + Gemini pass.
+Payload assembly: `buildResearchProfilePayload()` / `buildResearchProfileFromStorage()` → every Firecrawl + Gemini pass (`postcode`, `house_number`, `home_type`, `home_power`, `transport_baseline`, `household`, `employment_status`, `goal`, `age_group`).
+
+---
+
+## Journey MC questions → Zone influence (39 total)
+
+Source: `lib/journeys.ts` · £/kg: `lib/brains/calculations.ts` via `buildUserImpact`. Every valid **`POST /api/answers`** also triggers `runLoopSpawnResearch` and can birth discovery cards.
+
+| Domain | Strong £ / headline influence | Weak or scrape-only |
+| --- | --- | --- |
+| **home** | Legacy keys `electricity_provider`, `gas_provider`, `green_tariff` if present | `property_type`, `insulation_level`, `glazing_type` — synthetic baselines only; `calculateHome` ignores fabric trio |
+| **utilities** | `tariff_type` → April 2026 policy savings | `supplier_switch`, `monthly_energy_band` — not mapped to `monthly_cost` |
+| **grants** | `boiler_age`, `income_benefits`, `prior_eco_bus`; OVER_10YR → hybrid scrape | — |
+| **solar** | `roof_orientation`, `roof_shading`, `daytime_occupancy` | — |
+| **travel** | `commute_distance`, `ev_hybrid` | `public_transport` — not in `calculateTravel`; VM titles read `fuel_type` not `ev_hybrid` |
+| **holidays** | `annual_flights`, `flight_duration`, `carbon_offsets` | — |
+| **food** | `diet_profile`, `organic_shopping` | `own_produce` — unmapped |
+| **shopping** | `retail_channel`, `repair_mindset`, `online_deliveries` | — |
+| **money** | `monthly_energy_bill`, `tariff_type`, `green_investments` | — |
+| **tech** | `smart_thermostat`, `smart_home`, `smart_meter` | — |
+| **water** | `garden_butt`, `wash_preference`, `rainwater_harvest` | — |
+| **waste** | `food_waste_collection`, `composting`, `soft_plastics` | — |
+| **carbon** | `footprint_awareness`, `carbon_removal`, `tonne_reduction_timeline` | — |
+
+**Indirect (all MC answers):** `getGenomeModifier` +0.08 per answered Q on wall formula; discovery inject into tip slots; supplemental scrape at journey 3/3 complete.
 
 ---
 
@@ -96,9 +120,29 @@ flowchart TB
 
 ---
 
+## Offer URL precedence
+
+| Surface | Resolution order | Module |
+| --- | --- | --- |
+| **Journey mother tile CTA** | Neon `offer_url` → formula `claimOfferUrl` → council grant URL → `trustedUrlForJourney` → Ask Zai | `buildZoneViewModel`, `resolveSoloFocusHandoffUrls` |
+| **Rock Today's Tips** | Habit `learn_url` if topic-safe → slug map → provider map → journey trusted URL | `resolveRockHabitLearnUrl` |
+| **Rock + Neon merge** | Journey `latestOfferUrl` only when `mergeRockHabitWithJourneyOffer` passes topic shield | `lib/rock/resolveRockHabitLearnUrl.ts` |
+| **SMS tips** | Same as Rock — `resolveRockHabitLearnUrl(h)` per habit (not blind journey URL) | `zoneSignupTips` in `app/zone/page.tsx`, `signupZoneSms.ts` |
+| **SMS recommendations** | Journey card `resolveJourneyCardUrl` from VM | `signupZoneSmsShared.ts` |
+
+**Anti-pattern (fixed):** stamping one journey-level Neon URL on every Rock habit in that category (e.g. e-bike + Eurostar). Topic conflicts: Eurostar vs e-bike/motorway habits; Recyclenow vs water butt; WRAP food vs preloved fashion.
+
+---
+
 ## Mobile signup (post-Zone)
 
-Requires session + explicit SMS opt-in. Uses visible Rock rail tips + journey recommendations from the curated VM — not raw profile fields alone.
+Requires **session** + explicit **`sms_opt_in: true`** (checkbox). Flow:
+
+1. `POST /api/profile/mobile` persists `users.mobile` + `mobile_sms_opt_in`
+2. `sendMobileWelcomeSms` — first-time or changed number
+3. `sendSignupZoneSms` — Today's tips (`zoneSignupTips` + `tipSlugs`) + recommendations (`zoneSignupRecommendations`)
+
+Payload built from visible Rock rail + journey mother cards on Zone — not profile fields alone.
 
 ---
 
@@ -111,3 +155,18 @@ npm run db:log-research
 ```
 
 Expect onboarding JIT keys in `research_category_coverage` within minutes; unsettled journeys stay **COMPUTING** until earned scrape or Hermes pulse.
+
+---
+
+## Known gaps (engineering backlog)
+
+| Item | Impact |
+| --- | --- |
+| Home fabric MC trio not in `calculateHome` | Answers affect scrape context only, not home £ |
+| `utilities.monthly_energy_band` not wired to spend model | Band is scrape-only |
+| Travel VM titles use `fuel_type`; registry uses `ev_hybrid` | EV headline may not reflect MC answer until genome derives `fuel_type` |
+| Onboarding JIT cap = 4 | Remaining 9 journeys earned in Solo Focus or Hermes |
+| Content Architect may use trusted catalog URL when Neon deep link thin | Prose personalised; URL may be generic |
+| Mechanical triplet fallback | Can look “live” with `trustedUrlForJourney` before full Firecrawl pass |
+
+**Fixed in code (ship with next deploy):** `vmLive` profile includes `home_power` (utilities tile after living pulse); `age_group` in client research payload; Rock/SMS topic-aligned URLs via `mergeRockHabitWithJourneyOffer`.

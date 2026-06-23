@@ -35,6 +35,7 @@ import { syncSessionState } from '@/lib/sessionStateSync'
 import {
   headlineFromExpandedHook,
   headlineFromRockHabit,
+  headlineFromRockHabitForSoloFocus,
   formatZoneCategoryLabel,
   composeScrapedInsightDescription,
   buildResearchResultsTrueTipBody,
@@ -89,6 +90,12 @@ import {
 } from '@/lib/researchSyncClient'
 import { resolveBirthedCardId, scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
+import { recordOfferSignal } from '@/lib/zone/offerSignals'
+import {
+  createSoloFocusEngagementRef,
+  flushSoloFocusIndifferent,
+  markSoloFocusEngagement,
+} from '@/lib/zone/soloFocusEngagement'
 import { isCardVisited } from '@/lib/zone/visitedCards'
 import { isDiscoveryInjectCard, shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
@@ -212,7 +219,7 @@ export function SoloFocusOverlay({
 
   const cardVisitedLock =
     isCardVisitedProp || (cardId?.trim() ? isCardVisited(cardId) : false)
-  const { setHeroTotals, state, toggleLike } = useApp()
+  const { setHeroTotals, state, toggleLike, toggleDislike } = useApp()
   const profilePostcode = state.profile?.postcode ?? null
   const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(title ?? ''))
   const useEstimated =
@@ -257,6 +264,7 @@ export function SoloFocusOverlay({
   const [discoveryRebirthTip, setDiscoveryRebirthTip] = useState(false)
   const [rebirthDiscoveryTitle, setRebirthDiscoveryTitle] = useState<string | null>(null)
   const [askZaiDeepDiveOpen, setAskZaiDeepDiveOpen] = useState(false)
+  const soloFocusEngagementRef = useRef(createSoloFocusEngagementRef())
 
   useEffect(() => {
     const core = cardId ?? journeyId ?? 'solo-overlay'
@@ -327,6 +335,10 @@ export function SoloFocusOverlay({
   const zoneCategoryLabel = formatZoneCategoryLabel(focusCategoryJourneyId)
 
   const activeCardId = currentMorphData?.id ?? cardId
+
+  useEffect(() => {
+    soloFocusEngagementRef.current.current = 'none'
+  }, [activeCardId, cardId])
 
   const soloFocusNavRingWithMorph = useMemo(() => {
     const morphNav = deck
@@ -469,7 +481,7 @@ export function SoloFocusOverlay({
   const isZoneMotherChild = !startInQuestionMode
   const overlayFocusJourney = normalizeCategoryToJourneyKey(String(displayJourneyId ?? journeyId ?? 'home'))
   const recommendationTitle = isRockHabitTip
-    ? headlineFromRockHabit(
+    ? headlineFromRockHabitForSoloFocus(
         String(effectiveTitleRaw),
         (displayInsight ?? insight ?? '').trim() || undefined
       )
@@ -560,6 +572,8 @@ export function SoloFocusOverlay({
       auditHeaderLocality={state.locationState?.locationName ?? undefined}
       locality={state.locationState?.locationName ?? undefined}
       postcode={profilePostcode ?? state.profile?.postcode ?? undefined}
+      contentMode={isRockHabitTip ? 'rock' : 'journey'}
+      habitTitle={isRockHabitTip ? String(title || displayTitle || recommendation).trim() : undefined}
     />
   ) : null
   const sourceFooter =
@@ -664,8 +678,16 @@ export function SoloFocusOverlay({
 
   const requestClose = useCallback(() => {
     triggerHaptic('medium')
-    clearSoloFocusMemory()
     const visitId = String(cardId ?? activeCardId ?? '').trim()
+    if (visitId) {
+      flushSoloFocusIndifferent(soloFocusEngagementRef.current, {
+        card_id: visitId,
+        journey_key: loopJourneyKey,
+        card_title: displayTitle,
+        money_gbp: parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)),
+      })
+    }
+    clearSoloFocusMemory()
     const isRockHabitTip = visitId.startsWith('rock-')
     onPatternShiftClose?.(loopJourneyKey, {
       cardId: visitId || undefined,
@@ -675,20 +697,98 @@ export function SoloFocusOverlay({
         (visitId ? shouldCloseMarkPinkOnly(visitId, loopJourneyKey) : false),
     })
     onClose()
-  }, [loopJourneyKey, onPatternShiftClose, onClose, cardId, activeCardId, cardVisitedLock])
+  }, [
+    loopJourneyKey,
+    onPatternShiftClose,
+    onClose,
+    cardId,
+    activeCardId,
+    cardVisitedLock,
+    displayTitle,
+    displayMoneyValue,
+  ])
+
+  const requestOfferFeedbackExit = useCallback(
+    (signal: 'like' | 'dislike') => {
+      triggerHaptic('medium')
+      const visitId = String(cardId ?? activeCardId ?? '').trim()
+      clearSoloFocusMemory()
+      onPatternShiftClose?.(loopJourneyKey, {
+        cardId: visitId || undefined,
+        offerFeedback: signal,
+        cardTitle: displayTitle,
+      })
+      onClose()
+    },
+    [loopJourneyKey, onPatternShiftClose, onClose, cardId, activeCardId, displayTitle]
+  )
 
   const handleTrinityLike = useCallback(() => {
     triggerHaptic('medium')
     const id = String(activeCardId || cardId || '')
     if (!id) return
+    markSoloFocusEngagement(soloFocusEngagementRef.current, 'like')
     bumpCategoryIntent(loopJourneyKey, 'like')
     const likeFn = onLike ?? toggleLike
     likeFn(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
-  }, [activeCardId, cardId, onLike, toggleLike, displayTitle, displayMoneyValue, loopJourneyKey])
+    recordOfferSignal({
+      card_id: id,
+      signal: 'like',
+      journey_key: loopJourneyKey,
+      card_title: displayTitle,
+      money_gbp: parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)),
+    })
+    requestOfferFeedbackExit('like')
+  }, [
+    activeCardId,
+    cardId,
+    onLike,
+    toggleLike,
+    displayTitle,
+    displayMoneyValue,
+    loopJourneyKey,
+    requestOfferFeedbackExit,
+  ])
+
+  const handleTrinityDislike = useCallback(() => {
+    triggerHaptic('medium')
+    const id = String(activeCardId || cardId || '')
+    if (!id) return
+    markSoloFocusEngagement(soloFocusEngagementRef.current, 'dislike')
+    toggleDislike(
+      id,
+      displayTitle,
+      parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)),
+      loopJourneyKey
+    )
+    requestOfferFeedbackExit('dislike')
+  }, [
+    activeCardId,
+    cardId,
+    toggleDislike,
+    displayTitle,
+    displayMoneyValue,
+    loopJourneyKey,
+    requestOfferFeedbackExit,
+  ])
 
   const handleTrinityAskZai = useCallback(() => {
     triggerHaptic('medium')
+    const id = String(activeCardId || cardId || '')
+    markSoloFocusEngagement(soloFocusEngagementRef.current, 'ask')
+    if (id) {
+      recordOfferSignal({
+        card_id: id,
+        signal: 'ask',
+        journey_key: loopJourneyKey,
+        card_title: displayTitle,
+      })
+    }
     setAskZaiDeepDiveOpen(true)
+  }, [activeCardId, cardId, loopJourneyKey, displayTitle])
+
+  const handleTrinityCta = useCallback(() => {
+    markSoloFocusEngagement(soloFocusEngagementRef.current, 'cta')
   }, [])
 
   const discovery =
@@ -782,8 +882,13 @@ export function SoloFocusOverlay({
                         ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : effectiveHandoffLabel}
                         offerProviderName={soloHandoff.ctaUrl ? handoffAttribution.offerProviderName : null}
                         isLiked={isLiked}
+                        isDisliked={(state.dislikedCards ?? []).includes(
+                          String(activeCardId || cardId || '')
+                        )}
                         onLike={handleTrinityLike}
                         onAskZai={handleTrinityAskZai}
+                        onDislike={handleTrinityDislike}
+                        onCtaClick={handleTrinityCta}
                       />
                       {(onNavigateJourney || onNavigateSoloFocus) && journeyId ? (
                         <SoloFocusJourneyNav

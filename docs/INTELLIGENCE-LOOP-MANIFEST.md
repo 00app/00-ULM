@@ -2,7 +2,7 @@
 
 Operational contract for infra, data flow, UX, and verification. **Secrets belong only in `.env.local` / Vercel** — never commit passwords or paste them into docs or chat.
 
-**Profile, journey questions, answers, and Zone mechanical truth:** [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md). **Zone scrape → copy → presentation:** [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md). **Sentinel (parallel):** [SENTINEL.md](SENTINEL.md). **Gary / rebirth / inject paths:** [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md). **Index:** [HANDBOOK.md](HANDBOOK.md).
+**Profile, journey questions, answers, and Zone mechanical truth:** [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md). **Profile → grid unlocks (every user):** [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md). **Pipeline triggers:** [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md). **Zone scrape → copy → presentation:** [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md). **Sentinel (parallel):** [SENTINEL.md](SENTINEL.md). **Gary / rebirth / inject paths:** [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md). **Index:** [HANDBOOK.md](HANDBOOK.md).
 
 ---
 

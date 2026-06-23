@@ -176,6 +176,7 @@ export interface IndustrialHandoffButtonProps {
   className?: string
   /** Pink (default) vs yellow block + journey text (Action Vault rebirth). */
   surface?: 'pink' | 'yellow'
+  onHandoffClick?: () => void
 }
 
 /** Solo Focus 80px circle — one Marvin word on the face; full phrase stays on aria-label. */
@@ -202,10 +203,12 @@ export function IndustrialHandoffButton({
   ctaLabel = 'CLAIM',
   className = '',
   surface = 'pink',
+  onHandoffClick,
 }: IndustrialHandoffButtonProps) {
   const displayWord = compactCircleCtaDisplay(ctaLabel)
 
   const handleClick = () => {
+    onHandoffClick?.()
     if (journeyId) bumpCategoryIntent(journeyId, 'link')
     try {
       track('handoff_click', { journey: journeyId || 'unknown', target: url, value: moneyValue || 0 })

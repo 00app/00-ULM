@@ -5,11 +5,9 @@ import type { CSSProperties, ReactNode } from 'react'
 /** Shared 24×24 viewBox for app chrome icons (nav, bento, computing). */
 export const MONO_ICON_VIEWBOX = '0 0 24 24'
 
-/** Thin mono stroke — consistent at 18px nav and 42px bento. */
-export function monoStrokeWidth(pixelSize: number): number {
-  if (pixelSize >= 40) return 1.5
-  if (pixelSize >= 24) return 1.75
-  return 1.5
+/** Thin mono stroke — 2px at all sizes, rounded caps (Marvin chrome). */
+export function monoStrokeWidth(_pixelSize: number): number {
+  return 2
 }
 
 type IconProps = {
@@ -107,7 +105,7 @@ export function OpenNEOutlineIcon({ size = 18, className, style }: IconProps) {
   )
 }
 
-/** Modal / overlay close — 1px rounded stroke (Likes, Zai, Settings, Solo Focus). */
+/** Modal / overlay close — 2px rounded stroke (Likes, Zai, Settings, Solo Focus). */
 export function CloseXOutlineIcon({ size = 24, className, style }: IconProps) {
   return (
     <svg
@@ -116,7 +114,7 @@ export function CloseXOutlineIcon({ size = 24, className, style }: IconProps) {
       viewBox={MONO_ICON_VIEWBOX}
       fill="none"
       stroke="currentColor"
-      strokeWidth={1}
+      strokeWidth={monoStrokeWidth(size)}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}

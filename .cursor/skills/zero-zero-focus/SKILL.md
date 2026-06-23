@@ -56,6 +56,7 @@ Replace `<SKILL_ID>` with e.g. `ce-work`, `ce-debug`, `ce-plan`, `ce-brainstorm`
 - After substantive TypeScript changes, run **`npm run check`** from the repo root.
 - **Region** is derived from **postcode** and APIs — do not reintroduce a manual region onboarding step.
 - **Profile summary** (`app/profile/summary`): staccato **opacity ticker** (`IntroWordCycle` + `opacityTicker`); do not add glitch / count-up graphics there unless the user explicitly asks.
+- **Solo Focus trinity:** Close (X) → lifestyle loop; **like / nope** → `OfferFeedbackTakeover` then grid or `/likes`. App chrome icons use **2px** mono stroke (`monoStrokeWidth` in `MonoStrokeIcons.tsx`).
 
 ## 5. Ulm JIT — use less, more
 

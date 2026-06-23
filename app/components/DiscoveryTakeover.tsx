@@ -24,19 +24,18 @@ import {
 } from '@/lib/soloFocusCopy'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
-import { CLEAN_BIRTH_PULSE_MAX_WAIT_MS } from '@/lib/architecturalPulse'
+import { CLEAN_BIRTH_PULSE_MAX_WAIT_MS, CLEAN_BIRTH_PULSE_WORDS } from '@/lib/architecturalPulse'
 import type { ZoneTipCard } from '@/lib/logic/zone'
-import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 import {
   familyControlDelaySec,
-  familyAtomicProps,
   familyProfileStepProps,
+  FAMILY_DUR_ATOMIC,
   FAMILY_TRANSITION_ATOMIC,
 } from '@/lib/motion-family'
 
 const TIER2_ENRICH_TIMEOUT_MS = 8000
 
-type TakeoverPhase = 'question' | 'pulse'
+type TakeoverPhase = 'question' | 'pulse' | 'exit'
 
 type Props = {
   open: boolean
@@ -49,9 +48,7 @@ type Props = {
     household?: string | null
     employment_status?: string | null
   }
-  /** Question → pulse → pink card ready → Zone punch-through reveal. */
   onRevealComplete: () => void
-  /** Pink achievement pinned on the Zone wall (survives reveal + refresh). */
   onAchievementCard?: (card: ZoneTipCard) => void
 }
 
@@ -146,98 +143,100 @@ export function DiscoveryTakeover({
     async (answerValue: string) => {
       if (!beat) return
       try {
-      const pc = String(postcode ?? profileData?.postcode ?? '')
-        .replace(/\s+/g, '')
-        .trim()
-        .toUpperCase()
+        const pc = String(postcode ?? profileData?.postcode ?? '')
+          .replace(/\s+/g, '')
+          .trim()
+          .toUpperCase()
 
-      persistLoopAnswerLocal({
-        journeyId,
-        questionId: beat.questionId,
-        answer: answerValue,
-      })
-      const { ensureProfileSession } = await import('@/lib/client/ensureProfileSession')
-      await ensureProfileSession()
-      const storedUserId = (typeof window !== 'undefined'
-        ? (localStorage.getItem('userId') ?? localStorage.getItem('user_id') ?? '')
-        : ''
-      ).trim()
-      const rec = getDiscoveryRecommendation(journeyId, beat.questionId, answerValue)
-      const fallbackTitle = headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
-      const fallbackUrl = rec.actionUrl ?? rec.learnUrl ?? rec.ctaUrl ?? null
-
-      void fetch('/api/answers', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          journey_key: journeyId,
-          question_id: beat.questionId,
-          answer_value: answerValue,
-          postcode: pc || undefined,
-          lifestyle_mode: 'lifestyle_shift',
-          ...(storedUserId ? { user_id: storedUserId } : {}),
-        }),
-      }).catch(() => {})
-
-      const optimistic = birthAchievementCard(
-        {
+        persistLoopAnswerLocal({
           journeyId,
           questionId: beat.questionId,
-          answerValue,
-          title: fallbackTitle,
-          body: rec.body,
-          offerUrl: fallbackUrl,
-        },
-        onAchievementCard
-      )
-      if (optimistic) setCardReady(true)
-
-      if (pc.length >= 4) {
-        triggerScrapeSyncForCategory({
-          postcode: pc,
-          category: journeyId,
-          profileData: profileData ?? { postcode: pc },
-          lifestyleShift: true,
-          isAchievementCard: true,
-          questionId: beat.questionId,
-          answerValue,
-          bestOfferHint: `Lifestyle shift. User answered: ${answerValue}. Prioritise rail vs flight, EV swap, local holidays — not generic homepages.`,
+          answer: answerValue,
         })
-        try {
-          const tier2 = await capTier2Fetch({
+        const { ensureProfileSession } = await import('@/lib/client/ensureProfileSession')
+        await ensureProfileSession()
+        const storedUserId = (typeof window !== 'undefined'
+          ? (localStorage.getItem('userId') ?? localStorage.getItem('user_id') ?? '')
+          : ''
+        ).trim()
+        const rec = getDiscoveryRecommendation(journeyId, beat.questionId, answerValue)
+        const fallbackTitle = headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
+        const fallbackUrl = rec.actionUrl ?? rec.learnUrl ?? rec.ctaUrl ?? null
+
+        void fetch('/api/answers', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            journey_key: journeyId,
+            question_id: beat.questionId,
+            answer_value: answerValue,
+            postcode: pc || undefined,
+            lifestyle_mode: 'lifestyle_shift',
+            ...(storedUserId ? { user_id: storedUserId } : {}),
+          }),
+        }).catch(() => {})
+
+        const optimistic = birthAchievementCard(
+          {
+            journeyId,
+            questionId: beat.questionId,
+            answerValue,
+            title: fallbackTitle,
+            body: rec.body,
+            offerUrl: fallbackUrl,
+          },
+          onAchievementCard
+        )
+        if (optimistic) setCardReady(true)
+
+        if (pc.length >= 4) {
+          triggerScrapeSyncForCategory({
             postcode: pc,
             category: journeyId,
-            answer: answerValue,
+            profileData: profileData ?? { postcode: pc },
+            lifestyleShift: true,
+            isAchievementCard: true,
             questionId: beat.questionId,
+            answerValue,
+            bestOfferHint: `Lifestyle shift. User answered: ${answerValue}. Prioritise rail vs flight, EV swap, local holidays — not generic homepages.`,
           })
-          if (tier2.ok || tier2.morphCard?.title?.trim()) {
-            const enrichedTitle =
-              tier2.morphCard?.title?.trim() ||
-              headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
-            birthAchievementCard(
-              {
-                journeyId,
+          void (async () => {
+            try {
+              const tier2 = await capTier2Fetch({
+                postcode: pc,
+                category: journeyId,
+                answer: answerValue,
                 questionId: beat.questionId,
-                answerValue,
-                title: enrichedTitle,
-                body: rec.body,
-                offerUrl:
-                  tier2.offerUrl ??
-                  tier2.morphCard?.cta?.url ??
-                  tier2.morphCard?.actions?.learnUrl ??
-                  fallbackUrl,
-              },
-              onAchievementCard
-            )
-          }
-          void refreshZoneTotalsAfterTier2(pc)
-        } catch {
-          /* tier-2 optional */
+              })
+              if (tier2.ok || tier2.morphCard?.title?.trim()) {
+                const enrichedTitle =
+                  tier2.morphCard?.title?.trim() ||
+                  headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
+                birthAchievementCard(
+                  {
+                    journeyId,
+                    questionId: beat.questionId,
+                    answerValue,
+                    title: enrichedTitle,
+                    body: rec.body,
+                    offerUrl:
+                      tier2.offerUrl ??
+                      tier2.morphCard?.cta?.url ??
+                      tier2.morphCard?.actions?.learnUrl ??
+                      fallbackUrl,
+                  },
+                  onAchievementCard
+                )
+              }
+              void refreshZoneTotalsAfterTier2(pc)
+            } catch {
+              /* tier-2 optional */
+            }
+          })()
         }
-      }
 
-      if (!optimistic) setCardReady(true)
+        if (!optimistic) setCardReady(true)
       } catch (err) {
         if (process.env.NODE_ENV === 'development') {
           console.error('[DiscoveryTakeover] clean birth failed', err)
@@ -250,10 +249,17 @@ export function DiscoveryTakeover({
 
   const tryReveal = useCallback(() => {
     if (revealFiredRef.current) return
-    if (!cardReady) return
+    if (!cardReady || !pulseWordsComplete) return
     revealFiredRef.current = true
-    onRevealComplete()
-  }, [cardReady, onRevealComplete])
+    setPhase('exit')
+  }, [cardReady, pulseWordsComplete])
+
+  useEffect(() => {
+    if (phase !== 'exit') return
+    const ms = reduceMotion === true ? 150 : Math.round(FAMILY_DUR_ATOMIC * 1000)
+    const t = window.setTimeout(() => onRevealComplete(), ms)
+    return () => window.clearTimeout(t)
+  }, [phase, onRevealComplete, reduceMotion])
 
   useEffect(() => {
     if (phase !== 'pulse' || !pulseWordsComplete || !cardReady) return
@@ -272,8 +278,8 @@ export function DiscoveryTakeover({
     (answerValue: string) => {
       if (answerLocked || !beat) return
       setAnswerLocked(true)
-      setPhase('pulse')
       void runCleanBirthLabor(answerValue)
+      setPhase('pulse')
     },
     [answerLocked, runCleanBirthLabor, beat]
   )
@@ -281,18 +287,20 @@ export function DiscoveryTakeover({
   if (!open || !beat || typeof document === 'undefined') return null
 
   const zoneCategoryLabel = formatZoneCategoryLabel(String(journeyId || 'home'))
-
   const motionSafe = reduceMotion === true
   const stepMotion = familyProfileStepProps(motionSafe)
-  const headlineMotion = familyAtomicProps(motionSafe)
   const controlsAfterQuestionSec = familyControlDelaySec(0, 0.12)
+  const shellExiting = phase === 'exit'
 
   return createPortal(
-    <main
+    <motion.main
       className="discovery-clean-birth zone-loop-takeover"
       role="dialog"
       aria-modal
       aria-labelledby="discovery-takeover-question"
+      initial={stepMotion.initial}
+      animate={shellExiting ? stepMotion.exit : stepMotion.animate}
+      transition={FAMILY_TRANSITION_ATOMIC}
       style={{
         position: 'fixed',
         inset: 0,
@@ -317,7 +325,7 @@ export function DiscoveryTakeover({
           <motion.div
             key="clean-birth-question"
             className="zone-loop-question profile-step-slam w-full flex flex-col items-center"
-            style={{ display: 'contents' }}
+            style={{ maxWidth: 520, gap: 40 }}
             initial={stepMotion.initial}
             animate={stepMotion.animate}
             exit={stepMotion.exit}
@@ -325,11 +333,11 @@ export function DiscoveryTakeover({
           >
             <span
               className="card-top-label solo-focus-zone-category m-0 text-center w-full block"
-              style={{ color: 'var(--color-yellow)', maxWidth: 520 }}
+              style={{ color: 'var(--color-yellow)' }}
             >
               {zoneCategoryLabel}
             </span>
-            <motion.div
+            <div
               id="discovery-takeover-question"
               className="text-marvin profile-question-headline"
               style={{
@@ -340,18 +348,10 @@ export function DiscoveryTakeover({
                 textAlign: 'center',
                 whiteSpace: 'pre-line',
               }}
-              initial={headlineMotion.initial}
-              animate={headlineMotion.animate}
-              exit={headlineMotion.exit}
-              transition={FAMILY_TRANSITION_ATOMIC}
             >
               {loopQuestionDisplayText(beat)}
-            </motion.div>
-
-            <div
-              className="profile-step-controls profile-step-controls--options w-full"
-              style={{ maxWidth: 520 }}
-            >
+            </div>
+            <div className="profile-step-controls profile-step-controls--options w-full">
               {beat.options.map((opt, optionIndex) => (
                 <ProfileAnswerBtn
                   key={opt.value}
@@ -373,24 +373,25 @@ export function DiscoveryTakeover({
               ))}
             </div>
           </motion.div>
-        ) : (
+        ) : phase === 'pulse' ? (
           <motion.div
             key="clean-birth-pulse"
             className="w-full flex items-center justify-center"
             style={{ minHeight: 'min(72vh, 520px)' }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={INDUSTRIAL_OPACITY_SNAP}
+            initial={stepMotion.initial}
+            animate={stepMotion.animate}
+            exit={stepMotion.exit}
+            transition={FAMILY_TRANSITION_ATOMIC}
           >
             <ArchitecturalPulse
-              overlayZIndex={221}
+              words={CLEAN_BIRTH_PULSE_WORDS}
+              inline
               onComplete={() => setPulseWordsComplete(true)}
             />
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
-    </main>,
+    </motion.main>,
     document.body
   )
 }

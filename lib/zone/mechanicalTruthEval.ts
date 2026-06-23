@@ -15,7 +15,7 @@ import {
   resolveRockHabitLearnUrl,
   rockHabitProviderMatchesUrl,
 } from '@/lib/rock/resolveRockHabitLearnUrl'
-import { headlineFromRockHabit } from '@/lib/soloFocusCopy'
+import { headlineFromRockHabit, headlineFromRockHabitForSoloFocus, resolveRockHabitDisplayProse } from '@/lib/soloFocusCopy'
 import {
   issueSessionRestoreProof,
   verifySessionRestoreProof,
@@ -245,6 +245,22 @@ function assertRockHabitOfferAlignment(failures: string[]): void {
     const dup = headline.toLowerCase().match(/e-?bike\s+schemes/gi)
     if (dup && dup.length > 1) {
       failures.push(`e-bike-scheme headline must not duplicate title tokens (got "${headline}")`)
+    }
+    const prose = resolveRockHabitDisplayProse({
+      title: ebike.title,
+      insight: ebike.insight,
+      headline: headlineFromRockHabitForSoloFocus(ebike.title, ebike.insight),
+      journeyId: ebike.journey_key,
+      moneyGbp: ebike.money_gbp,
+      carbonKg: ebike.carbon_kg,
+      sourceDisplayName: ebike.provider_name,
+    })
+    if (/\b(?:flight|short-haul|booking one trip by rail)\b/i.test(prose.lead)) {
+      failures.push(`e-bike-scheme Solo Focus lead must not use holidays flight copy (got "${prose.lead}")`)
+    }
+    const insightNorm = ebike.insight.trim().toLowerCase()
+    if (prose.lead.toLowerCase().startsWith(insightNorm.slice(0, Math.min(40, insightNorm.length)))) {
+      failures.push('e-bike-scheme Solo Focus lead must not repeat headline insight verbatim')
     }
   }
 }

@@ -6,7 +6,6 @@
  */
 import type { RockHabit } from '@/lib/rock/types'
 import { resolveRockHabitLearnUrl } from '@/lib/rock/resolveRockHabitLearnUrl'
-import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 import { defaultVerifiedArchitectSuppliedBy } from '@/lib/soloFocusSuppliedBy'
 import { VERIFIED_SOURCE_DATE, resolvePartnerLink, formatVerifiedSourceNameFromLabel } from '@/lib/zone/verifiedRevenue'
@@ -612,7 +611,7 @@ export function sumRockLikedImpact(likedCardIds: readonly string[]): { money: nu
 }
 
 export function habitToTipCard(h: RockHabit): import('@/lib/logic/zone').ZoneTipCard {
-  const learnUrl = sanitizeZoneOfferUrl((h.learn_url ?? '').trim(), h.journey_key)
+  const learnUrl = resolveRockHabitLearnUrl(h)
   const sourceLabel = `source. ${h.provider_name}`
   const source_name = formatVerifiedSourceNameFromLabel(h.provider_name)
   const partner_link = resolvePartnerLink({

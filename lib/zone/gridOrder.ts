@@ -14,17 +14,32 @@ import { MAX_ZONE_BENTO_CELLS } from '@/lib/zone/ulmLimits'
 import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
 import { normalizeCardHeadlineKey, resolveZoneGridTipHeadline } from '@/lib/soloFocusCopy'
 import { uniquifyZoneTipOfferUrl } from '@/lib/zone/zoneOfferUrl'
+import {
+  buildOfferPreferenceState,
+  isWallCardSuppressed,
+  journeyOfferPreferenceWeight,
+  type OfferPreferenceCard,
+  type OfferPreferenceState,
+  wallCardSortBias,
+} from '@/lib/zone/offerPreference'
 
 export type GroovyGridCell =
   | { type: 'hero'; hero: ZoneViewModel['hero'] }
   | { type: 'tip'; tip: ZoneTipCard }
   | { type: 'journey'; item: ZoneJourneyCard; index: number; persona: BentoPersona }
 
-function sortTipsWithinJourney(tips: ZoneTipCard[], goal?: string): ZoneTipCard[] {
+function sortTipsWithinJourney(
+  tips: ZoneTipCard[],
+  goal?: string,
+  prefs?: OfferPreferenceState
+): ZoneTipCard[] {
   const sortGoal = normalizePrimaryGoal(goal)
   const weights = goalSortWeights(goal)
   const list = [...tips]
   list.sort((a, b) => {
+    const biasA = prefs ? wallCardSortBias(a, prefs) : 0
+    const biasB = prefs ? wallCardSortBias(b, prefs) : 0
+    if (biasA !== biasB) return biasB - biasA
     if (a.achievement_discovery && !b.achievement_discovery) return -1
     if (!a.achievement_discovery && b.achievement_discovery) return 1
     const parseMoney = (t: ZoneTipCard) =>
@@ -63,11 +78,29 @@ export function buildGroovyGridItems(args: {
   profileGoal?: string
   /** Profile power type — when set, UTILITIES becomes the 13th journey cell on the wall. */
   profile?: { home_power?: string; homePower?: string }
+  dislikedCardIds?: readonly string[]
+  indifferentCardIds?: readonly string[]
+  dislikeSnapshots?: readonly OfferPreferenceCard[]
+  indifferentSnapshots?: readonly OfferPreferenceCard[]
 }): GroovyGridCell[] {
+  const offerPrefs = buildOfferPreferenceState({
+    dislikedCardIds: args.dislikedCardIds,
+    indifferentCardIds: args.indifferentCardIds,
+    dislikeSnapshots: args.dislikeSnapshots,
+    indifferentSnapshots: args.indifferentSnapshots,
+  })
+
   const journeyCardsOnly = args.viewModel.journeys.filter((j) => j.id.startsWith('journey-'))
   const byJourney = new Map(journeyCardsOnly.map((j) => [j.journey_key, j]))
   const moneySortedJourneys = [...journeyCardsOnly]
-    .sort((a, b) => (b.moneyGbp ?? 0) - (a.moneyGbp ?? 0))
+    .sort((a, b) => {
+      const aJid = a.journey_key
+      const bJid = b.journey_key
+      const aOffer = journeyOfferPreferenceWeight(aJid, offerPrefs)
+      const bOffer = journeyOfferPreferenceWeight(bJid, offerPrefs)
+      if (aOffer !== bOffer) return bOffer - aOffer
+      return (b.moneyGbp ?? 0) - (a.moneyGbp ?? 0)
+    })
     .map((j) => j.journey_key)
   const prioritizedJourneyOrder = [
     ...moneySortedJourneys,
@@ -80,6 +113,7 @@ export function buildGroovyGridItems(args: {
     dedupeZoneTipCards([...(args.discoveryTips ?? []), ...(args.achievementTips ?? [])])
   )
   for (const tip of wallTips) {
+    if (isWallCardSuppressed(tip, offerPrefs)) continue
     const jid = journeyKeyFromTip(tip)
     if (seenTipIds.has(tip.id)) continue
     seenTipIds.add(tip.id)
@@ -91,6 +125,7 @@ export function buildGroovyGridItems(args: {
   const baselineByJourney = new Map<JourneyId, ZoneTipCard[]>()
   if (SHOW_BASELINE_TIPS_ON_MAIN_GRID) {
     for (const tip of dedupeZoneTipCards(args.baselineTips ?? [])) {
+      if (isWallCardSuppressed(tip, offerPrefs)) continue
       const jid = (tip.journey_key ?? 'home') as JourneyId
       if (seenTipIds.has(tip.id)) continue
       seenTipIds.add(tip.id)
@@ -118,8 +153,9 @@ export function buildGroovyGridItems(args: {
   prioritizedJourneyOrder.forEach((jid, index) => {
     const item = byJourney.get(jid)
     if (item) {
-      // Journey card always placed first for its category (counts as 1 toward the cap)
-      if (incrementCategory(jid)) {
+      if (isWallCardSuppressed(item, offerPrefs)) {
+        /* Skip suppressed journey mother — tips in category may still show if unlike topic. */
+      } else if (incrementCategory(jid)) {
         items.push({
           type: 'journey',
           item,
@@ -134,7 +170,7 @@ export function buildGroovyGridItems(args: {
       const wallKey = normalizeCardHeadlineKey(journeyWallTitle)
       if (wallKey) seenHeadlineKeys.add(wallKey)
     }
-    const nestedDiscovery = sortTipsWithinJourney(discoveryByJourney.get(jid) ?? [], args.profileGoal)
+    const nestedDiscovery = sortTipsWithinJourney(discoveryByJourney.get(jid) ?? [], args.profileGoal, offerPrefs)
     for (const tip of nestedDiscovery) {
       const gridTip = tipForWallGrid(tip, journeyWallTitle)
       if (!gridTip) continue
@@ -147,7 +183,7 @@ export function buildGroovyGridItems(args: {
         tip: uniquifyZoneTipOfferUrl(gridTip, seenOfferUrlsByJourney),
       })
     }
-    const nestedBaseline = sortTipsWithinJourney(baselineByJourney.get(jid) ?? [], args.profileGoal)
+    const nestedBaseline = sortTipsWithinJourney(baselineByJourney.get(jid) ?? [], args.profileGoal, offerPrefs)
     for (const tip of nestedBaseline) {
       const gridTip = tipForWallGrid(tip, journeyWallTitle)
       if (!gridTip) continue

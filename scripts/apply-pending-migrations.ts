@@ -14,6 +14,8 @@ const MIGRATION_FILES = [
   '20260526_drop_orphan_legacy_tables.sql',
   '008_users_age_group.sql',
   '020_users_mobile_sms_opt_in.sql',
+  '20260527_offer_signals.sql',
+  '20260528_offer_signals_feedback.sql',
 ] as const
 
 async function main() {

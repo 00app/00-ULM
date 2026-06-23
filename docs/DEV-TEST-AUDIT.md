@@ -22,13 +22,47 @@ Run in order from repo root. **All green locally** before browser UAT; **product
 
 | Surface | Verify |
 |---------|--------|
-| `/profile` → `/profile/summary` → `/zone` | Postcode-driven locality; atomic summary ticker |
-| Zone grid | 13 journeys; purple/yellow hover swap; visited pink |
-| Solo Focus | Marvin H1 + **lead only** (no Roboto proof paragraph); SAVE/CARBON stamp |
+| `/profile` → `/profile/summary` → `/zone` | Postcode-driven locality; atomic summary ticker; **`POST /api/user`** creates session |
+| Onboarding JIT | After profile submit, `research_category_coverage` gains `home` + goal journeys within ~2 min |
+| Zone grid | 13 journeys; utilities unlocked when power type set; purple/yellow hover swap; visited pink |
+| COMPUTING vs LIVE | Fresh postcode → COMPUTING titles until Neon stream; no fake £ without `research_results` |
+| Solo Focus | Marvin H1 + **lead only**; SAVE/CARBON stamp; MC answer updates grants/solar/travel £ where mapped |
 | Rock strip | TECH/HOLIDAYS labels **same colour as headline** at rest + hover |
+| Rock / SMS URLs | e-bike habit → gov.uk cycle-to-work, **not** Eurostar; water butt → Waterwise, not Recyclenow |
+| Mobile signup | Checkbox opt-in required; welcome SMS + tips/recs SMS; STOP opts out |
 | Settings | Circle CTAs; WIRING diagnostics; pencil icons visible on card hover |
 | Ask Zai dock | Yellow pill; portaled above nav |
 | Loop answer | One MC → one discovery card birth |
+
+### E2E personalization gate (signed-in user)
+
+| # | Test | Pass |
+|---|------|------|
+| E1 | Complete profile (all fields + intro goal) | Session cookie; `users` row; JIT fires ≤4 journeys |
+| E2 | Summary exit handshake | `GET /api/scrape-sync` returns coverage object |
+| E3 | Goal = money vs carbon | Different JIT journey keys in coverage |
+| E4 | Employment employed vs not | Grants Rock tips filter means-tested for employed |
+| E5 | Answer `grants` `boiler_age` OVER_10YR | Grants tile £/URL updates after scrape |
+| E6 | SMS signup | Recommendations match journey cards; tip URLs topic-aligned |
+
+See [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) for field→grid matrix.
+
+**Mechanical truth CI:** `npm run test:mechanical-truth` — includes Rock habit URL alignment (`mechanicalTruthEval.ts`).
+
+### Agent loop preflight (Cursor / long autonomous runs)
+
+Before letting an agent run for many turns, overnight, or until “done” — check every box. **Never run uncapped.** Success is a command exit code, not the model saying it finished.
+
+| Check | Rule |
+|-------|------|
+| **Done condition** | Binary and runnable — e.g. `npm run verify` passes, or `npm run deploy:green` smoke is green |
+| **Iteration / time cap** | Agree a max (turns, hours, or deploy attempts); stop when hit |
+| **Branch** | Work on a feature branch — not direct commits to `main` unless you explicitly want that |
+| **Scope** | One task with a testable outcome — not open-ended design or production incident response |
+| **Ship gate** | Multi-file or deploy work ends with `npm run verify` before `npm run deploy:green` |
+| **Review** | Skim the diff before merge; don’t merge blind after unattended runs |
+
+**Cursor-native loops:** recurring local work → Cursor `/loop` skill; PR/CI babysit → `babysit` skill; one-shot ship → `deploy:green`. Product intelligence (scrapes, SMS, Zone) is governed by [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md) — not a generic coding loop.
 
 ### Env files (one source of truth)
 
@@ -55,10 +89,10 @@ npm run env:merge   # optional — merges exported shell vars into .env.local
 
 | Layer | Status | Action |
 |-------|--------|--------|
-| Local Neon | ✅ when `.env.local` + `preferLocal` | `npm run dev:3000` |
-| Production `/api/health` | ❌ `database: disconnected` | Update `DATABASE_URL` in Vercel Production → redeploy |
-| Production diagnostics | ⚠️ `neon: false`, gemini + firecrawl OK | Same Neon URL fix |
-| Hermes auth bridge | ✅ CRON_SECRET → 200 | VPS cron OK; DB backfill blocked until prod Neon fixed |
+| Local Neon | ✅ when `.env.local` pooler matches `MANIFEST_NEON_POOLER_HOST` | `npm run db:test` · project **00-ULM** |
+| Production `/api/health` | ✅ when `DATABASE_URL` on Vercel matches 00-ULM pooler | `curl -sS https://www.00-00.online/api/health` |
+| Twilio SMS | ✅ when env set; trial = verified numbers only | `describeOutboundReadiness()` |
+| Hermes auth bridge | ✅ CRON_SECRET → 200 | Weekly `/api/cron/zone-research` |
 | `zone:audit-gates` | ✅ script fixed | Requires postcode arg; exit 1 if journeys missing |
 
 ---

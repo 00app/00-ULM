@@ -2,7 +2,7 @@
 
 Operational architecture for the UK postcode-driven energy auditor: what talks to what, where data lives, and how Profile, Zone, Solo Focus, and Neon research fit together.
 
-**Related docs:** [HANDBOOK.md](HANDBOOK.md) · [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) · [SENTINEL.md](SENTINEL.md) · [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) · [INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md) · [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) · [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md)
+**Related docs:** [HANDBOOK.md](HANDBOOK.md) · [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) · [SENTINEL.md](SENTINEL.md) · [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) · [INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md) · [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md) · [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) · [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) · [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md)
 
 **Production:** https://www.00-00.online · **Repo:** https://github.com/00app/00-ULM
 
@@ -132,7 +132,7 @@ flowchart LR
 | Step | Route | What happens |
 |------|--------|----------------|
 | Intro | `/`, `/intro` | Logo glitch (Style A) → kinetic words → lockup **CREATE A / PROFILE TO / START.** at **profile H2 scale** → CREATE → profile. Geolocation may seed `profile_postcode`. `?skip=1` skips logo. |
-| Profile | `/profile` | Stepped onboarding: name (**given-name**, first token only), **postcode** (`postal-code`, hydrate `profile_postcode`), household, home type, transport, age, employment, goal. Full-sentence fade per step. |
+| Profile | `/profile` | Stepped onboarding: name (**given-name**, first token only), **postcode** (+ optional house number), household, home type, **power type**, transport, age, employment. **Goal** from intro (`profile_goal`). Full-sentence fade per step. **`POST /api/user`** on submit → session + capped JIT scrapes. |
 | Summary | `/profile/summary` | Kinetic **HELLO → name → locality** (`IntroWordCycle`, opacity ticker only). Impact totals. Handshake scrape. |
 | Zone | `/zone` | 13 journey cards + Saving Tips; hydrates from Neon via scrape-sync. |
 | Solo Focus | Overlay on Zone | Questions → answer → zip-shut → result / morph card. |
@@ -142,6 +142,21 @@ flowchart LR
 There is no separate `/journeys` product route — journeys live on Zone.
 
 **Canonical Zone path:** `app/zone/page.tsx` → `lib/zone/buildZoneViewModel.ts` (facade: `lib/logic/zone.ts`).
+
+### 3.1 Personalization — how questions influence Zone
+
+Every signed-in user who completes profile + summary hits the same **staged** intelligence loop. Questions influence Zone through **four channels** (not every question changes every tile’s £):
+
+| Channel | What moves | Primary inputs |
+|---------|------------|----------------|
+| **JIT scrape selection** | Which journeys get Firecrawl+Gemini first (cap 4) | Goal, power type, employment seeds |
+| **£ / kg maths** | Journey tile SAVE/CARBON when stream exists | Profile + journey MC answers → `buildUserImpact` |
+| **Sort / filter / copy** | Hero order, grants headline, Rock tip filter | Goal, employment, age persona, council |
+| **Neon synthesis** | Headlines, prose, `offer_url` on mother tiles | Postcode DNA, profile snapshot, answers in prompts |
+
+**Authoritative matrices:** [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) (profile + pipeline) · [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) §1–2 (39 MC questions) · [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md) (triggers + offer URL precedence).
+
+**Offer URL precedence (journey mother tiles):** Neon `offer_url` → formula `claimOfferUrl` (Octopus, EV grant, etc.) → `trustedJourneyUrls` → Ask Zai deep link. **Rock Today's Tips:** habit slug/provider map via `resolveRockHabitLearnUrl` — Neon journey offer merged only when `mergeRockHabitWithJourneyOffer` passes topic shield (no e-bike → Eurostar bleed).
 
 ---
 
@@ -255,22 +270,26 @@ flowchart LR
 
 | API | Method | Role | Auth |
 |-----|--------|------|------|
-| `/api/profile/mobile` | POST | Save E.164 mobile; send **Today's Tips** SMS (up to 3 rail slugs) when Twilio ready | session optional (guest ok) |
+| `/api/profile/mobile` | POST | Save E.164 mobile; **welcome SMS** on first/changed number; **Today's Tips + Recommendations** SMS when Twilio ready | **Session required** (401 if guest) |
 | `/api/webhooks/twilio` | POST | Inbound STOP / START / delivery status; persists `mobile_sms_opt_in` on `users` | Twilio webhook |
 
-**Signup SMS copy:** `lib/messaging/signupZoneSms.ts` — Hello + Today's tips (Rock rail) + Recommendations (journey mother titles from Zone).
+**Request body:** `{ mobile, sms_opt_in: true, tips?, tipSlugs?, recommendations?, userName? }` — **`sms_opt_in` required** (explicit PECR consent; checkbox on `RockMobileSignupCard`).
 
-**UI entry:** `RockMobileSignupCard` below Today's Tips → passes visible habit slugs.
+**Signup SMS copy:** `lib/messaging/signupZoneSms.ts` — dashed sections: Hello + first name → Today's tips (Rock habits via `resolveRockHabitLearnUrl`) → Recommendations (journey mother titles + `resolveJourneyCardUrl` from Zone VM).
 
-**Env (Vercel Production + Preview, and `.env.local` for dev):** `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`. Optional: `TWILIO_WEBHOOK_URL`, `TWILIO_MESSAGING_ENABLED=0`.
+**Welcome SMS (separate send):** `lib/messaging/welcomeSms.ts` — opt-in confirmation; fires before tips SMS when mobile is new or changed.
 
-**DB:** `users.mobile` · `users.mobile_sms_opt_in` (default `true`; STOP sets `false`). Migration: `db/migrations/020_users_mobile_sms_opt_in.sql`.
+**UI entry:** `RockMobileSignupCard` below Today's Tips — passes `tips`, `tipSlugs`, `recommendations`, `userName` from `app/zone/page.tsx` (`zoneSignupTips`, `zoneSignupTipSlugs`, `zoneSignupRecommendations`).
+
+**Env (Vercel Production + Preview, and `.env.local` for dev):** `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`. Optional: `TWILIO_WEBHOOK_URL`, `TWILIO_MESSAGING_ENABLED=0` (kill sends).
+
+**DB:** `users.mobile` · `users.mobile_sms_opt_in` (default **`false`**; STOP sets `false`, START sets `true`). Migration: `db/migrations/020_users_mobile_sms_opt_in.sql`.
 
 **Hermes:** not involved — signup SMS is synchronous on `POST /api/profile/mobile`. Hermes only triggers weekly research repair (`/api/cron/zone-research`).
 
-**Not in env:** User personal mobiles — Neon `users.mobile` per account. **Live FROM:** `+447576569100` only in `TWILIO_PHONE_NUMBER`. Use **Live** credentials in Vercel (not Test). Upgrade Twilio off Trial for outbound to any signup mobile.
+**Not in env:** User personal mobiles — Neon `users.mobile` per account. Upgrade Twilio off Trial for outbound to any signup mobile (trial = verified numbers only).
 
-**Code:** `lib/messaging/twilioConfig.ts` · `lib/messaging/twilioClient.ts` · `lib/messaging/outboundGate.ts` · `app/api/webhooks/twilio/route.ts`
+**Code:** `lib/messaging/twilioConfig.ts` · `lib/messaging/twilioClient.ts` · `lib/messaging/outboundGate.ts` · `lib/messaging/signupZoneSms.ts` · `lib/rock/resolveRockHabitLearnUrl.ts` · `app/api/webhooks/twilio/route.ts`
 
 ### 6.3 Zone hydration
 

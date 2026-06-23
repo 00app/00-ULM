@@ -24,7 +24,7 @@ export default function ZoneBackToZoneLink({ ariaLabel = 'Back to Zone', classNa
         aria-label={ariaLabel}
       >
         <span className="zz-back-arrow" aria-hidden>
-          <CloseXOutlineIcon size={24} />
+          <CloseXOutlineIcon size={18} />
         </span>
       </Link>
     </FixedViewportPortal>

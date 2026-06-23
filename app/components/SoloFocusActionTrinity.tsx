@@ -16,10 +16,14 @@ type Props = {
   moneyGbp?: number
   ctaSurface?: 'pink' | 'yellow'
   isLiked?: boolean
+  isDisliked?: boolean
   showLike?: boolean
   showAskZai?: boolean
+  showDislike?: boolean
   onLike?: () => void
   onAskZai?: () => void
+  onDislike?: () => void
+  onCtaClick?: () => void
 }
 
 export function SoloFocusActionTrinity({
@@ -29,10 +33,14 @@ export function SoloFocusActionTrinity({
   moneyGbp = 0,
   ctaSurface = 'pink',
   isLiked = false,
+  isDisliked = false,
   showLike = true,
   showAskZai = true,
+  showDislike = true,
   onLike,
   onAskZai,
+  onDislike,
+  onCtaClick,
 }: Props) {
   return (
     <motion.div
@@ -50,6 +58,7 @@ export function SoloFocusActionTrinity({
           ctaLabel={ctaLabel}
           surface={ctaSurface === 'yellow' ? 'yellow' : 'pink'}
           className="solo-focus-trinity-cta"
+          onHandoffClick={onCtaClick}
         />
       ) : null}
       {showLike && onLike ? (
@@ -79,6 +88,23 @@ export function SoloFocusActionTrinity({
         >
           <span className="circle-btn-label-stack" aria-hidden="true">
             <span>ask</span>
+          </span>
+        </motion.button>
+      ) : null}
+      {showDislike && onDislike ? (
+        <motion.button
+          type="button"
+          className="circle-btn solo-focus-action-btn solo-focus-action-80 solo-focus-trinity-dislike zz-shimmer-cta"
+          onClick={onDislike}
+          transition={INDUSTRIAL_OPACITY_SNAP}
+          aria-label="Not interested"
+          style={{
+            backgroundColor: isDisliked ? 'var(--brand-select-bg)' : 'var(--color-pink)',
+            color: isDisliked ? 'var(--brand-select-fg)' : 'var(--color-yellow)',
+          }}
+        >
+          <span className="circle-btn-label-stack" aria-hidden="true">
+            <span>nope</span>
           </span>
         </motion.button>
       ) : null}

@@ -633,6 +633,86 @@ export function layoutSoloFocusProseBlocks(
 }
 
 /** Strict display contract: Marvin audit lead only — £/CO₂e live in the metrics row. */
+function proseTopicsConflict(headline: string, prose: string): boolean {
+  const h = headline.toLowerCase()
+  const p = prose.toLowerCase()
+  if (/\be-?bike|ebike|salary.?sacrifice|cycle to work\b/i.test(h)) {
+    return /\b(?:flight|short-haul|rail instead of air|domestic flights|trip budget|booking one trip by rail)\b/i.test(p)
+  }
+  if (/\brailcard|annual rail\b/i.test(h)) {
+    return /\be-?bike|ebike|cycle to work|salary.?sacrifice\b/i.test(p)
+  }
+  if (/\b(?:motorway|cruise|60mph|tyre pressure)\b/i.test(h)) {
+    return /\b(?:flight|railcard|e-?bike|ebike)\b/i.test(p)
+  }
+  return false
+}
+
+function polishRockHabitInsight(insight: string, journeyId: JourneyId): string {
+  const raw = humanizeZoneProse(insight.trim(), journeyId)
+  return humanizeTrueTipParagraph(stripAuditorFluffParagraph(raw), journeyId)
+}
+
+/** Habit-specific proof — never journey detection banks (flights on e-bike, etc.). */
+export function rockHabitProofSentence(title: string, insight: string, sourceName: string): string {
+  const source = sourceName.trim() || 'UK guidance'
+  const topic = `${title} ${insight}`.toLowerCase()
+  if (/\be-?bike|ebike|cycle to work|salary.?sacrifice\b/i.test(topic)) {
+    return `${source} runs cycle-to-work rules — salary-sacrifice e-bikes often beat a second car for local miles.`
+  }
+  if (/\brailcard|leisure train|weekend.*train\b/i.test(topic)) {
+    return `${source} prices off-peak leisure trains below last-minute fuel — a railcard compounds the saving.`
+  }
+  if (/\bcruise|motorway|steady throttle\b/i.test(topic)) {
+    return `${source} backs steady motorway throttle — constant speed beats stop-start on long runs.`
+  }
+  if (/\btyre pressure|under-inflat\b/i.test(topic)) {
+    return `${source} ties under-inflated tyres to drag — a monthly check is cheap audit labour.`
+  }
+  if (/\bshower|aerator|drip\b/i.test(topic)) {
+    return `${source} links drips and long showers to meter step-changes — aerators land before you argue the standing charge.`
+  }
+  if (/\bstandby|phantom|plug\b/i.test(topic)) {
+    return `${source} clocks standby draw on routers and chargers — one weekend plug audit beats guessing from the bill.`
+  }
+  return `${source} publishes guidance on this habit — verify the offer before you commit spend.`
+}
+
+/** Rock saving tips — insight-led prose; never holidays/travel detection fallbacks. */
+export function resolveRockHabitDisplayProse(args: {
+  title: string
+  insight: string
+  headline?: string
+  journeyId: string
+  moneyGbp: number
+  carbonKg: number
+  sourceDisplayName?: string | null
+}): { lead: string; body: string | null } {
+  const j = coerceJourneyId(args.journeyId)
+  const insight = polishRockHabitInsight(args.insight, j)
+  if (!insight) return { lead: '', body: null }
+  const proof = rockHabitProofSentence(args.title, args.insight, args.sourceDisplayName ?? 'UK guidance')
+  const headline = (args.headline ?? '').trim()
+  const residualInsight = headline
+    ? dedupeTrueTipOpeningParagraph(headline, insight) || ''
+    : insight
+  const parts: string[] = []
+  if (residualInsight) parts.push(residualInsight)
+  if (proof) {
+    const proofResidual = headline ? dedupeTrueTipOpeningParagraph(headline, proof) || proof : proof
+    if (proofResidual && !parts.some((p) => compactAlnumKey(p).includes(compactAlnumKey(proofResidual).slice(0, 20)))) {
+      parts.push(proofResidual)
+    }
+  }
+  let lead = parts.join(' ').replace(/\s+/g, ' ').trim()
+  if (!lead) lead = proof
+  const money = Math.max(0, Math.round(args.moneyGbp))
+  if (money > 0 && !proseContainsMoneyStamp(lead)) {
+    lead = `${lead} About £${formatMoneyValue(money)} a year sits on this row from your audit.`
+  }
+  return { lead: clampWords(lead, MAX_SOLO_FOCUS_LEAD_WORDS), body: null }
+}
+
 export function resolveSoloFocusDisplayProse(args: {
   headline: string
   insightSource: string
@@ -644,7 +724,22 @@ export function resolveSoloFocusDisplayProse(args: {
   auditHeaderLocality?: string | null
   locality?: string | null
   postcode?: string | null
+  /** Rock rail tips — habit copy only; no journey detection banks. */
+  contentMode?: 'rock' | 'journey'
+  habitTitle?: string
 }): { lead: string; body: string | null } {
+  if (args.contentMode === 'rock') {
+    return resolveRockHabitDisplayProse({
+      title: (args.habitTitle ?? args.headline).trim(),
+      insight: args.insightSource,
+      headline: args.headline,
+      journeyId: args.journeyId,
+      moneyGbp: args.moneyGbp,
+      carbonKg: args.carbonKg,
+      sourceDisplayName: args.sourceDisplayName,
+    })
+  }
+
   const omitPayoffLine = shouldOmitPayoffLine(args.insightSource)
   const placeLabel = resolveSoloFocusPlaceLabel({
     locality: args.locality,
@@ -684,7 +779,14 @@ export function resolveSoloFocusDisplayProse(args: {
   })
 
   if (hasLocalityAuditorLeadShape(subheading, placeLabel)) {
-    return { lead: subheading, body: null }
+    if (!proseTopicsConflict(args.headline, subheading)) {
+      return { lead: subheading, body: null }
+    }
+  }
+
+  const polishedInsight = polishRockHabitInsight(args.insightSource, coerceJourneyId(args.journeyId))
+  if (polishedInsight && !proseTopicsConflict(args.headline, polishedInsight)) {
+    return { lead: clampWords(polishedInsight, MAX_SOLO_FOCUS_LEAD_WORDS), body: null }
   }
 
   const detection = buildAuditorDetectionParagraph({
@@ -692,6 +794,9 @@ export function resolveSoloFocusDisplayProse(args: {
     moneyGbp: args.moneyGbp,
     journey: coerceJourneyId(args.journeyId),
   })
+  if (proseTopicsConflict(args.headline, detection) && polishedInsight) {
+    return { lead: clampWords(polishedInsight, MAX_SOLO_FOCUS_LEAD_WORDS), body: null }
+  }
   return { lead: detection, body: null }
 }
 
@@ -1095,7 +1200,18 @@ export function clampRockTipHeadline(title: string): string {
   return ensureHeadlineSentenceEnd(trimmed)
 }
 
-/** Solo Focus for Rock habits — title + insight; never journey EXPANDED_JOURNEY_HOOK. */
+/** Solo Focus for Rock habits — prefer insight as H1 when title is thin; body carries proof only. */
+export function headlineFromRockHabitForSoloFocus(title: string, insight?: string): string {
+  const t = stripExpandedCardTitleNoise(cleanZonePreviewHeadline(title) || title).trim()
+  const preparedTitle = prepareZoneHeadlineSource(t) || t
+  const insightTrim = insight?.trim().replace(/\s+/g, ' ') ?? ''
+  if (insightTrim && splitHeadlineWords(preparedTitle).length < MIN_EXPANDED_VIEW_HEADLINE_WORDS) {
+    return enforceHeadlineWordLimits(insightTrim, true, undefined)
+  }
+  return enforceHeadlineWordLimits(preparedTitle, true, undefined)
+}
+
+/** @deprecated Rock grid face — use {@link headlineFromRockHabitForSoloFocus} in Solo Focus. */
 export function headlineFromRockHabit(title: string, insight?: string): string {
   const t = stripExpandedCardTitleNoise(cleanZonePreviewHeadline(title) || title).trim()
   let combined = prepareZoneHeadlineSource(t) || t

@@ -70,6 +70,12 @@ import {
   ZONE_ESTIMATED_INSIGHT_STRIP,
 } from '@/lib/zone/zoneAuditUi'
 import { useApp } from '@/app/context/AppContext'
+import { recordOfferSignal } from '@/lib/zone/offerSignals'
+import {
+  createSoloFocusEngagementRef,
+  flushSoloFocusIndifferent,
+  markSoloFocusEngagement,
+} from '@/lib/zone/soloFocusEngagement'
 import { normalizeCategoryToJourneyKey, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import { parseMoneyGbpFromImpactDisplay, parseCarbonKgFromImpactDisplay } from '@/lib/soloFocusImpactParse'
@@ -99,7 +105,7 @@ import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
 import { useVisitedCardIds } from '@/lib/hooks/useVisitedCardIds'
 import { setDeepDiveInProgress } from '@/lib/zone/visitedCards'
-import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
+import type { PatternShiftCloseHandler, PatternShiftCloseMeta } from '@/lib/zone/patternShiftClose'
 import { shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
 import {
   SOLO_FOCUS_SNAPSHOT_V,
@@ -271,7 +277,7 @@ export function JourneyBentoCard({
   deepDiveInProgress = false,
 }: JourneyBentoCardProps) {
   const reduceMotion = useHydrationSafeReducedMotion()
-  const { state } = useApp()
+  const { state, toggleDislike } = useApp()
   const { isUnreadCard } = useVisitedCardIds()
   const profilePostcode =
     (state.profile?.postcode ?? '').replace(/\s+/g, '').trim().toUpperCase() ||
@@ -343,13 +349,11 @@ export function JourneyBentoCard({
   } | null>(() => readHydrationSnap(soloFocusSnapKey, journeyId)?.researchAttribution ?? null)
   const [impactAnswerPulse, setImpactAnswerPulse] = useState(false)
   const [askZaiDeepDiveOpen, setAskZaiDeepDiveOpen] = useState(false)
+  const soloFocusEngagementRef = useRef(createSoloFocusEngagementRef())
   const [heroTotalsOverride, setHeroTotalsOverride] = useState<{ money: number; carbon: number } | null>(null)
   const [homeSentinelRecard, setHomeSentinelRecard] = useState<HomeSentinelRecard | null>(null)
   const prevIsExpandedRef = useRef(false)
-  const patternShiftAfterExitRef = useRef<{
-    cardId?: string
-    visitedClose?: boolean
-  } | null>(null)
+  const patternShiftAfterExitRef = useRef<PatternShiftCloseMeta | null>(null)
   const currentMorphData =
     morphDeckCursor > 0 && morphDeck[morphDeckCursor - 1] != null
       ? morphDeck[morphDeckCursor - 1]
@@ -378,6 +382,10 @@ export function JourneyBentoCard({
       ? `${currentMorphData.impactCarbon}kg CO₂`
       : currentMorphData?.data?.carbon ?? (heroTotalsOverride ? `${heroTotalsOverride.carbon}kg CO₂` : carbonValue)
   const activeCardId = currentMorphData?.id ?? cardId
+
+  useEffect(() => {
+    soloFocusEngagementRef.current.current = 'none'
+  }, [activeCardId, cardId])
 
   const soloFocusNavRingWithMorph = useMemo(
     () =>
@@ -631,18 +639,37 @@ export function JourneyBentoCard({
     }
   }, [])
 
-  const beginCloseWithPatternShift = useCallback(() => {
+  const beginCloseWithPatternShift = useCallback((exitMeta?: Partial<PatternShiftCloseMeta>) => {
     triggerHaptic('medium')
+    const visitId = String(activeCardId || cardId || '').trim()
+    const hasOfferFeedback =
+      exitMeta?.offerFeedback === 'like' || exitMeta?.offerFeedback === 'dislike'
+    if (visitId && !hasOfferFeedback) {
+      flushSoloFocusIndifferent(soloFocusEngagementRef.current, {
+        card_id: visitId,
+        journey_key: focusCategoryJourneyId,
+        card_title: displayTitle,
+        money_gbp: parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)),
+      })
+    }
     clearSoloFocusMemory()
     setDeepDiveInProgress(null)
-    const visitId = String(activeCardId || cardId || '').trim()
     /* Director's order: pink only after loop birth — never mark visited on close before takeover. */
     patternShiftAfterExitRef.current = {
       cardId: visitId || undefined,
       visitedClose: visitId ? shouldCloseMarkPinkOnly(visitId, journeyId) : false,
+      ...exitMeta,
     }
     setIsExiting((prev) => (prev ? prev : true))
-  }, [journeyId, triggerHaptic, activeCardId, cardId])
+  }, [
+    journeyId,
+    triggerHaptic,
+    activeCardId,
+    cardId,
+    focusCategoryJourneyId,
+    displayTitle,
+    displayMoneyValue,
+  ])
 
   const handleCloseStart = useCallback(() => {
     beginCloseWithPatternShift()
@@ -651,17 +678,69 @@ export function JourneyBentoCard({
   const handleTrinityLike = useCallback(() => {
     if (!onLike || !(activeCardId || cardId)) return
     triggerHaptic('medium')
-    onLike(
-      String(activeCardId || cardId),
+    const id = String(activeCardId || cardId)
+    markSoloFocusEngagement(soloFocusEngagementRef.current, 'like')
+    onLike(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
+    recordOfferSignal({
+      card_id: id,
+      signal: 'like',
+      journey_key: focusCategoryJourneyId,
+      card_title: displayTitle,
+      money_gbp: parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)),
+    })
+    beginCloseWithPatternShift({ offerFeedback: 'like', cardTitle: displayTitle })
+  }, [
+    onLike,
+    activeCardId,
+    cardId,
+    displayTitle,
+    displayMoneyValue,
+    focusCategoryJourneyId,
+    triggerHaptic,
+    beginCloseWithPatternShift,
+  ])
+
+  const handleTrinityDislike = useCallback(() => {
+    const id = String(activeCardId || cardId || '')
+    if (!id) return
+    triggerHaptic('medium')
+    markSoloFocusEngagement(soloFocusEngagementRef.current, 'dislike')
+    toggleDislike(
+      id,
       displayTitle,
-      parseMoneyGbpFromImpactDisplay(String(displayMoneyValue))
+      parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)),
+      focusCategoryJourneyId
     )
-  }, [onLike, activeCardId, cardId, displayTitle, displayMoneyValue, triggerHaptic])
+    beginCloseWithPatternShift({ offerFeedback: 'dislike', cardTitle: displayTitle })
+  }, [
+    activeCardId,
+    cardId,
+    toggleDislike,
+    displayTitle,
+    displayMoneyValue,
+    focusCategoryJourneyId,
+    triggerHaptic,
+    beginCloseWithPatternShift,
+  ])
 
   const handleTrinityAskZai = useCallback(() => {
     triggerHaptic('medium')
+    const id = String(activeCardId || cardId || '')
+    markSoloFocusEngagement(soloFocusEngagementRef.current, 'ask')
+    if (id) {
+      recordOfferSignal({
+        card_id: id,
+        signal: 'ask',
+        journey_key: focusCategoryJourneyId,
+        card_title: displayTitle,
+      })
+    }
     setAskZaiDeepDiveOpen(true)
-  }, [triggerHaptic])
+  }, [triggerHaptic, activeCardId, cardId, focusCategoryJourneyId, displayTitle])
+
+  const handleTrinityCta = useCallback(() => {
+    markSoloFocusEngagement(soloFocusEngagementRef.current, 'cta')
+  }, [])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1046,8 +1125,13 @@ export function JourneyBentoCard({
                     ctaSurface={currentMorphData?.high_impact ? 'yellow' : 'pink'}
                     offerProviderName={soloHandoff.ctaUrl ? handoffAttribution.offerProviderName : null}
                     isLiked={isLiked}
+                    isDisliked={(state.dislikedCards ?? []).includes(
+                      String(activeCardId || cardId || '')
+                    )}
                     onLike={onLike ? handleTrinityLike : undefined}
                     onAskZai={showAskZaiTrinity || _onAskZai ? handleTrinityAskZai : undefined}
+                    onDislike={handleTrinityDislike}
+                    onCtaClick={handleTrinityCta}
                   />
                   {onNavigateJourney || onNavigateSoloFocus ? (
                     <SoloFocusJourneyNav

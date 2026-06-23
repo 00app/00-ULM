@@ -34,7 +34,7 @@ export default function ZoneModalCloseLink({
         }}
       >
         <span className="zz-back-arrow" aria-hidden>
-          <CloseXOutlineIcon size={24} />
+          <CloseXOutlineIcon size={18} />
         </span>
       </button>
     </FixedViewportPortal>

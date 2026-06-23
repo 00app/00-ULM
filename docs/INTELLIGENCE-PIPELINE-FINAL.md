@@ -12,7 +12,7 @@ Hermes (Oracle VPS + Vercel cron) sits at the repair layer; the **browser onboar
    - Goal-aligned (+2): see `lib/zone/onboardingResearchBootstrap.ts`
 4. Prefetch locality (≤2.6s) → navigate to `/profile/summary`.
 
-Profile payload for Firecrawl/Gemini: `buildResearchProfilePayload()` — postcode, house number, home type, power, transport, household, employment, goal.
+Profile payload for Firecrawl/Gemini: `buildResearchProfilePayload()` — postcode, house number, home type, power, transport, household, employment, goal, **`age_group`**.
 
 **Per-field grid unlock table:** [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md).
 
@@ -71,3 +71,47 @@ Local verify: `npm run hermes:ping`, `npm run hermes:repair-pulse` (requires `CR
 | `lib/researchSyncClient.ts` | Browser triggers + handshake |
 | `lib/agents/researchAgent.ts` | Firecrawl + Gemini synthesis |
 | `app/api/scrape-sync/route.ts` | JIT gate + session profile merge |
+
+## 6. Content retrieval (read path)
+
+```mermaid
+flowchart LR
+  GET[GET /api/scrape-sync] --> COV[research_category_coverage]
+  COV --> MERGE[neonResearchMerge foldCoverageRowsForZone]
+  MERGE --> VM[buildZoneViewModel]
+  JA[journeyAnswers + profile] --> VM
+  VM --> ARCH[POST /api/zone/content-architect optional]
+  ARCH --> UI[Zone grid + Rock rail]
+```
+
+| Step | What happens |
+| --- | --- |
+| Zone mount | `GET /api/scrape-sync?postcode=` + optional `user_id` |
+| Coverage fold | `bills`→`money`, `general`→`home` aliases |
+| VM build | `buildUserImpact` + Neon overlay + goal/employment filters |
+| Architect batch | Polishes headlines; seeds trusted URL if Neon deep link missing |
+| Rock rail | `prepareRockHabitsForRail` → `mergeRockHabitWithJourneyOffer` → `habitToTipCard` |
+
+**Honest empty:** `source: "pending"`, `scraped: []` — tiles show **COMPUTING**, not fabricated £.
+
+## 7. Offer URL precedence
+
+| Surface | Order |
+| --- | --- |
+| Journey mother CTA | Neon `offer_url` → formula URL → `trustedUrlForJourney` → `/zai` audit |
+| Rock habit learn | Topic-safe `learn_url` → `ROCK_SLUG_OFFER_URLS` → provider map → journey trusted |
+| SMS tips | `resolveRockHabitLearnUrl` per habit (topic shield blocks journey bleed) |
+| SMS recommendations | `resolveJourneyCardUrl` from journey VM rows |
+
+## 8. Mobile SMS pipeline
+
+| Step | Module |
+| --- | --- |
+| Opt-in + save | `POST /api/profile/mobile` (`sms_opt_in: true` required) |
+| Welcome | `sendMobileWelcomeSms` |
+| Tips + recs | `sendSignupZoneSms` ← `zoneSignupTips`, `zoneSignupRecommendations` from Zone |
+| STOP/START | `POST /api/webhooks/twilio` |
+
+## 9. Neon wake
+
+`NeonWakePing` → `GET /api/health` on load, focus, and tab visibility — scales idle compute before DB routes.

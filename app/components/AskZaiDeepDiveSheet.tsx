@@ -15,9 +15,9 @@ import { renderZaiChatProse } from '@/lib/zai/renderChatProse'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
 import { useApp } from '@/app/context/AppContext'
+import ZaiComposerDock from '@/app/components/ZaiComposerDock'
 import {
-  buildDeepDiveAuditTrail,
-  buildDeepDiveCalculationSummary,
+  buildDeepDivePlainSummary,
   buildDeepDiveQuestionPills,
   type DeepDiveProfileSlice,
 } from '@/lib/zai/deepDiveAudit'
@@ -45,7 +45,7 @@ function getJourneyAnswersFromClient(): Record<string, Record<string, string>> |
         if (Object.keys(cleaned).length > 0) out[jid] = cleaned
       }
     } catch {
-      // ignore
+      /* ignore */
     }
   }
   return Object.keys(out).length > 0 ? out : undefined
@@ -63,7 +63,6 @@ type Props = {
   postcode?: string | null
   localityName?: string | null
   profileSlice?: DeepDiveProfileSlice | null
-  /** Override category pills; default = 3 journey-specific pills → /zai handoff. */
   suggestedQuestions?: string[]
 }
 
@@ -132,11 +131,7 @@ export function AskZaiDeepDiveSheet({
     ]
   )
 
-  const auditTrail = useMemo(() => buildDeepDiveAuditTrail(auditInput), [auditInput])
-  const calculationSummary = useMemo(
-    () => buildDeepDiveCalculationSummary(auditInput),
-    [auditInput]
-  )
+  const plainSummary = useMemo(() => buildDeepDivePlainSummary(auditInput), [auditInput])
   const transitionPills = useMemo(
     () => suggestedQuestions ?? buildDeepDiveQuestionPills(journeyKey),
     [suggestedQuestions, journeyKey]
@@ -147,7 +142,11 @@ export function AskZaiDeepDiveSheet({
       setDraft('')
       setMessages([])
       setBusy(false)
+      return
     }
+    if (typeof document === 'undefined') return
+    document.body.classList.add('ask-zai-deep-dive-active')
+    return () => document.body.classList.remove('ask-zai-deep-dive-active')
   }, [open])
 
   useEffect(() => {
@@ -334,38 +333,27 @@ export function AskZaiDeepDiveSheet({
               left: 0,
               right: 0,
               bottom: 0,
+              width: '100%',
               zIndex: 241,
-              maxHeight: 'min(85dvh, 640px)',
+              maxHeight: 'min(78dvh, 560px)',
               borderTopLeftRadius: 40,
               borderTopRightRadius: 40,
-              padding: 'clamp(20px, 4vw, 32px)',
+              padding: 0,
               boxSizing: 'border-box',
               display: 'flex',
               flexDirection: 'column',
             }}
           >
-            <motion.div className="ask-zai-deep-dive-inner">
-              <p className="zz-label m-0 uppercase" style={{ letterSpacing: '0.08em', opacity: 0.85 }}>
-                {category}
-              </p>
-              <h2 id="ask-zai-deep-dive-title" className="ask-zai-deep-dive-title m-0 text-marvin uppercase">
-                Audit trail
+            <header className="ask-zai-deep-dive-header shrink-0">
+              <h2 id="ask-zai-deep-dive-title" className="ask-zai-deep-dive-title zz-h3 m-0 text-marvin">
+                ask zai
               </h2>
-              <p className="ask-zai-deep-dive-headline m-0">{headline}</p>
+            </header>
 
-              <section className="ask-zai-deep-dive-audit" aria-label="Calculation summary">
-                <h3 className="ask-zai-deep-dive-audit__heading m-0 text-marvin uppercase">Calculation summary</h3>
-                <p className="ask-zai-deep-dive-audit__summary m-0">{calculationSummary}</p>
-                <ul className="ask-zai-deep-dive-audit__list m-0 p-0 list-none">
-                  {auditTrail.map((line) => (
-                    <li key={line} className="ask-zai-deep-dive-audit__line">
-                      {line}
-                    </li>
-                  ))}
-                </ul>
-              </section>
+            <div className="ask-zai-deep-dive-inner">
+              <p className="ask-zai-deep-dive-lead m-0">{plainSummary}</p>
 
-              <div className="ask-zai-deep-dive-pill-row flex flex-wrap gap-3" style={{ gap: 12 }}>
+              <div className="ask-zai-deep-dive-pill-row flex flex-wrap">
                 {transitionPills.map((q) => (
                   <button
                     key={q}
@@ -379,61 +367,57 @@ export function AskZaiDeepDiveSheet({
                 ))}
               </div>
 
-              <div className="ask-zai-deep-dive-thread" aria-live="polite">
-                {messages.map((msg, i) =>
-                  msg.role === 'user' ? (
-                    <p key={`u-${i}`} className="ask-zai-deep-dive-user-turn m-0 uppercase">
-                      {msg.text}
-                    </p>
-                  ) : (
-                    <div
-                      key={`z-${i}`}
-                      className="ask-zai-deep-dive-bubble ask-zai-deep-dive-bubble--zai"
-                    >
-                      {msg.text
-                        ? renderZaiChatProse(msg.text, { journey_key: journeyKey, source: 'zai_chat' })
-                        : busy && i === messages.length - 1
-                          ? 'Auditing…'
-                          : null}
-                    </div>
-                  )
-                )}
-                <div ref={threadEndRef} />
-              </div>
-
-              <form
-                className="flex flex-col gap-3 mt-auto max-w-zone w-full"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void submit(draft)
-                }}
-              >
-                <input
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Ask about this shift…"
-                  className="ask-zai-deep-dive-input"
-                  disabled={busy}
-                />
-                <button
-                  type="submit"
-                  disabled={busy || !draft.trim()}
-                  className="ask-zai-deep-dive-submit rounded-full border-0 h-12 uppercase text-marvin cursor-pointer"
-                  aria-busy={busy}
-                >
-                  {busy ? 'Auditing…' : 'Search deeper'}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  className="ask-zai-deep-dive-continue rounded-full border-0 h-12 uppercase text-marvin cursor-pointer w-full"
-                  onClick={() => continueInZai(transitionPills[0] ?? 'show me the math')}
-                >
-                  Continue in Zai
-                </button>
-              </form>
-            </motion.div>
+              {messages.length > 0 ? (
+                <div className="ask-zai-deep-dive-thread" aria-live="polite">
+                  {messages.map((msg, i) =>
+                    msg.role === 'user' ? (
+                      <p key={`u-${i}`} className="ask-zai-deep-dive-user-turn m-0 uppercase">
+                        {msg.text}
+                      </p>
+                    ) : (
+                      <div
+                        key={`z-${i}`}
+                        className="ask-zai-deep-dive-bubble ask-zai-deep-dive-bubble--zai"
+                      >
+                        {msg.text
+                          ? renderZaiChatProse(msg.text, { journey_key: journeyKey, source: 'zai_chat' })
+                          : busy && i === messages.length - 1
+                            ? 'Auditing…'
+                            : null}
+                      </div>
+                    )
+                  )}
+                  <div ref={threadEndRef} />
+                </div>
+              ) : null}
+            </div>
           </motion.div>
+
+          <ZaiComposerDock className="zai-composer-dock--ask-sheet" bodyClass="">
+            <div className="zai-input-row">
+              <input
+                type="text"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void submit(draft)
+                }}
+                placeholder="ask zai about this"
+                disabled={busy}
+                className="zone-ask-zai-pill ask-zai-input zai-ask-input ask-zai-sheet-input border-none outline-none font-bold"
+              />
+              <motion.button
+                type="button"
+                onClick={() => void submit(draft)}
+                disabled={!draft.trim() || busy}
+                className="zai-go-btn ask-zai-sheet-go-btn zz-h4 text-marvin"
+                transition={INDUSTRIAL_OPACITY_SNAP}
+                aria-busy={busy}
+              >
+                {busy ? '…' : 'Go'}
+              </motion.button>
+            </div>
+          </ZaiComposerDock>
         </>
       ) : null}
     </AnimatePresence>,

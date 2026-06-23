@@ -91,7 +91,9 @@ import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { DISCOVERY_INJECT_EVENT } from '@/lib/discoveryInject'
 import { AppBootGlitch } from '@/app/components/AppBootGlitch'
 import { DiscoveryTakeover } from '@/app/components/DiscoveryTakeover'
+import { OfferFeedbackTakeover } from '@/app/components/OfferFeedbackTakeover'
 import { pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
+import type { PatternShiftCloseMeta } from '@/lib/zone/patternShiftClose'
 import {
   isDiscoveryInjectCard,
   isZoneCardPink,
@@ -152,6 +154,13 @@ import {
 } from '@/lib/intelligence/aiRouteClientGuard'
 import { waitForProtectedRoutesReady } from '@/lib/client/protectedRouteGate'
 import { saveLikeCardSnapshot, removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
+import { readAllDislikeCardSnapshots } from '@/lib/client/dislikeCardSnapshots'
+import { readAllIndifferentCardSnapshots } from '@/lib/client/indifferentCardSnapshots'
+import {
+  buildOfferPreferenceState,
+  buildOfferPreferenceWeights,
+} from '@/lib/zone/offerPreference'
+import { OFFER_PREFERENCE_CHANGED_EVENT } from '@/lib/zone/offerSignals'
 import { prepareRockHabitsForRail } from '@/lib/zone/filterRockHabits'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
@@ -163,7 +172,8 @@ import {
   type ZoneEngineStatus,
 } from '@/lib/zone/engineHydration'
 import { ROCK_BY_SLUG, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/lib/rock/habitsCatalog'
-import { resolveJourneyCardUrl, type SignupSmsItem } from '@/lib/messaging/signupZoneSmsShared'
+import { mergeRockHabitWithJourneyOffer, resolveRockHabitLearnUrl } from '@/lib/rock/resolveRockHabitLearnUrl'
+import { normalizeSmsUrl, resolveJourneyCardUrl, type SignupSmsItem } from '@/lib/messaging/signupZoneSmsShared'
 import { replaceRockSlotAfterLike } from '@/lib/rock/rotation'
 import { useRockVisibleHabits } from '@/lib/rock/useRockVisibleHabits'
 import { utcDayIndex } from '@/lib/rock/rotation'
@@ -304,6 +314,25 @@ export default function ZonePage() {
     return () => window.removeEventListener(CATEGORY_INTENT_CHANGED_EVENT, syncIntent)
   }, [])
 
+  const offerPrefRefreshPendingRef = useRef(false)
+
+  const mergedCategoryIntentWeights = useMemo(() => {
+    void refreshKey
+    const prefs = buildOfferPreferenceState({
+      dislikedCardIds: state.dislikedCards,
+      indifferentCardIds: state.indifferentCardIds,
+      dislikeSnapshots: Object.values(readAllDislikeCardSnapshots()),
+      indifferentSnapshots: Object.values(readAllIndifferentCardSnapshots()),
+    })
+    const offerWeights = buildOfferPreferenceWeights(prefs)
+    const merged = { ...categoryIntentWeights }
+    for (const jid of JOURNEY_ORDER) {
+      const delta = offerWeights[jid] ?? 0
+      if (delta !== 0) merged[jid] = (merged[jid] ?? 0) + delta
+    }
+    return merged
+  }, [categoryIntentWeights, state.dislikedCards, state.indifferentCardIds, refreshKey])
+
   const trackZoneLike = useCallback(
     (id: string, title?: string, moneyGbp?: number) => {
       const tip = viewModel.tips.find((t) => t.id === id)
@@ -335,9 +364,8 @@ export default function ZonePage() {
       toggleLike(id, zoneTitle, moneyGbp)
       setCategoryIntentWeights(readCategoryIntentWeights())
       setRefreshKey((k) => k + 1)
-      if (willLike) router.push('/likes')
     },
-    [toggleLike, viewModel.tips, viewModel.journeys, state.likedCards, router]
+    [toggleLike, viewModel.tips, viewModel.journeys, state.likedCards]
   )
 
   useEffect(() => {
@@ -380,6 +408,14 @@ export default function ZonePage() {
   const [pinnedAchievements, setPinnedAchievements] = useState<ZoneTipCard[]>([])
   /** Pattern-shift question after Solo Focus close (exclusive full-screen focus). */
   const [patternShiftJourneyId, setPatternShiftJourneyId] = useState<JourneyId | null>(null)
+  /** One-shot like / nope feedback after Solo Focus trinity action. */
+  const [offerFeedbackTakeover, setOfferFeedbackTakeover] = useState<{
+    journeyId: JourneyId
+    cardId: string
+    cardTitle: string
+    signal: 'like' | 'dislike'
+  } | null>(null)
+  const loopTakeoverOpen = Boolean(patternShiftJourneyId || offerFeedbackTakeover)
   /** Clean Birth: hide Zone grid/anchor until post-answer pulse completes. */
   const [isZoneVisible, setIsZoneVisible] = useState(true)
   const [cleanBirthRevealKey, setCleanBirthRevealKey] = useState(0)
@@ -488,9 +524,32 @@ export default function ZonePage() {
   const [visitedCardIds, setVisitedCardIds] = useState<Set<string>>(() => readVisitedCardIds())
 
   const launchPatternShiftTakeover = useCallback(
-    (journeyId: JourneyId, meta?: { cardId?: string; visitedClose?: boolean }) => {
+    (journeyId: JourneyId, meta?: PatternShiftCloseMeta) => {
       closeAnySoloFocus()
       loopCloseCardIdRef.current = meta?.cardId?.trim() || null
+
+      if (meta?.offerFeedback === 'like' || meta?.offerFeedback === 'dislike') {
+        const closeId = meta.cardId?.trim()
+        if (!closeId) {
+          loopCloseCardIdRef.current = null
+          setOfferFeedbackTakeover(null)
+          setPatternShiftJourneyId(null)
+          setIsZoneVisible(true)
+          returnToSoloFocusOrigin()
+          return
+        }
+        setPatternShiftJourneyId(null)
+        setIsZoneVisible(false)
+        setOfferFeedbackTakeover({
+          journeyId,
+          cardId: closeId,
+          cardTitle: meta.cardTitle?.trim() || '',
+          signal: meta.offerFeedback,
+        })
+        return
+      }
+
+      setOfferFeedbackTakeover(null)
       if (shouldCloseToGridOnly(meta?.visitedClose)) {
         const closeId = meta?.cardId?.trim()
         if (closeId) {
@@ -525,6 +584,33 @@ export default function ZonePage() {
       returnToSoloFocusOrigin()
     },
     [closeAnySoloFocus, pinAchievementCard, returnToSoloFocusOrigin]
+  )
+
+  const completeOfferFeedback = useCallback(
+    (signal: 'like' | 'dislike') => {
+      setOfferFeedbackTakeover(null)
+      closeAnySoloFocus()
+      setExpandedCardId(null)
+      setExpandedFromTip(null)
+      setExpandedTipId(null)
+      setIsZoneVisible(true)
+      setCleanBirthRevealKey((k) => k + 1)
+      setRefreshKey((k) => k + 1)
+      setVmSyncStamp(Date.now())
+      const closedId = loopCloseCardIdRef.current
+      loopCloseCardIdRef.current = null
+      if (closedId) {
+        markCardVisited(closedId)
+        setVisitedCardIds(readVisitedCardIds())
+      }
+      offerPrefRefreshPendingRef.current = false
+      if (signal === 'like') {
+        router.push('/likes')
+      } else {
+        returnToSoloFocusOrigin()
+      }
+    },
+    [closeAnySoloFocus, returnToSoloFocusOrigin, router]
   )
 
   const completeCleanBirth = useCallback(() => {
@@ -566,6 +652,25 @@ export default function ZonePage() {
   useEffect(() => {
     expandedTipIdRef.current = expandedTipId
   }, [expandedTipId])
+
+  useEffect(() => {
+    const onPrefs = () => {
+      if (expandedCardIdRef.current || expandedTipIdRef.current) {
+        offerPrefRefreshPendingRef.current = true
+        return
+      }
+      setRefreshKey((k) => k + 1)
+    }
+    window.addEventListener(OFFER_PREFERENCE_CHANGED_EVENT, onPrefs)
+    return () => window.removeEventListener(OFFER_PREFERENCE_CHANGED_EVENT, onPrefs)
+  }, [])
+
+  useEffect(() => {
+    if (isFocusViewOpen || !offerPrefRefreshPendingRef.current) return
+    offerPrefRefreshPendingRef.current = false
+    setRefreshKey((k) => k + 1)
+  }, [isFocusViewOpen])
+
   useEffect(() => {
     if (!state.soloFocus.activeCardId) return
     if (expandedCardId || expandedTipId) {
@@ -936,6 +1041,7 @@ export default function ZonePage() {
       setEngineStatus('idle')
       return
     }
+    setVmResolved(true)
     const url = appendResearchUserIdQuery(`/api/scrape-sync?postcode=${encodeURIComponent(postcode)}`)
     const syncGen = ++scrapeSyncGenRef.current
     let clearHydrationPhases: (() => void) | null = null
@@ -1448,7 +1554,7 @@ export default function ZonePage() {
       injectedTips: effectiveInjectedTips,
       marketContext: Object.keys(effectiveMarket).length > 0 ? effectiveMarket : undefined,
       neonJourneyResearch: neonJourneyResearchFromCoverage(researchCategoryCoverage),
-      categoryIntentWeights,
+      categoryIntentWeights: mergedCategoryIntentWeights,
     })
     setViewModel(vm)
     setVmSyncStamp(Date.now())
@@ -1485,6 +1591,7 @@ export default function ZonePage() {
           postcode: profile.postcode,
           household: profile.household,
           home_type: profile.home_type,
+          home_power: profile.home_power,
           transport_baseline: profile.transport_baseline,
           age: profile.age,
           employment_status: profile.employment_status,
@@ -1517,7 +1624,7 @@ export default function ZonePage() {
         injectedTips: effectiveInjectedTips,
         marketContext: nextMarketContext,
         neonJourneyResearch: neonJourneyResearchFromCoverage(researchCategoryCoverage),
-        categoryIntentWeights,
+        categoryIntentWeights: mergedCategoryIntentWeights,
       })
 
       const gridTotals = sumJourneyGridTotals(vmLive)
@@ -1560,7 +1667,7 @@ export default function ZonePage() {
     researchMeta,
     homeUnitRates,
     researchCategoryCoverage,
-    categoryIntentWeights,
+    mergedCategoryIntentWeights,
     hydrated,
     scrapePostcode,
   ])
@@ -1644,7 +1751,7 @@ export default function ZonePage() {
       marketContext:
         Object.keys(effectiveMarketArchitect).length > 0 ? effectiveMarketArchitect : undefined,
       neonJourneyResearch: neonJourneyResearchFromCoverage(researchCategoryCoverage),
-      categoryIntentWeights,
+      categoryIntentWeights: mergedCategoryIntentWeights,
     })
 
     const nine = vm.journeys.filter((j) => j.id.startsWith('journey-'))
@@ -1830,8 +1937,9 @@ export default function ZonePage() {
   const sessionRestoreDone = useRef(false)
 
   const groovyItems = useMemo(
-    () =>
-      buildGroovyGridItems({
+    () => {
+      void refreshKey
+      return buildGroovyGridItems({
         viewModel,
         achievementTips,
         discoveryTips,
@@ -1842,7 +1950,12 @@ export default function ZonePage() {
           home_power: state.profile?.homePower,
           homePower: state.profile?.homePower,
         },
-      }),
+        dislikedCardIds: state.dislikedCards,
+        indifferentCardIds: state.indifferentCardIds,
+        dislikeSnapshots: Object.values(readAllDislikeCardSnapshots()),
+        indifferentSnapshots: Object.values(readAllIndifferentCardSnapshots()),
+      })
+    },
     [
       viewModel,
       achievementTips,
@@ -1850,6 +1963,9 @@ export default function ZonePage() {
       baselineTips,
       state.profile?.goal,
       state.profile?.homePower,
+      state.dislikedCards,
+      state.indifferentCardIds,
+      refreshKey,
     ]
   )
   const displayItems: GroovyItem[] = useMemo(() => [...groovyItems], [groovyItems])
@@ -2002,7 +2118,7 @@ export default function ZonePage() {
     isZoneVisible &&
     hydrated &&
     architecturalPulsePhase === 'done' &&
-    !patternShiftJourneyId
+    !loopTakeoverOpen
   const zoneWallCollapsed =
     zoneHandoffStaging ||
     architecturalPulsePhase !== 'done' ||
@@ -2121,7 +2237,7 @@ export default function ZonePage() {
     )
     return deduped.map((h) => {
       const url = rockOfferByJourney[h.journey_key]
-      return url ? { ...h, learn_url: url } : h
+      return mergeRockHabitWithJourneyOffer(h, url)
     })
   }, [rockVisibleHabits, rockOfferByJourney, viewModel])
 
@@ -2132,14 +2248,11 @@ export default function ZonePage() {
 
   const zoneSignupTips = useMemo(
     (): SignupSmsItem[] =>
-      rockHabitsWithOffers.slice(0, 6).map((h) => {
-        const card = habitToTipCard(h)
-        return {
-          title: clampRockTipHeadline(h.title).replace(/\.$/, ''),
-          url: card.source ?? card.actions?.learnUrl ?? card.partner_link,
-          gbp: Math.max(0, Math.round(h.money_gbp)),
-        }
-      }),
+      rockHabitsWithOffers.slice(0, 6).map((h) => ({
+        title: clampRockTipHeadline(h.title).replace(/\.$/, ''),
+        url: normalizeSmsUrl(resolveRockHabitLearnUrl(h)),
+        gbp: Math.max(0, Math.round(h.money_gbp)),
+      })),
     [rockHabitsWithOffers]
   )
 
@@ -2498,7 +2611,7 @@ export default function ZonePage() {
           className={[
             'zone-grid-container',
             'zone-container',
-            zoneHandoffStaging && !patternShiftJourneyId
+            zoneHandoffStaging && !loopTakeoverOpen
               ? 'zone-container--pulse-prerender'
               : '',
             zoneWallCollapsed ? 'zone-container--wall-collapsed' : '',
@@ -2632,25 +2745,38 @@ export default function ZonePage() {
                         : {})}
                     >
                       <div className="w-full flex-1 min-h-0 flex flex-col pt-5">
-                        <Link
-                          href={ROUTES.SETTINGS}
+                        <div
                           data-testid="zone-hero-card"
                           data-source={heroDataSource}
-                          tabIndex={zoneInteractable ? 0 : -1}
-                          aria-disabled={!zoneInteractable}
-                          onClick={(e) => {
-                            if (!zoneInteractable) e.preventDefault()
-                          }}
-                          className={`zone-hero-card bento-card-groovy flex flex-col flex-1 min-h-0 h-full w-full justify-between cursor-pointer no-underline text-inherit${sentinelHeroPing ? ' sentinel-hero-ping' : ''}`}
+                          className={`zone-hero-card bento-card-groovy flex flex-col flex-1 min-h-0 h-full w-full justify-between text-inherit${sentinelHeroPing ? ' sentinel-hero-ping' : ''}`}
                         >
                           <div className="flex flex-col shrink-0 gap-[clamp(10px,2.5cqw,16px)]">
-                            <ZoneBentoCardHeader
-                              journeyId="profile"
-                              label="YOUR PROFILE"
-                            />
-                            <h3 className="card-headline zone-hero-profile-lead m-0 min-w-0" lang="en">
-                              {primaryHeroLead}
-                            </h3>
+                            <Link
+                              href={ROUTES.SETTINGS}
+                              tabIndex={zoneInteractable ? 0 : -1}
+                              aria-disabled={!zoneInteractable}
+                              onClick={(e) => {
+                                if (!zoneInteractable) e.preventDefault()
+                              }}
+                              className="zone-hero-profile-link no-underline text-inherit w-fit"
+                            >
+                              <ZoneBentoCardHeader journeyId="profile" label="YOUR PROFILE" />
+                            </Link>
+                            {primaryHeroJourney ? (
+                              <button
+                                type="button"
+                                className="zone-hero-win-cta card-headline zone-hero-profile-lead m-0 min-w-0"
+                                disabled={!zoneInteractable}
+                                aria-label={`Open ${formatZoneCategoryLabel(primaryHeroJourney.journey_key)} offer`}
+                                onClick={() => openZoneJourneySoloFocus(primaryHeroJourney)}
+                              >
+                                {primaryHeroLead}
+                              </button>
+                            ) : (
+                              <h3 className="card-headline zone-hero-profile-lead m-0 min-w-0" lang="en">
+                                {primaryHeroLead}
+                              </h3>
+                            )}
                           </div>
                           <div
                             key={`zone-hero-metrics-${Math.round(heroMoney)}-${Math.round(heroCarbon)}`}
@@ -2684,7 +2810,7 @@ export default function ZonePage() {
                               </span>
                             </div>
                           </div>
-                        </Link>
+                        </div>
                       </div>
                     </motion.div>
                   )}
@@ -2993,7 +3119,7 @@ export default function ZonePage() {
           </LayoutGroup>
         </motion.div>
 
-        {!expandedCardId && !expandedTipId && !patternShiftJourneyId ? (
+        {!expandedCardId && !expandedTipId && !loopTakeoverOpen ? (
           <>
             <RockMobileSignupCard
               tips={zoneSignupTips}
@@ -3010,7 +3136,9 @@ export default function ZonePage() {
         {/* Tip expand: same Solo Focus structure as journey cards (tips, amounts, links, question) */}
         {expandedTipId && (() => {
           const rockSlug = expandedTipId.startsWith('rock-') ? expandedTipId.slice(5) : null
-          const rockHabit = rockSlug ? ROCK_BY_SLUG.get(rockSlug) : undefined
+          const rockHabit = rockSlug
+            ? rockHabitsWithOffers.find((h) => h.slug === rockSlug)
+            : undefined
           const rockTip = rockHabit ? habitToTipCard(rockHabit) : null
           const tipCell = groovyItems.find((c): c is GroovyItem & { type: 'tip'; tip: ZoneTipCard } => c.type === 'tip' && c.tip.id === expandedTipId)
           const tip =
@@ -3191,11 +3319,22 @@ export default function ZonePage() {
           />
         ) : null}
 
-        {isZoneVisible && !zoneHandoffStaging && !isFocusViewOpen && !patternShiftJourneyId ? (
+        {offerFeedbackTakeover ? (
+          <OfferFeedbackTakeover
+            open
+            journeyId={offerFeedbackTakeover.journeyId}
+            cardId={offerFeedbackTakeover.cardId}
+            cardTitle={offerFeedbackTakeover.cardTitle}
+            signal={offerFeedbackTakeover.signal}
+            onComplete={completeOfferFeedback}
+          />
+        ) : null}
+
+        {isZoneVisible && !zoneHandoffStaging && !isFocusViewOpen && !loopTakeoverOpen ? (
           <ZoneAskZaiDock onActivate={() => router.push(ROUTES.ZAI)} />
         ) : null}
 
-        {isZoneVisible && !zoneHandoffStaging && !expandedCardId && !expandedTipId && !patternShiftJourneyId && (
+        {isZoneVisible && !zoneHandoffStaging && !expandedCardId && !expandedTipId && !loopTakeoverOpen && (
           <AppFloatingNav active="zone" className="floating-nav--zone-rail-desktop" />
         )}
       </motion.main>

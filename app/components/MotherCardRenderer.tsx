@@ -23,8 +23,11 @@ interface MotherCardRendererProps {
   /** CTA handoff surface — yellow block for Action Vault high-impact rebirth. */
   ctaSurface?: 'pink' | 'yellow'
   isLiked?: boolean
+  isDisliked?: boolean
   onLike?: () => void
   onAskZai?: () => void
+  onDislike?: () => void
+  onCtaClick?: () => void
 }
 
 export function MotherCardRenderer({
@@ -43,8 +46,11 @@ export function MotherCardRenderer({
   offerProviderName,
   ctaSurface = 'pink',
   isLiked = false,
+  isDisliked = false,
   onLike,
   onAskZai,
+  onDislike,
+  onCtaClick,
 }: MotherCardRendererProps) {
   return (
     <>
@@ -110,10 +116,14 @@ export function MotherCardRenderer({
           moneyGbp={moneyGbp}
           ctaSurface={ctaSurface}
           isLiked={isLiked}
+          isDisliked={isDisliked}
           showLike={Boolean(onLike)}
           showAskZai={Boolean(onAskZai)}
+          showDislike={Boolean(onDislike)}
           onLike={onLike}
           onAskZai={onAskZai}
+          onDislike={onDislike}
+          onCtaClick={onCtaClick}
         />
       ) : null}
       {ctaUrl && offerProviderName?.trim() ? (

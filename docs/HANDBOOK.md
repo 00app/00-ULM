@@ -10,10 +10,11 @@
 
 **How to use this file**
 
-1. Read **Quick start** and **Master checklist** before a release.
-2. Skim the **synthesized** sections (loop, mechanical truth, Director's Order).
-3. Drill into **annexes** for full API tables, every question ID, scrape triggers, deploy runbooks.
-4. When behaviour changes, edit the **satellite** `docs/*.md` first, then run `python3 scripts/consolidate-handbook.py`.
+1. Read **Complete app overview & testing** and **Quick start** before testing logic or content sources.
+2. Read **Master checklist** before a release.
+3. Skim the **synthesized** sections (loop, mechanical truth, Director's Order).
+4. Drill into **annexes** for full API tables, every question ID, scrape triggers, deploy runbooks.
+5. When behaviour changes, edit the **satellite** `docs/*.md` first, then run `python3 scripts/consolidate-handbook.py`.
 
 **Do not commit secrets.** Postcodes in examples are `@fixture-only` in `scripts/` only — never hardcode BN17 in `app/` or `lib/`.
 
@@ -78,11 +79,72 @@ npm run deploy               # verify → remote build → promote
 
 ---
 
+## Complete app overview & testing
+
+**Full reference (edit this satellite first):** [`docs/APP-OVERVIEW-AND-TESTING.md`](APP-OVERVIEW-AND-TESTING.md) · annex below after `consolidate-handbook.py`.
+
+### What the app does
+
+UK postcode auditor: **profile** → **summary** → **Zone** (13 journey tiles + Rock tips) → **Solo Focus** (MC questions + discovery) → optional **Zai** chat and **SMS** signup. Intelligence = **Firecrawl scrape** + **Gemini copy** → Neon `research_results`; £/kg = **`buildUserImpact` only**.
+
+### Where content comes from (test matrix)
+
+| Surface | Headline / copy | £ / kg | URL / CTA |
+|---------|-----------------|--------|-----------|
+| **Journey mother tile** | Neon `agent_headline` → Architect | Neon `saving_amount_gbp` or `buildUserImpact` | Neon `offer_url` → trusted fallback |
+| **Rock tip tile** | Habit catalog title | Catalog `money_gbp` | `resolveRockHabitLearnUrl` (topic shield) |
+| **Solo Focus (journey)** | Neon `architect_prose` + hooks | Verified audit or formula | `resolveSoloFocusHandoffUrls` |
+| **Solo Focus (Rock)** | `headlineFromRockHabit` + insight | Catalog habit row | Habit learn URL |
+| **SMS tips** | Same as visible Rock rail | Catalog £ in body | Per-habit resolved URL |
+| **SMS recs** | Journey VM titles | — | `resolveJourneyCardUrl` |
+
+**COMPUTING** when `!journeyHasStreamData` — no fake £ without Neon stream (`mechanicalTruth.ts`).
+
+### How £ and carbon are calculated
+
+1. **`lib/brains/buildUserImpact.ts`** — single entry; calls **`lib/brains/calculations.ts`** per journey.
+2. Inputs: profile + `journey_*_answers` (or **synthetic** mid-bands from profile when answers cleared).
+3. Employment modifier: `applyEmploymentFinancialPhysics`.
+4. Grid: regional gCO₂/kWh via `gridCarbonContextForPostcode`.
+5. **`buildZoneViewModel`** overlays Neon £ when stream valid; badges **LIVE_AUDIT** vs **ESTIMATED_AUDIT**.
+
+**Strong answer → £ mapping:** grants (`boiler_age`, …), solar trio, travel (`commute_distance`, `ev_hybrid`), utilities `tariff_type`, money/tech/water/waste/food/holidays/carbon — see annex §5.2.
+
+**Scrape-only answers (no dedicated £ formula):** home fabric trio, utilities `supplier_switch` / `monthly_energy_band`, travel `public_transport`, food `own_produce` — still trigger research + discovery.
+
+### Intelligence triggers (when content is born)
+
+| When | What runs | Cap |
+|------|-----------|-----|
+| Profile submit | `POST /api/user` + onboarding JIT | 4 journeys |
+| Summary exit | `runProfileResearchHandshake` | deduped JIT |
+| Zone load | `GET /api/scrape-sync` | read |
+| MC answer | `POST /api/answers` | discovery + optional JIT |
+| Tip +1 / deep scrape | `POST /api/scrape-sync` | 1 `journey_key` |
+| Hermes | `/api/cron/zone-research` | weekly repair |
+
+Profile → grid field matrix: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md). Trigger detail: [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md).
+
+### Testing checklist (logic + content)
+
+| Step | Command / action | Pass |
+|------|------------------|------|
+| Static | `npm run verify` + `npm run test:mechanical-truth` | exit 0 |
+| DB | `npm run db:test` | 15 tables |
+| API | `curl …/api/health` | `database: connected` |
+| Empty zone | `curl …/api/scrape-sync?postcode=SW1A1AA` | `pending`, 0 scraped |
+| Browser T1–T11 | See APP-OVERVIEW-AND-TESTING.md §9.3 | profile → zone → answers → SMS |
+| E2E personalization | DEV-TEST-AUDIT.md § E2E gate | E1–E6 |
+
+**Symptom → cause:** wrong Rock URL → topic shield; all COMPUTING → no Neon rows / session; utilities re-lock → `home_power` in VM — full table in APP-OVERVIEW-AND-TESTING.md §9.4.
+
+---
+
 ## Table of contents
 
 ### Synthesized (read first)
 
-- [Quick start](#quick-start) · [Core principles](#core-principles-always-true) · [Master checklist](#master-checklist-release-audit)
+- [Complete app overview & testing](#complete-app-overview--testing) · [Quick start](#quick-start) · [Core principles](#core-principles-always-true) · [Master checklist](#master-checklist-release-audit)
 - [Pipeline connection map](#pipeline-connection-map-how-it-wires-together)
 - [API registry & auth](#api-registry--auth)
 - [AI credit spend control](#ai-credit-spend-control-boundaries)
@@ -99,6 +161,7 @@ npm run deploy               # verify → remote build → promote
 
 ### Annexes (full source docs — complete detail)
 
+- [App overview & testing (full)](#annex-app-overview--testing-full)
 - [User flow & runtime pipeline](#annex-user-flow--runtime-pipeline)
 - [Zone content, scrape & presentation](#annex-zone-content-scrape--presentation)
 - [Profile, questions & mechanical truth](#annex-profile-journey-questions--mechanical-truth)
@@ -509,6 +572,368 @@ Full rules: annex [Zai, Deep Dive & question registry](#annex-zai-deep-dive--que
 
 ---
 
+## Annex: App overview & testing (full) {#annex-app-overview--testing-full}
+
+*Source file: `APP-OVERVIEW-AND-TESTING.md`*
+
+
+**Purpose:** One document to understand what the app does, where every piece of content comes from, how £ and carbon are calculated, and how to test each layer.
+
+**Cross-links:** [HANDBOOK.md](HANDBOOK.md) · [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) · [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md) · [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md)
+
+**Production:** https://www.00-00.online · **Repo:** https://github.com/00app/00-ULM.git
+
+---
+
+#### 1. What the app is
+
+Zero Zero is a UK postcode-driven energy and lifestyle auditor. A user provides a **postcode** and short **profile** (household, home type, power type, transport, age, employment, goal). The app builds a personalised **Zone** — a bento grid of **13 journey domains** (home, utilities, grants, solar, travel, etc.) with savings and carbon hints. Tapping a card opens **Solo Focus**: embedded questions, researched copy, and optional **discovery** child cards.
+
+| Metaphor | Role | Implementation |
+|----------|------|----------------|
+| **Brain** | Reasoning and copy | Gemini — headlines, three prose paragraphs, discovery cards |
+| **Stomach** | Ingestion | Firecrawl — UK pages (Ofgem, GOV.UK, grants, tariffs) |
+| **Memory** | Persistence | Neon Postgres — users, answers, `research_results` |
+| **Nervous system** | Orchestration | Next.js on Vercel — API routes, client VM |
+| **Hermes** | Scheduled repair | Weekly cron → `/api/cron/zone-research` |
+
+**Mechanical truth:** Tiles show **COMPUTING — JOURNEY** and £0 until Neon or scrape-sync has **stream data**. No fake marketing £ on an empty database.
+
+---
+
+#### 2. User journey (routes)
+
+| Step | Route | What happens | Key APIs / modules |
+|------|-------|--------------|-------------------|
+| Intro | `/`, `/intro` | Goal choice; optional geolocation postcode | `profile_goal` in localStorage |
+| Profile | `/profile` | 8 steps + goal; **`POST /api/user`** on submit | Session cookie, JIT scrapes (≤4) |
+| Summary | `/profile/summary` | HELLO → name → locality ticker; research handshake | `runProfileResearchHandshake` |
+| Zone | `/zone` | 13 journey tiles + Rock rail + mobile signup | `GET /api/scrape-sync`, `buildZoneViewModel` |
+| Solo Focus | Overlay | 1 MC question → answer → result; discovery birth | `POST /api/answers` |
+| Zai | `/zai` | Read-only chat (Gemini); no MC birth | `POST /api/zai` |
+| Likes / Settings | `/likes`, `/settings` | Saved cards, reset, diagnostics | localStorage + session |
+
+**Canonical path:** Profile → Summary → Zone. Session (`POST /api/user`) is required for SMS and full Neon user rows.
+
+---
+
+#### 3. End-to-end data flow
+
+```mermaid
+flowchart TB
+  subgraph onboard [Onboarding]
+    P[Profile + goal] --> U[POST /api/user]
+    U --> JIT[≤4 JIT scrapes]
+    S[Summary handshake]
+  end
+  subgraph free [Tier A — no Firecrawl]
+    LI[local-intelligence]
+    GEO[geocode/postcode]
+    IMP[buildUserImpact]
+  end
+  subgraph paid [Tier B/C — credits]
+    FC[Firecrawl]
+    GM[Gemini]
+    RR[(research_results)]
+  end
+  subgraph ui [Zone UI]
+    VM[buildZoneViewModel]
+    ROCK[Rock rail catalog]
+    SF[Solo Focus]
+  end
+  P --> LI --> GEO
+  JIT --> FC --> GM --> RR
+  RR --> VM
+  IMP --> VM
+  JA[journey answers] --> IMP
+  JA --> SF
+  ROCK --> VM
+```
+
+| Stage | Reads | Writes | Costs credits? |
+|-------|-------|--------|----------------|
+| Postcode geocode | Postcodes.io, Nominatim | `profile_locality_name` | No |
+| Local intelligence | Council, carbon, grants context | session / genome | No |
+| Zone hydrate | `research_results`, coverage | client state | No (read) |
+| Onboarding JIT | Profile snapshot | Neon rows | Yes (≤4 journeys) |
+| MC answer | Profile + answers | `journey_answers_jsonb`, discovery | Optional JIT per journey |
+| Hermes weekly | Stale rows | repair `research_results` | Yes (batch) |
+| Zai chat | Genome + research URLs | transcript | Gemini only |
+
+---
+
+#### 4. Where content comes from (UI element matrix)
+
+Use this table when testing: **if X on screen, data must come from Y**.
+
+##### 4.1 Journey mother tiles (13 bento cards)
+
+| UI element | Primary source | Fallback | Module |
+|------------|----------------|----------|--------|
+| **Headline (5–8 words)** | Neon `agent_headline` | Content Architect polish; `profileDrivenJourneyTitle` | `buildZoneViewModel`, `zoneCardHeadlineFromRaw` |
+| **SAVE £** | Neon `saving_amount_gbp` if stream | `buildUserImpact` per journey | `mechanicalTruth.journeyHasStreamData` |
+| **CARBON kg** | `buildUserImpact` + stream | 0 / `—` when COMPUTING | `lib/brains/calculations.ts` |
+| **COMPUTING title** | No stream | `computingJourneyTitle(journey)` | `mechanicalTruth.ts` |
+| **CTA / BUY URL** | Neon `offer_url` | Formula URL → `trustedJourneyUrls` → `/zai` | `buildZoneViewModel`, `resolveSoloFocusHandoffUrls` |
+| **Prose (Solo Focus)** | Neon `architect_prose` (3 paragraphs) | Warm auditor fallback | `researchAgent.ts` |
+| **Audit badge** | LIVE vs ESTIMATED | `vmAuditLive()` | `buildZoneViewModel` |
+| **Visited pink** | User closed card / loop | `visitedCards`, server breadcrumbs | `app/zone/page.tsx` |
+| **Council grant bar** | `getLocalData(postcode)` | geocode + local-intelligence | Not from MC answers |
+
+##### 4.2 Today's Tips (Rock rail)
+
+| UI element | Source | Module |
+|------------|--------|--------|
+| **Title** | Static habit catalog | `lib/rock/habitsCatalog.ts` |
+| **£ / kg on tile** | `habit.money_gbp` / `habit.carbon_kg` | catalog — **not** Neon journey row |
+| **Learn URL** | `resolveRockHabitLearnUrl` | slug map → provider map → topic shield |
+| **Neon offer merge** | Journey `latestOfferUrl` only if topic-safe | `mergeRockHabitWithJourneyOffer` |
+| **Which habits show** | Season + off-wall dedupe | `prepareRockHabitsForRail` (6 visible, 12 cap) |
+| **Solo Focus expand** | Habit `insight` only — **never** mother hook/prose | `headlineFromRockHabit` |
+
+##### 4.3 Profile summary ticker
+
+| Word | Source |
+|------|--------|
+| HELLO, name, locality | `buildSummaryStaccatoWords` + `IntroWordCycle` |
+| Waste beats | `buildUserImpact` → `summaryWaste` |
+
+##### 4.4 SMS (mobile signup)
+
+| Section | Source |
+|---------|--------|
+| Welcome | `lib/messaging/welcomeSms.ts` (fixed copy) |
+| Today's tips | `zoneSignupTips` → `resolveRockHabitLearnUrl` per habit |
+| Recommendations | Journey VM rows → `resolveJourneyCardUrl` |
+
+##### 4.5 Zai chat
+
+| Input | Source |
+|-------|--------|
+| Context | `user_genome`, journey answers, `research_results` URLs/£ |
+| Scrape | **Only** on Deep Dive “Search deeper” — not on every message |
+
+---
+
+#### 5. How £ and carbon are calculated
+
+**Single source of truth:** `lib/brains/buildUserImpact.ts` → `lib/brains/calculations.ts`. **UI must never invent totals.**
+
+##### 5.1 Pipeline
+
+1. **Profile** + **journey answers** (from localStorage / Neon `journey_answers_jsonb`)
+2. If answers missing for a journey, **synthetic mid-bands** from profile (`lib/brains/profileJourneyBaseline.ts`) — badge stays **ESTIMATED_AUDIT**
+3. Per-journey calculator → annual £ and kg
+4. Optional **scraped overlay** (≤20% delta) when scrape-sync provides data points
+5. **`buildZoneViewModel`** blends impact + Neon `saving_amount_gbp` when stream exists
+
+##### 5.2 Per-journey calculators (what answers affect £)
+
+| Journey | Calculator | Key answer fields |
+|---------|------------|-------------------|
+| **home** | `calculateHome` | `monthly_cost`, `energy_type`, `green_tariff`, providers; policy savings via `tariff_type` from utilities/money |
+| **utilities** | `calculateUtilities` | `tariff_type` → April 2026 policy savings |
+| **grants** | `calculateGrants` | `boiler_age`, `income_benefits`, `prior_eco_bus` |
+| **solar** | `calculateSolar` | `roof_orientation`, `roof_shading`, `daytime_occupancy` |
+| **travel** | `calculateTravel` | `commute_distance`, `ev_hybrid` |
+| **holidays** | `calculateHolidays` | `annual_flights`, `flight_duration`, `carbon_offsets` |
+| **food** | `calculateFood` | `diet_profile`, `organic_shopping` |
+| **shopping** | `calculateShopping` | `retail_channel`, `repair_mindset`, `online_deliveries` |
+| **money** | `calculateMoney` | `monthly_energy_bill`, `tariff_type`, `green_investments` |
+| **tech** | `calculateTech` | `smart_thermostat`, `smart_home`, `smart_meter` |
+| **water** | `calculateWater` | `garden_butt`, `wash_preference`, `rainwater_harvest` |
+| **waste** | `calculateWaste` | `food_waste_collection`, `composting`, `soft_plastics` |
+| **carbon** | `calculateCarbon` | `footprint_awareness`, `carbon_removal`, `tonne_reduction_timeline` |
+
+**Employment physics:** `applyEmploymentFinancialPhysics` adjusts several journeys by employment status.
+
+**Grid carbon:** Electricity kg uses NESO regional intensity (`gridCarbonContextForPostcode`) or live pulse when available.
+
+**Constants:** July 2026 price cap typical **£1,862**; ~**12,000 kWh ≈ 1 tonne CO₂e** framing — `lib/brains/constants.ts`.
+
+##### 5.3 Questions that do NOT change calculator £ (scrape + genome only)
+
+- **home:** `property_type`, `insulation_level`, `glazing_type`
+- **utilities:** `supplier_switch`, `monthly_energy_band`
+- **travel:** `public_transport`
+- **food:** `own_produce`
+
+All MC answers still: persist to genome, trigger `runLoopSpawnResearch`, can birth discovery cards, bump `getGenomeModifier`.
+
+##### 5.4 When wall shows £0 vs real numbers
+
+| Condition | Wall behaviour |
+|-----------|----------------|
+| No Neon stream + no profile baseline | **COMPUTING — JOURNEY**, metrics `—` |
+| Profile baseline only | Estimated £ from formulas; **ESTIMATED_AUDIT** |
+| Neon `saving_amount_gbp` + valid headline/prose | **LIVE_AUDIT**; Neon £ can override formula |
+| Utilities without `home_power` | Tile visible but **COMPUTING** until power type set |
+
+**Verify:** `lib/zone/mechanicalTruth.ts` — `journeyHasStreamData`, `hasAnyStreamData`.
+
+---
+
+#### 6. Research & scrape pipeline (content birth)
+
+##### 6.1 When scrapes fire
+
+| Trigger | API | Cap |
+|---------|-----|-----|
+| Profile submit | `triggerOnboardingResearchBootstrap` | 4 journeys (home + utilities if power + 2 goal-aligned) |
+| Summary exit | `runProfileResearchHandshake` (deduped) | fills gaps |
+| MC answer | `POST /api/answers` → `runLoopSpawnResearch` | per answer |
+| Journey 3/3 complete | `triggerSupplementalResearch` | full category |
+| Solo Focus Tip +1 | `POST /api/scrape-sync` with `journey_key` | one domain (Topic Shield) |
+| Hermes | `GET /api/cron/zone-research` | weekly repair batch |
+
+##### 6.2 What gets persisted (Neon `research_results`)
+
+| Column | Use |
+|--------|-----|
+| `category` / journey key | Tile assignment |
+| `saving_amount_gbp` | SAVE £ on wall when stream valid |
+| `agent_headline` | Bento headline |
+| `architect_prose` | Solo Focus prose (3 paragraphs) |
+| `offer_url`, `source_url` | CTA and attribution |
+| `research_snapshot` | Firecrawl/Gemini invoke metadata |
+| `profile_snapshot` | Postcode, employment, goal at scrape time |
+
+##### 6.3 Read path
+
+`GET /api/scrape-sync?postcode=&user_id=` → `research_category_coverage` → `neonJourneyResearchFromCoverage` → `buildZoneViewModel`.
+
+**Honest empty:** `{ source: "pending", scraped: [] }` — not fabricated defaults.
+
+---
+
+#### 7. Personalization layers
+
+| Input | Effect |
+|-------|--------|
+| **Postcode** | All scrapes, council, grid carbon, locality in copy |
+| **House number** | EPC address match in research |
+| **Goal** | JIT journey pick; `goalSortWeights` hero/tip order |
+| **Power type** | Unlocks utilities tile; utilities JIT; tariff seeds |
+| **Employment** | Grant vs agile seeds; `filterTipsForEmployment`; grants title |
+| **Household / transport / home type** | Impact baselines, synthetic answers, titles |
+| **Age** | Tip persona boost (JUNIOR→tech, RETIRED→home) |
+| **MC answers** | Per-journey £; supplemental scrape; discovery birth |
+
+Full profile matrix: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md).
+
+---
+
+#### 8. Storage map
+
+##### 8.1 localStorage (client)
+
+| Key | Content |
+|-----|---------|
+| `profile_postcode`, `profile_name`, `profile_goal`, … | Profile fields |
+| `journey_{key}_answers` | MC answers per journey |
+| `zz_research_user_id` | Guest research UUID |
+| `zz_onboarding_jit_journeys` | sessionStorage — JIT dedupe |
+
+##### 8.2 Neon (server)
+
+| Table / column | Content |
+|----------------|---------|
+| `users` | name, postcode, mobile, `primary_goal`, session link |
+| `user_genome` (JSONB) | house_number, home_power, employment, … |
+| `journey_answers_jsonb` | All MC answers |
+| `research_results` | Per journey/postcode/user research rows |
+| `sessions` | httpOnly auth |
+
+---
+
+#### 9. Testing guide (logic & content)
+
+##### 9.1 Automated gates (run first)
+
+```bash
+npm run verify                  # typecheck + lint
+npm run test:mechanical-truth   # honest empty VM, Rock URL alignment, cap lock
+npm run db:test                 # Neon connectivity
+```
+
+##### 9.2 API probes
+
+```bash
+### Health + DB
+curl -sS https://www.00-00.online/api/health | jq .
+
+### Honest empty (fresh postcode, no rows yet)
+curl -sS "https://www.00-00.online/api/scrape-sync?postcode=SW1A1AA" | jq '.source, (.scraped|length), .research_category_coverage'
+
+### After profile + wait ~2min — expect coverage keys for JIT journeys
+npm run db:log-research
+npm run zone:audit-gates -- YOURPOSTCODE
+```
+
+##### 9.3 Browser test matrix
+
+| # | Test | Pass criteria | Proves |
+|---|------|---------------|--------|
+| T1 | New user profile → summary → zone | Session cookie; locality on summary | `POST /api/user`, geocode |
+| T2 | Fresh postcode first load | COMPUTING titles, £0 hero | mechanical truth |
+| T3 | After JIT (~2 min) | JIT journeys off COMPUTING | Firecrawl+Gemini→Neon |
+| T4 | Set power type | Utilities tile unlocks | `utilitiesZoneUnlock` |
+| T5 | Goal money vs carbon | Different JIT keys in coverage | `onboardingResearchBootstrap` |
+| T6 | Grants OVER_10YR answer | Grants £/URL updates | `calculateGrants` + scrape |
+| T7 | Expand Rock tip | Habit insight, catalog £ | not mother prose |
+| T8 | Expand journey card | Neon headline/prose or COMPUTING | stream gating |
+| T9 | MC answer close | Discovery card in tips | `injectNewDiscoveryCard` |
+| T10 | Mobile opt-in | Welcome + tips SMS; URLs topic-aligned | `signupZoneSms` |
+| T11 | Employed user | No means-tested grant tips on Rock | `filterTipsForEmployment` |
+
+##### 9.4 What to check when something looks wrong
+
+| Symptom | Likely cause | Check |
+|---------|--------------|-------|
+| All tiles COMPUTING forever | No Neon rows; JIT not fired; wrong DB | `db:log-research`, session, `DATABASE_URL` host |
+| Fake-looking £ with empty DB | Should not happen — report bug | `mechanicalTruth`, `uk2026Defaults` |
+| Wrong CTA URL | Neon offer vs trusted fallback | `research_results.offer_url`, `offerUrlGuard` |
+| Rock tip → wrong URL | Journey URL bleed | `resolveRockHabitLearnUrl`, topic shield |
+| Utilities locked after pulse | `home_power` dropped from VM rebuild | profile in `vmLive` build |
+| SMS but no text | Twilio trial / env | `describeOutboundReadiness`, Vercel env |
+| Answers don't change £ | Question not in calculator map | §5.3 above |
+
+---
+
+#### 10. Code index (quick)
+
+| Path | Role |
+|------|------|
+| `app/profile/ProfilePageClient.tsx` | Profile steps, `POST /api/user`, JIT trigger |
+| `app/profile/summary/page.tsx` | Ticker, research handshake |
+| `app/zone/page.tsx` | Zone orchestrator, scrape-sync hydrate, Rock/SMS payload |
+| `app/api/scrape-sync/route.ts` | Research read + JIT trigger |
+| `app/api/answers/route.ts` | MC save, discovery, supplemental scrape |
+| `app/api/profile/mobile/route.ts` | SMS signup |
+| `lib/brains/buildUserImpact.ts` | **Only** £/kg calculator entry |
+| `lib/brains/calculations.ts` | Per-journey formulas |
+| `lib/zone/buildZoneViewModel.ts` | Zone VM — tiles, sort, filters |
+| `lib/zone/mechanicalTruth.ts` | COMPUTING vs stream |
+| `lib/agents/researchAgent.ts` | Firecrawl + Gemini persist |
+| `lib/rock/habitsCatalog.ts` | Rock habit catalog |
+| `lib/rock/resolveRockHabitLearnUrl.ts` | Topic-aligned tip URLs |
+| `lib/journeys.ts` | 13×3 question registry |
+| `lib/zone/ulmLimits.ts` | 24 cells, 3 injects/journey |
+
+---
+
+#### 11. Director's Order (product sequence on Zone)
+
+1. Architectural pulse → grid reveal  
+2. Journey mother tiles (13)  
+3. Solo Focus: question → answer → result → optional discovery  
+4. Today's Tips (Rock) — visit only, no loop scrape on close  
+5. Mobile signup below Rock when grid collapsed  
+
+Pink = visited. Discovery birth only via `POST /api/answers` (canonical).
+
+---
+
 ## Annex: User flow & runtime pipeline {#annex-user-flow--runtime-pipeline}
 
 *Source file: `USER-FLOW-AND-DATA-PIPELINE.md`*
@@ -846,12 +1271,14 @@ Separate from 13 journey mother bentos — **not** duplicate wall headlines or j
 | Concern | Rule | Code |
 |---------|------|------|
 | **Catalog** | Static habits + learn URLs | `lib/rock/habitsCatalog.ts` → `habitToTipCard` |
+| **Offer URLs** | Topic-aligned https links — slug map, provider map, topic shield | `lib/rock/resolveRockHabitLearnUrl.ts` · `mergeRockHabitWithJourneyOffer` |
+| **Neon merge** | Journey `latestOfferUrl` on habit **only** when topic-safe | `rockOfferByJourney` in `app/zone/page.tsx` |
 | **Card IDs** | `rock-{slug}` (e.g. `rock-radiator-bleed`) | `rockCardId()` |
 | **Grid headline** | Short habit title (**3–10 words**) — **never** `ZONE_BENTO_HOOK` / wall mother hook | `clampRockTipHeadline` |
 | **Rail fill** | Prefer journeys **not** on wall; one habit per `journey_key`; dedupe wall headline keys; **6** visible slots (rotation cap **12**) | `prepareRockHabitsForRail`, `filterRockHabitsAgainstWall` |
 | **Fallback** | When every journey has a mother tile, still fill six tips from catalog if titles differ from wall hooks | `prepareRockHabitsForRail` second pass (`requireOffWall: false`) |
 | **UI** | **`RockSavingTips`** — heading **Today's Tips** (`aria-label="Today's tips"`) | `app/components/RockSavingTips.tsx` |
-| **Mobile signup** | E.164 field → `POST /api/profile/mobile` with `tipSlugs` from visible Rock rail → **Today's Tips SMS** (Twilio); Neon `users.mobile` + `mobile_sms_opt_in`; guest → localStorage only | `RockMobileSignupCard`, `lib/messaging/rockTipSms.ts` |
+| **Mobile signup** | E.164 → `POST /api/profile/mobile` with `sms_opt_in: true`, `tips`, `tipSlugs`, `recommendations` from Zone → welcome SMS + structured signup SMS | `RockMobileSignupCard`, `lib/messaging/signupZoneSms.ts`, `lib/messaging/welcomeSms.ts` |
 | **Visit** | Pink on close (`visitedClose`) — **no** loop, **no** tip verification scrape | Director's Order in [HANDBOOK.md](HANDBOOK.md) |
 | **Label colour** | Category label uses `--journey-text` at rest and on hover — Rock grid excluded from main Zone `data-zone-surface='tip'` purple-header override | `app/globals.css` |
 
@@ -1133,7 +1560,7 @@ Full spec: **[SENTINEL.md](SENTINEL.md)**.
 
 What ships in **`main`** after the **mechanical truth** pass: the UI only shows £/kg and headlines when Neon or scrape-sync has **stream data**. No UK placeholder back-fill on the Zone wall.
 
-Cross-links: **[HANDBOOK.md](HANDBOOK.md)**, **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)** (scrape, copy, presentation), **[HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md)**, **[INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md)**, **`lib/journeys.ts`**.
+Cross-links: **[HANDBOOK.md](HANDBOOK.md)**, **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)** (scrape, copy, presentation), **[HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md)**, **[INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md)**, **[PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md)** (profile → JIT → grid), **`lib/journeys.ts`**.
 
 ---
 
@@ -1160,6 +1587,22 @@ Cross-links: **[HANDBOOK.md](HANDBOOK.md)**, **[ZONE-CONTENT-AND-DATA.md](ZONE-C
 - **DB sync:** `npm run db:evolve-13-domains` seeds `journey_questions` for all keys in `JOURNEY_ORDER`.
 
 Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on cards comes from **research / scrape**, not from question text.
+
+##### 1.1 How MC answers influence Zone
+
+| Influence type | Mechanism |
+|----------------|-----------|
+| **£ / kg on journey tile** | `buildUserImpact` → per-journey calculators in `lib/brains/calculations.ts` (when stream data exists) |
+| **Headline / title tweaks** | `profileDrivenJourneyTitle`, `grantsJourneyTitleForProfile`, Neon `agent_headline` when settled |
+| **Scrape context** | Every answer → `runLoopSpawnResearch`; journey 3/3 → `triggerSupplementalResearch` |
+| **Discovery birth** | `POST /api/answers` → `injectNewDiscoveryCard` → tip slot on wall |
+| **Genome modifier** | +0.08 per answered Q → wall formula via `getGenomeModifier` |
+
+**Strong calculator mapping:** grants (`boiler_age`, `income_benefits`, `prior_eco_bus`), solar trio, travel (`commute_distance`, `ev_hybrid`), utilities `tariff_type`, money trio, tech/water/waste/food/holidays/carbon as documented in `calculations.ts`.
+
+**Weak / scrape-only (known gaps):** home `property_type` / `insulation_level` / `glazing_type`; utilities `supplier_switch` / `monthly_energy_band`; travel `public_transport`; food `own_produce`. These still persist, trigger research, and bump genome modifier.
+
+Full matrix: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) § Journey MC questions.
 
 ---
 
@@ -1914,7 +2357,7 @@ flowchart TB
 
 Operational contract for infra, data flow, UX, and verification. **Secrets belong only in `.env.local` / Vercel** — never commit passwords or paste them into docs or chat.
 
-**Profile, journey questions, answers, and Zone mechanical truth:** [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md). **Zone scrape → copy → presentation:** [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md). **Sentinel (parallel):** [SENTINEL.md](SENTINEL.md). **Gary / rebirth / inject paths:** [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md). **Index:** [HANDBOOK.md](HANDBOOK.md).
+**Profile, journey questions, answers, and Zone mechanical truth:** [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md). **Profile → grid unlocks (every user):** [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md). **Pipeline triggers:** [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md). **Zone scrape → copy → presentation:** [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md). **Sentinel (parallel):** [SENTINEL.md](SENTINEL.md). **Gary / rebirth / inject paths:** [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md). **Index:** [HANDBOOK.md](HANDBOOK.md).
 
 ---
 
@@ -2157,7 +2600,7 @@ npm run verify
 
 Operational architecture for the UK postcode-driven energy auditor: what talks to what, where data lives, and how Profile, Zone, Solo Focus, and Neon research fit together.
 
-**Related docs:** [HANDBOOK.md](HANDBOOK.md) · [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) · [SENTINEL.md](SENTINEL.md) · [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) · [INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md) · [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) · [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md)
+**Related docs:** [HANDBOOK.md](HANDBOOK.md) · [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) · [SENTINEL.md](SENTINEL.md) · [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) · [INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md) · [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md) · [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) · [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) · [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md)
 
 **Production:** https://www.00-00.online · **Repo:** https://github.com/00app/00-ULM
 
@@ -2287,7 +2730,7 @@ flowchart LR
 | Step | Route | What happens |
 |------|--------|----------------|
 | Intro | `/`, `/intro` | Logo glitch (Style A) → kinetic words → lockup **CREATE A / PROFILE TO / START.** at **profile H2 scale** → CREATE → profile. Geolocation may seed `profile_postcode`. `?skip=1` skips logo. |
-| Profile | `/profile` | Stepped onboarding: name (**given-name**, first token only), **postcode** (`postal-code`, hydrate `profile_postcode`), household, home type, transport, age, employment, goal. Full-sentence fade per step. |
+| Profile | `/profile` | Stepped onboarding: name (**given-name**, first token only), **postcode** (+ optional house number), household, home type, **power type**, transport, age, employment. **Goal** from intro (`profile_goal`). Full-sentence fade per step. **`POST /api/user`** on submit → session + capped JIT scrapes. |
 | Summary | `/profile/summary` | Kinetic **HELLO → name → locality** (`IntroWordCycle`, opacity ticker only). Impact totals. Handshake scrape. |
 | Zone | `/zone` | 13 journey cards + Saving Tips; hydrates from Neon via scrape-sync. |
 | Solo Focus | Overlay on Zone | Questions → answer → zip-shut → result / morph card. |
@@ -2297,6 +2740,21 @@ flowchart LR
 There is no separate `/journeys` product route — journeys live on Zone.
 
 **Canonical Zone path:** `app/zone/page.tsx` → `lib/zone/buildZoneViewModel.ts` (facade: `lib/logic/zone.ts`).
+
+##### 3.1 Personalization — how questions influence Zone
+
+Every signed-in user who completes profile + summary hits the same **staged** intelligence loop. Questions influence Zone through **four channels** (not every question changes every tile’s £):
+
+| Channel | What moves | Primary inputs |
+|---------|------------|----------------|
+| **JIT scrape selection** | Which journeys get Firecrawl+Gemini first (cap 4) | Goal, power type, employment seeds |
+| **£ / kg maths** | Journey tile SAVE/CARBON when stream exists | Profile + journey MC answers → `buildUserImpact` |
+| **Sort / filter / copy** | Hero order, grants headline, Rock tip filter | Goal, employment, age persona, council |
+| **Neon synthesis** | Headlines, prose, `offer_url` on mother tiles | Postcode DNA, profile snapshot, answers in prompts |
+
+**Authoritative matrices:** [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) (profile + pipeline) · [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) §1–2 (39 MC questions) · [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md) (triggers + offer URL precedence).
+
+**Offer URL precedence (journey mother tiles):** Neon `offer_url` → formula `claimOfferUrl` (Octopus, EV grant, etc.) → `trustedJourneyUrls` → Ask Zai deep link. **Rock Today's Tips:** habit slug/provider map via `resolveRockHabitLearnUrl` — Neon journey offer merged only when `mergeRockHabitWithJourneyOffer` passes topic shield (no e-bike → Eurostar bleed).
 
 ---
 
@@ -2410,22 +2868,26 @@ flowchart LR
 
 | API | Method | Role | Auth |
 |-----|--------|------|------|
-| `/api/profile/mobile` | POST | Save E.164 mobile; send **Today's Tips** SMS (up to 3 rail slugs) when Twilio ready | session optional (guest ok) |
+| `/api/profile/mobile` | POST | Save E.164 mobile; **welcome SMS** on first/changed number; **Today's Tips + Recommendations** SMS when Twilio ready | **Session required** (401 if guest) |
 | `/api/webhooks/twilio` | POST | Inbound STOP / START / delivery status; persists `mobile_sms_opt_in` on `users` | Twilio webhook |
 
-**Signup SMS copy:** `lib/messaging/rockTipSms.ts` — compact tips from Rock catalog (`tipSlugs` from Zone rail, or season fallback).
+**Request body:** `{ mobile, sms_opt_in: true, tips?, tipSlugs?, recommendations?, userName? }` — **`sms_opt_in` required** (explicit PECR consent; checkbox on `RockMobileSignupCard`).
 
-**UI entry:** `RockMobileSignupCard` below Today's Tips → passes visible habit slugs.
+**Signup SMS copy:** `lib/messaging/signupZoneSms.ts` — dashed sections: Hello + first name → Today's tips (Rock habits via `resolveRockHabitLearnUrl`) → Recommendations (journey mother titles + `resolveJourneyCardUrl` from Zone VM).
 
-**Env (Vercel Production + Preview, and `.env.local` for dev):** `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`. Optional: `TWILIO_WEBHOOK_URL`, `TWILIO_MESSAGING_ENABLED=0`.
+**Welcome SMS (separate send):** `lib/messaging/welcomeSms.ts` — opt-in confirmation; fires before tips SMS when mobile is new or changed.
 
-**DB:** `users.mobile` · `users.mobile_sms_opt_in` (default `true`; STOP sets `false`). Migration: `db/migrations/020_users_mobile_sms_opt_in.sql`.
+**UI entry:** `RockMobileSignupCard` below Today's Tips — passes `tips`, `tipSlugs`, `recommendations`, `userName` from `app/zone/page.tsx` (`zoneSignupTips`, `zoneSignupTipSlugs`, `zoneSignupRecommendations`).
+
+**Env (Vercel Production + Preview, and `.env.local` for dev):** `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`. Optional: `TWILIO_WEBHOOK_URL`, `TWILIO_MESSAGING_ENABLED=0` (kill sends).
+
+**DB:** `users.mobile` · `users.mobile_sms_opt_in` (default **`false`**; STOP sets `false`, START sets `true`). Migration: `db/migrations/020_users_mobile_sms_opt_in.sql`.
 
 **Hermes:** not involved — signup SMS is synchronous on `POST /api/profile/mobile`. Hermes only triggers weekly research repair (`/api/cron/zone-research`).
 
-**Not in env:** User personal mobiles — Neon `users.mobile` per account. **Live FROM:** `+447576569100` only in `TWILIO_PHONE_NUMBER`. Use **Live** credentials in Vercel (not Test). Upgrade Twilio off Trial for outbound to any signup mobile.
+**Not in env:** User personal mobiles — Neon `users.mobile` per account. Upgrade Twilio off Trial for outbound to any signup mobile (trial = verified numbers only).
 
-**Code:** `lib/messaging/twilioConfig.ts` · `lib/messaging/twilioClient.ts` · `lib/messaging/outboundGate.ts` · `app/api/webhooks/twilio/route.ts`
+**Code:** `lib/messaging/twilioConfig.ts` · `lib/messaging/twilioClient.ts` · `lib/messaging/outboundGate.ts` · `lib/messaging/signupZoneSms.ts` · `lib/rock/resolveRockHabitLearnUrl.ts` · `app/api/webhooks/twilio/route.ts`
 
 ##### 6.3 Zone hydration
 
@@ -2982,6 +3444,8 @@ When user closes Solo Focus from a **visited** card (`visitedClose: true`):
 - **No** `/api/zone/injections` from close path
 
 **UI:** `app/zone/page.tsx` — `patternShiftJourneyId` overlay for non-visited close flow; `JourneyBentoCard` / `SoloFocusOverlay` pass `onPatternShiftClose`.
+
+**Offer feedback (like / nope):** `PatternShiftCloseMeta.offerFeedback` → `OfferFeedbackTakeover` (not lifestyle loop). Close **(X)** still opens `DiscoveryTakeover` + `pickNextLoopQuestion`. Shell uses atomic exit (reverse of enter) before grid reveal.
 
 Credit guard aligned with [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md) (visited flip + close credit guard).
 
@@ -3855,6 +4319,14 @@ If `researchAgent.ts` is on `main`, also push in the **same commit**:
 
 Commit **verify + build green locally**, then push the full set — not `zone/page.tsx` alone.
 
+#### Security go-live checklist
+
+1. **Rotate secrets** if ever pasted in chat or committed: `TWILIO_AUTH_TOKEN`, `CRON_SECRET`, `GATEWAY_TOKEN`, `SESSION_SECRET` (Vercel → Environment Variables → Production, then redeploy).
+2. **Upstash Redis** — set `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` so login/signup/SMS rate limits apply globally (not per serverless instance).
+3. **Neon migration** — `npm run db:apply-pending` or `psql "$DATABASE_URL" -f db/migrations/020_users_mobile_sms_opt_in.sql` before SMS signup.
+4. **Twilio webhook** — `npm run twilio:configure-webhook` with `NEXT_PUBLIC_APP_URL=https://www.00-00.online`.
+5. **Session restore** — production requires `restore_proof` (HMAC from `SESSION_SECRET`); issued on profile create / login / signup. Users who only have old `userId` in localStorage must complete profile again once after deploy.
+
 ---
 
 ## Annex: Dev test & audit runbook {#annex-dev-test--audit-runbook}
@@ -3884,13 +4356,47 @@ Run in order from repo root. **All green locally** before browser UAT; **product
 
 | Surface | Verify |
 |---------|--------|
-| `/profile` → `/profile/summary` → `/zone` | Postcode-driven locality; atomic summary ticker |
-| Zone grid | 13 journeys; purple/yellow hover swap; visited pink |
-| Solo Focus | Marvin H1 + **lead only** (no Roboto proof paragraph); SAVE/CARBON stamp |
+| `/profile` → `/profile/summary` → `/zone` | Postcode-driven locality; atomic summary ticker; **`POST /api/user`** creates session |
+| Onboarding JIT | After profile submit, `research_category_coverage` gains `home` + goal journeys within ~2 min |
+| Zone grid | 13 journeys; utilities unlocked when power type set; purple/yellow hover swap; visited pink |
+| COMPUTING vs LIVE | Fresh postcode → COMPUTING titles until Neon stream; no fake £ without `research_results` |
+| Solo Focus | Marvin H1 + **lead only**; SAVE/CARBON stamp; MC answer updates grants/solar/travel £ where mapped |
 | Rock strip | TECH/HOLIDAYS labels **same colour as headline** at rest + hover |
+| Rock / SMS URLs | e-bike habit → gov.uk cycle-to-work, **not** Eurostar; water butt → Waterwise, not Recyclenow |
+| Mobile signup | Checkbox opt-in required; welcome SMS + tips/recs SMS; STOP opts out |
 | Settings | Circle CTAs; WIRING diagnostics; pencil icons visible on card hover |
 | Ask Zai dock | Yellow pill; portaled above nav |
 | Loop answer | One MC → one discovery card birth |
+
+##### E2E personalization gate (signed-in user)
+
+| # | Test | Pass |
+|---|------|------|
+| E1 | Complete profile (all fields + intro goal) | Session cookie; `users` row; JIT fires ≤4 journeys |
+| E2 | Summary exit handshake | `GET /api/scrape-sync` returns coverage object |
+| E3 | Goal = money vs carbon | Different JIT journey keys in coverage |
+| E4 | Employment employed vs not | Grants Rock tips filter means-tested for employed |
+| E5 | Answer `grants` `boiler_age` OVER_10YR | Grants tile £/URL updates after scrape |
+| E6 | SMS signup | Recommendations match journey cards; tip URLs topic-aligned |
+
+See [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) for field→grid matrix.
+
+**Mechanical truth CI:** `npm run test:mechanical-truth` — includes Rock habit URL alignment (`mechanicalTruthEval.ts`).
+
+##### Agent loop preflight (Cursor / long autonomous runs)
+
+Before letting an agent run for many turns, overnight, or until “done” — check every box. **Never run uncapped.** Success is a command exit code, not the model saying it finished.
+
+| Check | Rule |
+|-------|------|
+| **Done condition** | Binary and runnable — e.g. `npm run verify` passes, or `npm run deploy:green` smoke is green |
+| **Iteration / time cap** | Agree a max (turns, hours, or deploy attempts); stop when hit |
+| **Branch** | Work on a feature branch — not direct commits to `main` unless you explicitly want that |
+| **Scope** | One task with a testable outcome — not open-ended design or production incident response |
+| **Ship gate** | Multi-file or deploy work ends with `npm run verify` before `npm run deploy:green` |
+| **Review** | Skim the diff before merge; don’t merge blind after unattended runs |
+
+**Cursor-native loops:** recurring local work → Cursor `/loop` skill; PR/CI babysit → `babysit` skill; one-shot ship → `deploy:green`. Product intelligence (scrapes, SMS, Zone) is governed by [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md) — not a generic coding loop.
 
 ##### Env files (one source of truth)
 
@@ -3917,10 +4423,10 @@ npm run env:merge   # optional — merges exported shell vars into .env.local
 
 | Layer | Status | Action |
 |-------|--------|--------|
-| Local Neon | ✅ when `.env.local` + `preferLocal` | `npm run dev:3000` |
-| Production `/api/health` | ❌ `database: disconnected` | Update `DATABASE_URL` in Vercel Production → redeploy |
-| Production diagnostics | ⚠️ `neon: false`, gemini + firecrawl OK | Same Neon URL fix |
-| Hermes auth bridge | ✅ CRON_SECRET → 200 | VPS cron OK; DB backfill blocked until prod Neon fixed |
+| Local Neon | ✅ when `.env.local` pooler matches `MANIFEST_NEON_POOLER_HOST` | `npm run db:test` · project **00-ULM** |
+| Production `/api/health` | ✅ when `DATABASE_URL` on Vercel matches 00-ULM pooler | `curl -sS https://www.00-00.online/api/health` |
+| Twilio SMS | ✅ when env set; trial = verified numbers only | `describeOutboundReadiness()` |
+| Hermes auth bridge | ✅ CRON_SECRET → 200 | Weekly `/api/cron/zone-research` |
 | `zone:audit-gates` | ✅ script fixed | Requires postcode arg; exit 1 if journeys missing |
 
 ---

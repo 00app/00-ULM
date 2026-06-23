@@ -94,9 +94,8 @@ export function SettingsLoopEditOverlay({ row, onClose, onSaved }: Props) {
         className="zz-close-btn settings-loop-edit-close"
         aria-label="Back to settings"
         onClick={onClose}
-        style={{ position: 'fixed', top: 20, right: 20, zIndex: 231 }}
       >
-        <BackArrowDownLeft size={24} />
+        <BackArrowDownLeft size={18} />
       </button>
       <motion.div
         className="zone-loop-question profile-step-slam w-full flex flex-col items-center"

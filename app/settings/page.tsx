@@ -8,6 +8,7 @@ import { useApp, type ProfileAge } from '@/app/context/AppContext'
 import { motion } from 'framer-motion'
 import { JOURNEY_ORDER, JOURNEYS, getFunkyOptionDisplay, type JourneyId } from '@/lib/journeys'
 import { readLoopAnswersForSettings } from '@/lib/zone/loopQuestions'
+import { readOfferFeedbackForSettings } from '@/lib/zone/offerFeedbackLoop'
 import { ROUTES } from '@/lib/routes'
 import { ENGINE_UI_LABELS } from '@/lib/logic/engine'
 import {
@@ -55,7 +56,7 @@ const ICON_SIZE = 44
 /** Pin drop — Update location */
 function PinIcon() {
   return (
-    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
     </svg>
@@ -65,7 +66,7 @@ function PinIcon() {
 /** Tick — Save */
 function TickIcon() {
   return (
-    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <polyline points="20 6 9 17 4 12" />
     </svg>
   )
@@ -74,7 +75,7 @@ function TickIcon() {
 /** Reset / clear — circular arrows */
 function ResetIcon() {
   return (
-    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
       <path d="M3 3v5h5" />
     </svg>
@@ -275,6 +276,12 @@ export default function SettingsPage() {
     return readLoopAnswersForSettings()
   }, [hasMounted, refreshKey])
 
+  const offerFeedbackRows = useMemo(() => {
+    void refreshKey
+    if (!hasMounted) return []
+    return readOfferFeedbackForSettings()
+  }, [hasMounted, refreshKey])
+
   const journeyCardsData = useMemo(() => {
     void refreshKey
     if (typeof window === 'undefined' || !hasMounted) return []
@@ -450,6 +457,21 @@ export default function SettingsPage() {
               </motion.div>
             ))}
 
+            {offerFeedbackRows.map((row, i) => (
+              <motion.div
+                key={`offer-feedback-${row.id}`}
+                className="settings-card-cell"
+                initial={settingsCellMotion.initial}
+                animate={settingsCellMotion.animate}
+                transition={{
+                  ...settingsStaggerTransition,
+                  delay: 0.05 + (profileRows.length + loopRows.length + i) * 0.08,
+                }}
+              >
+                <SettingsBentoCard label={row.label} headline={row.headline} />
+              </motion.div>
+            ))}
+
             {journeyCardsData.map((card, j) => (
               <motion.div
                 key={`journey-${card.journey}`}
@@ -460,7 +482,7 @@ export default function SettingsPage() {
                 whileTap={reduceMotion ? undefined : { scale: 0.985 }}
                 transition={{
                   ...settingsStaggerTransition,
-                  delay: 0.05 + (profileRows.length + loopRows.length + j) * 0.08,
+                  delay: 0.05 + (profileRows.length + loopRows.length + offerFeedbackRows.length + j) * 0.08,
                 }}
               >
                 <div

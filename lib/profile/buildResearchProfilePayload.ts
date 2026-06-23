@@ -19,6 +19,11 @@ export function buildResearchProfilePayload(
 ): ResearchProfileData {
   const goal = normalizeProfileGoalValue(values.goal ?? values.profile_goal)
   const power = values.powerType ?? values.home_power ?? values.profile_home_power
+  const ageRaw = values.age ?? values.profile_age
+  const age =
+    typeof ageRaw === 'string' && ['JUNIOR', 'MID', 'RETIRED'].includes(ageRaw.trim().toUpperCase())
+      ? ageRaw.trim().toUpperCase()
+      : undefined
   const pc = compactPostcode(opts?.postcode ?? values.postcode)
   const houseNumber = values.houseNumber ?? values.house_number
 
@@ -33,6 +38,7 @@ export function buildResearchProfilePayload(
     house_number: houseNumber?.trim() || undefined,
     goal,
     primary_goal: goal,
+    ...(age ? { age_group: age } : {}),
   }
 }
 
@@ -49,6 +55,7 @@ export function buildResearchProfileFromStorage(opts?: { postcode?: string }): R
       employmentStatus: stored.employment_status,
       houseNumber: stored.house_number,
       goal: stored.goal,
+      age: stored.age,
     },
     { postcode: opts?.postcode ?? stored.postcode }
   )

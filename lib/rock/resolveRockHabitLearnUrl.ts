@@ -112,8 +112,12 @@ const OFFER_HOST_TOPIC_CONFLICT: Array<{ hostRe: RegExp; habitRe: RegExp }> = [
     habitRe: /\b(?:e-?bike|ebike|food|meal|shower|kettle|dishwasher)\b/i,
   },
   {
-    hostRe: /backmarket\.co/i,
-    habitRe: /\b(?:food|meal|shower|water|insulation|boiler|heat\s*pump)\b/i,
+    hostRe: /recyclenow/i,
+    habitRe: /\b(?:water\s+butt|rainwater|hosepipe|garden\s+water)\b/i,
+  },
+  {
+    hostRe: /wrap\.org/i,
+    habitRe: /\b(?:preloved|fashion|clothes|wardrobe|vinted)\b/i,
   },
 ]
 
@@ -143,6 +147,18 @@ export function habitTopicConflictsWithOfferUrl(habit: RockHabit, url: string): 
 function providerUrlForHabit(h: RockHabit): string | undefined {
   const key = normalizeProviderKey(h.provider_name)
   return ROCK_PROVIDER_OFFER_URLS[key]
+}
+
+/** Apply a journey-level Neon offer only when it matches the habit topic. */
+export function mergeRockHabitWithJourneyOffer(
+  habit: RockHabit,
+  journeyOfferUrl?: string | null
+): RockHabit {
+  const url = journeyOfferUrl?.trim()
+  if (!url?.startsWith('https://') || habitTopicConflictsWithOfferUrl(habit, url)) {
+    return habit
+  }
+  return { ...habit, learn_url: url }
 }
 
 /** Resolve a trusted https offer URL aligned with habit title, insight, and provider. */

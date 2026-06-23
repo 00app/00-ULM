@@ -33,12 +33,21 @@ export type HermesCrossJourneySignal = {
   instruction: string
 }
 
+export type HermesOfferFeedback = {
+  card_id: string
+  journey: JourneyId
+  signal: 'like' | 'dislike' | 'indifferent' | 'ask'
+  title?: string
+  updated_at: string
+}
+
 export type HermesMemory = {
   v: 1
   updated_at: string
   savings_wins: HermesSavingsWin[]
   carbon_trajectories: HermesCarbonTrajectory[]
   cross_journey_signals: HermesCrossJourneySignal[]
+  offer_feedback?: HermesOfferFeedback[]
   last_answer?: {
     journeyId: JourneyId
     questionId: string
@@ -131,6 +140,14 @@ function buildHermesSkillFile(memory: Omit<HermesMemory, 'skill_file'>): string 
         .map((s) => `- ${s.id}: ${s.sourceJourney} -> ${s.affects.join(', ')}. ${s.instruction}`)
         .join('\n')
     : '- No cross-journey signals yet.'
+  const feedback = (memory.offer_feedback ?? []).length
+    ? memory.offer_feedback!
+        .map(
+          (f) =>
+            `- ${f.signal}: ${f.journey} · ${f.title?.trim() || f.card_id} (${f.updated_at.slice(0, 10)})`
+        )
+        .join('\n')
+    : '- No offer feedback yet.'
 
   return [
     '# Hermes Recursive Skill',
@@ -146,7 +163,11 @@ function buildHermesSkillFile(memory: Omit<HermesMemory, 'skill_file'>): string 
     '## Cross-Journey Signals',
     signals,
     '',
+    '## Offer Feedback',
+    feedback,
+    '',
     '## Rules',
+    '- Deprioritise card topics the user disliked or closed without engaging; prefer liked or asked topics when ranking.',
     '- Pull lessons forward across journeys: home energy can affect food, tech, and money; travel can affect home charging and holidays.',
     '- Prefer remembered low-friction wins before high-upfront-cost recommendations.',
     '- If live research contradicts this memory, trust the live research and update Hermes after the answer is stored.',
@@ -166,8 +187,92 @@ function parseExistingMemory(raw: unknown): HermesMemory | null {
     cross_journey_signals: Array.isArray(row.cross_journey_signals)
       ? (row.cross_journey_signals as HermesCrossJourneySignal[])
       : [],
+    offer_feedback: Array.isArray(row.offer_feedback)
+      ? (row.offer_feedback as HermesOfferFeedback[])
+      : [],
     last_answer: row.last_answer,
     skill_file: typeof row.skill_file === 'string' ? row.skill_file : '',
+  }
+}
+
+function normalizeJourneyKey(raw?: string | null): JourneyId | null {
+  const k = String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^journey-/, '')
+  return (JOURNEY_ORDER as readonly string[]).includes(k) ? (k as JourneyId) : null
+}
+
+function mergeOfferFeedback(
+  existing: HermesOfferFeedback[],
+  next: HermesOfferFeedback
+): HermesOfferFeedback[] {
+  const byCard = new Map<string, HermesOfferFeedback>()
+  for (const row of existing) byCard.set(row.card_id, row)
+  byCard.set(next.card_id, next)
+  return Array.from(byCard.values())
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+    .slice(0, 24)
+}
+
+export async function updateHermesMemoryAfterOfferSignal(params: {
+  userId: string
+  cardId: string
+  journeyKey?: string | null
+  signal: HermesOfferFeedback['signal']
+  cardTitle?: string | null
+}): Promise<HermesMemory | null> {
+  const uid = params.userId?.trim()
+  const cardId = params.cardId?.trim()
+  if (!uid || !cardId) return null
+
+  const journey = normalizeJourneyKey(params.journeyKey) ?? 'home'
+  const now = new Date().toISOString()
+  const pool = getDbPool()
+  let existing: HermesMemory | null = null
+  try {
+    const row = await pool.query<{ hermes_memory: unknown }>(
+      `SELECT user_genome->'hermes_memory' AS hermes_memory FROM users WHERE id = $1 LIMIT 1`,
+      [uid]
+    )
+    existing = parseExistingMemory(row.rows[0]?.hermes_memory)
+  } catch {
+    existing = null
+  }
+
+  const nextFeedback: HermesOfferFeedback = {
+    card_id: cardId.slice(0, 120),
+    journey,
+    signal: params.signal,
+    title: params.cardTitle?.trim() ? params.cardTitle.trim().slice(0, 160) : undefined,
+    updated_at: now,
+  }
+
+  const memoryCore: Omit<HermesMemory, 'skill_file'> = {
+    v: 1,
+    updated_at: now,
+    savings_wins: existing?.savings_wins ?? [],
+    carbon_trajectories: existing?.carbon_trajectories ?? [],
+    cross_journey_signals: existing?.cross_journey_signals ?? [],
+    offer_feedback: mergeOfferFeedback(existing?.offer_feedback ?? [], nextFeedback),
+    last_answer: existing?.last_answer,
+  }
+  const memory: HermesMemory = {
+    ...memoryCore,
+    skill_file: buildHermesSkillFile(memoryCore).slice(0, 12000),
+  }
+
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS user_genome JSONB DEFAULT '{}'::jsonb`)
+    await pool.query(
+      `UPDATE users
+       SET user_genome = jsonb_set(COALESCE(user_genome, '{}'::jsonb), '{hermes_memory}', $2::jsonb, true)
+       WHERE id = $1`,
+      [uid, JSON.stringify(memory)]
+    )
+    return memory
+  } catch {
+    return null
   }
 }
 

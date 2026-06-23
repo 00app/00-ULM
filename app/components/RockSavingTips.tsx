@@ -6,9 +6,12 @@ import type { RockHabit } from '@/lib/rock/types'
 import { habitToTipCard } from '@/lib/rock/habitsCatalog'
 import { zoneCardDomId } from '@/lib/zone/soloFocusReturn'
 import InputField from '@/app/components/InputField'
+import { FixedViewportPortal } from '@/app/components/FixedViewportPortal'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
+import { HeartOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
+import { CloseXOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { clampRockTipHeadline } from '@/lib/soloFocusCopy'
 import type { SignupSmsItem } from '@/lib/messaging/signupZoneSmsShared'
 
@@ -55,6 +58,7 @@ export function RockMobileSignupCard({
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [signupBusy, setSignupBusy] = useState(false)
   const [signupMsg, setSignupMsg] = useState<string | null>(null)
+  const [smsSuccess, setSmsSuccess] = useState<{ title: string; subtitle: string } | null>(null)
 
   useEffect(() => {
     try {
@@ -131,15 +135,28 @@ export function RockMobileSignupCard({
       }
       const smsSent = data.sms?.sent === true
       const welcomeSent = data.welcome?.sent === true
-      setSignupMsg(
-        smsSent
-          ? welcomeSent
-            ? "welcome text sent — check your phone for today's tips and recommendations."
-            : "text sent — check your phone for today's tips and recommendations."
-          : welcomeSent
-            ? 'welcome text sent — tips SMS will follow when ready.'
-            : 'saved — we will reach you on this number when SMS is ready.',
-      )
+      setSignupMsg(null)
+      if (smsSent && welcomeSent) {
+        setSmsSuccess({
+          title: 'text sent',
+          subtitle: "check your messages for today's tips",
+        })
+      } else if (smsSent) {
+        setSmsSuccess({
+          title: 'text sent',
+          subtitle: 'check your messages',
+        })
+      } else if (welcomeSent) {
+        setSmsSuccess({
+          title: 'welcome text sent',
+          subtitle: 'check your messages',
+        })
+      } else {
+        setSmsSuccess({
+          title: "you're signed up",
+          subtitle: "we'll text you when your tips are ready",
+        })
+      }
       setMobile('')
     } catch {
       setSignupMsg('something went wrong — try again')
@@ -161,9 +178,9 @@ export function RockMobileSignupCard({
         <h3 className="rock-mobile-signup-title m-0 tracking-wide" lang="en" style={{ color: ROCK_CARD_TEXT }}>
           Sign up with your mobile
         </h3>
-        <p className="zz-body m-0 mt-1" style={{ color: ROCK_CARD_TEXT, opacity: 0.92 }}>
+        <h4 className="zz-h4 m-0 mt-1 rock-mobile-signup-sub" style={{ color: ROCK_CARD_TEXT, opacity: 0.92 }}>
           for tips and new offer drops
-        </p>
+        </h4>
         <label className="rock-mobile-opt-in-row">
           <input
             type="checkbox"
@@ -172,9 +189,9 @@ export function RockMobileSignupCard({
             onChange={(e) => persistSmsOptIn(e.target.checked)}
             aria-label="Opt in to daily tips and offers by text message"
           />
-          <span className="rock-mobile-opt-in-label zz-body m-0">
+          <h4 className="rock-mobile-opt-in-label zz-h4 m-0">
             text me daily tips &amp; offers (reply STOP anytime)
-          </span>
+          </h4>
         </label>
         <div className="rock-mobile-row">
           <InputField
@@ -188,18 +205,19 @@ export function RockMobileSignupCard({
           />
           <button
             type="button"
-            className="rock-mobile-go-btn"
+            className="rock-mobile-send-btn"
             disabled={!mobile.trim() || !smsOptIn || signupBusy}
             onClick={() => void submitMobile()}
-            aria-label="Save mobile number"
+            aria-label="Send mobile number"
+            aria-busy={signupBusy}
           >
-            Go
+            <span className="zz-h4 rock-mobile-send-label">send</span>
           </button>
         </div>
         {signupMsg ? (
-          <p className="zz-body-bold m-0 mt-3" style={{ color: ROCK_CARD_TEXT }}>
+          <h4 className="zz-h4 m-0 mt-3" style={{ color: ROCK_CARD_TEXT }}>
             {signupMsg}
-          </p>
+          </h4>
         ) : null}
 
         <div className="rock-social-row">
@@ -214,6 +232,43 @@ export function RockMobileSignupCard({
           </a>
         </div>
       </div>
+
+      {smsSuccess ? (
+        <FixedViewportPortal>
+          <div className="rock-sms-success-overlay" role="presentation">
+            <div
+              className="rock-sms-success-card bento-card-groovy rock-bento-tile"
+              role="dialog"
+              aria-modal
+              aria-labelledby="rock-sms-success-title"
+              style={{
+                backgroundColor: ROCK_CARD_BG,
+                color: ROCK_CARD_TEXT,
+                borderRadius: 60,
+              }}
+            >
+              <button
+                type="button"
+                className="zz-close-btn rock-sms-success-close"
+                aria-label="Close"
+                onClick={() => setSmsSuccess(null)}
+              >
+                <CloseXOutlineIcon size={18} />
+              </button>
+              <h3
+                id="rock-sms-success-title"
+                className="rock-mobile-signup-title m-0 tracking-wide"
+                style={{ color: ROCK_CARD_TEXT }}
+              >
+                {smsSuccess.title}
+              </h3>
+              <h4 className="zz-h4 m-0 rock-sms-success-sub" style={{ color: ROCK_CARD_TEXT, opacity: 0.92 }}>
+                {smsSuccess.subtitle}
+              </h4>
+            </div>
+          </div>
+        </FixedViewportPortal>
+      ) : null}
     </div>
   )
 }
@@ -287,9 +342,8 @@ export function RockSavingTips({
                   <span className="data-value text-data data-stamp-metric" style={{ color: 'var(--color-ink)' }}>
                     <StampedCarbonKg kg={kg} />
                     {liked ? (
-                      <span className="data-unit" aria-hidden>
-                        {' '}
-                        · ♥
+                      <span className="rock-tip-liked-disc" aria-label="Liked">
+                        <HeartOutlineIcon size={14} style={{ color: 'var(--color-purple)' }} />
                       </span>
                     ) : null}
                   </span>

@@ -13,6 +13,8 @@ export type SoloFocusProseStackProps = {
   auditHeaderLocality?: string | null
   locality?: string | null
   postcode?: string | null
+  contentMode?: 'rock' | 'journey'
+  habitTitle?: string
 }
 
 export function SoloFocusProseStack({
@@ -26,6 +28,8 @@ export function SoloFocusProseStack({
   auditHeaderLocality,
   locality,
   postcode,
+  contentMode = 'journey',
+  habitTitle,
 }: SoloFocusProseStackProps) {
   const { lead } = resolveSoloFocusDisplayProse({
     headline,
@@ -38,6 +42,8 @@ export function SoloFocusProseStack({
     auditHeaderLocality,
     locality,
     postcode,
+    contentMode,
+    habitTitle,
   })
 
   if (!lead) return null

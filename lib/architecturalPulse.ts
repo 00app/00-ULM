@@ -50,6 +50,9 @@ export const ZONE_SCRAPE_SYNC_MAX_ATTEMPTS =
 /** Clean Birth: max wait on post-answer pulse before Zone reveal (card + words). */
 export const CLEAN_BIRTH_PULSE_MAX_WAIT_MS = 4_500
 
+/** Post–loop-answer pulse — two beats only (not full summary handoff). */
+export const CLEAN_BIRTH_PULSE_WORDS = ['audit', 'done.'] as const
+
 export const SESSION_SUMMARY_TO_ZONE = 'zz_summary_to_zone'
 
 export type ZoneReadinessInput = {

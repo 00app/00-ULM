@@ -1842,6 +1842,58 @@ body, p, span, input, button, textarea, select,
   line-height: 0.8;
 }
 
+.zone-hero-win-cta {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.zone-hero-win-cta:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.zone-hero-win-cta:active:not(:disabled) {
+  transform: scale(var(--zz-press-scale));
+}
+
+@media (hover: hover) {
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-hero-win-cta:not(:disabled) {
+    color: var(--zz-hover-text);
+  }
+}
+
+.zone-rock-signup-wrap .rock-tip-liked-disc,
+.rock-saving-tips-section .rock-tip-liked-disc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  margin-left: 8px;
+  vertical-align: middle;
+  border-radius: 9999px;
+  background: var(--color-yellow);
+  box-sizing: border-box;
+}
+
+.rock-saving-tips-section .data-value .rock-tip-liked-disc {
+  flex-shrink: 0;
+}
+
 .groovy-zone-grid .card-headline {
   flex: 0 1 auto !important;
   height: auto !important;
@@ -2674,8 +2726,8 @@ body, p, span, input, button, textarea, select,
 }
 .zz-close-btn {
   position: absolute !important;
-  top: 40px;
-  right: 40px;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
   z-index: 500;
   width: 40px;
   height: 40px;
@@ -4908,10 +4960,10 @@ body.zai-composer-dock-active {
   top: 20px;
   right: 20px;
   z-index: 200;
-  width: 64px !important;
-  height: 64px !important;
-  min-width: 64px !important;
-  min-height: 64px !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
   box-sizing: border-box;
   padding: 0;
   flex-shrink: 0;
@@ -4945,12 +4997,12 @@ body.zai-composer-dock-active {
   right: auto;
   left: 20px;
 }
-/* 80px variant (e.g. expanded card overlay) */
+/* 40px variant — same as default (legacy alias). */
 .zz-back-btn.zz-back-btn--80 {
-  width: 80px !important;
-  height: 80px !important;
-  min-width: 80px !important;
-  min-height: 80px !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
 }
 /* Portaled to body — Settings / Zai / Likes close (escapes perspective shell) */
 .zz-back-btn.zz-back-btn--viewport-lock {
@@ -5456,7 +5508,7 @@ body.zai-composer-dock-active {
   }
 
   .zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:hover .rock-mobile-signup-title,
-  .zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:hover .zz-body {
+  .zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:hover .zz-h4 {
     color: var(--color-yellow) !important;
   }
 
@@ -5489,21 +5541,32 @@ body.zai-composer-dock-active {
 
 .zone-rock-signup-wrap .rock-mobile-opt-in-checkbox {
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   margin: 0;
   appearance: none;
   -webkit-appearance: none;
   border-radius: 50%;
-  border: 2px solid var(--color-yellow);
-  background: #1a1a1a;
+  border: none;
+  background: var(--color-purple);
   cursor: pointer;
   position: relative;
 }
 
 .zone-rock-signup-wrap .rock-mobile-opt-in-checkbox:checked {
   background: var(--color-yellow);
-  box-shadow: inset 0 0 0 4px #1a1a1a;
+}
+
+.zone-rock-signup-wrap .rock-mobile-opt-in-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-pink);
+  transform: translate(-50%, -50%);
 }
 
 .zone-rock-signup-wrap .rock-mobile-opt-in-checkbox:focus-visible {
@@ -5515,7 +5578,7 @@ body.zai-composer-dock-active {
   color: var(--color-yellow);
   opacity: 0.95;
   line-height: 1.35;
-  padding-top: 4px;
+  padding-top: 8px;
 }
 
 .zone-rock-signup-wrap .rock-mobile-row .rock-mobile-zz-input.zz-input {
@@ -5526,51 +5589,95 @@ body.zai-composer-dock-active {
   box-sizing: border-box;
 }
 
-.zone-rock-signup-wrap .rock-mobile-go-btn {
+.zone-rock-signup-wrap .rock-mobile-send-btn {
   flex-shrink: 0;
-  width: 56px;
-  min-width: 56px;
+  min-width: 72px;
   height: 54px;
+  padding: 0 18px;
   border-radius: 9999px;
   border: none;
   -webkit-appearance: none;
   appearance: none;
-  font-family: var(--font-marvin) !important;
-  font-weight: 700 !important;
-  font-size: var(--zz-h4-mobile) !important;
-  line-height: 0.8 !important;
-  letter-spacing: var(--zz-track-marvin) !important;
-  text-transform: uppercase;
-  background-color: var(--color-purple);
-  color: var(--color-yellow);
+  background-color: var(--color-yellow);
+  color: var(--color-pink);
   box-shadow: none;
   filter: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
 }
 
-.zone-rock-signup-wrap .rock-mobile-go-btn:hover:not(:disabled) {
+.zone-rock-signup-wrap .rock-mobile-send-label {
+  margin: 0;
+  text-transform: uppercase;
+  color: inherit;
+}
+
+.zone-rock-signup-wrap .rock-mobile-send-btn:hover:not(:disabled) {
   background-color: var(--zz-hover-bg);
   color: var(--zz-hover-text);
-  filter: none;
 }
 
-.zone-rock-signup-wrap .rock-mobile-go-btn:active:not(:disabled) {
+.zone-rock-signup-wrap .rock-mobile-send-btn:active:not(:disabled) {
   transform: scale(var(--zz-press-scale));
-  filter: none;
 }
 
-.zone-rock-signup-wrap .rock-mobile-go-btn:focus-visible {
-  outline: 2px solid var(--color-purple);
+.zone-rock-signup-wrap .rock-mobile-send-btn:focus-visible {
+  outline: 2px solid var(--color-yellow);
   outline-offset: 2px;
 }
 
-.zone-rock-signup-wrap .rock-mobile-go-btn:disabled {
+.zone-rock-signup-wrap .rock-mobile-send-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.zone-rock-signup-wrap .rock-mobile-send-btn[aria-busy='true'] .rock-mobile-send-label {
+  opacity: 0.7;
+}
+
+/* SMS success — card panel matches Rock signup shell */
+.rock-sms-success-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(20px, 4vw, 40px);
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--color-purple) 88%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.rock-sms-success-card {
+  position: relative;
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: var(--padding-bento) !important;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.rock-sms-success-card .rock-sms-success-close {
+  position: absolute !important;
+  top: var(--padding-bento) !important;
+  right: var(--padding-bento) !important;
+}
+
+.rock-sms-success-card .rock-mobile-signup-title {
+  padding-right: 48px;
+}
+
+.rock-sms-success-sub {
+  line-height: 1.35;
 }
 
 .zone-rock-signup-wrap .rock-social-row {
@@ -5965,20 +6072,56 @@ body.zai-composer-dock-active {
   background: color-mix(in srgb, var(--zai-ink) 55%, transparent) !important;
 }
 .ask-zai-deep-dive-sheet {
+  width: 100%;
   max-width: 100%;
   background: var(--zai-field-bg) !important;
   color: var(--zai-ink) !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.ask-zai-deep-dive-header {
+  width: 100%;
+  max-width: var(--max-w-zone);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-inline: clamp(20px, 4vw, 32px);
+  padding-top: 30px;
+  padding-bottom: 30px;
+  box-sizing: border-box;
 }
 .ask-zai-deep-dive-sheet .zz-label {
   color: color-mix(in srgb, var(--zai-ink) 85%, transparent);
 }
 .ask-zai-deep-dive-title {
-  font-family: var(--font-marvin), sans-serif;
-  font-size: clamp(22px, 4vw, 32px);
-  line-height: 0.8;
+  font-family: var(--font-marvin), sans-serif !important;
+  font-size: var(--zz-h3-mobile) !important;
+  line-height: 0.8 !important;
   font-weight: bold;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--zz-track-marvin, 0.02em);
+  text-transform: uppercase;
   color: var(--zai-ink);
+}
+.ask-zai-deep-dive-shift {
+  font-family: var(--font-marvin), sans-serif !important;
+  font-size: var(--zz-h4-mobile) !important;
+  line-height: 0.8 !important;
+  font-weight: bold;
+  letter-spacing: var(--zz-track-marvin, 0.02em);
+  text-transform: uppercase;
+  color: var(--zai-ink);
+  text-wrap: balance;
+}
+@media (min-width: 1024px) {
+  .ask-zai-deep-dive-title {
+    font-size: var(--zz-h3-desktop) !important;
+  }
+  .ask-zai-deep-dive-shift {
+    font-size: var(--zz-h4-desktop) !important;
+  }
 }
 .ask-zai-deep-dive-headline {
   font-family: var(--font-roboto), sans-serif;
@@ -6003,10 +6146,116 @@ body.zai-composer-dock-active {
   margin-inline: auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-inline: clamp(20px, 4vw, 32px);
+  padding-bottom: calc(var(--ask-zai-deep-dive-dock-clearance, 112px) + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+.ask-zai-deep-dive-lead {
+  font-family: var(--font-roboto), sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--zai-ink);
+}
+body.ask-zai-deep-dive-active {
+  --ask-zai-deep-dive-dock-clearance: 112px;
+}
+.zai-composer-dock--ask-sheet.zai-composer-dock--fixed {
+  z-index: 242;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--zai-field-bg) 88%, transparent) 38%,
+    var(--zai-field-bg) 100%
+  );
+}
+.zai-composer-dock--ask-sheet .zai-input-row {
+  width: min(var(--max-w-zone), calc(100vw - 32px));
+  max-width: var(--max-w-zone);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill,
+.zai-composer-dock--ask-sheet .ask-zai-input,
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input {
+  flex: 1;
+  min-width: 0;
+  background-color: var(--zai-field-bg) !important;
+  color: var(--zai-deep-blue) !important;
+  -webkit-text-fill-color: var(--zai-deep-blue);
+  caret-color: var(--zai-deep-blue);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill::placeholder,
+.zai-composer-dock--ask-sheet .ask-zai-input::placeholder,
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input::placeholder {
+  color: color-mix(in srgb, var(--zai-deep-blue) 72%, transparent) !important;
+  opacity: 1;
+}
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill:hover,
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill:focus,
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill:focus-visible,
+.zai-composer-dock--ask-sheet .ask-zai-input:hover,
+.zai-composer-dock--ask-sheet .ask-zai-input:focus,
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input:hover,
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input:focus,
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input:focus-visible {
+  background-color: var(--zai-deep-blue) !important;
+  color: var(--color-yellow) !important;
+  -webkit-text-fill-color: var(--color-yellow);
+  caret-color: var(--color-yellow);
+}
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill:hover::placeholder,
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill:focus::placeholder,
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input:hover::placeholder,
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input:focus::placeholder {
+  color: color-mix(in srgb, var(--color-yellow) 72%, transparent) !important;
+}
+.zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn {
+  font-family: var(--font-marvin), sans-serif !important;
+  font-size: var(--zz-h4-mobile) !important;
+  font-weight: bold;
+  line-height: 0.8 !important;
+  letter-spacing: var(--zz-track-marvin, 0.02em);
+  text-transform: uppercase;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+@media (min-width: 1024px) {
+  .zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn {
+    font-size: var(--zz-h4-desktop) !important;
+  }
+}
+.zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn:not(:disabled) {
+  background-color: var(--zai-deep-blue);
+  color: var(--color-yellow);
+}
+@media (hover: hover) {
+  .zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn:not(:disabled):hover,
+  .zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn:not(:disabled):focus-visible {
+    background-color: var(--color-yellow);
+    color: var(--zai-deep-blue);
+  }
+}
+.zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn:disabled {
+  background-color: color-mix(in srgb, var(--zai-deep-blue) 28%, var(--zai-field-bg));
+  color: color-mix(in srgb, var(--zai-deep-blue) 45%, transparent);
+  opacity: 1;
+  cursor: default;
+}
+.expanded-solo-focus .solo-focus-trinity--80 {
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.ask-zai-deep-dive-pill-row {
+  gap: 10px;
 }
 .ask-zai-deep-dive-thread {
   flex: 1;
@@ -8520,10 +8769,10 @@ select,
   transform: scale(0.9);
 }
 
-/* Hero Bloom overlay keeps 80px close button */
+/* Hero Bloom overlay — close matches global 40px lock */
 .zone-bloom-overlay .action-circle-80 {
-  width: 80px !important;
-  height: 80px !important;
+  width: 40px !important;
+  height: 40px !important;
 }
 
 /* Question area — 40px gap below data */
@@ -9021,6 +9270,7 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon svg,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .card-headline,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-hero-win-cta,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-hero-mission,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .card-subhead,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-label,

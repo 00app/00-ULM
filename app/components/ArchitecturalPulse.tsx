@@ -9,6 +9,8 @@ import { atomicWordHoldMs } from '@/lib/motion-family'
 
 type Props = {
   onComplete: () => void
+  /** Override word list (e.g. Clean Birth uses two beats). */
+  words?: readonly string[]
   /** Fade the final DONE. beat as the grid punches through. */
   fadingOut?: boolean
   /** When embedded in Discovery Takeover (not full-screen fixed overlay). */
@@ -17,16 +19,16 @@ type Props = {
   inline?: boolean
 }
 
-const WORDS = [...ARCHITECTURAL_PULSE_WORDS]
-const DWELLS = WORDS.map((w) => atomicWordHoldMs(w))
-
 export function ArchitecturalPulse({
   onComplete,
+  words,
   fadingOut = false,
   overlayZIndex = 200,
   inline = false,
 }: Props) {
   const [fontsReady, setFontsReady] = useState(false)
+  const pulseWords = words ?? ARCHITECTURAL_PULSE_WORDS
+  const dwells = pulseWords.map((w) => atomicWordHoldMs(w))
 
   useEffect(() => {
     let alive = true
@@ -72,11 +74,11 @@ export function ArchitecturalPulse({
     >
       {fontsReady ? (
         <IntroWordCycle
-          words={WORDS}
+          words={[...pulseWords]}
           preserveCase
           trailingPeriod={false}
           gapMs={0}
-          wordDurations={DWELLS}
+          wordDurations={dwells}
           wordExitMs={INTRO_ROUTE_WORD_EXIT_MS}
           opacityTicker
           fitToViewportPaddingPx={inline ? 40 : 0}
