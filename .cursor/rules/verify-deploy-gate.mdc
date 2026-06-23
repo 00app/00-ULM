@@ -21,10 +21,10 @@ Equivalent CI gate: GitHub Actions jobs **Lint** + **Typecheck** (`.github/workf
 
 | Step | Entry | Scope |
 | --- | --- | --- |
-| **typecheck** | `scripts/vercel-check.mjs typecheck` → `next typegen` + `tsc -p tsconfig.typecheck.json` | `app/`, `lib/`, `proxy.ts`, `instrumentation.ts` |
-| **lint** | `scripts/vercel-check.mjs lint` → explicit `eslint` binary | same paths |
+| **typecheck** | `npm run typecheck:ci` → `scripts/vercel-check.mjs typecheck` | `app/`, `lib/`, `proxy.ts`, `instrumentation.ts` |
+| **lint** | `npm run lint:ci` → `scripts/vercel-check.mjs lint` | same paths |
 
-**Never** add `eslint` to `next.config.js` (Next 16 removed it — Vercel native Lint crashes). **Never** use deprecated `next lint`.
+**Never** add `lint` or `typecheck` scripts to `package.json` — Vercel Native Deployment Checks bind to those names and flake in parallel with the build. Run `npm run fix:vercel-checks` before deploy.
 
 `typescript.ignoreBuildErrors` in `next.config.js` is for `next build` only — real checks run in `vercel-build-gate`, not inside webpack.
 
@@ -39,7 +39,7 @@ Equivalent CI gate: GitHub Actions jobs **Lint** + **Typecheck** (`.github/workf
 
 ## Dashboard “Checks Failed” with green Build Logs
 
-Often **native** Vercel Lint/Typecheck (*internal error*), not code. Fix in Vercel → **Deployment Checks**: disable native Lint/Typecheck; require GitHub Actions **Lint** + **Typecheck**. Staged but green: `npm run promote`. Full guide: `docs/DEPLOY-VERCEL.md`.
+Often **native** Vercel Lint/Typecheck (*failed unexpectedly*), not code — native checks bind to `package.json` scripts named `lint`/`typecheck`. Repo fix: use `lint:ci`/`typecheck:ci` only + `npm run fix:vercel-checks`. Dashboard: require GitHub Actions **Lint** + **Typecheck** only. Staged but green: `npm run promote`. Full guide: `docs/DEPLOY-VERCEL.md`.
 
 ## Agent discipline
 

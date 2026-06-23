@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Vercel Native Deployment Checks — `npm run lint` / `npm run typecheck`.
- * Ensures deps + next-env.d.ts, uses explicit binaries (no deprecated `next lint`).
+ * CI lint/typecheck entry — use `npm run lint:ci` / `npm run typecheck:ci`.
+ * Do not add package.json scripts named `lint` or `typecheck` (Vercel native checks bind to them).
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'

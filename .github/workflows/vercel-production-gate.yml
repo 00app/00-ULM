@@ -26,7 +26,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --include=dev
-      - run: npm run lint
+      - run: npm run lint:ci
 
   Typecheck:
     name: Typecheck
@@ -39,5 +39,5 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --include=dev
-      - run: npm run typecheck
+      - run: npm run typecheck:ci
       - run: npm run test:mechanical-truth
