@@ -45,9 +45,6 @@ export interface HeroTotals {
   totalCarbon: number
 }
 
-const SESSION_USER_UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-
 const HERO_TOTALS_KEY = 'heroTotals'
 const LOCATION_STATE_KEY = 'zz_location_state_v1'
 const V23_FIRST_LOAD_KEY = 'zz_v23_first_load_done'
@@ -221,8 +218,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshProfile()
     setJourneyAnswers(readJourneyAnswersFromStorage())
     if (typeof window !== 'undefined') {
-      const id = localStorage.getItem('userId') ?? localStorage.getItem('user_id')
-      if (id) setUserIdState(id)
+      const hasSession =
+        typeof document !== 'undefined' &&
+        document.cookie.split(';').some((c) => c.trim().startsWith('session='))
+      if (hasSession) {
+        void fetch('/api/user', { credentials: 'include' })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => {
+            const id = data?.user?.id
+            if (typeof id === 'string' && id.trim()) setUserIdState(id.trim())
+          })
+          .catch(() => {})
+      }
       const cachedTotals = readHeroTotalsFromStorage()
       if (cachedTotals) setHeroTotalsState(cachedTotals)
       const cachedLocation = readLocationStateFromStorage()
@@ -233,8 +240,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /** Database-first: merge Neon `journey_answers_jsonb` into client state + localStorage for Zone. */
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const rawId = localStorage.getItem('userId') ?? localStorage.getItem('user_id') ?? ''
-    if (!rawId || rawId.startsWith('guest-') || !SESSION_USER_UUID_RE.test(rawId)) return
     const hasSessionCookie =
       typeof document !== 'undefined' &&
       document.cookie.split(';').some((c) => c.trim().startsWith('session='))

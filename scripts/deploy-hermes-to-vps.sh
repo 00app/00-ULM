@@ -75,16 +75,9 @@ ssh "${SSH_OPTS[@]}" "$SSH_HOST" \
   "/usr/bin/bash ${REMOTE_DIR}/scripts/hermes-pulse.sh --secret-file=/home/ubuntu/.hermes/cron.secret --auth-only"
 
 echo ""
-echo "→ Crontab (install if missing)"
-ssh "${SSH_OPTS[@]}" "$SSH_HOST" bash -s <<REMOTE
-set -euo pipefail
-if crontab -l 2>/dev/null | grep -q hermes-pulse.sh; then
-  echo "  crontab already has hermes-pulse — leaving as-is:"
-  crontab -l | grep hermes-pulse
-else
-  bash ${REMOTE_DIR}/scripts/install-hermes-crontab.sh --install
-fi
-REMOTE
+echo "→ Crontab (dedupe + install canonical line)"
+ssh "${SSH_OPTS[@]}" "$SSH_HOST" \
+  "REMOTE_DIR='${REMOTE_DIR}' bash ${REMOTE_DIR}/scripts/install-hermes-crontab.sh --install"
 
 echo ""
 echo "✓ Deploy complete. On VPS: tail -f ~/hermes-pulse.log after 05:00 UTC or run --smoke manually."

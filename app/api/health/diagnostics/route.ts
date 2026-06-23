@@ -19,7 +19,8 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest().catch(() => null)
   const ops = isOpsAuthorized(request)
-  const authed = Boolean(session) || ops || gatewayTokenMatches(request)
+  const hasSession = Boolean(session?.userId)
+  const authed = hasSession || ops || gatewayTokenMatches(request)
 
   let neonOk = false
   let dbLatencyMs: number | null = null
@@ -90,12 +91,24 @@ export async function GET(request: NextRequest) {
   const debugMode = ops && request.nextUrl.searchParams.get('debug') === '1'
   const databaseConnectionInfo = debugMode ? getDatabaseConnectionInfo() : null
 
-  /** Unsigned clients — DB reachability only (no provider / bucket surface map). */
+  /** Unsigned clients — DB reachability only. */
   if (!authed) {
     return NextResponse.json({
       neon: neonOk,
       status: neonOk ? 'ok' : 'degraded',
       public: true,
+    })
+  }
+
+  /** Signed-in users — safe booleans only (no invoke snapshots / connection strings). */
+  if (!ops && !gatewayTokenMatches(request)) {
+    return NextResponse.json({
+      neon: neonOk,
+      dbLatencyMs,
+      gemini,
+      firecrawl,
+      lastResearchScrapedAt,
+      rockHabitCount: ROCK_HABIT_COUNT,
     })
   }
 
@@ -106,33 +119,26 @@ export async function GET(request: NextRequest) {
     dbLatencyMs,
     gemini,
     firecrawl,
-    ...(ops
-      ? {
-          bucket_failover: bucket,
-          bucket_providers: bucketProviders,
-          aiGateway: aiGatewayConfigured,
-          aiGatewayOk: gatewayProbe ? gatewayProbe.ok : gatewayOperational,
-          aiGatewayFallback: gatewaySnap.usingFallback || Boolean(gatewayProbe?.usingFallback),
-          aiGatewayDetail:
-            gatewayProbe?.detail ??
-            (gatewayOperational
-              ? researchForceDirect && !gatewayLiveOk
-                ? 'Research uses direct Gemini; gateway reserved for Zai / failover.'
-                : null
-              : gatewaySnap.lastError),
-          aiGatewayLastModel: gatewaySnap.lastModel,
-          lastResearchScrapedAt,
-          researchProvenanceUrl,
-          lastResearchInvokePayload,
-          jamSessionUrl,
-          rockHabitCount: ROCK_HABIT_COUNT,
-          rockCatalogPath: 'lib/rock/habitsCatalog.ts',
-          rockTipProviderSample,
-          databaseConnectionInfo: databaseConnectionInfo ?? undefined,
-        }
-      : {
-          lastResearchScrapedAt,
-          rockHabitCount: ROCK_HABIT_COUNT,
-        }),
+    bucket_failover: bucket,
+    bucket_providers: bucketProviders,
+    aiGateway: aiGatewayConfigured,
+    aiGatewayOk: gatewayProbe ? gatewayProbe.ok : gatewayOperational,
+    aiGatewayFallback: gatewaySnap.usingFallback || Boolean(gatewayProbe?.usingFallback),
+    aiGatewayDetail:
+      gatewayProbe?.detail ??
+      (gatewayOperational
+        ? researchForceDirect && !gatewayLiveOk
+          ? 'Research uses direct Gemini; gateway reserved for Zai / failover.'
+          : null
+        : gatewaySnap.lastError),
+    aiGatewayLastModel: gatewaySnap.lastModel,
+    lastResearchScrapedAt,
+    researchProvenanceUrl,
+    lastResearchInvokePayload,
+    jamSessionUrl,
+    rockHabitCount: ROCK_HABIT_COUNT,
+    rockCatalogPath: 'lib/rock/habitsCatalog.ts',
+    rockTipProviderSample,
+    databaseConnectionInfo: databaseConnectionInfo ?? undefined,
   })
 }

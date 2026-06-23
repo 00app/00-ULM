@@ -1837,21 +1837,22 @@ body, p, span, input, button, textarea, select,
  * Zone wall — `.card-headline` rhythm (hero + journey + tips).
  * Typography matches `.zone-anchor .zz-anchor-greeting` (same tokens, no separate clamp scale).
  */
-.groovy-zone-grid .zone-hero-card .zone-hero-profile-lead {
-  white-space: pre-line;
+.groovy-zone-grid .zone-hero-card h3.zone-hero-profile-lead {
+  white-space: normal;
   line-height: 0.8;
 }
 
 .zone-hero-win-cta {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(4px, 1cqw, 8px);
   width: 100%;
   padding: 0;
   margin: 0;
   border: none;
   background: transparent;
   color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
   text-align: left;
   cursor: pointer;
   transition:
@@ -1869,7 +1870,8 @@ body, p, span, input, button, textarea, select,
 }
 
 @media (hover: hover) {
-  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-hero-win-cta:not(:disabled) {
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-hero-win-cta:not(:disabled),
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-hero-win-cta:not(:disabled) h3.zone-hero-profile-lead {
     color: var(--zz-hover-text);
   }
 }
@@ -5061,15 +5063,34 @@ body.zai-composer-dock-active {
   box-sizing: border-box;
   text-align: center;
 }
-.site-footer--with-reset {
-  padding-bottom: clamp(16px, 3vw, 28px);
-}
-.site-footer__reset-row {
+.site-footer__social-row {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 0 auto clamp(20px, 4vw, 32px);
+  margin: 0 auto clamp(16px, 3vw, 24px);
 }
+
+.site-footer__ig-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  min-width: 80px;
+  min-height: 80px;
+  border-radius: 9999px;
+  background: var(--color-purple);
+  color: var(--color-yellow);
+  text-decoration: none;
+}
+
+.site-footer__ig-link svg,
+.site-footer__ig-glyph {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
 .site-footer__line {
   font-family: var(--font-marvin), sans-serif;
   font-size: var(--zz-h4-mobile);
@@ -5508,8 +5529,17 @@ body.zai-composer-dock-active {
   }
 
   .zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:hover .rock-mobile-signup-title,
-  .zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:hover .zz-h4 {
+  .zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:hover .zz-h4:not(.rock-mobile-send-label) {
     color: var(--color-yellow) !important;
+  }
+
+  .zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:hover .rock-mobile-send-btn:not(:disabled) {
+    background-color: var(--color-yellow);
+    color: var(--color-purple);
+  }
+
+  .zone-rock-signup-wrap .rock-mobile-signup-card.bento-card-groovy:hover .rock-mobile-send-label {
+    color: var(--color-purple) !important;
   }
 
   .zone-rock-signup-wrap .rock-mobile-row .rock-mobile-zz-input.zz-input:hover {
@@ -5553,6 +5583,15 @@ body.zai-composer-dock-active {
   min-height: 65px;
 }
 
+.zone-rock-signup-wrap .rock-mobile-privacy-block {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.zone-rock-signup-wrap .rock-mobile-privacy-head {
+  text-align: center;
+}
+
 .zone-rock-signup-wrap .rock-mobile-privacy-link {
   color: inherit;
   text-decoration: underline;
@@ -5564,21 +5603,25 @@ body.zai-composer-dock-active {
   opacity: 0.85;
 }
 
-/* Essential cookie transparency — h4 typography only */
+/* Essential cookie transparency — intro goal screen only; h4 typography */
 .cookie-essential-notice {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 260;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: 14px 18px;
   background: var(--color-purple);
   color: var(--color-yellow);
-  border-top: 2px solid var(--color-yellow);
+  border: none;
+  border-radius: 40px;
   box-sizing: border-box;
+}
+
+.intro-decision-screen .cookie-essential-notice {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  z-index: 10;
 }
 
 .cookie-essential-notice__line {
@@ -5603,13 +5646,14 @@ body.zai-composer-dock-active {
 
 .cookie-essential-notice__btn {
   appearance: none;
-  border: 2px solid var(--color-yellow);
+  border: none;
   border-radius: 999px;
   background: var(--color-yellow);
-  color: var(--color-purple);
+  color: var(--color-purple) !important;
   padding: 8px 18px;
   cursor: pointer;
   font-family: var(--font-marvin);
+  font-weight: 700;
   text-transform: lowercase;
   line-height: 0.9;
 }
@@ -5662,6 +5706,20 @@ body.zai-composer-dock-active {
   outline-offset: 2px;
 }
 
+@media (hover: hover) {
+  .zone-rock-signup-wrap .rock-mobile-opt-in-row:hover .rock-mobile-opt-in-checkbox:not(:checked) {
+    box-shadow: 0 0 0 2px var(--color-yellow);
+  }
+
+  .zone-rock-signup-wrap .rock-mobile-opt-in-row:hover .rock-mobile-opt-in-checkbox:checked {
+    box-shadow: 0 0 0 2px var(--color-purple);
+  }
+
+  .zone-rock-signup-wrap .rock-mobile-opt-in-checkbox:hover:not(:checked) {
+    background-color: color-mix(in srgb, var(--color-yellow) 28%, var(--color-purple));
+  }
+}
+
 .zone-rock-signup-wrap .rock-mobile-opt-in-label {
   color: var(--color-yellow);
   opacity: 0.95;
@@ -5675,6 +5733,24 @@ body.zai-composer-dock-active {
   max-width: none !important;
   height: 54px;
   box-sizing: border-box;
+  background-color: var(--color-purple) !important;
+  color: var(--color-yellow) !important;
+}
+
+.zone-rock-signup-wrap .rock-mobile-row .rock-mobile-zz-input.zz-input::placeholder {
+  color: var(--color-yellow) !important;
+  opacity: 0.72;
+}
+
+.zone-rock-signup-wrap .rock-mobile-row .rock-mobile-zz-input.zz-input:focus,
+.zone-rock-signup-wrap .rock-mobile-row .rock-mobile-zz-input.zz-input:focus-visible {
+  background-color: var(--color-purple) !important;
+  color: var(--color-yellow) !important;
+}
+
+.zone-rock-signup-wrap .rock-mobile-row .rock-mobile-zz-input.zz-input:focus::placeholder {
+  color: var(--color-yellow) !important;
+  opacity: 0.85;
 }
 
 .zone-rock-signup-wrap .rock-mobile-send-btn {
@@ -5687,7 +5763,7 @@ body.zai-composer-dock-active {
   -webkit-appearance: none;
   appearance: none;
   background-color: var(--color-yellow);
-  color: var(--color-pink);
+  color: var(--color-purple);
   box-shadow: none;
   filter: none;
   cursor: pointer;
@@ -5700,12 +5776,20 @@ body.zai-composer-dock-active {
 .zone-rock-signup-wrap .rock-mobile-send-label {
   margin: 0;
   text-transform: uppercase;
-  color: inherit;
+  color: var(--color-purple) !important;
+  font-family: var(--font-marvin);
+  font-weight: 700;
+  -webkit-text-fill-color: var(--color-purple);
 }
 
 .zone-rock-signup-wrap .rock-mobile-send-btn:hover:not(:disabled) {
-  background-color: var(--zz-hover-bg);
-  color: var(--zz-hover-text);
+  background-color: var(--color-purple);
+  color: var(--color-yellow);
+}
+
+.zone-rock-signup-wrap .rock-mobile-send-btn:hover:not(:disabled) .rock-mobile-send-label {
+  color: var(--color-yellow) !important;
+  -webkit-text-fill-color: var(--color-yellow);
 }
 
 .zone-rock-signup-wrap .rock-mobile-send-btn:active:not(:disabled) {
@@ -5713,17 +5797,25 @@ body.zai-composer-dock-active {
 }
 
 .zone-rock-signup-wrap .rock-mobile-send-btn:focus-visible {
-  outline: 2px solid var(--color-yellow);
+  outline: 2px solid var(--color-purple);
   outline-offset: 2px;
 }
 
 .zone-rock-signup-wrap .rock-mobile-send-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.55;
   cursor: not-allowed;
+  background-color: var(--color-yellow);
+  color: var(--color-purple);
+}
+
+.zone-rock-signup-wrap .rock-mobile-send-btn:disabled .rock-mobile-send-label {
+  color: var(--color-purple) !important;
+  -webkit-text-fill-color: var(--color-purple);
+  opacity: 1;
 }
 
 .zone-rock-signup-wrap .rock-mobile-send-btn[aria-busy='true'] .rock-mobile-send-label {
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
 /* SMS success — card panel matches Rock signup shell */
@@ -5743,6 +5835,11 @@ body.zai-composer-dock-active {
   -webkit-backdrop-filter: blur(6px);
 }
 
+.rock-sms-success-card.bento-card-groovy {
+  min-height: unset !important;
+  height: fit-content !important;
+}
+
 .rock-sms-success-card {
   position: relative;
   width: min(100%, 420px);
@@ -5752,6 +5849,7 @@ body.zai-composer-dock-active {
   padding: var(--padding-bento) !important;
   box-sizing: border-box;
   text-align: left;
+  margin: 20px;
 }
 
 .rock-sms-success-card .rock-sms-success-close {
@@ -5760,42 +5858,16 @@ body.zai-composer-dock-active {
   right: var(--padding-bento) !important;
 }
 
-.rock-sms-success-card .rock-mobile-signup-title {
+.rock-sms-success-card .rock-mobile-signup-title,
+.rock-sms-success-card #rock-sms-success-title {
   padding-right: 48px;
+  box-sizing: content-box;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .rock-sms-success-sub {
   line-height: 1.35;
-}
-
-.zone-rock-signup-wrap .rock-social-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 16px;
-  margin-top: 16px;
-}
-
-.zone-rock-signup-wrap .rock-ig-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
-  border-radius: 9999px;
-  background: var(--color-purple);
-  color: var(--color-yellow);
-  text-decoration: none;
-}
-
-.zone-rock-signup-wrap .rock-ig-link svg,
-.zone-rock-signup-wrap .rock-ig-link__glyph {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
 }
 
 .settings-overview-label {
@@ -5921,12 +5993,6 @@ body.zai-composer-dock-active {
 /* H4 scale on disc; keep circle kerning (narrower than global Marvin stamp) */
 .settings-circle-cta__label.zz-h4 {
   letter-spacing: var(--zz-track-circle-marvin) !important;
-}
-
-.settings-reset-flight-deck {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
 }
 
 /* Mechanical Truth diagnostics sheet — Solo Focus / Zai yellow field */
@@ -8558,6 +8624,7 @@ body:has(.likes-page) .floating-nav {
 
 /* Intro decision — goal question after kinetic words */
 .intro-decision-screen {
+  position: relative;
   gap: clamp(1.75rem, 4vw, 3rem);
 }
 .intro-decision-screen .profile-step-controls {
@@ -9331,6 +9398,7 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon,
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .zone-bento-card-icon svg,
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .card-headline,
+.groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) h3.zone-hero-profile-lead,
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .zone-hero-mission,
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .card-subhead,
 .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited) .data-label,
@@ -9359,6 +9427,7 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-icon svg,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .card-headline,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-hero-win-cta,
+  .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover h3.zone-hero-profile-lead,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .zone-hero-mission,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .card-subhead,
   .groovy-zone-grid .zone-hero-card.bento-card-groovy:not(.zone-card--visited):hover .data-label,

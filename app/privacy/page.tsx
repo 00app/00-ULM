@@ -79,6 +79,23 @@ export default function PrivacyPage() {
         </section>
 
         <section className="privacy-page__section">
+          <h3>SMS tips</h3>
+          <p>
+            If you opt in on the Zone wall, we may text daily tips and local offer drops to your UK mobile
+            number. Reply STOP at any time to opt out. Reply START to rejoin after you have opted out.
+          </p>
+        </section>
+
+        <section className="privacy-page__section">
+          <h3>Bot checks</h3>
+          <p>
+            When you sign up for SMS tips, we may use Cloudflare Turnstile to confirm you are human before
+            sending a text. Turnstile runs only on that signup step — not across the whole app — and we do not
+            use it for ad tracking.
+          </p>
+        </section>
+
+        <section className="privacy-page__section">
           <h3>Beta status</h3>
           <p>
             Zero Zero is in beta. Copy and savings figures improve as local research completes; empty

@@ -28,10 +28,6 @@ import { useCountUp } from '@/lib/utils/useCountUp'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
-import DiagnosticsFlightDeckButton from '@/app/components/DiagnosticsFlightDeckButton'
-import { ResetDataCircleButton } from '@/app/components/ResetDataCircleButton'
-import DiagnosticsSheet from '@/app/components/DiagnosticsSheet'
-import { readCachedProfileLocality } from '@/lib/geocode/resolvePostcodeLocality'
 
 const PROFILE_LABELS: Record<string, string> = {
   name: "What's your name?",
@@ -68,16 +64,6 @@ function TickIcon() {
   return (
     <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <polyline points="20 6 9 17 4 12" />
-    </svg>
-  )
-}
-
-/** Reset / clear — circular arrows */
-function ResetIcon() {
-  return (
-    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-      <path d="M3 3v5h5" />
     </svg>
   )
 }
@@ -183,46 +169,8 @@ export default function SettingsPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeJourneyEdit, setActiveJourneyEdit] = useState<{ id: JourneyId; title: string } | null>(null)
   const [activeLoopEdit, setActiveLoopEdit] = useState<LoopAnswerSettingsRow | null>(null)
-  const [dbConnected, setDbConnected] = useState(true)
-  const [dbHealthHint, setDbHealthHint] = useState<string | null>(null)
-  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
 
   useEffect(() => setHasMounted(true), [])
-
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/health', { cache: 'no-store' })
-      .then(async (r) => {
-        const body = (await r.json().catch(() => null)) as {
-          status?: string
-          database?: string
-          error?: string
-        } | null
-        if (cancelled) return
-        if (r.ok && body?.status === 'ok' && body?.database === 'connected') {
-          setDbConnected(true)
-          setDbHealthHint(null)
-          return
-        }
-        setDbConnected(false)
-        const hint =
-          r.status === 503
-            ? typeof body?.error === 'string' && body.error.trim()
-              ? body.error.trim()
-              : 'Database unreachable — set DATABASE_URL (Neon) in .env.local or Vercel env.'
-            : `GET /api/health → HTTP ${r.status}`
-        setDbHealthHint(hint)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setDbConnected(false)
-          setDbHealthHint('Network error calling /api/health')
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
   useEffect(() => {
     if (typeof window === 'undefined') return
     const onMemory = () => setRefreshKey((k) => k + 1)
@@ -245,12 +193,6 @@ export default function SettingsPage() {
     const employmentStatus = localStorage.getItem('profile_employment_status') ?? ''
     return { name, postcode, livingSituation, homeType, transport, age, employmentStatus }
   }, [state.profile, hasMounted, refreshKey])
-
-  const cachedLocalityLabel = useMemo(() => {
-    const pc = (profileForOverview?.postcode ?? '').replace(/\s+/g, '').trim()
-    if (pc.length < 4) return undefined
-    return readCachedProfileLocality(pc) ?? undefined
-  }, [profileForOverview?.postcode])
 
   const profileRows = useMemo(() => {
     if (!profileForOverview) return []
@@ -549,15 +491,6 @@ export default function SettingsPage() {
         </h4>
       )}
 
-      <DiagnosticsSheet
-        open={diagnosticsOpen}
-        onClose={() => setDiagnosticsOpen(false)}
-        dbConnected={dbConnected}
-        dbHealthHint={dbHealthHint}
-        scrapePostcode={profileForOverview?.postcode ?? ''}
-        localityLabel={cachedLocalityLabel}
-      />
-
       {/* Solid circle CTAs — horizontal row, wrap to second line; label clipped to disc */}
       <div className="settings-cta-circles mt-8 z-10 relative">
         <motion.button
@@ -581,13 +514,6 @@ export default function SettingsPage() {
             LOCATION
           </span>
         </Link>
-        <div className="settings-reset-flight-deck flex items-center justify-center gap-3">
-          <ResetDataCircleButton />
-          <DiagnosticsFlightDeckButton
-            active={diagnosticsOpen}
-            onClick={() => setDiagnosticsOpen((v) => !v)}
-          />
-        </div>
       </div>
     </motion.div>
   )

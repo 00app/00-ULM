@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import type { JourneyId } from '@/lib/journeys'
 import type { RockHabit } from '@/lib/rock/types'
 import { habitToTipCard } from '@/lib/rock/habitsCatalog'
@@ -18,16 +18,13 @@ import Link from 'next/link'
 import { ROUTES } from '@/lib/routes'
 import { HumanCheckTurnstile } from '@/app/components/HumanCheckTurnstile'
 import { turnstileSiteKey } from '@/lib/security/botGuard'
+import { isValidUkMobileInput } from '@/lib/messaging/ukMobile'
 
 /** Industrial lock: Tips/settings are pink base with yellow items. */
 const ROCK_CARD_BG = 'var(--color-pink)' as const
 const ROCK_CARD_TEXT = 'var(--color-yellow)' as const
 
-const PROFILE_MOBILE_LS = 'zz_profile_mobile'
 const PROFILE_SMS_OPT_IN_LS = 'zz_profile_sms_opt_in'
-
-const INSTAGRAM_HREF =
-  process.env.NEXT_PUBLIC_INSTAGRAM_URL?.trim() || 'https://www.instagram.com/percyzerozero/'
 
 type Props = {
   habits: RockHabit[]
@@ -36,14 +33,6 @@ type Props = {
   onOpenTip: (tipId: string) => void
   /** Content Architect / Neon headlines by journey — polishes Rock tile faces to match Zone grid. */
   architectHeadlineByJourney?: Partial<Record<JourneyId, string>>
-}
-
-function InstagramGlyph({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden fill="currentColor">
-      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 11-2.881 0 1.44 1.44 0 012.881 0z" />
-    </svg>
-  )
 }
 
 /** Mobile signup — static shell; hover only on input + Go button. */
@@ -66,11 +55,10 @@ export function RockMobileSignupCard({
   const [humanToken, setHumanToken] = useState<string | null>(null)
   const [honeypot, setHoneypot] = useState('')
   const humanCheckRequired = Boolean(turnstileSiteKey())
+  const mobileReady = useMemo(() => isValidUkMobileInput(mobile), [mobile])
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(PROFILE_MOBILE_LS)
-      if (saved) setMobile(saved)
       setSmsOptIn(localStorage.getItem(PROFILE_SMS_OPT_IN_LS) === '1')
     } catch {
       /* ignore */
@@ -89,7 +77,7 @@ export function RockMobileSignupCard({
 
   const submitMobile = useCallback(async () => {
     const raw = mobile.trim()
-    if (!raw || signupBusy || !smsOptIn) return
+    if (!raw || !isValidUkMobileInput(raw) || signupBusy || !smsOptIn) return
     if (humanCheckRequired && !humanToken) {
       setSignupMsg('confirm you are human — complete the check below.')
       return
@@ -116,7 +104,8 @@ export function RockMobileSignupCard({
         ok?: boolean
         error?: string
         persisted?: boolean
-        mobile?: string
+        mobile_saved?: boolean
+        mobile_last4?: string
         welcome?: { sent?: boolean }
         sms?: { sent?: boolean; tipCount?: number; reason?: string; detail?: string }
       } | null
@@ -141,12 +130,6 @@ export function RockMobileSignupCard({
       if (data.sms?.reason === 'opted_out') {
         setSignupMsg('this number opted out — text START to the zero zero number to rejoin.')
         return
-      }
-      const canonical = typeof data.mobile === 'string' ? data.mobile : raw
-      try {
-        localStorage.setItem(PROFILE_MOBILE_LS, canonical)
-      } catch {
-        /* ignore */
       }
       const smsSent = data.sms?.sent === true
       const welcomeSent = data.welcome?.sent === true
@@ -193,9 +176,6 @@ export function RockMobileSignupCard({
         <h3 className="rock-mobile-signup-title zz-h3 m-0 tracking-wide text-marvin" lang="en" style={{ color: ROCK_CARD_TEXT }}>
           sign up with your mobile
         </h3>
-        <h4 className="zz-h4 m-0 mt-1 rock-mobile-signup-sub" style={{ color: ROCK_CARD_TEXT, opacity: 0.92 }}>
-          for tips and new offer drops
-        </h4>
         <label className="rock-mobile-opt-in-row">
           <input
             type="checkbox"
@@ -205,7 +185,7 @@ export function RockMobileSignupCard({
             aria-label="Opt in to daily tips and offers by text message"
           />
           <h4 className="rock-mobile-opt-in-label zz-h4 m-0">
-            text me daily tips &amp; offers (reply STOP anytime)
+            text me daily tips &amp; offers
           </h4>
         </label>
         <div className="rock-mobile-row">
@@ -223,21 +203,23 @@ export function RockMobileSignupCard({
             type="tel"
             value={mobile}
             onChange={setMobile}
-            onAdvance={submitMobile}
+            onAdvance={mobileReady ? submitMobile : undefined}
             placeholder="UK mobile"
             className="rock-mobile-zz-input"
             width="100%"
           />
-          <button
-            type="button"
-            className="rock-mobile-send-btn"
-            disabled={!mobile.trim() || !smsOptIn || signupBusy || (humanCheckRequired && !humanToken)}
-            onClick={() => void submitMobile()}
-            aria-label="Send mobile number"
-            aria-busy={signupBusy}
-          >
-            <span className="zz-h4 rock-mobile-send-label">send</span>
-          </button>
+          {mobileReady ? (
+            <button
+              type="button"
+              className="rock-mobile-send-btn"
+              disabled={!smsOptIn || signupBusy || (humanCheckRequired && !humanToken)}
+              onClick={() => void submitMobile()}
+              aria-label="Send mobile number"
+              aria-busy={signupBusy}
+            >
+              <span className="zz-h4 rock-mobile-send-label">send</span>
+            </button>
+          ) : null}
         </div>
         {humanCheckRequired ? (
           <>
@@ -253,22 +235,12 @@ export function RockMobileSignupCard({
           </h4>
         ) : null}
 
-        <h4 className="zz-h4 m-0 mt-2">
-          <Link href={ROUTES.PRIVACY} className="rock-mobile-privacy-link">
-            privacy &amp; data
-          </Link>
-        </h4>
-
-        <div className="rock-social-row">
-          <a
-            href={INSTAGRAM_HREF}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rock-ig-link"
-            aria-label="Zero Zero on Instagram"
-          >
-            <InstagramGlyph className="rock-ig-link__glyph" />
-          </a>
+        <div className="rock-mobile-privacy-block">
+          <h4 className="zz-h4 m-0 mt-2 rock-mobile-privacy-head">
+            <Link href={ROUTES.PRIVACY} className="rock-mobile-privacy-link">
+              privacy &amp; data
+            </Link>
+          </h4>
         </div>
       </div>
 

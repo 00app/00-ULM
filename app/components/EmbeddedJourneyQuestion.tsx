@@ -26,7 +26,6 @@ import {
 } from '@/lib/animations'
 import { injectNewDiscoveryCard } from '@/lib/discoveryInject'
 import type { SentinelMotherRecardPayload } from '@/lib/sentinel/recardTypes'
-import { ensureClientResearchUserId } from '@/lib/zone/garyMode'
 import { runTier2MotherChildSwap } from '@/lib/zone/tier2RecursiveSpawner'
 
 const ANSWER_COMMITTED_EVENT = 'zz_answer_committed'
@@ -432,10 +431,10 @@ export function EmbeddedJourneyQuestion({
       typeof window !== 'undefined'
         ? (localStorage.getItem('profile_postcode') ?? '').replace(/\s+/g, '').trim().toUpperCase()
         : ''
-    const researchUserId =
-      typeof window !== 'undefined' ? ensureClientResearchUserId(profilePostcode) : null
     const { ensureProfileSession } = await import('@/lib/client/ensureProfileSession')
+    const { readSessionRestoreProof } = await import('@/lib/client/sessionRestoreProofStorage')
     await ensureProfileSession()
+    const restoreProof = readSessionRestoreProof()
     const postPromise = fetch('/api/answers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -445,7 +444,7 @@ export function EmbeddedJourneyQuestion({
         answer_value: trimmed,
         solo_focus: Boolean(soloFocusZipShut),
         ...(profilePostcode.length >= 4 ? { postcode: profilePostcode } : {}),
-        ...(researchUserId ? { user_id: researchUserId } : {}),
+        ...(restoreProof ? { restore_proof: restoreProof } : {}),
       }),
       credentials: 'include',
     })

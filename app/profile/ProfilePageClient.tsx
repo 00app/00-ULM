@@ -23,6 +23,7 @@ import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import { persistProfileLocality, prefetchProfileLocalityForHandoff, resolveProfileLocalityForPostcode } from '@/lib/geocode/resolvePostcodeLocality'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
+import { persistSessionRestoreProof } from '@/lib/client/sessionRestoreProofStorage'
 import { persistHomePowerFromProfile } from '@/lib/profile/homePower'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { browserCanTriggerScrapeSync, triggerOnboardingResearchBootstrap, triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
@@ -489,11 +490,9 @@ export default function ProfilePageClient() {
             const res = await createUser(payload)
             const userId = res?.user?.id ?? res?.id
             if (userId) {
-              localStorage.setItem('userId', String(userId))
-              localStorage.setItem('user_id', String(userId))
-              if (typeof res?.restore_proof === 'string' && res.restore_proof.trim()) {
-                localStorage.setItem('zz_session_restore_proof', res.restore_proof.trim())
-              }
+              persistSessionRestoreProof(
+                typeof res?.restore_proof === 'string' ? res.restore_proof : null
+              )
             }
             refreshProfile()
             const location = res?.location
@@ -575,11 +574,9 @@ export default function ProfilePageClient() {
         .then((res) => {
           const userId = res?.user?.id ?? res?.id
           if (typeof window !== 'undefined' && userId) {
-            localStorage.setItem('userId', String(userId))
-            localStorage.setItem('user_id', String(userId))
-            if (typeof res?.restore_proof === 'string' && res.restore_proof.trim()) {
-              localStorage.setItem('zz_session_restore_proof', res.restore_proof.trim())
-            }
+            persistSessionRestoreProof(
+              typeof res?.restore_proof === 'string' ? res.restore_proof : null
+            )
           }
           refreshProfile()
           const location = res?.location

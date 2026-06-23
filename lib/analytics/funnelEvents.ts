@@ -4,6 +4,9 @@
  */
 
 export const FUNNEL_EVENT_NAMES = [
+  'page_view',
+  'nav_click',
+  'link_click',
   'intro_complete',
   'profile_complete',
   'summary_enter_zone',
@@ -28,6 +31,10 @@ export type FunnelEventProps = {
   money_value?: number
   cta_label?: string
   skipped?: boolean
+  /** Floating nav key: likes | zone | summary | chat */
+  nav_key?: string
+  /** internal = in-app route; external = off-site http(s) */
+  link_kind?: 'internal' | 'external'
 }
 
 const FUNNEL_SET = new Set<string>(FUNNEL_EVENT_NAMES)
@@ -81,6 +88,12 @@ export function sanitizeFunnelProps(raw: unknown): FunnelEventProps {
   }
   if (typeof o.cta_label === 'string' && o.cta_label.trim()) {
     out.cta_label = clip(o.cta_label.trim(), 80)
+  }
+  if (typeof o.nav_key === 'string' && o.nav_key.trim()) {
+    out.nav_key = clip(o.nav_key.trim(), 40)
+  }
+  if (o.link_kind === 'internal' || o.link_kind === 'external') {
+    out.link_kind = o.link_kind
   }
   if (typeof o.money_value === 'number' && Number.isFinite(o.money_value)) {
     out.money_value = Math.round(o.money_value)

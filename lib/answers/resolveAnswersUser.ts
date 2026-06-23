@@ -7,6 +7,11 @@ import {
 } from '@/lib/auth'
 import pool from '@/lib/db'
 import { readGuestSessionId } from '@/lib/requestAuth'
+import {
+  allowInsecureDevSessionRestore,
+  resolveUserIdFromRestoreProof,
+  verifySessionRestoreProof,
+} from '@/lib/sessionRestoreProof'
 
 const PROFILE_ONLY_SESSION_DAYS = 7
 const USER_ID_RE =
@@ -14,11 +19,14 @@ const USER_ID_RE =
 
 export type ResolvedAnswersUser = {
   userId: string
-  /** Set session cookie when auth came from client research UUID (no prior cookie). */
+  /** Set session cookie when auth came from HMAC restore proof (no prior cookie). */
   attachSession: boolean
 }
 
-/** Answers writes require a signed-in session — guest cookie alone is not enough (C-1). */
+/**
+ * Answers writes require a signed-in session or `user_id` + valid `restore_proof`
+ * (same bar as POST /api/auth/restore-session). Bare UUID is rejected.
+ */
 export async function resolveAnswersUser(
   request: NextRequest,
   body: Record<string, unknown>
@@ -27,8 +35,19 @@ export async function resolveAnswersUser(
   const session = await getSessionFromRequest().catch(() => null)
   if (session?.userId) return { userId: session.userId, attachSession: false }
 
-  const userId = typeof body.user_id === 'string' ? body.user_id.trim() : ''
-  if (!USER_ID_RE.test(userId)) return null
+  const restoreProof =
+    typeof body.restore_proof === 'string' ? body.restore_proof.trim() : ''
+
+  const verifiedFromProof = resolveUserIdFromRestoreProof(restoreProof)
+  let userId: string | null = verifiedFromProof
+  if (!userId) {
+    const fromBody = typeof body.user_id === 'string' ? body.user_id.trim() : ''
+    if (!USER_ID_RE.test(fromBody)) return null
+    const devBypass = allowInsecureDevSessionRestore()
+    if (!devBypass && !verifySessionRestoreProof(fromBody, restoreProof)) return null
+    userId = fromBody
+  }
+
   const found = await pool.query('SELECT id FROM users WHERE id = $1 LIMIT 1', [userId])
   if (!found.rows?.length) return null
   return { userId, attachSession: true }

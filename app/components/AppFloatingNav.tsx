@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import FloatingNav from '@/app/components/FloatingNav'
+import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { ROUTES } from '@/lib/routes'
 
 function normalizeAppPath(p: string | null): string {
@@ -49,6 +50,7 @@ export default function AppFloatingNav({
               : key === 'summary'
                 ? ROUTES.SETTINGS
                 : ROUTES.ZONE
+        trackFunnelEvent('nav_click', { page: path, nav_key: key, target_url: dest })
         router.push(dest)
       }}
     />

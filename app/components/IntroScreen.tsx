@@ -30,6 +30,7 @@ import {
   type ProfileGoalValue,
 } from '@/lib/profile/goalWeighting'
 import { syncSessionState } from '@/lib/sessionStateSync'
+import { CookieEssentialNotice } from '@/app/components/CookieEssentialNotice'
 
 type IntroScreenState = 'logo' | 'value-message' | 'goal'
 
@@ -250,8 +251,9 @@ export default function IntroScreen() {
         visibility: 'visible',
         pointerEvents: 'auto',
       }}
-    >
-      <motion.div
+      >
+        <CookieEssentialNotice />
+        <motion.div
         className="profile-step-slam w-full flex flex-col items-center"
         style={{ gap: 40, maxWidth: 520 }}
         initial={stepMotion.initial}

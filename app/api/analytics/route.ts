@@ -3,8 +3,10 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { analyticsPostBodySchema, invalidBodyResponse, validateFunnelEventType } from '@/lib/api/schemas'
 import { buildAnalyticsPayloadRow, parseAnalyticsBody } from '@/lib/analytics/funnelEvents'
+import { getSessionFromRequest } from '@/lib/auth'
 import pool from '@/lib/db'
 import { captureServerError } from '@/lib/observability/captureError'
+import { readGuestSessionId } from '@/lib/requestAuth'
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
 const ANALYTICS_MAX_PER_MINUTE = 30
@@ -17,6 +19,13 @@ export async function POST(request: NextRequest) {
   if (!ok) {
     return NextResponse.json({ success: false }, { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined })
   }
+
+  const session = await getSessionFromRequest().catch(() => null)
+  const guestId = readGuestSessionId(request)
+  if (!session?.userId && !guestId) {
+    return NextResponse.json({ success: false }, { status: 401 })
+  }
+
   try {
     const rawBody = await request.json()
     const validated = analyticsPostBodySchema.safeParse(rawBody)

@@ -1,3 +1,4 @@
+import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import type { JourneyId } from '@/lib/journeys'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
@@ -24,6 +25,12 @@ export function openZoneExternalHandoff(handoff: ZoneExternalHandoff): boolean {
     url,
     title: handoff.title,
     journeyKey: handoff.journeyKey,
+  })
+  trackFunnelEvent('cta_click', {
+    card_id: handoff.cardId,
+    journey_id: handoff.journeyKey,
+    target_url: url,
+    link_kind: 'external',
   })
   try {
     window.open(url, '_blank', 'noopener,noreferrer')

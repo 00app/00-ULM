@@ -3,6 +3,10 @@
  * Legacy demo UUID blocked; session init at /profile.
  */
 
+import {
+  clearLegacyAuthLocalStorage,
+  readAuthenticatedUserIdHint,
+} from '@/lib/client/sessionRestoreProofStorage'
 import { safeGetItem } from '@/lib/zone/safeProfileStorage'
 
 export const RESEARCH_USER_ID_STORAGE_KEY = 'zz_research_user_id'
@@ -19,18 +23,11 @@ export function isLegacyDemoUserId(id: string | null | undefined): boolean {
   return String(id ?? '').trim().toLowerCase() === LEGACY_DEMO_USER_ID.toLowerCase()
 }
 
-/** User id persisted after POST /api/user — never mints a new UUID. */
+/** User id from HMAC restore proof (sessionStorage) — never localStorage UUID. */
 export function resolveClientResearchUserId(): string | null {
   if (typeof window === 'undefined') return null
-  try {
-    for (const key of [RESEARCH_USER_ID_STORAGE_KEY, 'user_id', 'profile_user_id', 'userId']) {
-      const raw = safeGetItem(key)?.trim()
-      if (isLegacyDemoUserId(raw)) continue
-      if (isValidResearchUserId(raw)) return raw!
-    }
-  } catch {
-    /* ignore */
-  }
+  const fromProof = readAuthenticatedUserIdHint()
+  if (fromProof && isValidResearchUserId(fromProof)) return fromProof
   return null
 }
 
@@ -60,6 +57,7 @@ export function guardLegacyDemoIdentityOnClient(): boolean {
       }
     }
     localStorage.removeItem('zz_gary_mode')
+    clearLegacyAuthLocalStorage()
   } catch {
     /* ignore */
   }

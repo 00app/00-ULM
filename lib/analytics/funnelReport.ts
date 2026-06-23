@@ -19,12 +19,14 @@ export type FunnelReport = {
 }
 
 const FUNNEL_STEPS: FunnelEventName[] = [
+  'page_view',
   'intro_complete',
   'profile_complete',
   'summary_enter_zone',
   'zone_ready',
   'solo_focus_open',
   'cta_click',
+  'link_click',
 ]
 
 export async function buildFunnelReport(windowDays = 7): Promise<FunnelReport> {

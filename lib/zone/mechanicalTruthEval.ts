@@ -18,6 +18,7 @@ import {
 import { headlineFromRockHabit, headlineFromRockHabitForSoloFocus, resolveRockHabitDisplayProse } from '@/lib/soloFocusCopy'
 import {
   issueSessionRestoreProof,
+  resolveUserIdFromRestoreProof,
   verifySessionRestoreProof,
 } from '@/lib/sessionRestoreProof'
 import { computingJourneyTitle, journeyHasStreamData } from '@/lib/zone/mechanicalTruth'
@@ -206,6 +207,9 @@ function assertSessionRestoreProof(failures: string[]): void {
     }
     if (!verifySessionRestoreProof(uid, proof)) {
       failures.push('verifySessionRestoreProof must accept freshly issued proof')
+    }
+    if (resolveUserIdFromRestoreProof(proof) !== uid) {
+      failures.push('resolveUserIdFromRestoreProof must return uid for valid proof')
     }
     if (verifySessionRestoreProof('22222222-2222-4222-8222-222222222222', proof)) {
       failures.push('verifySessionRestoreProof must reject wrong user_id')

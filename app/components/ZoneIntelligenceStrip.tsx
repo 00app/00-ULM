@@ -187,7 +187,7 @@ export function ZoneIntelligenceStrip({
 
   const pollApiDiagnostics = useCallback(async () => {
     try {
-      const res = await fetch('/api/health/diagnostics', { cache: 'no-store' })
+      const res = await fetch('/api/health/diagnostics', { cache: 'no-store', credentials: 'include' })
       if (!res.ok) {
         setApiGemini(false)
         setApiFirecrawl(false)

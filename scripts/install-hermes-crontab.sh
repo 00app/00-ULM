@@ -68,7 +68,11 @@ fi
 
 MARKER="# 00-00 hermes-pulse"
 TMP="$(mktemp)"
-( crontab -l 2>/dev/null | grep -v "$MARKER" | grep -v "hermes-pulse.sh" || true
+( crontab -l 2>/dev/null \
+  | grep -v "$MARKER" \
+  | grep -v "hermes-pulse.sh" \
+  | grep -v "00-ulm.vercel.app" \
+  || true
   echo "$MARKER"
   echo "$LINE"
 ) > "$TMP"

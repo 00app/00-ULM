@@ -2,8 +2,21 @@ import crypto from 'crypto'
 import { isSessionSigningConfigured } from '@/lib/sessionCookieSign'
 
 const SEP = '.'
-/** Match profile-only session window (7 days) — proof must outlive typical cookie gap. */
-const TTL_MS = 30 * 24 * 60 * 60 * 1000
+/** Match profile-only session window (7 days) — limits XSS exfil + replay window. */
+export const SESSION_RESTORE_PROOF_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const TTL_MS = SESSION_RESTORE_PROOF_TTL_MS
+
+const USER_ID_IN_PROOF_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+/** Parse user id from proof payload without verifying HMAC (client-safe peek). */
+export function peekUserIdFromRestoreProof(proof: string | null | undefined): string | null {
+  if (!proof?.trim()) return null
+  const parts = proof.trim().split(SEP)
+  if (parts.length !== 3) return null
+  const uid = parts[0]?.trim() ?? ''
+  return USER_ID_IN_PROOF_RE.test(uid) ? uid : null
+}
 
 function sessionSecret(): string | null {
   const s = process.env.SESSION_SECRET?.trim()
@@ -37,6 +50,14 @@ export function verifySessionRestoreProof(userId: string, proof: string | null |
   } catch {
     return false
   }
+}
+
+/** Verified user id from restore proof — server-side only. */
+export function resolveUserIdFromRestoreProof(proof: string | null | undefined): string | null {
+  const uid = peekUserIdFromRestoreProof(proof)
+  if (!uid) return null
+  if (!verifySessionRestoreProof(uid, proof)) return null
+  return uid
 }
 
 /** Dev-only fallback when SESSION_SECRET is unset (never in production). */

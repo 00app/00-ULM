@@ -2475,14 +2475,14 @@ export default function ZonePage() {
     primaryHeroJourney && (primaryHeroJourney.moneyGbp ?? 0) > 0
       ? `${Math.round(primaryHeroJourney.moneyGbp ?? 0).toLocaleString('en-GB')}/yr`
       : null
-  const primaryHeroLead = useMemo(() => {
-    if (!primaryHeroJourney) return 'Check out your stats'
+  const primaryHeroLeadLines = useMemo(() => {
+    if (!primaryHeroJourney) return ['Check out your stats']
     const category = formatZoneCategoryLabel(primaryHeroJourney.journey_key)
     const line1 = `Biggest win: ${category}`
     if (primaryHeroWinFigure) {
-      return `${line1}\nBiggest category win: £${primaryHeroWinFigure}`
+      return [line1, `Biggest category win: £${primaryHeroWinFigure}`]
     }
-    return line1
+    return [line1]
   }, [primaryHeroJourney, primaryHeroWinFigure])
   const displayMoney = useCountUp(heroMoney, { duration: 120 })
   const displayCarbon = useCountUp(heroCarbon, { duration: 120 })
@@ -2765,17 +2765,31 @@ export default function ZonePage() {
                             {primaryHeroJourney ? (
                               <button
                                 type="button"
-                                className="zone-hero-win-cta card-headline zone-hero-profile-lead m-0 min-w-0"
+                                className="zone-hero-win-cta"
                                 disabled={!zoneInteractable}
                                 aria-label={`Open ${formatZoneCategoryLabel(primaryHeroJourney.journey_key)} offer`}
                                 onClick={() => openZoneJourneySoloFocus(primaryHeroJourney)}
                               >
-                                {primaryHeroLead}
+                                {primaryHeroLeadLines.map((line) => (
+                                  <h3
+                                    key={line}
+                                    className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
+                                    lang="en"
+                                  >
+                                    {line}
+                                  </h3>
+                                ))}
                               </button>
                             ) : (
-                              <h3 className="card-headline zone-hero-profile-lead m-0 min-w-0" lang="en">
-                                {primaryHeroLead}
-                              </h3>
+                              primaryHeroLeadLines.map((line) => (
+                                <h3
+                                  key={line}
+                                  className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
+                                  lang="en"
+                                >
+                                  {line}
+                                </h3>
+                              ))
                             )}
                           </div>
                           <div
@@ -3127,7 +3141,7 @@ export default function ZonePage() {
               recommendations={zoneSignupRecommendations}
               userName={signupFirstName}
             />
-            <Footer showReset className="site-footer--zone" />
+            <Footer className="site-footer--zone" />
           </>
         ) : null}
         </div>

@@ -75,7 +75,10 @@
     "zone:rebuild": "npm run clean:cache && npm run db:clean-zone && npm run zone:reset-dev",
     "api:smoke": "bash scripts/api-smoke-all.sh",
     "env:merge": "node scripts/merge-env-local.mjs",
+    "env:sync": "bash scripts/sync-dev-env-from-vercel.sh",
+    "env:sync:preview-turnstile": "bash scripts/sync-turnstile-to-preview.sh",
     "verify:env": "bash scripts/verify-env-and-health.sh",
+    "ship:readiness": "bash scripts/ship-readiness.sh",
     "stack:verify": "npm run verify:env && npm run db:test && npm run hermes:ping",
     "dev:pipeline-ready": "bash scripts/dev-pipeline-ready.sh",
     "pipeline:seed": "tsx scripts/seed-zone-journeys-postcode.ts",
@@ -132,7 +135,8 @@
   },
   "overrides": {
     "axios": "^1.15.2",
-    "postcss": "^8.5.14"
+    "postcss": "^8.5.14",
+    "esbuild": "^0.28.1"
   },
   "engines": {
     "node": "24.x"

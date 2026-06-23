@@ -74,6 +74,11 @@ function parseSignupItems(raw: unknown, max = 6): SignupSmsItem[] | undefined {
   return out.length ? out : undefined
 }
 
+function mobileLast4(e164: string): string {
+  const digits = e164.replace(/\D/g, '')
+  return digits.length >= 4 ? digits.slice(-4) : '****'
+}
+
 function parseSignupPayload(body: unknown): SignupZoneSmsInput & { smsOptIn: boolean } {
   if (typeof body !== 'object' || body === null) return { smsOptIn: false }
   const o = body as Record<string, unknown>
@@ -191,7 +196,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       persisted: true,
-      mobile,
+      mobile_saved: true,
+      mobile_last4: mobileLast4(mobile),
       sms: { sent: false, reason: readiness.reason },
     })
   }
@@ -209,7 +215,8 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     persisted: true,
-    mobile,
+    mobile_saved: true,
+    mobile_last4: mobileLast4(mobile),
     welcome: { sent: welcomeSent },
     sms: sms.ok
       ? {

@@ -1,23 +1,16 @@
 import {
   persistSessionRestoreProof,
   readSessionRestoreProof,
+  peekUserIdFromRestoreProof,
 } from '@/lib/client/sessionRestoreProofStorage'
 
 const SESSION_COOKIE_RE = /(?:^|;\s*)session=/
-const USER_ID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 let restorePromise: Promise<boolean> | null = null
 
 function hasSessionCookie(): boolean {
   if (typeof document === 'undefined') return false
   return SESSION_COOKIE_RE.test(document.cookie)
-}
-
-function readStoredUserId(): string | null {
-  if (typeof window === 'undefined') return null
-  const id = (localStorage.getItem('userId') ?? localStorage.getItem('user_id') ?? '').trim()
-  return USER_ID_RE.test(id) ? id : null
 }
 
 function profileLooksComplete(): boolean {
@@ -35,19 +28,17 @@ export async function ensureProfileSession(): Promise<boolean> {
   if (typeof window === 'undefined') return false
   if (hasSessionCookie()) return true
   if (!profileLooksComplete()) return false
-  const userId = readStoredUserId()
-  if (!userId) return false
+
   const restoreProof = readSessionRestoreProof()
+  const userId = peekUserIdFromRestoreProof(restoreProof)
+  if (!restoreProof || !userId) return false
 
   if (!restorePromise) {
     restorePromise = fetch('/api/auth/restore-session', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: userId,
-        ...(restoreProof ? { restore_proof: restoreProof } : {}),
-      }),
+      body: JSON.stringify({ restore_proof: restoreProof }),
     })
       .then(async (res) => {
         if (!res.ok) return false
@@ -69,7 +60,7 @@ export async function ensureProfileSession(): Promise<boolean> {
 }
 
 export function hasAuthenticatedSessionHint(): boolean {
-  return hasSessionCookie() || Boolean(readStoredUserId())
+  return hasSessionCookie() || Boolean(readSessionRestoreProof())
 }
 
 export { persistSessionRestoreProof }

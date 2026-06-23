@@ -413,9 +413,9 @@ export async function GET(request: NextRequest) {
     const tier2Answer = request.nextUrl.searchParams.get('answer')?.trim() ?? ''
     const tier2QuestionId = request.nextUrl.searchParams.get('question_id')?.trim() ?? ''
 
-    /** Tier 2 mother/child swap — scoped category re-research after Solo Focus answer. */
+    /** Tier 2 mother/child swap — signed-in user or service bearer only (no guest JIT scrape). */
     if (postcode.length >= 4 && tier2Category && tier2Answer) {
-      if (!sessionUserId && !serviceBearer && !readGuestSessionId(request)) {
+      if (!scrapeSyncHeavyResearchAllowed(sessionUserId, request)) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
       const fcErr = firecrawlMissingResponse()
