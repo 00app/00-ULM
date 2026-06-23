@@ -6,6 +6,12 @@ import { getLocalData } from '@/lib/local/getLocalData'
 import { mirrorUlmGenomeToUserProfiles } from '@/lib/db/userProfilesMirror'
 import { mapProfileGoalToPrimaryGoal } from '@/lib/zone/affluenceCheck'
 import { withRestoreProof } from '@/lib/sessionRestoreProof'
+import {
+  hydratePropertyIntelligence,
+  persistPropertyIntelligence,
+} from '@/lib/intelligence/freeTierHydration'
+import { persistPropertyPrefillForUser } from '@/lib/intelligence/persistPropertyPrefill'
+import { buildResearchProfilePayload } from '@/lib/profile/buildResearchProfilePayload'
 
 export const dynamic = 'force-dynamic'
 
@@ -122,7 +128,7 @@ export async function POST(request: NextRequest) {
         insertParams
       )
 
-    const [result, local] = await Promise.all([
+    const [result, local, propertyIntelligence] = await Promise.all([
       runInsert().catch(async (insertErr: unknown) => {
         const msg = insertErr instanceof Error ? insertErr.message : String(insertErr)
         if (!/user_genome|employment_status|age_group|gen_random_uuid/i.test(msg)) throw insertErr
@@ -135,8 +141,35 @@ export async function POST(request: NextRequest) {
         )
       }),
       getLocalData(raw.postcode).catch(() => null),
+      hydratePropertyIntelligence(raw.postcode, { houseNumber: houseNumber || null }).catch(() => null),
     ])
     const user = result.rows[0]
+
+    let propertyPrefill: Awaited<ReturnType<typeof persistPropertyPrefillForUser>> | null = null
+    if (propertyIntelligence && user?.id) {
+      await persistPropertyIntelligence(String(user.id), propertyIntelligence)
+      const profileData = buildResearchProfilePayload(
+        {
+          name: raw.name,
+          postcode: raw.postcode,
+          livingSituation: raw.household,
+          homeType: raw.home_type,
+          transport: raw.transport,
+          age: raw.age_group ?? undefined,
+          employmentStatus: raw.employment_status ?? undefined,
+          powerType: home_power ?? undefined,
+          houseNumber: houseNumber || undefined,
+          goal: profile_goal ?? undefined,
+        },
+        { postcode: raw.postcode }
+      )
+      propertyPrefill = await persistPropertyPrefillForUser({
+        userId: String(user.id),
+        postcode: raw.postcode,
+        propertyIntelligence,
+        profileData,
+      }).catch(() => null)
+    }
     void mirrorUlmGenomeToUserProfiles(String(user.id), {
       employment_status: raw.employment_status,
       household_income_bracket,
@@ -145,7 +178,16 @@ export async function POST(request: NextRequest) {
     })
     const token = await createSession(user.id, PROFILE_ONLY_SESSION_DAYS)
     const res = NextResponse.json(
-      withRestoreProof({ id: user.id, user, location: local ?? undefined }, String(user.id))
+      withRestoreProof(
+        {
+          id: user.id,
+          user,
+          location: local ?? undefined,
+          property_intelligence: propertyIntelligence ?? undefined,
+          property_prefill: propertyPrefill ?? undefined,
+        },
+        String(user.id)
+      )
     )
     setSessionCookieOnResponse(res, token, PROFILE_ONLY_SESSION_DAYS * 24 * 60 * 60)
     return res

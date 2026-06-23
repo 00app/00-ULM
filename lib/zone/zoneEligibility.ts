@@ -29,9 +29,13 @@ export function isHighValuePostcode(postcode?: string | null): boolean {
 
 export function filterTipsForEmployment(
   tips: ZoneTipCard[],
-  employmentStatus?: string | null
+  employmentStatus?: string | null,
+  imdDecile?: number | null
 ): ZoneTipCard[] {
-  if (!isActiveEmployed(employmentStatus)) return tips
+  const deprioritizeMeansTested =
+    isActiveEmployed(employmentStatus) ||
+    (typeof imdDecile === 'number' && imdDecile >= 8)
+  if (!deprioritizeMeansTested) return tips
   return tips.filter((t) => {
     const blob = `${t.title ?? ''} ${t.explanation?.join(' ') ?? ''} ${t.journey_key ?? ''}`.toLowerCase()
     if (t.journey_key === 'grants' && MEANS_TESTED_RE.test(blob)) return false

@@ -97,6 +97,7 @@ import {
   markSoloFocusEngagement,
 } from '@/lib/zone/soloFocusEngagement'
 import { isCardVisited } from '@/lib/zone/visitedCards'
+import type { ZoneAuditState } from '@/lib/zone/zoneAuditUi'
 import { isDiscoveryInjectCard, shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
@@ -136,7 +137,7 @@ export interface SoloFocusOverlayProps {
   tipNeedsSwitching?: boolean
   isPriorityHome?: boolean
   /** v42.8 — when LIVE, header shows VERIFIED with locality even if title lacks prefix. */
-  auditState?: 'LIVE_AUDIT' | 'ESTIMATED_AUDIT' | null
+  auditState?: ZoneAuditState | null
   /** Latest `research_results` row when category matches `journeyId` — £ + primary URL from Neon. */
   verifiedAuditMoneyGbp?: number | null
   verifiedAuditSourceUrl?: string | null

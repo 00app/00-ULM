@@ -15,6 +15,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { JOURNEYS, FUNKY_QUESTION_LABEL, getOptionFullLabel, type JourneyId, type JourneyQuestion } from '@/lib/journeys'
 import { getNextQuestion } from '@/lib/zone/questionHandler'
+import { attributionForQuestion } from '@/lib/client/propertyAnswerSourcesStorage'
 import { useApp } from '@/app/context/AppContext'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { syncSessionState } from '@/lib/sessionStateSync'
@@ -694,6 +695,18 @@ export function EmbeddedJourneyQuestion({
       ? (FUNKY_QUESTION_LABEL[journeyId] ?? (firstUnanswered?.label ?? ''))
       : (firstUnanswered?.label ?? '')
 
+  const prefillAttribution =
+    firstUnanswered?.id != null
+      ? attributionForQuestion(journeyId, firstUnanswered.id)
+      : null
+
+  const prefilledAttributionLines = questions
+    .map((q) => {
+      const label = attributionForQuestion(journeyId, q.id)
+      return label && answers[q.id] ? label : null
+    })
+    .filter(Boolean) as string[]
+
   const restBg = 'var(--sf-answer-bg, var(--color-yellow))'
   const restText = 'var(--sf-answer-text, var(--journey-bg, var(--color-purple)))'
   const activeBg = 'var(--sf-answer-hover-bg, var(--journey-bg, var(--color-purple)))'
@@ -722,6 +735,14 @@ export function EmbeddedJourneyQuestion({
           >
             All set for this journey.
           </p>
+          {prefilledAttributionLines.length > 0 ? (
+            <p
+              className={`zz-body-bold mt-2 ${layoutAlign === 'start' ? 'text-left' : 'text-center'}`}
+              style={{ color: messageColor, opacity: 0.72, fontSize: 'var(--zz-body-mobile)' }}
+            >
+              {[...new Set(prefilledAttributionLines)].join(' · ')}
+            </p>
+          ) : null}
         </motion.div>
       </>
     )
@@ -779,6 +800,19 @@ export function EmbeddedJourneyQuestion({
         >
           {questionLabel}
         </motion.h3>
+        {prefillAttribution ? (
+          <p
+            className={`zz-body-bold solo-focus-copy-width ${railAlign ? 'text-left' : 'text-center'}`}
+            style={{
+              margin: 0,
+              fontSize: 'var(--zz-body-mobile)',
+              color: textColor ?? 'var(--color-purple)',
+              opacity: 0.72,
+            }}
+          >
+            {prefillAttribution}
+          </p>
+        ) : null}
       </>
 
       {isNumberQuestion ? (

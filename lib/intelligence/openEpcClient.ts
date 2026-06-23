@@ -20,20 +20,39 @@ export type OpenEpcProfile = {
   currentEnergyRating?: string
   /** e.g. "C" */
   potentialEnergyRating?: string
+  currentEnergyEfficiencyScore?: number
+  potentialEnergyEfficiencyScore?: number
   propertyType?: string
   mainFuel?: string
+  mainsGasFlag?: 'Y' | 'N'
   wallsDescription?: string
   roofDescription?: string
+  floorDescription?: string
+  windowsDescription?: string
+  heatingCostCurrent?: number
+  heatingCostPotential?: number
+  lightingCostCurrent?: number
+  lightingCostPotential?: number
+  hotWaterCostCurrent?: number
+  totalFloorArea?: number
+  builtForm?: string
+  constructionAgeBand?: string
+  numberHabRooms?: number
+  tenure?: string
   /** Multiplier for heating-loss heuristics (higher = worse envelope). */
   currentThermalEfficiencyMultiplier: number
   description: string
   lodgementDate?: string
+  /** True when lodgement is more than 10 years ago — EPC may be stale. */
+  isStale?: boolean
   address?: string
   /** Set when caller passed `houseNumber` and a register row matched that token. */
   addressMatched?: boolean
 }
 
 const EPC_BASE = 'https://epc.opendatacommunities.org/api/v1/domestic/search'
+
+const EPC_STALE_YEARS = 10
 
 function ratingToThermalMultiplier(rating: string | undefined): number {
   const r = (rating ?? '').trim().toUpperCase()
@@ -66,23 +85,63 @@ function pickLatestRow(rows: Record<string, unknown>[]): Record<string, unknown>
   return sorted[0] ?? null
 }
 
+function rowString(row: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const raw = row[key]
+    if (raw == null || raw === '') continue
+    const s = String(raw).trim()
+    if (s) return s
+  }
+  return undefined
+}
+
+function rowNumber(row: Record<string, unknown>, ...keys: string[]): number | undefined {
+  for (const key of keys) {
+    const raw = row[key]
+    if (raw == null || raw === '') continue
+    const n = typeof raw === 'number' ? raw : Number.parseFloat(String(raw))
+    if (Number.isFinite(n)) return n
+  }
+  return undefined
+}
+
+function rowMainsGasFlag(row: Record<string, unknown>): 'Y' | 'N' | undefined {
+  const raw = rowString(row, 'mains-gas-flag', 'mains_gas_flag')
+  if (!raw) return undefined
+  const upper = raw.toUpperCase()
+  if (upper === 'Y' || upper === 'YES' || upper === '1') return 'Y'
+  if (upper === 'N' || upper === 'NO' || upper === '0') return 'N'
+  return undefined
+}
+
+/** True when lodgement date is more than {@link EPC_STALE_YEARS} years ago. */
+export function isEpcStale(lodgementDate: string | undefined): boolean {
+  if (!lodgementDate?.trim()) return false
+  const filed = new Date(lodgementDate.trim())
+  if (Number.isNaN(filed.getTime())) return false
+  const cutoff = new Date()
+  cutoff.setFullYear(cutoff.getFullYear() - EPC_STALE_YEARS)
+  return filed < cutoff
+}
+
 function rowToOpenEpcProfile(
   row: Record<string, unknown>,
   compact: string,
   addressMatched?: boolean
 ): OpenEpcProfile {
-  const current =
-    String(row['current-energy-rating'] ?? row.current_energy_rating ?? '').trim() || undefined
-  const potential =
-    String(row['potential-energy-rating'] ?? row.potential_energy_rating ?? '').trim() ||
-    undefined
-  const propertyType =
-    String(row['property-type'] ?? row.property_type ?? '').trim() || undefined
-  const mainFuel = String(row['main-fuel'] ?? row.main_fuel ?? '').trim() || undefined
-  const walls = String(row['walls-description'] ?? row.walls_description ?? '').trim()
-  const roof = String(row['roof-description'] ?? row.roof_description ?? '').trim()
-  const address = String(row.address ?? row['address1'] ?? '').trim() || undefined
-  const lodgement = String(row['lodgement-date'] ?? row.lodgement_date ?? '').trim() || undefined
+  const current = rowString(row, 'current-energy-rating', 'current_energy_rating')
+  const potential = rowString(row, 'potential-energy-rating', 'potential_energy_rating')
+  const propertyType = rowString(row, 'property-type', 'property_type')
+  const mainFuel = rowString(row, 'main-fuel', 'main_fuel')
+  const walls = rowString(row, 'walls-description', 'walls_description')
+  const roof = rowString(row, 'roof-description', 'roof_description')
+  const floor = rowString(row, 'floor-description', 'floor_description')
+  const windows = rowString(row, 'windows-description', 'windows_description')
+  const address = rowString(row, 'address', 'address1')
+  const lodgement = rowString(row, 'lodgement-date', 'lodgement_date')
+  const builtForm = rowString(row, 'built-form', 'built_form')
+  const constructionAgeBand = rowString(row, 'construction-age-band', 'construction_age_band')
+  const tenure = rowString(row, 'tenure')
 
   const parts = [
     propertyType ? `type ${propertyType}` : '',
@@ -97,13 +156,37 @@ function rowToOpenEpcProfile(
     postcode: compact,
     currentEnergyRating: current,
     potentialEnergyRating: potential,
+    currentEnergyEfficiencyScore: rowNumber(
+      row,
+      'current-energy-efficiency',
+      'current_energy_efficiency'
+    ),
+    potentialEnergyEfficiencyScore: rowNumber(
+      row,
+      'potential-energy-efficiency',
+      'potential_energy_efficiency'
+    ),
     propertyType,
     mainFuel,
-    wallsDescription: walls || undefined,
-    roofDescription: roof || undefined,
+    mainsGasFlag: rowMainsGasFlag(row),
+    wallsDescription: walls,
+    roofDescription: roof,
+    floorDescription: floor,
+    windowsDescription: windows,
+    heatingCostCurrent: rowNumber(row, 'heating-cost-current', 'heating_cost_current'),
+    heatingCostPotential: rowNumber(row, 'heating-cost-potential', 'heating_cost_potential'),
+    lightingCostCurrent: rowNumber(row, 'lighting-cost-current', 'lighting_cost_current'),
+    lightingCostPotential: rowNumber(row, 'lighting-cost-potential', 'lighting_cost_potential'),
+    hotWaterCostCurrent: rowNumber(row, 'hot-water-cost-current', 'hot_water_cost_current'),
+    totalFloorArea: rowNumber(row, 'total-floor-area', 'total_floor_area'),
+    builtForm,
+    constructionAgeBand,
+    numberHabRooms: rowNumber(row, 'number-habitable-rooms', 'number_habitable_rooms'),
+    tenure,
     currentThermalEfficiencyMultiplier: ratingToThermalMultiplier(current),
     description: parts.join('; ') || 'epc register match',
     lodgementDate: lodgement,
+    isStale: isEpcStale(lodgement),
     address,
     addressMatched,
   }

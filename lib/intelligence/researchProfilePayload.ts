@@ -20,6 +20,8 @@ export type LocalizedProfileInput = {
   goal?: string | null
   primary_goal?: string | null
   house_number?: string | null
+  /** ONS IMD decile 1–10 from property_intelligence.deprivation */
+  imd_decile?: number | null
 }
 
 const GENERIC_UK_RESEARCH_SEEDS = [
@@ -171,7 +173,10 @@ export function buildCategoryFirecrawlSeedUrls(params: {
   const journeyKey = normalizeCategoryToJourneyKey(params.category)
   const employed = isActiveEmployed(params.profileData?.employment_status)
   const lowIncome = isLowIncomeBracket(params.profileData?.household_income_bracket)
-  const skipGrantSeeds = employed && !lowIncome && journeyKey !== 'grants'
+  const imdDecile = params.profileData?.imd_decile
+  const affluentArea = typeof imdDecile === 'number' && imdDecile >= 8
+  const deprivedArea = typeof imdDecile === 'number' && imdDecile <= 3
+  const skipGrantSeeds = (employed && !lowIncome && !deprivedArea) || affluentArea
   const seen = new Set<string>()
   const out: string[] = []
   const add = (url: string) => {
@@ -200,8 +205,15 @@ export function buildCategoryFirecrawlSeedUrls(params: {
   if (journeyKey === 'travel' || transport.includes('train') || transport.includes('rail')) {
     add('https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/')
   }
-  if (!skipGrantSeeds && (journeyKey === 'home' || journeyKey === 'grants')) {
+  if (deprivedArea && (journeyKey === 'grants' || journeyKey === 'home')) {
     add('https://www.gov.uk/apply-boiler-upgrade-scheme')
+    add('https://www.gov.uk/apply-warm-homes-local-grant')
+    add('https://www.gov.uk/energy-company-obligation')
+  } else if (!skipGrantSeeds && (journeyKey === 'home' || journeyKey === 'grants')) {
+    add('https://www.gov.uk/apply-boiler-upgrade-scheme')
+  }
+  if (affluentArea && (journeyKey === 'solar' || journeyKey === 'utilities')) {
+    add('https://octopus.energy/smart/')
   }
 
   if (journeyKey === 'utilities') {

@@ -23,6 +23,7 @@ import BackArrowDownLeft from '@/app/components/BackArrowDownLeft'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
 import { SoloFocusViewportUtilityStrip } from '@/app/components/SoloFocusViewportUtilityStrip'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
+import type { ZoneAuditState } from '@/lib/zone/zoneAuditUi'
 import { SoloFocusJourneyNav } from '@/app/components/SoloFocusJourneyNav'
 import { SoloFocusProseStack } from '@/app/components/SoloFocusProseStack'
 import { SoloFocusMotherStack } from '@/app/components/SoloFocusMotherStack'
@@ -204,7 +205,7 @@ export interface JourneyBentoCardProps {
   verifiedSourceDate?: string | null
   partnerLink?: string | null
   /** v42.8 — Zone VM audit gate; when LIVE, expanded header stays VERIFIED with locality. */
-  auditState?: 'LIVE_AUDIT' | 'ESTIMATED_AUDIT' | null
+  auditState?: ZoneAuditState | null
   /** When `category` matches this card’s journey, £ and primary link mirror `research_results` (London DB). */
   verifiedAuditMoneyGbp?: number | null
   verifiedAuditSourceUrl?: string | null

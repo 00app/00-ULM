@@ -28,6 +28,7 @@ import { persistHomePowerFromProfile } from '@/lib/profile/homePower'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { browserCanTriggerScrapeSync, triggerOnboardingResearchBootstrap, triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
 import { buildResearchProfilePayload } from '@/lib/profile/buildResearchProfilePayload'
+import { applyPropertyPrefillFromApiResponse } from '@/lib/client/propertyAnswerSourcesStorage'
 import { mapEpcPropertyTypeToHomeTypeHint } from '@/lib/epc/mapEpcToProfileHints'
 import { flushSync } from 'react-dom'
 
@@ -488,6 +489,7 @@ export default function ProfilePageClient() {
 
           try {
             const res = await createUser(payload)
+            applyPropertyPrefillFromApiResponse(res)
             const userId = res?.user?.id ?? res?.id
             if (userId) {
               persistSessionRestoreProof(

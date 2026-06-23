@@ -34,6 +34,7 @@ import {
   filterTipsForEmployment,
   grantsJourneyTitleForProfile,
 } from '@/lib/zone/zoneEligibility'
+import { resolveZoneAuditState, type ZoneAuditState } from '@/lib/zone/zoneAuditUi'
 import {
   cleanZonePreviewHeadline,
   headlineFromTitle,
@@ -142,7 +143,7 @@ export interface ZoneJourneyCard {
   source_date?: string
   partner_link?: string
   /** v41.1 audit state when genome data is incomplete */
-  auditState?: 'LIVE_AUDIT' | 'ESTIMATED_AUDIT'
+  auditState?: ZoneAuditState
   /** No scrape-sync / research_results stream yet — grid shows empty metrics. */
   streamPending?: boolean
 }
@@ -184,7 +185,7 @@ export interface ZoneTipCard {
   source_date?: string
   partner_link?: string
   /** v41.1 audit state when genome data is incomplete */
-  auditState?: 'LIVE_AUDIT' | 'ESTIMATED_AUDIT'
+  auditState?: ZoneAuditState
 }
 
 export interface ZoneViewModel {
@@ -657,6 +658,9 @@ export function buildZoneViewModel({
     goal?: string
     employment_status?: string
     household_income_bracket?: string
+    /** From user_genome.property_intelligence.confidence — drives PROPERTY_VERIFIED badge. */
+    property_intelligence_confidence?: string
+    imd_decile?: number
   }
   journeyAnswers: Record<JourneyId, Record<string, string>>
   /** S UPDATE: optional scraped data from 001 Scraper (`scraped_summary` / DB). Partial = only some journeys may have data. */
@@ -723,8 +727,12 @@ export function buildZoneViewModel({
     hasVerifiedSaving ||
     (typeof savingAmt === 'number' && Number.isFinite(savingAmt) && savingAmt > 0)
   /** LIVE badge only when Neon `research_results` money signals exist AND journey genome is complete enough. */
-  const vmAuditLive = (genomeIncomplete: boolean): 'LIVE_AUDIT' | 'ESTIMATED_AUDIT' =>
-    hasVerifiedNeonMoney && !genomeIncomplete ? 'LIVE_AUDIT' : 'ESTIMATED_AUDIT'
+  const vmAuditState = (genomeIncomplete: boolean): ZoneAuditState =>
+    resolveZoneAuditState({
+      hasVerifiedNeonMoney,
+      genomeIncomplete,
+      propertyIntelligenceConfidence: profile?.property_intelligence_confidence,
+    })
   const marketDeepLink = marketContext?.deepLink?.trim()
   const streamOpts = { neonJourneyResearch, scraped }
   const dynamicJourneyValues = JOURNEY_ORDER.reduce(
@@ -1043,7 +1051,7 @@ export function buildZoneViewModel({
       localContextBar,
       claimOfferUrl,
       isPriorityAlert,
-      auditState: estimatedAudit ? 'ESTIMATED_AUDIT' : 'LIVE_AUDIT',
+      auditState: vmAuditState(estimatedAudit),
       followUp: estimatedAudit
         ? {
             question: 'Quick Child Question: confirm your setup to refine the estimate.',
@@ -1111,7 +1119,7 @@ export function buildZoneViewModel({
         sourceLabel: generalHomeLabel,
         sourceUrl: homeSource.url,
       }),
-      auditState: vmAuditLive(false),
+      auditState: vmAuditState(false),
     },
     {
       id: 'general-transport',
@@ -1149,7 +1157,7 @@ export function buildZoneViewModel({
         sourceLabel: generalTravelLabel,
         sourceUrl: travelSource.url,
       }),
-      auditState: vmAuditLive(false),
+      auditState: vmAuditState(false),
     },
     {
       id: 'general-home-extra',
@@ -1187,7 +1195,7 @@ export function buildZoneViewModel({
         sourceLabel: generalHome2Label,
         sourceUrl: homeSource2.url,
       }),
-      auditState: vmAuditLive(false),
+      auditState: vmAuditState(false),
     },
   ]
   void generalCards // legacy 9+3 fillers; 13-domain wall uses `journeyCards` only
@@ -1336,7 +1344,7 @@ export function buildZoneViewModel({
         sourceLabel: tipSourceLabel,
         sourceUrl: source.url,
       }),
-      auditState: vmAuditLive(dynamicJourneyValues[journeyKey].estimatedAudit),
+      auditState: vmAuditState(dynamicJourneyValues[journeyKey].estimatedAudit),
     }
   })
 
@@ -1403,14 +1411,14 @@ export function buildZoneViewModel({
           sourceLabel: swLabel,
           sourceUrl: source.url,
         }),
-        auditState: vmAuditLive(dynamicJourneyValues.home.estimatedAudit),
+        auditState: vmAuditState(dynamicJourneyValues.home.estimatedAudit),
       }
     }
   }
 
   tips = mergeDiscoveryInjectionsIntoTips(
     tips,
-    filterTipsForEmployment(injectedTips ?? [], profile?.employment_status),
+    filterTipsForEmployment(injectedTips ?? [], profile?.employment_status, profile?.imd_decile),
     normalizePrimaryGoal(profile?.goal)
   )
 

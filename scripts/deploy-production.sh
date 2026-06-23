@@ -35,12 +35,12 @@ npm run verify
 rm -rf .vercel/output
 
 LOG="${ROOT}/vercel-deploy.log"
-echo "→ Remote production build on Vercel (no --prebuilt)…"
+echo "→ Remote production build on Vercel (--skip-domain; promote step assigns www)…"
 set +e
 if [[ ${#FORCE[@]} -gt 0 ]]; then
-  vercel deploy --prod --yes "${FORCE[@]}" "$ROOT" 2>&1 | tee "$LOG"
+  vercel deploy --prod --yes --skip-domain "${FORCE[@]}" "$ROOT" 2>&1 | tee "$LOG"
 else
-  vercel deploy --prod --yes "$ROOT" 2>&1 | tee "$LOG"
+  vercel deploy --prod --yes --skip-domain "$ROOT" 2>&1 | tee "$LOG"
 fi
 code=${PIPESTATUS[0]}
 set -e
@@ -50,9 +50,24 @@ if [[ -z "$DEPLOY_URL" ]]; then
   DEPLOY_URL="$(grep -oE 'Production: https://[^ ]+' "$LOG" | tail -1 | sed 's/^Production: //' || true)"
 fi
 
-if [[ "$code" -ne 0 ]] && ! grep -qE 'Deployment completed|Aliased:|Production: https://00-' "$LOG" 2>/dev/null; then
+# CLI often hangs on "Completing…" then ETIMEDOUT after a green remote build — recover via explicit promote.
+deploy_recoverable=false
+if grep -qE 'Deployment completed|Aliased:|Production: https://00-' "$LOG" 2>/dev/null; then
+  deploy_recoverable=true
+fi
+if grep -qiE 'ETIMEDOUT|ECONNRESET|socket hang up' "$LOG" 2>/dev/null && [[ -n "$DEPLOY_URL" ]]; then
+  echo "⚠️  Vercel CLI timed out after build — continuing with explicit promote (${DEPLOY_URL})."
+  deploy_recoverable=true
+fi
+
+if [[ "$code" -ne 0 ]] && [[ "$deploy_recoverable" != "true" ]]; then
   echo "❌ Deploy failed (exit ${code}). See ${LOG}" >&2
   exit "$code"
+fi
+
+if [[ -z "$DEPLOY_URL" ]]; then
+  echo "❌ No deployment URL in ${LOG} — cannot promote." >&2
+  exit 1
 fi
 
 if [[ -n "$DEPLOY_URL" ]]; then

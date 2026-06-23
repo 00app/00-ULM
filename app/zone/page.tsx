@@ -1597,6 +1597,21 @@ export default function ZonePage() {
           employment_status: profile.employment_status,
           goal: profile.goal,
           household_income_bracket: profile.household_income_bracket,
+          property_intelligence_confidence:
+            typeof window !== 'undefined'
+              ? localStorage.getItem('property_intelligence_confidence') ?? undefined
+              : undefined,
+          imd_decile: (() => {
+            if (typeof window === 'undefined') return undefined
+            try {
+              const raw = localStorage.getItem('property_imd_decile')
+              if (!raw) return undefined
+              const n = Number.parseInt(raw, 10)
+              return Number.isFinite(n) ? n : undefined
+            } catch {
+              return undefined
+            }
+          })(),
         },
         journeyAnswers,
         scraped: scraped

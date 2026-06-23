@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 /**
- * Guard: Vercel Native Deployment Checks auto-bind to package.json scripts named
- * `lint` and `typecheck`. Those parallel runners flake ("failed unexpectedly")
- * while buildCommand already runs the same checks via vercel-build-gate.mjs.
- *
- * Keep lint:ci / typecheck:ci only — native checks skip when those names are absent.
- * GitHub Actions jobs Lint + Typecheck still satisfy Deployment Checks.
+ * Guard: Vercel Native Deployment Checks bind to package.json scripts named
+ * `lint` and `typecheck`. They must call scripts/vercel-check.mjs (direct eslint/tsc),
+ * not deprecated `next lint` — Next 16 flat ESLint otherwise yields "internal error".
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -15,19 +12,37 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
 const scripts = pkg.scripts ?? {}
 
-const nativeNames = ['lint', 'typecheck', 'type-check', 'check-types']
-const found = nativeNames.filter((name) => typeof scripts[name] === 'string')
+const required = {
+  lint: 'node scripts/vercel-check.mjs lint',
+  typecheck: 'node scripts/vercel-check.mjs typecheck',
+}
 
-if (found.length > 0) {
-  console.error('❌ Vercel native Deployment Checks will bind to these package.json scripts:')
-  for (const name of found) {
-    console.error(`   - "${name}"`)
+let failed = false
+for (const [name, expected] of Object.entries(required)) {
+  const value = scripts[name]
+  if (typeof value !== 'string') {
+    console.error(`❌ package.json missing "${name}" script (Vercel native ${name} check needs it).`)
+    console.error(`   Add: "${name}": "${expected}"`)
+    failed = true
+    continue
   }
+  if (value.includes('next lint') || value.trim() === 'next lint') {
+    console.error(`❌ "${name}" must not call next lint (Next 16 native check crash).`)
+    console.error(`   Use: "${name}": "${expected}"`)
+    failed = true
+    continue
+  }
+  if (!value.includes('scripts/vercel-check.mjs')) {
+    console.error(`❌ "${name}" must call scripts/vercel-check.mjs, got: ${value}`)
+    failed = true
+  }
+}
+
+if (failed) {
   console.error('')
-  console.error('Rename to lint:ci / typecheck:ci (see scripts/vercel-check.mjs).')
-  console.error('Dashboard: Settings → Deployment Checks → remove native Lint/Typecheck if still listed.')
+  console.error('See docs/DEPLOY-VERCEL.md — direct eslint/tsc via vercel-check.mjs.')
   process.exit(1)
 }
 
-console.log('✓ Native check script names absent — Vercel will skip parallel lint/typecheck.')
-console.log('  Verify still runs in buildCommand (vercel-build-gate) + GitHub Actions Lint/Typecheck.')
+console.log('✓ Native lint/typecheck scripts wired to scripts/vercel-check.mjs.')
+console.log('  buildCommand (vercel-build-gate) + GitHub Actions Lint/Typecheck also run verify.')
