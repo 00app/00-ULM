@@ -22,7 +22,10 @@ if [[ -n "$URL" ]]; then
   done
 fi
 if [[ -z "$URL" ]]; then
-  URL="$(vercel ls 00-ulm --prod 2>/dev/null | awk '/Ready/ {print $2; exit}')"
+  URL="$(vercel ls 00-ulm 2>/dev/null | awk '/Production/ && /Ready/ {print $2; exit}')"
+fi
+if [[ -z "$URL" ]]; then
+  URL="$(vercel ls 00-ulm 2>/dev/null | grep -oE 'https://00-[a-z0-9]+-gary-lomi-lomicos-projects\.vercel\.app' | head -1)"
 fi
 if [[ -z "$URL" ]]; then
   echo "❌ No Ready production deployment found." >&2
