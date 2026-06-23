@@ -9,6 +9,7 @@ import SessionStateRehydrate from '@/app/components/SessionStateRehydrate'
 import RouteFontWarmup from '@/app/components/RouteFontWarmup'
 import NeonWakePing from '@/app/components/NeonWakePing'
 import { PulseExpandedDiagnosticsProvider } from '@/app/context/PulseExpandedDiagnosticsContext'
+import { CookieEssentialNotice } from '@/app/components/CookieEssentialNotice'
 import { Footer } from '@/app/components/Footer'
 import { ROUTES } from '@/lib/routes'
 import { usePathname } from 'next/navigation'
@@ -106,6 +107,7 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
       >
         {children}
         {showSiteFooter ? <Footer /> : null}
+        <CookieEssentialNotice />
       </div>
     </PulseExpandedDiagnosticsProvider>
   )

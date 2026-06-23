@@ -14,6 +14,10 @@ import { HeartOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { CloseXOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { clampRockTipHeadline } from '@/lib/soloFocusCopy'
 import type { SignupSmsItem } from '@/lib/messaging/signupZoneSmsShared'
+import Link from 'next/link'
+import { ROUTES } from '@/lib/routes'
+import { HumanCheckTurnstile } from '@/app/components/HumanCheckTurnstile'
+import { turnstileSiteKey } from '@/lib/security/botGuard'
 
 /** Industrial lock: Tips/settings are pink base with yellow items. */
 const ROCK_CARD_BG = 'var(--color-pink)' as const
@@ -59,6 +63,9 @@ export function RockMobileSignupCard({
   const [signupBusy, setSignupBusy] = useState(false)
   const [signupMsg, setSignupMsg] = useState<string | null>(null)
   const [smsSuccess, setSmsSuccess] = useState<{ title: string; subtitle: string } | null>(null)
+  const [humanToken, setHumanToken] = useState<string | null>(null)
+  const [honeypot, setHoneypot] = useState('')
+  const humanCheckRequired = Boolean(turnstileSiteKey())
 
   useEffect(() => {
     try {
@@ -83,6 +90,10 @@ export function RockMobileSignupCard({
   const submitMobile = useCallback(async () => {
     const raw = mobile.trim()
     if (!raw || signupBusy || !smsOptIn) return
+    if (humanCheckRequired && !humanToken) {
+      setSignupMsg('confirm you are human — complete the check below.')
+      return
+    }
     setSignupBusy(true)
     setSignupMsg(null)
     try {
@@ -93,6 +104,8 @@ export function RockMobileSignupCard({
         body: JSON.stringify({
           mobile: raw,
           sms_opt_in: true,
+          ...(honeypot.trim() ? { company_fax: honeypot.trim() } : {}),
+          ...(humanToken ? { turnstile_token: humanToken } : {}),
           ...(userName?.trim() ? { userName: userName.trim() } : {}),
           ...(tips?.length ? { tips: [...tips] } : {}),
           ...(tipSlugs?.length ? { tipSlugs: [...tipSlugs] } : {}),
@@ -119,7 +132,9 @@ export function RockMobileSignupCard({
         setSignupMsg(
           data?.error === 'invalid mobile number'
             ? 'check your mobile number'
-            : data?.error?.trim() || 'something went wrong — try again'
+            : data?.error === 'could not verify — try again'
+              ? 'confirm you are human — try again'
+              : data?.error?.trim() || 'something went wrong — try again'
         )
         return
       }
@@ -163,7 +178,7 @@ export function RockMobileSignupCard({
     } finally {
       setSignupBusy(false)
     }
-  }, [mobile, signupBusy, smsOptIn, tips, tipSlugs, recommendations, userName])
+  }, [mobile, signupBusy, smsOptIn, tips, tipSlugs, recommendations, userName, humanToken, honeypot, humanCheckRequired])
 
   return (
     <div className="zone-rock-signup-wrap w-full box-border" aria-label="Mobile signup">
@@ -175,8 +190,8 @@ export function RockMobileSignupCard({
           borderRadius: 60,
         }}
       >
-        <h3 className="rock-mobile-signup-title m-0 tracking-wide" lang="en" style={{ color: ROCK_CARD_TEXT }}>
-          Sign up with your mobile
+        <h3 className="rock-mobile-signup-title zz-h3 m-0 tracking-wide text-marvin" lang="en" style={{ color: ROCK_CARD_TEXT }}>
+          sign up with your mobile
         </h3>
         <h4 className="zz-h4 m-0 mt-1 rock-mobile-signup-sub" style={{ color: ROCK_CARD_TEXT, opacity: 0.92 }}>
           for tips and new offer drops
@@ -194,6 +209,16 @@ export function RockMobileSignupCard({
           </h4>
         </label>
         <div className="rock-mobile-row">
+          <input
+            type="text"
+            name="company_fax"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+            className="rock-mobile-honeypot"
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden
+          />
           <InputField
             type="tel"
             value={mobile}
@@ -206,7 +231,7 @@ export function RockMobileSignupCard({
           <button
             type="button"
             className="rock-mobile-send-btn"
-            disabled={!mobile.trim() || !smsOptIn || signupBusy}
+            disabled={!mobile.trim() || !smsOptIn || signupBusy || (humanCheckRequired && !humanToken)}
             onClick={() => void submitMobile()}
             aria-label="Send mobile number"
             aria-busy={signupBusy}
@@ -214,11 +239,25 @@ export function RockMobileSignupCard({
             <span className="zz-h4 rock-mobile-send-label">send</span>
           </button>
         </div>
+        {humanCheckRequired ? (
+          <>
+            <h4 className="zz-h4 m-0 mt-2" style={{ color: ROCK_CARD_TEXT }}>
+              confirm you are human
+            </h4>
+            <HumanCheckTurnstile onToken={setHumanToken} className="rock-mobile-human-check" />
+          </>
+        ) : null}
         {signupMsg ? (
           <h4 className="zz-h4 m-0 mt-3" style={{ color: ROCK_CARD_TEXT }}>
             {signupMsg}
           </h4>
         ) : null}
+
+        <h4 className="zz-h4 m-0 mt-2">
+          <Link href={ROUTES.PRIVACY} className="rock-mobile-privacy-link">
+            privacy &amp; data
+          </Link>
+        </h4>
 
         <div className="rock-social-row">
           <a
@@ -257,7 +296,7 @@ export function RockMobileSignupCard({
               </button>
               <h3
                 id="rock-sms-success-title"
-                className="rock-mobile-signup-title m-0 tracking-wide"
+                className="rock-mobile-signup-title zz-h3 m-0 tracking-wide text-marvin"
                 style={{ color: ROCK_CARD_TEXT }}
               >
                 {smsSuccess.title}

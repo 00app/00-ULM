@@ -6,6 +6,12 @@ import { createSession, setSessionCookieOnResponse } from '@/lib/auth'
 import { checkRateLimitAsync, getClientIp } from '@/lib/rateLimit'
 import bcrypt from 'bcryptjs'
 import { withRestoreProof } from '@/lib/sessionRestoreProof'
+import {
+  BOT_GUARD_REJECT,
+  honeypotTripped,
+  turnstileSecretConfigured,
+  verifyTurnstileToken,
+} from '@/lib/security/botGuard'
 
 const SALT_ROUNDS = 10
 const SIGNUP_MAX_PER_MINUTE = 5
@@ -22,6 +28,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
+    if (honeypotTripped(body)) {
+      return NextResponse.json({ error: BOT_GUARD_REJECT }, { status: 400 })
+    }
+    if (turnstileSecretConfigured()) {
+      const o = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {}
+      const humanOk = await verifyTurnstileToken(o.turnstile_token ?? o.turnstileToken)
+      if (!humanOk) {
+        return NextResponse.json({ error: BOT_GUARD_REJECT }, { status: 400 })
+      }
+    }
+
     const { email, password, name, postcode, household, home_type, transport_baseline, age_group } = body
 
     const emailTrim = typeof email === 'string' ? email.trim().toLowerCase() : ''

@@ -10,6 +10,12 @@ import {
 } from '@/lib/messaging/signupZoneSms'
 import { sendMobileWelcomeSms } from '@/lib/messaging/welcomeSms'
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
+import {
+  BOT_GUARD_REJECT,
+  honeypotTripped,
+  turnstileSecretConfigured,
+  verifyTurnstileToken,
+} from '@/lib/security/botGuard'
 
 export const dynamic = 'force-dynamic'
 
@@ -101,6 +107,17 @@ export async function POST(req: Request) {
   const mobile = normalizeMobile(raw)
   if (!mobile) {
     return NextResponse.json({ error: 'invalid mobile number' }, { status: 400 })
+  }
+
+  if (honeypotTripped(body)) {
+    return NextResponse.json({ error: BOT_GUARD_REJECT }, { status: 400 })
+  }
+  if (turnstileSecretConfigured()) {
+    const o = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {}
+    const humanOk = await verifyTurnstileToken(o.turnstile_token ?? o.turnstileToken)
+    if (!humanOk) {
+      return NextResponse.json({ error: BOT_GUARD_REJECT }, { status: 400 })
+    }
   }
 
   const payload = parseSignupPayload(body)
