@@ -73,6 +73,9 @@ export type ContentArchitectCardInput = {
   live_gas_gbp_per_kwh?: number
   /** Ofgem/GOV citation for those rates when stored. */
   rates_citation_url?: string
+  /** Intro / settings focus — leads copy emphasis; carbon_kg always surfaced. */
+  profile_goal?: 'money' | 'carbon' | 'balanced'
+  tone_mode?: 'bill_survival' | 'asset_optimization'
 }
 
 const MAX_HEADLINE_CHARS = 160
@@ -305,6 +308,41 @@ function formatCompactCarbonKg(n: number): string {
   return `${v}kg`
 }
 
+function mechanicalPayoffParagraph(c: ContentArchitectCardInput, url: string): string {
+  const moneyLabel = c.money_compact?.trim() || formatCompactGbp(c.money_gbp)
+  const carbonLabel = c.carbon_compact?.trim() || formatCompactCarbonKg(c.carbon_kg)
+  const goal = c.profile_goal ?? 'balanced'
+  if (goal === 'money') {
+    return `Target ~${moneyLabel} and ~${carbonLabel} CO₂e — open ${url} this week and execute one audited step.`
+  }
+  if (goal === 'carbon') {
+    return `Cut ~${carbonLabel} CO₂e (~${moneyLabel} on bills) — open ${url} this week and execute one audited step.`
+  }
+  return `Target ~${moneyLabel} and ~${carbonLabel} CO₂e — open ${url} this week and execute one audited step.`
+}
+
+function profileGoalPromptBlock(cards: ContentArchitectCardInput[]): string {
+  const seed = cards.find((c) => c.profile_goal)
+  if (!seed?.profile_goal) return ''
+  const goal = seed.profile_goal
+  const tone = seed.tone_mode ?? 'bill_survival'
+  const lead =
+    goal === 'money'
+      ? 'Lead paragraph 3 with £ savings; always include carbon_kg (kg/t CO₂e) in the same beat — never omit carbon.'
+      : goal === 'carbon'
+        ? 'Lead paragraph 3 with kg/t CO₂e; include £ where money_gbp is provided.'
+        : 'Paragraph 3 gives equal weight to £ and kg/t CO₂e.'
+  const toneLine =
+    tone === 'asset_optimization'
+      ? 'bill_survival off — stress ROI, export, smart tariffs; deprioritise means-tested grant copy unless journey_key is grants.'
+      : 'bill_survival on — stress cap relief, supplier switch, grants, monthly bill cuts.'
+  return `
+Profile goal emphasis (mandatory):
+- profile_goal: ${goal}; ${lead}
+- tone_mode: ${tone}; ${toneLine}
+- UI always stamps both £ and carbon on cards — insight copy must honour both figures regardless of goal.`
+}
+
 function mechanicalArchitectPayload(c: ContentArchitectCardInput): ArchitectJourneyPayload {
   const locality = c.locality?.trim() || 'your area'
   const moneyLabel = c.money_compact?.trim() || formatCompactGbp(c.money_gbp)
@@ -324,7 +362,7 @@ function mechanicalArchitectPayload(c: ContentArchitectCardInput): ArchitectJour
     c.baseline_insight?.trim() ||
       `${locality} still leaks measurable cash and carbon on this row until you match the fix to your setup.`,
     'April 2026 UK cap and grant frames define the practical lever — stay conservative and tie claims to the linked source.',
-    `Target ~${moneyLabel} and ~${carbonLabel} CO₂e — open ${url} this week and execute one audited step.`,
+    mechanicalPayoffParagraph(c, url),
   ].join('\n\n')
   return {
     headline: clampArchitectHeadline(
@@ -371,6 +409,7 @@ Lifestyle shift / pattern arbitrage: prioritise behavioural shifts (rail vs flig
     : ''
 
   const system = `${ZONE_CONTENT_ARCHITECT_VOICE}
+${profileGoalPromptBlock(cards)}
 ${lifestyleBlock}
 ${forensicMateBannedPromptLine()}
 Market accuracy beats creative writing. If any value is uncertain, stay conservative and tie claims to provided source_url/source_hint.

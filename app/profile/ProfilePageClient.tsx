@@ -22,6 +22,13 @@ import type { ProfileAge } from '@/app/context/AppContext'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import { persistProfileLocality, prefetchProfileLocalityForHandoff, resolveProfileLocalityForPostcode } from '@/lib/geocode/resolvePostcodeLocality'
 import { checkUkPostcode, formatPostcodeOutcodeFallback, isValidUkPostcode } from '@/lib/geocode/ukPostcode'
+import {
+  isProfileOnboardingCompleteFields,
+  PROFILE_GOAL_STORAGE_KEY,
+  PROFILE_STORAGE_KEYS,
+  readStoredProfileGoal,
+  type ProfileOnboardingFields,
+} from '@/lib/profile/onboardingComplete'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
 import { persistSessionRestoreProof } from '@/lib/client/sessionRestoreProofStorage'
@@ -86,42 +93,14 @@ const PROFILE_QUESTIONS = [
   },
 ]
 
-const PROFILE_GOAL_STORAGE_KEY = 'profile_goal'
-
-const STORAGE_KEYS: Record<string, string> = {
-  name: 'profile_name',
-  postcode: 'profile_postcode',
-  houseNumber: 'profile_house_number',
-  livingSituation: 'profile_household',
-  homeType: 'profile_home_type',
-  powerType: 'profile_home_power',
-  transport: 'profile_transport',
-  age: 'profile_age',
-  employmentStatus: 'profile_employment_status',
-}
-
-function readStoredProfileGoal(): string {
-  if (typeof window === 'undefined') return ''
-  return localStorage.getItem(PROFILE_GOAL_STORAGE_KEY)?.trim() ?? ''
-}
+const STORAGE_KEYS: Record<string, string> = { ...PROFILE_STORAGE_KEYS }
 
 function resolveProfileGoal(v: Record<string, string>): string {
   return v.goal?.trim() || readStoredProfileGoal()
 }
 
 function isProfileOnboardingComplete(v: Record<string, string>): boolean {
-  const pc = (v.postcode ?? '').replace(/\s+/g, '').trim()
-  return (
-    Boolean(v.name?.trim()) &&
-    isValidUkPostcode(pc) &&
-    Boolean(v.livingSituation?.trim()) &&
-    Boolean(v.homeType?.trim()) &&
-    Boolean(v.powerType?.trim()) &&
-    Boolean(v.transport?.trim()) &&
-    Boolean(v.age?.trim()) &&
-    Boolean(v.employmentStatus?.trim()) &&
-    Boolean(resolveProfileGoal(v))
-  )
+  return isProfileOnboardingCompleteFields(v as ProfileOnboardingFields)
 }
 
 function firstIncompleteProfileStepIndex(v: Record<string, string>): number {
@@ -245,7 +224,7 @@ export default function ProfilePageClient() {
   useEffect(() => {
     if (!profileHydrated) return
     if (!resolveProfileGoal(values)) {
-      router.replace('/')
+      router.replace(`${ROUTES.INTRO}?step=goal`)
     }
   }, [profileHydrated, values, router])
 
@@ -450,7 +429,7 @@ export default function ProfilePageClient() {
       if (!dest.startsWith('http') && !dest.startsWith('/')) dest = `/${dest.replace(/^\/+/, '')}`
       if (!isProfileOnboardingComplete(mergedValues)) {
         if (!resolveProfileGoal(mergedValues)) {
-          router.replace('/')
+          router.replace(`${ROUTES.INTRO}?step=goal`)
           return
         }
         const idx = firstIncompleteProfileStepIndex(mergedValues)

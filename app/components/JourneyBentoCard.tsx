@@ -104,6 +104,11 @@ import {
 import { openOfferUrlInNewTab } from '@/lib/zone/tier2RecursiveSpawner'
 import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
+import {
+  persistSoloFocusCardContext,
+  normalizeSoloFocusJourneyId,
+} from '@/lib/zone/soloFocusCardContext'
+import { buildDeepDiveQuestionPills } from '@/lib/zai/deepDiveAudit'
 import { useVisitedCardIds } from '@/lib/hooks/useVisitedCardIds'
 import { setDeepDiveInProgress } from '@/lib/zone/visitedCards'
 import type { PatternShiftCloseHandler, PatternShiftCloseMeta } from '@/lib/zone/patternShiftClose'
@@ -366,11 +371,8 @@ export function JourneyBentoCard({
       : null
 
   const focusCategoryJourneyId = resolveFocusCategoryJourneyId(journeyId, currentMorphData?.journey_key)
-  const morphMatchesParent =
-    !currentMorphData?.journey_key || currentMorphData.journey_key === journeyId
-  const displayJourneyId = morphMatchesParent
-    ? (currentMorphData?.journey_key ?? journeyId)
-    : journeyId
+  const displayJourneyId = (currentMorphData?.journey_key ?? journeyId) as JourneyId
+  const activeJourneyId = normalizeSoloFocusJourneyId(String(displayJourneyId))
   const displayTitle = currentMorphData?.heading ?? currentMorphData?.title ?? title
   const displayMoneyValue = sentinelMoneyCarbon?.money
     ? sentinelMoneyCarbon.money
@@ -648,26 +650,25 @@ export function JourneyBentoCard({
     if (visitId && !hasOfferFeedback) {
       flushSoloFocusIndifferent(soloFocusEngagementRef.current, {
         card_id: visitId,
-        journey_key: focusCategoryJourneyId,
+        journey_key: activeJourneyId,
         card_title: displayTitle,
         money_gbp: parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)),
       })
     }
-    clearSoloFocusMemory()
+    if (!hasOfferFeedback) clearSoloFocusMemory()
     setDeepDiveInProgress(null)
-    /* Director's order: pink only after loop birth — never mark visited on close before takeover. */
     patternShiftAfterExitRef.current = {
       cardId: visitId || undefined,
-      visitedClose: visitId ? shouldCloseMarkPinkOnly(visitId, journeyId) : false,
+      journeyId: activeJourneyId,
+      visitedClose: visitId ? shouldCloseMarkPinkOnly(visitId, activeJourneyId) : false,
       ...exitMeta,
     }
     setIsExiting((prev) => (prev ? prev : true))
   }, [
-    journeyId,
     triggerHaptic,
     activeCardId,
     cardId,
-    focusCategoryJourneyId,
+    activeJourneyId,
     displayTitle,
     displayMoneyValue,
   ])
@@ -685,18 +686,23 @@ export function JourneyBentoCard({
     recordOfferSignal({
       card_id: id,
       signal: 'like',
-      journey_key: focusCategoryJourneyId,
+      journey_key: activeJourneyId,
       card_title: displayTitle,
       money_gbp: parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)),
     })
-    beginCloseWithPatternShift({ offerFeedback: 'like', cardTitle: displayTitle })
+    beginCloseWithPatternShift({
+      offerFeedback: 'like',
+      cardTitle: displayTitle,
+      cardHeadline: displayTitle,
+      journeyId: activeJourneyId,
+    })
   }, [
     onLike,
     activeCardId,
     cardId,
     displayTitle,
     displayMoneyValue,
-    focusCategoryJourneyId,
+    activeJourneyId,
     triggerHaptic,
     beginCloseWithPatternShift,
   ])
@@ -710,16 +716,21 @@ export function JourneyBentoCard({
       id,
       displayTitle,
       parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)),
-      focusCategoryJourneyId
+      activeJourneyId
     )
-    beginCloseWithPatternShift({ offerFeedback: 'dislike', cardTitle: displayTitle })
+    beginCloseWithPatternShift({
+      offerFeedback: 'dislike',
+      cardTitle: displayTitle,
+      cardHeadline: displayTitle,
+      journeyId: activeJourneyId,
+    })
   }, [
     activeCardId,
     cardId,
     toggleDislike,
     displayTitle,
     displayMoneyValue,
-    focusCategoryJourneyId,
+    activeJourneyId,
     triggerHaptic,
     beginCloseWithPatternShift,
   ])
@@ -732,12 +743,12 @@ export function JourneyBentoCard({
       recordOfferSignal({
         card_id: id,
         signal: 'ask',
-        journey_key: focusCategoryJourneyId,
+        journey_key: activeJourneyId,
         card_title: displayTitle,
       })
     }
     setAskZaiDeepDiveOpen(true)
-  }, [triggerHaptic, activeCardId, cardId, focusCategoryJourneyId, displayTitle])
+  }, [triggerHaptic, activeCardId, cardId, activeJourneyId, displayTitle])
 
   const handleTrinityCta = useCallback(() => {
     markSoloFocusEngagement(soloFocusEngagementRef.current, 'cta')
@@ -949,7 +960,7 @@ export function JourneyBentoCard({
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =
       auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
-    const zoneCategoryLabel = formatZoneCategoryLabel(focusCategoryJourneyId)
+    const zoneCategoryLabel = formatZoneCategoryLabel(activeJourneyId)
     let sourceName = 'our partners'
     if (resolvedOfferUrl) {
       try { sourceName = new URL(resolvedOfferUrl).hostname.replace('www.', '') } catch {}
@@ -1012,9 +1023,14 @@ export function JourneyBentoCard({
       />
     ) : null
 
-    const sourceFooter = partnerHttp
-      ? ''
-      : 'No live retailer link this week — figures still come from your saved audit row.'
+    const verifiedSourceCitation =
+      pulseSourceUrl?.trim().startsWith('http') && handoffAttribution.sourceDisplayName?.trim()
+        ? `Source: ${handoffAttribution.sourceDisplayName.trim()} — verify the offer before you commit spend.`
+        : null
+    const sourceFooter =
+      partnerHttp || verifiedSourceCitation
+        ? ''
+        : 'No live retailer link this week — figures still come from your saved audit row.'
     const discovery =
       discoverySnap != null
         ? {
@@ -1039,7 +1055,7 @@ export function JourneyBentoCard({
       const meta = patternShiftAfterExitRef.current
       patternShiftAfterExitRef.current = null
       if (meta) {
-        onPatternShiftClose?.(journeyId, meta)
+        onPatternShiftClose?.(meta.journeyId ?? activeJourneyId, meta)
         return
       }
       onClose?.()
@@ -1111,7 +1127,7 @@ export function JourneyBentoCard({
                     headline={null}
                     narrative={null}
                     sourceFooter={sourceFooter}
-                    verifiedSourceCitation={null}
+                    verifiedSourceCitation={verifiedSourceCitation}
                     actionLine={
                       shouldShowSoloFocusArchitectActionLine(architectActionLine, insightDisplay)
                         ? architectActionLine
@@ -1160,12 +1176,15 @@ export function JourneyBentoCard({
         onClose={() => setAskZaiDeepDiveOpen(false)}
         headline={String(recommendationTitle)}
         category={zoneCategoryLabel}
-        journeyKey={String(focusCategoryJourneyId)}
+        journeyKey={String(activeJourneyId)}
+        cardId={String(activeCardId || cardId || '')}
+        sourceUrl={pulseSourceUrl || soloHandoff.sourceLinkUrl || resolvedOfferUrl || ''}
         personalSpend={moneyValue.replace(/^£\s*/, '').trim() || '0'}
         regionalAvg={carbonValue.replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0'}
         scrapedSource={insightLabel || crawlerTip || localContextBar || ''}
         postcode={state.profile?.postcode}
         localityName={state.locationState?.locationName ?? undefined}
+        suggestedQuestions={buildDeepDiveQuestionPills(String(activeJourneyId))}
       />
           </>
       ) : null

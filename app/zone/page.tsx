@@ -93,6 +93,7 @@ import { AppBootGlitch } from '@/app/components/AppBootGlitch'
 import { DiscoveryTakeover } from '@/app/components/DiscoveryTakeover'
 import { OfferFeedbackTakeover } from '@/app/components/OfferFeedbackTakeover'
 import { pickNextLoopQuestion } from '@/lib/zone/loopQuestions'
+import { readSoloFocusCardContext } from '@/lib/zone/soloFocusCardContext'
 import type { PatternShiftCloseMeta } from '@/lib/zone/patternShiftClose'
 import {
   isDiscoveryInjectCard,
@@ -187,6 +188,12 @@ import {
   bootstrapZoneCategoryResearch,
   zoneNeedsResearchBootstrap,
 } from '@/lib/zone/bootstrapZoneResearch'
+import { buildResearchProfileFromStorage } from '@/lib/profile/buildResearchProfilePayload'
+import { readProfileSegmentContext, readEffectiveProfileGoal } from '@/lib/profile/profileGoalPreference'
+import {
+  runProductionResearchRefresh,
+  runProductionJitTopUp,
+} from '@/lib/zone/productionResearchBootstrap'
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import ZoneDesktopNavRail from '@/app/components/ZoneDesktopNavRail'
 import ZoneAskZaiDock from '@/app/components/ZoneAskZaiDock'
@@ -414,6 +421,7 @@ export default function ZonePage() {
     journeyId: JourneyId
     cardId: string
     cardTitle: string
+    cardHeadline?: string
     signal: 'like' | 'dislike'
   } | null>(null)
   const loopTakeoverOpen = Boolean(patternShiftJourneyId || offerFeedbackTakeover)
@@ -432,6 +440,7 @@ export default function ZonePage() {
   const [revealedCardCount, setRevealedCardCount] = useState(0)
   const [engineStatus, setEngineStatus] = useState<ZoneEngineStatus>('idle')
   const zoneBootstrapRef = useRef(false)
+  const productionRefreshRef = useRef(false)
   const [marketContext, setMarketContext] = useState<{
     liveProfilePostcode?: string
     april2026PriceCapGbp?: number
@@ -528,9 +537,11 @@ export default function ZonePage() {
     (journeyId: JourneyId, meta?: PatternShiftCloseMeta) => {
       closeAnySoloFocus()
       loopCloseCardIdRef.current = meta?.cardId?.trim() || null
+      const cardCtx = readSoloFocusCardContext()
+      const activeJourney = meta?.journeyId ?? cardCtx?.journeyId ?? journeyId
 
       if (meta?.offerFeedback === 'like' || meta?.offerFeedback === 'dislike') {
-        const closeId = meta.cardId?.trim()
+        const closeId = meta.cardId?.trim() || cardCtx?.cardId?.trim()
         if (!closeId) {
           loopCloseCardIdRef.current = null
           setOfferFeedbackTakeover(null)
@@ -542,9 +553,10 @@ export default function ZonePage() {
         setPatternShiftJourneyId(null)
         setIsZoneVisible(false)
         setOfferFeedbackTakeover({
-          journeyId,
+          journeyId: activeJourney,
           cardId: closeId,
-          cardTitle: meta.cardTitle?.trim() || '',
+          cardTitle: meta.cardTitle?.trim() || cardCtx?.cardTitle || '',
+          cardHeadline: meta.cardHeadline?.trim() || cardCtx?.headline || '',
           signal: meta.offerFeedback,
         })
         return
@@ -563,18 +575,18 @@ export default function ZonePage() {
         returnToSoloFocusOrigin()
         return
       }
-      if (!shouldOpenLoopTakeover(meta?.cardId, journeyId)) {
+      if (!shouldOpenLoopTakeover(meta?.cardId, activeJourney)) {
         loopCloseCardIdRef.current = null
         setPatternShiftJourneyId(null)
         setIsZoneVisible(true)
         returnToSoloFocusOrigin()
         return
       }
-      const nextBeat = pickNextLoopQuestion(journeyId)
+      const nextBeat = pickNextLoopQuestion(activeJourney)
       if (nextBeat) {
-        loopCompletedJourneyRef.current = journeyId
+        loopCompletedJourneyRef.current = activeJourney
         setIsZoneVisible(false)
-        setPatternShiftJourneyId(journeyId)
+        setPatternShiftJourneyId(activeJourney)
         return
       }
       spawnAchievementWhenLoopPoolExhausted(journeyId, pinAchievementCard)
@@ -605,13 +617,9 @@ export default function ZonePage() {
         setVisitedCardIds(readVisitedCardIds())
       }
       offerPrefRefreshPendingRef.current = false
-      if (signal === 'like') {
-        router.push('/likes')
-      } else {
-        returnToSoloFocusOrigin()
-      }
+      returnToSoloFocusOrigin()
     },
-    [closeAnySoloFocus, returnToSoloFocusOrigin, router]
+    [closeAnySoloFocus, returnToSoloFocusOrigin]
   )
 
   const completeCleanBirth = useCallback(() => {
@@ -1203,33 +1211,53 @@ export default function ZonePage() {
   const proseRepairRequestedRef = useRef(false)
   /** One content-architect batch per profile/answers fingerprint — stops 20s×N Gemini on refreshKey bumps. */
   const architectBatchKeyRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const onGoalChanged = () => {
+      architectBatchKeyRef.current = null
+      setVmSyncStamp(Date.now())
+      setRefreshKey((k) => k + 1)
+    }
+    window.addEventListener('profile-goal-changed', onGoalChanged)
+    return () => window.removeEventListener('profile-goal-changed', onGoalChanged)
+  }, [])
+
   /** When GET scrape-sync returns empty £ rows, seed core categories in the background. */
   useEffect(() => {
-    if (!hydrated || scrapePostcode.length < 4 || zoneBootstrapRef.current) return
+    if (!hydrated || scrapePostcode.length < 4) return
     if (!vmResolved) return
-    if (
-      !zoneNeedsResearchBootstrap({
-        coverage: researchCategoryCoverage,
-        savingAmountGbp: researchMeta?.savingAmountGbp,
-        verifiedSaving: researchMeta?.verifiedSaving,
-      })
-    ) {
-      return
-    }
-    zoneBootstrapRef.current = true
-    const pf = readProfileFieldsFromStorage()
-    bootstrapZoneCategoryResearch({
-      postcode: scrapePostcode,
+
+    const profileData = buildResearchProfileFromStorage({ postcode: scrapePostcode })
+    const bootstrapParams = {
       coverage: researchCategoryCoverage,
-      profileData: {
+      savingAmountGbp: researchMeta?.savingAmountGbp,
+      verifiedSaving: researchMeta?.verifiedSaving,
+    }
+
+    if (!zoneBootstrapRef.current && zoneNeedsResearchBootstrap(bootstrapParams)) {
+      zoneBootstrapRef.current = true
+      bootstrapZoneCategoryResearch({
         postcode: scrapePostcode,
-        house_number: pf.house_number,
-        home_type: pf.home_type,
-        transport_baseline: pf.transport_baseline,
-        household: pf.household,
-        employment_status: pf.employment_status,
-      },
-    })
+        coverage: researchCategoryCoverage,
+        profileData,
+      })
+    }
+
+    if (!productionRefreshRef.current) {
+      productionRefreshRef.current = true
+      runProductionResearchRefresh({
+        postcode: scrapePostcode,
+        profileData,
+        coverage: researchCategoryCoverage,
+      })
+      window.setTimeout(() => {
+        runProductionJitTopUp({
+          postcode: scrapePostcode,
+          profileData,
+          coverage: researchCategoryCoverage,
+        })
+      }, 12_000)
+    }
   }, [
     hydrated,
     scrapePostcode,
@@ -1507,7 +1535,7 @@ export default function ZonePage() {
       age: state.profile?.age ?? profileFromStorage.age,
       employment_status:
         state.profile?.employmentStatus?.trim() || profileFromStorage.employment_status,
-      goal: state.profile?.goal?.trim() || profileFromStorage.goal,
+      goal: state.profile?.goal?.trim() || profileFromStorage.goal || readEffectiveProfileGoal(),
       household_income_bracket: profileFromStorage.household_income_bracket,
     }
     const hasResearchFeed =
@@ -1722,7 +1750,7 @@ export default function ZonePage() {
       age: state.profile?.age ?? profileFromStorage.age,
       employment_status:
         state.profile?.employmentStatus?.trim() || profileFromStorage.employment_status,
-      goal: state.profile?.goal?.trim() || profileFromStorage.goal,
+      goal: state.profile?.goal?.trim() || profileFromStorage.goal || readEffectiveProfileGoal(),
       household_income_bracket: profileFromStorage.household_income_bracket,
     }
 
@@ -1784,6 +1812,7 @@ export default function ZonePage() {
       rates: homeUnitRates
         ? [homeUnitRates.elecGbpPerKwh, homeUnitRates.gasGbpPerKwh, ratesSourceUrl ?? '']
         : null,
+      goal: readEffectiveProfileGoal(),
     }
     const cacheKey = `zz_architect_${architectCacheFingerprint(cachePayload)}`
     if (architectBatchKeyRef.current === cacheKey) {
@@ -1826,6 +1855,7 @@ export default function ZonePage() {
       /* ignore bad cache */
     }
 
+    const segment = readProfileSegmentContext()
     const cards = buildContentArchitectCardPayload({
       vm,
       journeyAnswers,
@@ -1844,6 +1874,7 @@ export default function ZonePage() {
         household_size: inferHouseholdSize(profile.household),
         postcode: profile.postcode,
       },
+      segment: { profile_goal: segment.goal, tone_mode: segment.toneMode },
     })
 
     void (async () => {
@@ -3403,6 +3434,7 @@ export default function ZonePage() {
             journeyId={offerFeedbackTakeover.journeyId}
             cardId={offerFeedbackTakeover.cardId}
             cardTitle={offerFeedbackTakeover.cardTitle}
+            cardHeadline={offerFeedbackTakeover.cardHeadline}
             signal={offerFeedbackTakeover.signal}
             onComplete={completeOfferFeedback}
           />

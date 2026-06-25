@@ -30,6 +30,8 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { ResetDataCircleButton } from '@/app/components/ResetDataCircleButton'
 import SettingsBentoCard from '@/app/components/SettingsBentoCard'
+import SettingsProfileGoalRow from '@/app/components/SettingsProfileGoalRow'
+import { readEffectiveProfileGoal } from '@/lib/profile/profileGoalPreference'
 
 const PROFILE_LABELS: Record<string, string> = {
   name: "What's your name?",
@@ -117,7 +119,11 @@ export default function SettingsPage() {
     if (typeof window === 'undefined') return
     const onMemory = () => setRefreshKey((k) => k + 1)
     window.addEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onMemory)
-    return () => window.removeEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onMemory)
+    window.addEventListener('profile-goal-changed', onMemory)
+    return () => {
+      window.removeEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onMemory)
+      window.removeEventListener('profile-goal-changed', onMemory)
+    }
   }, [])
 
   const profileForOverview = useMemo(() => {
@@ -222,8 +228,9 @@ export default function SettingsPage() {
           transport_baseline: profileForOverview.transport,
           age,
           employment_status: employmentRaw || undefined,
+          goal: readEffectiveProfileGoal(),
         }
-      : {}
+      : { goal: readEffectiveProfileGoal() }
     return buildZoneViewModel({ profile, journeyAnswers })
   }, [profileForOverview, journeyAnswers])
 
@@ -301,6 +308,19 @@ export default function SettingsPage() {
                 )}
               </div>
             </SettingsBentoCard>
+          </motion.div>
+        </section>
+
+        <section className="settings-cards-section" aria-label="Your focus">
+          <motion.div
+            className="settings-answer-grid"
+            initial={settingsCellMotion.initial}
+            animate={settingsCellMotion.animate}
+            transition={{ ...settingsStaggerTransition, delay: 0.09 }}
+          >
+            <motion.div className="settings-card-cell settings-card-cell--wide">
+              <SettingsProfileGoalRow onChange={() => setRefreshKey((k) => k + 1)} />
+            </motion.div>
           </motion.div>
         </section>
 

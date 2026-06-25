@@ -8,6 +8,7 @@ import {
   normalizeProfileGoalValue,
   type ProfileGoalValue,
 } from '@/lib/profile/goalWeighting'
+import { guardrailPriorityJourneys } from '@/lib/profile/onboardingGuardrails'
 import { resolveAffluenceAuditMode } from '@/lib/zone/affluenceCheck'
 import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
 import { isHighDeprivationArea, isLowDeprivationArea } from '@/lib/intelligence/deprivationClient'
@@ -107,6 +108,10 @@ function scoreJourneys(params: {
     } else {
       bump('grants', 12)
     }
+  }
+
+  for (const [i, jid] of guardrailPriorityJourneys(params.profile).entries()) {
+    bump(jid, 45 - i * 3)
   }
 
   return scores

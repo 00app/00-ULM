@@ -9,6 +9,19 @@ import {
 import { humanizeZoneHeadline } from '@/lib/zone/plainEnglishCopy'
 import { hasLoopDoneForJourney, readAnsweredLoopQuestionIds } from '@/lib/zone/loopMemory'
 import { safeGetItem } from '@/lib/zone/safeProfileStorage'
+import {
+  normalizeProfileGoalValue,
+  type ProfileGoalValue,
+} from '@/lib/profile/goalWeighting'
+import type { AffluenceAuditMode } from '@/lib/zone/affluenceCheck'
+import { readProfileSegmentContext } from '@/lib/profile/profileGoalPreference'
+
+export type LoopGoalLean = 'money' | 'carbon' | 'neutral'
+
+export type LoopPickContext = {
+  goal?: ProfileGoalValue
+  toneMode?: AffluenceAuditMode
+}
 
 export type LoopQuestionOption = {
   label: string
@@ -209,6 +222,85 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
   },
 ]
 
+/** Goal lean per beat — used for ranking, not filtering (carbon beats still surface for money-first users). */
+const LOOP_BEAT_GOAL_LEAN: Record<string, LoopGoalLean> = {
+  travel_rail_vs_flight: 'carbon',
+  travel_ev_commute: 'carbon',
+  holidays_local_vs_longhaul: 'carbon',
+  holidays_train_not_plane: 'carbon',
+  food_plant_shift: 'carbon',
+  food_waste_cut: 'neutral',
+  money_ev_swap: 'money',
+  money_smart_tariff: 'money',
+  utilities_supplier_switch: 'money',
+  home_heat_pump: 'neutral',
+  home_loft_insulate: 'money',
+  grants_bus_boiler: 'money',
+  solar_roof_fit: 'money',
+  shopping_repair_first: 'carbon',
+  tech_standby_off: 'money',
+  water_meter_save: 'money',
+  waste_compost: 'carbon',
+  carbon_offset_cut: 'carbon',
+}
+
+function loopBeatGoalLean(beat: LoopQuestionBeat): LoopGoalLean {
+  return LOOP_BEAT_GOAL_LEAN[beat.questionId] ?? 'neutral'
+}
+
+function loopBeatHasMathOption(beat: LoopQuestionBeat): boolean {
+  return beat.options.some((o) => /MATH|COMPARE|COSTS/i.test(o.value))
+}
+
+/** Higher score = better match for this user's goal segment. Carbon beats still score >0 for money users. */
+export function scoreLoopBeatForProfile(
+  beat: LoopQuestionBeat,
+  goal: ProfileGoalValue,
+  toneMode?: AffluenceAuditMode
+): number {
+  const lean = loopBeatGoalLean(beat)
+  let score = 0
+
+  if (goal === 'money') {
+    if (lean === 'money') score += 32
+    else if (lean === 'neutral') score += 22
+    else score += 12
+    if (loopBeatHasMathOption(beat)) score += 6
+  } else if (goal === 'carbon') {
+    if (lean === 'carbon') score += 32
+    else if (lean === 'neutral') score += 22
+    else score += 12
+  } else {
+    if (lean === 'neutral') score += 28
+    else score += 24
+  }
+
+  if (toneMode === 'asset_optimization') {
+    if (beat.questionId.includes('solar') || beat.questionId.includes('smart_tariff')) score += 10
+    if (beat.questionId.includes('grants')) score -= 4
+  } else if (toneMode === 'bill_survival') {
+    if (beat.questionId.includes('grants') || beat.questionId.includes('tariff')) score += 8
+  }
+
+  return score
+}
+
+const LOOP_BANK_INDEX = new Map(LOOP_QUESTION_BANK.map((b, i) => [b.questionId, i]))
+
+export function resolveLoopPickContext(ctx?: LoopPickContext): Required<LoopPickContext> {
+  if (ctx?.goal) {
+    return {
+      goal: normalizeProfileGoalValue(ctx.goal),
+      toneMode: ctx.toneMode ?? readProfileSegmentContext().toneMode,
+    }
+  }
+  if (typeof window !== 'undefined') {
+    const seg = readProfileSegmentContext()
+    return { goal: seg.goal, toneMode: ctx?.toneMode ?? seg.toneMode }
+  }
+  return { goal: 'balanced', toneMode: 'bill_survival' }
+}
+
 const LOOP_QUESTION_IDS = new Set(LOOP_QUESTION_BANK.map((b) => b.questionId))
 
 export function isLoopQuestionId(questionId: string): boolean {
@@ -226,14 +318,27 @@ export function beatsForJourney(journeyId: JourneyId): LoopQuestionBeat[] {
   return LOOP_QUESTION_BANK.filter((b) => b.journeyKeys[0] === journeyId)
 }
 
-/** Next unanswered loop beat — strictly one lane (`journeyKeys[0]` === category). */
-export function pickNextLoopQuestion(journeyId: JourneyId): LoopQuestionBeat | null {
+/** Next unanswered loop beat — ranked by profile goal + tone; still one journey lane. */
+export function pickNextLoopQuestion(
+  journeyId: JourneyId,
+  ctx?: LoopPickContext
+): LoopQuestionBeat | null {
   if (hasLoopDoneForJourney(journeyId)) return null
   const answered = readAnsweredLoopQuestionIds()
-  for (const beat of LOOP_QUESTION_BANK) {
-    if (beat.journeyKeys[0] === journeyId && !answered.has(beat.questionId)) return beat
-  }
-  return null
+  const segment = resolveLoopPickContext(ctx)
+  const candidates = LOOP_QUESTION_BANK.filter(
+    (beat) => beat.journeyKeys[0] === journeyId && !answered.has(beat.questionId)
+  )
+  if (candidates.length === 0) return null
+  if (candidates.length === 1) return candidates[0]!
+
+  return [...candidates].sort((a, b) => {
+    const scoreDiff =
+      scoreLoopBeatForProfile(b, segment.goal, segment.toneMode) -
+      scoreLoopBeatForProfile(a, segment.goal, segment.toneMode)
+    if (scoreDiff !== 0) return scoreDiff
+    return (LOOP_BANK_INDEX.get(a.questionId) ?? 0) - (LOOP_BANK_INDEX.get(b.questionId) ?? 0)
+  })[0]!
 }
 
 /** @deprecated Use pickNextLoopQuestion — kept for callers that have not migrated. */

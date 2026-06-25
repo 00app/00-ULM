@@ -2,6 +2,8 @@ import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import type { ContentArchitectCardInput } from '@/lib/agents/contentArchitect'
 import type { ZoneViewModel } from '@/lib/logic/zone'
+import type { ProfileGoalValue } from '@/lib/profile/goalWeighting'
+import type { AffluenceAuditMode } from '@/lib/zone/affluenceCheck'
 import { compactAuditValue } from '@/lib/format'
 import { BASELINE_2026_CAP_GBP } from '@/lib/brains/calculations'
 import { ensureAbsoluteHttpsUrl } from '@/lib/zone/contentProseSanitize'
@@ -29,6 +31,10 @@ export function buildContentArchitectCardPayload(args: {
     household_size?: number
     postcode?: string
   }
+  segment?: {
+    profile_goal?: ProfileGoalValue
+    tone_mode?: AffluenceAuditMode
+  }
 }): ContentArchitectCardInput[] {
   const byKey = new Map<JourneyId, (typeof args.vm.journeys)[number]>()
   for (const j of args.vm.journeys) {
@@ -52,6 +58,8 @@ export function buildContentArchitectCardPayload(args: {
         locality: townInk ?? args.localCouncil,
         price_cap_gbp: BASELINE_2026_CAP_GBP,
         journey_answers: args.journeyAnswers[journey_key] ?? {},
+        profile_goal: args.segment?.profile_goal,
+        tone_mode: args.segment?.tone_mode,
       } satisfies ContentArchitectCardInput
     }
     const rawSource =
@@ -90,6 +98,8 @@ export function buildContentArchitectCardPayload(args: {
     rates_citation_url:
       j.journey_key === 'home' && args.ratesCitationUrl?.trim() ? args.ratesCitationUrl.trim() : undefined,
     journey_answers: args.journeyAnswers[j.journey_key] ?? {},
+    profile_goal: args.segment?.profile_goal,
+    tone_mode: args.segment?.tone_mode,
     flags: [
       ...(journey_key === 'grants' && args.localCouncil ? (['has_council'] as const) : []),
       ...(journey_key === 'grants' && (j.moneyGbp ?? 0) >= 6500 ? (['bus_eligible_hint'] as const) : []),

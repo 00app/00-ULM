@@ -101,6 +101,12 @@ import type { ZoneAuditState } from '@/lib/zone/zoneAuditUi'
 import { isDiscoveryInjectCard, shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
+import {
+  persistSoloFocusCardContext,
+  normalizeSoloFocusJourneyId,
+  type SoloFocusCardContext,
+} from '@/lib/zone/soloFocusCardContext'
+import { buildDeepDiveQuestionPills } from '@/lib/zai/deepDiveAudit'
 
 export interface SoloFocusOverlayProps {
   category: string
@@ -333,7 +339,8 @@ export function SoloFocusOverlay({
   const displayTitle = currentMorphData?.heading ?? currentMorphData?.title ?? title
   const displayJourneyId = currentMorphData?.journey_key ?? journeyId
   const focusCategoryJourneyId = resolveFocusCategoryJourneyId(journeyId, displayJourneyId)
-  const zoneCategoryLabel = formatZoneCategoryLabel(focusCategoryJourneyId)
+  const activeJourneyId = normalizeSoloFocusJourneyId(String(displayJourneyId ?? journeyId ?? 'home'))
+  const zoneCategoryLabel = formatZoneCategoryLabel(activeJourneyId)
 
   const activeCardId = currentMorphData?.id ?? cardId
 
@@ -578,8 +585,12 @@ export function SoloFocusOverlay({
       habitTitle={isRockHabitTip ? String(title || displayTitle || recommendation).trim() : undefined}
     />
   ) : null
+  const verifiedSourceCitation =
+    pulseSourceUrl?.trim().startsWith('http') && handoffAttribution.sourceDisplayName?.trim()
+      ? `Source: ${handoffAttribution.sourceDisplayName.trim()} — verify the offer before you commit spend.`
+      : null
   const sourceFooter =
-    isDiscoveryMotherCard || partnerHttp
+    isDiscoveryMotherCard || partnerHttp || verifiedSourceCitation
       ? ''
       : 'No live retailer link this week — figures still come from your saved audit row.'
   const overlayCtaKind = inferRevenueCtaKind({
@@ -676,7 +687,48 @@ export function SoloFocusOverlay({
     onClose()
   }, [onClose, sfStorageKey])
 
-  const loopJourneyKey = focusCategoryJourneyId
+  const loopJourneyKey = activeJourneyId
+
+  const snapshotCardContext = useCallback((): SoloFocusCardContext | null => {
+    const id = String(activeCardId || cardId || '').trim()
+    if (!id) return null
+    return {
+      cardId: id,
+      journeyId: activeJourneyId,
+      cardTitle: String(displayTitle || title || recommendation).trim(),
+      headline: String(recommendationTitle).trim(),
+      moneyGbp: motherMoneyTargetGbp,
+      carbonKg: carbonTargetKg,
+      sourceUrl: pulseSourceUrl || soloHandoff.sourceLinkUrl || sourceUrl || null,
+      offerUrl: soloHandoff.ctaUrl || offerUrl || null,
+      sourceLabel: sourceLabel || null,
+      verifiedProviderName: handoffAttribution.offerProviderName || handoffAttribution.sourceDisplayName,
+      at: new Date().toISOString(),
+    }
+  }, [
+    activeCardId,
+    cardId,
+    activeJourneyId,
+    displayTitle,
+    title,
+    recommendation,
+    recommendationTitle,
+    motherMoneyTargetGbp,
+    carbonTargetKg,
+    pulseSourceUrl,
+    soloHandoff.sourceLinkUrl,
+    soloHandoff.ctaUrl,
+    sourceUrl,
+    offerUrl,
+    sourceLabel,
+    handoffAttribution.offerProviderName,
+    handoffAttribution.sourceDisplayName,
+  ])
+
+  useEffect(() => {
+    const ctx = snapshotCardContext()
+    if (ctx) persistSoloFocusCardContext(ctx)
+  }, [snapshotCardContext])
 
   const requestClose = useCallback(() => {
     triggerHaptic('medium')
@@ -714,15 +766,30 @@ export function SoloFocusOverlay({
     (signal: 'like' | 'dislike') => {
       triggerHaptic('medium')
       const visitId = String(cardId ?? activeCardId ?? '').trim()
-      clearSoloFocusMemory()
+      const ctx = snapshotCardContext()
+      if (ctx) persistSoloFocusCardContext(ctx)
       onPatternShiftClose?.(loopJourneyKey, {
         cardId: visitId || undefined,
+        journeyId: loopJourneyKey,
         offerFeedback: signal,
-        cardTitle: displayTitle,
+        cardTitle: ctx?.cardTitle || displayTitle,
+        cardHeadline: ctx?.headline || String(recommendationTitle),
+        sourceUrl: ctx?.sourceUrl ?? undefined,
+        offerUrl: ctx?.offerUrl ?? undefined,
+        verifiedProviderName: ctx?.verifiedProviderName ?? undefined,
       })
       onClose()
     },
-    [loopJourneyKey, onPatternShiftClose, onClose, cardId, activeCardId, displayTitle]
+    [
+      loopJourneyKey,
+      onPatternShiftClose,
+      onClose,
+      cardId,
+      activeCardId,
+      displayTitle,
+      recommendationTitle,
+      snapshotCardContext,
+    ]
   )
 
   const handleTrinityLike = useCallback(() => {
@@ -778,16 +845,18 @@ export function SoloFocusOverlay({
     triggerHaptic('medium')
     const id = String(activeCardId || cardId || '')
     markSoloFocusEngagement(soloFocusEngagementRef.current, 'ask')
+    const ctx = snapshotCardContext()
+    if (ctx) persistSoloFocusCardContext(ctx)
     if (id) {
       recordOfferSignal({
         card_id: id,
         signal: 'ask',
         journey_key: loopJourneyKey,
-        card_title: displayTitle,
+        card_title: ctx?.cardTitle || displayTitle,
       })
     }
     setAskZaiDeepDiveOpen(true)
-  }, [activeCardId, cardId, loopJourneyKey, displayTitle])
+  }, [activeCardId, cardId, loopJourneyKey, displayTitle, snapshotCardContext])
 
   const handleTrinityCta = useCallback(() => {
     markSoloFocusEngagement(soloFocusEngagementRef.current, 'cta')
@@ -875,7 +944,7 @@ export function SoloFocusOverlay({
                         headline={null}
                         narrative={null}
                         sourceFooter={sourceFooter}
-                        verifiedSourceCitation={null}
+                        verifiedSourceCitation={verifiedSourceCitation}
                         moneyGbp={animatedMoneyGbp}
                         carbonKg={animatedCarbonKg}
                         impactPulse={impactAnswerPulse}
@@ -922,11 +991,14 @@ export function SoloFocusOverlay({
         headline={String(recommendationTitle)}
         category={zoneCategoryLabel}
         journeyKey={loopJourneyKey}
+        cardId={String(activeCardId || cardId || '')}
+        sourceUrl={pulseSourceUrl || soloHandoff.sourceLinkUrl || sourceUrl || ''}
         personalSpend={String(displayMoneyValue).replace(/^£\s*/, '').trim() || '0'}
         regionalAvg={String(displayCarbonValue).replace(/\s*(kg|t)\s*CO₂$/i, '').trim() || '0'}
         scrapedSource={sourceLabel || sourceUrl || ''}
         postcode={profilePostcode ?? state.profile?.postcode}
         localityName={state.locationState?.locationName ?? undefined}
+        suggestedQuestions={buildDeepDiveQuestionPills(loopJourneyKey)}
       />
       {!isZoneMotherChild && (
       <motion.div className="fixed right-5 top-5 z-50">

@@ -12,6 +12,7 @@ import {
 } from '@/lib/intelligence/freeTierHydration'
 import { persistPropertyPrefillForUser } from '@/lib/intelligence/persistPropertyPrefill'
 import { buildResearchProfilePayload } from '@/lib/profile/buildResearchProfilePayload'
+import { inferHouseholdIncomeBracket } from '@/lib/profile/inferHouseholdIncomeBracket'
 
 export const dynamic = 'force-dynamic'
 
@@ -98,7 +99,11 @@ export async function POST(request: NextRequest) {
     const household_income_bracket =
       incomeRaw === '<31k' || incomeRaw === '31k-50k' || incomeRaw === '50k+'
         ? incomeRaw
-        : null
+        : inferHouseholdIncomeBracket({
+            employment_status: raw.employment_status,
+            age_group: raw.age_group,
+            postcode: raw.postcode,
+          })
     const primary_goal = profile_goal ? mapProfileGoalToPrimaryGoal(profile_goal) : null
     const genomeObj: Record<string, unknown> = {}
     if (raw.employment_status != null) genomeObj.employment_status = raw.employment_status

@@ -57,6 +57,8 @@ type Props = {
   headline: string
   category: string
   journeyKey: string
+  cardId?: string
+  sourceUrl?: string
   personalSpend?: string
   regionalAvg?: string
   scrapedSource?: string
@@ -72,6 +74,8 @@ export function AskZaiDeepDiveSheet({
   headline,
   category,
   journeyKey,
+  cardId = '',
+  sourceUrl = '',
   personalSpend = '0',
   regionalAvg = '0',
   scrapedSource = '',
@@ -144,10 +148,32 @@ export function AskZaiDeepDiveSheet({
       setBusy(false)
       return
     }
+    const answers = getJourneyAnswersFromClient()
+    setAskZaiContext({
+      category: journeyKey,
+      personalSpend,
+      regionalAvg,
+      question: buildSoloFocusAskZaiQuestion(headline, null),
+      shift_title: headline,
+      card_id: cardId || undefined,
+      card_title: headline,
+      source_url: sourceUrl || scrapedSource || undefined,
+      scraped_source: scrapedSource,
+      journey_answers_jsonb: answers,
+    })
     if (typeof document === 'undefined') return
     document.body.classList.add('ask-zai-deep-dive-active')
     return () => document.body.classList.remove('ask-zai-deep-dive-active')
-  }, [open])
+  }, [
+    open,
+    journeyKey,
+    personalSpend,
+    regionalAvg,
+    headline,
+    cardId,
+    sourceUrl,
+    scrapedSource,
+  ])
 
   useEffect(() => {
     if (!open) return
@@ -187,6 +213,9 @@ export function AskZaiDeepDiveSheet({
         regionalAvg,
         question: buildSoloFocusAskZaiQuestion(headline, label),
         shift_title: headline,
+        card_id: cardId || undefined,
+        card_title: headline,
+        source_url: sourceUrl || scrapedSource || undefined,
         scraped_source: scrapedSource,
         journey_answers_jsonb: answers,
         journey_question_label: label,
@@ -194,7 +223,7 @@ export function AskZaiDeepDiveSheet({
       onClose()
       router.push(ROUTES.ZAI)
     },
-    [headline, journeyKey, onClose, personalSpend, regionalAvg, router, scrapedSource]
+    [headline, journeyKey, onClose, personalSpend, regionalAvg, router, scrapedSource, cardId, sourceUrl]
   )
 
   const submit = useCallback(

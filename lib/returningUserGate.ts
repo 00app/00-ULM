@@ -1,28 +1,15 @@
 import type { NextRequest } from 'next/server'
 import { SESSION_COOKIE } from '@/lib/auth'
 import { getDbPool, isDatabaseConfigured } from '@/lib/db'
+import {
+  guestProfileOnboardingComplete,
+  userRowOnboardingComplete,
+} from '@/lib/profile/onboardingComplete'
 import { unsealSessionToken } from '@/lib/sessionCookieSign'
 import { GUEST_SESSION_COOKIE, parseGuestSessionCookie } from '@/lib/zone/guestSession'
 
-function guestProfileOnboardingComplete(profile: unknown): boolean {
-  if (!profile || typeof profile !== 'object') return false
-  const p = profile as Record<string, unknown>
-  const pc = String(p.postcode ?? '').replace(/\s+/g, '').trim()
-  return (
-    Boolean(String(p.name ?? '').trim()) &&
-    pc.length >= 4 &&
-    Boolean(String(p.household ?? '').trim()) &&
-    Boolean(String(p.home_type ?? '').trim()) &&
-    Boolean(String(p.home_power ?? '').trim()) &&
-    Boolean(String(p.transport ?? '').trim()) &&
-    Boolean(String(p.age ?? '').trim()) &&
-    Boolean(String(p.employment_status ?? '').trim()) &&
-    Boolean(String(p.goal ?? '').trim())
-  )
-}
-
 /**
- * Signed-in `session` cookie, or guest `zz_sid` with a completed profile in `guest_sessions`.
+ * Signed-in session with complete Neon profile, or guest `zz_sid` with completed guest_sessions profile.
  * Cookie alone is not enough — incomplete onboarding stays on `/` until profile fields are filled.
  */
 export async function shouldRedirectLandingToZone(request: NextRequest): Promise<boolean> {
@@ -30,7 +17,36 @@ export async function shouldRedirectLandingToZone(request: NextRequest): Promise
   if (skip === '1' || skip === 'message') return false
 
   const sessionRaw = request.cookies.get(SESSION_COOKIE)?.value?.trim()
-  if (sessionRaw && unsealSessionToken(sessionRaw)) return true
+  const token = sessionRaw ? unsealSessionToken(sessionRaw) : null
+  if (token && isDatabaseConfigured()) {
+    try {
+      const pool = getDbPool()
+      const sessionRes = await pool.query<{ user_id: string }>(
+        `SELECT user_id FROM sessions WHERE token = $1 AND expires_at > now() LIMIT 1`,
+        [token]
+      )
+      const userId = sessionRes.rows[0]?.user_id
+      if (userId) {
+        const userRes = await pool.query<{
+          name: string | null
+          postcode: string | null
+          household: string | null
+          home_type: string | null
+          transport_baseline: string | null
+          employment_status: string | null
+          age_group: string | null
+          user_genome: Record<string, unknown> | null
+        }>(
+          `SELECT name, postcode, household, home_type, transport_baseline, employment_status, age_group, user_genome
+           FROM users WHERE id = $1 LIMIT 1`,
+          [userId]
+        )
+        return userRowOnboardingComplete(userRes.rows[0])
+      }
+    } catch {
+      return false
+    }
+  }
 
   const guestRaw = request.cookies.get(GUEST_SESSION_COOKIE)?.value
   const guestId = guestRaw ? parseGuestSessionCookie(guestRaw) : null

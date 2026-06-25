@@ -8553,7 +8553,8 @@ html.zz-zai-document body {
   }
 }
 
-/* Profile + Solo Focus embed + zone loop answer buttons: 100×100 circles */
+/* Profile + Solo Focus embed + zone loop + settings focus answer buttons: 100×100 circles */
+.settings-page .profile-answer-btn,
 .zz-profile-page .profile-answer-btn,
 .expanded-solo-focus .profile-answer-btn,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn {
@@ -8576,6 +8577,7 @@ html.zz-zai-document body {
   padding: 4px 4px;
   transition: background-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+.settings-page .profile-answer-btn .profile-answer-btn__text,
 .zz-profile-page .profile-answer-btn .profile-answer-btn__text,
 .expanded-solo-focus .profile-answer-btn .profile-answer-btn__text,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn .profile-answer-btn__text {
@@ -8590,22 +8592,26 @@ html.zz-zai-document body {
   max-width: 100%;
   margin: 0;
 }
+.settings-page .profile-answer-btn .profile-answer-btn__text.zz-h4,
 .zz-profile-page .profile-answer-btn .profile-answer-btn__text.zz-h4,
 .expanded-solo-focus .profile-answer-btn .profile-answer-btn__text.zz-h4,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn .profile-answer-btn__text.zz-h4 {
   letter-spacing: var(--zz-track-circle-marvin) !important;
 }
+.settings-page .profile-answer-btn:hover,
 .zz-profile-page .profile-answer-btn:hover,
 .expanded-solo-focus .profile-answer-btn:hover,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn:hover {
   background: var(--color-yellow);
   color: var(--color-purple);
 }
+.settings-page .profile-answer-btn:active,
 .zz-profile-page .profile-answer-btn:active,
 .expanded-solo-focus .profile-answer-btn:active,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn:active {
   transform: scale(var(--zz-press-scale));
 }
+.settings-page .profile-answer-btn.selected,
 .zz-profile-page .profile-answer-btn.selected,
 .expanded-solo-focus .profile-answer-btn.selected,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn.selected {
@@ -8613,6 +8619,7 @@ html.zz-zai-document body {
   color: var(--color-yellow);
   
 }
+.settings-page .profile-answer-btn.selected:hover,
 .zz-profile-page .profile-answer-btn.selected:hover,
 .expanded-solo-focus .profile-answer-btn.selected:hover,
 .discovery-clean-birth.zone-loop-takeover .profile-answer-btn.selected:hover {

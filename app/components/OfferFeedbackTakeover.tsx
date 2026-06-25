@@ -25,6 +25,7 @@ type Props = {
   journeyId: JourneyId
   cardId: string
   cardTitle: string
+  cardHeadline?: string
   signal: OfferFeedbackSignal
   onComplete: (signal: OfferFeedbackSignal) => void
 }
@@ -34,6 +35,7 @@ export function OfferFeedbackTakeover({
   journeyId,
   cardId,
   cardTitle,
+  cardHeadline,
   signal,
   onComplete,
 }: Props) {
@@ -86,7 +88,7 @@ export function OfferFeedbackTakeover({
   if (!open || typeof document === 'undefined') return null
 
   const zoneCategoryLabel = formatZoneCategoryLabel(journeyId)
-  const questionText = offerFeedbackQuestionText(beat, journeyId, cardTitle)
+  const questionText = offerFeedbackQuestionText(beat, journeyId, cardTitle, cardHeadline)
   const motionSafe = reduceMotion === true
   const stepMotion = familyProfileStepProps(motionSafe)
   const controlsAfterQuestionSec = familyControlDelaySec(0, 0.12)

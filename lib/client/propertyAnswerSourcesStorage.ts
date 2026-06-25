@@ -82,6 +82,18 @@ export function applyPropertyPrefillFromApiResponse(res: {
     }
   }
 
+  if (res?.property_intelligence?.confidence) {
+    try {
+      const snap = {
+        ...res.property_intelligence,
+        enrichedAt: new Date().toISOString(),
+      }
+      localStorage.setItem('property_intelligence_snapshot', JSON.stringify(snap))
+    } catch {
+      /* ignore */
+    }
+  }
+
   const prefill = res?.property_prefill
   if (!prefill) return
 

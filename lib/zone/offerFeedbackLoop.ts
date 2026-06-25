@@ -1,5 +1,6 @@
 import type { JourneyId } from '@/lib/journeys'
 import { formatZoneCategoryLabel } from '@/lib/soloFocusCopy'
+import { soloFocusCardTopicLabel } from '@/lib/zone/soloFocusCardContext'
 import { safeGetItem, safeSetItem } from '@/lib/zone/safeProfileStorage'
 import type { OfferSignal } from '@/lib/zone/offerSignals'
 
@@ -95,14 +96,14 @@ export function offerFeedbackBeat(signal: OfferFeedbackSignal): OfferFeedbackBea
 export function offerFeedbackQuestionText(
   beat: OfferFeedbackBeat,
   journeyKey: JourneyId,
-  cardTitle?: string
+  cardTitle?: string,
+  cardHeadline?: string
 ): string {
+  const topic = soloFocusCardTopicLabel({ cardTitle, headline: cardHeadline, journeyId: journeyKey })
   const category = formatZoneCategoryLabel(journeyKey).toLowerCase()
-  const title = cardTitle?.trim()
-  if (title) {
-    return beat.question.replace('this one', title.toLowerCase().slice(0, 48))
-  }
-  return beat.question.replace('this one', `this ${category} card`)
+  return beat.question
+    .replace('this one', topic)
+    .replace('this card', `this ${category} card`)
 }
 
 export function persistOfferFeedbackLocal(entry: Omit<OfferFeedbackLogEntry, 'at'>): void {

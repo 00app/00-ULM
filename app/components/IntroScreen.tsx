@@ -31,6 +31,11 @@ import {
 } from '@/lib/profile/goalWeighting'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { CookieEssentialNotice } from '@/app/components/CookieEssentialNotice'
+import {
+  hasPartialStoredProfile,
+  isStoredProfileOnboardingComplete,
+  readStoredProfileGoal,
+} from '@/lib/profile/onboardingComplete'
 
 type IntroScreenState = 'logo' | 'value-message' | 'goal'
 
@@ -84,16 +89,8 @@ function getSkipFromUrl(): boolean {
   return skip === '1' || skip === 'message'
 }
 
-function profileReadyInLocalStorage(): boolean {
-  if (typeof window === 'undefined') return false
-  const pc = (localStorage.getItem('profile_postcode') ?? '').replace(/\s+/g, '').trim()
-  const name = (localStorage.getItem('profile_name') ?? '').trim()
-  return pc.length >= 4 && name.length > 0
-}
-
 function introGoalAlreadySet(): boolean {
-  if (typeof window === 'undefined') return false
-  return Boolean(localStorage.getItem('profile_goal')?.trim())
+  return Boolean(readStoredProfileGoal())
 }
 
 export default function IntroScreen() {
@@ -104,9 +101,18 @@ export default function IntroScreen() {
 
   useEffect(() => {
     if (getSkipFromUrl()) return
-    if (profileReadyInLocalStorage()) {
+    if (typeof window !== 'undefined') {
+      const step = new URLSearchParams(window.location.search).get('step')
+      if (step === 'goal') return
+    }
+    if (isStoredProfileOnboardingComplete()) {
       trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.ZONE })
       router.replace(ROUTES.ZONE)
+      return
+    }
+    if (readStoredProfileGoal() && hasPartialStoredProfile()) {
+      trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
+      router.replace(ROUTES.PROFILE)
     }
   }, [router])
 
@@ -121,8 +127,15 @@ export default function IntroScreen() {
   useEffect(() => {
     if (urlHandledRef.current) return
     urlHandledRef.current = true
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const step = params.get('step')
     if (getSkipFromUrl()) {
       setScreen('value-message')
+      return
+    }
+    if (step === 'goal') {
+      setScreen('goal')
     }
   }, [])
 

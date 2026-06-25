@@ -13,9 +13,16 @@ function looksLikeProseAttribution(s: string): boolean {
   return false
 }
 
+function isWeakProviderLabel(s: string): boolean {
+  const t = s.trim().toUpperCase()
+  return t.length <= 2 || t === 'ORG' || t === 'CO'
+}
+
 /** Branded short name from a handoff / CTA https URL (e.g. eurostar.com → EUROSTAR). */
 export function offerProviderFromHandoffUrl(url?: string | null): string | null {
-  return hostToVerifiedProviderShort(url)
+  const name = hostToVerifiedProviderShort(url)
+  if (!name || isWeakProviderLabel(name)) return null
+  return name
 }
 
 function hostToVerifiedProviderShort(url?: string | null): string | null {
@@ -28,8 +35,15 @@ function hostToVerifiedProviderShort(url?: string | null): string | null {
     if (host.includes('wrap.org')) return 'WRAP'
     if (host.includes('carbontrust')) return 'CARBON TRUST'
     const parts = host.split('.').filter(Boolean)
+    if (parts.length >= 3 && parts[parts.length - 1] === 'uk') {
+      const tld = parts[parts.length - 2]
+      if (tld === 'org' || tld === 'co' || tld === 'ac') {
+        const base = parts[0]
+        if (base && base.length >= 2) return base.replace(/-/g, ' ').toUpperCase()
+      }
+    }
     const base = parts.length >= 2 ? parts[parts.length - 2] : parts[0]
-    if (!base || base.length < 2) return null
+    if (!base || base.length < 2 || base === 'org' || base === 'co') return null
     return base.replace(/-/g, ' ').toUpperCase()
   } catch {
     return null

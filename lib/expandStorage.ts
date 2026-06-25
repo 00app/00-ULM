@@ -34,6 +34,10 @@ export interface AskZaiContext {
   question: string
   /** Solo Focus / bento headline — Zai must not repeat this as editorial copy. */
   shift_title?: string
+  /** Active card id when user taps Ask / Like from Solo Focus. */
+  card_id?: string
+  card_title?: string
+  source_url?: string
   /** Active Solo Focus embedded question (e.g. DEVICE COUNT?) when user taps Ask */
   journey_question_label?: string | null
   userContext?: any

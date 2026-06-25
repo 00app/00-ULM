@@ -6,6 +6,9 @@ import { isCardVisited } from '@/lib/zone/visitedCards'
 import { buildClientOfferAvoidHint } from '@/lib/zone/offerSignals'
 import { resolveOnboardingResearchJourneys } from '@/lib/zone/onboardingResearchBootstrap'
 import { readPropertyIntelligenceConfidence } from '@/lib/client/propertyAnswerSourcesStorage'
+import { buildResearchProfileFromStorage } from '@/lib/profile/buildResearchProfilePayload'
+import { readPropertyIntelligenceFromGenome } from '@/lib/intelligence/enrichProfileDataFromGenome'
+import type { PropertyIntelligence } from '@/lib/intelligence/propertyIntelligenceTypes'
 
 import { readSessionRestoreProof } from '@/lib/client/sessionRestoreProofStorage'
 
@@ -151,6 +154,72 @@ function markOnboardingJitTriggered(journeyKey: string): void {
   }
 }
 
+function readClientPropertyIntelligence(): PropertyIntelligence | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem('property_intelligence_snapshot')
+    if (raw) {
+      const parsed = JSON.parse(raw) as PropertyIntelligence
+      if (parsed?.confidence && parsed?.enrichedAt) return parsed
+    }
+  } catch {
+    /* ignore */
+  }
+  const imdDecile = readClientImdDecile()
+  if (imdDecile == null) return null
+  const confidence = readPropertyIntelligenceConfidence()
+  return {
+    confidence:
+      (confidence === 'ADDRESS_MATCHED' ||
+      confidence === 'POSTCODE_ONLY' ||
+      confidence === 'PARTIAL'
+        ? confidence
+        : 'POSTCODE_ONLY') as PropertyIntelligence['confidence'],
+    enrichedAt: new Date().toISOString(),
+    deprivation: { found: true, imdDecile },
+  }
+}
+
+/** Fetch server-enriched profile (genome + property_intelligence + funnel priorities). */
+export async function fetchEnrichedResearchProfile(): Promise<{
+  profile: ResearchProfileData | null
+  propertyIntelligence: PropertyIntelligence | null
+}> {
+  if (!browserCanTriggerScrapeSync()) {
+    return { profile: buildResearchProfileFromStorage(), propertyIntelligence: readClientPropertyIntelligence() }
+  }
+  try {
+    const res = await fetch('/api/intelligence/research-profile', { credentials: 'include' })
+    if (!res.ok) {
+      return { profile: buildResearchProfileFromStorage(), propertyIntelligence: readClientPropertyIntelligence() }
+    }
+    const data = (await res.json()) as {
+      profile?: ResearchProfileData | null
+      propertyIntelligence?: PropertyIntelligence | null
+    }
+    const profile =
+      data.profile && Object.keys(data.profile).length > 0
+        ? data.profile
+        : buildResearchProfileFromStorage()
+    const pi =
+      data.propertyIntelligence ??
+      readPropertyIntelligenceFromGenome(
+        data.profile as unknown as Record<string, unknown>
+      ) ??
+      readClientPropertyIntelligence()
+    return { profile, propertyIntelligence: pi }
+  } catch {
+    return { profile: buildResearchProfileFromStorage(), propertyIntelligence: readClientPropertyIntelligence() }
+  }
+}
+
+function resolveBootstrapProfileData(
+  profileData?: ResearchProfileData | null
+): ResearchProfileData | undefined {
+  if (profileData && Object.keys(profileData).length > 0) return profileData
+  return buildResearchProfileFromStorage()
+}
+
 function readClientImdDecile(): number | null {
   if (typeof window === 'undefined') return null
   try {
@@ -170,6 +239,7 @@ export function triggerOnboardingResearchBootstrap(params: {
   postcode: string | null | undefined
   profileData?: ResearchProfileData | null
   dedupe?: boolean
+  propertyIntelligence?: PropertyIntelligence | null
 }): void {
   if (!browserCanTriggerScrapeSync()) return
 
@@ -179,22 +249,9 @@ export function triggerOnboardingResearchBootstrap(params: {
     .toUpperCase()
   if (pc.length < 4) return
 
-  const profileData = params.profileData ?? undefined
-  const imdDecile = readClientImdDecile()
-  const confidence = readPropertyIntelligenceConfidence()
+  const profileData = resolveBootstrapProfileData(params.profileData)
   const propertyIntelligence =
-    imdDecile != null
-      ? {
-          confidence:
-            (confidence === 'ADDRESS_MATCHED' ||
-            confidence === 'POSTCODE_ONLY' ||
-            confidence === 'PARTIAL'
-              ? confidence
-              : 'POSTCODE_ONLY') as import('@/lib/intelligence/propertyIntelligenceTypes').PropertyIntelligenceConfidence,
-          enrichedAt: new Date().toISOString(),
-          deprivation: { found: true, imdDecile },
-        }
-      : undefined
+    params.propertyIntelligence ?? readClientPropertyIntelligence()
   const journeys = resolveOnboardingResearchJourneys({
     goal: profileData?.goal ?? profileData?.primary_goal,
     home_power: profileData?.home_power,
@@ -226,6 +283,8 @@ export async function runProfileResearchHandshake(params: {
   const pc = params.postcode.replace(/\s+/g, '').trim().toUpperCase()
   if (pc.length < 4) return
 
+  let profileData = params.profileData ?? buildResearchProfileFromStorage({ postcode: pc })
+
   const requests: Promise<Response | void>[] = [
     fetch(`/api/scrape-sync?postcode=${encodeURIComponent(pc)}`, {
       credentials: 'include',
@@ -253,10 +312,14 @@ export async function runProfileResearchHandshake(params: {
     }
   }
 
+  const enriched = await fetchEnrichedResearchProfile()
+  if (enriched.profile) profileData = enriched.profile
+
   triggerOnboardingResearchBootstrap({
     postcode: pc,
-    profileData: params.profileData,
+    profileData,
     dedupe: true,
+    propertyIntelligence: enriched.propertyIntelligence,
   })
 
   await Promise.allSettled(requests)
