@@ -196,14 +196,7 @@ export function rockHabitProviderMatchesUrl(habit: RockHabit, url: string): bool
   if (habitTopicConflictsWithOfferUrl(habit, url)) return false
 
   const provider = habit.provider_name.trim().toLowerCase()
-  const fromUrlLabel = (offerProviderFromHandoffUrl(url) ?? '').toLowerCase()
-  if (!fromUrlLabel) return false
-
   const provKey = provider.replace(/[^a-z0-9]+/g, '')
-  const urlKey = fromUrlLabel.replace(/[^a-z0-9]+/g, '')
-  if (provKey.length >= 2 && urlKey.length >= 2) {
-    if (provKey.includes(urlKey) || urlKey.includes(provKey)) return true
-  }
 
   let host = ''
   try {
@@ -268,6 +261,14 @@ export function rockHabitProviderMatchesUrl(habit: RockHabit, url: string): bool
 
   for (const [hostRe, provRe] of aliases) {
     if (hostRe.test(host) && provRe.test(provider)) return true
+  }
+
+  const fromUrlLabel = (offerProviderFromHandoffUrl(url) ?? '').toLowerCase()
+  if (fromUrlLabel) {
+    const urlKey = fromUrlLabel.replace(/[^a-z0-9]+/g, '')
+    if (provKey.length >= 2 && urlKey.length >= 2) {
+      if (provKey.includes(urlKey) || urlKey.includes(provKey)) return true
+    }
   }
 
   const tokens = provider.split(/[^a-z0-9]+/).filter((t) => t.length >= 3)

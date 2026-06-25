@@ -23,6 +23,7 @@ export default function SettingsBentoCard({
   externalLabel,
   children,
   isHero = false,
+  hideLabel = false,
 }: {
   label: string
   headline: string
@@ -32,6 +33,8 @@ export default function SettingsBentoCard({
   externalLabel?: string
   children?: ReactNode
   isHero?: boolean
+  /** Preview tiles — headline + arrow only (no card-top-label). */
+  hideLabel?: boolean
 }) {
   const textColor = isHero ? CARD_TEXT.hero : CARD_TEXT.default
   const bgColor = 'var(--color-pink)'
@@ -78,22 +81,33 @@ export default function SettingsBentoCard({
 
   return (
     <div
-      className={`bento-card-groovy settings-bento-card settings-card-bento flex flex-col justify-between w-full h-full${isHero ? ' settings-hero-card settings-bento-card--info' : ''}`.trim()}
+      className={`bento-card-groovy settings-bento-card settings-card-bento flex flex-col justify-between w-full h-full${isHero ? ' settings-hero-card settings-bento-card--info' : ''}${hideLabel ? ' settings-bento-card--headline-only' : ''}`.trim()}
       style={{
         backgroundColor: bgColor,
         color: textColor,
         boxShadow: 'none',
       }}
     >
-      <div className="flex items-center justify-between w-full shrink-0">
-        <span className="card-top-label" style={{ color: textColor }}>
-          {label}
-        </span>
-        {arrowSlot()}
-      </div>
-      <h3 className="card-headline m-0" style={{ color: textColor }}>
-        {headline}
-      </h3>
+      {hideLabel ? (
+        <div className="settings-headline-only-row flex items-start justify-between gap-2 w-full shrink-0">
+          <h3 className="card-headline m-0 flex-1 min-w-0" style={{ color: textColor }}>
+            {headline}
+          </h3>
+          {arrowSlot()}
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between w-full shrink-0">
+            <span className="card-top-label" style={{ color: textColor }}>
+              {label}
+            </span>
+            {arrowSlot()}
+          </div>
+          <h3 className="card-headline m-0" style={{ color: textColor }}>
+            {headline}
+          </h3>
+        </>
+      )}
       {children}
     </div>
   )

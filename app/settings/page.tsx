@@ -33,13 +33,38 @@ import SettingsBentoCard from '@/app/components/SettingsBentoCard'
 import SettingsProfileGoalRow from '@/app/components/SettingsProfileGoalRow'
 import { readEffectiveProfileGoal } from '@/lib/profile/profileGoalPreference'
 
-const PROFILE_LABELS: Record<string, string> = {
-  name: "What's your name?",
-  postcode: 'Your postcode?',
-  livingSituation: 'Who do you live with?',
-  homeType: 'Your home?',
-  transport: 'How do you get around?',
-  age: 'How old are you?',
+const PROFILE_STORAGE_KEYS = {
+  name: 'name',
+  postcode: 'postcode',
+  livingSituation: 'livingSituation',
+  homeType: 'homeType',
+  transport: 'transport',
+  age: 'age',
+  employmentStatus: 'employmentStatus',
+  homePower: 'homePower',
+} as const
+
+type ProfileStorageKey = keyof typeof PROFILE_STORAGE_KEYS
+
+const PROFILE_FIELD_META: Array<{
+  id: string
+  storageKey: ProfileStorageKey
+  aria: string
+}> = [
+  { id: 'name', storageKey: 'name', aria: 'Name' },
+  { id: 'postcode', storageKey: 'postcode', aria: 'Postcode' },
+  { id: 'livingSituation', storageKey: 'livingSituation', aria: 'Household' },
+  { id: 'homeType', storageKey: 'homeType', aria: 'Home type' },
+  { id: 'transport', storageKey: 'transport', aria: 'Transport' },
+  { id: 'age', storageKey: 'age', aria: 'Age' },
+  { id: 'employmentStatus', storageKey: 'employmentStatus', aria: 'Employment' },
+  { id: 'homePower', storageKey: 'homePower', aria: 'Home power' },
+]
+
+function formatProfilePreviewValue(key: ProfileStorageKey, raw: string): string {
+  const v = raw.trim()
+  if (!v) return ''
+  return getFunkyOptionDisplay(v) || v
 }
 
 /** Pin drop — Update location */
@@ -129,7 +154,15 @@ export default function SettingsPage() {
   const profileForOverview = useMemo(() => {
     void refreshKey
     const p = state.profile
-    if (p) return p
+    if (p) {
+      const homePower =
+        p.homePower?.trim() ||
+        (typeof window !== 'undefined' && hasMounted ? localStorage.getItem('profile_home_power') ?? '' : '')
+      const employmentStatus =
+        p.employmentStatus?.trim() ||
+        (typeof window !== 'undefined' && hasMounted ? localStorage.getItem('profile_employment_status') ?? '' : '')
+      return { ...p, homePower, employmentStatus }
+    }
     if (typeof window === 'undefined' || !hasMounted) return null
     const name = localStorage.getItem('profile_name') ?? ''
     const postcode = localStorage.getItem('profile_postcode') ?? ''
@@ -139,25 +172,29 @@ export default function SettingsPage() {
     const age = localStorage.getItem('profile_age') ?? ''
     if (!name && !postcode) return null
     const employmentStatus = localStorage.getItem('profile_employment_status') ?? ''
-    return { name, postcode, livingSituation, homeType, transport, age, employmentStatus }
+    const homePower = localStorage.getItem('profile_home_power') ?? ''
+    return { name, postcode, livingSituation, homeType, transport, age, employmentStatus, homePower }
   }, [state.profile, hasMounted, refreshKey])
 
   const profileRows = useMemo(() => {
     if (!profileForOverview) return []
-    const rows: { id: string; question: string; answer: string }[] = []
-    const map: Record<string, string> = {
+    const map = {
       name: profileForOverview.name ?? '',
       postcode: profileForOverview.postcode ?? '',
       livingSituation: profileForOverview.livingSituation ?? '',
       homeType: profileForOverview.homeType ?? '',
       transport: profileForOverview.transport ?? '',
       age: profileForOverview.age ?? '',
+      employmentStatus: profileForOverview.employmentStatus ?? '',
+      homePower: profileForOverview.homePower ?? '',
     }
-    ;(['name', 'postcode', 'livingSituation', 'homeType', 'transport', 'age'] as const).forEach((key) => {
-      const val = map[key]?.trim()
-      if (val) rows.push({ id: key, question: PROFILE_LABELS[key] ?? key, answer: val })
+    return PROFILE_FIELD_META.flatMap(({ id, storageKey, aria }) => {
+      const raw = map[storageKey]?.trim()
+      if (!raw) return []
+      const answer = formatProfilePreviewValue(storageKey, raw)
+      if (!answer) return []
+      return [{ id, aria, answer }]
     })
-    return rows
   }, [profileForOverview])
 
   const loopRows = useMemo(() => {
@@ -311,7 +348,7 @@ export default function SettingsPage() {
           </motion.div>
         </section>
 
-        <section className="settings-cards-section" aria-label="Your focus">
+        <section className="settings-cards-section settings-cards-section--focus" aria-label="Your focus">
           <motion.div
             className="settings-answer-grid"
             initial={settingsCellMotion.initial}
@@ -324,30 +361,25 @@ export default function SettingsPage() {
           </motion.div>
         </section>
 
-        <section className="settings-cards-section" aria-label="Truth ledger">
+        <section className="settings-hero-section settings-truth-section" aria-label="Truth ledger">
           <motion.div
-            className="settings-answer-grid"
+            className="settings-hero-inner"
             initial={settingsCellMotion.initial}
             animate={settingsCellMotion.animate}
             transition={{ ...settingsStaggerTransition, delay: 0.1 }}
           >
-            <motion.div className="settings-card-cell">
-              <Link
-                href={ROUTES.SETTINGS_TRUTH}
-                className="bento-card-groovy settings-bento-card flex flex-col justify-between w-full h-full no-underline"
-                style={{ backgroundColor: 'var(--color-pink)', color: 'var(--color-yellow)' }}
-              >
-                <span className="card-top-label">Source of truth</span>
-                <h3 className="card-headline m-0">TRUTH LEDGER</h3>
-                <span className="zz-body" style={{ fontSize: '0.85rem', opacity: 0.9 }}>
-                  Register · profile · behaviour · journey gates
-                </span>
-              </Link>
-            </motion.div>
+            <Link
+              href={ROUTES.SETTINGS_TRUTH}
+              className="bento-card-groovy settings-bento-card settings-truth-link flex flex-col justify-between w-full no-underline"
+              style={{ backgroundColor: 'var(--color-pink)', color: 'var(--color-yellow)' }}
+            >
+              <span className="card-top-label">Source of truth</span>
+              <h3 className="card-headline m-0">TRUTH LEDGER</h3>
+            </Link>
           </motion.div>
         </section>
 
-        <section className="settings-cards-section" aria-label="Profile and journeys">
+        <section className="settings-cards-section settings-cards-section--profile" aria-label="Profile and journeys">
           <motion.div className="settings-answer-grid" transition={settingsStaggerTransition}>
             {profileRows.map((row, i) => (
               <motion.div
@@ -358,8 +390,9 @@ export default function SettingsPage() {
                 transition={{ ...settingsStaggerTransition, delay: 0.05 + i * 0.08 }}
               >
                 <SettingsBentoCard
-                  label={row.question}
+                  label={row.aria}
                   headline={row.answer}
+                  hideLabel
                   editHref={`${ROUTES.PROFILE}?q=${encodeURIComponent(row.id)}&returnTo=${encodeURIComponent(ROUTES.SETTINGS)}`}
                 />
               </motion.div>
@@ -379,6 +412,7 @@ export default function SettingsPage() {
                 <SettingsBentoCard
                   label={row.question}
                   headline={row.answer}
+                  hideLabel
                   onEditClick={() => setActiveLoopEdit(row)}
                 />
               </motion.div>
@@ -395,7 +429,7 @@ export default function SettingsPage() {
                   delay: 0.05 + (profileRows.length + loopRows.length + i) * 0.08,
                 }}
               >
-                <SettingsBentoCard label={row.label} headline={row.headline} />
+                <SettingsBentoCard label={row.label} headline={row.headline} hideLabel />
               </motion.div>
             ))}
 
@@ -416,21 +450,13 @@ export default function SettingsPage() {
                   className="bento-card-groovy settings-bento-card settings-card-bento settings-journey-card-shell flex flex-col justify-between w-full h-full"
                   style={{ backgroundColor: 'var(--color-pink)', color: 'var(--color-yellow)' }}
                 >
-                  <div className="flex items-center justify-between w-full shrink-0 mb-2">
-                    <span className="card-top-label" style={{ color: 'var(--color-yellow)' }}>
-                      {card.title.toUpperCase()}
-                    </span>
+                  <div className="settings-headline-only-row flex items-start justify-between gap-2 w-full shrink-0">
+                    <h3 className="card-headline m-0 flex-1 min-w-0">
+                      {[card.title.toUpperCase(), ...card.answers.map((ans) => (getFunkyOptionDisplay(ans.answer) || ans.answer).toUpperCase())].join(' · ')}
+                    </h3>
                     <div className="card-top-arrow card-top-arrow--action flex items-center justify-center flex-shrink-0" aria-hidden>
                       <PencilIcon />
                     </div>
-                  </div>
-                  <div className="flex flex-col gap-2 settings-journey-answers">
-                    {card.answers.map((ans, j) => (
-                      <div key={j} className="settings-journey-answer-row">
-                        <h4 className="settings-journey-q zz-h4">{ans.question}</h4>
-                        <h4 className="settings-journey-a zz-h4">{ans.answer}</h4>
-                      </div>
-                    ))}
                   </div>
                 </div>
               </motion.div>
@@ -477,7 +503,7 @@ export default function SettingsPage() {
       )}
 
       {/* Solid circle CTAs — horizontal row, wrap to second line; label clipped to disc */}
-      <div className="settings-cta-circles mt-8 z-10 relative">
+      <div className="settings-cta-circles settings-cta-circles--tight z-10 relative">
         <motion.button
           type="button"
           onClick={() => router.push(ROUTES.ZONE)}

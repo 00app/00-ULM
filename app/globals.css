@@ -5447,22 +5447,82 @@ body.zai-composer-dock-active {
 .settings-hero-section {
   width: 100%;
   max-width: min(1240px, 100%);
-  margin: 0 auto 20px;
-  padding-left: 0;
-  padding-right: 0;
+  margin: 0 auto 12px;
+  padding-left: clamp(12px, 4vw, 24px);
+  padding-right: clamp(12px, 4vw, 24px);
   box-sizing: border-box;
+}
+.settings-truth-section {
+  margin-bottom: 8px;
 }
 .settings-hero-inner {
   width: 100%;
+}
+.settings-truth-link.bento-card-groovy {
+  padding: var(--padding-bento) !important;
+  gap: 10px !important;
+  min-height: 0 !important;
+  cursor: pointer;
+  transition: var(--zz-interaction-transition);
+}
+.settings-truth-link .card-headline {
+  font-size: var(--zz-h3-mobile);
+  line-height: 0.8;
+}
+@media (min-width: 1024px) {
+  .settings-truth-link .card-headline {
+    font-size: var(--zz-h3-desktop);
+  }
+}
+@media (hover: hover) {
+  .settings-truth-link:hover {
+    background: var(--color-yellow) !important;
+    color: var(--color-purple) !important;
+  }
 }
 .settings-cards-section {
   width: 100%;
   max-width: min(1240px, 100%);
   margin: 0 auto;
-  padding-left: 0;
-  padding-right: 0;
+  padding-left: clamp(12px, 4vw, 24px);
+  padding-right: clamp(12px, 4vw, 24px);
   padding-bottom: 0;
   box-sizing: border-box;
+}
+.settings-cards-section--focus {
+  margin-bottom: 8px;
+}
+.settings-cards-section--profile {
+  margin-top: 0;
+  padding-top: 0;
+}
+.settings-cards-section--profile .settings-answer-grid {
+  gap: 12px;
+}
+@media (min-width: 1024px) {
+  .settings-cards-section--profile .settings-answer-grid {
+    gap: 16px;
+  }
+}
+.settings-card-cell--wide {
+  grid-column: 1 / -1;
+}
+.settings-bento-card--headline-only {
+  gap: 0 !important;
+  justify-content: flex-start !important;
+}
+.settings-headline-only-row .card-headline {
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+.settings-journey-card-shell.settings-bento-card--headline-only,
+.settings-journey-card-shell .settings-headline-only-row .card-headline {
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+.settings-cta-circles--tight {
+  margin-top: 16px;
+  margin-bottom: 24px;
 }
 .settings-answer-grid {
   display: grid;
