@@ -10,4 +10,6 @@ This workspace uses:
 
 Logic contracts and Sentinel economics live in **`lib/logic/engine.ts`** (v21 consolidated engine).
 
+**Canonical doc:** `docs/GUARDRAILS-AND-PIPELINE.md` — pipeline + guardrail stack + maintenance workflow.
+
 Use this file as the quick index; keep behavioural detail in `mechanical-pulse.mdc` and the engine module.

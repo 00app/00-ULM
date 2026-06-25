@@ -11,4 +11,4 @@ Always apply project rules in `.cursor/rules/`:
 
 Never hardcode BN17 in app/lib/API code. All locality flows through the user's postcode parameter.
 
-Product documentation: **`docs/`** only — index **`docs/HANDBOOK.md`** · **`docs/README.md`**.
+Product documentation: **`docs/`** only — index **`docs/GUARDRAILS-AND-PIPELINE.md`** · **`docs/HANDBOOK.md`** · **`docs/README.md`**.

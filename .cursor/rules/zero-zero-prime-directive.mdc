@@ -38,4 +38,4 @@ alwaysApply: true
 - **Clean Focus:** Always run **`stripExpandedCardTitleNoise`** on Solo Focus H1s.
 - **Neon host:** Pooler hostname in **`DATABASE_URL`** must match **`MANIFEST_NEON_POOLER_HOST`** in `lib/intelligence/manifest.ts` (password only via Neon / Vercel env).
 
-Reference: `docs/HANDBOOK.md`, `docs/INTELLIGENCE-LOOP-MANIFEST.md`, and `mechanical-pulse.mdc`.
+Reference: `docs/GUARDRAILS-AND-PIPELINE.md`, `docs/HANDBOOK.md`, and `mechanical-pulse.mdc`.

@@ -145,7 +145,7 @@ export default function DiagnosticsSheet({
             <p className="mechanical-diagnostics-sheet__footer m-0">
               use less, more.{' '}
               <a
-                href="https://github.com/00app/00-ULM/blob/main/docs/INTELLIGENCE-LOOP-MANIFEST.md"
+                href="https://github.com/00app/00-ULM/blob/main/docs/GUARDRAILS-AND-PIPELINE.md"
                 className="mechanical-diagnostics-sheet__map-link"
                 target="_blank"
                 rel="noopener noreferrer"

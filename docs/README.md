@@ -1,48 +1,69 @@
 # Zero Zero documentation
 
-All **product and ops** documentation for the **00-00** repo lives in this folder.
+**Start here:** [GUARDRAILS-AND-PIPELINE.md](GUARDRAILS-AND-PIPELINE.md) — one map for rules, code gates, CI, and the true data pipeline.
 
-## Start here — one document
+---
+
+## Tier 1 — Daily use
 
 | Doc | Use when |
-|-----|----------|
-| **[HANDBOOK.md](HANDBOOK.md)** | **Master audit doc** — pipeline map, APIs, credit boundaries, scrape URL registry, copy, loops (synthesized front + full annexes) |
-| **[APP-OVERVIEW-AND-TESTING.md](APP-OVERVIEW-AND-TESTING.md)** | **Full app overview** — content sources, £/kg calculations, testing matrix |
+| --- | --- |
+| **[GUARDRAILS-AND-PIPELINE.md](GUARDRAILS-AND-PIPELINE.md)** | **Canonical** — guardrails, pipeline, personalization, ship workflow |
+| **[APP-OVERVIEW-AND-TESTING.md](APP-OVERVIEW-AND-TESTING.md)** | Content sources, £/kg math, full UAT matrix |
+| **[INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md)** | When scrapes fire, read path, Hermes repair |
+| **[DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md)** | Local smoke, deploy, env health |
 
-Open **`HANDBOOK.md`** to check everything in one place. Annex sections contain the full text of each satellite listed below (regenerate with `python3 scripts/consolidate-handbook.py` after editing sources). If a satellite is not in your local checkout, treat the matching **HANDBOOK annex** as authoritative.
+## Tier 2 — Feature depth (edit first, then consolidate)
 
-## Satellite docs (edit these first, then consolidate)
-
-| File | Topic |
-|------|--------|
-| [USER-FLOW-AND-DATA-PIPELINE.md](USER-FLOW-AND-DATA-PIPELINE.md) | User flow, category contract, deploy checklist |
-| [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) | Scrape, copy, bento, Solo Focus, tone |
+| Doc | Topic |
+| --- | --- |
+| [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) | Profile + MC → JIT, grid, SMS |
 | [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) | Questions, answers API, scrape-sync |
-| [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) | Profile + MC questions → JIT, grid, offers, SMS |
-| [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md) | Trigger matrix, content retrieval, URL precedence |
-| [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md) | Zai boundaries + question registry |
-| [HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md) | API cost tiers |
-| [ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md) | Ceilings, spawn, headline limits |
-| [INTELLIGENCE-LOOP-MANIFEST.md](INTELLIGENCE-LOOP-MANIFEST.md) | Hermes, Firecrawl, Gemini persist |
-| [FULL-APP-SPEC.md](FULL-APP-SPEC.md) | Full architecture, APIs, DB |
-| [PRODUCT-ARCHITECTURE-SPEC.md](PRODUCT-ARCHITECTURE-SPEC.md) | Product architecture notes |
-| [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) | Vercel CI, promote, Node |
-| [DEV-TEST-AUDIT.md](DEV-TEST-AUDIT.md) | Local smoke, SQL, Hermes, **UAT gate** |
-| [MOTION-FAMILY.md](MOTION-FAMILY.md) | Motion DNA (delivery only) |
+| [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) | Copy, bento, Solo Focus |
+| [ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md) | Ceilings, discovery injects |
+| [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md) | Zai boundaries, question registry |
+| [USER-FLOW-AND-DATA-PIPELINE.md](USER-FLOW-AND-DATA-PIPELINE.md) | User journey narrative |
+
+## Tier 3 — Ops & infra
+
+| Doc | Topic |
+| --- | --- |
+| [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) | Vercel CI, promote |
 | [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md) | Oracle VPS cron |
-| [HERMES-ULM-JIT-BRIEF.md](HERMES-ULM-JIT-BRIEF.md) | JIT scrape vs Hermes |
+| [HERMES-ULM-JIT-BRIEF.md](HERMES-ULM-JIT-BRIEF.md) | JIT vs Hermes repair |
+| [HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md) | API cost tiers |
 | [SENTINEL.md](SENTINEL.md) | Sentinel live layer |
-| [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) | Gary mode, pattern shift, inject paths |
-| [PUBLIC-UK-APIS.md](PUBLIC-UK-APIS.md) | UK public API reference |
-| [APP-FLOW-AND-PIPELINE.md](APP-FLOW-AND-PIPELINE.md) | Architect spec (routes, governance) |
-| [PRODUCT-ROADMAP.md](PRODUCT-ROADMAP.md) | Phase 0–3 pivot checklist (instrumentation → projects) |
+| [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) | Gary mode, pattern shift |
+
+## Tier 4 — Reference
+
+| Doc | Topic |
+| --- | --- |
+| [FULL-APP-SPEC.md](FULL-APP-SPEC.md) | Full architecture, APIs, DB |
+| [PUBLIC-UK-APIS.md](PUBLIC-UK-APIS.md) | UK public APIs |
+| [MOTION-FAMILY.md](MOTION-FAMILY.md) | Motion DNA |
+| [SECURITY-AUDIT.md](SECURITY-AUDIT.md) | Security notes |
+| [PRODUCT-ROADMAP.md](PRODUCT-ROADMAP.md) | Phase checklist |
+
+## Generated audit mirror
+
+| Doc | Regenerate |
+| --- | --- |
+| **[HANDBOOK.md](HANDBOOK.md)** | `python3 scripts/consolidate-handbook.py` |
+
+---
 
 ## Not in `docs/` (by design)
 
-| Path | Why |
-|------|-----|
-| **[../README.md](../README.md)** | GitHub / npm repo entry (links here) |
-| **`../config/README.md`** | Config folder convention |
-| **`../.cursor/rules/`** | Cursor agent rules |
-| **`../.agents/AGENTS.md`** | Agent orchestration manifest |
-| **`../lib/agents/ZeroHunter/SOUL.md`** | Agent persona next to code |
+| Path | Role |
+| --- | --- |
+| [../.cursor/rules/](../.cursor/rules/) | Cursor agent rules (always on) |
+| [../.agents/AGENTS.md](../.agents/AGENTS.md) | Agent orchestration |
+| [../lib/logic/engine.ts](../lib/logic/engine.ts) | Economics constants |
+| [../scripts/verify-mechanical-truth.ts](../scripts/verify-mechanical-truth.ts) | CI mechanical truth |
+
+## Ship gate (one line)
+
+```bash
+npm run verify && npm run deploy
+```

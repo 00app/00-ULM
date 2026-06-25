@@ -10,12 +10,14 @@ SYNTH_START = "<!-- SYNTHESIZED:START -->"
 SYNTH_END = "<!-- SYNTHESIZED:END -->"
 
 SOURCES = [
+    ("GUARDRAILS-AND-PIPELINE.md", "Guardrails & pipeline (canonical)", "annex-guardrails--pipeline-canonical"),
+    ("INTELLIGENCE-PIPELINE-FINAL.md", "Intelligence pipeline (trigger matrix)", "annex-intelligence-pipeline-trigger-matrix"),
+    ("PROFILE-FIELDS-GRID-UNLOCKS.md", "Profile fields → grid unlocks", "annex-profile-fields-grid-unlocks"),
     ("APP-OVERVIEW-AND-TESTING.md", "App overview & testing (full)", "annex-app-overview--testing-full"),
     ("USER-FLOW-AND-DATA-PIPELINE.md", "User flow & runtime pipeline", "annex-user-flow--runtime-pipeline"),
     ("ZONE-CONTENT-AND-DATA.md", "Zone content, scrape & presentation", "annex-zone-content-scrape--presentation"),
     ("PROFILE-ANSWERS-ZONE-TECH.md", "Profile, journey questions & mechanical truth", "annex-profile-journey-questions--mechanical-truth"),
     ("ZAI-AND-QUESTIONS-RULES.md", "Zai, Deep Dive & question registry", "annex-zai-deep-dive--question-registry"),
-    ("INTELLIGENCE-LOOP-MANIFEST.md", "Intelligence loop (Hermes, Neon, verify)", "annex-intelligence-loop-hermes-neon-verify"),
     ("ULM-APPLICATION-LOOP.md", "ULM ceilings & spawn", "annex-ulm-ceilings--spawn"),
     ("HYBRID-DATA-PIPELINE.md", "Hybrid data pipeline (cost tiers)", "annex-hybrid-data-pipeline-cost-tiers"),
     ("FULL-APP-SPEC.md", "Full app spec (architecture, APIs, DB)", "annex-full-app-spec-architecture-apis-db"),
@@ -27,8 +29,6 @@ SOURCES = [
     ("DEPLOY-VERCEL.md", "Vercel deploy & checks", "annex-vercel-deploy--checks"),
     ("DEV-TEST-AUDIT.md", "Dev test & audit runbook", "annex-dev-test--audit-runbook"),
     ("PUBLIC-UK-APIS.md", "UK public APIs", "annex-uk-public-apis"),
-    ("APP-FLOW-AND-PIPELINE.md", "App flow & pipeline (architect)", "annex-app-flow--pipeline-architect"),
-    ("PRODUCT-ARCHITECTURE-SPEC.md", "Product architecture notes", "annex-product-architecture-notes"),
 ]
 
 
