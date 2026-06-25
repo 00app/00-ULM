@@ -5524,6 +5524,44 @@ body.zai-composer-dock-active {
   margin-top: 16px;
   margin-bottom: 24px;
 }
+/* Truth ledger — same grid shell as Settings; one unified 3-col grid, headline-only tiles */
+.truth-ledger-page .truth-ledger-hero {
+  margin-bottom: 8px;
+}
+.truth-ledger-page .truth-ledger-hero-metrics {
+  margin-top: 4px;
+}
+.truth-ledger-page .truth-ledger-sync-line {
+  font-family: var(--font-marvin);
+  font-size: var(--zz-h4-mobile);
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  color: var(--color-yellow);
+  margin-top: 10px;
+  opacity: 0.92;
+}
+@media (min-width: 1024px) {
+  .truth-ledger-page .truth-ledger-sync-line {
+    font-size: var(--zz-h4-desktop);
+  }
+}
+.truth-ledger-page .settings-cards-section--ledger {
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.truth-ledger-page .truth-ledger-grid.settings-answer-grid {
+  gap: 12px;
+}
+@media (min-width: 1024px) {
+  .truth-ledger-page .truth-ledger-grid.settings-answer-grid {
+    gap: 16px;
+  }
+}
+.truth-ledger-page .settings-bento-card:not(.settings-hero-card) .card-headline {
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+}
 .settings-answer-grid {
   display: grid;
   grid-template-columns: 1fr;

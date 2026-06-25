@@ -14,10 +14,7 @@ import {
 } from '@/lib/motion-family'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import ZoneBackToZoneLink from '@/app/components/ZoneBackToZoneLink'
-import SettingsBentoCard, {
-  SettingsJourneyCardShell,
-  SettingsJourneyFactRow,
-} from '@/app/components/SettingsBentoCard'
+import SettingsBentoCard from '@/app/components/SettingsBentoCard'
 
 const ISSUE_LABELS: Record<string, string> = {
   no_neon_row: 'No Neon research row',
@@ -50,10 +47,79 @@ function humanize(value: string): string {
   return value.replace(/_/g, ' ').toUpperCase()
 }
 
+function joinSummary(parts: Array<string | null | undefined>): string {
+  return parts
+    .map((p) => p?.trim())
+    .filter(Boolean)
+    .join(' · ')
+}
+
 function epcVerifyUrl(postcode: string | null | undefined): string | null {
   const pc = (postcode ?? '').replace(/\s+/g, '').trim()
   if (pc.length < 4) return null
   return `https://find-energy-certificate.service.gov.uk/find-a-certificate/search-by-postcode?postcode=${encodeURIComponent(pc)}`
+}
+
+function buildRegisterSummary(ledger: IntelligenceLedger): string {
+  const pi = ledger.propertyIntelligence
+  return joinSummary([
+    humanize(pi?.confidence ?? 'postcode only'),
+    pi?.epc?.currentEnergyRating
+      ? `EPC ${pi.epc.currentEnergyRating}→${pi.epc.potentialEnergyRating ?? '—'}`
+      : null,
+    pi?.flood?.floodRiskZone ? `FLOOD ${humanize(pi.flood.floodRiskZone)}` : null,
+    pi?.landRegistry?.propertyValueBand ? `VALUE ${humanize(pi.landRegistry.propertyValueBand)}` : null,
+    pi?.dno?.dnoRegion ? `DNO ${humanize(pi.dno.dnoRegion)}` : null,
+    pi?.deprivation?.imdDecile != null ? `IMD ${pi.deprivation.imdDecile}` : null,
+    pi?.solar?.annualIrradianceKwhM2 != null ? `SOLAR ${pi.solar.annualIrradianceKwhM2} KWH/M²` : null,
+    pi?.epc?.isStale ? 'EPC STALE' : null,
+  ])
+}
+
+function buildProfileSummary(ledger: IntelligenceLedger): string {
+  return joinSummary([
+    humanize(ledger.profile.goal ?? 'goal unset'),
+    `STEPS ${ledger.profile.profileStepsComplete}/${ledger.profile.profileStepsTotal}`,
+    ledger.profile.homePower ? humanize(ledger.profile.homePower) : null,
+    ledger.profile.employmentStatus ? humanize(ledger.profile.employmentStatus) : null,
+    `LOOP ${ledger.counts.loopAnswersAnswered}/${ledger.counts.loopQuestionsTotal}`,
+    ledger.profile.propertyPrefillCount > 0 ? `${ledger.profile.propertyPrefillCount} EPC PRE-FILLS` : null,
+  ])
+}
+
+function buildBehaviourSummary(ledger: IntelligenceLedger): string {
+  return joinSummary([
+    `${ledger.counts.likes} LIKES`,
+    `${ledger.counts.dislikes} DISLIKES`,
+    `${ledger.counts.indifferent} INDIFFERENT`,
+    `${ledger.counts.visitedJourneys} VISITED`,
+    `${ledger.counts.actioned} ACTIONED`,
+  ])
+}
+
+function buildJourneySummary(row: IntelligenceLedger['journeys'][number]): string {
+  const save =
+    row.savingGbp != null && row.savingGbp > 0 ? `SAVE £${Math.round(row.savingGbp)}` : 'SAVE —'
+  const issues =
+    row.issues.length > 0
+      ? row.issues.map((id) => (ISSUE_LABELS[id] ?? id).toUpperCase()).join(' · ')
+      : null
+  return joinSummary([
+    statusLabel(row.displayStatus),
+    save,
+    row.verified ? 'VERIFIED' : null,
+    row.lastVisitedAt ? 'VISITED' : null,
+    row.agentHeadline ? row.agentHeadline.toUpperCase() : null,
+    issues ? `ISSUES ${issues}` : null,
+  ])
+}
+
+function buildSignalSummary(sig: IntelligenceLedger['recentSignals'][number]): string {
+  return joinSummary([
+    (sig.journeyKey ?? '—').toUpperCase(),
+    sig.feedbackAnswer?.toUpperCase(),
+    formatWhen(sig.at),
+  ])
 }
 
 export default function TruthLedgerClient() {
@@ -97,12 +163,11 @@ export default function TruthLedgerClient() {
     void refresh()
   }, [refresh])
 
-  const pi = ledger?.propertyIntelligence
   const epcUrl = epcVerifyUrl(ledger?.profile.postcode)
 
   return (
     <motion.div
-      className="settings-page"
+      className="settings-page truth-ledger-page"
       style={{
         color: 'var(--color-yellow)',
         minHeight: '100vh',
@@ -122,14 +187,17 @@ export default function TruthLedgerClient() {
 
       <div className="settings-grid-wrap">
         {error ? (
-          <h4 className="zz-h4 text-left max-w-[28rem] w-full mx-auto m-0 mb-4 px-[clamp(12px,4vw,24px)] box-border" style={{ color: 'var(--color-yellow)' }}>
+          <h4
+            className="zz-h4 text-left max-w-[28rem] w-full mx-auto m-0 mb-4 px-[clamp(12px,4vw,24px)] box-border"
+            style={{ color: 'var(--color-yellow)' }}
+          >
             {error}
           </h4>
         ) : null}
 
         {ledger ? (
           <>
-            <section className="settings-hero-section" aria-label="Audit state">
+            <section className="settings-hero-section truth-ledger-hero" aria-label="Audit state">
               <motion.div
                 className="settings-hero-inner"
                 initial={cellMotion.initial}
@@ -138,7 +206,7 @@ export default function TruthLedgerClient() {
               >
                 <SettingsBentoCard label="Source of truth" headline={formatAuditState(ledger.auditState)} isHero>
                   <div
-                    className="text-left mt-1 settings-overview-data"
+                    className="text-left settings-overview-data truth-ledger-hero-metrics"
                     style={{ color: 'var(--color-yellow)', ['--color-ink' as string]: 'var(--color-yellow)' }}
                   >
                     <div className="grid grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-0 items-start settings-overview-impact-grid">
@@ -157,17 +225,17 @@ export default function TruthLedgerClient() {
                         {ledger.counts.truthSavings}
                       </span>
                     </div>
-                    <h4 className="settings-council-blurb">
-                      {ledger.profile.postcode?.toUpperCase() ?? '—'} · synced {formatWhen(ledger.generatedAt)}
-                    </h4>
+                    <p className="truth-ledger-sync-line m-0">
+                      {(ledger.profile.postcode ?? '—').toUpperCase()} · SYNCED {formatWhen(ledger.generatedAt)}
+                    </p>
                   </div>
                 </SettingsBentoCard>
               </motion.div>
             </section>
 
-            <section className="settings-cards-section" aria-label="Register, profile, behaviour">
+            <section className="settings-cards-section settings-cards-section--ledger" aria-label="Truth ledger grid">
               <motion.div
-                className="settings-answer-grid"
+                className="settings-answer-grid truth-ledger-grid"
                 initial={cellMotion.initial}
                 animate={cellMotion.animate}
                 transition={{ ...stagger, delay: 0.1 }}
@@ -175,146 +243,53 @@ export default function TruthLedgerClient() {
                 <motion.div className="settings-card-cell" transition={stagger}>
                   <SettingsBentoCard
                     label="Register"
-                    headline={humanize(pi?.confidence ?? 'postcode only')}
+                    headline={buildRegisterSummary(ledger)}
                     externalHref={epcUrl ?? undefined}
                     externalLabel="Verify EPC on gov.uk"
-                  >
-                    <div className="flex flex-col gap-2 settings-journey-answers">
-                      {pi?.epc?.currentEnergyRating ? (
-                        <SettingsJourneyFactRow
-                          label="EPC"
-                          value={`${pi.epc.currentEnergyRating} → ${pi.epc.potentialEnergyRating ?? '—'}`}
-                        />
-                      ) : null}
-                      {pi?.deprivation?.imdDecile != null ? (
-                        <SettingsJourneyFactRow label="IMD decile" value={String(pi.deprivation.imdDecile)} />
-                      ) : null}
-                      {pi?.flood?.floodRiskZone ? (
-                        <SettingsJourneyFactRow label="Flood" value={humanize(pi.flood.floodRiskZone)} />
-                      ) : null}
-                      {pi?.solar?.annualIrradianceKwhM2 != null ? (
-                        <SettingsJourneyFactRow label="Solar" value={`${pi.solar.annualIrradianceKwhM2} kWh/m²/yr`} />
-                      ) : null}
-                      {pi?.landRegistry?.propertyValueBand ? (
-                        <SettingsJourneyFactRow label="Value band" value={humanize(pi.landRegistry.propertyValueBand)} />
-                      ) : null}
-                      {pi?.dno?.dnoRegion ? (
-                        <SettingsJourneyFactRow label="DNO" value={humanize(pi.dno.dnoRegion)} />
-                      ) : null}
-                      {pi?.epc?.isStale ? (
-                        <SettingsJourneyFactRow label="EPC" value="STALE (>10YR)" />
-                      ) : null}
-                    </div>
-                  </SettingsBentoCard>
+                  />
                 </motion.div>
 
                 <motion.div className="settings-card-cell" transition={{ ...stagger, delay: 0.06 }}>
-                  <SettingsBentoCard label="Profile" headline={humanize(ledger.profile.goal ?? 'goal unset')}>
-                    <div className="flex flex-col gap-2 settings-journey-answers">
-                      <SettingsJourneyFactRow
-                        label="Steps"
-                        value={`${ledger.profile.profileStepsComplete}/${ledger.profile.profileStepsTotal}`}
-                      />
-                      <SettingsJourneyFactRow label="Power" value={humanize(ledger.profile.homePower ?? '—')} />
-                      <SettingsJourneyFactRow
-                        label="Employed"
-                        value={humanize(ledger.profile.employmentStatus ?? '—')}
-                      />
-                      <SettingsJourneyFactRow
-                        label="Loop"
-                        value={`${ledger.counts.loopAnswersAnswered}/${ledger.counts.loopQuestionsTotal}`}
-                      />
-                      {ledger.profile.propertyPrefillCount > 0 ? (
-                        <SettingsJourneyFactRow
-                          label="EPC pre-fills"
-                          value={String(ledger.profile.propertyPrefillCount)}
-                        />
-                      ) : null}
-                    </div>
-                  </SettingsBentoCard>
+                  <SettingsBentoCard label="Profile" headline={buildProfileSummary(ledger)} />
                 </motion.div>
 
                 <motion.div className="settings-card-cell" transition={{ ...stagger, delay: 0.12 }}>
-                  <SettingsBentoCard label="Behaviour" headline={`${ledger.counts.likes} LIKES`} editHref={ROUTES.LIKES}>
-                    <div className="flex flex-col gap-2 settings-journey-answers">
-                      <SettingsJourneyFactRow label="Dislikes" value={String(ledger.counts.dislikes)} />
-                      <SettingsJourneyFactRow label="Indifferent" value={String(ledger.counts.indifferent)} />
-                      <SettingsJourneyFactRow label="Visited" value={String(ledger.counts.visitedJourneys)} />
-                      <SettingsJourneyFactRow label="Actioned" value={String(ledger.counts.actioned)} />
-                    </div>
-                  </SettingsBentoCard>
+                  <SettingsBentoCard
+                    label="Behaviour"
+                    headline={buildBehaviourSummary(ledger)}
+                    editHref={ROUTES.LIKES}
+                  />
                 </motion.div>
-              </motion.div>
-            </section>
 
-            <section className="settings-cards-section" aria-label="Journey research gates">
-              <motion.div className="settings-answer-grid" transition={stagger}>
                 {ledger.journeys.map((row, i) => (
                   <motion.div
                     key={row.journeyId}
                     className="settings-card-cell"
-                    initial={cellMotion.initial}
-                    animate={cellMotion.animate}
-                    transition={{ ...stagger, delay: 0.05 + i * 0.06 }}
+                    transition={{ ...stagger, delay: 0.05 + (3 + i) * 0.04 }}
                   >
-                    <SettingsJourneyCardShell
+                    <SettingsBentoCard
                       label={row.journeyId.toUpperCase()}
+                      headline={buildJourneySummary(row)}
                       externalHref={row.sourceUrl ?? row.offerUrl ?? undefined}
                       externalLabel={row.sourceUrl ? 'Open source' : row.offerUrl ? 'Open offer' : undefined}
-                    >
-                      <SettingsJourneyFactRow label="Status" value={statusLabel(row.displayStatus)} />
-                      <SettingsJourneyFactRow
-                        label="Save"
-                        value={row.savingGbp != null && row.savingGbp > 0 ? `£${Math.round(row.savingGbp)}` : '—'}
-                      />
-                      {row.verified ? <SettingsJourneyFactRow label="Verified" value="YES" /> : null}
-                      {row.lastVisitedAt ? <SettingsJourneyFactRow label="Visited" value="YES" /> : null}
-                      {row.agentHeadline ? (
-                        <SettingsJourneyFactRow label="Headline" value={row.agentHeadline} />
-                      ) : null}
-                      {row.issues.length > 0 ? (
-                        <SettingsJourneyFactRow
-                          label="Issues"
-                          value={row.issues.map((id) => ISSUE_LABELS[id] ?? id).join(' · ')}
-                        />
-                      ) : null}
-                      {row.offerUrl && row.sourceUrl ? (
-                        <SettingsJourneyFactRow label="Offer" value="LINK IN ARROW" />
-                      ) : null}
-                    </SettingsJourneyCardShell>
+                    />
+                  </motion.div>
+                ))}
+
+                {ledger.recentSignals.map((sig, i) => (
+                  <motion.div
+                    key={`${sig.signal}-${sig.cardId}-${sig.at}`}
+                    className="settings-card-cell"
+                    transition={{ ...stagger, delay: 0.05 + (3 + ledger.journeys.length + i) * 0.04 }}
+                  >
+                    <SettingsBentoCard
+                      label={sig.signal.toUpperCase()}
+                      headline={joinSummary([(sig.cardTitle ?? sig.cardId).toUpperCase(), buildSignalSummary(sig)])}
+                    />
                   </motion.div>
                 ))}
               </motion.div>
             </section>
-
-            {ledger.recentSignals.length > 0 ? (
-              <section className="settings-cards-section" aria-label="Recent signals">
-                <motion.div className="settings-answer-grid" transition={stagger}>
-                  {ledger.recentSignals.map((sig, i) => (
-                    <motion.div
-                      key={`${sig.signal}-${sig.cardId}-${sig.at}`}
-                      className="settings-card-cell"
-                      initial={cellMotion.initial}
-                      animate={cellMotion.animate}
-                      transition={{ ...stagger, delay: 0.05 + i * 0.06 }}
-                    >
-                      <SettingsBentoCard
-                        label={sig.signal.toUpperCase()}
-                        headline={(sig.cardTitle ?? sig.cardId).toUpperCase()}
-                      >
-                        <div className="flex flex-col gap-2 settings-journey-answers">
-                          <SettingsJourneyFactRow label="Journey" value={(sig.journeyKey ?? '—').toUpperCase()} />
-                          {sig.feedbackAnswer ? (
-                            <SettingsJourneyFactRow label="Feedback" value={sig.feedbackAnswer.toUpperCase()} />
-                          ) : null}
-                          <SettingsJourneyFactRow label="When" value={formatWhen(sig.at)} />
-                        </div>
-                      </SettingsBentoCard>
-                    </motion.div>
-                  ))}
-                </motion.div>
-              </section>
-            ) : null}
           </>
         ) : null}
 
@@ -324,7 +299,7 @@ export default function TruthLedgerClient() {
           </h4>
         ) : null}
 
-        <div className="settings-cta-circles mt-8 z-10 relative">
+        <div className="settings-cta-circles settings-cta-circles--tight z-10 relative">
           <motion.button
             type="button"
             onClick={() => void refresh()}
