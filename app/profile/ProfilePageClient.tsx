@@ -21,6 +21,7 @@ import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import type { ProfileAge } from '@/app/context/AppContext'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import { persistProfileLocality, prefetchProfileLocalityForHandoff, resolveProfileLocalityForPostcode } from '@/lib/geocode/resolvePostcodeLocality'
+import { checkUkPostcode, formatPostcodeOutcodeFallback, isValidUkPostcode } from '@/lib/geocode/ukPostcode'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
 import { persistSessionRestoreProof } from '@/lib/client/sessionRestoreProofStorage'
@@ -112,7 +113,7 @@ function isProfileOnboardingComplete(v: Record<string, string>): boolean {
   const pc = (v.postcode ?? '').replace(/\s+/g, '').trim()
   return (
     Boolean(v.name?.trim()) &&
-    pc.length >= 4 &&
+    isValidUkPostcode(pc) &&
     Boolean(v.livingSituation?.trim()) &&
     Boolean(v.homeType?.trim()) &&
     Boolean(v.powerType?.trim()) &&
@@ -128,7 +129,7 @@ function firstIncompleteProfileStepIndex(v: Record<string, string>): number {
     const q = PROFILE_QUESTIONS[i]
     const raw = String(v[q.id] ?? '').trim()
     if (q.id === 'postcode') {
-      if (raw.replace(/\s+/g, '').length < 4) return i
+      if (!isValidUkPostcode(raw.replace(/\s+/g, ''))) return i
       continue
     }
     if (!raw) return i
@@ -168,6 +169,8 @@ export default function ProfilePageClient() {
   const [profileHydrated, setProfileHydrated] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
   const [keyboardLift, setKeyboardLift] = useState(false)
+  const [postcodeLocalityLabel, setPostcodeLocalityLabel] = useState('')
+  const [postcodeFormatValid, setPostcodeFormatValid] = useState(false)
 
   const recenterProfileStep = useCallback(() => {
     setKeyboardLift(false)
@@ -321,14 +324,29 @@ export default function ProfilePageClient() {
 
   useEffect(() => {
     const pc = (values.postcode ?? '').replace(/\s+/g, '').trim()
-    if (pc.length < 4) return
+    if (pc.length < 2) {
+      setPostcodeLocalityLabel('')
+      setPostcodeFormatValid(false)
+      return
+    }
+    const outcode = formatPostcodeOutcodeFallback(pc)
+    const valid = isValidUkPostcode(pc)
+    setPostcodeFormatValid(valid)
+    if (!valid) {
+      setPostcodeLocalityLabel(pc.length >= 3 ? outcode : '')
+      return
+    }
+    setPostcodeLocalityLabel(outcode)
     const houseNumber = (values.houseNumber ?? '').trim()
     const tid = window.setTimeout(() => {
       void resolveProfileLocalityForPostcode(pc)
         .then(({ label, source }) => {
           if (label && source !== 'postcode') persistProfileLocality(pc, label)
+          setPostcodeLocalityLabel(source === 'postcode' ? outcode : label)
         })
-        .catch(() => {})
+        .catch(() => {
+          setPostcodeLocalityLabel(outcode)
+        })
       fetch('/api/local-intelligence', {
         method: 'POST',
         credentials: 'include',
@@ -674,14 +692,16 @@ export default function ProfilePageClient() {
   const handlePostcodeContinue = useCallback(() => {
     if (!current || current.id !== 'postcode' || submittingRef.current || isSubmitting) return
     const trimmedPc = (inputRef.current?.value ?? values.postcode ?? '').trim()
-    if (trimmedPc.replace(/\s+/g, '').length < 4) return
+    const compact = trimmedPc.replace(/\s+/g, '').toUpperCase()
+    if (!isValidUkPostcode(compact)) return
     const trimmedHouse = (houseNumberRef.current?.value ?? values.houseNumber ?? '').trim()
     inputRef.current?.blur()
     houseNumberRef.current?.blur()
     recenterProfileStep()
+    const normalized = checkUkPostcode(compact).normalized
     advanceProfileStep({
       ...values,
-      postcode: trimmedPc.replace(/\s+/g, ' ').trim().toUpperCase(),
+      postcode: normalized,
       houseNumber: trimmedHouse,
     })
   }, [current, values, isSubmitting, advanceProfileStep, recenterProfileStep])
@@ -823,6 +843,11 @@ export default function ProfilePageClient() {
                     name="house-number"
                     className="profile-house-number-input"
                   />
+                  {postcodeLocalityLabel ? (
+                    <h4 className="zz-h4 m-0 profile-postcode-locality" aria-live="polite">
+                      {postcodeLocalityLabel}
+                    </h4>
+                  ) : null}
                 </div>
               ) : (
                 <InputField
@@ -845,7 +870,7 @@ export default function ProfilePageClient() {
                 optionIndex={0}
                 delaySeconds={familyControlDelaySec(0)}
                 className=""
-                disabled={isSubmitting}
+                disabled={isSubmitting || (current.id === 'postcode' && !postcodeFormatValid)}
                 onClick={() => {
                   if (current.id === 'postcode') {
                     handlePostcodeContinue()

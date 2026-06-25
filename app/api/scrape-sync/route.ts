@@ -55,6 +55,7 @@ import {
   maybeBirthAchievementFromScrapeSync,
   urlShieldForAchievement,
 } from '@/lib/zone/scrapeSyncLifestyle'
+import { enrichResearchProfileFromSession } from '@/lib/intelligence/enrichProfileDataFromGenome'
 import {
   fetchUtilitiesPublicSnapshot,
   readHomePowerFromGenome,
@@ -96,7 +97,7 @@ function buildSessionResearchProfileData(
       profileData.hermes_skill_file = skillFile.slice(0, 6000)
     }
   }
-  return profileData
+  return enrichResearchProfileFromSession(profileData, session)
 }
 
 /** Hermes bearer may supply explicit user_id; browser clients must match session cookie. */

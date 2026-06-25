@@ -6,6 +6,7 @@
 import { getDbPool } from '@/lib/db'
 import { isValidLoopOrJourneyQuestion } from '@/lib/zone/loopQuestions'
 import type { JourneyId } from '@/lib/journeys'
+import { MAX_DISCOVERY_INJECTIONS_PER_JOURNEY } from '@/lib/intelligence/manifest'
 
 const MAX_ANSWER_LENGTH = 500
 
@@ -546,6 +547,23 @@ export async function persistDiscoveryInjection(
   }
 }
 
+/** Supplemental discovery rows — do not consume the user's 3 earned inject slots. */
+export function isSupplementalDiscoveryCardId(cardId: string): boolean {
+  const id = String(cardId || '')
+  return id.startsWith('inject-sentinel-') || id.startsWith('inject-fallback-')
+}
+
+/** Server-side cap gate before persisting a user-earned discovery inject. */
+export async function canPersistUserDiscoveryInjection(
+  userId: string,
+  journeyKey: string,
+  cardId: string
+): Promise<boolean> {
+  if (isSupplementalDiscoveryCardId(cardId)) return true
+  const prior = await countDiscoveryInjectionsForUserJourney(userId, journeyKey)
+  return prior < MAX_DISCOVERY_INJECTIONS_PER_JOURNEY
+}
+
 /** Cards birthed per user per `journey_key` (manifest cap: 3 additional injections per category). */
 export async function countDiscoveryInjectionsForUserJourney(
   userId: string,
@@ -559,7 +577,9 @@ export async function countDiscoveryInjectionsForUserJourney(
       `SELECT COUNT(*)::text AS c
        FROM discovery_injections
        WHERE user_id = $1::uuid
-         AND LOWER(COALESCE(journey_key, payload->>'journey_key', '')) = $2`,
+         AND LOWER(COALESCE(journey_key, payload->>'journey_key', '')) = $2
+         AND card_id NOT LIKE 'inject-sentinel-%'
+         AND card_id NOT LIKE 'inject-fallback-%'`,
       [userId, jk]
     )
     const n = Number.parseInt(res.rows[0]?.c ?? '0', 10)

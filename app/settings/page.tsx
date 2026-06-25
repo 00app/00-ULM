@@ -28,6 +28,8 @@ import { useCountUp } from '@/lib/utils/useCountUp'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
+import { ResetDataCircleButton } from '@/app/components/ResetDataCircleButton'
+import SettingsBentoCard from '@/app/components/SettingsBentoCard'
 
 const PROFILE_LABELS: Record<string, string> = {
   name: "What's your name?",
@@ -37,17 +39,6 @@ const PROFILE_LABELS: Record<string, string> = {
   transport: 'How do you get around?',
   age: 'How old are you?',
 }
-
-/** Pencil icon for edit — same slot as card-top-arrow */
-function PencilIcon() {
-  return (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-    </svg>
-  )
-}
-
-const ICON_SIZE = 44
 
 /** Pin drop — Update location */
 function PinIcon() {
@@ -68,66 +59,17 @@ function TickIcon() {
   )
 }
 
-const CARD_TEXT = { default: 'var(--color-yellow)', hero: 'var(--color-yellow)' } as const
+const ICON_SIZE = 44
 
-/** One cell in the grid: bento-card-groovy (existing), yellow bg purple text, or hero (pink bg yellow text) */
-function SettingsBentoCard({
-  label,
-  headline,
-  editHref,
-  onEditClick,
-  children,
-  isHero = false,
-}: {
-  label: string
-  headline: string
-  editHref?: string
-  onEditClick?: () => void
-  children?: React.ReactNode
-  isHero?: boolean
-}) {
-  const textColor = isHero ? CARD_TEXT.hero : CARD_TEXT.default
-  const bgColor = 'var(--color-pink)'
-  const card = (
-    <div
-      className={`bento-card-groovy settings-bento-card settings-card-bento flex flex-col justify-between w-full h-full${isHero ? ' settings-hero-card settings-bento-card--info' : ''}`.trim()}
-      style={{
-        backgroundColor: bgColor,
-        color: textColor,
-        boxShadow: 'none',
-      }}
-    >
-      <div className="flex items-center justify-between w-full shrink-0">
-        <span className="card-top-label" style={{ color: textColor }}>
-          {label}
-        </span>
-        {onEditClick ? (
-          <button
-            type="button"
-            onClick={onEditClick}
-            className="card-top-arrow flex items-center justify-center flex-shrink-0 border-0 p-0 cursor-pointer bg-transparent"
-            style={{ width: 42, height: 42 }}
-            aria-label={`Edit: ${label}`}
-          >
-            <PencilIcon />
-          </button>
-        ) : editHref ? (
-          <Link href={editHref} className="card-top-arrow flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42 }} aria-label={`Edit: ${label}`}>
-            <PencilIcon />
-          </Link>
-        ) : (
-          <span style={{ width: 42, height: 42 }} aria-hidden />
-        )}
-      </div>
-      <h3 className="card-headline m-0" style={{ color: textColor }}>
-        {headline}
-      </h3>
-      {children}
-    </div>
+function PencilIcon() {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    </svg>
   )
-  return card
 }
 
+/** Pin drop — Update location */
 const SHORT_QUESTION_LABELS: Record<string, string> = {
   energy_type: 'Heating',
   home_insulation_level: 'Insulation',
@@ -310,7 +252,7 @@ export default function SettingsPage() {
         minHeight: '100vh',
         position: 'relative',
         paddingTop: 20,
-        paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: 0,
       }}
       initial={pageEnter.initial}
       animate={pageEnter.animate}
@@ -359,6 +301,29 @@ export default function SettingsPage() {
                 )}
               </div>
             </SettingsBentoCard>
+          </motion.div>
+        </section>
+
+        <section className="settings-cards-section" aria-label="Truth ledger">
+          <motion.div
+            className="settings-answer-grid"
+            initial={settingsCellMotion.initial}
+            animate={settingsCellMotion.animate}
+            transition={{ ...settingsStaggerTransition, delay: 0.1 }}
+          >
+            <motion.div className="settings-card-cell">
+              <Link
+                href={ROUTES.SETTINGS_TRUTH}
+                className="bento-card-groovy settings-bento-card flex flex-col justify-between w-full h-full no-underline"
+                style={{ backgroundColor: 'var(--color-pink)', color: 'var(--color-yellow)' }}
+              >
+                <span className="card-top-label">Source of truth</span>
+                <h3 className="card-headline m-0">TRUTH LEDGER</h3>
+                <span className="zz-body" style={{ fontSize: '0.85rem', opacity: 0.9 }}>
+                  Register · profile · behaviour · journey gates
+                </span>
+              </Link>
+            </motion.div>
           </motion.div>
         </section>
 
@@ -428,22 +393,22 @@ export default function SettingsPage() {
                 }}
               >
                 <div
-                  className="bento-card-groovy settings-bento-card settings-card-bento settings-journey-card-shell flex flex-col w-full h-full"
+                  className="bento-card-groovy settings-bento-card settings-card-bento settings-journey-card-shell flex flex-col justify-between w-full h-full"
                   style={{ backgroundColor: 'var(--color-pink)', color: 'var(--color-yellow)' }}
                 >
                   <div className="flex items-center justify-between w-full shrink-0 mb-2">
                     <span className="card-top-label" style={{ color: 'var(--color-yellow)' }}>
                       {card.title.toUpperCase()}
                     </span>
-                    <div className="card-top-arrow flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42 }} aria-hidden>
+                    <div className="card-top-arrow card-top-arrow--action flex items-center justify-center flex-shrink-0" aria-hidden>
                       <PencilIcon />
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 settings-journey-answers">
                     {card.answers.map((ans, j) => (
                       <div key={j} className="settings-journey-answer-row">
-                        <span className="settings-journey-q">{ans.question}</span>
-                        <span className="settings-journey-a">{ans.answer}</span>
+                        <h4 className="settings-journey-q zz-h4">{ans.question}</h4>
+                        <h4 className="settings-journey-a zz-h4">{ans.answer}</h4>
                       </div>
                     ))}
                   </div>
@@ -514,6 +479,7 @@ export default function SettingsPage() {
             LOCATION
           </span>
         </Link>
+        <ResetDataCircleButton />
       </div>
     </motion.div>
   )

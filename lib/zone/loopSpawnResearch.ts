@@ -4,6 +4,8 @@ import {
   runTriggerResearchForCategory,
   type ResearchProfileData,
 } from '@/lib/agents/researchAgent'
+import { buildDataTruthContextBlock } from '@/lib/intelligence/answerFunnelRouter'
+import { buildAnswerFunnelFromResearchProfile } from '@/lib/intelligence/enrichProfileDataFromGenome'
 
 /** Surgical Firecrawl + Gemini context after a single loop answer (Level 2 → 3 spawn). */
 export function buildLoopSpawnUserContext(params: {
@@ -18,15 +20,20 @@ export function buildLoopSpawnUserContext(params: {
   const q = def?.questions.find((row) => row.id === params.questionId)
   const qLabel = q?.label ?? params.questionId
   const pd = params.profileData ?? {}
+  const funnel = buildAnswerFunnelFromResearchProfile(pd, {
+    activeJourneyId: params.journeyId,
+  })
+  const truthBlock = buildDataTruthContextBlock({ profileSignals: funnel.profileSignals })
   return [
     'Loop spawn (answer-triggered research pass).',
     `postcode: ${pc}`,
     `category: ${params.journeyId}`,
     `question: ${qLabel}`,
     `answer: ${params.answerValue}`,
-    `home_type: ${pd.home_type ?? '—'}`,
-    `transport: ${pd.transport_baseline ?? '—'}`,
-    `household: ${pd.household ?? '—'}`,
+    `home_type: ${funnel.profileSignals.home_type ?? pd.home_type ?? '—'}`,
+    `transport: ${funnel.profileSignals.transport_baseline ?? pd.transport_baseline ?? '—'}`,
+    `household: ${funnel.profileSignals.household ?? pd.household ?? '—'}`,
+    truthBlock,
     `Emit up to three hyper-specific UK savings opportunities for this answer (grants, installers, tariffs). Reference ${pc} when locality matters.`,
   ].join('\n')
 }

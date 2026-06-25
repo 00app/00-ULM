@@ -1,9 +1,28 @@
 /**
  * Zone copy sanitizer — strips system/pathway leakage and enforces journey-topic boundaries.
+ *
+ * Active guards (order):
+ * 1. stripContentSystemLeakage — pathway / cap boilerplate parentheticals
+ * 2. proseViolatesJourneyCategory — cross-domain topic bleed per journey
+ * 3. stripBoilerplateFromParagraph — CTA scaffolding sentences
+ * 4. proseComplete.sanitizeProseParagraphs — ellipsis, AI hedge, fragments, variable leaks
+ * 5. isCoherentParagraph — paragraph word count + sentence completeness (Solo Focus gate)
+ * 6. isTruncatedSentence — ellipsis / dangling-word signatures
+ *
+ * @version 2026-06-24
  */
 
 import type { JourneyId } from '@/lib/journeys'
 import { humanizeZoneProse } from '@/lib/zone/plainEnglishCopy'
+import {
+  clampWordsCompleteSentence,
+  isCoherentParagraph,
+  isTruncatedSentence,
+  sanitizeProseParagraphs,
+  stripTrailingEllipsis,
+} from '@/lib/zone/proseComplete'
+
+export { isCoherentParagraph, isTruncatedSentence, stripTrailingEllipsis }
 
 const LEAKAGE_PATTERNS: RegExp[] = [
   /\s*\([^)]*(?:official\s+cap\s+pathway|cap\s+pathway|live\s+pathway)[^)]*\)/gi,
@@ -82,5 +101,14 @@ export function sanitizeArchitectProseForJourney(journey: JourneyId, prose: stri
     .filter(Boolean)
     .join('\n\n')
   if (!t || proseViolatesJourneyCategory(journey, t)) return null
-  return humanizeZoneProse(t, journey)
+  const humanized = humanizeZoneProse(t, journey)
+  const completed = sanitizeProseParagraphs(humanized)
+  return completed || null
 }
+
+/** Filter paragraphs for True Tip layout — coherent blocks only. */
+export function filterCoherentTrueTipParagraphs(paragraphs: string[]): string[] {
+  return paragraphs.map((p) => stripTrailingEllipsis(p.trim())).filter((p) => isCoherentParagraph(p))
+}
+
+export { clampWordsCompleteSentence }

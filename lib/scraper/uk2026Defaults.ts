@@ -21,9 +21,9 @@ function emptyLead(journey_key: JourneyId): JourneyMoneyLead {
   return {
     journey_key,
     money_lead: COMPUTING,
-    money_value: 0,
+    money_value: 0, // intentionally zero — no marketing £ from defaults; Neon stream only
     carbon_backup: COMPUTING,
-    carbon_value: 0,
+    carbon_value: 0, // intentionally zero — no fabricated kg from defaults
     crawler_tip: COMPUTING,
     agent_focus: COMPUTING,
   }

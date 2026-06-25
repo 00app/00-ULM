@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { FixedViewportPortal } from '@/app/components/FixedViewportPortal'
 import { CloseXOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { ROUTES } from '@/lib/routes'
@@ -18,25 +18,20 @@ export default function ZoneModalCloseLink({
   className,
   onClose,
 }: ZoneModalCloseLinkProps) {
-  const router = useRouter()
-
   return (
     <FixedViewportPortal>
-      <button
-        type="button"
+      <Link
+        href={ROUTES.ZONE}
         className={['zz-back-btn zz-back-btn--viewport-lock zz-modal-close-btn', className]
           .filter(Boolean)
           .join(' ')}
         aria-label={ariaLabel}
-        onClick={() => {
-          onClose?.()
-          router.push(ROUTES.ZONE)
-        }}
+        onClick={() => onClose?.()}
       >
         <span className="zz-back-arrow" aria-hidden>
           <CloseXOutlineIcon size={18} />
         </span>
-      </button>
+      </Link>
     </FixedViewportPortal>
   )
 }

@@ -31,7 +31,7 @@ Zero Zero is a UK postcode-driven energy and lifestyle auditor. A user provides 
 | Intro | `/`, `/intro` | Goal choice; optional geolocation postcode | `profile_goal` in localStorage |
 | Profile | `/profile` | 8 steps + goal; **`POST /api/user`** on submit | Session cookie, JIT scrapes (≤4) |
 | Summary | `/profile/summary` | HELLO → name → locality ticker; research handshake | `runProfileResearchHandshake` |
-| Zone | `/zone` | 13 journey tiles + Rock rail + mobile signup | `GET /api/scrape-sync`, `buildZoneViewModel` |
+| Zone | `/zone` | Welcome → profile hero → Today's Tips + Rock → Recommendations bento → signup | `GET /api/scrape-sync`, `buildZoneViewModel`, `buildGroovyGridItems` |
 | Solo Focus | Overlay | 1 MC question → answer → result; discovery birth | `POST /api/answers` |
 | Solo Focus close | Lifestyle loop question → short pulse → atomic exit → grid | `DiscoveryTakeover` |
 | Solo Focus like / nope | Offer feedback question → grid or `/likes` | `OfferFeedbackTakeover`, `offer_signals` |
@@ -314,6 +314,11 @@ npm run zone:audit-gates -- YOURPOSTCODE
 | T12 | Solo Focus **like** | Feedback question → `/likes`; row in Settings | `OfferFeedbackTakeover`, `offer_signals` |
 | T13 | Solo Focus **nope** | Card suppressed on wall; feedback in Settings | `gridOrder`, `offerPreference` |
 | T14 | Solo Focus **close (X)** | Lifestyle loop question (not offer feedback) | `DiscoveryTakeover`, `loopQuestions` |
+| T15 | Expand any journey card | No ellipsis in H1 or lead | `isTruncatedSentence` guard |
+| T16 | Expand any journey card | Lead contains town name | `buildAuditorDetectionParagraph` |
+| T17 | Expand Rock tip | Headline is 20–24 words | `headlineFromRockHabit` |
+| T18 | Zone wall section order | After pulse: welcome → profile card → today's tips h3 → Rock → recommendations h3 → category grid → signup; headings **not** inside bento flex | `zone-section-*` testids, `wallSectionsReady` |
+| T19 | Nav links (≥768px) | Zone rail: Likes / Settings / Zai `<Link>` routes return 200 | `ZoneDesktopNavRail`, `floating-nav--zone-rail-desktop` |
 
 ### 9.4 What to check when something looks wrong
 

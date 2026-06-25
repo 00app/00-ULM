@@ -1,8 +1,7 @@
 'use client'
 
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import FloatingNav from '@/app/components/FloatingNav'
-import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { ROUTES } from '@/lib/routes'
 
 function normalizeAppPath(p: string | null): string {
@@ -33,26 +32,8 @@ export default function AppFloatingNav({
   active: AppFloatingNavActive
   className?: string
 }) {
-  const router = useRouter()
   const path = normalizeAppPath(usePathname())
   if (isFloatingNavExcludedRoute(path)) return null
 
-  return (
-    <FloatingNav
-      active={active}
-      className={className}
-      onNavigate={(key) => {
-        const dest =
-          key === 'likes'
-            ? ROUTES.LIKES
-            : key === 'chat'
-              ? ROUTES.ZAI
-              : key === 'summary'
-                ? ROUTES.SETTINGS
-                : ROUTES.ZONE
-        trackFunnelEvent('nav_click', { page: path, nav_key: key, target_url: dest })
-        router.push(dest)
-      }}
-    />
-  )
+  return <FloatingNav active={active} className={className} />
 }

@@ -15,7 +15,8 @@ import {
   resolveRockHabitLearnUrl,
   rockHabitProviderMatchesUrl,
 } from '@/lib/rock/resolveRockHabitLearnUrl'
-import { headlineFromRockHabit, headlineFromRockHabitForSoloFocus, resolveRockHabitDisplayProse } from '@/lib/soloFocusCopy'
+import { headlineFromRockHabit, headlineFromRockHabitForSoloFocus, resolveRockHabitDisplayProse, toThreeTrueTipParagraphs } from '@/lib/soloFocusCopy'
+import { isCoherentParagraph, isTruncatedSentence } from '@/lib/zone/proseComplete'
 import {
   issueSessionRestoreProof,
   resolveUserIdFromRestoreProof,
@@ -269,6 +270,41 @@ function assertRockHabitOfferAlignment(failures: string[]): void {
   }
 }
 
+function assertProseCompleteGuards(failures: string[]): void {
+  if (!isTruncatedSentence('Seal draughts around windows...')) {
+    failures.push('isTruncatedSentence must reject ellipsis ending')
+  }
+  if (!isTruncatedSentence('Heat leaks out with')) {
+    failures.push('isTruncatedSentence must reject dangling preposition')
+  }
+  if (isTruncatedSentence('Seal draughts around windows before winter.')) {
+    failures.push('isTruncatedSentence must accept complete sentence')
+  }
+
+  const goodLead =
+    'Your loft insulation is thin for a terrace in Arun district. That leaks heat every winter night and raises your heating bills.'
+  if (!isCoherentParagraph(goodLead)) {
+    failures.push('isCoherentParagraph must accept two-sentence audit lead')
+  }
+  if (isCoherentParagraph('Heat leaks out...')) {
+    failures.push('isCoherentParagraph must reject truncated fragment')
+  }
+
+  const triple = toThreeTrueTipParagraphs(
+    'First good sentence here with enough words for the gate. Second good sentence here with enough words for the gate too.\n\nThird block ends mid…',
+    { journeyId: 'home', moneyGbp: 120, carbonKg: 40, includePayoffParagraph: false }
+  )
+  for (const [i, p] of triple.entries()) {
+    if (!p.trim()) continue
+    if (/\.{3}|…/.test(p)) {
+      failures.push(`toThreeTrueTipParagraphs paragraph ${i} must not contain ellipsis`)
+    }
+    if (isTruncatedSentence(p)) {
+      failures.push(`toThreeTrueTipParagraphs paragraph ${i} must not be truncated`)
+    }
+  }
+}
+
 /** Run all mechanical-truth checks. Pure — safe in CI without DB. */
 export function runMechanicalTruthEval(): MechanicalTruthEvalResult {
   const failures: string[] = []
@@ -285,5 +321,6 @@ export function runMechanicalTruthEval(): MechanicalTruthEvalResult {
   assertScrapedPositiveMoneyIsStream(failures)
   assertRockHabitOfferAlignment(failures)
   assertSessionRestoreProof(failures)
+  assertProseCompleteGuards(failures)
   return { ok: failures.length === 0, failures }
 }

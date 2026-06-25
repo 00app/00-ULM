@@ -45,10 +45,13 @@ Grid discovery tips on wall: still **1 earned inject per category** via `perCate
 
 ## 2. Zone (`/zone`)
 
-- **13 domains:** `JOURNEY_ORDER` in `lib/journeys.ts` (`home` → `utilities` → … → `carbon`). All 13 tiles render on the Zone wall; **utilities** stays `COMPUTING` until profile **power type** is set (`lib/zone/utilitiesZoneUnlock.ts`).
+- **Vertical stack (DOM):** welcome → profile hero card → **today's tips** heading + Rock rail → **recommendations** heading + category bento → mobile signup. Headings live in `zone-rock-strip` / `zone-category-wall` — **not** inside `groovy-zone-grid`. Gates: `wallSectionsReady` + `zoneRevealCount >= 1` (`app/zone/page.tsx`). Test ids: `zone-section-welcome`, `zone-section-today-tips`, `zone-section-recommendations`, `zone-section-signup`.
+- **13 domains:** `JOURNEY_ORDER` in `lib/journeys.ts` (`home` → `utilities` → … → `carbon`). All 13 mother tiles render in the recommendations grid; **utilities** stays `COMPUTING` until profile **power type** is set (`lib/zone/utilitiesZoneUnlock.ts`).
+- **Grid order:** `buildGroovyGridItems` (`lib/zone/gridOrder.ts`) — hero excluded; mothers sorted by goal-weighted £ then `JOURNEY_ORDER`; discovery `inject-*` tips nest after parent; **max 2 cells/category**, **24 cells** total ceiling.
 - **Mechanical truth:** empty Neon → `COMPUTING — JOURNEY` / `—`; no fake £.
 - **Visited:** `visited_cards` → pink `#FF00FF` / yellow `#FDFD00` (`.zone-card--visited`).
 - **Rock rail:** navy + yellow; 6-slot rotation; display capped at 12; grid titles from catalog (`clampRockTipHeadline`); rail excludes wall headline duplicates (`prepareRockHabitsForRail`).
+- **Nav:** `ZoneDesktopNavRail` + `<Link>` routes from **768px**; floating nav hidden on Zone at same breakpoint.
 
 ---
 

@@ -37,7 +37,8 @@ Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on ca
 | **£ / kg on journey tile** | `buildUserImpact` → per-journey calculators in `lib/brains/calculations.ts` (when stream data exists) |
 | **Headline / title tweaks** | `profileDrivenJourneyTitle`, `grantsJourneyTitleForProfile`, Neon `agent_headline` when settled |
 | **Scrape context** | Every answer → `runLoopSpawnResearch`; journey 3/3 → `triggerSupplementalResearch` |
-| **Discovery birth** | `POST /api/answers` → `injectNewDiscoveryCard` → tip slot on wall |
+| **Discovery birth** | `POST /api/answers` → `raceDiscoveryBirth` → client `injectNewDiscoveryCard` → nested tip under parent journey |
+| **JIT priority** | `answerFunnelRouter` scores journeys from goal + property intelligence → onboarding / loop JIT cap **4** URLs |
 | **Genome modifier** | +0.08 per answered Q → wall formula via `getGenomeModifier` |
 
 **Strong calculator mapping:** grants (`boiler_age`, `income_benefits`, `prior_eco_bus`), solar trio, travel (`commute_distance`, `ev_hybrid`), utilities `tariff_type`, money trio, tech/water/waste/food/holidays/carbon as documented in `calculations.ts`.
@@ -45,6 +46,74 @@ Question copy is **behavioural** (no hardcoded £/carbon in labels). Money on ca
 **Weak / scrape-only (known gaps):** home `property_type` / `insulation_level` / `glazing_type`; utilities `supplier_switch` / `monthly_energy_band`; travel `public_transport`; food `own_produce`. These still persist, trigger research, and bump genome modifier.
 
 Full matrix: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) § Journey MC questions.
+
+### 1.2 Question intelligence → Zone cards (end-to-end)
+
+```mermaid
+flowchart TB
+  subgraph questions [Question sources]
+    REG["lib/journeys.ts — 13×3 registry"]
+    LOOP["loopQuestions.ts — one beat after mother close"]
+    PROFILE["profile steps — home_power unlocks utilities"]
+  end
+
+  subgraph persist [Persist + score]
+    POST["POST /api/answers"]
+    DB[(journey_answers_jsonb)]
+    FUNNEL["answerFunnelRouter — JIT priority ≤4"]
+    IMP[buildUserImpact]
+  end
+
+  subgraph premium [Premium tier — capped]
+    JIT["runLoopSpawnResearch / scrape-sync"]
+    GEM[Gemini triplet]
+    RR[(research_results)]
+  end
+
+  subgraph birth [Discovery birth]
+    RACE["raceDiscoveryBirth"]
+    INJ["injectNewDiscoveryCard — client"]
+    CAP["MAX_DISCOVERY_INJECTIONS_PER_JOURNEY = 3"]
+  end
+
+  subgraph wall [Zone wall]
+    SS["GET /api/scrape-sync"]
+    VM[buildZoneViewModel]
+    GRID["buildGroovyGridItems — JOURNEY_ORDER + injects"]
+    ROCK["Rock rail — habitsCatalog separate path"]
+  end
+
+  REG --> POST
+  LOOP --> POST
+  POST --> DB
+  POST --> FUNNEL
+  POST --> IMP
+  POST --> JIT
+  FUNNEL --> JIT
+  JIT --> GEM --> RR
+  POST --> RACE --> INJ
+  INJ --> CAP
+  SS --> VM
+  RR --> SS
+  IMP --> VM
+  INJ --> GRID
+  VM --> GRID
+  VM --> ROCK
+```
+
+| Stage | What happens | Zone effect |
+|-------|--------------|-------------|
+| **Profile submit** | `POST /api/user` + `triggerOnboardingResearchBootstrap` | Up to **4** journeys researched first; all **13** mother slots render (`COMPUTING` until Neon rows land) |
+| **Summary exit** | `runProfileResearchHandshake` | Deduped JIT — fills priority journeys from funnel |
+| **Zone load** | `GET /api/scrape-sync` → `buildZoneViewModel` | Mothers get headlines/£ from `research_results`; empty → honest **pending** |
+| **Solo Focus MC answer** | `POST /api/answers` validates registry id | Persists answer; optional category scrape; **`raceDiscoveryBirth`** returns `new_card_data` |
+| **Client inject** | `injectNewDiscoveryCard` in `app/zone/page.tsx` | Discovery tip nests **after** parent journey in `buildGroovyGridItems` (max **2** cells/category on wall) |
+| **Loop close (mother)** | `DiscoveryTakeover` → one `loopQuestions` beat | Same `POST /api/answers` path — canonical discovery birth |
+| **Supplemental** | `POST /api/zone/injections`, `POST /api/research/question-card` | Trap / Ask paths — capped; **not** primary MC birth |
+
+**Rock rail is parallel:** habits come from `lib/rock/habitsCatalog.ts` via `prepareRockHabitsForRail` — not from MC answers directly. Answers can still influence Rock indirectly when journey Neon `offer_url` merges topic-safely (`mergeRockHabitWithJourneyOffer`).
+
+**Wall sort vs journey registry:** `JOURNEY_ORDER` in `lib/journeys.ts` is the canonical domain list. On screen, `gridOrder.ts` may **re-rank** mothers by goal-weighted £ and offer preference, but discovery tips always nest under their parent `journey_key`.
 
 ---
 
@@ -54,7 +123,7 @@ Full matrix: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) §
 |------|------|-------------|
 | Route | `app/profile/page.tsx` → `ProfilePageClient.tsx` | — |
 | Name step | `InputField` `autocomplete="given-name"`; `firstNameFromAutofill` on change/blur | `profile_name` — **first token only** (browser may autofill full name) |
-| Postcode step | `autocomplete="postal-code"`; optional **house number** on same step (`autocomplete="address-line2"`, `profile_house_number`) · hydrate from `profile_postcode` (`localStorage`, intro geolocation, `SessionStateRehydrate`) · `POST /api/local-intelligence` with `{ postcode, house_number? }` | Council, ward, `localCarbonG`, grant context; OpenEPC row matched to address when house number set (`addressMatched` on `OpenEpcProfile`) |
+| Postcode step | `autocomplete="postal-code"`; **`lib/geocode/ukPostcode.ts`** validates format before submit (`isValidUkPostcode`, `checkUkPostcode`); **h4 locality** under input uses outcode fallback (e.g. `SW12`) until parish resolves; optional **house number** on same step (`autocomplete="address-line2"`, `profile_house_number`) · hydrate from `profile_postcode` (`localStorage`, intro geolocation, `SessionStateRehydrate`) · `POST /api/local-intelligence` with `{ postcode, house_number? }` | Council, ward, `localCarbonG`, grant context; OpenEPC row matched to address when house number set (`addressMatched` on `OpenEpcProfile`) |
 | Profile fields | name, postcode, optional house number, `home_type`, **`power type`** (profile step `powerType` → GAS / ELECTRIC / MIX / OTHER), transport, household, employment, goal | `users` + `AppContext` + `localStorage` (`profile_home_power`, `profile_house_number`); seeds journey answers + **unlocks 13th Zone card (UTILITIES)** via `lib/profile/homePower.ts` + `lib/zone/utilitiesZoneUnlock.ts` |
 | Motion | Full-sentence fade per step (`STACCATO_TWEEN`, y 10→0) | [HANDBOOK.md](HANDBOOK.md) Motion table |
 | After profile | `/profile/summary` → `/zone` | Summary uses `lib/brains/summaryLogic.ts` + `buildUserImpact` (no UK_2026 back-fill) |

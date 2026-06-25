@@ -2,6 +2,8 @@ import { type LocalIntelligence } from '@/lib/local/getLocalData'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import { isRealLocalityLabel } from '@/lib/brains/summaryLogic'
 
+import { formatPostcodeOutcodeFallback, isValidUkPostcode } from '@/lib/geocode/ukPostcode'
+
 export const PROFILE_LOCALITY_NAME_KEY = 'profile_locality_name'
 export const PROFILE_LOCALITY_POSTCODE_KEY = 'profile_locality_postcode'
 
@@ -28,14 +30,9 @@ function compactUkPostcode(postcode: string): string {
   return postcode.replace(/\s+/g, '').toUpperCase()
 }
 
-/** Display-friendly postcode when locality is not ready yet. */
+/** Display-friendly outcode when locality is not ready yet (e.g. SW12). */
 export function formatPostcodeFallback(postcode: string): string {
-  const raw = postcode.trim()
-  const compact = compactUkPostcode(raw)
-  if (compact.length <= 3) return raw || compact
-  const inward = compact.slice(-3)
-  const outward = compact.slice(0, -3)
-  return `${outward} ${inward}`.trim()
+  return formatPostcodeOutcodeFallback(postcode)
 }
 
 /** Prefer suburb + town; else first two segments of display_name. */

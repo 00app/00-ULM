@@ -174,6 +174,50 @@ Set in `buildZoneViewModel` via `vmAuditLive()`.
 
 ## 6. Zone wall — collapsed bento cards
 
+### Zone wall vertical stack (DOM order)
+
+The Zone page (`app/zone/page.tsx`) renders sections in this **fixed vertical order**. Section headings are **siblings** of card grids — never flex children inside `groovy-zone-grid` (headings inside the grid stretch to card row height and merge with tile copy).
+
+| # | Section | `data-testid` | Wrapper | Content |
+|---|---------|---------------|---------|---------|
+| 1 | Welcome | `zone-section-welcome` | `zone-hero-copy` | Architectural pulse words — locality + £/CO₂ hero copy |
+| 2 | Profile card | — | `zone-hero-wall` → `zone-grid-hero` | Single profile/hero bento — **not** journey mothers |
+| 3 | Today's Tips heading | `zone-section-today-tips` | `zone-rock-strip` | H3 **today's tips** |
+| 4 | Rock rail | — | `zone-rock-strip` | `RockSavingTips` — catalog habits (6 visible, cap 12) |
+| 5 | Recommendations heading | `zone-section-recommendations` | `zone-category-wall` | H3 **recommendations** — **above** category bento only |
+| 6 | Category grid | — | `zone-category-wall` → `zone-grid-mounted` | Journey mothers + nested discovery tips |
+| 7 | Mobile signup | `zone-section-signup` | outside `zone-grid-container` | `RockMobileSignupCard` |
+
+**Section visibility gates** (`app/zone/page.tsx`):
+
+```typescript
+wallSectionsReady =
+  pulseWordsComplete &&
+  architecturalPulsePhase === 'done' &&
+  zoneInteractable &&
+  !expandedCardId &&
+  !expandedTipId
+
+showTodaysTipsSection = wallSectionsReady && zoneRevealCount >= 1
+showCategorySectionHeading =
+  wallSectionsReady && firstCategoryGridIndex >= 0 && zoneRevealCount >= 1
+```
+
+Rock habit count does **not** gate the Today's Tips heading — an empty Rock rail still shows the section label when `showTodaysTipsSection` is true.
+
+**Navigation (tablet+):** from **768px**, `ZoneDesktopNavRail` shows fixed `<Link>` routes to Zone / Likes / Settings / Zai. Floating nav on Zone is hidden at the same breakpoint (`.floating-nav--zone-rail-desktop` in `app/globals.css`). Below 768px, `AppFloatingNav` handles navigation.
+
+### Bento grid cell order (recommendations wall)
+
+Within the recommendations grid, **`buildGroovyGridItems`** (`lib/zone/gridOrder.ts`) orders cells:
+
+1. **Hero** cell (excluded from the 24-cell ceiling)
+2. For each journey in **prioritized order** — `moneySortedJourneys` first (goal-weighted £ + offer preference), then remaining keys in **`JOURNEY_ORDER`**
+3. Per journey: **mother tile** (`journey-{key}`) when stream exists and not suppressed → **nested discovery tips** (`inject-*`) sorted by goal / achievement / £
+4. Clip to **`MAX_ZONE_BENTO_CELLS` = 24** journey+tip cells (`clipGroovyGridToCeiling`)
+
+Per-category ceiling: **`MAX_CARDS_PER_CATEGORY` = 2** (one mother + at most one earned discovery tip via `perCategoryCardCap`). Baseline ranked `tip-*` cards do **not** nest on the main grid (`SHOW_BASELINE_TIPS_ON_MAIN_GRID = false`). Offer URL dedupe per journey: `uniquifyZoneTipOfferUrl`. Disliked/indifferent cards deprioritized: `offerPreference` in `gridOrder.ts`.
+
 Built in **`lib/zone/buildZoneViewModel.ts`**, rendered as **`JourneyBentoCard`** (`app/zone/page.tsx` groovy grid).
 
 | UI element | Source |
@@ -271,14 +315,18 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 2. **Leverage** — July 2026 Ofgem cap or grant fact from `lib/brains/constants.ts` when relevant (April figures kept for policy-step copy only).
 3. **Payoff** — single closing line, e.g. *“We've put about £X a year and around Y CO₂e against your {topic} row — from your saved audit, not a guess.”* (`payoffSentence` in `lib/zone/auditorNarrative.ts` — deduped by `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp`).
 
-### Quality gates (`lib/soloFocusCopy.ts`)
+### Quality gates (`lib/soloFocusCopy.ts` + `lib/zone/contentProseSanitize.ts` + `lib/zone/proseComplete.ts`)
 
 | Function | Purpose |
 |----------|---------|
+| `isTruncatedSentence` | Reject ellipsis endings, dangling prepositions, open parens, sub-3-char tail words (`lib/zone/proseComplete.ts`) |
+| `isCoherentParagraph` | Gate: 2+ complete sentences, 20–40 words, no ellipsis, no leading conjunction (`lib/zone/proseComplete.ts`) |
+| `toThreeTrueTipParagraphs` | Filters paragraphs through `isCoherentParagraph`; pads from `buildAuditorNarrativeParagraphs` when fewer than 3 coherent blocks remain |
+| `sanitizeProseParagraphs` | Strip AI-hedge phrases, variable leaks (`£{amount}`, `{postcode}`), fragments &lt;6 words, comma-cut sentences |
 | `stripExpandedCardTitleNoise` | Clean Solo Focus H1 |
 | `clampRockTipHeadline` | Today's Tips **grid** — short catalog title; never wall `ZONE_BENTO_HOOK` |
-| `headlineFromRockHabit` | Rock Solo Focus H1 — title + habit insight; **never** `EXPANDED_JOURNEY_HOOK` |
-| `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook for **journey mothers**; per-journey fallback when DB title is thin, jargon, or off-topic (e.g. travel: rail/bus commute swap — not generic “near you” padding) |
+| `headlineFromRockHabit` | Rock Solo Focus H1 — title + habit insight; pads with `EXPANDED_JOURNEY_HOOK` when &lt;15 words to reach **20–24** |
+| `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook for **journey mothers**; strips truncated £ ellipsis; falls back when no verb detected |
 | `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp` | Drop duplicate payoff / repeated blocks before render |
 | `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *optimization plan*, *green funding frameworks*, thin *“Your X is high-value”* |
 | `collapseDuplicateProseParagraphs` | No repeated sentences within a block |
@@ -294,7 +342,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Zone bento | **5–8** | `enforceHeadlineWordLimits(text, false)` |
 | Today's Tips grid | **3–10** (catalog title) | `clampRockTipHeadline` |
 | Solo Focus expanded hook (mother) | **20–24** (~3–4 lines) | `headlineFromExpandedHook` → per-journey `EXPANDED_JOURNEY_HOOK` when title is weak or generic spring filler (`isGenericSpringHeadline`); mechanical proof via `lib/zone/auditorNarrative.ts` (no shared “policy and tariff pressure…” block) |
-| Solo Focus expanded hook (Rock) | **20–24** (~3–4 lines) | `headlineFromRockHabit` — habit title + insight; **no** journey hook substitution |
+| Solo Focus expanded hook (Rock) | **20–24** (~3–4 lines) | `headlineFromRockHabit` — habit title + insight; journey-hook pad when thin |
 | Solo Focus Marvin lead (H4) | **≤30** words | `resolveSoloFocusDisplayProse` + `buildAuditorDetectionParagraph` when lead lacks town opener |
 | Paragraph | ≤ **40** words each | `MAX_TRUE_TIP_PARAGRAPH_WORDS` |
 

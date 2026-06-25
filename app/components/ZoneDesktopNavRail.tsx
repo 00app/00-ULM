@@ -1,8 +1,11 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import Link from 'next/link'
 import { ROUTES } from '@/lib/routes'
+import { useViewportMinWidth } from '@/lib/hooks/useViewportMinWidth'
 import {
   HeartOutlineIcon,
   ProfileOutlineIcon,
@@ -12,27 +15,29 @@ import {
 const ICON_SIZE = 18
 
 /**
- * Desktop-only vertical nav in the Zone hero gallery column (Likes · Zai · Settings).
+ * Desktop / tablet nav — portaled to document.body so position:fixed is viewport-true
+ * (perspective on .zz-main-perspective-shell breaks fixed inside main.zone).
  */
-export default function ZoneDesktopNavRail() {
-  const router = useRouter()
+export default function ZoneDesktopNavRail({ visible = true }: { visible?: boolean }) {
+  const [mounted, setMounted] = useState(false)
+  const isTabletUp = useViewportMinWidth(768)
 
-  const item = (label: string, onClick: () => void, children: ReactNode) => (
-    <button
-      type="button"
-      className="zone-desktop-nav-item"
-      aria-label={label}
-      onClick={onClick}
-    >
+  useEffect(() => setMounted(true), [])
+
+  const item = (label: string, href: string, children: ReactNode) => (
+    <Link href={href} className="zone-desktop-nav-item" aria-label={label}>
       <span className="zone-desktop-nav-item-inner">{children}</span>
-    </button>
+    </Link>
   )
 
-  return (
-    <nav className="zone-desktop-nav-rail" aria-label="Zone shortcuts">
-      {item('Likes', () => router.push(ROUTES.LIKES), <HeartOutlineIcon size={ICON_SIZE} />)}
-      {item('Ask Zai', () => router.push(ROUTES.ZAI), <ZaiSparkIcon size={ICON_SIZE} />)}
-      {item('Settings', () => router.push(ROUTES.SETTINGS), <ProfileOutlineIcon size={ICON_SIZE} />)}
+  const rail = (
+    <nav className="zone-desktop-nav-rail" aria-label="Zone shortcuts" data-testid="zone-desktop-nav-rail">
+      {item('Likes', ROUTES.LIKES, <HeartOutlineIcon size={ICON_SIZE} />)}
+      {item('Ask Zai', ROUTES.ZAI, <ZaiSparkIcon size={ICON_SIZE} />)}
+      {item('Settings', ROUTES.SETTINGS, <ProfileOutlineIcon size={ICON_SIZE} />)}
     </nav>
   )
+
+  if (!visible || !mounted || !isTabletUp || typeof document === 'undefined') return null
+  return createPortal(rail, document.body)
 }

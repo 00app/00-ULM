@@ -16,6 +16,8 @@ import {
   buildEmploymentAwareResearchSeeds,
   buildLocalizedResearchPrefix,
 } from '@/lib/intelligence/researchProfilePayload'
+import { buildDataTruthContextBlock } from '@/lib/intelligence/answerFunnelRouter'
+import { buildAnswerFunnelFromResearchProfile } from '@/lib/intelligence/enrichProfileDataFromGenome'
 import { readHomePowerFromGenome } from '@/lib/data/utilitiesFreeApis'
 import { buildUtilitiesResearchContext } from '@/lib/intelligence/utilitiesLaneRules'
 import { shouldSkipDeepGeminiSearch, shouldSkipFirecrawlScrape, shouldPreferMechanicalTripletInBucket } from '@/lib/intelligence/scrapeBoundaries'
@@ -41,7 +43,7 @@ import {
 } from '@/lib/agents/researcher'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { stripContentSystemLeakage } from '@/lib/zone/contentProseSanitize'
-import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
+import { sanitizeZoneOfferUrl, sanitizeZoneOfferUrlForPersist } from '@/lib/zone/offerUrlGuard'
 import { forensicMateBannedPromptLine, ZONE_WARM_AUDITOR_THREE_BEAT } from '@/lib/zone/zoneVoice'
 import { polishWarmAuditorProse } from '@/lib/zone/warmAuditorCopy'
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
@@ -508,18 +510,27 @@ async function fetchCategoryFirecrawlResearch(params: {
 
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
   const cat = normalizeResearchCategory(params.category) ?? 'home'
+  const journeyKey = resolveSurgicalJourneyKey(cat) ?? normalizeCategoryToJourneyKey(cat)
+  const funnel = buildAnswerFunnelFromResearchProfile(params.profileData ?? null, {
+    activeJourneyId: journeyKey,
+  })
+  const truthBlock = buildDataTruthContextBlock({
+    profileSignals: funnel.profileSignals,
+  })
   const prefix = buildLocalizedResearchPrefix({
     postcode: pc,
-    profileData: params.profileData ?? null,
+    profileData: funnel.profileSignals,
     category: cat,
-    userContext: params.userContext ?? null,
+    userContext: [params.userContext?.trim() ?? '', truthBlock].filter(Boolean).join('\n\n'),
   })
   const surgical = params.surgical === true
   const seeds = buildCategoryFirecrawlSeedUrls({
     postcode: pc,
     category: cat,
-    profileData: params.profileData ?? null,
+    profileData: funnel.profileSignals,
     surgical,
+    extraSeedUrls: funnel.extraSeedUrls,
+    deprioritizeMeansTestedGrants: funnel.deprioritizeMeansTestedGrants,
   })
   const { fetchFirecrawlMarkdownForUrls } = await import('@/lib/agents/scraper')
   const maxUrls = surgical
@@ -560,15 +571,19 @@ export async function deepGeminiSearchUkEnergyMarkdown(params: {
   const profileBlock = buildResearchProfileAuditorContext(params.profileData ?? null)
   const locality = params.localityContext?.trim()
   const cat = normalizeResearchCategory(params.category ?? '')
+  const journeyKey = resolveSurgicalJourneyKey(cat ?? '') ?? normalizeCategoryToJourneyKey(cat ?? 'home')
+  const funnel = buildAnswerFunnelFromResearchProfile(params.profileData ?? null, {
+    activeJourneyId: journeyKey,
+  })
+  const truthBlock = buildDataTruthContextBlock({ profileSignals: funnel.profileSignals })
   const localizedPrefix = buildLocalizedResearchPrefix({
     postcode: pc,
-    profileData: params.profileData ?? null,
+    profileData: funnel.profileSignals,
     category: cat,
-    userContext: [locality ? `locality: ${locality}` : '', params.userContext?.trim() ?? '']
+    userContext: [locality ? `locality: ${locality}` : '', params.userContext?.trim() ?? '', truthBlock]
       .filter(Boolean)
       .join('\n'),
   })
-  const journeyKey = resolveSurgicalJourneyKey(cat ?? '') ?? normalizeCategoryToJourneyKey(cat ?? 'home')
   const postcodeDna = buildPostcodeDnaBlock({
     postcode: pc,
     localityContext: locality ?? null,
@@ -1434,6 +1449,47 @@ export async function extractHybridEditorialTriplet(params: {
   }
 }
 
+const INTERNAL_PROVIDER_RE =
+  /\b(?:awin|firecrawl|gemini|openai|anthropic|google\s+generative|vertex)\b/i
+
+const FIRECRAWL_PROXY_URL_RE = /firecrawl\.dev|api\.firecrawl/i
+
+function sanitizeResearchSourceUrl(url: string | null | undefined): string | null {
+  const trimmed = typeof url === 'string' ? url.trim() : ''
+  if (!trimmed.startsWith('http')) return null
+  if (FIRECRAWL_PROXY_URL_RE.test(trimmed)) return null
+  if (/^https?:\/\/(?:localhost|127\.0\.0\.1)/i.test(trimmed)) return null
+  if (/\.vercel\.app/i.test(trimmed)) return null
+  return trimmed.slice(0, 2048)
+}
+
+function sanitizeResearchProviderName(
+  raw: string | null | undefined,
+  citations: ResearchCitation[]
+): string | null {
+  const trimmed = typeof raw === 'string' ? raw.trim() : ''
+  if (trimmed && !INTERNAL_PROVIDER_RE.test(trimmed)) {
+    return trimmed.slice(0, 256)
+  }
+  for (const c of citations) {
+    const name = typeof c.source_name === 'string' ? c.source_name.trim() : ''
+    if (name && !INTERNAL_PROVIDER_RE.test(name)) return name.slice(0, 256)
+    const url = typeof c.url === 'string' ? c.url.trim() : ''
+    if (url.startsWith('http')) {
+      try {
+        const host = new URL(url).hostname.replace(/^www\./i, '')
+        const brand = host.split('.')[0]
+        if (brand && brand.length >= 3 && !INTERNAL_PROVIDER_RE.test(brand)) {
+          return brand.charAt(0).toUpperCase() + brand.slice(1)
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return 'UK Government'
+}
+
 /**
  * Persist research result to Neon (research_results table).
  * Call after runZeroResearch or triggerSupplementalResearch to store for returning users.
@@ -1507,9 +1563,10 @@ export async function persistResearchResult(params: {
     const markdownTriplet =
       geminiTriplet ?? inferResearchTripletFromMarkdown(workingMarkdown, params.category ?? null)
     const mergedCitations = [...extraCitations, ...params.citations]
-    const providerName =
+    const providerNameRaw =
       params.providerName?.trim() ||
       (mergedCitations[0]?.source_name ? String(mergedCitations[0].source_name).trim() : null)
+    const providerName = sanitizeResearchProviderName(providerNameRaw, mergedCitations)
     let mergedCategory =
       normalizeResearchCategory(params.category) ??
       markdownTriplet?.category ??
@@ -1597,10 +1654,14 @@ export async function persistResearchResult(params: {
 
     const journeyKeyFinal = normalizeCategoryToJourneyKey(mergedCategory ?? 'home')
     if (mergedOffer?.startsWith('http')) {
-      mergedOffer = sanitizeZoneOfferUrl(mergedOffer, journeyKeyFinal)
+      const persisted = sanitizeZoneOfferUrlForPersist(mergedOffer, journeyKeyFinal)
+      mergedOffer = persisted
     }
     if (mergedSourceForDb?.startsWith('http')) {
-      mergedSourceForDb = sanitizeZoneOfferUrl(mergedSourceForDb, journeyKeyFinal)
+      const srcClean = sanitizeResearchSourceUrl(mergedSourceForDb)
+      mergedSourceForDb = srcClean
+        ? sanitizeZoneOfferUrl(srcClean, journeyKeyFinal)
+        : null
     }
 
     const highImpact = params.isHighImpact === true

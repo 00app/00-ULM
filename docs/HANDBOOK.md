@@ -29,11 +29,15 @@
 | **Copy** | Per-journey headlines (`EXPANDED_JOURNEY_HOOK`) on **mother** tiles; Rock grid + Solo Focus use catalog habits (`clampRockTipHeadline`, `headlineFromRockHabit`) — not wall hooks |
 | **Prose** | Max 2 blocks in Solo Focus (Marvin lead ≤30 words + optional body); no duplicate payoff; no generic “policy and tariff pressure…” |
 | **Questions** | 13 journeys × 3 in `lib/journeys.ts`; Solo Focus = 1 Q; loop = `loopQuestions.ts` |
+| **Zone wall order** | welcome → profile hero → today's tips + Rock → recommendations + bento → signup (`zone-section-*` testids) |
+| **Grid order** | `buildGroovyGridItems` — mothers by goal-weighted £ then `JOURNEY_ORDER`; injects nest under parent; max 2/category, 24 total |
 | **Discovery birth** | Only `POST /api/answers` → `injectNewDiscoveryCard` (cap 3/journey) |
 | **Zai** | Read-only on chat; scrape only on Deep Dive **Search deeper** |
 | **Credit** | `MODEL_STRATEGY=bucket_failover`; no `?force=true`; JIT max 4 URLs; Hermes weekly repair only |
 | **Deploy** | `npm run verify` → `npm run deploy` → `npm run promote` if Staged |
 | **Hermes** | Weekly `repair-mechanical` — not daily broad scrape in bucket mode |
+| **Ellipsis** | No sentence ending in `...` or `…` reaches Solo Focus or Zone bento |
+| **Coherence** | Every Solo Focus paragraph passes `isCoherentParagraph` before render |
 
 ---
 
@@ -97,6 +101,7 @@ UK postcode auditor: **profile** → **summary** → **Zone** (13 journey tiles 
 | **Solo Focus (Rock)** | `headlineFromRockHabit` + insight | Catalog habit row | Habit learn URL |
 | **SMS tips** | Same as visible Rock rail | Catalog £ in body | Per-habit resolved URL |
 | **SMS recs** | Journey VM titles | — | `resolveJourneyCardUrl` |
+| **Zone wall stack** | Fixed DOM order — see Director's Order | — | `zone-section-*` testids in `app/zone/page.tsx` |
 
 **COMPUTING** when `!journeyHasStreamData` — no fake £ without Neon stream (`mechanicalTruth.ts`).
 
@@ -457,8 +462,11 @@ Pipeline: `research_results.offer_url` → `sanitizeZoneOfferUrl` (`lib/zone/off
 - **Definitions:** `lib/journeys.ts` — **13 domains**, **3 questions each** (`JOURNEY_ORDER`). Profile leading question **`home_power`** (GAS / ELECTRIC / MIX / OTHER) seeds utilities + `home.energy_type`. Question labels are behavioural only — **no £/kg in copy**.
 - **Next question:** `lib/zone/questionHandler.ts` — `getNextQuestion(journeyId, answers)` returns the first unanswered registry question.
 - **Solo Focus UI:** `JourneyBentoCard.tsx` — **one** registry question per open (`getSoloFocusNextQuestion`); after MC answer → **RESULT**; after **close** → **`DiscoveryTakeover`** (one loop per journey). **Do not** `markCardVisited` on close — pink only in **`completeCleanBirth`** after loop + discovery birth.
-- **Persist:** `POST /api/answers` — canonical discovery birth → `injectNewDiscoveryCard`. **Hydrate:** `GET /api/answers`.
-- **Full question tables:** see annex [Zai, Deep Dive & question registry](#annex-zai-deep-dive--question-registry) (profile 8 steps, 13×3 MC, loop bank, tip verification).
+- **Persist:** `POST /api/answers` — validates registry id → `journey_answers_jsonb` → `buildUserImpact` → optional `runLoopSpawnResearch` (JIT cap **4** via `answerFunnelRouter`).
+- **Discovery birth (canonical):** `raceDiscoveryBirth` in response → client **`injectNewDiscoveryCard`** → nested tip under parent journey in **`buildGroovyGridItems`** (max **2** cells/category on wall, **3** injects/journey lifetime cap).
+- **Supplemental only:** `POST /api/zone/injections` (trap), `POST /api/research/question-card` (Ask) — capped; not MC birth.
+- **Hydrate:** `GET /api/answers` on boot — server wins over stale client cache.
+- **Full question tables:** see annex [Profile, questions & mechanical truth](#annex-profile-journey-questions--mechanical-truth) and [Zai, Deep Dive & question registry](#annex-zai-deep-dive--question-registry).
 
 ---
 
@@ -492,7 +500,7 @@ Pipeline: `research_results.offer_url` → `sanitizeZoneOfferUrl` (`lib/zone/off
 
 ## Data & view model
 
-Zone VM: **AppContext** + **localStorage**, journey answers, **`GET /api/scrape-sync`**, **`/api/local-intelligence`**, injections, content-architect. Badges: **`LIVE_AUDIT`** vs **`ESTIMATED_AUDIT`**. **Postcode:** `profile_postcode` in localStorage; Zone refreshes on change. **Locality:** `GET /api/geocode/postcode` → `profile_locality_name`. **Gary mode:** BN17* or `zz_gary_mode=1` → shared research UUID (`lib/zone/garyMode.ts`) — **@fixture-only** for scripts.
+Zone VM: **AppContext** + **localStorage**, journey answers, **`GET /api/scrape-sync`**, **`/api/local-intelligence`**, injections, content-architect. Badges: **`LIVE_AUDIT`** vs **`ESTIMATED_AUDIT`**. **Postcode:** `profile_postcode` in localStorage; validated client-side via **`lib/geocode/ukPostcode.ts`**; Zone refreshes on change. **Locality:** `GET /api/geocode/postcode` → `profile_locality_name` (outcode fallback while parish loads). **Truth ledger:** `/settings/truth` — `buildIntelligenceLedger` surfaces per-journey settled/computing/estimated status for diagnostics. **Gary mode:** BN17* or `zz_gary_mode=1` → shared research UUID (`lib/zone/garyMode.ts`) — **@fixture-only** for scripts.
 
 Full scrape → copy → Solo Focus pipeline: annex [Zone content](#annex-zone-content-scrape--presentation).
 
@@ -515,13 +523,27 @@ Full scrape → copy → Solo Focus pipeline: annex [Zone content](#annex-zone-c
 
 **Skeleton:** `lib/zone/directorsOrder.ts`, `visitedCards.ts`, `loopMemory.ts`, `loopQuestions.ts`. **Skin:** `lib/motion-family.ts` only — must not change sequence.
 
-**Home cascade:** `/intro` → `/profile` → `/profile/summary` (ticker complete) → `/zone` (`ArchitecturalPulse` + **`pulseWordsComplete`** → bento ripple; Rock last).
+**Home cascade:** `/intro` → `/profile` → `/profile/summary` (ticker complete) → `/zone` (`ArchitecturalPulse` + **`pulseWordsComplete`** → bento ripple).
+
+**Zone wall vertical stack (DOM — `app/zone/page.tsx`):**
+
+| # | Section | `data-testid` |
+|---|---------|---------------|
+| 1 | Welcome (pulse words) | `zone-section-welcome` |
+| 2 | Profile hero card | `zone-hero-wall` |
+| 3 | Today's Tips heading + Rock rail | `zone-section-today-tips` |
+| 4 | Recommendations heading + category bento | `zone-section-recommendations` |
+| 5 | Mobile signup | `zone-section-signup` |
+
+Section headings render in **`zone-rock-strip`** / **`zone-category-wall`** — never as flex children inside `groovy-zone-grid`. Visibility: **`wallSectionsReady`** (`pulseWordsComplete` + pulse `done` + `zoneInteractable` + no expanded card) and **`zoneRevealCount >= 1`**.
+
+**Bento cell order:** `buildGroovyGridItems` — mothers sorted by goal-weighted £ then `JOURNEY_ORDER`; discovery `inject-*` tips nest after parent; max **2** cells/category, **24** total (`lib/zone/gridOrder.ts`, `perCategoryCardCap.ts`).
 
 **Solo Focus contract:**
 
 | Step | Behaviour |
 |------|-----------|
-| 1 | 13 journey cells + hero crystallize; Rock strip last |
+| 1 | Profile hero crystallizes first; category mothers ripple in recommendations grid after section headings |
 | 2 | Rock tip: grid = catalog title (`clampRockTipHeadline`); expand = **`headlineFromRockHabit`** + habit £/kg — **not** journey mother hook or Neon audit |
 | 3 | Rock tip close = **`visitedClose`** (no loop, no tip verification scrape) |
 | 4 | Mother: expand → close → **one** loop → answer → discovery child → **pink** (`completeCleanBirth` only) |
@@ -610,6 +632,8 @@ Zero Zero is a UK postcode-driven energy and lifestyle auditor. A user provides 
 | Summary | `/profile/summary` | HELLO → name → locality ticker; research handshake | `runProfileResearchHandshake` |
 | Zone | `/zone` | 13 journey tiles + Rock rail + mobile signup | `GET /api/scrape-sync`, `buildZoneViewModel` |
 | Solo Focus | Overlay | 1 MC question → answer → result; discovery birth | `POST /api/answers` |
+| Solo Focus close | Lifestyle loop question → short pulse → atomic exit → grid | `DiscoveryTakeover` |
+| Solo Focus like / nope | Offer feedback question → grid or `/likes` | `OfferFeedbackTakeover`, `offer_signals` |
 | Zai | `/zai` | Read-only chat (Gemini); no MC birth | `POST /api/zai` |
 | Likes / Settings | `/likes`, `/settings` | Saved cards, reset, diagnostics | localStorage + session |
 
@@ -813,6 +837,7 @@ All MC answers still: persist to genome, trigger `runLoopSpawnResearch`, can bir
 | **Postcode** | All scrapes, council, grid carbon, locality in copy |
 | **House number** | EPC address match in research |
 | **Goal** | JIT journey pick; `goalSortWeights` hero/tip order |
+| **Like / nope feedback** | Grid sort weights, scrape avoid hints, Hermes `offer_feedback` | `offerPreference`, `offer_signals` |
 | **Power type** | Unlocks utilities tile; utilities JIT; tariff seeds |
 | **Employment** | Grant vs agile seeds; `filterTipsForEmployment`; grants title |
 | **Household / transport / home type** | Impact baselines, synthetic answers, titles |
@@ -885,6 +910,12 @@ npm run zone:audit-gates -- YOURPOSTCODE
 | T9 | MC answer close | Discovery card in tips | `injectNewDiscoveryCard` |
 | T10 | Mobile opt-in | Welcome + tips SMS; URLs topic-aligned | `signupZoneSms` |
 | T11 | Employed user | No means-tested grant tips on Rock | `filterTipsForEmployment` |
+| T12 | Solo Focus **like** | Feedback question → `/likes`; row in Settings | `OfferFeedbackTakeover`, `offer_signals` |
+| T13 | Solo Focus **nope** | Card suppressed on wall; feedback in Settings | `gridOrder`, `offerPreference` |
+| T14 | Solo Focus **close (X)** | Lifestyle loop question (not offer feedback) | `DiscoveryTakeover`, `loopQuestions` |
+| T15 | Expand any journey card | No ellipsis in H1 or lead | `isTruncatedSentence` guard |
+| T16 | Expand any journey card | Lead contains town name | `buildAuditorDetectionParagraph` |
+| T17 | Expand Rock tip | Headline is 20–24 words | `headlineFromRockHabit` |
 
 ##### 9.4 What to check when something looks wrong
 
@@ -919,6 +950,9 @@ npm run zone:audit-gates -- YOURPOSTCODE
 | `lib/rock/resolveRockHabitLearnUrl.ts` | Topic-aligned tip URLs |
 | `lib/journeys.ts` | 13×3 question registry |
 | `lib/zone/ulmLimits.ts` | 24 cells, 3 injects/journey |
+| `lib/zone/offerFeedbackLoop.ts` | Like/nope feedback beats + Settings log |
+| `app/components/OfferFeedbackTakeover.tsx` | Post–like/nope one-shot question |
+| `app/components/DiscoveryTakeover.tsx` | Lifestyle loop + clean birth exit |
 
 ---
 
@@ -927,8 +961,10 @@ npm run zone:audit-gates -- YOURPOSTCODE
 1. Architectural pulse → grid reveal  
 2. Journey mother tiles (13)  
 3. Solo Focus: question → answer → result → optional discovery  
-4. Today's Tips (Rock) — visit only, no loop scrape on close  
-5. Mobile signup below Rock when grid collapsed  
+4. **Close (X):** lifestyle loop question → short pulse (`audit` / `done.`) → atomic shell exit → grid  
+5. **Like / nope:** offer feedback question → atomic exit → grid or `/likes` (disliked cards suppressed)  
+6. Today's Tips (Rock) — visit only, no loop scrape on close  
+7. Mobile signup below Rock when grid collapsed  
 
 Pink = visited. Discovery birth only via `POST /api/answers` (canonical).
 
@@ -1344,14 +1380,18 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 2. **Leverage** — July 2026 Ofgem cap or grant fact from `lib/brains/constants.ts` when relevant (April figures kept for policy-step copy only).
 3. **Payoff** — single closing line, e.g. *“We've put about £X a year and around Y CO₂e against your {topic} row — from your saved audit, not a guess.”* (`payoffSentence` in `lib/zone/auditorNarrative.ts` — deduped by `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp`).
 
-##### Quality gates (`lib/soloFocusCopy.ts`)
+##### Quality gates (`lib/soloFocusCopy.ts` + `lib/zone/contentProseSanitize.ts` + `lib/zone/proseComplete.ts`)
 
 | Function | Purpose |
 |----------|---------|
+| `isTruncatedSentence` | Reject ellipsis endings, dangling prepositions, open parens, sub-3-char tail words (`lib/zone/proseComplete.ts`) |
+| `isCoherentParagraph` | Gate: 2+ complete sentences, 20–40 words, no ellipsis, no leading conjunction (`lib/zone/proseComplete.ts`) |
+| `toThreeTrueTipParagraphs` | Filters paragraphs through `isCoherentParagraph`; pads from `buildAuditorNarrativeParagraphs` when fewer than 3 coherent blocks remain |
+| `sanitizeProseParagraphs` | Strip AI-hedge phrases, variable leaks (`£{amount}`, `{postcode}`), fragments &lt;6 words, comma-cut sentences |
 | `stripExpandedCardTitleNoise` | Clean Solo Focus H1 |
 | `clampRockTipHeadline` | Today's Tips **grid** — short catalog title; never wall `ZONE_BENTO_HOOK` |
-| `headlineFromRockHabit` | Rock Solo Focus H1 — title + habit insight; **never** `EXPANDED_JOURNEY_HOOK` |
-| `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook for **journey mothers**; per-journey fallback when DB title is thin, jargon, or off-topic (e.g. travel: rail/bus commute swap — not generic “near you” padding) |
+| `headlineFromRockHabit` | Rock Solo Focus H1 — title + habit insight; pads with `EXPANDED_JOURNEY_HOOK` when &lt;15 words to reach **20–24** |
+| `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook for **journey mothers**; strips truncated £ ellipsis; falls back when no verb detected |
 | `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp` | Drop duplicate payoff / repeated blocks before render |
 | `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *optimization plan*, *green funding frameworks*, thin *“Your X is high-value”* |
 | `collapseDuplicateProseParagraphs` | No repeated sentences within a block |
@@ -1367,7 +1407,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Zone bento | **5–8** | `enforceHeadlineWordLimits(text, false)` |
 | Today's Tips grid | **3–10** (catalog title) | `clampRockTipHeadline` |
 | Solo Focus expanded hook (mother) | **20–24** (~3–4 lines) | `headlineFromExpandedHook` → per-journey `EXPANDED_JOURNEY_HOOK` when title is weak or generic spring filler (`isGenericSpringHeadline`); mechanical proof via `lib/zone/auditorNarrative.ts` (no shared “policy and tariff pressure…” block) |
-| Solo Focus expanded hook (Rock) | **20–24** (~3–4 lines) | `headlineFromRockHabit` — habit title + insight; **no** journey hook substitution |
+| Solo Focus expanded hook (Rock) | **20–24** (~3–4 lines) | `headlineFromRockHabit` — habit title + insight; journey-hook pad when thin |
 | Solo Focus Marvin lead (H4) | **≤30** words | `resolveSoloFocusDisplayProse` + `buildAuditorDetectionParagraph` when lead lacks town opener |
 | Paragraph | ≤ **40** words each | `MAX_TRUE_TIP_PARAGRAPH_WORDS` |
 
@@ -3445,8 +3485,6 @@ When user closes Solo Focus from a **visited** card (`visitedClose: true`):
 
 **UI:** `app/zone/page.tsx` — `patternShiftJourneyId` overlay for non-visited close flow; `JourneyBentoCard` / `SoloFocusOverlay` pass `onPatternShiftClose`.
 
-**Offer feedback (like / nope):** `PatternShiftCloseMeta.offerFeedback` → `OfferFeedbackTakeover` (not lifestyle loop). Close **(X)** still opens `DiscoveryTakeover` + `pickNextLoopQuestion`. Shell uses atomic exit (reverse of enter) before grid reveal.
-
 Credit guard aligned with [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md) (visited flip + close credit guard).
 
 ---
@@ -4201,14 +4239,17 @@ Production alias **`https://www.00-00.online`** should then serve this build.
 | **`vercel.json` `buildCommand`** | `node scripts/vercel-build-gate.mjs` — serial typecheck, lint, then `build-with-manifest-fix.js` (verify runs without build `NODE_OPTIONS` to avoid OOM) |
 | **`.npmrc`** | `include=dev` — native Lint/Typecheck jobs get `@types/*` + eslint |
 | **`scripts/vercel-check.mjs`** | Native check entry: `next typegen` + explicit eslint/tsc binaries |
-| **`package.json` `lint` / `typecheck`** | `node scripts/vercel-check.mjs …` (not deprecated `next lint`) |
+| **`package.json` `lint:ci` / `typecheck:ci`** | `node scripts/vercel-check.mjs` — **not** `lint` / `typecheck` (native Vercel checks auto-skip) |
+| **`npm run fix:vercel-checks`** | Fails if `lint`/`typecheck` scripts reappear in package.json |
 | **`next.config.js`** | No `eslint` key (Next 16 removed it — native Vercel Lint crashes). `typescript.ignoreBuildErrors` only. |
 | **`vercel.json` `installCommand`** | `npm ci --include=dev` (checks + build see eslint/tsc) |
 | **`npm run deploy`** | verify → `vercel deploy --prod` → wait Ready → **`scripts/vercel-promote-latest.sh`** |
 
 Missing or nested check scripts caused Vercel *internal error* on native Lint/Typecheck; direct binaries fix that.
 
-**Dashboard (fix “internal error” on native Lint/Typecheck):**
+**Permanent repo fix (native checks):** Do **not** define `lint` or `typecheck` in `package.json`. Vercel Native Deployment Checks bind to those exact names and run in parallel with the build — they often fail with *failed unexpectedly* while `vercel-build-gate.mjs` already verified the same code. Use `lint:ci` / `typecheck:ci` + `npm run fix:vercel-checks`.
+
+**Dashboard (if checks still show after deploy):**
 
 1. **Project 00-ulm** → **Settings** → **Build and Deployment** → **Deployment Checks**
 2. **Remove** or mark **not required** the built-in **Lint** and **Typecheck** checks (Next 16 + flat ESLint often yields *internal error* with no log).

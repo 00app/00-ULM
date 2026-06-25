@@ -484,7 +484,8 @@ export function SoloFocusOverlay({
   const recommendationTitle = isRockHabitTip
     ? headlineFromRockHabitForSoloFocus(
         String(effectiveTitleRaw),
-        (displayInsight ?? insight ?? '').trim() || undefined
+        (displayInsight ?? insight ?? '').trim() || undefined,
+        overlayFocusJourney
       )
     : headlineFromExpandedHook(
         stripExpandedCardTitleNoise(String(effectiveTitleRaw)),

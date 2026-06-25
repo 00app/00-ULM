@@ -22,6 +22,16 @@ export type LocalizedProfileInput = {
   house_number?: string | null
   /** ONS IMD decile 1–10 from property_intelligence.deprivation */
   imd_decile?: number | null
+  /** From property_intelligence envelope */
+  property_confidence?: string | null
+  epc_rating?: string | null
+  epc_potential_rating?: string | null
+  epc_stale?: boolean
+  property_value_band?: string | null
+  flood_risk_zone?: string | null
+  solar_irradiance_kwh_m2?: number | null
+  dno_region?: string | null
+  lsoa_code?: string | null
 }
 
 const GENERIC_UK_RESEARCH_SEEDS = [
@@ -117,6 +127,17 @@ export function buildLocalizedResearchPrefix(params: {
   if (p?.tenure) lines.push(`tenure: ${p.tenure}`)
   if (p?.household_size) lines.push(`household_size: ${p.household_size}`)
   if (p?.goal) lines.push(`goal: ${p.goal}`)
+  if (p?.property_confidence) lines.push(`property_confidence: ${p.property_confidence}`)
+  if (p?.epc_rating) lines.push(`epc_current_rating: ${p.epc_rating}`)
+  if (p?.epc_potential_rating) lines.push(`epc_potential_rating: ${p.epc_potential_rating}`)
+  if (p?.epc_stale) lines.push('epc_stale: true')
+  if (p?.property_value_band) lines.push(`property_value_band: ${p.property_value_band}`)
+  if (p?.flood_risk_zone) lines.push(`flood_risk_zone: ${p.flood_risk_zone}`)
+  if (typeof p?.solar_irradiance_kwh_m2 === 'number') {
+    lines.push(`solar_irradiance_kwh_m2: ${p.solar_irradiance_kwh_m2}`)
+  }
+  if (typeof p?.imd_decile === 'number') lines.push(`imd_decile: ${p.imd_decile}`)
+  if (p?.dno_region) lines.push(`dno_region: ${p.dno_region}`)
   if (params.category) {
     lines.push(`current_domain: ${params.category}`)
     lines.push(`target_journey: ${params.category}`)
@@ -168,6 +189,9 @@ export function buildCategoryFirecrawlSeedUrls(params: {
   profileData?: LocalizedProfileInput | null
   /** JIT surgical pass — fewer URLs, skip cross-domain grant seeds when employed. */
   surgical?: boolean
+  /** Answer funnel overrides — property/IMD/solar/flood biased seeds. */
+  extraSeedUrls?: string[]
+  deprioritizeMeansTestedGrants?: boolean
 }): string[] {
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
   const journeyKey = normalizeCategoryToJourneyKey(params.category)
@@ -176,7 +200,9 @@ export function buildCategoryFirecrawlSeedUrls(params: {
   const imdDecile = params.profileData?.imd_decile
   const affluentArea = typeof imdDecile === 'number' && imdDecile >= 8
   const deprivedArea = typeof imdDecile === 'number' && imdDecile <= 3
-  const skipGrantSeeds = (employed && !lowIncome && !deprivedArea) || affluentArea
+  const skipGrantSeeds =
+    params.deprioritizeMeansTestedGrants === true ||
+    ((employed && !lowIncome && !deprivedArea) || affluentArea)
   const seen = new Set<string>()
   const out: string[] = []
   const add = (url: string) => {
@@ -187,6 +213,7 @@ export function buildCategoryFirecrawlSeedUrls(params: {
     out.push(u)
   }
 
+  for (const u of params.extraSeedUrls ?? []) add(u)
   for (const u of JOURNEY_FIRECRAWL_SEEDS[journeyKey] ?? []) add(u)
   for (const u of buildEmploymentAwareResearchSeeds(params.profileData ?? null)) {
     if (!skipGrantSeeds || !isGrantHeavyUrl(u)) add(u)

@@ -215,20 +215,31 @@ nextjs-portal > * {
   --transition-bloom: all 0.6s var(--easing-groovy);
   --transition-squish: all 0.2s var(--easing-groovy);
 
-  /* Buttons/CTAs: contrasting to page (page is purple) — yellow or pink bg, purple text */
+  /* Buttons/CTAs: contrasting to page (page is purple) — yellow rest, purple swap on hover */
   --btn-bg-rest: var(--color-yellow);
-  --btn-bg-hover: var(--color-yellow);
-  --btn-bg-active: var(--color-yellow);
+  --btn-bg-hover: var(--color-purple);
+  --btn-bg-active: var(--color-purple);
   --btn-text-rest: var(--color-purple);
-  --btn-text-hover: var(--color-purple);
-  --btn-text-active: var(--color-purple);
-  /* Interaction — colour swap on hover; soft press on active only */
+  --btn-text-hover: var(--color-yellow);
+  --btn-text-active: var(--color-yellow);
+  /* Interaction rhythm — colour swap on hover; soft press on :active only */
   --zz-press-scale: 0.985;
   --zz-interaction-duration: 0.22s;
   --zz-interaction-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --zz-interaction-transition:
+    background-color var(--zz-interaction-duration) var(--zz-interaction-ease),
+    color var(--zz-interaction-duration) var(--zz-interaction-ease),
+    transform var(--zz-interaction-duration) var(--zz-interaction-ease);
   --zz-glitch-anim-ms: 328ms; /* GLITCH_ANIM_MS — intro/loading glitch */
+  /* Purple/pink-surface rest → yellow field + purple ink (bento, back, pink CTAs) */
   --zz-hover-bg: var(--color-yellow);
   --zz-hover-text: var(--color-purple);
+  /* Yellow-surface rest → purple field + yellow ink (circle CTAs, profile pills) */
+  --zz-hover-from-yellow-bg: var(--color-purple);
+  --zz-hover-from-yellow-text: var(--color-yellow);
+  /* Zai yellow field rest → deep blue field + yellow ink */
+  --zai-hover-bg: var(--zai-deep-blue);
+  --zai-hover-text: var(--color-yellow);
   --btn-radius-rest: 40px;
   --btn-radius-hover: 60px;
   --btn-ease: var(--easing-zero);
@@ -1138,12 +1149,19 @@ p,
   --color-ink: var(--color-yellow);
 }
 
+.expanded-solo-focus {
+  --journey-cta-hover-bg: var(--zz-hover-from-yellow-bg);
+  --journey-cta-hover-text: var(--zz-hover-from-yellow-text);
+}
+
 .expanded-solo-focus[data-zone-surface='journey'] {
   --journey-bg: transparent;
   --journey-text: var(--color-yellow);
   --color-ink: var(--color-yellow);
   --journey-cta-bg: var(--color-pink);
   --journey-cta-text: var(--color-yellow);
+  --journey-cta-hover-bg: var(--zz-hover-bg);
+  --journey-cta-hover-text: var(--zz-hover-text);
   --sf-answer-bg: var(--color-yellow);
   --sf-answer-text: var(--color-yellow);
   --sf-answer-hover-bg: var(--color-pink);
@@ -1156,6 +1174,8 @@ p,
   --color-ink: var(--color-yellow);
   --journey-cta-bg: var(--color-yellow);
   --journey-cta-text: var(--color-pink);
+  --journey-cta-hover-bg: var(--zz-hover-from-yellow-bg);
+  --journey-cta-hover-text: var(--zz-hover-from-yellow-text);
   --sf-answer-bg: var(--color-yellow);
   --sf-answer-text: var(--color-pink);
   --sf-answer-hover-bg: var(--color-yellow);
@@ -1216,11 +1236,13 @@ p,
   color: var(--journey-cta-text) !important;
 }
 
-.expanded-solo-focus .solo-focus-action-btn:hover,
-.expanded-solo-focus .solo-focus-action-btn.solo-focus-ask-zai-btn:hover,
-.expanded-solo-focus .solo-focus-close-circle:hover {
-  background: var(--zz-hover-bg) !important;
-  color: var(--zz-hover-text) !important;
+@media (hover: hover) {
+  .expanded-solo-focus .solo-focus-action-btn:hover,
+  .expanded-solo-focus .solo-focus-action-btn.solo-focus-ask-zai-btn:hover,
+  .expanded-solo-focus .solo-focus-close-circle:hover {
+    background: var(--journey-cta-hover-bg) !important;
+    color: var(--journey-cta-hover-text) !important;
+  }
 }
 
 .bento-card-groovy .card-top-label,
@@ -1500,11 +1522,21 @@ main.zone > .zone-content-rail {
     box-sizing: border-box;
   }
 
+  .zone-wall-stack .zone-section-heading,
   .zone-wall-stack .zone-category-section-heading,
-  .zone-wall-stack .zone-rock-strip > h3 {
-    padding-inline: var(--zone-rail-gutter-mobile);
-    padding-block: 30px;
+  .zone-wall-stack .zone-rock-section-heading,
+  .zone-wall-stack .zone-rock-strip > h3,
+  .zone-wall-stack .zone-hero-copy {
+    padding: 20px;
     box-sizing: border-box;
+    position: relative;
+    top: auto;
+    transform: none;
+  }
+
+  .zone-wall-stack .zone-rock-strip > .zone-rock-section-heading,
+  .zone-wall-stack .zone-category-wall > .zone-category-section-heading {
+    padding-bottom: 20px;
   }
 
   .zone-wall-stack .zone-rock-strip,
@@ -1601,24 +1633,103 @@ main.zone > .zone-content-rail {
   flex-shrink: 0;
 }
 
-/* Section label above category bento — outside grid so row min-height does not stretch it */
+/* Zone section labels — siblings above grids; tight bottom edge to the card rail. */
+.zone-section-heading,
 .zone-category-section-heading,
+.zone-rock-section-heading,
 .zone-rock-strip > h3 {
   width: 100%;
   max-width: min(1400px, 100%);
   margin: 0 auto;
-  padding-block: 30px;
-  padding-inline: 30px;
+  padding: 20px 20px 0;
   display: block;
+  position: relative;
+  top: auto;
+  transform: none;
+  flex: none;
   line-height: 0.8 !important;
   font-family: var(--font-marvin) !important;
   font-size: var(--zz-h3-mobile) !important;
   font-weight: bold !important;
   letter-spacing: -0.02em !important;
   text-transform: lowercase !important;
+  box-sizing: border-box;
 }
+
+.zone-rock-strip > .zone-rock-section-heading,
+.zone-category-wall > .zone-category-section-heading {
+  padding-bottom: 20px;
+  margin-bottom: 0;
+}
+
+.zone-hero-wall {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.zone-category-wall {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
+  gap: 0;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Section labels — first full-width grid row (pinned above cards, not bento cell motion). */
+.groovy-zone-grid > .zone-section-heading--in-grid {
+  grid-column: 1 / -1;
+  display: block !important;
+  height: auto !important;
+  min-height: 0 !important;
+  align-self: start;
+  flex: none;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  grid-row: auto !important;
+}
+
+.zone-category-wall > .zone-category-section-heading {
+  flex: none;
+  order: 0;
+}
+
+.zone-category-wall > .groovy-zone-grid {
+  flex: none;
+  order: 1;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.zone-rock-strip {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: min(1400px, 100%);
+  margin-inline: auto;
+  margin-block: 0;
+  box-sizing: border-box;
+  gap: 0;
+}
+
+.zone-rock-strip .rock-saving-tips-section {
+  margin: 0;
+  padding: 0;
+}
+
+.zone-rock-strip .rock-saving-tips-grid {
+  padding-top: 0;
+  margin-top: 0;
+}
+
 @media (min-width: 1024px) {
+  .zone-section-heading,
   .zone-category-section-heading,
+  .zone-rock-section-heading,
   .zone-rock-strip > h3 {
     font-size: var(--zz-h3-desktop) !important;
   }
@@ -1652,6 +1763,10 @@ main.zone > .zone-content-rail {
     grid-row: span 1 !important;
     min-height: clamp(200px, 48vw, 280px);
     min-width: 0;
+  }
+  .groovy-zone-grid > .zone-section-heading--in-grid {
+    min-height: 0 !important;
+    grid-row: auto !important;
   }
   .groovy-zone-grid > .zone-rock-strip,
   .zone-wall-stack .zone-rock-strip {
@@ -2549,14 +2664,14 @@ body, p, span, input, button, textarea, select,
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
-/* Profile Q labels — sentence case on solid card bg (Roboto, same body scale) */
+/* Profile Q labels — Marvin H4 on solid card bg */
 .settings-page .settings-bento-card:not(.settings-hero-card):not(.settings-journey-card-shell) .card-top-label {
-  font-family: var(--font-roboto), sans-serif;
-  font-size: var(--zz-body-size);
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: normal;
-  text-transform: none;
+  font-family: var(--font-marvin), sans-serif;
+  font-size: var(--zz-h4-mobile);
+  font-weight: 700;
+  line-height: 0.8;
+  letter-spacing: var(--zz-track-circle-marvin);
+  text-transform: uppercase;
   -webkit-line-clamp: 4;
 }
 
@@ -2749,10 +2864,15 @@ body, p, span, input, button, textarea, select,
     background-color 0.12s linear,
     color 0.12s linear;
 }
-.expanded-solo-focus .solo-focus-close-circle:hover,
-.zz-close-btn:hover {
-  background: var(--zz-hover-bg);
-  color: var(--zz-hover-text);
+@media (hover: hover) {
+  .expanded-solo-focus .solo-focus-close-circle:hover {
+    background: var(--journey-cta-hover-bg, var(--zz-hover-bg));
+    color: var(--journey-cta-hover-text, var(--zz-hover-text));
+  }
+  .zz-close-btn:hover {
+    background: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
+  }
 }
 .expanded-solo-focus .solo-focus-close-circle:active,
 .zz-close-btn:active {
@@ -3926,14 +4046,13 @@ h3.solo-focus-question-label.zz-h3 {
   font-weight: 700;
   font-size: 10pt;
   cursor: pointer;
-  transition:
-    transform 0.2s var(--easing-groovy),
-    background-color 0.2s ease,
-    color 0.2s ease;
+  transition: var(--zz-interaction-transition);
 }
-.circle-btn:hover {
-  background: var(--zz-hover-bg);
-  color: var(--zz-hover-text);
+@media (hover: hover) {
+  .circle-btn:hover {
+    background: var(--zz-hover-from-yellow-bg);
+    color: var(--zz-hover-from-yellow-text);
+  }
 }
 .circle-btn:active {
   transform: scale(var(--zz-press-scale));
@@ -3978,10 +4097,12 @@ h3.solo-focus-question-label.zz-h3 {
   background-color: var(--color-pink) !important;
   color: var(--color-yellow) !important;
 }
-.expanded-solo-focus .circle-btn.solo-focus-handoff-btn:hover,
-.expanded-solo-focus .circle-btn.solo-focus-handoff-btn.zz-shimmer-cta:hover {
-  background-color: var(--zz-hover-bg) !important;
-  color: var(--zz-hover-text) !important;
+@media (hover: hover) {
+  .expanded-solo-focus .circle-btn.solo-focus-handoff-btn:hover,
+  .expanded-solo-focus .circle-btn.solo-focus-handoff-btn.zz-shimmer-cta:hover {
+    background-color: var(--zz-hover-bg) !important;
+    color: var(--zz-hover-text) !important;
+  }
 }
 .expanded-solo-focus .circle-btn .circle-btn-label-stack {
   display: flex;
@@ -4012,12 +4133,14 @@ h3.solo-focus-question-label.zz-h3 {
     font-size: var(--zz-h4-desktop) !important;
   }
 }
-.expanded-solo-focus .circle-btn:hover,
-.expanded-solo-focus .solo-focus-action-btn:hover,
-.expanded-solo-focus .circle-btn.zz-shimmer-cta:hover,
-.expanded-solo-focus .solo-focus-action-btn.zz-shimmer-cta:hover {
-  background-color: var(--zz-hover-bg) !important;
-  color: var(--zz-hover-text) !important;
+@media (hover: hover) {
+  .expanded-solo-focus .circle-btn:hover,
+  .expanded-solo-focus .solo-focus-action-btn:hover,
+  .expanded-solo-focus .circle-btn.zz-shimmer-cta:hover,
+  .expanded-solo-focus .solo-focus-action-btn.zz-shimmer-cta:hover {
+    background-color: var(--journey-cta-hover-bg) !important;
+    color: var(--journey-cta-hover-text) !important;
+  }
 }
 
 /* Trinity — hover: yellow disc, purple Marvin label + stroke icons (beats inline rest colours). */
@@ -4073,9 +4196,11 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
 .expanded-solo-focus .solo-focus-action-btn:active {
   transform: scale(var(--zz-press-scale));
 }
-.expanded-solo-focus .solo-focus-answer-option.zz-shimmer-cta:hover {
-  background: var(--zz-hover-bg) !important;
-  color: var(--zz-hover-text) !important;
+@media (hover: hover) {
+  .expanded-solo-focus .solo-focus-answer-option.zz-shimmer-cta:hover {
+    background: var(--sf-answer-hover-bg) !important;
+    color: var(--sf-answer-hover-text) !important;
+  }
 }
 .expanded-solo-focus .solo-focus-answer-option.zz-shimmer-cta:active {
   transform: scale(var(--zz-press-scale));
@@ -4743,12 +4868,14 @@ body.zai-composer-dock-active {
   text-transform: uppercase;
   background: var(--zai-pill-bg);
   color: var(--zai-pill-text);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
 }
-.zai-interface .zai-suggest-pill:hover:not(:disabled),
-.zai-interface .zai-suggest-pill:focus-visible {
-  background: var(--zz-hover-bg);
-  color: var(--zz-hover-text);
+@media (hover: hover) {
+  .zai-interface .zai-suggest-pill:hover:not(:disabled),
+  .zai-interface .zai-suggest-pill:focus-visible {
+    background: var(--zai-field-bg);
+    color: var(--zai-deep-blue);
+  }
 }
 .zai-interface .zai-suggest-pill:active:not(:disabled) {
   transform: scale(var(--zz-press-scale));
@@ -4782,10 +4909,37 @@ body.zai-composer-dock-active {
 }
 .zai-interface .zone-ask-zai-pill:focus,
 .zai-interface .ask-zai-input:focus,
-.zai-interface .zone-ask-zai-pill:hover,
-.zai-interface .ask-zai-input:hover {
-  background-color: var(--zai-field-bg);
-  color: var(--zai-ink);
+.zai-composer-dock .zone-ask-zai-pill:focus,
+.zai-composer-dock .ask-zai-input:focus,
+.zai-composer-dock .zai-ask-input:focus {
+  background-color: var(--zai-hover-bg) !important;
+  color: var(--zai-hover-text) !important;
+  caret-color: var(--zai-hover-text);
+}
+@media (hover: hover) {
+  .zai-interface .zone-ask-zai-pill:hover,
+  .zai-interface .ask-zai-input:hover,
+  .zai-composer-dock .zone-ask-zai-pill:hover,
+  .zai-composer-dock .ask-zai-input:hover,
+  .zai-composer-dock .zai-ask-input:hover {
+    background-color: var(--zai-hover-bg) !important;
+    color: var(--zai-hover-text) !important;
+    caret-color: var(--zai-hover-text);
+  }
+  .zai-interface .zone-ask-zai-pill:hover::placeholder,
+  .zai-interface .ask-zai-input:hover::placeholder,
+  .zai-composer-dock .zone-ask-zai-pill:hover::placeholder,
+  .zai-composer-dock .ask-zai-input:hover::placeholder,
+  .zai-composer-dock .zai-ask-input:hover::placeholder {
+    color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
+  }
+}
+.zai-interface .zone-ask-zai-pill:focus::placeholder,
+.zai-interface .ask-zai-input:focus::placeholder,
+.zai-composer-dock .zone-ask-zai-pill:focus::placeholder,
+.zai-composer-dock .ask-zai-input:focus::placeholder,
+.zai-composer-dock .zai-ask-input:focus::placeholder {
+  color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
 }
 .zai-interface .zone-ask-zai-pill::placeholder,
 .zai-interface .ask-zai-input::placeholder {
@@ -4861,7 +5015,7 @@ body.zai-composer-dock-active {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: var(--zz-interaction-transition);
 }
 .zai-interface .zai-go-btn:not(:disabled) {
   background-color: var(--zai-pill-bg);
@@ -4869,8 +5023,8 @@ body.zai-composer-dock-active {
 }
 @media (hover: hover) {
   .zai-interface .zai-go-btn:not(:disabled):hover {
-    background-color: var(--zz-hover-bg);
-    color: var(--zz-hover-text);
+    background-color: var(--zai-field-bg);
+    color: var(--zai-deep-blue);
   }
   .zai-interface .zai-go-btn:not(:disabled):active {
     transform: scale(var(--zz-press-scale));
@@ -4896,7 +5050,7 @@ body.zai-composer-dock-active {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: var(--zz-interaction-transition);
 }
 .zai-composer-dock .zai-go-btn:not(:disabled) {
   background-color: var(--zai-pill-bg);
@@ -4904,8 +5058,8 @@ body.zai-composer-dock-active {
 }
 @media (hover: hover) {
   .zai-composer-dock .zai-go-btn:not(:disabled):hover {
-    background-color: var(--zz-hover-bg);
-    color: var(--zz-hover-text);
+    background-color: var(--zai-field-bg);
+    color: var(--zai-deep-blue);
   }
   .zai-composer-dock .zai-go-btn:not(:disabled):active {
     transform: scale(var(--zz-press-scale));
@@ -4979,11 +5133,17 @@ body.zai-composer-dock-active {
   text-decoration: none;
   cursor: pointer;
   letter-spacing: -0.5px;
-  transition: background-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: var(--zz-interaction-transition);
 }
-.zz-back-btn:hover {
-  background: var(--color-yellow);
-  color: var(--color-purple);
+@media (hover: hover) {
+  .zz-back-btn:hover {
+    background: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
+  }
+  .zz-back-btn.zz-modal-close-btn:hover {
+    background: var(--zz-hover-bg);
+    color: var(--zz-hover-text);
+  }
 }
 .zz-back-btn:active {
   transform: scale(var(--zz-press-scale));
@@ -5016,10 +5176,6 @@ body.zai-composer-dock-active {
 .zz-back-btn.zz-modal-close-btn {
   background: var(--color-pink);
   color: var(--color-yellow);
-}
-.zz-back-btn.zz-modal-close-btn:hover {
-  background: var(--zz-hover-bg);
-  color: var(--zz-hover-text);
 }
 
 /* Optional: nested fixed UI — stay above nextjs-portal (100) and base .zz-back-btn stacking */
@@ -5305,7 +5461,7 @@ body.zai-composer-dock-active {
   margin: 0 auto;
   padding-left: 0;
   padding-right: 0;
-  padding-bottom: 32px;
+  padding-bottom: 0;
   box-sizing: border-box;
 }
 .settings-answer-grid {
@@ -5316,6 +5472,7 @@ body.zai-composer-dock-active {
   max-width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
+  align-items: stretch;
 }
 @media (min-width: 1024px) {
   .settings-answer-grid {
@@ -5325,8 +5482,13 @@ body.zai-composer-dock-active {
 }
 .settings-card-cell {
   min-width: 0;
-  align-self: start;
-  height: auto;
+  display: flex;
+  flex-direction: column;
+}
+.settings-card-cell > * {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 100%;
 }
 .settings-page .settings-card-bento,
 .settings-page .settings-journey-card-shell {
@@ -5339,6 +5501,57 @@ body.zai-composer-dock-active {
   color: var(--color-yellow) !important;
   --journey-text: var(--color-yellow);
   --color-ink: var(--color-yellow);
+  min-height: 100%;
+}
+.settings-page .settings-journey-card-shell .settings-journey-answers {
+  flex: 1 1 auto;
+}
+/* Settings card arrows — purple disc + yellow glyph; hover like back/close/nav */
+.settings-page a.card-top-arrow,
+.settings-page button.card-top-arrow,
+.settings-page .card-top-arrow.card-top-arrow--action {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-purple) !important;
+  color: var(--color-yellow) !important;
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--zz-interaction-transition);
+  box-sizing: border-box;
+}
+.settings-page a.card-top-arrow svg,
+.settings-page button.card-top-arrow svg,
+.settings-page .card-top-arrow.card-top-arrow--action svg {
+  stroke: currentColor;
+  color: currentColor;
+}
+@media (hover: hover) {
+  .settings-page a.card-top-arrow:hover,
+  .settings-page button.card-top-arrow:hover,
+  .settings-page .card-top-arrow.card-top-arrow--action:hover {
+    background: var(--zz-hover-bg) !important;
+    color: var(--zz-hover-text) !important;
+  }
+  .settings-page a.card-top-arrow:hover svg,
+  .settings-page button.card-top-arrow:hover svg,
+  .settings-page .card-top-arrow.card-top-arrow--action:hover svg {
+    stroke: currentColor !important;
+    color: currentColor !important;
+  }
+}
+.settings-page a.card-top-arrow:active,
+.settings-page button.card-top-arrow:active,
+.settings-page .card-top-arrow.card-top-arrow--action:active {
+  transform: scale(var(--zz-press-scale));
+}
+.settings-page .settings-card-arrow-spacer {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
 }
 .settings-page .settings-bento-card .card-top-label,
 .settings-page .settings-bento-card .card-headline,
@@ -5379,29 +5592,30 @@ body.zai-composer-dock-active {
   }
 }
 .settings-journey-q {
-  font-family: var(--font-roboto), sans-serif;
-  font-size: var(--zz-body-size);
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-purple);
-  opacity: 0.95;
-  margin: 0;
-}
-.settings-journey-a {
   font-family: var(--font-marvin), sans-serif;
-  font-size: 16px;
+  font-size: var(--zz-h4-mobile);
   font-weight: 700;
   line-height: 0.8;
   letter-spacing: var(--zz-track-circle-marvin);
   text-transform: uppercase;
-  color: var(--color-purple);
+  color: var(--color-yellow);
+  opacity: 0.88;
+  margin: 0;
+}
+.settings-journey-a {
+  font-family: var(--font-marvin), sans-serif;
+  font-size: var(--zz-h4-mobile);
+  font-weight: 700;
+  line-height: 0.8;
+  letter-spacing: var(--zz-track-circle-marvin);
+  text-transform: uppercase;
+  color: var(--color-yellow);
   margin: 0;
 }
 @media (min-width: 1024px) {
+  .settings-journey-q,
   .settings-journey-a {
-    font-size: var(--zz-h4-mobile);
+    font-size: var(--zz-h4-desktop);
   }
 }
 
@@ -5770,7 +5984,7 @@ body.zai-composer-dock-active {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  transition: var(--zz-interaction-transition);
 }
 
 .zone-rock-signup-wrap .rock-mobile-send-label {
@@ -5782,14 +5996,16 @@ body.zai-composer-dock-active {
   -webkit-text-fill-color: var(--color-purple);
 }
 
-.zone-rock-signup-wrap .rock-mobile-send-btn:hover:not(:disabled) {
-  background-color: var(--color-purple);
-  color: var(--color-yellow);
-}
+@media (hover: hover) {
+  .zone-rock-signup-wrap .rock-mobile-send-btn:hover:not(:disabled) {
+    background-color: var(--zz-hover-from-yellow-bg);
+    color: var(--zz-hover-from-yellow-text);
+  }
 
-.zone-rock-signup-wrap .rock-mobile-send-btn:hover:not(:disabled) .rock-mobile-send-label {
-  color: var(--color-yellow) !important;
-  -webkit-text-fill-color: var(--color-yellow);
+  .zone-rock-signup-wrap .rock-mobile-send-btn:hover:not(:disabled) .rock-mobile-send-label {
+    color: var(--zz-hover-from-yellow-text) !important;
+    -webkit-text-fill-color: var(--zz-hover-from-yellow-text);
+  }
 }
 
 .zone-rock-signup-wrap .rock-mobile-send-btn:active:not(:disabled) {
@@ -5910,11 +6126,13 @@ body.zai-composer-dock-active {
   cursor: pointer;
   padding: 0;
   text-decoration: none;
-  transition: background 0.2s, color 0.2s, transform 0.2s;
+  transition: var(--zz-interaction-transition);
 }
-.settings-icon-btn:hover {
-  background: var(--zz-hover-bg);
-  color: var(--zz-hover-text);
+@media (hover: hover) {
+  .settings-icon-btn:hover {
+    background: var(--zz-hover-from-yellow-bg);
+    color: var(--zz-hover-from-yellow-text);
+  }
 }
 .settings-icon-btn:active {
   transform: scale(var(--zz-press-scale));
@@ -5958,6 +6176,7 @@ body.zai-composer-dock-active {
   text-decoration: none;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
+  transition: var(--zz-interaction-transition);
 }
 .settings-circle-cta--yellow {
   background: var(--color-yellow);
@@ -5968,7 +6187,10 @@ body.zai-composer-dock-active {
   color: var(--color-yellow);
 }
 @media (hover: hover) {
-  .settings-circle-cta--yellow:hover,
+  .settings-circle-cta--yellow:hover {
+    background: var(--zz-hover-from-yellow-bg);
+    color: var(--zz-hover-from-yellow-text);
+  }
   .settings-circle-cta--pink:hover {
     background: var(--zz-hover-bg);
     color: var(--zz-hover-text);
@@ -6354,24 +6576,34 @@ body.ask-zai-deep-dive-active {
   color: color-mix(in srgb, var(--zai-deep-blue) 72%, transparent) !important;
   opacity: 1;
 }
-.zai-composer-dock--ask-sheet .zone-ask-zai-pill:hover,
 .zai-composer-dock--ask-sheet .zone-ask-zai-pill:focus,
 .zai-composer-dock--ask-sheet .zone-ask-zai-pill:focus-visible,
-.zai-composer-dock--ask-sheet .ask-zai-input:hover,
 .zai-composer-dock--ask-sheet .ask-zai-input:focus,
-.zai-composer-dock--ask-sheet .ask-zai-sheet-input:hover,
 .zai-composer-dock--ask-sheet .ask-zai-sheet-input:focus,
 .zai-composer-dock--ask-sheet .ask-zai-sheet-input:focus-visible {
-  background-color: var(--zai-deep-blue) !important;
-  color: var(--color-yellow) !important;
-  -webkit-text-fill-color: var(--color-yellow);
-  caret-color: var(--color-yellow);
+  background-color: var(--zai-hover-bg) !important;
+  color: var(--zai-hover-text) !important;
+  -webkit-text-fill-color: var(--zai-hover-text);
+  caret-color: var(--zai-hover-text);
 }
-.zai-composer-dock--ask-sheet .zone-ask-zai-pill:hover::placeholder,
+@media (hover: hover) {
+  .zai-composer-dock--ask-sheet .zone-ask-zai-pill:hover,
+  .zai-composer-dock--ask-sheet .ask-zai-input:hover,
+  .zai-composer-dock--ask-sheet .ask-zai-sheet-input:hover {
+    background-color: var(--zai-hover-bg) !important;
+    color: var(--zai-hover-text) !important;
+    -webkit-text-fill-color: var(--zai-hover-text);
+    caret-color: var(--zai-hover-text);
+  }
+  .zai-composer-dock--ask-sheet .zone-ask-zai-pill:hover::placeholder,
+  .zai-composer-dock--ask-sheet .ask-zai-sheet-input:hover::placeholder,
+  .zai-composer-dock--ask-sheet .ask-zai-sheet-input:focus::placeholder {
+    color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
+  }
+}
 .zai-composer-dock--ask-sheet .zone-ask-zai-pill:focus::placeholder,
-.zai-composer-dock--ask-sheet .ask-zai-sheet-input:hover::placeholder,
 .zai-composer-dock--ask-sheet .ask-zai-sheet-input:focus::placeholder {
-  color: color-mix(in srgb, var(--color-yellow) 72%, transparent) !important;
+  color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
 }
 .zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn {
   font-family: var(--font-marvin), sans-serif !important;
@@ -6498,8 +6730,14 @@ body.ask-zai-deep-dive-active {
   font-weight: 700;
   font-size: 1rem;
 }
-.ask-zai-deep-dive-submit:not(:disabled):hover {
-  background: color-mix(in srgb, var(--zai-pill-bg) 88%, var(--zai-field-bg));
+.ask-zai-deep-dive-submit:not(:disabled) {
+  transition: var(--zz-interaction-transition);
+}
+@media (hover: hover) {
+  .ask-zai-deep-dive-submit:not(:disabled):hover {
+    background: var(--zai-field-bg);
+    color: var(--zai-deep-blue);
+  }
 }
 .ask-zai-deep-dive-submit:disabled {
   background: color-mix(in srgb, var(--zai-pill-bg) 60%, var(--zai-field-bg));
@@ -8149,6 +8387,9 @@ html.zz-zai-document body {
 }
 /* ==========================================================================
    Interaction contract — colour swap on hover; soft press on :active only
+   Tokens: --zz-hover-* (purple/pink rest) · --zz-hover-from-yellow-* (yellow rest)
+           · --zai-hover-* (Zai field) · --journey-cta-hover-* (Solo Focus CTAs)
+   Rhythm: --zz-interaction-transition · --zz-press-scale · @media (hover: hover)
    ========================================================================== */
 @media (hover: hover) {
   /* Zone + Rock bento (unvisited): purple → yellow, yellow ink → purple */
@@ -8215,8 +8456,6 @@ html.zz-zai-document body {
   }
   .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-label,
   .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-headline,
-  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-arrow,
-  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-arrow svg,
   .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .data-label,
   .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .data-value,
   .likes-page .bento-card-groovy:hover .card-top-label,
@@ -8225,12 +8464,68 @@ html.zz-zai-document body {
   .likes-page .bento-card-groovy:hover .data-value {
     color: var(--zz-hover-text) !important;
   }
-  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-arrow svg {
-    stroke: var(--zz-hover-text) !important;
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover a.card-top-arrow,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover button.card-top-arrow,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-arrow.card-top-arrow--action {
+    background: var(--color-purple) !important;
+    color: var(--color-yellow) !important;
+  }
+  .settings-page .settings-journey-card-shell.bento-card-groovy:not(.settings-bento-card--info):hover a.card-top-arrow,
+  .settings-page .settings-journey-card-shell.bento-card-groovy:not(.settings-bento-card--info):hover button.card-top-arrow,
+  .settings-page .settings-journey-card-shell.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-arrow.card-top-arrow--action {
+    background: var(--color-purple) !important;
+    color: var(--color-yellow) !important;
+  }
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover a.card-top-arrow svg,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover button.card-top-arrow svg,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-arrow.card-top-arrow--action svg,
+  .settings-page .settings-journey-card-shell.bento-card-groovy:not(.settings-bento-card--info):hover .card-top-arrow.card-top-arrow--action svg {
+    stroke: currentColor !important;
+    color: currentColor !important;
+  }
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .settings-journey-q,
+  .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover .settings-journey-a {
+    color: var(--zz-hover-text) !important;
+    opacity: 1;
   }
   .zz-profile-page .zz-input:hover {
-    background: var(--zz-hover-bg);
-    color: var(--zz-hover-text);
+    background: var(--zz-hover-from-yellow-bg);
+    color: var(--zz-hover-from-yellow-text);
+  }
+  .zone-desktop-nav-item:hover .zone-desktop-nav-item-inner {
+    background: var(--zz-hover-from-yellow-bg);
+    color: var(--zz-hover-from-yellow-text);
+  }
+  .zone-desktop-nav-item:hover .zone-desktop-nav-item-inner svg {
+    stroke: currentColor;
+  }
+  /* Floating nav — yellow rest → purple/yellow swap; pink active → yellow/purple */
+  .nav-item-circle:hover .nav-item-circle-inner:not(.floating-nav-item--active) {
+    background: var(--zz-hover-from-yellow-bg) !important;
+    color: var(--zz-hover-from-yellow-text) !important;
+  }
+  .nav-item-circle:hover .floating-nav-item--active {
+    background: var(--zz-hover-bg) !important;
+    color: var(--zz-hover-text) !important;
+  }
+  .nav-item-circle:hover .nav-item-circle-icon svg,
+  .nav-item-circle:hover .kinetic-zai-disc svg {
+    color: inherit;
+    stroke: currentColor;
+  }
+  /* Zai field swap */
+  .zone-ask-zai-pill:hover,
+  .zone-ask-zai-dock > .zone-ask-zai-pill:hover,
+  .zone-ask-zai-pill--dock:hover {
+    background-color: var(--zai-hover-bg);
+    color: var(--zai-hover-text) !important;
+    -webkit-text-fill-color: var(--zai-hover-text);
+    caret-color: var(--zai-hover-text);
+  }
+  .zone-ask-zai-pill:hover::placeholder,
+  .zone-ask-zai-dock > .zone-ask-zai-pill:hover::placeholder,
+  .zone-ask-zai-pill--dock:hover::placeholder {
+    color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
   }
 }
 /* Legacy bloom / atomic-hover classes — no-op (kept on markup for gradual cleanup) */
@@ -8513,6 +8808,7 @@ body:has(.likes-page) .floating-nav {
   cursor: pointer;
   position: relative;
   box-sizing: border-box;
+  text-decoration: none;
 }
 
 .nav-item-circle-inner {
@@ -8527,6 +8823,7 @@ body:has(.likes-page) .floating-nav {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  transition: var(--zz-interaction-transition);
 }
 
 .nav-item-circle-icon {
@@ -8537,8 +8834,8 @@ body:has(.likes-page) .floating-nav {
   justify-content: center;
 }
 
-.nav-item-circle:active {
-  transform: none;
+.nav-item-circle:active .nav-item-circle-inner {
+  transform: scale(var(--zz-press-scale));
 }
 
 .floating-nav-item {
@@ -8548,6 +8845,13 @@ body:has(.likes-page) .floating-nav {
 /* Zone rail: icon stack only — no pink dock pill */
 .floating-nav.floating-nav--zone-rail-desktop {
   background-color: transparent;
+}
+
+@media (min-width: 768px) {
+  .floating-nav.floating-nav--zone-rail-desktop {
+    display: none !important;
+    background-color: transparent !important;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -8733,18 +9037,20 @@ p,
   
   border-radius: 9999px !important;
   
-  transition: background-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: var(--zz-interaction-transition);
 }
 .intro-cta-circle.zz-h4 {
   letter-spacing: var(--zz-track-circle-marvin) !important;
   line-height: 0.8 !important;
 }
-.intro-cta-circle:hover {
-  background: var(--color-yellow) !important;
-  color: var(--color-purple) !important;
+@media (hover: hover) {
+  .intro-cta-circle:hover {
+    background: var(--zz-hover-bg) !important;
+    color: var(--zz-hover-text) !important;
+  }
 }
 .intro-cta-circle:active {
-  transform: scale(0.96);
+  transform: scale(var(--zz-press-scale));
 }
 
 /* v4.0 Scorched Earth typography lock */
@@ -8987,24 +9293,32 @@ select,
   flex-direction: column;
   align-items: flex-start;
   gap: 0.06em;
-  padding-inline: 0;
+  padding-left: 20px;
   box-sizing: border-box;
 }
 .zone-desktop-nav-rail {
   display: none;
 }
-@media (min-width: 1024px) {
-  .zone-anchor .zone-hero-copy h3.zone-welcome,
-  .zone-anchor .zone-hero-copy h3.zone-welcome-block,
-  .zone-anchor .zone-hero-copy .zone-welcome.zz-h3 {
-    font-size: var(--zz-h3-desktop) !important;
-    max-width: none !important;
-    width: max-content;
-    white-space: nowrap;
-    overflow: visible;
+@media (min-width: 768px) {
+  .zone-desktop-nav-rail {
+    display: flex !important;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 12px;
+    position: fixed !important;
+    top: calc(20px + env(safe-area-inset-top, 0px)) !important;
+    right: clamp(20px, 4vw, 32px) !important;
+    left: auto !important;
+    bottom: auto !important;
+    z-index: 220;
+    padding-top: 4px;
+    pointer-events: auto;
+    margin: 0;
+    width: auto;
+    max-width: none;
+    transform: none !important;
   }
-}
-@media (min-width: 1024px) {
   .zone-hero-grid {
     display: grid;
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
@@ -9018,26 +9332,13 @@ select,
     gap: 0.1em;
     overflow: visible;
   }
-  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy h3.zone-welcome,
-  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy h3.zone-welcome-block,
-  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy .zone-welcome.zz-h3 {
-    white-space: normal;
-    width: 100%;
-    max-width: min(92vw, 28rem) !important;
-  }
-  .zone-desktop-nav-rail {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: flex-start;
-    gap: 12px;
-    padding-top: 4px;
-  }
   .zone-desktop-nav-item {
     border: none;
     padding: 0;
     background: transparent;
     cursor: pointer;
+    text-decoration: none;
+    color: inherit;
   }
   .zone-desktop-nav-item-inner {
     width: 48px;
@@ -9048,13 +9349,42 @@ select,
     justify-content: center;
     background: var(--color-yellow);
     color: var(--color-purple);
-  }
-  .zone-desktop-nav-item:hover .zone-desktop-nav-item-inner {
-    background: var(--zz-hover-bg);
-    color: var(--zz-hover-text);
+    transition: var(--zz-interaction-transition);
   }
   .zone-desktop-nav-item:active .zone-desktop-nav-item-inner {
     transform: scale(var(--zz-press-scale));
+  }
+}
+
+body.has-solo-focus .zone-desktop-nav-rail {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* Zone main shell — dock clearance when Ask Zai dock is active. */
+main.zone.zone-main-shell {
+  padding-top: env(safe-area-inset-top, 0px);
+  box-sizing: border-box;
+}
+
+@media (min-width: 1024px) {
+  .zone-anchor .zone-hero-copy h3.zone-welcome,
+  .zone-anchor .zone-hero-copy h3.zone-welcome-block,
+  .zone-anchor .zone-hero-copy .zone-welcome.zz-h3 {
+    font-size: var(--zz-h3-desktop) !important;
+    max-width: none !important;
+    width: max-content;
+    white-space: nowrap;
+    overflow: visible;
+  }
+}
+@media (min-width: 1024px) {
+  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy h3.zone-welcome,
+  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy h3.zone-welcome-block,
+  .zone-anchor.zone-anchor--wall-loading .zone-hero-copy .zone-welcome.zz-h3 {
+    white-space: normal;
+    width: 100%;
+    max-width: min(92vw, 28rem) !important;
   }
 }
 
@@ -9121,27 +9451,49 @@ select,
   opacity: 0.92;
 }
 
-/* Ask Zai — floating dock: viewport bottom centre (portaled), 40px from bottom */
+/* Ask Zai — portaled dock, viewport bottom centre (all breakpoints). */
 .zone-ask-zai-dock {
   position: fixed;
   inset-inline: 0;
-  bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   z-index: 210;
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  padding-inline: max(16px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  padding-inline: max(20px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
   box-sizing: border-box;
   pointer-events: none;
 }
+body.zone-ask-zai-dock-active {
+  --zone-ask-zai-dock-clearance: 120px;
+}
+body.zone-ask-zai-dock-active main.zone.zone-main-shell {
+  padding-bottom: calc(
+    var(--zone-ask-zai-dock-clearance, 120px) + env(safe-area-inset-bottom, 0px)
+  ) !important;
+}
 .zone-ask-zai-dock > .zone-ask-zai-pill {
   pointer-events: auto;
-  width: min(var(--max-w-zone), calc(100vw - 32px));
-  max-width: min(var(--max-w-zone), calc(100vw - 32px));
-  background-color: rgba(255, 215, 0, 1);
+  width: min(var(--max-w-zone), calc(100vw - 40px));
+  max-width: min(var(--max-w-zone), calc(100vw - 40px));
+  background-color: var(--zai-field-bg);
 }
-body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
-  padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+.zone-ask-zai-pill--dock:focus,
+.zone-ask-zai-pill--dock:focus-visible,
+.zone-ask-zai-pill:focus,
+.zone-ask-zai-pill:focus-visible {
+  background-color: var(--zai-hover-bg);
+  color: var(--zai-hover-text) !important;
+  -webkit-text-fill-color: var(--zai-hover-text);
+  caret-color: var(--zai-hover-text);
+  outline: none;
+}
+.zone-ask-zai-pill--dock:focus::placeholder,
+.zone-ask-zai-pill--dock:focus-visible::placeholder,
+.zone-ask-zai-pill:focus::placeholder,
+.zone-ask-zai-pill:focus-visible::placeholder {
+  color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
+  opacity: 1;
 }
 .zone-ask-zai-pill--dock {
   box-shadow: 0 8px 32px color-mix(in srgb, var(--color-purple) 35%, transparent);
@@ -9342,7 +9694,7 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
   text-align: center;
   box-sizing: border-box;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: var(--zz-interaction-transition);
   line-height: 0.8;
   text-transform: uppercase;
 }
@@ -9453,22 +9805,6 @@ body.zone-ask-zai-dock-active main.zone .zone-wall-stack {
 }
 @media (min-width: 1024px) {
   .zone-hero-value { font-size: var(--zz-h1-desktop); }
-}
-
-.zone-ask-zai-pill:hover,
-.zone-ask-zai-pill:focus,
-.zone-ask-zai-pill:focus-visible {
-  background-color: var(--zai-field-bg);
-  color: var(--zai-ink) !important;
-  -webkit-text-fill-color: var(--zai-ink);
-  outline: none;
-}
-
-.zone-ask-zai-pill:hover::placeholder,
-.zone-ask-zai-pill:focus::placeholder,
-.zone-ask-zai-pill:focus-visible::placeholder {
-  color: color-mix(in srgb, var(--zai-ink) 55%, transparent) !important;
-  opacity: 1;
 }
 
 /* =========================

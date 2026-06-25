@@ -4,8 +4,25 @@
  */
 import { clearProfileLocalityCache } from '@/lib/geocode/resolvePostcodeLocality'
 import { RESEARCH_USER_ID_STORAGE_KEY } from '@/lib/zone/garyMode'
+import { VISITED_CARDS_KEY } from '@/lib/zone/visitedCards'
+import { CATEGORY_INTENT_STORAGE_KEY } from '@/lib/zone/categoryIntent'
 
 const ZONE_VM_AGGREGATE_KEYS = ['heroTotals', 'zoneUnlockedCount', 'completedJourneys'] as const
+
+/** Cleared on postcode change — prevents stale research / visit state bleeding across localities. */
+const LOCAL_EXACT_DROP_ON_POSTCODE_CHANGE = [
+  VISITED_CARDS_KEY,
+  CATEGORY_INTENT_STORAGE_KEY,
+  'property_intelligence_confidence',
+  'property_imd_decile',
+  'property_answer_sources',
+  'zz_disliked_card_ids_v1',
+  'zz_indifferent_card_ids_v1',
+  'zz_offer_feedback_log_v1',
+  'zz_deep_dive_in_progress',
+] as const
+
+const SESSION_EXACT_DROP_ON_POSTCODE_CHANGE = ['zz_onboarding_jit_journeys'] as const
 
 const LOCAL_PREFIX_DROP = [
   'zz_sf_',
@@ -28,6 +45,12 @@ export function clearZoneVmLocalCache(opts?: { preservePostcode?: string }): voi
   try {
     for (const k of ZONE_VM_AGGREGATE_KEYS) {
       localStorage.removeItem(k)
+    }
+    for (const k of LOCAL_EXACT_DROP_ON_POSTCODE_CHANGE) {
+      localStorage.removeItem(k)
+    }
+    for (const k of SESSION_EXACT_DROP_ON_POSTCODE_CHANGE) {
+      sessionStorage.removeItem(k)
     }
 
     const drop: string[] = []

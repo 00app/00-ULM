@@ -9,6 +9,72 @@ import { trustedUrlForJourney, isHttpsUrl } from '@/lib/zone/trustedJourneyUrls'
 const BLOCKED_PATH_RE =
   /great-british-insulation-scheme|energy-insulation\/the-great|\/404\b|moneysavingexpert\.com\/utilities\/how-to-switch|moneysavingexpert\.com\/utilities\/?$/i
 
+const INTERNAL_HOST_RE =
+  /^(?:localhost|127\.0\.0\.1)(?::\d+)?$/i
+
+const VERCEL_PREVIEW_HOST_RE = /\.vercel\.app$/i
+
+export function isInternalOrPreviewOfferUrl(url: string): boolean {
+  const trimmed = typeof url === 'string' ? url.trim() : ''
+  if (!trimmed) return false
+  try {
+    const h = new URL(trimmed).hostname.toLowerCase()
+    if (INTERNAL_HOST_RE.test(h)) return true
+    if (VERCEL_PREVIEW_HOST_RE.test(h)) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
+/** Home-only BUS landing — must not appear on grants or other journeys. */
+function isHomeBoilerUpgradeUrl(url: string): boolean {
+  return /apply-boiler-upgrade|boiler-upgrade/i.test(url)
+}
+
+/** Grants warm-homes paths — must not appear on home or unrelated journeys. */
+function isGrantsWarmHomesUrl(url: string): boolean {
+  return /warm-homes-plan|improve-energy-efficiency/i.test(url)
+}
+
+/** True when URL topic conflicts with the tile journey category. */
+export function offerUrlConflictsWithJourney(url: string, journeyKey: JourneyId): boolean {
+  const trimmed = url.trim()
+  if (journeyKey === 'home' && isHomeBoilerUpgradeUrl(trimmed)) return false
+  if (journeyKey === 'grants' && isGrantsWarmHomesUrl(trimmed)) return false
+  if (journeyKey !== 'home' && isHomeBoilerUpgradeUrl(trimmed)) return true
+  if (journeyKey !== 'grants' && isGrantsWarmHomesUrl(trimmed)) return true
+  if (journeyKey !== 'utilities' && isOfgemPriceCapUrl(trimmed)) return true
+  return false
+}
+
+export function passesZoneOfferUrlGuard(
+  raw: string | undefined | null,
+  journeyKey: JourneyId
+): boolean {
+  const trimmed = typeof raw === 'string' ? raw.trim() : ''
+  if (!isHttpsUrl(trimmed)) return false
+  if (isInternalOrPreviewOfferUrl(trimmed)) return false
+  if (isKnownDeadOfferUrl(trimmed)) return false
+  if (isGenericGovHomepage(trimmed)) return false
+  if (offerUrlConflictsWithJourney(trimmed, journeyKey)) return false
+  return true
+}
+
+/** Persist path — null when URL fails guard (never substitute trusted fallback into Neon). */
+export function sanitizeZoneOfferUrlForPersist(
+  raw: string | undefined | null,
+  journeyKey: JourneyId
+): string | null {
+  const trimmed = typeof raw === 'string' ? raw.trim() : ''
+  if (!trimmed) return null
+  if (!passesZoneOfferUrlGuard(trimmed, journeyKey)) {
+    console.warn('[offerUrlGuard] offer_url rejected:', trimmed.slice(0, 160))
+    return null
+  }
+  return trimmed
+}
+
 export function isKnownDeadOfferUrl(url: string): boolean {
   const trimmed = typeof url === 'string' ? url.trim() : ''
   if (!trimmed) return false
@@ -51,15 +117,17 @@ export function sanitizeZoneOfferUrl(
   const fallback = trustedUrlForJourney(journeyKey)
   const trimmed = typeof raw === 'string' ? raw.trim() : ''
   if (!isHttpsUrl(trimmed)) return fallback
+  if (isInternalOrPreviewOfferUrl(trimmed)) return fallback
   if (isKnownDeadOfferUrl(trimmed)) return fallback
   if (isGenericGovHomepage(trimmed)) return fallback
+  if (offerUrlConflictsWithJourney(trimmed, journeyKey)) return fallback
   if (journeyKey !== 'utilities' && isOfgemPriceCapUrl(trimmed)) return fallback
 
   const host = hostOf(trimmed)
-  if (journeyKey === 'home' && host === 'gov.uk' && /apply-boiler-upgrade|boiler-upgrade/i.test(trimmed)) {
+  if (journeyKey === 'home' && host === 'gov.uk' && isHomeBoilerUpgradeUrl(trimmed)) {
     return trustedUrlForJourney('home')
   }
-  if (journeyKey === 'grants' && /warm-homes-plan|improve-energy-efficiency/i.test(trimmed)) {
+  if (journeyKey === 'grants' && isGrantsWarmHomesUrl(trimmed)) {
     return trustedUrlForJourney('grants')
   }
 
@@ -68,6 +136,7 @@ export function sanitizeZoneOfferUrl(
 
 export function isUsefulOfferHost(url: string): boolean {
   if (!isHttpsUrl(url)) return false
+  if (isInternalOrPreviewOfferUrl(url)) return false
   if (isKnownDeadOfferUrl(url)) return false
   if (isGenericGovHomepage(url)) return false
   const h = hostOf(url)

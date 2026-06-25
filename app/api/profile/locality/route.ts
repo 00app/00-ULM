@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isRealLocalityLabel } from '@/lib/brains/summaryLogic'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
+import { isValidUkPostcode } from '@/lib/geocode/ukPostcode'
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
@@ -24,11 +25,8 @@ export async function GET(request: NextRequest) {
 
   const raw = request.nextUrl.searchParams.get('postcode')?.trim() ?? ''
   const postcode = raw.replace(/\s+/g, '').toUpperCase()
-  if (postcode.length < 4) {
-    return NextResponse.json({ error: 'postcode required' }, { status: 400 })
-  }
-  if (postcode.length > 12) {
-    return NextResponse.json({ error: 'postcode too long' }, { status: 400 })
+  if (!isValidUkPostcode(postcode)) {
+    return NextResponse.json({ error: 'invalid postcode format' }, { status: 400 })
   }
 
   const local = await getLocalData(postcode)

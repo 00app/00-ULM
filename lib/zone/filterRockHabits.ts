@@ -72,8 +72,10 @@ export function prepareRockHabitsForRail(
   limit: number
 ): RockHabit[] {
   const season = getUkSeason()
-  const seasonSortedRotation = sortRockHabitsBySeasonStable(rotationHabits, season)
-  const seasonSortedCatalog = sortRockHabitsBySeasonStable(ROCK_HABITS, season)
+  const wallFilteredRotation = filterRockHabitsAgainstWall(rotationHabits, viewModel)
+  const wallFilteredCatalog = filterRockHabitsAgainstWall(ROCK_HABITS, viewModel)
+  const seasonSortedRotation = sortRockHabitsBySeasonStable(wallFilteredRotation, season)
+  const seasonSortedCatalog = sortRockHabitsBySeasonStable(wallFilteredCatalog, season)
   const wallJourneys = getWallMotherJourneyKeys(viewModel)
   const blockedHeadlines = getBlockedWallHeadlineKeys(viewModel)
   const out: RockHabit[] = []

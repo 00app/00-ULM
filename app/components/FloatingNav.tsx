@@ -2,15 +2,16 @@
 
 import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import Link from 'next/link'
 import {
   HeartOutlineIcon,
   ProfileOutlineIcon,
   ZaiSparkIcon,
 } from '@/app/components/ui/MonoStrokeIcons'
+import { ROUTES } from '@/lib/routes'
 
 interface FloatingNavProps {
   active: 'likes' | 'zone' | 'summary' | 'chat'
-  onNavigate: (key: 'likes' | 'zone' | 'summary' | 'chat') => void
   /** Reserved for future badge / tip signal (no motion in nav). */
   hasNewTipForZai?: boolean
   /** Zone desktop: hero rail owns nav — keep bottom dock + Ask Zai only. */
@@ -19,13 +20,18 @@ interface FloatingNavProps {
 
 const ICON_SIZE = 18
 
+const NAV_HREF: Record<'likes' | 'summary' | 'chat', string> = {
+  likes: ROUTES.LIKES,
+  summary: ROUTES.SETTINGS,
+  chat: ROUTES.ZAI,
+}
+
 /**
  * Floating Nav — 40×40px circles (no button padding), 18px icons, 12px gap.
  * Order: Likes · Zai (centre) · Settings. Portaled to `document.body`.
  */
 export default function FloatingNav({
   active,
-  onNavigate,
   hasNewTipForZai: _hasNewTipForZai = false,
   className,
 }: FloatingNavProps) {
@@ -36,21 +42,23 @@ export default function FloatingNav({
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5)
   }
 
-  const navLabels: Record<'likes' | 'summary' | 'chat', string> = { likes: 'Likes', summary: 'Settings', chat: 'Zai' }
-  const navButton = (
+  const navLabels: Record<'likes' | 'summary' | 'chat', string> = {
+    likes: 'Likes',
+    summary: 'Settings',
+    chat: 'Zai',
+  }
+
+  const navLink = (
     key: 'likes' | 'summary' | 'chat',
     isActive: boolean,
     children: React.ReactNode,
     variant: 'default' | 'zai' = 'default',
   ) => (
-    <button
-      type="button"
+    <Link
+      href={NAV_HREF[key]}
       className="nav-item-circle"
       aria-label={navLabels[key]}
-      onClick={() => {
-        triggerHaptic()
-        onNavigate(key)
-      }}
+      onClick={() => triggerHaptic()}
     >
       <span
         className={`nav-item-circle-inner floating-nav-item ${isActive ? 'floating-nav-item--active' : ''}`}
@@ -68,7 +76,7 @@ export default function FloatingNav({
           <span className="nav-item-circle-icon">{children}</span>
         )}
       </span>
-    </button>
+    </Link>
   )
 
   const nav = (
@@ -77,17 +85,9 @@ export default function FloatingNav({
       role="navigation"
       aria-label="Main"
     >
-      {navButton(
-        'likes',
-        active === 'likes',
-        <HeartOutlineIcon size={ICON_SIZE} />,
-      )}
-      {navButton('chat', active === 'chat', null, 'zai')}
-      {navButton(
-        'summary',
-        active === 'summary',
-        <ProfileOutlineIcon size={ICON_SIZE} />,
-      )}
+      {navLink('likes', active === 'likes', <HeartOutlineIcon size={ICON_SIZE} />)}
+      {navLink('chat', active === 'chat', null, 'zai')}
+      {navLink('summary', active === 'summary', <ProfileOutlineIcon size={ICON_SIZE} />)}
     </div>
   )
 

@@ -299,7 +299,7 @@ export function RockSavingTips({
   if (six.length === 0) return null
 
   return (
-    <section className="rock-saving-tips-section w-full text-left pt-2 box-border" aria-label="Today's tips">
+    <section className="rock-saving-tips-section w-full text-left box-border" aria-label="Today's tips">
       <div className="groovy-zone-grid mx-auto w-full rock-saving-tips-grid">
         {six.map((h) => {
           const tip = habitToTipCard(h)

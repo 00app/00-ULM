@@ -5,6 +5,7 @@ import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitiz
 import { isCardVisited } from '@/lib/zone/visitedCards'
 import { buildClientOfferAvoidHint } from '@/lib/zone/offerSignals'
 import { resolveOnboardingResearchJourneys } from '@/lib/zone/onboardingResearchBootstrap'
+import { readPropertyIntelligenceConfidence } from '@/lib/client/propertyAnswerSourcesStorage'
 
 import { readSessionRestoreProof } from '@/lib/client/sessionRestoreProofStorage'
 
@@ -150,6 +151,17 @@ function markOnboardingJitTriggered(journeyKey: string): void {
   }
 }
 
+function readClientImdDecile(): number | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem('property_imd_decile')
+    const n = Number(raw)
+    return Number.isFinite(n) ? Math.round(n) : null
+  } catch {
+    return null
+  }
+}
+
 /**
  * Profile-complete + summary-exit seed — capped goal-aligned JIT scrapes (home, utilities, +2).
  * Dedupes within the browser session so profile submit + summary handshake do not double-fire.
@@ -168,9 +180,28 @@ export function triggerOnboardingResearchBootstrap(params: {
   if (pc.length < 4) return
 
   const profileData = params.profileData ?? undefined
+  const imdDecile = readClientImdDecile()
+  const confidence = readPropertyIntelligenceConfidence()
+  const propertyIntelligence =
+    imdDecile != null
+      ? {
+          confidence:
+            (confidence === 'ADDRESS_MATCHED' ||
+            confidence === 'POSTCODE_ONLY' ||
+            confidence === 'PARTIAL'
+              ? confidence
+              : 'POSTCODE_ONLY') as import('@/lib/intelligence/propertyIntelligenceTypes').PropertyIntelligenceConfidence,
+          enrichedAt: new Date().toISOString(),
+          deprivation: { found: true, imdDecile },
+        }
+      : undefined
   const journeys = resolveOnboardingResearchJourneys({
     goal: profileData?.goal ?? profileData?.primary_goal,
     home_power: profileData?.home_power,
+    employment_status: profileData?.employment_status,
+    household_income_bracket: profileData?.household_income_bracket,
+    postcode: pc,
+    propertyIntelligence,
   })
   const triggered = params.dedupe === false ? new Set<string>() : readOnboardingJitTriggered()
 

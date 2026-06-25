@@ -2,17 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { motion } from 'framer-motion'
-import {
-  FAMILY_ATOMIC_SURFACE_ANIMATE,
-  FAMILY_ATOMIC_SURFACE_INITIAL,
-  FAMILY_TRANSITION_ATOMIC,
-} from '@/lib/motion-family'
 
-/** Portaled Ask Zai pill — viewport bottom centre, aligned with the bento grid. */
+/** Portaled Ask Zai pill — viewport bottom centre on all breakpoints. */
 export default function ZoneAskZaiDock({ onActivate }: { onActivate: () => void }) {
   const [mounted, setMounted] = useState(false)
+
   useEffect(() => setMounted(true), [])
+
   useEffect(() => {
     if (!mounted || typeof document === 'undefined') return
     document.body.classList.add('zone-ask-zai-dock-active')
@@ -20,13 +16,7 @@ export default function ZoneAskZaiDock({ onActivate }: { onActivate: () => void 
   }, [mounted])
 
   const dock = (
-    <motion.div
-      className="zone-ask-zai-dock"
-      data-testid="zone-ask-zai-dock"
-      initial={FAMILY_ATOMIC_SURFACE_INITIAL}
-      animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
-      transition={FAMILY_TRANSITION_ATOMIC}
-    >
+    <div className="zone-ask-zai-dock" data-testid="zone-ask-zai-dock">
       <input
         type="text"
         placeholder="ASK ZAI..."
@@ -37,7 +27,7 @@ export default function ZoneAskZaiDock({ onActivate }: { onActivate: () => void 
         onClick={onActivate}
         aria-label="Ask Zai — persistent brain of the Zone"
       />
-    </motion.div>
+    </div>
   )
 
   if (!mounted || typeof document === 'undefined') return null

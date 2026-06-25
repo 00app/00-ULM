@@ -162,6 +162,7 @@ import {
 } from '@/lib/zone/offerPreference'
 import { OFFER_PREFERENCE_CHANGED_EVENT } from '@/lib/zone/offerSignals'
 import { prepareRockHabitsForRail } from '@/lib/zone/filterRockHabits'
+import { capRockHabitsPerJourney } from '@/lib/zone/perCategoryCardCap'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
   ENGINE_UI_LABELS,
@@ -171,7 +172,7 @@ import {
   scheduleZoneEngineHydrationPhases,
   type ZoneEngineStatus,
 } from '@/lib/zone/engineHydration'
-import { ROCK_BY_SLUG, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/lib/rock/habitsCatalog'
+import { ROCK_BY_SLUG, ROCK_HABITS, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/lib/rock/habitsCatalog'
 import { mergeRockHabitWithJourneyOffer, resolveRockHabitLearnUrl } from '@/lib/rock/resolveRockHabitLearnUrl'
 import { normalizeSmsUrl, resolveJourneyCardUrl, type SignupSmsItem } from '@/lib/messaging/signupZoneSmsShared'
 import { replaceRockSlotAfterLike } from '@/lib/rock/rotation'
@@ -2140,13 +2141,6 @@ export default function ZonePage() {
     !pulseWordsComplete
   const showInlineLoadingLogo = architecturalPulsePhase === 'glitch'
   const zoneRevealCount = Math.min(revealedCardCount, displayItems.length)
-  const showCategorySectionHeading =
-    firstCategoryGridIndex >= 0 && zoneRevealCount > firstCategoryGridIndex
-  const gridFullyRevealed =
-    architecturalPulsePhase === 'done' &&
-    pulseWordsComplete &&
-    displayItems.length > 0 &&
-    zoneRevealCount >= displayItems.length
 
   const openZoneJourneySoloFocus = useCallback(
     (item: ZoneJourneyCard, fromTip?: ZoneTipCard | null) => {
@@ -2245,11 +2239,14 @@ export default function ZonePage() {
   }, [researchCategoryCoverage])
 
   const rockHabitsWithOffers = useMemo(() => {
-    const deduped = prepareRockHabitsForRail(
+    let deduped = prepareRockHabitsForRail(
       rockVisibleHabits,
       viewModel,
       MAX_ROCK_SAVING_TIPS_RAIL
     )
+    if (deduped.length === 0) {
+      deduped = capRockHabitsPerJourney(ROCK_HABITS, 1).slice(0, MAX_ROCK_SAVING_TIPS_RAIL)
+    }
     return deduped.map((h) => {
       const url = rockOfferByJourney[h.journey_key]
       return mergeRockHabitWithJourneyOffer(h, url)
@@ -2379,11 +2376,17 @@ export default function ZonePage() {
     [displayItems, expandedCardId, expandedTipId, openZoneJourneySoloFocus, soloFocusJourneyRing],
   )
 
-  const showRockStrip =
-    gridFullyRevealed &&
+  const wallSectionsReady =
+    pulseWordsComplete &&
+    architecturalPulsePhase === 'done' &&
+    zoneInteractable &&
     !expandedCardId &&
-    !expandedTipId &&
-    zoneInteractable
+    !expandedTipId
+  const showTodaysTipsSection = wallSectionsReady
+  const showCategorySectionHeading =
+    wallSectionsReady &&
+    firstCategoryGridIndex >= 0 &&
+    zoneRevealCount >= firstCategoryGridIndex
 
   const openRockTip = useCallback(
     (id: string) => {
@@ -2514,16 +2517,460 @@ export default function ZonePage() {
     [state?.profile?.name, welcomeJourneyCount, heroMoney, heroCarbon]
   )
 
+  const renderWallBentoCells = (wallSection: 'hero' | 'categories') =>
+    displayItems.map((cell, i) => {
+          if (i >= zoneRevealCount) return null
+          if (wallSection === 'hero' && cell.type !== 'hero') return null
+          if (wallSection === 'categories' && cell.type === 'hero') return null
+          const cellKey =
+            cell.type === 'hero' ? 'hero' : cell.type === 'tip' ? cell.tip.id : cell.item.id
+          const isExpanded = cell.type === 'journey' && expandedCardId === cell.item.id
+          const spanClass =
+            cell.type === 'hero'
+              ? 'bento-hero-span'
+              : cell.type === 'tip'
+                ? ''
+                : cell.type === 'journey'
+                  ? bentoSpanClassForPersona(cell.persona)
+                  : ''
+          /* Hide other cells when a journey/tip card is expanded */
+          const isHidden =
+            (!!expandedCardId && !(cell.type === 'journey' && cell.item.id === expandedCardId)) ||
+            (!!expandedTipId && !(cell.type === 'tip' && cell.tip.id === expandedTipId))
+          const skeletonCell =
+            researchLoading && (cell.type === 'hero' || cell.type === 'journey')
+
+          return (
+            <React.Fragment key={cellKey}>
+            <motion.div
+              variants={ZONE_BENTO_CELL_VARIANTS}
+              initial="hidden"
+              animate={
+                isHidden
+                  ? 'shrunk'
+                  : cell.type === 'journey' &&
+                      (sentinelPingJourneyKeys[cell.item.journey_key] ||
+                        (sentinel.gridLowPulse && cell.item.journey_key === 'carbon'))
+                    ? 'ping'
+                    : 'visible'
+              }
+              className={`${spanClass} groovy-cell-radius h-full min-h-0${cell.type === 'hero' ? ' zone-hero-cell' : ''}${cell.type === 'journey' && primaryJourneyKeySet.has(cell.item.journey_key) ? ' zone-primary-slice-card' : ''}${skeletonCell ? ' zone-bento-skeleton' : ''}`.trim() || 'groovy-cell-radius'}
+              data-primary-slice={cell.type === 'journey' && primaryJourneyKeySet.has(cell.item.journey_key) ? '1' : undefined}
+              style={{
+                willChange: 'transform',
+                pointerEvents: zoneInteractable && !isHidden ? 'auto' : 'none',
+              }}
+            >
+              {cell.type === 'hero' && (
+                <motion.div
+                  className="relative flex flex-col items-stretch w-full flex-1 min-h-0 h-full text-left"
+                  style={{ transformOrigin: 'center center' }}
+                  {...(heroFromSummaryHandoff
+                    ? {
+                        initial: ZONE_HERO_FROM_SUMMARY.initial,
+                        animate: ZONE_HERO_FROM_SUMMARY.animate,
+                        transition: ZONE_HERO_FROM_SUMMARY.transition,
+                        onAnimationComplete: () => setHeroFromSummaryHandoff(false),
+                      }
+                    : {})}
+                >
+                  <div className="w-full flex-1 min-h-0 flex flex-col pt-5">
+                    <div
+                      data-testid="zone-hero-card"
+                      data-source={heroDataSource}
+                      className={`zone-hero-card bento-card-groovy flex flex-col flex-1 min-h-0 h-full w-full justify-between text-inherit${sentinelHeroPing ? ' sentinel-hero-ping' : ''}`}
+                    >
+                      <div className="flex flex-col shrink-0 gap-[clamp(10px,2.5cqw,16px)]">
+                        <Link
+                          href={ROUTES.SETTINGS}
+                          tabIndex={zoneInteractable ? 0 : -1}
+                          aria-disabled={!zoneInteractable}
+                          onClick={(e) => {
+                            if (!zoneInteractable) e.preventDefault()
+                          }}
+                          className="zone-hero-profile-link no-underline text-inherit w-fit"
+                        >
+                          <ZoneBentoCardHeader journeyId="profile" label="YOUR PROFILE" />
+                        </Link>
+                        {primaryHeroJourney ? (
+                          <button
+                            type="button"
+                            className="zone-hero-win-cta"
+                            disabled={!zoneInteractable}
+                            aria-label={`Open ${formatZoneCategoryLabel(primaryHeroJourney.journey_key)} offer`}
+                            onClick={() => openZoneJourneySoloFocus(primaryHeroJourney)}
+                          >
+                            {primaryHeroLeadLines.map((line) => (
+                              <h3
+                                key={line}
+                                className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
+                                lang="en"
+                              >
+                                {line}
+                              </h3>
+                            ))}
+                          </button>
+                        ) : (
+                          primaryHeroLeadLines.map((line) => (
+                            <h3
+                              key={line}
+                              className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
+                              lang="en"
+                            >
+                              {line}
+                            </h3>
+                          ))
+                        )}
+                      </div>
+                      <div
+                        key={`zone-hero-metrics-${Math.round(heroMoney)}-${Math.round(heroCarbon)}`}
+                        className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 flex-shrink-0"
+                      >
+                        <div className="data-stack data-stack--tight">
+                          <span className="data-label">{ENGINE_UI_LABELS.profileWasteMoney}</span>
+                          <span className="data-value data-stamp-metric sentinel-live-countup">
+                            {hydrated ? (
+                              <StampedMoneyGbp
+                                gbp={displayMoney}
+                                live={heroLiveGrounded && dbConnected}
+                              />
+                            ) : (
+                              <span className="zz-body-bold uppercase zz-shimmer-focus" aria-live="polite">
+                                …
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="data-stack data-stack--tight">
+                          <span className="data-label">{ENGINE_UI_LABELS.profileWasteCarbon}</span>
+                          <span className="data-value data-stamp-metric sentinel-live-countup">
+                            {hydrated ? (
+                              <StampedCarbonKg kg={displayCarbon} />
+                            ) : (
+                              <span className="zz-body-bold uppercase zz-shimmer-focus" aria-live="polite">
+                                …
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              {cell.type === 'tip' && (() => {
+                const tip = cell.tip
+                const isDiscoveryInject = tip.id.startsWith('inject-')
+                const tipVisited = isZoneCardVisited(tip.id, tip.journey_key)
+                const tipDeepDive = deepDivePendingId === tip.id
+                const discoveryChild = isDiscoveryInjectCard(tip.id)
+                const tipBg = tipVisited
+                  ? 'var(--color-pink)'
+                  : discoveryChild
+                    ? 'var(--color-yellow)'
+                    : 'var(--color-purple)'
+                const tipInk = tipVisited
+                  ? 'var(--color-yellow)'
+                  : discoveryChild
+                    ? 'var(--color-purple)'
+                    : 'var(--color-yellow)'
+                const tipTextColor = tipInk
+                const semanticWin = tip.dominant_win ?? 'money'
+                /* Category nested tips → parent journey Solo Focus (full article + question + loop). */
+                const journeyCell = groovyItems.find(
+                  (c): c is GroovyItem & { type: 'journey' } =>
+                    c.type === 'journey' && c.item.journey_key === tip.journey_key
+                )
+                const tipHeadline = resolveZoneGridTipHeadline(
+                  tip,
+                  journeyCell?.item.title ?? null
+                )
+                const patch = tipDataPatches[tip.id]
+                const moneyDisp = (patch?.money ?? tip.data.money ?? '').replace(/^£\s*/, '').trim() || '0'
+                const carbonDisp = patch?.carbon ?? tip.data.carbon ?? '0'
+                const carbonKgNum = parseCarbonKgFromDisplay(carbonDisp)
+                const greenPulse = isDiscoveryInject && !tip.achievement_discovery && carbonKgNum > 500
+                const snapBloomIn = discoverySnapTipId === tip.id
+                const isAchievementDiscovery = Boolean(tip.achievement_discovery)
+                const handleTipClick = () => {
+                  if (!zoneInteractable) return
+                  /* Discovery injections: own Solo Focus + context trap; do not hijack journey tile expand. */
+                  if (tip.id.startsWith('inject-')) {
+                    soloFocusExpandIntentRef.current = tip.id
+                    rememberSoloFocusReturn({
+                      cardId: tip.id,
+                      journeyKey: (tip.journey_key ?? 'home') as JourneyId,
+                      surface: 'discovery',
+                    })
+                    rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
+                    if (!openSoloFocus(tip.id, 'discovery')) return
+                    setExpandedCardId(null)
+                    setExpandedFromTip(null)
+                    setExpandedTipId(tip.id)
+                    return
+                  }
+                  if (journeyCell) {
+                    openZoneJourneySoloFocus(journeyCell.item, tip)
+                  } else {
+                    soloFocusExpandIntentRef.current = tip.id
+                    rememberSoloFocusReturn({
+                      cardId: tip.id,
+                      journeyKey: (tip.journey_key ?? 'home') as JourneyId,
+                      surface: 'grid-tip',
+                    })
+                    rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
+                    if (!openSoloFocus(tip.id, 'tip')) return
+                    setExpandedCardId(null)
+                    setExpandedFromTip(null)
+                    setExpandedTipId(tip.id)
+                  }
+                }
+                return (
+                  <motion.button
+                    type="button"
+                    id={zoneCardDomId(tip.id)}
+                    data-zone-surface="tip"
+                    className={[
+                      'bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left',
+                      greenPulse ? 'discovery-card-green-pulse' : '',
+                      tipVisited ? 'zone-card--visited' : '',
+                      tipDeepDive ? 'zone-card--deep-dive-pending' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    style={{
+                      borderRadius: 60,
+                      boxShadow: 'none',
+                      color: tipTextColor,
+                      ['--journey-bg' as string]: tipBg,
+                      ['--journey-text' as string]: tipTextColor,
+                      ['--color-ink' as string]: tipTextColor,
+                      ['--semantic-money' as string]: tipTextColor,
+                      ['--semantic-carbon' as string]: tipTextColor,
+                    }}
+                    onClick={handleTipClick}
+                    initial={snapBloomIn ? FAMILY_ATOMIC_SURFACE_INITIAL : false}
+                    animate={snapBloomIn ? FAMILY_ATOMIC_SURFACE_ANIMATE : undefined}
+                    transition={snapBloomIn ? FAMILY_TRANSITION_ATOMIC : undefined}
+                    aria-label={`Expand: ${tipHeadline}`}
+                    data-dominant-win={semanticWin}
+                  >
+                    <ZoneBentoCardHeader
+                      journeyId={tip.journey_key ?? 'carbon'}
+                      showPlus={isAchievementDiscovery}
+                      textColor={tipTextColor}
+                    />
+                    <h3 className="card-headline m-0 min-w-0" lang="en">
+                      {tipHeadline}
+                    </h3>
+                    {tipDeepDive ? (
+                      <p className="zz-body-bold m-0 mt-2 uppercase" style={{ color: tipTextColor }}>
+                        Deep dive in progress...
+                      </p>
+                    ) : null}
+                    <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
+                      <div className="data-stack data-stack--tight">
+                        <span className="data-label" style={{ color: tipTextColor }}>{ENGINE_UI_LABELS.potentialSavings}</span>
+                        <span
+                          className="data-value text-data data-stamp-metric"
+                          style={{ color: 'var(--color-ink)' }}
+                        >
+                          <StampedMoneyGbp
+                            gbp={parseMoneyGbpFromDisplay(
+                              moneyDisp && !/^\s*£/.test(moneyDisp) ? `£${moneyDisp}` : moneyDisp || '0'
+                            )}
+                          />
+                        </span>
+                      </div>
+                      <div className="data-stack data-stack--tight">
+                        <span className="data-label" style={{ color: tipTextColor }}>{ENGINE_UI_LABELS.carbon}</span>
+                        <span
+                          className="data-value text-data data-stamp-metric"
+                          style={{ color: 'var(--color-ink)' }}
+                        >
+                          <StampedCarbonKg kg={parseCarbonKgFromDisplay(String(carbonDisp || '0'))} />
+                        </span>
+                      </div>
+                    </div>
+                  </motion.button>
+                )
+              })()}
+              {cell.type === 'journey' && (
+                <div
+                  className="w-full h-full min-h-0 flex flex-col"
+                  id={`zone-journey-${cell.item.journey_key}`}
+                >
+                <ZoneCard
+                  cardId={cell.item.id}
+                  journeyId={cell.item.journey_key}
+                  isVisited={isZoneCardVisited(cell.item.id, cell.item.journey_key)}
+                  deepDiveInProgress={deepDivePendingId === cell.item.id}
+                  auditState={cell.item.auditState ?? null}
+                  title={
+                    expandedFromTip?.journey_key === cell.item.journey_key
+                      ? expandedFromTip.title
+                      : cell.item.journey_key === 'home' && homeSentinelSupportActive
+                        ? homeSupportTitle
+                        : cell.item.title
+                  }
+                  isTall={cell.persona === 'tall'}
+                  textColorOverride="var(--color-yellow)"
+                  carbonValue={expandedFromTip?.journey_key === cell.item.journey_key && (expandedFromTip.data?.carbon ?? '') ? expandedFromTip.data.carbon : cell.item.data.carbon}
+                  moneyValue={expandedFromTip?.journey_key === cell.item.journey_key && (expandedFromTip.data?.money ?? '') ? expandedFromTip.data.money : cell.item.data.money}
+                  carbonKg={cell.item.carbonKg}
+                  moneyGbp={cell.item.moneyGbp}
+                  isComplete={completedJourneys.includes(cell.item.journey_key)}
+                  onRefineQuestions={undefined}
+                  onActionClick={() => openZoneJourneySoloFocus(cell.item)}
+                  crawlerTip={expandedFromTip?.journey_key === cell.item.journey_key ? undefined : (cell.item.localCouncilTip || cell.item.insightLabel || cell.item.explanation?.[0])}
+                  offerOneLine={
+                    expandedFromTip?.journey_key === cell.item.journey_key
+                      ? (() => {
+                          const generic = 'Answer a few questions to see your personalised impact.'
+                          const first = expandedFromTip.explanation?.[0]?.trim()
+                          if (first && first !== generic) return first
+                          const t = (expandedFromTip.title || '').trim()
+                          return t
+                            ? `${t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()}. Save and cut carbon — answer a question to see your numbers.`
+                            : 'This offer can help you save. Answer a question to see your personalised impact.'
+                        })()
+                      : undefined
+                  }
+                  insightLabel={cell.item.insightLabel}
+                  attributionSourceLabel={cell.item.sourceLabel}
+                  architectSuppliedBy={cell.item.architectSuppliedBy}
+                  architectActionLine={cell.item.architectActionLine}
+                  insightAlert={cell.item.insightAlert}
+                  fromScraper={cell.item.fromScraper}
+                  showLocalTag={!!localData?.council && (cell.item.journey_key === 'home' || cell.item.journey_key === 'travel')}
+                  localCarbonG={cell.item.journey_key === 'carbon' ? localData?.localCarbonG : undefined}
+                  hasLocalGrant={cell.item.journey_key === 'home' && !!localData?.council}
+                  localContextBar={cell.item.localContextBar ?? (() => {
+                    const place = displayLocationName.trim() || localData?.council
+                    return place && localData?.council && typeof localData.localCarbonG === 'number'
+                      ? `In ${place}, your live local support context is grounded to your postcode. Your local grid is running at ${Math.round(localData.localCarbonG)}g CO₂e/kWh.`
+                      : undefined
+                  })()}
+                  claimOfferUrl={
+                    cell.item.journey_key === 'home' && homeSentinelSupportActive
+                      ? homeSupportOfferUrl
+                      : cell.item.claimOfferUrl
+                  }
+                  offerUrlOverride={
+                    expandedFromTip?.journey_key === cell.item.journey_key
+                      ? expandedFromTip.cta?.url ||
+                        expandedFromTip.actions?.actionUrl ||
+                        expandedFromTip.actions?.learnUrl ||
+                        expandedFromTip.source
+                      : undefined
+                  }
+                  isPriorityAlert={cell.item.isPriorityAlert}
+                  verifiedSourceName={cell.item.source_name}
+                  verifiedSourceDate={cell.item.source_date}
+                  partnerLink={cell.item.partner_link}
+                  verifiedAuditMoneyGbp={(() => {
+                    const cov = researchCategoryCoverage?.[cell.item.journey_key]
+                    const cm =
+                      cov?.latestSavingGbp != null && cov.latestSavingGbp > 0
+                        ? cov.latestSavingGbp
+                        : cov?.latestVerifiedGbp != null && cov.latestVerifiedGbp > 0
+                          ? cov.latestVerifiedGbp
+                          : null
+                    if (cm != null) return cm
+                    const metaJourney =
+                      researchMeta?.category != null
+                        ? researchCategoryToJourneyKey(researchMeta.category)
+                        : null
+                    return liveResearchData && metaJourney === cell.item.journey_key && researchMeta
+                      ? researchMeta.savingAmountGbp ?? researchMeta.verifiedSaving ?? null
+                      : null
+                  })()}
+                  verifiedArchitectProse={(() => {
+                    const jid = cell.item.journey_key
+                    const p = researchCategoryCoverage?.[jid]?.architectProse?.trim()
+                    if (!p) return null
+                    return sanitizeArchitectProseForJourney(jid, p)
+                  })()}
+                  verifiedAuditSourceUrl={(() => {
+                    const cov = researchCategoryCoverage?.[cell.item.journey_key]
+                    const offer = cov?.latestOfferUrl?.trim()
+                    if (offer?.startsWith('http')) return offer
+                    const src = cov?.latestSourceUrl?.trim()
+                    if (src?.startsWith('http')) return src
+                    return researchMeta?.auditSourceUrl ?? null
+                  })()}
+                  verifiedAuditCategory={(() => {
+                    const jid = cell.item.journey_key
+                    const cov = researchCategoryCoverage?.[jid]
+                    if (!cov?.verified && !cov?.architectProse?.trim()) return null
+                    const prose = cov?.architectProse?.trim()
+                      ? sanitizeArchitectProseForJourney(jid, cov.architectProse)
+                      : null
+                    return cov?.verified || prose ? jid : null
+                  })()}
+                  groovy
+                  kineticGrid
+                  researchCategoryCoverage={researchCategoryCoverage}
+                  insightGenerationPending={
+                    !journeyResearchSettled(researchCategoryCoverage?.[cell.item.journey_key], {
+                      streamPending: cell.item.streamPending === true,
+                      journeyId: cell.item.journey_key,
+                    }) &&
+                    (cell.item.streamPending === true ||
+                      insightPendingKeys.has(cell.item.journey_key))
+                  }
+                  isExpanded={expandedCardId === cell.item.id}
+                  onExpand={() => openZoneJourneySoloFocus(cell.item)}
+                  onPatternShiftClose={launchPatternShiftTakeover}
+                  onLike={trackZoneLike}
+                  isLiked={state.likedCards.includes(cell.item.id)}
+                  learnUrl={cell.item.actions?.learnUrl}
+                  learnActionType={cell.item.actions?.actionType}
+                  showAskZaiTrinity={zoneInteractable}
+                  onJourneyAnswered={() => {
+                    setRefreshKey((k) => k + 1)
+                    setUnlockedCount((prev) => Math.min(prev + 1, 9))
+                  }}
+                  onEmbeddedAnswerSuccess={() => {
+                    setRefreshKey((k) => k + 1)
+                    setVmSyncStamp(Date.now())
+                  }}
+                  onSoloEmbedComplete={(jid) => {
+                    window.requestAnimationFrame(() => {
+                      window.setTimeout(() => {
+                        document.getElementById(`zone-journey-${jid}`)?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'center',
+                        })
+                      }, 450)
+                    })
+                  }}
+                  onSwipeNextJourney={openNextJourneyFromExpanded}
+                  onNavigateJourney={navigateJourneyInSoloFocus}
+                  onNavigateSoloFocus={navigateSoloFocusEntry}
+                  soloFocusNavRing={soloFocusNavRing}
+                  soloFocusJourneyRing={soloFocusJourneyRing}
+                />
+                </div>
+              )}
+            </motion.div>
+            </React.Fragment>
+          )
+        })
+
   return (
     <LayoutGroup>
       <motion.main
-        className="zone relative min-h-screen overflow-x-hidden pb-[calc(11rem+env(safe-area-inset-bottom,0px))]"
+        className="zone zone-main-shell relative min-h-screen overflow-x-hidden"
         style={{
           color: 'var(--color-yellow)',
           boxShadow: 'none',
         }}
         {...FADE_IN_UP}
       >
+        {isZoneVisible && !zoneHandoffStaging && !isFocusViewOpen && !loopTakeoverOpen ? (
+          <ZoneDesktopNavRail />
+        ) : null}
         {zoneHandoffStaging ? (
           <div
             className="zone-handoff-overlay"
@@ -2548,10 +2995,10 @@ export default function ZonePage() {
         >
           <motion.div
             variants={STACCATO_CHILD_VARIANTS}
-            className="zone-hero-section zone-hero-grid w-full"
+            className="zone-hero-section w-full"
             aria-live="polite"
           >
-            <div className="zone-hero-copy">
+            <div className="zone-hero-copy" data-testid="zone-section-welcome">
               <motion.h3
                 className="zz-h3 zone-welcome zone-welcome-block zone-welcome-time m-0"
                 style={{ color: 'var(--color-yellow)' }}
@@ -2598,7 +3045,6 @@ export default function ZonePage() {
                 {zoneWelcome.savingsCarbonLine}
               </motion.h3>
             </div>
-            <ZoneDesktopNavRail />
           </motion.div>
           {showInlineLoadingLogo && !zoneHandoffStaging ? (
             <AppBootGlitch
@@ -2636,40 +3082,10 @@ export default function ZonePage() {
           aria-hidden={zoneWallCollapsed}
         >
           <LayoutGroup id="zone-bento-wall">
-          {(['hero', 'categories'] as const).map((wallSection) => (
-          <React.Fragment key={`zone-wall-${wallSection}`}>
-          {wallSection === 'categories' && showRockStrip ? (
-            <motion.div
-              key="zone-rock-strip"
-              className="zone-rock-strip bento-hero-span w-full mt-3 mb-6"
-              initial={FAMILY_ATOMIC_SURFACE_INITIAL}
-              animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
-              transition={FAMILY_TRANSITION_ATOMIC}
-            >
-              <h3 className="zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0">
-                today&apos;s tips
-              </h3>
-              <RockSavingTips
-                habits={rockHabitsWithOffers}
-                likedCardIds={state.likedCards}
-                visitedTipIds={visitedCardIds}
-                onOpenTip={openRockTip}
-              />
-            </motion.div>
-          ) : null}
-          {wallSection === 'categories' && showCategorySectionHeading ? (
-            <motion.h3
-              className="zone-category-section-heading zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0"
-              variants={ZONE_BENTO_CELL_VARIANTS}
-              initial="hidden"
-              animate="visible"
-            >
-              recommendations
-            </motion.h3>
-          ) : null}
+          <div className="zone-hero-wall">
           <motion.div
-            key={`zone-grid-${wallSection}-${summaryGridStaggerKey}-${cleanBirthRevealKey}`}
-            data-testid={wallSection === 'categories' ? 'zone-grid-mounted' : 'zone-grid-hero'}
+            key={`zone-grid-hero-${summaryGridStaggerKey}-${cleanBirthRevealKey}`}
+            data-testid="zone-grid-hero"
             {...(architecturalPulsePhase === 'punch'
               ? {
                   initial: ZONE_GRID_PUNCH_THROUGH.initial,
@@ -2703,459 +3119,92 @@ export default function ZonePage() {
             initial="initial"
             animate="animate"
           >
-            {displayItems.map((cell, i) => {
-              if (i >= zoneRevealCount) return null
-              if (wallSection === 'hero' && cell.type !== 'hero') return null
-              if (wallSection === 'categories' && cell.type === 'hero') return null
-              const cellKey =
-                cell.type === 'hero' ? 'hero' : cell.type === 'tip' ? cell.tip.id : cell.item.id
-              const isExpanded = cell.type === 'journey' && expandedCardId === cell.item.id
-              const spanClass =
-                cell.type === 'hero'
-                  ? 'bento-hero-span'
-                  : cell.type === 'tip'
-                    ? ''
-                    : cell.type === 'journey'
-                      ? bentoSpanClassForPersona(cell.persona)
-                      : ''
-              /* Hide other cells when a journey/tip card is expanded */
-              const isHidden =
-                (!!expandedCardId && !(cell.type === 'journey' && cell.item.id === expandedCardId)) ||
-                (!!expandedTipId && !(cell.type === 'tip' && cell.tip.id === expandedTipId))
-              const skeletonCell =
-                researchLoading && (cell.type === 'hero' || cell.type === 'journey')
-
-              return (
-                <React.Fragment key={cellKey}>
-                <motion.div
-                  variants={ZONE_BENTO_CELL_VARIANTS}
-                  initial="hidden"
-                  animate={
-                    isHidden
-                      ? 'shrunk'
-                      : cell.type === 'journey' &&
-                          (sentinelPingJourneyKeys[cell.item.journey_key] ||
-                            (sentinel.gridLowPulse && cell.item.journey_key === 'carbon'))
-                        ? 'ping'
-                        : 'visible'
-                  }
-                  className={`${spanClass} groovy-cell-radius h-full min-h-0${cell.type === 'hero' ? ' zone-hero-cell' : ''}${cell.type === 'journey' && primaryJourneyKeySet.has(cell.item.journey_key) ? ' zone-primary-slice-card' : ''}${skeletonCell ? ' zone-bento-skeleton' : ''}`.trim() || 'groovy-cell-radius'}
-                  data-primary-slice={cell.type === 'journey' && primaryJourneyKeySet.has(cell.item.journey_key) ? '1' : undefined}
-                  style={{
-                    willChange: 'transform',
-                    pointerEvents: zoneInteractable && !isHidden ? 'auto' : 'none',
-                  }}
-                >
-                  {cell.type === 'hero' && (
-                    <motion.div
-                      className="relative flex flex-col items-stretch w-full flex-1 min-h-0 h-full text-left"
-                      style={{ transformOrigin: 'center center' }}
-                      {...(heroFromSummaryHandoff
-                        ? {
-                            initial: ZONE_HERO_FROM_SUMMARY.initial,
-                            animate: ZONE_HERO_FROM_SUMMARY.animate,
-                            transition: ZONE_HERO_FROM_SUMMARY.transition,
-                            onAnimationComplete: () => setHeroFromSummaryHandoff(false),
-                          }
-                        : {})}
-                    >
-                      <div className="w-full flex-1 min-h-0 flex flex-col pt-5">
-                        <div
-                          data-testid="zone-hero-card"
-                          data-source={heroDataSource}
-                          className={`zone-hero-card bento-card-groovy flex flex-col flex-1 min-h-0 h-full w-full justify-between text-inherit${sentinelHeroPing ? ' sentinel-hero-ping' : ''}`}
-                        >
-                          <div className="flex flex-col shrink-0 gap-[clamp(10px,2.5cqw,16px)]">
-                            <Link
-                              href={ROUTES.SETTINGS}
-                              tabIndex={zoneInteractable ? 0 : -1}
-                              aria-disabled={!zoneInteractable}
-                              onClick={(e) => {
-                                if (!zoneInteractable) e.preventDefault()
-                              }}
-                              className="zone-hero-profile-link no-underline text-inherit w-fit"
-                            >
-                              <ZoneBentoCardHeader journeyId="profile" label="YOUR PROFILE" />
-                            </Link>
-                            {primaryHeroJourney ? (
-                              <button
-                                type="button"
-                                className="zone-hero-win-cta"
-                                disabled={!zoneInteractable}
-                                aria-label={`Open ${formatZoneCategoryLabel(primaryHeroJourney.journey_key)} offer`}
-                                onClick={() => openZoneJourneySoloFocus(primaryHeroJourney)}
-                              >
-                                {primaryHeroLeadLines.map((line) => (
-                                  <h3
-                                    key={line}
-                                    className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
-                                    lang="en"
-                                  >
-                                    {line}
-                                  </h3>
-                                ))}
-                              </button>
-                            ) : (
-                              primaryHeroLeadLines.map((line) => (
-                                <h3
-                                  key={line}
-                                  className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
-                                  lang="en"
-                                >
-                                  {line}
-                                </h3>
-                              ))
-                            )}
-                          </div>
-                          <div
-                            key={`zone-hero-metrics-${Math.round(heroMoney)}-${Math.round(heroCarbon)}`}
-                            className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 flex-shrink-0"
-                          >
-                            <div className="data-stack data-stack--tight">
-                              <span className="data-label">{ENGINE_UI_LABELS.profileWasteMoney}</span>
-                              <span className="data-value data-stamp-metric sentinel-live-countup">
-                                {hydrated ? (
-                                  <StampedMoneyGbp
-                                    gbp={displayMoney}
-                                    live={heroLiveGrounded && dbConnected}
-                                  />
-                                ) : (
-                                  <span className="zz-body-bold uppercase zz-shimmer-focus" aria-live="polite">
-                                    …
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                            <div className="data-stack data-stack--tight">
-                              <span className="data-label">{ENGINE_UI_LABELS.profileWasteCarbon}</span>
-                              <span className="data-value data-stamp-metric sentinel-live-countup">
-                                {hydrated ? (
-                                  <StampedCarbonKg kg={displayCarbon} />
-                                ) : (
-                                  <span className="zz-body-bold uppercase zz-shimmer-focus" aria-live="polite">
-                                    …
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                  {cell.type === 'tip' && (() => {
-                    const tip = cell.tip
-                    const isDiscoveryInject = tip.id.startsWith('inject-')
-                    const tipVisited = isZoneCardVisited(tip.id, tip.journey_key)
-                    const tipDeepDive = deepDivePendingId === tip.id
-                    const discoveryChild = isDiscoveryInjectCard(tip.id)
-                    const tipBg = tipVisited
-                      ? 'var(--color-pink)'
-                      : discoveryChild
-                        ? 'var(--color-yellow)'
-                        : 'var(--color-purple)'
-                    const tipInk = tipVisited
-                      ? 'var(--color-yellow)'
-                      : discoveryChild
-                        ? 'var(--color-purple)'
-                        : 'var(--color-yellow)'
-                    const tipTextColor = tipInk
-                    const semanticWin = tip.dominant_win ?? 'money'
-                    /* Category nested tips → parent journey Solo Focus (full article + question + loop). */
-                    const journeyCell = groovyItems.find(
-                      (c): c is GroovyItem & { type: 'journey' } =>
-                        c.type === 'journey' && c.item.journey_key === tip.journey_key
-                    )
-                    const tipHeadline = resolveZoneGridTipHeadline(
-                      tip,
-                      journeyCell?.item.title ?? null
-                    )
-                    const patch = tipDataPatches[tip.id]
-                    const moneyDisp = (patch?.money ?? tip.data.money ?? '').replace(/^£\s*/, '').trim() || '0'
-                    const carbonDisp = patch?.carbon ?? tip.data.carbon ?? '0'
-                    const carbonKgNum = parseCarbonKgFromDisplay(carbonDisp)
-                    const greenPulse = isDiscoveryInject && !tip.achievement_discovery && carbonKgNum > 500
-                    const snapBloomIn = discoverySnapTipId === tip.id
-                    const isAchievementDiscovery = Boolean(tip.achievement_discovery)
-                    const handleTipClick = () => {
-                      if (!zoneInteractable) return
-                      /* Discovery injections: own Solo Focus + context trap; do not hijack journey tile expand. */
-                      if (tip.id.startsWith('inject-')) {
-                        soloFocusExpandIntentRef.current = tip.id
-                        rememberSoloFocusReturn({
-                          cardId: tip.id,
-                          journeyKey: (tip.journey_key ?? 'home') as JourneyId,
-                          surface: 'discovery',
-                        })
-                        rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
-                        if (!openSoloFocus(tip.id, 'discovery')) return
-                        setExpandedCardId(null)
-                        setExpandedFromTip(null)
-                        setExpandedTipId(tip.id)
-                        return
-                      }
-                      if (journeyCell) {
-                        openZoneJourneySoloFocus(journeyCell.item, tip)
-                      } else {
-                        soloFocusExpandIntentRef.current = tip.id
-                        rememberSoloFocusReturn({
-                          cardId: tip.id,
-                          journeyKey: (tip.journey_key ?? 'home') as JourneyId,
-                          surface: 'grid-tip',
-                        })
-                        rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
-                        if (!openSoloFocus(tip.id, 'tip')) return
-                        setExpandedCardId(null)
-                        setExpandedFromTip(null)
-                        setExpandedTipId(tip.id)
-                      }
-                    }
-                    return (
-                      <motion.button
-                        type="button"
-                        id={zoneCardDomId(tip.id)}
-                        data-zone-surface="tip"
-                        className={[
-                          'bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left',
-                          greenPulse ? 'discovery-card-green-pulse' : '',
-                          tipVisited ? 'zone-card--visited' : '',
-                          tipDeepDive ? 'zone-card--deep-dive-pending' : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                        style={{
-                          borderRadius: 60,
-                          boxShadow: 'none',
-                          color: tipTextColor,
-                          ['--journey-bg' as string]: tipBg,
-                          ['--journey-text' as string]: tipTextColor,
-                          ['--color-ink' as string]: tipTextColor,
-                          ['--semantic-money' as string]: tipTextColor,
-                          ['--semantic-carbon' as string]: tipTextColor,
-                        }}
-                        onClick={handleTipClick}
-                        initial={snapBloomIn ? FAMILY_ATOMIC_SURFACE_INITIAL : false}
-                        animate={snapBloomIn ? FAMILY_ATOMIC_SURFACE_ANIMATE : undefined}
-                        transition={snapBloomIn ? FAMILY_TRANSITION_ATOMIC : undefined}
-                        aria-label={`Expand: ${tipHeadline}`}
-                        data-dominant-win={semanticWin}
-                      >
-                        <ZoneBentoCardHeader
-                          journeyId={tip.journey_key ?? 'carbon'}
-                          showPlus={isAchievementDiscovery}
-                          textColor={tipTextColor}
-                        />
-                        <h3 className="card-headline m-0 min-w-0" lang="en">
-                          {tipHeadline}
-                        </h3>
-                        {tipDeepDive ? (
-                          <p className="zz-body-bold m-0 mt-2 uppercase" style={{ color: tipTextColor }}>
-                            Deep dive in progress...
-                          </p>
-                        ) : null}
-                        <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
-                          <div className="data-stack data-stack--tight">
-                            <span className="data-label" style={{ color: tipTextColor }}>{ENGINE_UI_LABELS.potentialSavings}</span>
-                            <span
-                              className="data-value text-data data-stamp-metric"
-                              style={{ color: 'var(--color-ink)' }}
-                            >
-                              <StampedMoneyGbp
-                                gbp={parseMoneyGbpFromDisplay(
-                                  moneyDisp && !/^\s*£/.test(moneyDisp) ? `£${moneyDisp}` : moneyDisp || '0'
-                                )}
-                              />
-                            </span>
-                          </div>
-                          <div className="data-stack data-stack--tight">
-                            <span className="data-label" style={{ color: tipTextColor }}>{ENGINE_UI_LABELS.carbon}</span>
-                            <span
-                              className="data-value text-data data-stamp-metric"
-                              style={{ color: 'var(--color-ink)' }}
-                            >
-                              <StampedCarbonKg kg={parseCarbonKgFromDisplay(String(carbonDisp || '0'))} />
-                            </span>
-                          </div>
-                        </div>
-                      </motion.button>
-                    )
-                  })()}
-                  {cell.type === 'journey' && (
-                    <div
-                      className="w-full h-full min-h-0 flex flex-col"
-                      id={`zone-journey-${cell.item.journey_key}`}
-                    >
-                    <ZoneCard
-                      cardId={cell.item.id}
-                      journeyId={cell.item.journey_key}
-                      isVisited={isZoneCardVisited(cell.item.id, cell.item.journey_key)}
-                      deepDiveInProgress={deepDivePendingId === cell.item.id}
-                      auditState={cell.item.auditState ?? null}
-                      title={
-                        expandedFromTip?.journey_key === cell.item.journey_key
-                          ? expandedFromTip.title
-                          : cell.item.journey_key === 'home' && homeSentinelSupportActive
-                            ? homeSupportTitle
-                            : cell.item.title
-                      }
-                      isTall={cell.persona === 'tall'}
-                      textColorOverride="var(--color-yellow)"
-                      carbonValue={expandedFromTip?.journey_key === cell.item.journey_key && (expandedFromTip.data?.carbon ?? '') ? expandedFromTip.data.carbon : cell.item.data.carbon}
-                      moneyValue={expandedFromTip?.journey_key === cell.item.journey_key && (expandedFromTip.data?.money ?? '') ? expandedFromTip.data.money : cell.item.data.money}
-                      carbonKg={cell.item.carbonKg}
-                      moneyGbp={cell.item.moneyGbp}
-                      isComplete={completedJourneys.includes(cell.item.journey_key)}
-                      onRefineQuestions={undefined}
-                      onActionClick={() => openZoneJourneySoloFocus(cell.item)}
-                      crawlerTip={expandedFromTip?.journey_key === cell.item.journey_key ? undefined : (cell.item.localCouncilTip || cell.item.insightLabel || cell.item.explanation?.[0])}
-                      offerOneLine={
-                        expandedFromTip?.journey_key === cell.item.journey_key
-                          ? (() => {
-                              const generic = 'Answer a few questions to see your personalised impact.'
-                              const first = expandedFromTip.explanation?.[0]?.trim()
-                              if (first && first !== generic) return first
-                              const t = (expandedFromTip.title || '').trim()
-                              return t
-                                ? `${t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()}. Save and cut carbon — answer a question to see your numbers.`
-                                : 'This offer can help you save. Answer a question to see your personalised impact.'
-                            })()
-                          : undefined
-                      }
-                      insightLabel={cell.item.insightLabel}
-                      attributionSourceLabel={cell.item.sourceLabel}
-                      architectSuppliedBy={cell.item.architectSuppliedBy}
-                      architectActionLine={cell.item.architectActionLine}
-                      insightAlert={cell.item.insightAlert}
-                      fromScraper={cell.item.fromScraper}
-                      showLocalTag={!!localData?.council && (cell.item.journey_key === 'home' || cell.item.journey_key === 'travel')}
-                      localCarbonG={cell.item.journey_key === 'carbon' ? localData?.localCarbonG : undefined}
-                      hasLocalGrant={cell.item.journey_key === 'home' && !!localData?.council}
-                      localContextBar={cell.item.localContextBar ?? (() => {
-                        const place = displayLocationName.trim() || localData?.council
-                        return place && localData?.council && typeof localData.localCarbonG === 'number'
-                          ? `In ${place}, your live local support context is grounded to your postcode. Your local grid is running at ${Math.round(localData.localCarbonG)}g CO₂e/kWh.`
-                          : undefined
-                      })()}
-                      claimOfferUrl={
-                        cell.item.journey_key === 'home' && homeSentinelSupportActive
-                          ? homeSupportOfferUrl
-                          : cell.item.claimOfferUrl
-                      }
-                      offerUrlOverride={
-                        expandedFromTip?.journey_key === cell.item.journey_key
-                          ? expandedFromTip.cta?.url ||
-                            expandedFromTip.actions?.actionUrl ||
-                            expandedFromTip.actions?.learnUrl ||
-                            expandedFromTip.source
-                          : undefined
-                      }
-                      isPriorityAlert={cell.item.isPriorityAlert}
-                      verifiedSourceName={cell.item.source_name}
-                      verifiedSourceDate={cell.item.source_date}
-                      partnerLink={cell.item.partner_link}
-                      verifiedAuditMoneyGbp={(() => {
-                        const cov = researchCategoryCoverage?.[cell.item.journey_key]
-                        const cm =
-                          cov?.latestSavingGbp != null && cov.latestSavingGbp > 0
-                            ? cov.latestSavingGbp
-                            : cov?.latestVerifiedGbp != null && cov.latestVerifiedGbp > 0
-                              ? cov.latestVerifiedGbp
-                              : null
-                        if (cm != null) return cm
-                        const metaJourney =
-                          researchMeta?.category != null
-                            ? researchCategoryToJourneyKey(researchMeta.category)
-                            : null
-                        return liveResearchData && metaJourney === cell.item.journey_key && researchMeta
-                          ? researchMeta.savingAmountGbp ?? researchMeta.verifiedSaving ?? null
-                          : null
-                      })()}
-                      verifiedArchitectProse={(() => {
-                        const jid = cell.item.journey_key
-                        const p = researchCategoryCoverage?.[jid]?.architectProse?.trim()
-                        if (!p) return null
-                        return sanitizeArchitectProseForJourney(jid, p)
-                      })()}
-                      verifiedAuditSourceUrl={(() => {
-                        const cov = researchCategoryCoverage?.[cell.item.journey_key]
-                        const offer = cov?.latestOfferUrl?.trim()
-                        if (offer?.startsWith('http')) return offer
-                        const src = cov?.latestSourceUrl?.trim()
-                        if (src?.startsWith('http')) return src
-                        return researchMeta?.auditSourceUrl ?? null
-                      })()}
-                      verifiedAuditCategory={(() => {
-                        const jid = cell.item.journey_key
-                        const cov = researchCategoryCoverage?.[jid]
-                        if (!cov?.verified && !cov?.architectProse?.trim()) return null
-                        const prose = cov?.architectProse?.trim()
-                          ? sanitizeArchitectProseForJourney(jid, cov.architectProse)
-                          : null
-                        return cov?.verified || prose ? jid : null
-                      })()}
-                      groovy
-                      kineticGrid
-                      researchCategoryCoverage={researchCategoryCoverage}
-                      insightGenerationPending={
-                        !journeyResearchSettled(researchCategoryCoverage?.[cell.item.journey_key], {
-                          streamPending: cell.item.streamPending === true,
-                          journeyId: cell.item.journey_key,
-                        }) &&
-                        (cell.item.streamPending === true ||
-                          insightPendingKeys.has(cell.item.journey_key))
-                      }
-                      isExpanded={expandedCardId === cell.item.id}
-                      onExpand={() => openZoneJourneySoloFocus(cell.item)}
-                      onPatternShiftClose={launchPatternShiftTakeover}
-                      onLike={trackZoneLike}
-                      isLiked={state.likedCards.includes(cell.item.id)}
-                      learnUrl={cell.item.actions?.learnUrl}
-                      learnActionType={cell.item.actions?.actionType}
-                      showAskZaiTrinity={zoneInteractable}
-                      onJourneyAnswered={() => {
-                        setRefreshKey((k) => k + 1)
-                        setUnlockedCount((prev) => Math.min(prev + 1, 9))
-                      }}
-                      onEmbeddedAnswerSuccess={() => {
-                        setRefreshKey((k) => k + 1)
-                        setVmSyncStamp(Date.now())
-                      }}
-                      onSoloEmbedComplete={(jid) => {
-                        window.requestAnimationFrame(() => {
-                          window.setTimeout(() => {
-                            document.getElementById(`zone-journey-${jid}`)?.scrollIntoView({
-                              behavior: 'smooth',
-                              block: 'center',
-                            })
-                          }, 450)
-                        })
-                      }}
-                      onSwipeNextJourney={openNextJourneyFromExpanded}
-                      onNavigateJourney={navigateJourneyInSoloFocus}
-                      onNavigateSoloFocus={navigateSoloFocusEntry}
-                      soloFocusNavRing={soloFocusNavRing}
-                      soloFocusJourneyRing={soloFocusJourneyRing}
-                    />
-                    </div>
-                  )}
-                </motion.div>
-                </React.Fragment>
-              )
-            })}
+            {renderWallBentoCells('hero')}
           </motion.div>
-          </React.Fragment>
-          ))}
+          </div>
+          {showTodaysTipsSection ? (
+            <motion.div
+              key="zone-rock-strip"
+              className="zone-rock-strip w-full"
+              initial={FAMILY_ATOMIC_SURFACE_INITIAL}
+              animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
+              transition={FAMILY_TRANSITION_ATOMIC}
+            >
+              <h3
+                className="zone-section-heading zone-rock-section-heading zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0"
+                data-testid="zone-section-today-tips"
+              >
+                today&apos;s tips
+              </h3>
+              <RockSavingTips
+                habits={rockHabitsWithOffers}
+                likedCardIds={state.likedCards}
+                visitedTipIds={visitedCardIds}
+                onOpenTip={openRockTip}
+              />
+            </motion.div>
+          ) : null}
+          <div className="zone-category-wall">
+          {showCategorySectionHeading ? (
+            <h3
+              className="zone-section-heading zone-category-section-heading zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0"
+              data-testid="zone-section-recommendations"
+            >
+              recommendations
+            </h3>
+          ) : null}
+          <motion.div
+            key={`zone-grid-categories-${summaryGridStaggerKey}-${cleanBirthRevealKey}`}
+            data-testid="zone-grid-mounted"
+            {...(architecturalPulsePhase === 'punch'
+              ? {
+                  initial: ZONE_GRID_PUNCH_THROUGH.initial,
+                  animate: ZONE_GRID_PUNCH_THROUGH.animate,
+                  transition: ZONE_GRID_PUNCH_THROUGH.transition,
+                  style: { transformOrigin: 'center center' },
+                }
+              : cleanBirthRevealKey > 0
+                ? {
+                    initial: ZONE_GRID_PUNCH_THROUGH.initial,
+                    animate: ZONE_GRID_PUNCH_THROUGH.animate,
+                    transition: ZONE_GRID_PUNCH_THROUGH.transition,
+                    style: { transformOrigin: 'center center' },
+                  }
+                : architecturalPulsePhase === 'done' && summaryGridStaggerKey > 0
+                  ? {}
+                  : {})}
+            data-profile-postcode={scrapePostcode}
+            data-vm-sync={String(vmSyncStamp)}
+            data-research-loading={researchLoading ? '1' : '0'}
+            className={`groovy-zone-grid mx-auto${zoneWallCollapsed ? '' : ' groovy-zone-grid--revealing'} ${localJustLoaded ? 'zone-grid-local-shiver' : ''}`}
+            variants={{
+              initial: {},
+              animate: {
+                transition: {
+                  staggerChildren: ZONE_GRID_STAGGER_CHILD_DELAY_SEC,
+                  delayChildren: ZONE_GRID_STAGGER_CHILD_DELAY_SEC,
+                },
+              },
+            }}
+            initial="initial"
+            animate="animate"
+          >
+            {renderWallBentoCells('categories')}
+          </motion.div>
+          </div>
           </LayoutGroup>
         </motion.div>
 
         {!expandedCardId && !expandedTipId && !loopTakeoverOpen ? (
           <>
+            <div data-testid="zone-section-signup">
             <RockMobileSignupCard
               tips={zoneSignupTips}
               tipSlugs={zoneSignupTipSlugs}
               recommendations={zoneSignupRecommendations}
               userName={signupFirstName}
             />
+            </div>
             <Footer className="site-footer--zone" />
           </>
         ) : null}

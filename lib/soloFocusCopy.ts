@@ -12,7 +12,8 @@ import {
   payoffSentence,
 } from '@/lib/zone/auditorNarrative'
 import { personalizeTrueTipPlaceLead, resolveSoloFocusPlaceLabel } from '@/lib/zone/localityCopy'
-import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
+import { sanitizeArchitectProseForJourney, isCoherentParagraph } from '@/lib/zone/contentProseSanitize'
+import { isTruncatedSentence, stripTrailingEllipsis } from '@/lib/zone/proseComplete'
 import { humanizeZoneHeadline, humanizeZoneProse } from '@/lib/zone/plainEnglishCopy'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
@@ -49,7 +50,14 @@ export function stripExpandedCardTitleNoise(raw: string): string {
     if (after.length >= 3 && !isZonePreviewHeadlineNoise(after)) t = after
   }
   t = t.replace(/\s+/g, ' ').trim()
-  return t
+  return stripTrailingEllipsis(t)
+}
+
+/** Solo Focus lead — strip ellipsis / dangling fragments before display. */
+function finalizeSoloFocusLead(lead: string, fallback: string): string {
+  const cleaned = stripTrailingEllipsis(lead.trim())
+  const use = cleaned && !isTruncatedSentence(cleaned) ? cleaned : fallback
+  return clampWords(stripTrailingEllipsis(use.trim()), MAX_SOLO_FOCUS_LEAD_WORDS)
 }
 
 const ZONE_PREVIEW_NOISE_RE =
@@ -162,6 +170,8 @@ export function cleanZonePreviewHeadline(raw: string): string {
     else if (parts.length > 0) t = parts[parts.length - 1]!
   }
   t = t.replace(/\s+/g, ' ').trim()
+  t = stripTrailingEllipsis(t)
+  if (isTruncatedSentence(t)) return ''
   if (isEnergyAuditDebrisHeadline(t)) return ''
   if (isZonePreviewHeadlineNoise(t)) {
     const action = t.match(
@@ -780,13 +790,33 @@ export function resolveSoloFocusDisplayProse(args: {
 
   if (hasLocalityAuditorLeadShape(subheading, placeLabel)) {
     if (!proseTopicsConflict(args.headline, subheading)) {
-      return { lead: subheading, body: null }
+      return {
+        lead: finalizeSoloFocusLead(
+          subheading,
+          buildAuditorDetectionParagraph({
+            placeLabel,
+            moneyGbp: args.moneyGbp,
+            journey: coerceJourneyId(args.journeyId),
+          })
+        ),
+        body: null,
+      }
     }
   }
 
   const polishedInsight = polishRockHabitInsight(args.insightSource, coerceJourneyId(args.journeyId))
   if (polishedInsight && !proseTopicsConflict(args.headline, polishedInsight)) {
-    return { lead: clampWords(polishedInsight, MAX_SOLO_FOCUS_LEAD_WORDS), body: null }
+    return {
+      lead: finalizeSoloFocusLead(
+        polishedInsight,
+        buildAuditorDetectionParagraph({
+          placeLabel,
+          moneyGbp: args.moneyGbp,
+          journey: coerceJourneyId(args.journeyId),
+        })
+      ),
+      body: null,
+    }
   }
 
   const detection = buildAuditorDetectionParagraph({
@@ -795,9 +825,15 @@ export function resolveSoloFocusDisplayProse(args: {
     journey: coerceJourneyId(args.journeyId),
   })
   if (proseTopicsConflict(args.headline, detection) && polishedInsight) {
-    return { lead: clampWords(polishedInsight, MAX_SOLO_FOCUS_LEAD_WORDS), body: null }
+    return {
+      lead: finalizeSoloFocusLead(
+        polishedInsight,
+        detection
+      ),
+      body: null,
+    }
   }
-  return { lead: detection, body: null }
+  return { lead: finalizeSoloFocusLead(detection, detection), body: null }
 }
 
 /** Content-architect imperative — not a third prose block when audit copy is complete. */
@@ -1200,19 +1236,66 @@ export function clampRockTipHeadline(title: string): string {
   return ensureHeadlineSentenceEnd(trimmed)
 }
 
+const HEADLINE_VERB_RE =
+  /\b(?:save|cut|trim|switch|claim|apply|fit|fix|sort|track|move|reduce|stop|use|get|lock|shift|drop|keep|avoid|choose|check|book|plan|ride|charge|insulate|install|audit|lower|compare|refit|bleed|waste|spend|switching)\b/i
+
+function headlineLacksVerb(text: string): boolean {
+  return !HEADLINE_VERB_RE.test(text)
+}
+
+function stripTruncatedMoneyEllipsis(text: string): string {
+  return text
+    .replace(/£[\d,.]+[km]?\s*(?:\.{3,}|…)[^.!?]*$/gi, (m) => m.replace(/(?:\.{3,}|…).*$/, '').trim())
+    .replace(/\.{3,}$|…$/g, '')
+    .trim()
+}
+
+function padRockHeadlineToExpandedBounds(
+  combined: string,
+  journeyId?: JourneyId
+): string {
+  const jid = journeyId
+  const journeyHook = jid ? EXPANDED_JOURNEY_HOOK[jid] : undefined
+  let result = enforceHeadlineWordLimits(combined, true, jid)
+  let words = splitHeadlineWords(result)
+  if (words.length < 15 && journeyHook) {
+    const padded = trimHeadlineToMaxWords(
+      `${result} ${journeyHook}`,
+      MAX_EXPANDED_VIEW_HEADLINE_WORDS,
+      MIN_EXPANDED_VIEW_HEADLINE_WORDS
+    )
+    result = enforceHeadlineWordLimits(padded, true, jid)
+    words = splitHeadlineWords(result)
+  }
+  if (words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && journeyHook) {
+    result = enforceHeadlineWordLimits(journeyHook, true, jid)
+  }
+  return humanizeZoneHeadline(result, jid)
+}
+
 /** Solo Focus for Rock habits — prefer insight as H1 when title is thin; body carries proof only. */
-export function headlineFromRockHabitForSoloFocus(title: string, insight?: string): string {
+export function headlineFromRockHabitForSoloFocus(
+  title: string,
+  insight?: string,
+  journeyId?: string
+): string {
+  const jid = journeyId ? coerceJourneyId(journeyId) : undefined
   const t = stripExpandedCardTitleNoise(cleanZonePreviewHeadline(title) || title).trim()
   const preparedTitle = prepareZoneHeadlineSource(t) || t
   const insightTrim = insight?.trim().replace(/\s+/g, ' ') ?? ''
   if (insightTrim && splitHeadlineWords(preparedTitle).length < MIN_EXPANDED_VIEW_HEADLINE_WORDS) {
-    return enforceHeadlineWordLimits(insightTrim, true, undefined)
+    return padRockHeadlineToExpandedBounds(insightTrim, jid)
   }
-  return enforceHeadlineWordLimits(preparedTitle, true, undefined)
+  return padRockHeadlineToExpandedBounds(preparedTitle, jid)
 }
 
 /** @deprecated Rock grid face — use {@link headlineFromRockHabitForSoloFocus} in Solo Focus. */
-export function headlineFromRockHabit(title: string, insight?: string): string {
+export function headlineFromRockHabit(
+  title: string,
+  insight?: string,
+  journeyId?: string
+): string {
+  const jid = journeyId ? coerceJourneyId(journeyId) : undefined
   const t = stripExpandedCardTitleNoise(cleanZonePreviewHeadline(title) || title).trim()
   let combined = prepareZoneHeadlineSource(t) || t
   const insightTrim = insight?.trim().replace(/\s+/g, ' ') ?? ''
@@ -1236,7 +1319,7 @@ export function headlineFromRockHabit(title: string, insight?: string): string {
       )
     }
   }
-  return enforceHeadlineWordLimits(combined, true, undefined)
+  return padRockHeadlineToExpandedBounds(combined, jid)
 }
 
 /** Expanded Solo Focus hook when DB title is thin or off-topic (~20 words each). */
@@ -1276,14 +1359,16 @@ export function headlineFromExpandedHook(
 ): string {
   const jid = journeyId ? coerceJourneyId(journeyId) : undefined
   const journeyHook = jid ? EXPANDED_JOURNEY_HOOK[jid] : undefined
-  const prepared = prepareZoneHeadlineSource(title)
+  const prepared = stripTruncatedMoneyEllipsis(prepareZoneHeadlineSource(title))
   const resolved = enforceHeadlineWordLimits(prepared || title, true, jid)
   const words = splitHeadlineWords(resolved)
   const weak =
     isLowQualityZoneHeadline(resolved) ||
     isGenericSpringHeadline(resolved) ||
+    isTruncatedSentence(resolved) ||
     words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS ||
     headlineEndsIncomplete(resolved) ||
+    headlineLacksVerb(resolved) ||
     (jid != null && headlineConflictsWithJourney(jid, resolved)) ||
     Boolean(journeyHook && isPartialExpandedJourneyHook(resolved, journeyHook))
   if (jid && journeyHook && (weak || isGenericSpringHeadline(prepared || title))) {
@@ -1748,7 +1833,9 @@ export function toThreeTrueTipParagraphs(
       stripAuditorFluffParagraph(a),
       stripAuditorFluffParagraph(b),
       ...(third.trim() ? [third] : []),
-    ]).filter((p) => p.trim().length > 0 && !isBoilerplateProseParagraph(p))
+    ])
+      .filter((p) => p.trim().length > 0 && !isBoilerplateProseParagraph(p))
+      .filter((p) => isCoherentParagraph(p))
     parts = parts.filter((p) => !paragraphRepeatsPayoffStamp(p, j, money, carbon))
     const src = (options?.sourceDisplayName ?? '').trim() || 'UK Government'
     const pc = (options?.userPostcode ?? '').trim() || 'your postcode'
@@ -1805,14 +1892,19 @@ export function toThreeTrueTipParagraphs(
   if (!t) {
     return ['', '', '']
   }
-  const parts = t
+  const sanitized = sanitizeArchitectProseForJourney(j, t) ?? t
+  const parts = sanitized
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean)
   if (parts.length >= 3) {
-    return pack3(parts[0]!, parts[1]!, parts[2]!)
+    const coherent = parts.filter((p) => isCoherentParagraph(p))
+    if (coherent.length >= 3) {
+      return pack3(coherent[0]!, coherent[1]!, coherent[2]!)
+    }
+    return padFromSingle(coherent[0] ?? parts[0]!)
   }
-  const sentences = t
+  const sentences = sanitized
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
     .filter(Boolean)
@@ -1832,5 +1924,5 @@ export function toThreeTrueTipParagraphs(
   if (sentences.length === 1) {
     return padFromSingle(sentences[0]!)
   }
-  return pack3(t, t, t)
+  return pack3(sanitized, sanitized, sanitized)
 }

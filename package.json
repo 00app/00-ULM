@@ -38,6 +38,7 @@
     "lint:ci": "node scripts/vercel-check.mjs lint",
     "test:mechanical-truth": "tsx scripts/verify-mechanical-truth.ts",
     "test:property-intelligence": "tsx scripts/verify-property-intelligence.ts",
+    "test:truth-ledger": "tsx scripts/verify-truth-ledger.ts",
     "funnel:report": "tsx scripts/funnel-report.ts",
     "verify": "node scripts/vercel-ensure-native-checks-disabled.mjs && npm run typecheck:ci && npm run lint:ci && npm run test:mechanical-truth",
     "fix:vercel-checks": "node scripts/vercel-ensure-native-checks-disabled.mjs",

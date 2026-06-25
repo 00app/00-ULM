@@ -9,12 +9,14 @@ import {
   persistDiscoveryInjection,
   upsertUserGenomeFromAnswer,
   upsertJourneyAnswerJsonb,
+  canPersistUserDiscoveryInjection,
 } from '@/lib/db/neon'
 import pool from '@/lib/db'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import type { ImpactProfile } from '@/lib/brains/types'
 import { isValidJourneyId, type JourneyId } from '@/lib/journeys'
 import { runLoopSpawnResearch } from '@/lib/zone/loopSpawnResearch'
+import { enrichResearchProfileFromSession } from '@/lib/intelligence/enrichProfileDataFromGenome'
 import { persistZoneTipInjectBody } from '@/lib/zone/persistZoneTipInject'
 import { runDiscoveryStructuredPipeline } from '@/lib/agents/discoveryStructured'
 import { generateDiscoveryWinWithGemini } from '@/lib/agents/discoveryWin'
@@ -31,6 +33,18 @@ import { fetchNextDiscoveryCards } from '@/lib/agents/discoveryEngine'
 import { enforceTrueWinRails, passesBoundaryGuard } from '@/lib/zone/trueWinRails'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { prioritizeMorphCardsForProfileTags, prioritizeRegionalMorphCards } from '@/lib/zone/morphRegionalPriority'
+import type { ZoneTipCard } from '@/lib/logic/zone'
+
+async function maybePersistDiscoveryInjection(
+  userId: string,
+  card: ZoneTipCard,
+  source: string,
+  journeyFallback: string
+): Promise<void> {
+  const jk = String(card.journey_key ?? journeyFallback).trim().toLowerCase()
+  if (!(await canPersistUserDiscoveryInjection(userId, jk, card.id))) return
+  void persistDiscoveryInjection(userId, card.id, card, source, { journey_key: jk })
+}
 
 import {
   loadDynamicUserProfileForResearch,
@@ -154,7 +168,7 @@ export async function POST(request: NextRequest) {
         : profilePostcode.length >= 4
           ? profilePostcode
           : null
-    const profileData = profileRow || postcodeNorm
+    const profileDataBase = profileRow || postcodeNorm
       ? {
           postcode: postcodeNorm ?? profileRow?.postcode ?? null,
           house_number: houseNumberFromGenome,
@@ -166,6 +180,9 @@ export async function POST(request: NextRequest) {
           household_size: householdSize != null ? String(householdSize) : null,
           hermes_skill_file: hermesSkillFile,
         }
+      : null
+    const profileData = profileDataBase
+      ? enrichResearchProfileFromSession(profileDataBase, profileRow ?? null)
       : null
     const soloFocus =
       solo_focus === true ||
@@ -420,7 +437,7 @@ export async function POST(request: NextRequest) {
       if (passesBoundaryGuard(card, postcodeNorm)) {
         discoveryPayloadFinal = { ...discoveryPayloadFinal, new_card_data: card }
         persistZoneTipInjectBody({ cards: [card] })
-        void persistDiscoveryInjection(user_id, card.id, card, 'discovery_race')
+        void maybePersistDiscoveryInjection(user_id, card, 'discovery_race', jKey)
 
       } else {
         discoveryPayloadFinal = null
@@ -455,7 +472,7 @@ export async function POST(request: NextRequest) {
         const bounded = enforceTrueWinRails(raw)
         if (!passesBoundaryGuard(bounded, postcodeNorm)) continue
         persistZoneTipInjectBody({ cards: [bounded] })
-        void persistDiscoveryInjection(user_id, bounded.id, bounded, 'next_win_invoke')
+        void maybePersistDiscoveryInjection(user_id, bounded, 'next_win_invoke', jKey)
       } catch {
         /* ignore malformed morph row */
       }
@@ -471,7 +488,7 @@ export async function POST(request: NextRequest) {
         morphCards = [bounded, ...morphCards]
         if (passesBoundaryGuard(bounded, postcodeNorm)) {
           persistZoneTipInjectBody({ cards: [bounded] })
-          void persistDiscoveryInjection(user_id, bounded.id, bounded, 'hybrid_live_scrape')
+          void maybePersistDiscoveryInjection(user_id, bounded, 'hybrid_live_scrape', jKey)
         }
       }
     }
@@ -484,7 +501,7 @@ export async function POST(request: NextRequest) {
         if (passesBoundaryGuard(bounded, postcodeNorm)) {
           persistZoneTipInjectBody({ cards: [bounded] })
           grid_pulse_card = bounded
-          void persistDiscoveryInjection(user_id, bounded.id, bounded, 'night_charge_grid')
+          void maybePersistDiscoveryInjection(user_id, bounded, 'night_charge_grid', jKey)
         }
       }
     }
