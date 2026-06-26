@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * CI lint/typecheck entry — use `npm run lint` / `npm run typecheck` (Vercel native checks)
- * or `npm run lint:ci` / `npm run typecheck:ci` (GitHub Actions / verify).
+ * CI lint/typecheck entry — invoked by vercel-build-gate.mjs and `npm run lint:ci` / `typecheck:ci`.
+ * Do not add package.json scripts named `lint` or `typecheck` (Vercel native checks flake).
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'

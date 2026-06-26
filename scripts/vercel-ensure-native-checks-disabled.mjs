@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Align package.json with Vercel Native Deployment Checks.
+ * Guard: package.json must NOT define `lint` or `typecheck` scripts.
  *
- * Vercel runs scripts named `lint` and `typecheck` in parallel with the build when
- * those checks are enabled in project settings. They must invoke vercel-check.mjs
- * directly (not nested npm) so NODE_OPTIONS from vercel.json build heap is not inherited.
+ * Vercel Native Deployment Checks auto-bind those names and run them in parallel
+ * with the build — they often fail with "failed unexpectedly" while
+ * vercel-build-gate.mjs already verified the same code serially.
  *
- * Real serial gate: vercel-build-gate.mjs + GitHub Actions Lint/Typecheck.
+ * Real gates: vercel-build-gate.mjs (build) + GitHub Actions Lint/Typecheck (lint:ci / typecheck:ci).
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -19,7 +19,16 @@ const scripts = pkg.scripts ?? {}
 const vercelCheck = 'node scripts/vercel-check.mjs'
 let failed = false
 
-function expectScript(name, mode) {
+for (const forbidden of ['lint', 'typecheck']) {
+  if (scripts[forbidden]) {
+    console.error(`❌ package.json must NOT define scripts.${forbidden}.`)
+    console.error(`   Vercel Native Deployment Checks bind to that name and flake in parallel with build.`)
+    console.error(`   Use scripts.${forbidden}:ci and GitHub Actions instead.`)
+    failed = true
+  }
+}
+
+function expectCiScript(name, mode) {
   const expected = `${vercelCheck} ${mode}`
   const actual = scripts[name]
   if (actual !== expected) {
@@ -30,23 +39,14 @@ function expectScript(name, mode) {
   }
 }
 
-expectScript('lint', 'lint')
-expectScript('typecheck', 'typecheck')
-
-for (const name of ['lint:ci', 'typecheck:ci']) {
-  const mode = name.replace(':ci', '')
-  const expected = `${vercelCheck} ${mode}`
-  if (scripts[name] !== expected) {
-    console.error(`❌ package.json scripts.${name} must be "${expected}"`)
-    failed = true
-  }
-}
+expectCiScript('lint:ci', 'lint')
+expectCiScript('typecheck:ci', 'typecheck')
 
 if (failed) {
   console.error('')
-  console.error('See docs/DEPLOY-VERCEL.md — native + GitHub deployment checks.')
+  console.error('See docs/DEPLOY-VERCEL.md — disable native Lint/Typecheck in Vercel dashboard; require GitHub Actions.')
   process.exit(1)
 }
 
-console.log('✓ Native deployment check scripts aligned (lint / typecheck → vercel-check.mjs).')
-console.log('  Serial gate: vercel-build-gate.mjs + GitHub Actions Lint/Typecheck.')
+console.log('✓ Native check script names disabled (no lint/typecheck in package.json).')
+console.log('  Serial gate: vercel-build-gate.mjs + GitHub Actions lint:ci / typecheck:ci.')

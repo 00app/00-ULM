@@ -4802,15 +4802,14 @@ Production alias **`https://www.00-00.online`** should then serve this build.
 | --- | --- |
 | **`vercel.json` `buildCommand`** | `node scripts/vercel-build-gate.mjs` — serial typecheck, lint, then `build-with-manifest-fix.js` (verify runs without build `NODE_OPTIONS` to avoid OOM) |
 | **`.npmrc`** | `include=dev` — native Lint/Typecheck jobs get `@types/*` + eslint |
-| **`scripts/vercel-check.mjs`** | Native check entry: `next typegen` + explicit eslint/tsc binaries |
-| **`package.json` `lint` / `typecheck`** | `node scripts/vercel-check.mjs` — Vercel Native Deployment Checks |
-| **`package.json` `lint:ci` / `typecheck:ci`** | Same — GitHub Actions + `npm run verify` |
-| **`npm run fix:vercel-checks`** | Fails if `lint`/`typecheck` scripts reappear in package.json |
+| **`scripts/vercel-check.mjs`** | Check entry: `next typegen` + explicit eslint/tsc binaries |
+| **`package.json` `lint:ci` / `typecheck:ci`** | GitHub Actions + `npm run verify` + `vercel-build-gate.mjs` |
+| **`npm run fix:vercel-checks`** | Fails if `lint`/`typecheck` scripts exist in package.json |
 | **`next.config.js`** | No `eslint` key (Next 16 removed it — native Vercel Lint crashes). `typescript.ignoreBuildErrors` only. |
 | **`vercel.json` `installCommand`** | `npm ci --include=dev` (checks + build see eslint/tsc) |
 | **`npm run deploy`** | verify → `vercel deploy --prod` → wait Ready → **`scripts/vercel-promote-latest.sh`** |
 
-Missing or nested check scripts caused Vercel *internal error* on native Lint/Typecheck; direct binaries fix that.
+Missing `lint`/`typecheck` scripts lets Vercel skip flaky native checks; serial verify still runs in `vercel-build-gate.mjs`.
 
 **Permanent repo fix (native checks):** Do **not** define `lint` or `typecheck` in `package.json`. Vercel Native Deployment Checks bind to those exact names and run in parallel with the build — they often fail with *failed unexpectedly* while `vercel-build-gate.mjs` already verified the same code. Use `lint:ci` / `typecheck:ci` + `npm run fix:vercel-checks`.
 

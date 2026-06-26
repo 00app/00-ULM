@@ -31,8 +31,6 @@
     "check": "node scripts/run-typecheck.mjs",
     "typegen": "next typegen",
     "tsc:check": "node scripts/vercel-check.mjs typecheck",
-    "lint": "node scripts/vercel-check.mjs lint",
-    "typecheck": "node scripts/vercel-check.mjs typecheck",
     "typecheck:ci": "node scripts/vercel-check.mjs typecheck",
     "check:build": "npm run typecheck:ci && node scripts/build-with-manifest-fix.js",
     "lint:ci": "node scripts/vercel-check.mjs lint",
