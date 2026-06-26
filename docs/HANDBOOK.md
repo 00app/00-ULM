@@ -4803,7 +4803,8 @@ Production alias **`https://www.00-00.online`** should then serve this build.
 | **`vercel.json` `buildCommand`** | `node scripts/vercel-build-gate.mjs` — serial typecheck, lint, then `build-with-manifest-fix.js` (verify runs without build `NODE_OPTIONS` to avoid OOM) |
 | **`.npmrc`** | `include=dev` — native Lint/Typecheck jobs get `@types/*` + eslint |
 | **`scripts/vercel-check.mjs`** | Native check entry: `next typegen` + explicit eslint/tsc binaries |
-| **`package.json` `lint:ci` / `typecheck:ci`** | `node scripts/vercel-check.mjs` — **not** `lint` / `typecheck` (native Vercel checks auto-skip) |
+| **`package.json` `lint` / `typecheck`** | `node scripts/vercel-check.mjs` — Vercel Native Deployment Checks |
+| **`package.json` `lint:ci` / `typecheck:ci`** | Same — GitHub Actions + `npm run verify` |
 | **`npm run fix:vercel-checks`** | Fails if `lint`/`typecheck` scripts reappear in package.json |
 | **`next.config.js`** | No `eslint` key (Next 16 removed it — native Vercel Lint crashes). `typescript.ignoreBuildErrors` only. |
 | **`vercel.json` `installCommand`** | `npm ci --include=dev` (checks + build see eslint/tsc) |

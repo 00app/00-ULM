@@ -5,8 +5,8 @@
 #   bash scripts/curl-scrape-sync-trigger.sh [https://YOUR.vercel.app] [POSTCODE]
 #   bash scripts/curl-scrape-sync-trigger.sh --env-file .env.production.local https://www.00-00.online BN17
 #
-# Auth: Authorization: Bearer must match Vercel Production SCRAPER_SECRET or CRON_SECRET (≥16 chars).
-# Firecrawl is separate (FIRE_CRAWL_KEY_2 / FIRECRAWL_API_KEY).
+# Auth: Authorization: Bearer must match Vercel Production SCRAPER_SECRET (≥16 chars).
+# CRON_SECRET is for /api/cron/* only — not scrape-sync POST.
 set -euo pipefail
 
 zz_read_env_var() {
@@ -46,17 +46,15 @@ HOST="${POSITIONAL[0]:-${NEXT_PUBLIC_APP_URL:-https://www.00-00.online}}"
 POSTCODE="${POSITIONAL[1]:-M11AG}"
 CATEGORY="${POSITIONAL[2]:-home}"
 
-# Load secrets from env file first (avoids stale shell exports overriding a fresh `vercel env pull`).
-CRON_FROM_FILE=""
+# Load SCRAPER_SECRET from env file first (avoids stale shell exports).
 SCRAPER_FROM_FILE=""
-for f in "${ENV_FILE}" .env.production.local .env.local; do
+for f in "${ENV_FILE}" .vercel/.env.production.local .env.production.local .env.local; do
   [[ -n "$f" && -f "$f" ]] || continue
-  [[ -z "$CRON_FROM_FILE" ]] && CRON_FROM_FILE="$(zz_read_env_var "$f" CRON_SECRET || true)"
   [[ -z "$SCRAPER_FROM_FILE" ]] && SCRAPER_FROM_FILE="$(zz_read_env_var "$f" SCRAPER_SECRET || true)"
-  [[ -n "$CRON_FROM_FILE" || -n "$SCRAPER_FROM_FILE" ]] && break
+  [[ -n "$SCRAPER_FROM_FILE" ]] && break
 done
 
-# Build candidate list: file secrets first, then shell (dedupe by value).
+# Build candidate list: SCRAPER_SECRET only (file first, then shell).
 declare -a AUTH_KEYS=()
 declare -a AUTH_VALS=()
 zz_add_auth_candidate() {
@@ -70,16 +68,14 @@ zz_add_auth_candidate() {
   AUTH_KEYS+=("$key")
   AUTH_VALS+=("$val")
 }
-zz_add_auth_candidate "CRON_SECRET(file)" "$CRON_FROM_FILE"
 zz_add_auth_candidate "SCRAPER_SECRET(file)" "$SCRAPER_FROM_FILE"
 if [[ -z "${ENV_FILE}" ]]; then
-  zz_add_auth_candidate "CRON_SECRET(shell)" "${CRON_SECRET:-}"
   zz_add_auth_candidate "SCRAPER_SECRET(shell)" "${SCRAPER_SECRET:-}"
 fi
 
 if [[ ${#AUTH_VALS[@]} -eq 0 ]]; then
-  echo "Missing SCRAPER_SECRET or CRON_SECRET (≥16 chars; must match Vercel Production)." >&2
-  echo "Usage: bash scripts/curl-scrape-sync-trigger.sh [--env-file .env.production.local] [HOST] [POSTCODE]" >&2
+  echo "Missing SCRAPER_SECRET (≥16 chars; must match Vercel Production)." >&2
+  echo "Usage: bash scripts/curl-scrape-sync-trigger.sh [--env-file .vercel/.env.production.local] [HOST] [POSTCODE]" >&2
   exit 1
 fi
 

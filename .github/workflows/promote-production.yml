@@ -1,0 +1,69 @@
+# Auto-promote Ready production deployments to www.00-00.online when dashboard
+# deployment checks block alias assignment despite a green build.
+#
+# Requires GitHub secret VERCEL_TOKEN (Vercel → Account → Tokens).
+name: Promote production
+
+on:
+  push:
+    branches: [main]
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (
+        github.event.deployment_status.state == 'success' &&
+        contains(github.event.deployment_status.environment, 'Production')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@50.1.3
+
+      - name: Wait for Vercel production build (push only)
+        if: github.event_name == 'push'
+        run: |
+          echo "→ Waiting up to 12m for Ready production deployment…"
+          for _ in $(seq 1 72); do
+            if vercel ls 00-ulm 2>/dev/null | awk '/Production/ && /Ready/ {found=1} END{exit !found}'; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "⚠ Timed out waiting for Ready — will attempt promote anyway."
+
+      - name: Promote Ready production deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_xhNMA5PqxstBr7SMSwbgdcux
+          VERCEL_PROJECT_ID: prj_vFWtVnYgOU4tzxdkT6qsiLrDi7Kj
+        run: |
+          set -euo pipefail
+          if [[ -z "${VERCEL_TOKEN:-}" ]]; then
+            echo "⚠ VERCEL_TOKEN secret missing — skip auto-promote (run npm run promote locally)."
+            exit 0
+          fi
+          TARGET="${{ github.event.deployment_status.target_url || '' }}"
+          if [[ -n "$TARGET" ]]; then
+            bash scripts/vercel-promote-latest.sh "$TARGET"
+          else
+            bash scripts/vercel-promote-latest.sh
+          fi

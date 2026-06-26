@@ -34,7 +34,8 @@ Production alias **`https://www.00-00.online`** should then serve this build.
 | **`vercel.json` `buildCommand`** | `node scripts/vercel-build-gate.mjs` — serial typecheck, lint, then `build-with-manifest-fix.js` (verify runs without build `NODE_OPTIONS` to avoid OOM) |
 | **`.npmrc`** | `include=dev` — native Lint/Typecheck jobs get `@types/*` + eslint |
 | **`scripts/vercel-check.mjs`** | Native check entry: `next typegen` + explicit eslint/tsc binaries |
-| **`package.json` `lint:ci` / `typecheck:ci`** | `node scripts/vercel-check.mjs` — **not** `lint` / `typecheck` (native Vercel checks auto-skip) |
+| **`package.json` `lint` / `typecheck`** | `node scripts/vercel-check.mjs` — satisfies Vercel Native Deployment Checks |
+| **`package.json` `lint:ci` / `typecheck:ci`** | Same binaries — GitHub Actions + `npm run verify` |
 | **`npm run fix:vercel-checks`** | Fails if `lint`/`typecheck` scripts reappear in package.json |
 | **`next.config.js`** | No `eslint` key (Next 16 removed it — native Vercel Lint crashes). `typescript.ignoreBuildErrors` only. |
 | **`vercel.json` `installCommand`** | `npm ci --include=dev` (checks + build see eslint/tsc) |
@@ -42,13 +43,14 @@ Production alias **`https://www.00-00.online`** should then serve this build.
 
 Missing or nested check scripts caused Vercel *internal error* on native Lint/Typecheck; direct binaries fix that.
 
-**Permanent repo fix (native checks):** Do **not** define `lint` or `typecheck` in `package.json`. Vercel Native Deployment Checks bind to those exact names and run in parallel with the build — they often fail with *failed unexpectedly* while `vercel-build-gate.mjs` already verified the same code. Use `lint:ci` / `typecheck:ci` + `npm run fix:vercel-checks`.
+**Permanent repo fix (native checks):** `package.json` defines `lint` and `typecheck` as direct `node scripts/vercel-check.mjs` invocations so Vercel Native Deployment Checks run the same gate as `vercel-build-gate.mjs` (no nested npm, no build `NODE_OPTIONS`). `npm run fix:vercel-checks` enforces this.
 
 **Dashboard (if checks still show after deploy):**
 
 1. **Project 00-ulm** → **Settings** → **Build and Deployment** → **Deployment Checks**
-2. **Remove** or mark **not required** the built-in **Lint** and **Typecheck** checks (Next 16 + flat ESLint often yields *internal error* with no log).
-3. **Add** → **GitHub Actions** → require jobs **`Lint`** and **`Typecheck`** from `.github/workflows/vercel-production-gate.yml` (exact names).
+2. **Remove** broken built-in Next.js **Lint** / **Typecheck** if they show *internal error* — keep **Native** lint/typecheck (package.json scripts) and/or GitHub Actions **Lint** + **Typecheck**
+3. **Add** → **GitHub Actions** → require jobs **`Lint`** and **`Typecheck`** from `.github/workflows/vercel-production-gate.yml`
+4. **GitHub** → repo **Settings** → **Secrets** → add **`VERCEL_TOKEN`** so `.github/workflows/promote-production.yml` can auto-promote when checks block alias assignment
 
 Until step 3 is done, a green **build** can still show **Checks Failed** — run `npm run promote` so `www.00-00.online` serves the Ready deployment.
 
