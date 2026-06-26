@@ -20,7 +20,7 @@ import { HumanCheckTurnstile } from '@/app/components/HumanCheckTurnstile'
 import { turnstileSiteKey } from '@/lib/security/botGuard'
 import { isValidUkMobileInput } from '@/lib/messaging/ukMobile'
 import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
-import { readSessionRestoreProof } from '@/lib/client/sessionRestoreProofStorage'
+import { authenticatedPost } from '@/lib/client/authenticatedFetch'
 
 /** Industrial lock: Tips/settings are pink base with yellow items. */
 const ROCK_CARD_BG = 'var(--color-pink)' as const
@@ -88,9 +88,8 @@ export function RockMobileSignupCard({
     setSignupMsg(null)
     try {
       await ensureProfileSession()
-      const restoreProof = readSessionRestoreProof()
 
-      const postBody = {
+      let res = await authenticatedPost('/api/profile/mobile', {
         mobile: raw,
         sms_opt_in: true,
         ...(honeypot.trim() ? { company_fax: honeypot.trim() } : {}),
@@ -99,27 +98,19 @@ export function RockMobileSignupCard({
         ...(tips?.length ? { tips: [...tips] } : {}),
         ...(tipSlugs?.length ? { tipSlugs: [...tipSlugs] } : {}),
         ...(recommendations?.length ? { recommendations: [...recommendations] } : {}),
-        ...(restoreProof ? { restore_proof: restoreProof } : {}),
-      }
-
-      let res = await fetch('/api/profile/mobile', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(postBody),
       })
       if (res.status === 401) {
-        const restored = await ensureProfileSession()
+        const restored = await ensureProfileSession({ forceRestore: true })
         if (restored) {
-          const retryProof = readSessionRestoreProof()
-          res = await fetch('/api/profile/mobile', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...postBody,
-              ...(retryProof ? { restore_proof: retryProof } : {}),
-            }),
+          res = await authenticatedPost('/api/profile/mobile', {
+            mobile: raw,
+            sms_opt_in: true,
+            ...(honeypot.trim() ? { company_fax: honeypot.trim() } : {}),
+            ...(humanToken ? { turnstile_token: humanToken } : {}),
+            ...(userName?.trim() ? { userName: userName.trim() } : {}),
+            ...(tips?.length ? { tips: [...tips] } : {}),
+            ...(tipSlugs?.length ? { tipSlugs: [...tipSlugs] } : {}),
+            ...(recommendations?.length ? { recommendations: [...recommendations] } : {}),
           })
         }
       }

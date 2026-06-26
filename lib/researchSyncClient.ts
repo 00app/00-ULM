@@ -19,6 +19,9 @@ function browserHasSessionCookie(): boolean {
 
 export function browserCanTriggerScrapeSync(): boolean {
   if (typeof window === 'undefined') return false
+  const postcode = (localStorage.getItem('profile_postcode') ?? '').replace(/\s+/g, '').trim()
+  const name = (localStorage.getItem('profile_name') ?? '').trim()
+  if (postcode.length < 4 || !name) return false
   if (browserHasSessionCookie()) return true
   return Boolean(readSessionRestoreProof()?.trim())
 }

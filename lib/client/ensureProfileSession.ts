@@ -1,4 +1,5 @@
 import {
+  clearSessionRestoreProof,
   persistSessionRestoreProof,
   readSessionRestoreProof,
   peekUserIdFromRestoreProof,
@@ -7,6 +8,7 @@ import {
 const SESSION_COOKIE_RE = /(?:^|;\s*)session=/
 
 let restorePromise: Promise<boolean> | null = null
+let sessionValidPromise: Promise<boolean> | null = null
 
 function hasSessionCookie(): boolean {
   if (typeof document === 'undefined') return false
@@ -20,13 +22,19 @@ function profileLooksComplete(): boolean {
   return postcode.length >= 4 && name.length > 0
 }
 
-/**
- * Ensures a signed-in session exists when the user completed profile onboarding
- * but the httpOnly session cookie expired (fixes /api/answers and /api/likes 401 loops).
- */
-export async function ensureProfileSession(): Promise<boolean> {
-  if (typeof window === 'undefined') return false
-  if (hasSessionCookie()) return true
+async function probeSessionCookieLive(): Promise<boolean> {
+  if (!hasSessionCookie()) return false
+  if (sessionValidPromise) return sessionValidPromise
+  sessionValidPromise = fetch('/api/auth/me', { credentials: 'include' })
+    .then((res) => res.ok)
+    .catch(() => false)
+    .finally(() => {
+      sessionValidPromise = null
+    })
+  return sessionValidPromise
+}
+
+async function restoreSessionFromProof(): Promise<boolean> {
   if (!profileLooksComplete()) return false
 
   const restoreProof = readSessionRestoreProof()
@@ -59,8 +67,29 @@ export async function ensureProfileSession(): Promise<boolean> {
   return restorePromise
 }
 
+type EnsureOptions = {
+  /** Re-run restore even when a session cookie is present (401 retry path). */
+  forceRestore?: boolean
+}
+
+/**
+ * Ensures a signed-in session exists when the user completed profile onboarding
+ * but the httpOnly session cookie expired (fixes /api/answers and /api/likes 401 loops).
+ */
+export async function ensureProfileSession(opts?: EnsureOptions): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  if (!profileLooksComplete()) return false
+
+  if (!opts?.forceRestore) {
+    const cookieLive = await probeSessionCookieLive()
+    if (cookieLive) return true
+  }
+
+  return restoreSessionFromProof()
+}
+
 export function hasAuthenticatedSessionHint(): boolean {
   return hasSessionCookie() || Boolean(readSessionRestoreProof())
 }
 
-export { persistSessionRestoreProof }
+export { persistSessionRestoreProof, clearSessionRestoreProof }

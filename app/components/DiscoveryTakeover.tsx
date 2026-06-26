@@ -10,7 +10,8 @@ import {
   injectNewDiscoveryCard,
   persistAchievementCardRemote,
 } from '@/lib/discoveryInject'
-import { persistLoopAnswerLocal } from '@/lib/zone/loopMemory'
+import { persistLoopAnswerLocal, markLoopDoneForJourney } from '@/lib/zone/loopMemory'
+import { authenticatedPost } from '@/lib/client/authenticatedFetch'
 import {
   fetchTier2ScrapeSync,
   refreshZoneTotalsAfterTier2,
@@ -153,28 +154,21 @@ export function DiscoveryTakeover({
           questionId: beat.questionId,
           answer: answerValue,
         })
+        markLoopDoneForJourney(journeyId)
         const { ensureProfileSession } = await import('@/lib/client/ensureProfileSession')
-        const { readSessionRestoreProof } = await import('@/lib/client/sessionRestoreProofStorage')
         await ensureProfileSession()
-        const restoreProof = readSessionRestoreProof()
         const rec = getDiscoveryRecommendation(journeyId, beat.questionId, answerValue)
         const fallbackTitle = headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
         const fallbackUrl = rec.actionUrl ?? rec.learnUrl ?? rec.ctaUrl ?? null
 
         let serverCard: ZoneTipCard | null = null
         try {
-          const answersRes = await fetch('/api/answers', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              journey_key: journeyId,
-              question_id: beat.questionId,
-              answer_value: answerValue,
-              postcode: pc || undefined,
-              lifestyle_mode: 'lifestyle_shift',
-              ...(restoreProof ? { restore_proof: restoreProof } : {}),
-            }),
+          const answersRes = await authenticatedPost('/api/answers', {
+            journey_key: journeyId,
+            question_id: beat.questionId,
+            answer_value: answerValue,
+            postcode: pc || undefined,
+            solo_focus: true,
           })
           if (answersRes.ok) {
             const data = (await answersRes.json()) as {
@@ -207,7 +201,7 @@ export function DiscoveryTakeover({
         if (serverCard) onAchievementCard?.(serverCard)
         if (optimistic) setCardReady(true)
 
-        if (pc.length >= 4) {
+        if (pc.length >= 4 && !serverCard) {
           triggerScrapeSyncForCategory({
             postcode: pc,
             category: journeyId,
@@ -226,26 +220,25 @@ export function DiscoveryTakeover({
                 answer: answerValue,
                 questionId: beat.questionId,
               })
-              if (tier2.ok || tier2.morphCard?.title?.trim()) {
-                const enrichedTitle =
-                  tier2.morphCard?.title?.trim() ||
-                  headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
-                birthAchievementCard(
-                  {
-                    journeyId,
-                    questionId: beat.questionId,
-                    answerValue,
-                    title: enrichedTitle,
-                    body: rec.body,
-                    offerUrl:
-                      tier2.offerUrl ??
-                      tier2.morphCard?.cta?.url ??
-                      tier2.morphCard?.actions?.learnUrl ??
-                      fallbackUrl,
-                  },
-                  onAchievementCard
-                )
-              }
+              if (!tier2.ok && !tier2.morphCard?.title?.trim()) return
+              const enrichedTitle =
+                tier2.morphCard?.title?.trim() ||
+                headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
+              birthAchievementCard(
+                {
+                  journeyId,
+                  questionId: beat.questionId,
+                  answerValue,
+                  title: enrichedTitle,
+                  body: rec.body,
+                  offerUrl:
+                    tier2.offerUrl ??
+                    tier2.morphCard?.cta?.url ??
+                    tier2.morphCard?.actions?.learnUrl ??
+                    fallbackUrl,
+                },
+                onAchievementCard
+              )
               void refreshZoneTotalsAfterTier2(pc)
             } catch {
               /* tier-2 optional */

@@ -524,13 +524,13 @@ export default function ZonePage() {
   const loopCloseCardIdRef = useRef<string | null>(null)
   const [pendingLoopSpawnId, setPendingLoopSpawnId] = useState<string | null>(null)
 
-  const pinAchievementCard = useCallback((card: ZoneTipCard) => {
-    if (!card.achievement_discovery) return
+  const pinLoopSpawnCard = useCallback((card: ZoneTipCard) => {
     setPendingLoopSpawnId(card.id)
-    markCardVisited(card.id)
     setInjectedTips((prev) => [...prev.filter((c) => c.id !== card.id), card])
-    setPinnedAchievements((prev) => [...prev.filter((c) => c.id !== card.id), card])
-    persistPinnedAchievement(card)
+    if (card.achievement_discovery) {
+      setPinnedAchievements((prev) => [...prev.filter((c) => c.id !== card.id), card])
+      persistPinnedAchievement(card)
+    }
     setVmSyncStamp(Date.now())
   }, [])
 
@@ -592,14 +592,21 @@ export default function ZonePage() {
         setPatternShiftJourneyId(activeJourney)
         return
       }
-      spawnAchievementWhenLoopPoolExhausted(journeyId, pinAchievementCard)
+      markLoopDoneForJourney(activeJourney)
+      const closedId = loopCloseCardIdRef.current
+      loopCloseCardIdRef.current = null
+      if (closedId) {
+        markCardVisited(closedId)
+        setVisitedCardIds(readVisitedCardIds())
+      }
+      spawnAchievementWhenLoopPoolExhausted(activeJourney, pinLoopSpawnCard)
       setPatternShiftJourneyId(null)
       setIsZoneVisible(true)
       setCleanBirthRevealKey((k) => k + 1)
       setVmSyncStamp(Date.now())
       returnToSoloFocusOrigin()
     },
-    [closeAnySoloFocus, pinAchievementCard, returnToSoloFocusOrigin]
+    [closeAnySoloFocus, pinLoopSpawnCard, returnToSoloFocusOrigin]
   )
 
   const completeOfferFeedback = useCallback(
@@ -3447,7 +3454,7 @@ export default function ZonePage() {
               household: state.profile?.livingSituation ?? null,
               employment_status: state.profile?.employmentStatus ?? null,
             }}
-            onAchievementCard={pinAchievementCard}
+            onAchievementCard={pinLoopSpawnCard}
             onRevealComplete={completeCleanBirth}
           />
         ) : null}

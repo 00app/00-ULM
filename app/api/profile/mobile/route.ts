@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { describeOutboundReadiness } from '@/lib/messaging/outboundGate'
 import {
-  attachSessionCookieToResponse,
-  resolveAnswersUser,
-} from '@/lib/answers/resolveAnswersUser'
+  finalizeAuthenticatedResponse,
+  resolveAuthenticatedUser,
+} from '@/lib/auth/resolveAuthenticatedUser'
 import {
   sendSignupZoneSms,
   type SignupSmsItem,
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const auth = await resolveAnswersUser(req, bodyObj)
+  const auth = await resolveAuthenticatedUser(req, bodyObj)
   if (!auth?.userId) {
     return NextResponse.json({ error: 'Sign in to save your number and receive SMS' }, { status: 401 })
   }
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
       sms: { sent: false, reason: readiness.reason },
     })
     if (auth.attachSession) {
-      return attachSessionCookieToResponse(res, auth.userId)
+      return finalizeAuthenticatedResponse(res, auth)
     }
     return res
   }
@@ -238,7 +238,7 @@ export async function POST(req: NextRequest) {
       : { sent: false, reason: sms.reason, detail: sms.detail },
   })
   if (auth.attachSession) {
-    return attachSessionCookieToResponse(res, auth.userId)
+    return finalizeAuthenticatedResponse(res, auth)
   }
   return res
 }

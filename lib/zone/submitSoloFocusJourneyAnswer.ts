@@ -9,6 +9,7 @@ import {
   runTier2MotherChildSwap,
 } from '@/lib/zone/tier2RecursiveSpawner'
 import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
+import { authenticatedPost } from '@/lib/client/authenticatedFetch'
 import { markAiRouteBlockedFromStatus } from '@/lib/intelligence/aiRouteClientGuard'
 
 export type SoloFocusJourneyAnswerResult = {
@@ -71,18 +72,13 @@ export async function submitSoloFocusJourneyAnswer(opts: {
 
   try {
     await ensureProfileSession()
-    const res = await fetch('/api/answers', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        journey_key: journeyId,
-        question_id: questionId,
-        answer_value: answerValue,
-        answer: answerValue,
-        postcode: pc.length >= 4 ? pc : undefined,
-        solo_focus: true,
-      }),
+    const res = await authenticatedPost('/api/answers', {
+      journey_key: journeyId,
+      question_id: questionId,
+      answer_value: answerValue,
+      answer: answerValue,
+      postcode: pc.length >= 4 ? pc : undefined,
+      solo_focus: true,
     })
     if (res.status === 401 || res.status === 429) {
       markAiRouteBlockedFromStatus(res.status)

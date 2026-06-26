@@ -3,11 +3,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionFromRequest } from '@/lib/auth'
 import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { mergeUserGenomeSoloFocusAudit } from '@/lib/db/neon'
 import { mirrorJourneyAnswersToUserProfilesIfAvailable } from '@/lib/db/userProfilesMirror'
+import {
+  finalizeAuthenticatedResponse,
+  resolveAuthenticatedUser,
+} from '@/lib/auth/resolveAuthenticatedUser'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,23 +31,18 @@ function sanitizeJourneyAnswers(raw: unknown): Record<string, Record<string, str
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionFromRequest().catch(() => null)
-    const userId = session?.userId?.trim()
+    const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
+    const bodyObj = body && typeof body === 'object' ? body : {}
+    const auth = await resolveAuthenticatedUser(request, bodyObj)
+    const userId = auth?.userId?.trim()
     if (!userId) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = (await request.json().catch(() => null)) as {
-      journeyId?: string | null
-      lastQuestionId?: string | null
-      lastAnswerValue?: string | null
-      journeyAnswers?: unknown
-    } | null
-
-    const journeyIdRaw = typeof body?.journeyId === 'string' ? body.journeyId.trim().toLowerCase() : ''
+    const journeyIdRaw = typeof bodyObj.journeyId === 'string' ? bodyObj.journeyId.trim().toLowerCase() : ''
     const journeyId = JOURNEY_ORDER.includes(journeyIdRaw as JourneyId) ? journeyIdRaw : null
-    const lastQ = typeof body?.lastQuestionId === 'string' ? body.lastQuestionId.trim().slice(0, 96) : ''
-    const lastA = typeof body?.lastAnswerValue === 'string' ? body.lastAnswerValue.trim().slice(0, 700) : ''
+    const lastQ = typeof bodyObj.lastQuestionId === 'string' ? bodyObj.lastQuestionId.trim().slice(0, 96) : ''
+    const lastA = typeof bodyObj.lastAnswerValue === 'string' ? bodyObj.lastAnswerValue.trim().slice(0, 700) : ''
 
     await mergeUserGenomeSoloFocusAudit(userId, {
       journeyId,
@@ -52,10 +50,12 @@ export async function POST(request: NextRequest) {
       lastAnswer: lastA || null,
     })
 
-    const ja = sanitizeJourneyAnswers(body?.journeyAnswers ?? {})
+    const ja = sanitizeJourneyAnswers(bodyObj.journeyAnswers ?? {})
     const mirrored = await mirrorJourneyAnswersToUserProfilesIfAvailable(userId, ja)
 
-    return NextResponse.json({ ok: true, user_profiles_mirror: mirrored })
+    const res = NextResponse.json({ ok: true, user_profiles_mirror: mirrored })
+    if (auth) return finalizeAuthenticatedResponse(res, auth)
+    return res
   } catch (e) {
     console.error('[solo-focus/audit-complete]', e)
     return NextResponse.json({ ok: false, error: 'audit_complete_failed' }, { status: 500 })

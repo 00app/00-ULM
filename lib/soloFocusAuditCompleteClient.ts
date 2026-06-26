@@ -10,6 +10,8 @@ import {
 import { buildSoloFocusBestOfferHint } from '@/lib/soloFocusBestOfferHint'
 import { triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
 import { isCardVisited } from '@/lib/zone/visitedCards'
+import { authenticatedPost } from '@/lib/client/authenticatedFetch'
+import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
 import type { MemoryFlushPayload } from '@/lib/memory/userContext'
 
 async function flushMemoryBridgeFromUnifiedStorage(): Promise<void> {
@@ -77,15 +79,13 @@ export function runSoloFocusAuditCompletionClient(opts: {
     })
   }
 
-  void fetch('/api/solo-focus/audit-complete', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  void (async () => {
+    await ensureProfileSession()
+    await authenticatedPost('/api/solo-focus/audit-complete', {
       journeyId: jid ?? null,
       lastQuestionId: opts.questionId,
       lastAnswerValue: opts.answerValue,
       journeyAnswers: opts.journeyAnswers ?? {},
-    }),
-  }).catch(() => {})
+    }).catch(() => {})
+  })()
 }

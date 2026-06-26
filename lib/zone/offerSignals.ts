@@ -1,6 +1,8 @@
 import type { JourneyId } from '@/lib/journeys'
 import { readAllDislikeCardSnapshots } from '@/lib/client/dislikeCardSnapshots'
 import { readAllIndifferentCardSnapshots } from '@/lib/client/indifferentCardSnapshots'
+import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
+import { authenticatedPost } from '@/lib/client/authenticatedFetch'
 import {
   buildDislikeScrapeAvoidHint,
   buildOfferPreferenceState,
@@ -103,20 +105,18 @@ export function recordOfferSignal(payload: OfferSignalPayload): void {
 
   notifyOfferPreferenceChanged()
 
-  void fetch('/api/offer-signals', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  void (async () => {
+    await ensureProfileSession()
+    await authenticatedPost('/api/offer-signals', {
       card_id: cardId,
       signal: payload.signal,
       journey_key: payload.journey_key ?? undefined,
       card_title: payload.card_title ?? undefined,
       money_gbp: payload.money_gbp ?? undefined,
-    }),
-  }).catch(() => {
-    /* non-fatal */
-  })
+    }).catch(() => {
+      /* non-fatal */
+    })
+  })()
 }
 
 export function normalizeOfferJourneyKey(raw?: string | null): JourneyId | null {

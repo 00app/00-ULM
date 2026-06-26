@@ -75,6 +75,17 @@ export function readSessionRestoreProof(): string | null {
   }
 }
 
+export function clearSessionRestoreProof(): void {
+  const ss = storage()
+  if (!ss) return
+  try {
+    ss.removeItem(RESTORE_PROOF_SS)
+    clearLegacyAuthLocalStorage()
+  } catch {
+    /* ignore */
+  }
+}
+
 /** User id embedded in HMAC proof — no separate localStorage UUID (M-6). */
 export function readAuthenticatedUserIdHint(): string | null {
   return peekUserIdFromRestoreProof(readSessionRestoreProof())

@@ -6,6 +6,7 @@ import { UNIFIED_PROFILE_MEMORY_EVENT, persistUnifiedUserProfileMemory } from '@
 import { guardLegacyDemoIdentityOnClient } from '@/lib/zone/garyMode'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
+import { authenticatedGet, authenticatedPost } from '@/lib/client/authenticatedFetch'
 import { removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
 import { readDislikedCardIds, recordOfferSignal, writeDislikedCardIds, OFFER_PREFERENCE_CHANGED_EVENT } from '@/lib/zone/offerSignals'
 import {
@@ -218,54 +219,55 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshProfile()
     setJourneyAnswers(readJourneyAnswersFromStorage())
     if (typeof window !== 'undefined') {
-      const hasSession =
-        typeof document !== 'undefined' &&
-        document.cookie.split(';').some((c) => c.trim().startsWith('session='))
-      if (hasSession) {
-        void fetch('/api/user', { credentials: 'include' })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((data) => {
+      void (async () => {
+        await ensureProfileSession()
+        const cachedTotals = readHeroTotalsFromStorage()
+        if (cachedTotals) setHeroTotalsState(cachedTotals)
+        const cachedLocation = readLocationStateFromStorage()
+        if (cachedLocation) setLocationStateState(cachedLocation)
+        try {
+          const userRes = await authenticatedGet('/api/user')
+          if (userRes.ok) {
+            const data = (await userRes.json()) as { user?: { id?: string } }
             const id = data?.user?.id
             if (typeof id === 'string' && id.trim()) setUserIdState(id.trim())
-          })
-          .catch(() => {})
-      }
-      const cachedTotals = readHeroTotalsFromStorage()
-      if (cachedTotals) setHeroTotalsState(cachedTotals)
-      const cachedLocation = readLocationStateFromStorage()
-      if (cachedLocation) setLocationStateState(cachedLocation)
+          }
+        } catch {
+          /* offline */
+        }
+      })()
     }
   }, [refreshProfile])
 
   /** Database-first: merge Neon `journey_answers_jsonb` into client state + localStorage for Zone. */
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const hasSessionCookie =
-      typeof document !== 'undefined' &&
-      document.cookie.split(';').some((c) => c.trim().startsWith('session='))
-    if (!hasSessionCookie) return
     let cancelled = false
-    fetch('/api/answers', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (cancelled || !data?.answers || typeof data.answers !== 'object') return
-        const serverMap = data.answers as Record<string, Record<string, string>>
-        const merged: Record<JourneyId, Record<string, string>> = {
-          ...readJourneyAnswersFromStorage(),
+    void (async () => {
+      await ensureProfileSession()
+      if (cancelled) return
+      const res = await authenticatedGet('/api/answers')
+      if (!res.ok) return
+      const data = (await res.json().catch(() => null)) as {
+        answers?: Record<string, Record<string, string>>
+      } | null
+      if (cancelled || !data?.answers || typeof data.answers !== 'object') return
+      const serverMap = data.answers
+      const merged: Record<JourneyId, Record<string, string>> = {
+        ...readJourneyAnswersFromStorage(),
+      }
+      for (const jid of JOURNEY_ORDER) {
+        const srv = serverMap[jid]
+        if (!srv || typeof srv !== 'object') continue
+        merged[jid] = { ...(merged[jid] ?? {}), ...srv }
+        try {
+          localStorage.setItem(`journey_${jid}_answers`, JSON.stringify(merged[jid]))
+        } catch {
+          // ignore quota
         }
-        for (const jid of JOURNEY_ORDER) {
-          const srv = serverMap[jid]
-          if (!srv || typeof srv !== 'object') continue
-          merged[jid] = { ...(merged[jid] ?? {}), ...srv }
-          try {
-            localStorage.setItem(`journey_${jid}_answers`, JSON.stringify(merged[jid]))
-          } catch {
-            // ignore quota
-          }
-        }
-        setJourneyAnswers(merged)
-      })
-      .catch(() => {})
+      }
+      setJourneyAnswers(merged)
+    })()
     return () => {
       cancelled = true
     }
@@ -308,42 +310,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    fetch('/api/likes', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { liked_card_ids: [] }))
-      .then((data) => setLikedCards(Array.isArray(data?.liked_card_ids) ? data.liked_card_ids : []))
-      .catch(() => setLikedCards([]))
-    fetch('/api/offer-signals', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { disliked_card_ids: [], indifferent_card_ids: [] }))
-      .then((data) => {
-        const disliked = Array.isArray(data?.disliked_card_ids) ? data.disliked_card_ids : []
-        const indifferent = Array.isArray(data?.indifferent_card_ids) ? data.indifferent_card_ids : []
-        setDislikedCards(disliked)
-        setIndifferentCardIds(indifferent)
-        writeDislikedCardIds(disliked)
-        writeIndifferentCardIds(indifferent)
-        for (const snap of data?.dislike_snapshots ?? []) {
-          if (snap?.id && snap?.journey_key) {
-            saveDislikeCardSnapshot({
-              id: String(snap.id),
-              journey_key: String(snap.journey_key) as JourneyId,
-              title: String(snap.title ?? ''),
-            })
-          }
+    void (async () => {
+      await ensureProfileSession()
+      const likesRes = await authenticatedGet('/api/likes')
+      const likesData = likesRes.ok
+        ? ((await likesRes.json().catch(() => null)) as { liked_card_ids?: string[] } | null)
+        : null
+      setLikedCards(Array.isArray(likesData?.liked_card_ids) ? likesData.liked_card_ids : [])
+
+      const signalsRes = await authenticatedGet('/api/offer-signals')
+      const data = signalsRes.ok
+        ? ((await signalsRes.json().catch(() => null)) as {
+            disliked_card_ids?: string[]
+            indifferent_card_ids?: string[]
+            dislike_snapshots?: Array<{ id: string; title?: string; journey_key?: string }>
+            indifferent_snapshots?: Array<{ id: string; title?: string; journey_key?: string }>
+          } | null)
+        : null
+      const disliked = Array.isArray(data?.disliked_card_ids) ? data.disliked_card_ids : []
+      const indifferent = Array.isArray(data?.indifferent_card_ids) ? data.indifferent_card_ids : []
+      setDislikedCards(disliked)
+      setIndifferentCardIds(indifferent)
+      writeDislikedCardIds(disliked)
+      writeIndifferentCardIds(indifferent)
+      for (const snap of data?.dislike_snapshots ?? []) {
+        if (snap?.id && snap?.journey_key) {
+          saveDislikeCardSnapshot({
+            id: String(snap.id),
+            journey_key: String(snap.journey_key) as JourneyId,
+            title: String(snap.title ?? ''),
+          })
         }
-        for (const snap of data?.indifferent_snapshots ?? []) {
-          if (snap?.id && snap?.journey_key) {
-            saveIndifferentCardSnapshot({
-              id: String(snap.id),
-              journey_key: String(snap.journey_key) as JourneyId,
-              title: String(snap.title ?? ''),
-            })
-          }
+      }
+      for (const snap of data?.indifferent_snapshots ?? []) {
+        if (snap?.id && snap?.journey_key) {
+          saveIndifferentCardSnapshot({
+            id: String(snap.id),
+            journey_key: String(snap.journey_key) as JourneyId,
+            title: String(snap.title ?? ''),
+          })
         }
-      })
-      .catch(() => {
-        setDislikedCards(readDislikedCardIds())
-        setIndifferentCardIds(readIndifferentCardIds())
-      })
+      }
+    })().catch(() => {
+      setDislikedCards(readDislikedCardIds())
+      setIndifferentCardIds(readIndifferentCardIds())
+    })
   }, [userId])
 
   const toggleLike = useCallback((cardId: string, cardTitle?: string, savings?: number) => {
@@ -363,11 +374,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       await ensureProfileSession()
       try {
-        const res = await fetch('/api/likes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ card_id: cardId, card_title: cardTitle, savings }),
+        const res = await authenticatedPost('/api/likes', {
+          card_id: cardId,
+          card_title: cardTitle,
+          savings,
         })
         if (!res.ok) {
           setLikedCards((prev) =>
