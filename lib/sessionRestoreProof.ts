@@ -1,5 +1,4 @@
 import crypto from 'crypto'
-import { isSessionSigningConfigured } from '@/lib/sessionCookieSign'
 
 const SEP = '.'
 /** Match profile-only session window (7 days) — limits XSS exfil + replay window. */
@@ -60,9 +59,9 @@ export function resolveUserIdFromRestoreProof(proof: string | null | undefined):
   return uid
 }
 
-/** Dev-only fallback when SESSION_SECRET is unset (never in production). */
+/** @deprecated Insecure dev bypass removed — always requires valid HMAC restore proof. */
 export function allowInsecureDevSessionRestore(): boolean {
-  return process.env.NODE_ENV !== 'production' && !isSessionSigningConfigured()
+  return false
 }
 
 export function withRestoreProof<T extends Record<string, unknown>>(

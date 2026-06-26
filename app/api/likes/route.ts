@@ -6,6 +6,7 @@ import { getSessionFromRequest } from '@/lib/auth'
 import { resolveRequestIdentity } from '@/lib/requestAuth'
 import { guestIpHashFromRequest } from '@/lib/zone/guestSession'
 import { readGuestLikedCardIds, toggleGuestLike } from '@/lib/zone/guestLikes'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
 /** Likes route does not send SMS. */
 
@@ -13,6 +14,15 @@ export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
+    const id = getClientIdentifier(request)
+    const { ok, retryAfter } = await checkRateLimitAsync(`likes-post:${id}`, 30)
+    if (!ok) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined }
+      )
+    }
+
     const body = await request.json()
     const card_id = typeof body?.card_id === 'string' ? body.card_id.trim() : ''
 

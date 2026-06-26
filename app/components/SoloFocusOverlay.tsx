@@ -37,6 +37,7 @@ import {
   headlineFromRockHabit,
   headlineFromRockHabitForSoloFocus,
   formatZoneCategoryLabel,
+  formatSoloFocusTopCategoryLabel,
   composeScrapedInsightDescription,
   buildResearchResultsTrueTipBody,
   isRawResearchDump,
@@ -519,6 +520,10 @@ export function SoloFocusOverlay({
   })
   const pulseSourceUrl =
     soloHandoff.ctaUrl?.trim().startsWith('http') ? soloHandoff.ctaUrl.trim() : soloHandoff.sourceLinkUrl
+  const soloFocusTopLabel = formatSoloFocusTopCategoryLabel(
+    zoneCategoryLabel,
+    soloHandoff.ctaUrl ? handoffAttribution.offerProviderName : null
+  )
   const researchBackedTrueTip =
     !isRockHabitTip &&
     verifiedAuditMatchesJourney &&
@@ -585,12 +590,8 @@ export function SoloFocusOverlay({
       habitTitle={isRockHabitTip ? String(title || displayTitle || recommendation).trim() : undefined}
     />
   ) : null
-  const verifiedSourceCitation =
-    pulseSourceUrl?.trim().startsWith('http') && handoffAttribution.sourceDisplayName?.trim()
-      ? `Source: ${handoffAttribution.sourceDisplayName.trim()} — verify the offer before you commit spend.`
-      : null
   const sourceFooter =
-    isDiscoveryMotherCard || partnerHttp || verifiedSourceCitation
+    isDiscoveryMotherCard || partnerHttp
       ? ''
       : 'No live retailer link this week — figures still come from your saved audit row.'
   const overlayCtaKind = inferRevenueCtaKind({
@@ -807,7 +808,6 @@ export function SoloFocusOverlay({
       card_title: displayTitle,
       money_gbp: parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)),
     })
-    requestOfferFeedbackExit('like')
   }, [
     activeCardId,
     cardId,
@@ -816,7 +816,6 @@ export function SoloFocusOverlay({
     displayTitle,
     displayMoneyValue,
     loopJourneyKey,
-    requestOfferFeedbackExit,
   ])
 
   const handleTrinityDislike = useCallback(() => {
@@ -923,7 +922,7 @@ export function SoloFocusOverlay({
               >
                 <SoloFocusMotherStack
                   bodyKey={`overlay-hero-body-${activeSiblingIndex}-${String(activeCardId ?? 'base')}`}
-                  zoneCategoryLabel={zoneCategoryLabel}
+                  zoneCategoryLabel={soloFocusTopLabel}
                   categoryIsNew={isUnreadCard(soloFocusCardId)}
                   headline={recommendationTitle}
                   showComputing={showMotherComputing}
@@ -944,15 +943,15 @@ export function SoloFocusOverlay({
                         headline={null}
                         narrative={null}
                         sourceFooter={sourceFooter}
-                        verifiedSourceCitation={verifiedSourceCitation}
                         moneyGbp={animatedMoneyGbp}
                         carbonKg={animatedCarbonKg}
                         impactPulse={impactAnswerPulse}
                         ctaUrl={soloHandoff.ctaUrl}
                         ctaJourneyId={journeyId}
                         ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : effectiveHandoffLabel}
-                        offerProviderName={soloHandoff.ctaUrl ? handoffAttribution.offerProviderName : null}
-                        isLiked={isLiked}
+                        isLiked={(state.likedCards ?? []).includes(
+                          String(activeCardId || cardId || '')
+                        )}
                         isDisliked={(state.dislikedCards ?? []).includes(
                           String(activeCardId || cardId || '')
                         )}

@@ -42,6 +42,8 @@ Index: `.cursor/rules/README.md`
 | Prose / headline quality | `contentProseSanitize.ts`, `soloFocusCopy.ts`, `researchGateAudit.ts` |
 | Truth ledger audit | `lib/intelligence/buildIntelligenceLedger.ts` |
 
+**Security (OWASP-aligned):** `SCRAPER_SECRET` authorizes scrape-sync POST only; `CRON_SECRET` is `/api/cron/*` only. Session restore requires HMAC `restore_proof` (no dev UUID bypass). Rate limits on scrape-sync GET (10/min anonymous), likes POST, restore-session. See `lib/security/productionSecrets.ts`.
+
 ### C — Ship gate commands
 
 ```bash

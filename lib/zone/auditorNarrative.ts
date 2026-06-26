@@ -155,9 +155,9 @@ function proofSentenceBase(journey: JourneyId, sourceName: string, postcode: str
       return `${sourceName} show short-haul rail beating domestic flights on cost and carbon — booking early still matters in the April 2026 market.`
     default:
       if (v === 1) {
-        return `${sourceName} line this row to your saved answers — verify the offer before you lock anything in.`
+        return `${sourceName} line this row to what you already told us — one small move this week still shifts the bill.`
       }
-      return `${sourceName} anchor this row to your saved answers and the July 2026 cap near £${cap} — verify the offer before you commit.`
+      return `${sourceName} tie this to your saved answers and the July 2026 cap near £${cap} — fabric and tariff tweaks still beat guessing from the statement.`
   }
 }
 

@@ -1,6 +1,20 @@
 import { parseSuppliedByProviderName } from '@/lib/soloFocusDiagnosticMeta'
 import { PRICE_CAP_SOURCE_LABEL } from '@/lib/brains/constants'
 import { HYBRID_LIVE_ATTRIBUTION } from '@/lib/agents/hybridLiveAttribution'
+import { formatVerifiedSourceNameFromLabel } from '@/lib/zone/verifiedRevenue'
+
+const HOST_PROVIDER_FULL_NAMES: Array<[RegExp, string]> = [
+  [/nationalrail/i, 'National Rail'],
+  [/thetrainline|trainline/i, 'Trainline'],
+  [/energysavingtrust/i, 'Energy Saving Trust'],
+  [/carbontrust/i, 'Carbon Trust'],
+  [/wrap\.org/i, 'WRAP'],
+  [/currys/i, 'Currys'],
+  [/eurostar/i, 'Eurostar'],
+  [/ofgem/i, 'OFGEM'],
+  [/tfl\.gov/i, 'Transport for London'],
+  [/gov\.uk/i, 'GOV.UK'],
+]
 
 /** Reject long insight prose mistaken for a provider name (e.g. "Your home is…"). */
 function looksLikeProseAttribution(s: string): boolean {
@@ -18,9 +32,58 @@ function isWeakProviderLabel(s: string): boolean {
   return t.length <= 2 || t === 'ORG' || t === 'CO'
 }
 
-/** Branded short name from a handoff / CTA https URL (e.g. eurostar.com → EUROSTAR). */
+function formatOfferProviderDisplayName(raw: string): string {
+  const t = raw.trim()
+  if (!t || looksLikeProseAttribution(t)) return ''
+  return formatVerifiedSourceNameFromLabel(t)
+}
+
+function pickArchitectProviderName(
+  architectSuppliedBy?: string | null,
+  sourceLabel?: string | null
+): string | null {
+  const candidates = [
+    architectSuppliedBy?.trim(),
+    parseSuppliedByProviderName(sourceLabel),
+    sourceLabel?.replace(/^source\.\s*/i, '').trim(),
+  ]
+  for (const c of candidates) {
+    if (!c || looksLikeProseAttribution(c) || isWeakProviderLabel(c)) continue
+    const formatted = formatOfferProviderDisplayName(c)
+    if (formatted) return formatted
+  }
+  return null
+}
+
+/** Full branded provider name from a handoff https URL (e.g. nationalrail.co.uk → National Rail). */
+export function hostToOfferProviderFullName(url?: string | null): string | null {
+  if (!url?.startsWith('http')) return null
+  try {
+    const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase()
+    for (const [pattern, label] of HOST_PROVIDER_FULL_NAMES) {
+      if (pattern.test(host)) return label
+    }
+    const parts = host.split('.').filter(Boolean)
+    if (parts.length >= 3 && parts[parts.length - 1] === 'uk') {
+      const tld = parts[parts.length - 2]
+      if (tld === 'org' || tld === 'co' || tld === 'ac') {
+        const base = parts[0]
+        if (base && base.length >= 2) {
+          return formatOfferProviderDisplayName(base.replace(/-/g, ' '))
+        }
+      }
+    }
+    const base = parts.length >= 2 ? parts[parts.length - 2] : parts[0]
+    if (!base || base.length < 2 || base === 'org' || base === 'co') return null
+    return formatOfferProviderDisplayName(base.replace(/-/g, ' '))
+  } catch {
+    return null
+  }
+}
+
+/** Branded provider name from a handoff / CTA https URL. */
 export function offerProviderFromHandoffUrl(url?: string | null): string | null {
-  const name = hostToVerifiedProviderShort(url)
+  const name = hostToOfferProviderFullName(url)
   if (!name || isWeakProviderLabel(name)) return null
   return name
 }
@@ -152,12 +215,14 @@ export function resolveSoloFocusHandoffAttribution(params: {
     liveScrapeSourceUrl: params.liveScrapeSourceUrl,
   })
   const cta = params.ctaUrl?.trim()
-  const fromCta = cta?.startsWith('http') ? offerProviderFromHandoffUrl(cta) : null
-  if (fromCta) {
+  const architectName = pickArchitectProviderName(params.architectSuppliedBy, params.sourceLabel)
+  const fromCta = cta?.startsWith('http') ? hostToOfferProviderFullName(cta) : null
+  const offerProviderName = architectName ?? fromCta
+  if (offerProviderName) {
     return {
-      offerProviderName: fromCta,
-      sourceDisplayName: fromCta,
-      pulseProviderName: fromCta,
+      offerProviderName,
+      sourceDisplayName: offerProviderName,
+      pulseProviderName: offerProviderName,
     }
   }
   return {

@@ -67,39 +67,40 @@ export function applyScrapeSyncTriggerFlags(
 
 const MIN_LEN = 16
 
-/** Bearer / header values accepted for POST /api/scrape-sync (server + Hermes). */
-export function configuredScrapeSyncBearerKeys(): string[] {
-  const names = ['SCRAPER_SECRET', 'CRON_SECRET'] as const
-  const out: string[] = []
-  for (const name of names) {
-    const v = normalizeSecret(process.env[name])
-    if (v.length >= MIN_LEN) out.push(v)
-  }
-  return [...new Set(out)]
+/** Scrape-sync service bearer — **SCRAPER_SECRET only** (not CRON_SECRET). */
+export function configuredScraperBearerKeys(): string[] {
+  const v = normalizeSecret(process.env.SCRAPER_SECRET)
+  if (secretMeetsMinLength(v, MIN_LEN)) return [v]
+  return []
 }
 
-export function scrapeSyncBearerFromRequest(request: NextRequest): string | null {
+/** @deprecated Use {@link configuredScraperBearerKeys} — cron uses CRON_SECRET on `/api/cron/*` only. */
+export function configuredScrapeSyncBearerKeys(): string[] {
+  return configuredScraperBearerKeys()
+}
+
+export function scraperBearerFromRequest(request: NextRequest): string | null {
   const auth = request.headers.get('authorization')?.trim()
   const bearer =
     auth && /^bearer\s+/i.test(auth) ? normalizeSecret(auth.replace(/^Bearer\s+/i, '')) : null
   if (bearer) return bearer
-  const cron = normalizeSecret(request.headers.get('x-cron-secret'))
-  if (cron) return cron
   const scraper = normalizeSecret(request.headers.get('x-scraper-secret'))
-  if (scraper) return scraper
-  const gateway = normalizeSecret(request.headers.get('x-gateway-token'))
-  return gateway || null
+  return scraper || null
 }
 
-export function scrapeSyncBearerMatches(request: NextRequest): boolean {
-  const got = scrapeSyncBearerFromRequest(request)
+export function scraperServiceBearerMatches(request: NextRequest): boolean {
+  const got = scraperBearerFromRequest(request)
   if (!got) return false
-  const keys = configuredScrapeSyncBearerKeys()
-  return keys.includes(got)
+  return configuredScraperBearerKeys().includes(got)
+}
+
+/** Alias — scrape-sync POST triggers accept SCRAPER_SECRET only. */
+export function scrapeSyncBearerMatches(request: NextRequest): boolean {
+  return scraperServiceBearerMatches(request)
 }
 
 export function scrapeSyncAuthConfigured(): boolean {
-  return configuredScrapeSyncBearerKeys().length > 0
+  return configuredScraperBearerKeys().length > 0
 }
 
 export function scrapeSyncAuthDeniedResponse(): {
@@ -112,8 +113,8 @@ export function scrapeSyncAuthDeniedResponse(): {
       body: {
         error: 'API auth not configured',
         hint:
-          'Set SCRAPER_SECRET or CRON_SECRET (≥16 chars) on this Vercel environment, then redeploy. Send Authorization: Bearer <same secret>.',
-        expects: ['SCRAPER_SECRET', 'CRON_SECRET'],
+          'Set SCRAPER_SECRET (≥16 chars) on this Vercel environment, then redeploy. Send Authorization: Bearer <SCRAPER_SECRET> or x-scraper-secret header. CRON_SECRET is for /api/cron/* only.',
+        expects: ['SCRAPER_SECRET'],
       },
     }
   }

@@ -10,10 +10,11 @@ import {
   buildAuditorNarrativeParagraphs,
   isGenericAuditorProofParagraph,
   payoffSentence,
+  proofSentenceVariant,
 } from '@/lib/zone/auditorNarrative'
 import { personalizeTrueTipPlaceLead, resolveSoloFocusPlaceLabel } from '@/lib/zone/localityCopy'
 import { sanitizeArchitectProseForJourney, isCoherentParagraph } from '@/lib/zone/contentProseSanitize'
-import { isTruncatedSentence, stripTrailingEllipsis } from '@/lib/zone/proseComplete'
+import { isTruncatedSentence, stripTrailingEllipsis, clampWordsCompleteSentence } from '@/lib/zone/proseComplete'
 import { humanizeZoneHeadline, humanizeZoneProse } from '@/lib/zone/plainEnglishCopy'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
@@ -53,11 +54,14 @@ export function stripExpandedCardTitleNoise(raw: string): string {
   return stripTrailingEllipsis(t)
 }
 
-/** Solo Focus lead — strip ellipsis / dangling fragments before display. */
+/** Solo Focus lead — complete sentences only; no ellipsis mid-thought. */
 function finalizeSoloFocusLead(lead: string, fallback: string): string {
   const cleaned = stripTrailingEllipsis(lead.trim())
   const use = cleaned && !isTruncatedSentence(cleaned) ? cleaned : fallback
-  return clampWords(stripTrailingEllipsis(use.trim()), MAX_SOLO_FOCUS_LEAD_WORDS)
+  const capped = clampWordsCompleteSentence(stripTrailingEllipsis(use.trim()), MAX_SOLO_FOCUS_LEAD_WORDS)
+  if (!isTruncatedSentence(capped)) return capped
+  const fb = clampWordsCompleteSentence(stripTrailingEllipsis(fallback.trim()), MAX_SOLO_FOCUS_LEAD_WORDS)
+  return isTruncatedSentence(fb) ? fb.replace(/\s*[—–-]\s*[^.!?]+$/, '.').trim() : fb
 }
 
 const ZONE_PREVIEW_NOISE_RE =
@@ -213,7 +217,7 @@ export function stripProseReportLead(text: string): string {
 /** Remove cheap engagement openers from auditor / architect paragraphs (prompt hygiene). */
 /** UI / template filler — never show in Solo Focus (DB rows may still carry legacy closes). */
 const BOILERPLATE_PROSE_RE =
-  /\b(?:open the verified source(?:\s+link)?\s+below to complete this action(?:\s+and lock in the saving)?|open the verified source to complete this action|use the link below to execute the verified offer|use the primary action below to claim|use the verified source to execute the action plan)\b/i
+  /\b(?:open the verified source(?:\s+link)?\s+below to complete this action(?:\s+and lock in the saving)?|open the verified source to complete this action|use the link below to execute the verified offer|use the primary action below to claim|use the verified source to execute the action plan|verify the offer before you|publishes guidance on this habit)\b/i
 
 const GENERIC_SPRING_HEADLINE_RE =
   /\bone\s+clear\s+move\s+near\s+you\b.*\b(?:bill\s+savings|locks\s+real)\b/i
@@ -664,9 +668,27 @@ function polishRockHabitInsight(insight: string, journeyId: JourneyId): string {
 }
 
 /** Habit-specific proof — never journey detection banks (flights on e-bike, etc.). */
-export function rockHabitProofSentence(title: string, insight: string, sourceName: string): string {
-  const source = sourceName.trim() || 'UK guidance'
+function friendlyRockSourceName(sourceName: string): string {
+  const t = sourceName.trim()
+  if (!t) return 'UK guidance'
+  if (/^est$/i.test(t)) return 'Energy Saving Trust'
+  return t
+}
+
+export function rockHabitProofSentence(
+  title: string,
+  insight: string,
+  sourceName: string,
+  journeyId?: JourneyId | string
+): string {
+  const source = friendlyRockSourceName(sourceName)
   const topic = `${title} ${insight}`.toLowerCase()
+  if (/\bdraught|draft|loft|hatch|foam|seal|gap|insulation\b/i.test(topic)) {
+    return `${source} ranks fabric fixes ahead of boiler swaps — a strip round the loft hatch keeps warm air downstairs.`
+  }
+  if (/\bboiler|radiator|thermostat|heating\b/i.test(topic)) {
+    return `${source} says seal the shell before you price a new boiler — wasted heat is still the quieter bill leak.`
+  }
   if (/\be-?bike|ebike|cycle to work|salary.?sacrifice\b/i.test(topic)) {
     return `${source} runs cycle-to-work rules — salary-sacrifice e-bikes often beat a second car for local miles.`
   }
@@ -685,7 +707,9 @@ export function rockHabitProofSentence(title: string, insight: string, sourceNam
   if (/\bstandby|phantom|plug\b/i.test(topic)) {
     return `${source} clocks standby draw on routers and chargers — one weekend plug audit beats guessing from the bill.`
   }
-  return `${source} publishes guidance on this habit — verify the offer before you commit spend.`
+  const j = coerceJourneyId(journeyId ?? 'home')
+  const seed = compactAlnumKey(topic).length % 3
+  return proofSentenceVariant(j, source, undefined, seed)
 }
 
 /** Rock saving tips — insight-led prose; never holidays/travel detection fallbacks. */
@@ -701,7 +725,12 @@ export function resolveRockHabitDisplayProse(args: {
   const j = coerceJourneyId(args.journeyId)
   const insight = polishRockHabitInsight(args.insight, j)
   if (!insight) return { lead: '', body: null }
-  const proof = rockHabitProofSentence(args.title, args.insight, args.sourceDisplayName ?? 'UK guidance')
+  const proof = rockHabitProofSentence(
+    args.title,
+    args.insight,
+    args.sourceDisplayName ?? 'UK guidance',
+    j
+  )
   const headline = (args.headline ?? '').trim()
   const residualInsight = headline
     ? dedupeTrueTipOpeningParagraph(headline, insight) || ''
@@ -710,17 +739,24 @@ export function resolveRockHabitDisplayProse(args: {
   if (residualInsight) parts.push(residualInsight)
   if (proof) {
     const proofResidual = headline ? dedupeTrueTipOpeningParagraph(headline, proof) || proof : proof
-    if (proofResidual && !parts.some((p) => compactAlnumKey(p).includes(compactAlnumKey(proofResidual).slice(0, 20)))) {
+    if (
+      proofResidual &&
+      !isBoilerplateProseParagraph(proofResidual) &&
+      !parts.some((p) => compactAlnumKey(p).includes(compactAlnumKey(proofResidual).slice(0, 20)))
+    ) {
       parts.push(proofResidual)
     }
   }
   let lead = parts.join(' ').replace(/\s+/g, ' ').trim()
-  if (!lead) lead = proof
+  if (!lead) lead = isBoilerplateProseParagraph(proof) ? '' : proof
   const money = Math.max(0, Math.round(args.moneyGbp))
-  if (money > 0 && !proseContainsMoneyStamp(lead)) {
+  if (money > 0 && lead && !proseContainsMoneyStamp(lead)) {
     lead = `${lead} About £${formatMoneyValue(money)} a year sits on this row from your audit.`
   }
-  return { lead: clampWords(lead, MAX_SOLO_FOCUS_LEAD_WORDS), body: null }
+  return {
+    lead: lead ? clampWordsCompleteSentence(lead, MAX_SOLO_FOCUS_LEAD_WORDS) : '',
+    body: null,
+  }
 }
 
 export function resolveSoloFocusDisplayProse(args: {
@@ -882,6 +918,22 @@ export function formatZoneCategoryLabel(journeyId: string): string {
     .toUpperCase()
 }
 
+/** Solo Focus top rail — category alone, or "Travel - RAC" when a handoff provider is known. */
+export function formatSoloFocusTopCategoryLabel(
+  zoneCategoryLabel: string,
+  offerProviderName?: string | null
+): string {
+  const providerRaw = offerProviderName?.trim()
+  if (!providerRaw) return zoneCategoryLabel
+  const provider = /^est$/i.test(providerRaw) ? 'Energy Saving Trust' : providerRaw
+  const categoryTitle = zoneCategoryLabel
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ')
+  return `${categoryTitle} - ${provider}`
+}
+
 /** Profile / Solo Focus / loop — lowercase Marvin prompts (registry labels may be Title Case). */
 export function formatProfileStyleQuestion(raw: string): string {
   return String(raw ?? '')
@@ -890,9 +942,7 @@ export function formatProfileStyleQuestion(raw: string): string {
 }
 
 export function clampWords(text: string, maxWords: number): string {
-  const words = text.split(/\s+/).filter(Boolean)
-  if (words.length <= maxWords) return words.join(' ')
-  return `${words.slice(0, maxWords).join(' ')}…`
+  return clampWordsCompleteSentence(text, maxWords)
 }
 
 /** Raw Gemini / scrape dumps — too fact-dense for expanded Solo Focus; use auditor narrative instead. */

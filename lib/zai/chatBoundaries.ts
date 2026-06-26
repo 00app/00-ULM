@@ -45,7 +45,7 @@ export const ZAI_CHAT_EDITORIAL_RULES = {
   threeBeat: ['detection', 'proof', 'directive'] as const,
   noMarkdownHeadings: true,
   noBoldSectionLabels: true,
-  lowercaseProse: true,
+  sentenceCaseProse: true,
   noApologyPhrases: [
     'as an ai',
     'as a language model',
@@ -71,10 +71,12 @@ export const ZAI_CHAT_EDITORIAL_RULES = {
 } as const
 
 export const ZAI_FALLBACK_UNCERTAIN =
-  "i don't have enough information to be confident on that one. let's stick to your bills or travel moves."
+  "I don't have enough information to be confident on that one. Let's stick to your bills or travel moves."
+
+export const ZAI_FALLBACK_CONNECTING = "Give me a sec — still checking what's live near you."
 
 export const ZAI_FORBIDDEN_TOPIC_DECLINE =
-  "i cannot offer financial, legal, or medical advice. let's stay focused on your home energy or travel moves."
+  "I cannot offer financial, legal, or medical advice. Let's stay focused on your home energy or travel moves."
 
 export function isZaiChatSurface(surface: string): boolean {
   return surface === 'zai_chat_turn' || surface === 'zai_chat_continue_in_zai'

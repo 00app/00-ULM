@@ -91,7 +91,7 @@ export function buildDeepDivePlainSummary(input: DeepDiveAuditInput): string {
   const spend = String(input.personalSpend ?? '').replace(/[^\d.]/g, '') || '0'
   const carbon = String(input.regionalAvg ?? '').replace(/[^\d.]/g, '') || '0'
   const category = (input.categoryLabel || formatZoneCategoryLabel(input.journeyKey)).toLowerCase()
-  return `about £${spend} a year and ${carbon} kg co₂e on this ${category} card — from your profile and live research for ${place}.`
+  return `About £${spend} a year and ${carbon} kg CO₂e on this ${category} card — from your profile and live research for ${place}.`
 }
 
 export function buildDeepDiveCalculationSummary(input: DeepDiveAuditInput): string {
@@ -113,19 +113,19 @@ export function buildDeepDiveCalculationSummary(input: DeepDiveAuditInput): stri
 }
 
 const DEEP_DIVE_PILLS: Partial<Record<JourneyId, [string, string, string]>> = {
-  home: ['show me the math', 'why does this beat the april cap?', 'what do i do this week?'],
-  utilities: ['show me the math', 'how was the unit rate calculated?', 'is this tariff still live?'],
-  grants: ['show me the math', 'is this grant guaranteed?', 'what proof do i need?'],
-  solar: ['show me the math', 'how was payback calculated?', 'does my roof answer change this?'],
-  travel: ['show me the math', 'what is the carbon trade-off?', 'cheapest swap this month?'],
-  holidays: ['show me the math', 'where does the kg figure come from?', 'one lower-carbon swap?'],
-  food: ['show me the math', 'what changed in the basket?', 'one habit for this week?'],
-  shopping: ['show me the math', 'is this offer still valid?', 'what should i buy instead?'],
-  money: ['show me the math', 'what assumption moved the £?', 'safest next step?'],
-  tech: ['show me the math', 'standby vs upgrade — which won?', 'one device to fix first?'],
-  water: ['show me the math', 'how was litres/day used?', 'quick win this week?'],
-  waste: ['show me the math', 'recycling vs landfill split?', 'one bin habit to change?'],
-  carbon: ['show me the math', 'how does this compare to 1t/yr?', 'biggest lever left?'],
+  home: ['Show me the math', 'Why does this beat the April cap?', 'What do I do this week?'],
+  utilities: ['Show me the math', 'How was the unit rate calculated?', 'Is this tariff still live?'],
+  grants: ['Show me the math', 'Is this grant guaranteed?', 'What proof do I need?'],
+  solar: ['Show me the math', 'How was payback calculated?', 'Does my roof answer change this?'],
+  travel: ['Show me the math', 'What is the carbon trade-off?', 'Cheapest swap this month?'],
+  holidays: ['Show me the math', 'Where does the kg figure come from?', 'One lower-carbon swap?'],
+  food: ['Show me the math', 'What changed in the basket?', 'One habit for this week?'],
+  shopping: ['Show me the math', 'Is this offer still valid?', 'What should I buy instead?'],
+  money: ['Show me the math', 'What assumption moved the £?', 'Safest next step?'],
+  tech: ['Show me the math', 'Standby vs upgrade — which won?', 'One device to fix first?'],
+  water: ['Show me the math', 'How was litres/day used?', 'Quick win this week?'],
+  waste: ['Show me the math', 'Recycling vs landfill split?', 'One bin habit to change?'],
+  carbon: ['Show me the math', 'How does this compare to 1t/yr?', 'Biggest lever left?'],
 }
 
 /** Three category-specific pills — hand off to /zai (read-only chat). */
@@ -135,8 +135,8 @@ export function buildDeepDiveQuestionPills(journeyKey: string): string[] {
   if (fixed) return [...fixed]
   const label = formatZoneCategoryLabel(journeyKey).toLowerCase()
   return [
-    'show me the math',
-    `how was this ${label} number calculated?`,
-    'what is the next concrete step?',
+    'Show me the math',
+    `How was this ${label} number calculated?`,
+    'What is the next concrete step?',
   ]
 }

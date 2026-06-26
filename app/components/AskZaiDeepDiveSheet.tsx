@@ -8,9 +8,8 @@ import { INDUSTRIAL_OPACITY_SNAP, ZIP_OPEN_Z_TRANSITION } from '@/lib/animations
 import { postZaiChat, readZaiStream, type ZaiChatMessage } from '@/lib/zai/chatClient'
 import { triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
 import { buildSoloFocusAskZaiQuestion, setAskZaiContext } from '@/lib/expandStorage'
-import { sanitizeText } from '@/lib/sanitize'
-import { dedupeLocalityInProse } from '@/lib/brains/zai/prose'
-import { stripZaiChatMarkdown } from '@/lib/zai/chatBoundaries'
+import { ZAI_FALLBACK_CONNECTING } from '@/lib/zai/chatBoundaries'
+import { polishZaiBodyCopy } from '@/lib/zai/polishBodyCopy'
 import { renderZaiChatProse } from '@/lib/zai/renderChatProse'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
@@ -23,11 +22,7 @@ import {
 } from '@/lib/zai/deepDiveAudit'
 import { scrapeAreaHintFromLocality } from '@/lib/zai/scrapeAreaHint'
 
-const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
-
-function polishZaiDisplayText(text: string): string {
-  return stripZaiChatMarkdown(dedupeLocalityInProse(sanitizeText(text)))
-}
+const ZAI_FALLBACK = ZAI_FALLBACK_CONNECTING
 
 function getJourneyAnswersFromClient(): Record<string, Record<string, string>> | undefined {
   if (typeof window === 'undefined') return undefined
@@ -280,7 +275,7 @@ export function AskZaiDeepDiveSheet({
         let streamed = ''
         await readZaiStream(res, (chunk) => {
           streamed += chunk
-          const safe = polishZaiDisplayText(streamed)
+          const safe = polishZaiBodyCopy(streamed)
           setMessages((m) => {
             const next = [...m]
             if (next[next.length - 1]?.role === 'zai') {
@@ -289,7 +284,7 @@ export function AskZaiDeepDiveSheet({
             return next
           })
         })
-        const finalText = streamed.trim() ? polishZaiDisplayText(streamed) : ZAI_FALLBACK
+        const finalText = streamed.trim() ? polishZaiBodyCopy(streamed) : ZAI_FALLBACK
         setMessages((m) => {
           const next = [...m]
           if (next[next.length - 1]?.role === 'zai') {
@@ -433,7 +428,7 @@ export function AskZaiDeepDiveSheet({
                 }}
                 placeholder="ask zai about this"
                 disabled={busy}
-                className="zone-ask-zai-pill ask-zai-input zai-ask-input ask-zai-sheet-input border-none outline-none font-bold"
+                className="zz-zai-composer-input"
               />
               <motion.button
                 type="button"

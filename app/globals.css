@@ -4835,7 +4835,7 @@ body.zai-composer-dock-active {
   color: var(--color-yellow) !important;
 }
 
-/* Zai voice — organic lowercase prose (model-led; no forced transform on user bubbles) */
+/* Zai voice — sentence-case body prose (model-led; no forced transform on user bubbles) */
 .zai-interface .zai-prose-voice {
   font-weight: 700;
   line-height: 1.5;
@@ -4889,8 +4889,8 @@ body.zai-composer-dock-active {
     font-size: 1.25rem;
   }
 }
-.zai-interface .zone-ask-zai-pill,
-.zai-interface .ask-zai-input {
+.zai-interface .zone-ask-zai-pill:not(.zz-zai-composer-input),
+.zai-interface .ask-zai-input:not(.zz-zai-composer-input) {
   background-color: var(--zai-field-bg);
   color: var(--zai-ink);
   border: none;
@@ -4902,47 +4902,47 @@ body.zai-composer-dock-active {
   caret-color: var(--zai-ink);
 }
 @media (min-width: 768px) {
-  .zai-interface .zone-ask-zai-pill,
-  .zai-interface .ask-zai-input {
+  .zai-interface .zone-ask-zai-pill:not(.zz-zai-composer-input),
+  .zai-interface .ask-zai-input:not(.zz-zai-composer-input) {
     font-size: 1.25rem;
   }
 }
-.zai-interface .zone-ask-zai-pill:focus,
-.zai-interface .ask-zai-input:focus,
-.zai-composer-dock .zone-ask-zai-pill:focus,
-.zai-composer-dock .ask-zai-input:focus,
-.zai-composer-dock .zai-ask-input:focus {
+.zai-interface .zone-ask-zai-pill:not(.zz-zai-composer-input):focus,
+.zai-interface .ask-zai-input:not(.zz-zai-composer-input):focus,
+.zai-composer-dock .zone-ask-zai-pill:not(.zz-zai-composer-input):focus,
+.zai-composer-dock .ask-zai-input:not(.zz-zai-composer-input):focus,
+.zai-composer-dock .zai-ask-input:not(.zz-zai-composer-input):focus {
   background-color: var(--zai-hover-bg) !important;
   color: var(--zai-hover-text) !important;
   caret-color: var(--zai-hover-text);
 }
 @media (hover: hover) {
-  .zai-interface .zone-ask-zai-pill:hover,
-  .zai-interface .ask-zai-input:hover,
-  .zai-composer-dock .zone-ask-zai-pill:hover,
-  .zai-composer-dock .ask-zai-input:hover,
-  .zai-composer-dock .zai-ask-input:hover {
+  .zai-interface .zone-ask-zai-pill:not(.zz-zai-composer-input):hover,
+  .zai-interface .ask-zai-input:not(.zz-zai-composer-input):hover,
+  .zai-composer-dock .zone-ask-zai-pill:not(.zz-zai-composer-input):hover,
+  .zai-composer-dock .ask-zai-input:not(.zz-zai-composer-input):hover,
+  .zai-composer-dock .zai-ask-input:not(.zz-zai-composer-input):hover {
     background-color: var(--zai-hover-bg) !important;
     color: var(--zai-hover-text) !important;
     caret-color: var(--zai-hover-text);
   }
-  .zai-interface .zone-ask-zai-pill:hover::placeholder,
-  .zai-interface .ask-zai-input:hover::placeholder,
-  .zai-composer-dock .zone-ask-zai-pill:hover::placeholder,
-  .zai-composer-dock .ask-zai-input:hover::placeholder,
-  .zai-composer-dock .zai-ask-input:hover::placeholder {
+  .zai-interface .zone-ask-zai-pill:not(.zz-zai-composer-input):hover::placeholder,
+  .zai-interface .ask-zai-input:not(.zz-zai-composer-input):hover::placeholder,
+  .zai-composer-dock .zone-ask-zai-pill:not(.zz-zai-composer-input):hover::placeholder,
+  .zai-composer-dock .ask-zai-input:not(.zz-zai-composer-input):hover::placeholder,
+  .zai-composer-dock .zai-ask-input:not(.zz-zai-composer-input):hover::placeholder {
     color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
   }
 }
-.zai-interface .zone-ask-zai-pill:focus::placeholder,
-.zai-interface .ask-zai-input:focus::placeholder,
-.zai-composer-dock .zone-ask-zai-pill:focus::placeholder,
-.zai-composer-dock .ask-zai-input:focus::placeholder,
-.zai-composer-dock .zai-ask-input:focus::placeholder {
+.zai-interface .zone-ask-zai-pill:not(.zz-zai-composer-input):focus::placeholder,
+.zai-interface .ask-zai-input:not(.zz-zai-composer-input):focus::placeholder,
+.zai-composer-dock .zone-ask-zai-pill:not(.zz-zai-composer-input):focus::placeholder,
+.zai-composer-dock .ask-zai-input:not(.zz-zai-composer-input):focus::placeholder,
+.zai-composer-dock .zai-ask-input:not(.zz-zai-composer-input):focus::placeholder {
   color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
 }
-.zai-interface .zone-ask-zai-pill::placeholder,
-.zai-interface .ask-zai-input::placeholder {
+.zai-interface .zone-ask-zai-pill:not(.zz-zai-composer-input)::placeholder,
+.zai-interface .ask-zai-input:not(.zz-zai-composer-input)::placeholder {
   color: color-mix(in srgb, var(--zai-ink) 72%, transparent);
 }
 /* Zai input row — fixed composer dock (portaled outside .zai-interface) */
@@ -4959,12 +4959,16 @@ body.zai-composer-dock-active {
 .zai-interface .zai-input-row .ask-zai-input,
 .zai-interface .zai-input-row .zone-ask-zai-pill,
 .zai-composer-dock .zai-input-row .ask-zai-input,
-.zai-composer-dock .zai-input-row .zone-ask-zai-pill {
+.zai-composer-dock .zai-input-row .zone-ask-zai-pill:not(.zz-zai-composer-input) {
   box-shadow: 0 2px 0 color-mix(in srgb, var(--zai-ink) 24%, transparent);
 }
-.zai-interface .zai-ask-input,
-.zai-composer-dock .zai-ask-input,
-.zai-composer-dock .zai-input-row .ask-zai-input {
+.zai-interface .zai-input-row .zz-zai-composer-input,
+.zai-composer-dock .zai-input-row .zz-zai-composer-input {
+  box-shadow: none !important;
+}
+.zai-interface .zai-ask-input:not(.zz-zai-composer-input),
+.zai-composer-dock .zai-ask-input:not(.zz-zai-composer-input),
+.zai-composer-dock .zai-input-row .ask-zai-input:not(.zz-zai-composer-input) {
   flex: 1;
   min-width: 0;
   width: auto;
@@ -4976,13 +4980,13 @@ body.zai-composer-dock-active {
   border: none !important;
   outline: none !important;
 }
-.zai-interface .zai-ask-input::placeholder,
-.zai-composer-dock .zai-ask-input::placeholder,
-.zai-composer-dock .ask-zai-input::placeholder {
+.zai-interface .zai-ask-input:not(.zz-zai-composer-input)::placeholder,
+.zai-composer-dock .zai-ask-input:not(.zz-zai-composer-input)::placeholder,
+.zai-composer-dock .ask-zai-input:not(.zz-zai-composer-input)::placeholder {
   color: color-mix(in srgb, var(--zai-ink) 55%, transparent);
 }
-.zai-composer-dock .zone-ask-zai-pill,
-.zai-composer-dock .ask-zai-input {
+.zai-composer-dock .zone-ask-zai-pill:not(.zz-zai-composer-input),
+.zai-composer-dock .ask-zai-input:not(.zz-zai-composer-input) {
   background-color: var(--zai-field-bg);
   color: var(--zai-ink);
   border: none;
@@ -4994,11 +4998,98 @@ body.zai-composer-dock-active {
   caret-color: var(--zai-ink);
 }
 @media (min-width: 768px) {
-  .zai-composer-dock .zone-ask-zai-pill,
-  .zai-composer-dock .ask-zai-input {
+  .zai-composer-dock .zone-ask-zai-pill:not(.zz-zai-composer-input),
+  .zai-composer-dock .ask-zai-input:not(.zz-zai-composer-input) {
     font-size: 1.25rem;
   }
 }
+
+/* Composer input — profile name field parity (yellow/purple rest → pink/yellow active) */
+.zz-zai-composer-input,
+.zai-interface .zz-zai-composer-input,
+.zai-composer-dock .zz-zai-composer-input,
+.zai-composer-dock--ask-sheet .zz-zai-composer-input,
+.zone-ask-zai-dock > .zz-zai-composer-input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  min-height: 54px;
+  height: auto;
+  background: var(--color-yellow) !important;
+  color: var(--color-purple) !important;
+  -webkit-text-fill-color: var(--color-purple);
+  caret-color: var(--color-purple);
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 9999px;
+  padding: 14px 20px;
+  text-align: center;
+  font-family: var(--font-marvin), sans-serif !important;
+  font-weight: 700 !important;
+  font-size: var(--zz-h4-mobile) !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  line-height: 1.2 !important;
+  box-sizing: border-box;
+  transition:
+    background-color var(--zz-interaction-duration) var(--zz-interaction-ease),
+    color var(--zz-interaction-duration) var(--zz-interaction-ease);
+}
+.zone-ask-zai-dock > .zz-zai-composer-input {
+  flex: none;
+  width: min(var(--max-w-zone), calc(100vw - 40px));
+  max-width: min(var(--max-w-zone), calc(100vw - 40px));
+  pointer-events: auto;
+}
+.zz-zai-composer-input::placeholder {
+  color: var(--color-purple) !important;
+  opacity: 1;
+}
+.zai-interface .zz-zai-composer-input:focus,
+.zai-interface .zz-zai-composer-input:focus-visible,
+.zai-composer-dock .zz-zai-composer-input:focus,
+.zai-composer-dock .zz-zai-composer-input:focus-visible,
+.zai-composer-dock--ask-sheet .zz-zai-composer-input:focus,
+.zai-composer-dock--ask-sheet .zz-zai-composer-input:focus-visible,
+.zone-ask-zai-dock > .zz-zai-composer-input:focus,
+.zone-ask-zai-dock > .zz-zai-composer-input:focus-visible {
+  background: var(--color-pink) !important;
+  color: var(--color-yellow) !important;
+  -webkit-text-fill-color: var(--color-yellow);
+  caret-color: var(--color-yellow);
+}
+.zai-interface .zz-zai-composer-input:focus::placeholder,
+.zai-interface .zz-zai-composer-input:focus-visible::placeholder,
+.zai-composer-dock .zz-zai-composer-input:focus::placeholder,
+.zai-composer-dock .zz-zai-composer-input:focus-visible::placeholder,
+.zai-composer-dock--ask-sheet .zz-zai-composer-input:focus::placeholder,
+.zone-ask-zai-dock > .zz-zai-composer-input:focus::placeholder {
+  color: var(--color-yellow) !important;
+}
+@media (hover: hover) {
+  .zai-interface .zz-zai-composer-input:hover:not(:disabled),
+  .zai-composer-dock .zz-zai-composer-input:hover:not(:disabled),
+  .zai-composer-dock--ask-sheet .zz-zai-composer-input:hover:not(:disabled),
+  .zone-ask-zai-dock > .zz-zai-composer-input:hover:not(:disabled) {
+    background: var(--color-pink) !important;
+    color: var(--color-yellow) !important;
+    -webkit-text-fill-color: var(--color-yellow);
+    caret-color: var(--color-yellow);
+  }
+  .zai-interface .zz-zai-composer-input:hover:not(:disabled)::placeholder,
+  .zai-composer-dock .zz-zai-composer-input:hover:not(:disabled)::placeholder,
+  .zai-composer-dock--ask-sheet .zz-zai-composer-input:hover:not(:disabled)::placeholder,
+  .zone-ask-zai-dock > .zz-zai-composer-input:hover:not(:disabled)::placeholder {
+    color: var(--color-yellow) !important;
+  }
+}
+@media (min-width: 1024px) {
+  .zz-zai-composer-input {
+    font-size: var(--zz-h4-desktop) !important;
+  }
+}
+
 /* Go button: pink default, yellow text; hover yellow bg, purple text; bounce (match other CTAs) */
 .zai-interface .zai-go-btn {
   flex-shrink: 0;
@@ -6657,9 +6748,9 @@ body.ask-zai-deep-dive-active {
   align-items: center;
   gap: 10px;
 }
-.zai-composer-dock--ask-sheet .zone-ask-zai-pill,
-.zai-composer-dock--ask-sheet .ask-zai-input,
-.zai-composer-dock--ask-sheet .ask-zai-sheet-input {
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill:not(.zz-zai-composer-input),
+.zai-composer-dock--ask-sheet .ask-zai-input:not(.zz-zai-composer-input),
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input:not(.zz-zai-composer-input) {
   flex: 1;
   min-width: 0;
   background-color: var(--zai-field-bg) !important;
@@ -6668,39 +6759,39 @@ body.ask-zai-deep-dive-active {
   caret-color: var(--zai-deep-blue);
   transition: background-color 0.2s ease, color 0.2s ease;
 }
-.zai-composer-dock--ask-sheet .zone-ask-zai-pill::placeholder,
-.zai-composer-dock--ask-sheet .ask-zai-input::placeholder,
-.zai-composer-dock--ask-sheet .ask-zai-sheet-input::placeholder {
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill:not(.zz-zai-composer-input)::placeholder,
+.zai-composer-dock--ask-sheet .ask-zai-input:not(.zz-zai-composer-input)::placeholder,
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input:not(.zz-zai-composer-input)::placeholder {
   color: color-mix(in srgb, var(--zai-deep-blue) 72%, transparent) !important;
   opacity: 1;
 }
-.zai-composer-dock--ask-sheet .zone-ask-zai-pill:focus,
-.zai-composer-dock--ask-sheet .zone-ask-zai-pill:focus-visible,
-.zai-composer-dock--ask-sheet .ask-zai-input:focus,
-.zai-composer-dock--ask-sheet .ask-zai-sheet-input:focus,
-.zai-composer-dock--ask-sheet .ask-zai-sheet-input:focus-visible {
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill:not(.zz-zai-composer-input):focus,
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill:not(.zz-zai-composer-input):focus-visible,
+.zai-composer-dock--ask-sheet .ask-zai-input:not(.zz-zai-composer-input):focus,
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input:not(.zz-zai-composer-input):focus,
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input:not(.zz-zai-composer-input):focus-visible {
   background-color: var(--zai-hover-bg) !important;
   color: var(--zai-hover-text) !important;
   -webkit-text-fill-color: var(--zai-hover-text);
   caret-color: var(--zai-hover-text);
 }
 @media (hover: hover) {
-  .zai-composer-dock--ask-sheet .zone-ask-zai-pill:hover,
-  .zai-composer-dock--ask-sheet .ask-zai-input:hover,
-  .zai-composer-dock--ask-sheet .ask-zai-sheet-input:hover {
+  .zai-composer-dock--ask-sheet .zone-ask-zai-pill:not(.zz-zai-composer-input):hover,
+  .zai-composer-dock--ask-sheet .ask-zai-input:not(.zz-zai-composer-input):hover,
+  .zai-composer-dock--ask-sheet .ask-zai-sheet-input:not(.zz-zai-composer-input):hover {
     background-color: var(--zai-hover-bg) !important;
     color: var(--zai-hover-text) !important;
     -webkit-text-fill-color: var(--zai-hover-text);
     caret-color: var(--zai-hover-text);
   }
-  .zai-composer-dock--ask-sheet .zone-ask-zai-pill:hover::placeholder,
-  .zai-composer-dock--ask-sheet .ask-zai-sheet-input:hover::placeholder,
-  .zai-composer-dock--ask-sheet .ask-zai-sheet-input:focus::placeholder {
+  .zai-composer-dock--ask-sheet .zone-ask-zai-pill:not(.zz-zai-composer-input):hover::placeholder,
+  .zai-composer-dock--ask-sheet .ask-zai-sheet-input:not(.zz-zai-composer-input):hover::placeholder,
+  .zai-composer-dock--ask-sheet .ask-zai-sheet-input:not(.zz-zai-composer-input):focus::placeholder {
     color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
   }
 }
-.zai-composer-dock--ask-sheet .zone-ask-zai-pill:focus::placeholder,
-.zai-composer-dock--ask-sheet .ask-zai-sheet-input:focus::placeholder {
+.zai-composer-dock--ask-sheet .zone-ask-zai-pill:not(.zz-zai-composer-input):focus::placeholder,
+.zai-composer-dock--ask-sheet .ask-zai-sheet-input:not(.zz-zai-composer-input):focus::placeholder {
   color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
 }
 .zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn {
@@ -8360,6 +8451,7 @@ html.zz-zai-document body {
 .zz-profile-page .zz-input:focus::placeholder {
   color: var(--color-yellow);
 }
+
 .zz-profile-page .question-text {
   color: var(--color-yellow);
 }
@@ -8612,17 +8704,17 @@ html.zz-zai-document body {
     stroke: currentColor;
   }
   /* Zai field swap */
-  .zone-ask-zai-pill:hover,
-  .zone-ask-zai-dock > .zone-ask-zai-pill:hover,
-  .zone-ask-zai-pill--dock:hover {
+  .zone-ask-zai-pill:not(.zz-zai-composer-input):hover,
+  .zone-ask-zai-dock > .zone-ask-zai-pill:not(.zz-zai-composer-input):hover,
+  .zone-ask-zai-pill--dock:not(.zz-zai-composer-input):hover {
     background-color: var(--zai-hover-bg);
     color: var(--zai-hover-text) !important;
     -webkit-text-fill-color: var(--zai-hover-text);
     caret-color: var(--zai-hover-text);
   }
-  .zone-ask-zai-pill:hover::placeholder,
-  .zone-ask-zai-dock > .zone-ask-zai-pill:hover::placeholder,
-  .zone-ask-zai-pill--dock:hover::placeholder {
+  .zone-ask-zai-pill:not(.zz-zai-composer-input):hover::placeholder,
+  .zone-ask-zai-dock > .zone-ask-zai-pill:not(.zz-zai-composer-input):hover::placeholder,
+  .zone-ask-zai-pill--dock:not(.zz-zai-composer-input):hover::placeholder {
     color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
   }
 }
@@ -9577,37 +9669,36 @@ body.zone-ask-zai-dock-active main.zone.zone-main-shell {
     var(--zone-ask-zai-dock-clearance, 120px) + env(safe-area-inset-bottom, 0px)
   ) !important;
 }
-.zone-ask-zai-dock > .zone-ask-zai-pill {
+.zone-ask-zai-dock > .zone-ask-zai-pill:not(.zz-zai-composer-input) {
   pointer-events: auto;
   width: min(var(--max-w-zone), calc(100vw - 40px));
   max-width: min(var(--max-w-zone), calc(100vw - 40px));
   background-color: var(--zai-field-bg);
 }
-.zone-ask-zai-pill--dock:focus,
-.zone-ask-zai-pill--dock:focus-visible,
-.zone-ask-zai-pill:focus,
-.zone-ask-zai-pill:focus-visible {
+.zone-ask-zai-pill--dock:focus:not(.zz-zai-composer-input),
+.zone-ask-zai-pill--dock:focus-visible:not(.zz-zai-composer-input),
+.zone-ask-zai-pill:focus:not(.zz-zai-composer-input),
+.zone-ask-zai-pill:focus-visible:not(.zz-zai-composer-input) {
   background-color: var(--zai-hover-bg);
   color: var(--zai-hover-text) !important;
   -webkit-text-fill-color: var(--zai-hover-text);
   caret-color: var(--zai-hover-text);
   outline: none;
 }
-.zone-ask-zai-pill--dock:focus::placeholder,
-.zone-ask-zai-pill--dock:focus-visible::placeholder,
-.zone-ask-zai-pill:focus::placeholder,
-.zone-ask-zai-pill:focus-visible::placeholder {
+.zone-ask-zai-pill--dock:focus:not(.zz-zai-composer-input)::placeholder,
+.zone-ask-zai-pill--dock:focus-visible:not(.zz-zai-composer-input)::placeholder,
+.zone-ask-zai-pill:focus:not(.zz-zai-composer-input)::placeholder,
+.zone-ask-zai-pill:focus-visible:not(.zz-zai-composer-input)::placeholder {
   color: color-mix(in srgb, var(--zai-hover-text) 72%, transparent) !important;
   opacity: 1;
 }
 .zone-ask-zai-pill--dock {
-  box-shadow: 0 8px 32px color-mix(in srgb, var(--color-purple) 35%, transparent);
   font-family: var(--font-marvin) !important;
   font-size: var(--zz-h4-mobile) !important;
-  font-weight: bold !important;
-  letter-spacing: var(--zz-track-marvin) !important;
-  line-height: 0.8 !important;
-  text-transform: uppercase !important;
+  font-weight: 700 !important;
+  letter-spacing: normal !important;
+  line-height: 1.2 !important;
+  text-transform: none !important;
 }
 @media (min-width: 1024px) {
   .zone-ask-zai-pill--dock {
@@ -9783,8 +9874,8 @@ body.zone-ask-zai-dock-active main.zone.zone-main-shell {
   }
 }
 
-/* Ask Zai pill — deep-dive: yellow field, purple Marvin ink */
-.zone-ask-zai-pill {
+/* Ask Zai pill — legacy deep-dive trigger (not composer input) */
+.zone-ask-zai-pill:not(.zz-zai-composer-input) {
   width: 100%;
   min-height: auto;
   height: auto;
@@ -9804,7 +9895,7 @@ body.zone-ask-zai-dock-active main.zone.zone-main-shell {
   text-transform: uppercase;
 }
 
-.zone-ask-zai-pill::placeholder {
+.zone-ask-zai-pill:not(.zz-zai-composer-input)::placeholder {
   color: color-mix(in srgb, var(--zai-ink) 72%, transparent) !important;
   opacity: 1;
 }

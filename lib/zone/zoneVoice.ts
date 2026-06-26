@@ -31,6 +31,9 @@ export const FORENSIC_MATE_BANNED_PHRASES = [
   'pays you back',
   'optimise your journey',
   'as an ai',
+  'verify the offer',
+  'before you commit spend',
+  'publishes guidance on this habit',
 ] as const
 
 /** Single line for LLM system prompts (Content Architect, research triplet). */

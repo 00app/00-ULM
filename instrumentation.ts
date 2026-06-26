@@ -1,5 +1,8 @@
 export async function register() {
-  /* optional server bootstrap hooks */
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { assertProductionSecurityEnv } = await import('@/lib/security/productionSecrets')
+    assertProductionSecurityEnv()
+  }
 }
 
 type RequestErrorContext = {

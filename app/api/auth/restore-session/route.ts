@@ -3,19 +3,14 @@ import pool from '@/lib/db'
 import { createSession, getSessionFromRequest, setSessionCookieOnResponse } from '@/lib/auth'
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 import {
-  allowInsecureDevSessionRestore,
   resolveUserIdFromRestoreProof,
-  verifySessionRestoreProof,
   withRestoreProof,
 } from '@/lib/sessionRestoreProof'
 
 export const dynamic = 'force-dynamic'
 
-const USER_ID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-
 const PROFILE_ONLY_SESSION_DAYS = 7
-const RESTORE_MAX_PER_MINUTE = 12
+const RESTORE_MAX_PER_MINUTE = 6
 
 /** Re-issue `session` cookie when client holds a valid HMAC restore proof (sessionStorage). */
 export async function POST(request: NextRequest) {
@@ -40,18 +35,7 @@ export async function POST(request: NextRequest) {
     const restoreProof =
       typeof body?.restore_proof === 'string' ? body.restore_proof.trim() : ''
 
-    let userId = resolveUserIdFromRestoreProof(restoreProof)
-    if (!userId) {
-      const legacyUserId = typeof body?.user_id === 'string' ? body.user_id.trim() : ''
-      const devBypass = allowInsecureDevSessionRestore()
-      if (
-        USER_ID_RE.test(legacyUserId) &&
-        (devBypass || verifySessionRestoreProof(legacyUserId, restoreProof))
-      ) {
-        userId = legacyUserId
-      }
-    }
-
+    const userId = resolveUserIdFromRestoreProof(restoreProof)
     if (!userId) {
       return NextResponse.json({ error: 'Invalid or expired restore proof' }, { status: 403 })
     }

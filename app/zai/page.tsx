@@ -10,8 +10,6 @@ import { renderZaiChatProse } from '@/lib/zai/renderChatProse'
 import { motion } from 'framer-motion'
 import { useApp } from '@/app/context/AppContext'
 import { getAskZaiContext, clearAskZaiContext } from '@/lib/expandStorage'
-import { dedupeLocalityInProse } from '@/lib/brains/zai/prose'
-import { sanitizeText } from '@/lib/sanitize'
 import { dispatchZaiAuditComplete } from '@/lib/zai/zoneSync'
 import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 import {
@@ -24,7 +22,8 @@ import { JOURNEY_ORDER } from '@/lib/journeys'
 import { postZaiChat, readZaiStream } from '@/lib/zai/chatClient'
 import type { HeroTotals } from '@/app/context/AppContext'
 import type { ZaiChatMeta } from '@/lib/zai/zaiChatUi'
-import { metaFromAskZaiContext, metaFromZaiReply } from '@/lib/zai/zaiChatUi'
+import { metaFromAskZaiContext, metaFromZaiReply, mergeZaiChatMeta } from '@/lib/zai/zaiChatUi'
+import { resolveZaiPickHandoff } from '@/lib/zai/resolveZaiLikeHandoff'
 import { readZaiLikes, removeZaiLike, upsertZaiLike } from '@/lib/zai/zaiLikesStorage'
 import { ZAI_INTRO_LINES } from '@/lib/zai/chatPrompts'
 import {
@@ -32,13 +31,22 @@ import {
   shouldShowZaiSuggestedPills,
   zaiPillsBelongAfterIntro,
 } from '@/lib/zai/chatRules'
-import { stripZaiChatMarkdown } from '@/lib/zai/chatBoundaries'
+import { ZAI_FALLBACK_CONNECTING } from '@/lib/zai/chatBoundaries'
+import { polishZaiBodyCopy } from '@/lib/zai/polishBodyCopy'
 import Link from 'next/link'
 
-const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
+const ZAI_FALLBACK = ZAI_FALLBACK_CONNECTING
 
-function polishZaiDisplayText(text: string): string {
-  return stripZaiChatMarkdown(dedupeLocalityInProse(sanitizeText(text)))
+function buildColdStartHook(totals: HeroTotals, locality: string | null): string {
+  const place = locality?.trim() || 'your patch'
+  if (totals.totalMoney > 0 || totals.totalCarbon > 0) {
+    return polishZaiBodyCopy(
+      `I've got £${totals.totalMoney}/yr and ${totals.totalCarbon}kg on your board in ${place}. Pick a lane — bills, travel, or grants — and I'll narrow it to one move.`
+    )
+  }
+  return polishZaiBodyCopy(
+    `I'm Zai — your UK savings mate. Tell me one bill or trip that nags you in ${place}; I'll find a real lever.`
+  )
 }
 const SENTINEL_RECENT_CHAT_KEY = 'zz_recent_chat_history'
 const HERO_TOTALS_KEY = 'heroTotals'
@@ -98,20 +106,21 @@ function triggerHaptic(pattern: 'light' | 'medium') {
   }
 }
 
-function buildColdStartHook(totals: HeroTotals, locality: string | null): string {
-  const place = locality?.trim() || 'your patch'
-  if (totals.totalMoney > 0 || totals.totalCarbon > 0) {
-    return sanitizeText(
-      `i've got £${totals.totalMoney}/yr and ${totals.totalCarbon}kg on your board in ${place}. pick a lane — bills, travel, or grants — and i'll narrow it to one move.`
-    )
-  }
-  return sanitizeText(
-    `i'm zai — your uk savings mate. tell me one bill or trip that nags you in ${place}; i'll find a real lever.`
-  )
-}
-
-function syncZaiLikeStorage(meta: ZaiChatMeta, liked: boolean): void {
+function syncZaiLikeStorage(meta: ZaiChatMeta, liked: boolean, postcode?: string | null): void {
   if (liked) {
+    const handoff = resolveZaiPickHandoff(
+      {
+        id: meta.likeId,
+        title: meta.likeTitle,
+        journey_key: meta.journeyKey,
+        money: meta.savingsGbp > 0 ? `£${meta.savingsGbp}` : '£0',
+        carbon: '0kg CO₂',
+        sourceUrl: meta.sourceUrl,
+        offerUrl: meta.offerUrl,
+        ctaLabel: meta.ctaLabel,
+      },
+      postcode
+    )
     upsertZaiLike({
       id: meta.likeId,
       title: meta.likeTitle,
@@ -119,6 +128,8 @@ function syncZaiLikeStorage(meta: ZaiChatMeta, liked: boolean): void {
       money: meta.savingsGbp > 0 ? `£${meta.savingsGbp}` : '£0',
       carbon: '0kg CO₂',
       sourceUrl: meta.sourceUrl,
+      offerUrl: handoff.offerUrl,
+      ctaLabel: handoff.ctaLabel,
     })
   } else {
     removeZaiLike(meta.likeId)
@@ -216,7 +227,7 @@ export default function ZaiPage() {
         let streamed = ''
         await readZaiStream(res, (chunk) => {
           streamed += chunk
-          const safe = polishZaiDisplayText(streamed)
+          const safe = polishZaiBodyCopy(streamed)
           setMessages((m) => {
             const next = [...m]
             if (next[next.length - 1]?.role === 'zai') {
@@ -229,6 +240,18 @@ export default function ZaiPage() {
           setMessages((m) => {
             const next = [...m]
             if (next[next.length - 1]?.role === 'zai') next[next.length - 1] = { role: 'zai', text: ZAI_FALLBACK }
+            return next
+          })
+        } else {
+          const journeyAnswers = getJourneyAnswersFromClient()
+          const finalText = polishZaiBodyCopy(streamed)
+          const replyMeta = metaFromZaiReply(finalText, journeyAnswers)
+          const merged = mergeZaiChatMeta(meta, replyMeta)
+          setMessages((m) => {
+            const next = [...m]
+            if (next[next.length - 1]?.role === 'zai') {
+              next[next.length - 1] = { role: 'zai', text: finalText, meta: merged ?? meta }
+            }
             return next
           })
         }
@@ -275,14 +298,14 @@ export default function ZaiPage() {
       let streamed = ''
       await readZaiStream(res, (chunk) => {
         streamed += chunk
-        const safe = polishZaiDisplayText(streamed)
+        const safe = polishZaiBodyCopy(streamed)
           setMessages((m) => {
           const next = [...m]
           if (next[next.length - 1]?.role === 'zai') next[next.length - 1] = { role: 'zai', text: safe }
           return next
         })
       })
-      const finalText = streamed.trim() ? polishZaiDisplayText(streamed) : ZAI_FALLBACK
+      const finalText = streamed.trim() ? polishZaiBodyCopy(streamed) : ZAI_FALLBACK
       const meta = metaFromZaiReply(finalText, journeyAnswers)
       setMessages((m) => {
         const next = [...m]
@@ -293,7 +316,7 @@ export default function ZaiPage() {
       })
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     } catch {
-      setMessages((m) => [...m, { role: 'zai', text: sanitizeText(ZAI_FALLBACK) }])
+      setMessages((m) => [...m, { role: 'zai', text: ZAI_FALLBACK }])
     } finally {
       setLoading(false)
     }
@@ -322,10 +345,10 @@ export default function ZaiPage() {
       triggerHaptic('medium')
       const liked = state.likedCards.includes(meta.likeId)
       toggleLike(meta.likeId, meta.likeTitle, meta.savingsGbp)
-      syncZaiLikeStorage(meta, !liked)
+      syncZaiLikeStorage(meta, !liked, postcode ?? state.profile?.postcode)
       if (!liked) router.push('/likes')
     },
-    [state.likedCards, toggleLike, router]
+    [state.likedCards, toggleLike, router, postcode, state.profile?.postcode]
   )
 
   return (
@@ -476,7 +499,7 @@ export default function ZaiPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="ask about a specific shift..."
-            className="zone-ask-zai-pill ask-zai-input zai-ask-input border-none outline-none font-bold"
+            className="zz-zai-composer-input"
           />
           <motion.button
             type="button"

@@ -9,8 +9,6 @@ interface MotherCardRendererProps {
   headline: React.ReactNode
   narrative: React.ReactNode
   sourceFooter: string
-  /** v35.0 — bottom citation after CTA: "Source: … — Verified …" */
-  verifiedSourceCitation?: string | null
   actionLine?: string | null
   moneyGbp: number
   carbonKg: number
@@ -18,8 +16,6 @@ interface MotherCardRendererProps {
   ctaUrl?: string | null
   ctaJourneyId?: string
   ctaLabel?: string
-  /** Company / publisher behind the handoff URL — shown below CTA as h3. */
-  offerProviderName?: string | null
   /** CTA handoff surface — yellow block for Action Vault high-impact rebirth. */
   ctaSurface?: 'pink' | 'yellow'
   isLiked?: boolean
@@ -35,7 +31,6 @@ export function MotherCardRenderer({
   headline,
   narrative,
   sourceFooter,
-  verifiedSourceCitation = null,
   actionLine,
   moneyGbp,
   carbonKg,
@@ -43,7 +38,6 @@ export function MotherCardRenderer({
   ctaUrl,
   ctaJourneyId,
   ctaLabel = 'CLAIM',
-  offerProviderName,
   ctaSurface = 'pink',
   isLiked = false,
   isDisliked = false,
@@ -64,14 +58,6 @@ export function MotherCardRenderer({
         </h5>
       ) : null}
       {narrative}
-      {verifiedSourceCitation?.trim() ? (
-        <p
-          className="solo-focus-verified-source solo-focus-supplied-by text-left w-full min-w-0 m-0"
-          style={{ color: 'var(--journey-text)' }}
-        >
-          {verifiedSourceCitation.trim()}
-        </p>
-      ) : null}
       {sourceFooter.trim() ? (
       <p
         className="solo-focus-supplied-by headline-to-insight text-left w-full min-w-0 m-0"
@@ -125,14 +111,6 @@ export function MotherCardRenderer({
           onDislike={onDislike}
           onCtaClick={onCtaClick}
         />
-      ) : null}
-      {ctaUrl && offerProviderName?.trim() ? (
-        <h3
-          className="solo-focus-offer-provider zz-h3 text-marvin trinity-to-offer-provider m-0 text-left w-full min-w-0"
-          style={{ color: 'var(--journey-text)' }}
-        >
-          {offerProviderName.trim()}
-        </h3>
       ) : null}
     </>
   )

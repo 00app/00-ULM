@@ -25,6 +25,7 @@ function timingSafeStringEqual(a: string, b: string): boolean {
 function adminPasswordMatches(authHeader: string | null): boolean {
   const password = process.env.ADMIN_PASSWORD?.trim()
   if (!password || !authHeader?.trim().toLowerCase().startsWith('basic ')) return false
+  if (process.env.NODE_ENV === 'production' && password.length < 16) return false
   try {
     const encoded = authHeader.trim().slice(6).trim()
     const decoded = Buffer.from(encoded, 'base64').toString('utf8')

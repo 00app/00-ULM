@@ -1,7 +1,7 @@
 /**
  * Zai (Zero) chat API — Single Source of Truth: buildUserImpact
  * Uses @google/generative-ai (Gemini) for AI responses.
- * Brand voice: lowercase, grounded, witty, never lecturing.
+ * Brand voice: sentence-case body, grounded, witty, never lecturing.
  * Local Living: when postcode/council is present, agent can mention council-published efficiency schemes where rules allow.
  * When user is logged in, injects user_context (profile + journey answers) so Gemini gives grounded advice.
  */
@@ -43,8 +43,10 @@ import {
   getZaiDeclineForQuestion,
   lacksGroundedZaiContext,
   stripZaiChatMarkdown,
+  ZAI_FALLBACK_CONNECTING,
   ZAI_FALLBACK_UNCERTAIN,
 } from '@/lib/zai/chatBoundaries'
+import { polishZaiServerBodyCopy } from '@/lib/zai/polishBodyCopy'
 import {
   formatZaiResearchSourceLine,
   loadZaiResearchSourceHint,
@@ -53,7 +55,7 @@ import {
 export const runtime = 'nodejs';
 export const maxDuration = 60
 const textEncoder = new TextEncoder()
-const ZAI_FALLBACK = "give me a sec — still checking what's live near you."
+const ZAI_FALLBACK = ZAI_FALLBACK_CONNECTING
 
 function formatBucketChatHistory(
   history: Array<{ role: string; parts: Array<{ text: string }> }>
@@ -221,7 +223,7 @@ function transportLineFromJourneyAnswers(
   return ''
 }
 
-/** Human heating phrase for mandatory opener (lowercase, brand voice). */
+/** Human heating phrase for mandatory opener (sentence-case body). */
 function heatingPhraseForOpener(ja: Record<string, Record<string, string>>): string {
   const raw = (ja.home?.energy_type ?? ja.home?.heating ?? '').toString().trim().toLowerCase()
   if (!raw) return ''
@@ -236,11 +238,11 @@ function heatingPhraseForOpener(ja: Record<string, Record<string, string>>): str
 /** Prefer council/locality name; fall back to outward postcode token only when needed. */
 function localityPlaceForOpener(localityName: string | null, postcode: string | null): string {
   const loc = localityName?.trim()
-  if (loc) return loc.toLowerCase()
+  if (loc) return loc
   if (!postcode?.trim()) return ''
   const compact = postcode.replace(/\s+/g, '').toUpperCase()
   const m = compact.match(/^([A-Z]{1,2}\d[A-Z\d]?)/)
-  return `${(m?.[1] ?? compact.slice(0, 4)).toLowerCase()} area`
+  return `${m?.[1] ?? compact.slice(0, 4)} area`
 }
 
 /**
@@ -268,7 +270,7 @@ async function polishZaiReplyAndLearn(args: {
   effectivePostcode: string | null
   localityName: string | null
 }): Promise<string> {
-  let text = stripZaiChatMarkdown(dedupeLocalityInProse(args.text.trim().toLowerCase()))
+  let text = polishZaiServerBodyCopy(args.text)
   if (!text) return ZAI_FALLBACK
   const opener = mandatoryOpenerPrefix(
     args.journeyAnswersForContext,
@@ -280,7 +282,7 @@ async function polishZaiReplyAndLearn(args: {
     !text.startsWith(opener) &&
     !textAlreadyHasLocality(text, args.localityName, args.effectivePostcode)
   ) {
-    text = dedupeLocalityInProse(`${opener} ${text}`)
+    text = polishZaiServerBodyCopy(`${opener} ${text}`)
   }
   if (args.sessionUserId) {
     try {
@@ -716,7 +718,7 @@ export async function POST(req: NextRequest) {
             effectivePostcode,
             localityName,
           })
-          const out = stripZaiChatMarkdown(dedupeLocalityInProse(polished ?? bucketText))
+          const out = polished ?? bucketText
           return new Response(textEncoder.encode(out), {
             headers: {
               'Content-Type': 'text/plain; charset=utf-8',
@@ -792,7 +794,7 @@ export async function POST(req: NextRequest) {
                   const chat = model.startChat({ history })
                   const result = await chat.sendMessageStream(question)
                   for await (const chunk of result.stream) {
-                    const piece = extractResponseText(chunk).toLowerCase()
+                    const piece = extractResponseText(chunk)
                     if (!piece) continue
                     let next = piece
                     if (!started && opener && !skipOpener) {
@@ -809,7 +811,7 @@ export async function POST(req: NextRequest) {
                 } else {
                   const result = await model.generateContentStream(question)
                   for await (const chunk of result.stream) {
-                    const piece = extractResponseText(chunk).toLowerCase()
+                    const piece = extractResponseText(chunk)
                     if (!piece) continue
                     let next = piece
                     if (!started && opener && !skipOpener) {
@@ -828,7 +830,7 @@ export async function POST(req: NextRequest) {
                   controller.enqueue(textEncoder.encode(ZAI_FALLBACK))
                   streamedFull = ZAI_FALLBACK
                 }
-                streamedFull = stripZaiChatMarkdown(dedupeLocalityInProse(streamedFull))
+                streamedFull = polishZaiServerBodyCopy(streamedFull)
                 if (session?.userId && streamedFull.trim()) {
                   try {
                     await finalizeZaiChatLearning({

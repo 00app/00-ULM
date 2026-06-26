@@ -53,6 +53,7 @@ import {
   headlineFromExpandedHook,
   headlineFromTitle,
   formatZoneCategoryLabel,
+  formatSoloFocusTopCategoryLabel,
   zoneCardHeadlineFromRaw,
   clampZoneBentoHeadline,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
@@ -690,12 +691,6 @@ export function JourneyBentoCard({
       card_title: displayTitle,
       money_gbp: parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)),
     })
-    beginCloseWithPatternShift({
-      offerFeedback: 'like',
-      cardTitle: displayTitle,
-      cardHeadline: displayTitle,
-      journeyId: activeJourneyId,
-    })
   }, [
     onLike,
     activeCardId,
@@ -704,7 +699,6 @@ export function JourneyBentoCard({
     displayMoneyValue,
     activeJourneyId,
     triggerHaptic,
-    beginCloseWithPatternShift,
   ])
 
   const handleTrinityDislike = useCallback(() => {
@@ -979,6 +973,10 @@ export function JourneyBentoCard({
     })
     const pulseSourceUrl =
       soloHandoff.ctaUrl?.trim().startsWith('http') ? soloHandoff.ctaUrl.trim() : diagnosticUrlJourney
+    const soloFocusTopLabel = formatSoloFocusTopCategoryLabel(
+      zoneCategoryLabel,
+      soloHandoff.ctaUrl ? handoffAttribution.offerProviderName : null
+    )
     const profileTransport =
       state.profile?.transport ??
       (typeof window !== 'undefined' ? localStorage.getItem('profile_transport') : null)
@@ -1023,12 +1021,8 @@ export function JourneyBentoCard({
       />
     ) : null
 
-    const verifiedSourceCitation =
-      pulseSourceUrl?.trim().startsWith('http') && handoffAttribution.sourceDisplayName?.trim()
-        ? `Source: ${handoffAttribution.sourceDisplayName.trim()} — verify the offer before you commit spend.`
-        : null
     const sourceFooter =
-      partnerHttp || verifiedSourceCitation
+      partnerHttp
         ? ''
         : 'No live retailer link this week — figures still come from your saved audit row.'
     const discovery =
@@ -1115,7 +1109,7 @@ export function JourneyBentoCard({
             >
             <SoloFocusMotherStack
               bodyKey={motherShimmerKey}
-              zoneCategoryLabel={zoneCategoryLabel}
+              zoneCategoryLabel={soloFocusTopLabel}
               categoryIsNew={isUnreadCard(soloFocusCardId)}
               headline={recommendationTitle}
               showComputing={showCardComputing}
@@ -1127,7 +1121,6 @@ export function JourneyBentoCard({
                     headline={null}
                     narrative={null}
                     sourceFooter={sourceFooter}
-                    verifiedSourceCitation={verifiedSourceCitation}
                     actionLine={
                       shouldShowSoloFocusArchitectActionLine(architectActionLine, insightDisplay)
                         ? architectActionLine
@@ -1140,8 +1133,9 @@ export function JourneyBentoCard({
                     ctaJourneyId={displayJourneyId as string}
                     ctaLabel={soloHandoff.ctaIsZai ? 'ASK ZAI' : journeyCtaLabel}
                     ctaSurface={currentMorphData?.high_impact ? 'yellow' : 'pink'}
-                    offerProviderName={soloHandoff.ctaUrl ? handoffAttribution.offerProviderName : null}
-                    isLiked={isLiked}
+                    isLiked={(state.likedCards ?? []).includes(
+                      String(activeCardId || cardId || '')
+                    )}
                     isDisliked={(state.dislikedCards ?? []).includes(
                       String(activeCardId || cardId || '')
                     )}

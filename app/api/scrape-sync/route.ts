@@ -65,6 +65,8 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 300
 const SCRAPE_SYNC_MAX_PER_MINUTE = 24
+const SCRAPE_SYNC_PUBLIC_GET_MAX_PER_MINUTE = 10
+const LIKES_POST_MAX_PER_MINUTE = 30
 
 function isValidResearchUserId(v: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.trim())
@@ -377,7 +379,9 @@ async function buildScrapedFromResearchResults(
 /** GET — Return scraped data for dashboard (buildUserImpact options.scraped). Optional ?postcode= triggers fresh regional research. */
 export async function GET(request: NextRequest) {
   const id = getClientIdentifier(request)
-  const { ok, retryAfter } = await checkRateLimitAsync(`scrape-sync:${id}`, SCRAPE_SYNC_MAX_PER_MINUTE)
+  const session = await getSessionFromRequest().catch(() => null)
+  const perMinute = session?.userId ? SCRAPE_SYNC_MAX_PER_MINUTE : SCRAPE_SYNC_PUBLIC_GET_MAX_PER_MINUTE
+  const { ok, retryAfter } = await checkRateLimitAsync(`scrape-sync:${id}`, perMinute)
   if (!ok) {
     return NextResponse.json(
       { error: 'Too many requests' },
@@ -395,7 +399,6 @@ export async function GET(request: NextRequest) {
       high_saving: false,
     }))
   try {
-    const session = await getSessionFromRequest().catch(() => null)
     const sessionUserId = session?.userId ?? null
     const serviceBearer = scrapeSyncBearerMatches(request)
     const researchUserId = resolveResearchUserId(sessionUserId, request, {

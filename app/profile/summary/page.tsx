@@ -25,6 +25,7 @@ import {
 } from '@/lib/geocode/resolvePostcodeLocality'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
+import { isStoredProfileOnboardingComplete } from '@/lib/profile/onboardingComplete'
 import SummaryHeader from '@/app/components/SummaryHeader'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { INDUSTRIAL_OPACITY_SNAP, soloFocusSlamMotionProps } from '@/lib/animations'
@@ -443,6 +444,7 @@ export default function ProfileSummaryPage() {
     if (!mounted) return
     const hasProfile = getProfileFromStorage() ?? state.profile
     if (hasProfile) return
+    if (isStoredProfileOnboardingComplete()) return
     const t = setTimeout(() => router.replace(ROUTES.PROFILE), REDIRECT_NO_PROFILE_MS)
     return () => clearTimeout(t)
   }, [mounted, state.profile, router])

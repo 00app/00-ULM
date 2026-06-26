@@ -19,8 +19,8 @@ export default function ZoneAskZaiDock({ onActivate }: { onActivate: () => void 
     <div className="zone-ask-zai-dock" data-testid="zone-ask-zai-dock">
       <input
         type="text"
-        placeholder="ASK ZAI..."
-        className="zone-ask-zai-pill zone-ask-zai-pill--dock w-full rounded-full border-none outline-none focus:ring-2 focus:ring-[var(--color-yellow)] focus:ring-offset-2 focus:ring-offset-transparent caret-[var(--color-purple)]"
+        placeholder="Ask Zai..."
+        className="zz-zai-composer-input"
         onKeyDown={(e) => {
           if (e.key === 'Enter') onActivate()
         }}

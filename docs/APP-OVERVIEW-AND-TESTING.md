@@ -34,9 +34,10 @@ Zero Zero is a UK postcode-driven energy and lifestyle auditor. A user provides 
 | Zone | `/zone` | Welcome → profile hero → Today's Tips + Rock → Recommendations bento → signup | `GET /api/scrape-sync`, `buildZoneViewModel`, `buildGroovyGridItems` |
 | Solo Focus | Overlay | 1 MC question → answer → result; discovery birth | `POST /api/answers` |
 | Solo Focus close | Lifestyle loop question → short pulse → atomic exit → grid | `DiscoveryTakeover` |
-| Solo Focus like / nope | Offer feedback question → grid or `/likes` | `OfferFeedbackTakeover`, `offer_signals` |
+| Solo Focus like | Card **stays open**; like button selected state; `offer_signals` + snapshot; Zai may route to `/likes` on first like | `SoloFocusActionTrinity`, `trackZoneLike`, `LikesCardActionTrinity` |
+| Solo Focus nope | Offer feedback question → grid; card suppressed | `OfferFeedbackTakeover`, `offer_signals` |
 | Zai | `/zai` | Read-only chat (Gemini); no MC birth | `POST /api/zai` |
-| Likes / Settings | `/likes`, `/settings` | Saved cards, reset, diagnostics | localStorage + session |
+| Likes / Settings | `/likes`, `/settings` | Liked Zone + Zai picks (not actioned); trinity GET/CLAIM/BUY + unlike + done | `AppContext`, `zz_zai_likes`, `likeCardSnapshots` |
 
 **Canonical path:** Profile → Summary → Zone. Session (`POST /api/user`) is required for SMS and full Neon user rows.
 
@@ -311,14 +312,16 @@ npm run zone:audit-gates -- YOURPOSTCODE
 | T9 | MC answer close | Discovery card in tips | `injectNewDiscoveryCard` |
 | T10 | Mobile opt-in | Welcome + tips SMS; URLs topic-aligned | `signupZoneSms` |
 | T11 | Employed user | No means-tested grant tips on Rock | `filterTipsForEmployment` |
-| T12 | Solo Focus **like** | Feedback question → `/likes`; row in Settings | `OfferFeedbackTakeover`, `offer_signals` |
-| T13 | Solo Focus **nope** | Card suppressed on wall; feedback in Settings | `gridOrder`, `offerPreference` |
+| T12 | Solo Focus **like** | Card **remains open**; like circle shows selected colours; row on `/likes` with offer CTA | `SoloFocusActionTrinity`, `LikesCardActionTrinity`, `resolveZaiPickHandoff` |
+| T13 | Solo Focus **nope** | Card closes; feedback question; card suppressed on wall | `OfferFeedbackTakeover`, `gridOrder`, `offerPreference` |
 | T14 | Solo Focus **close (X)** | Lifestyle loop question (not offer feedback) | `DiscoveryTakeover`, `loopQuestions` |
 | T15 | Expand any journey card | No ellipsis in H1 or lead | `isTruncatedSentence` guard |
 | T16 | Expand any journey card | Lead contains town name | `buildAuditorDetectionParagraph` |
 | T17 | Expand Rock tip | Headline is 20–24 words | `headlineFromRockHabit` |
 | T18 | Zone wall section order | After pulse: welcome → profile card → today's tips h3 → Rock → recommendations h3 → category grid → signup; headings **not** inside bento flex | `zone-section-*` testids, `wallSectionsReady` |
 | T19 | Nav links (≥768px) | Zone rail: Likes / Settings / Zai `<Link>` routes return 200 | `ZoneDesktopNavRail`, `floating-nav--zone-rail-desktop` |
+| T20 | `/likes` empty | Title **no likes** only — no intro paragraph | `app/likes/page.tsx` |
+| T21 | `/likes` with picks | Top label + headline + SAVE/CARBON + **GET/CLAIM/BUY** → unlike → done | `LikesCardActionTrinity`, `resolveZaiPickHandoff` |
 
 ### 9.4 What to check when something looks wrong
 
@@ -353,8 +356,10 @@ npm run zone:audit-gates -- YOURPOSTCODE
 | `lib/rock/resolveRockHabitLearnUrl.ts` | Topic-aligned tip URLs |
 | `lib/journeys.ts` | 13×3 question registry |
 | `lib/zone/ulmLimits.ts` | 24 cells, 3 injects/journey |
-| `lib/zone/offerFeedbackLoop.ts` | Like/nope feedback beats + Settings log |
-| `app/components/OfferFeedbackTakeover.tsx` | Post–like/nope one-shot question |
+| `lib/zone/offerFeedbackLoop.ts` | Nope feedback beats + Settings log |
+| `app/components/OfferFeedbackTakeover.tsx` | Post–**nope** one-shot question (like no longer closes Solo Focus) |
+| `app/components/LikesCardActionTrinity.tsx` | Likes wall — offer CTA + unlike + done |
+| `lib/zai/resolveZaiLikeHandoff.ts` | Zai pick BUY/GET/CLAIM + partner URL fallback |
 | `app/components/DiscoveryTakeover.tsx` | Lifestyle loop + clean birth exit |
 
 ---
@@ -365,7 +370,8 @@ npm run zone:audit-gates -- YOURPOSTCODE
 2. Journey mother tiles (13)  
 3. Solo Focus: question → answer → result → optional discovery  
 4. **Close (X):** lifestyle loop question → short pulse (`audit` / `done.`) → atomic shell exit → grid  
-5. **Like / nope:** offer feedback question → atomic exit → grid or `/likes` (disliked cards suppressed)  
+5. **Like:** card stays open — user can still read prose and tap GET/CLAIM/BUY; like recorded to `/likes`  
+6. **Nope:** offer feedback question → atomic exit → grid (disliked cards suppressed)  
 6. Today's Tips (Rock) — visit only, no loop scrape on close  
 7. Mobile signup below Rock when grid collapsed  
 

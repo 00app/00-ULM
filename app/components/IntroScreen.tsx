@@ -135,9 +135,21 @@ export default function IntroScreen() {
       return
     }
     if (step === 'goal') {
+      if (introGoalAlreadySet()) {
+        trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
+        router.replace(ROUTES.PROFILE)
+        return
+      }
       setScreen('goal')
     }
-  }, [])
+  }, [router])
+
+  useEffect(() => {
+    if (screen !== 'goal') return
+    if (!introGoalAlreadySet()) return
+    trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
+    router.replace(ROUTES.PROFILE)
+  }, [screen, router])
 
   useEffect(() => {
     if (typeof window === 'undefined') return

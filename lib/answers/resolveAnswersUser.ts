@@ -7,15 +7,9 @@ import {
 } from '@/lib/auth'
 import pool from '@/lib/db'
 import { readGuestSessionId } from '@/lib/requestAuth'
-import {
-  allowInsecureDevSessionRestore,
-  resolveUserIdFromRestoreProof,
-  verifySessionRestoreProof,
-} from '@/lib/sessionRestoreProof'
+import { resolveUserIdFromRestoreProof } from '@/lib/sessionRestoreProof'
 
 const PROFILE_ONLY_SESSION_DAYS = 7
-const USER_ID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export type ResolvedAnswersUser = {
   userId: string
@@ -24,8 +18,8 @@ export type ResolvedAnswersUser = {
 }
 
 /**
- * Answers writes require a signed-in session or `user_id` + valid `restore_proof`
- * (same bar as POST /api/auth/restore-session). Bare UUID is rejected.
+ * Answers writes require a signed-in session or valid HMAC `restore_proof`.
+ * Bare UUID without proof is rejected.
  */
 export async function resolveAnswersUser(
   request: NextRequest,
@@ -37,16 +31,8 @@ export async function resolveAnswersUser(
 
   const restoreProof =
     typeof body.restore_proof === 'string' ? body.restore_proof.trim() : ''
-
-  const verifiedFromProof = resolveUserIdFromRestoreProof(restoreProof)
-  let userId: string | null = verifiedFromProof
-  if (!userId) {
-    const fromBody = typeof body.user_id === 'string' ? body.user_id.trim() : ''
-    if (!USER_ID_RE.test(fromBody)) return null
-    const devBypass = allowInsecureDevSessionRestore()
-    if (!devBypass && !verifySessionRestoreProof(fromBody, restoreProof)) return null
-    userId = fromBody
-  }
+  const userId = resolveUserIdFromRestoreProof(restoreProof)
+  if (!userId) return null
 
   const found = await pool.query('SELECT id FROM users WHERE id = $1 LIMIT 1', [userId])
   if (!found.rows?.length) return null

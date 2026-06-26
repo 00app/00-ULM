@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import ZoneModalCloseLink from '@/app/components/ZoneModalCloseLink'
 import { useMemo, useState, useEffect } from 'react'
 import { ROUTES } from '@/lib/routes'
@@ -14,16 +13,12 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { motion } from 'framer-motion'
 import {
   familyPageEnterProps,
-  FAMILY_PULSE_TRANSITION,
   FAMILY_TRANSITION_SHORT,
 } from '@/lib/motion-family'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import { readZaiLikes, removeZaiLike } from '@/lib/zai/zaiLikesStorage'
-import {
-  ArrowNEOutlineIcon,
-  CheckOutlineIcon,
-  HeartOutlineIcon,
-} from '@/app/components/ui/MonoStrokeIcons'
+import { resolveZaiPickHandoff, inferZaiCtaLabel } from '@/lib/zai/resolveZaiLikeHandoff'
+import { LikesCardActionTrinity } from '@/app/components/LikesCardActionTrinity'
 import { readLikeCardSnapshot, removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
 
 const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
@@ -84,6 +79,8 @@ export default function LikesPage() {
     return readZaiLikes().filter((z) => likedIds.has(z.id) && !actionedIds.has(z.id))
   }, [state.likedCards, actionedIds])
 
+  const hasLikes = likedCards.length > 0 || likedZaiPicks.length > 0
+
   const handleUnlike = (id: string) => {
     toggleLike(id)
     removeLikeCardSnapshot(id)
@@ -133,19 +130,15 @@ export default function LikesPage() {
       transition={pageEnter.transition}
     >
       <ZoneModalCloseLink />
-      <h3 className="zz-page-title">Likes</h3>
-      <p className="zz-body zz-page-intro" style={{ color: 'var(--color-yellow)', textAlign: 'center' }}>
-        Cards you’ve liked. Unlike, mark as actioned, or open the link.
-      </p>
-      {likedCards.length === 0 && likedZaiPicks.length === 0 ? (
-        <p className="zz-body" style={{ color: 'var(--color-yellow)', textAlign: 'center' }}>No liked cards yet. Like cards from the Zone to see them here.</p>
-      ) : (
+      <h3 className="zz-page-title">{hasLikes ? 'Likes' : 'no likes'}</h3>
+      {hasLikes ? (
         <motion.div className="groovy-zone-grid mx-auto pb-40">
           {likedZaiPicks.map((pick) => {
             const textColor = 'var(--color-yellow)'
             const gbp = parseMoneyGbpFromDisplay(pick.money)
             const kg = parseCarbonKgFromDisplay(pick.carbon)
             const isActioned = actionedIds.has(pick.id)
+            const handoff = resolveZaiPickHandoff(pick, state.profile?.postcode)
             return (
               <article
                 key={pick.id}
@@ -179,26 +172,16 @@ export default function LikesPage() {
                     </span>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-3 items-center">
-                  {pick.sourceUrl ? (
-                    <a href={pick.sourceUrl} target="_blank" rel="noopener noreferrer" className="zz-body underline" style={{ color: textColor }}>
-                      source
-                    </a>
-                  ) : null}
-                  <motion.button
-                    type="button"
-                    className="zz-body zz-family-bloom"
-                    onClick={() => handleUnlike(pick.id)}
-                    style={{ color: textColor, background: 'transparent', border: 'none', cursor: 'pointer' }}
-                    whileTap={{ scale: 1.05 }}
-                    transition={FAMILY_PULSE_TRANSITION}
-                  >
-                    Unlike
-                  </motion.button>
-                  <button type="button" className="zz-body" onClick={() => handleActioned(pick.id)} style={{ color: textColor, opacity: isActioned ? 0.5 : 1 }}>
-                    {isActioned ? 'Actioned' : 'Mark actioned'}
-                  </button>
-                </div>
+                <LikesCardActionTrinity
+                  offerUrl={handoff.offerUrl}
+                  journeyKey={pick.journey_key}
+                  moneyGbp={gbp}
+                  ctaLabel={handoff.ctaLabel}
+                  ctaSurface="pink"
+                  isActioned={isActioned}
+                  onUnlike={() => handleUnlike(pick.id)}
+                  onActioned={() => void handleActioned(pick.id)}
+                />
               </article>
             )
           })}
@@ -217,6 +200,9 @@ export default function LikesPage() {
                   (card.actions as { learnUrl?: string }).learnUrl
                 : undefined)
             const headline = snap?.title?.trim() || card.title
+            const zoneCtaLabel = offerUrl
+              ? inferZaiCtaLabel(journeyKey, headline, offerUrl)
+              : 'CLAIM'
             return (
               <article
                 key={card.id}
@@ -255,82 +241,21 @@ export default function LikesPage() {
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <motion.button
-                    type="button"
-                    className="expanded-view-action-btn zz-family-bloom"
-                    onClick={() => handleUnlike(card.id)}
-                    aria-label="Unlike"
-                    title="Remove from Likes"
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 28,
-                      border: 'none',
-                      background: 'var(--color-pink)',
-                      color: 'var(--color-yellow)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                    whileTap={{ scale: 1.05 }}
-                    transition={FAMILY_PULSE_TRANSITION}
-                  >
-                    <HeartOutlineIcon size={28} />
-                  </motion.button>
-                  <button
-                    type="button"
-                    className="expanded-view-action-btn"
-                    onClick={() => handleActioned(card.id)}
-                    aria-label={isActioned ? 'Unmark as actioned' : 'Mark as actioned'}
-                    title={isActioned ? 'Unmark as actioned' : 'Mark as actioned (Truth Saving)'}
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 28,
-                      border: isActioned ? '2px solid var(--color-purple)' : 'none',
-                      background: isActioned ? 'var(--color-yellow)' : textColor,
-                      color: isActioned ? 'var(--color-purple)' : bg,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <CheckOutlineIcon size={28} />
-                  </button>
-                  {offerUrl && (
-                    <a
-                      href={offerUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="expanded-view-action-btn"
-                      aria-label="Open link"
-                      title="Open link"
-                      style={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: 28,
-                        border: 'none',
-                        background: textColor,
-                        color: bg,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      <ArrowNEOutlineIcon size={28} />
-                    </a>
-                  )}
-                </div>
+                <LikesCardActionTrinity
+                  offerUrl={offerUrl}
+                  journeyKey={journeyKey}
+                  moneyGbp={gbp}
+                  ctaLabel={zoneCtaLabel}
+                  ctaSurface={YELLOW_JOURNEY_IDS.includes(journeyKey) ? 'yellow' : 'pink'}
+                  isActioned={isActioned}
+                  onUnlike={() => handleUnlike(card.id)}
+                  onActioned={() => void handleActioned(card.id)}
+                />
               </article>
             )
           })}
         </motion.div>
-      )}
+      ) : null}
     </motion.div>
   )
 }

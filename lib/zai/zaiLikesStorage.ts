@@ -10,6 +10,8 @@ export type ZaiLikeRecord = {
   money: string
   carbon: string
   sourceUrl?: string
+  offerUrl?: string
+  ctaLabel?: string
 }
 
 export function readZaiLikes(): ZaiLikeRecord[] {

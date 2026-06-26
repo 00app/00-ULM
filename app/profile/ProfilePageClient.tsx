@@ -223,9 +223,14 @@ export default function ProfilePageClient() {
 
   useEffect(() => {
     if (!profileHydrated) return
-    if (!resolveProfileGoal(values)) {
-      router.replace(`${ROUTES.INTRO}?step=goal`)
+    const goal = resolveProfileGoal(values)
+    if (goal) return
+    const storedGoal = readStoredProfileGoal()
+    if (storedGoal) {
+      setValues((prev) => (prev.goal?.trim() ? prev : { ...prev, goal: storedGoal }))
+      return
     }
+    router.replace(`${ROUTES.INTRO}?step=goal`)
   }, [profileHydrated, values, router])
 
   /** Mobile: lift step when software keyboard opens; recenter when it closes. */

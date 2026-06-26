@@ -5,6 +5,8 @@ import type { JourneyId } from '@/lib/journeys'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
 import type { AskZaiContext } from '@/lib/expandStorage'
+import { inferZaiCtaLabel } from '@/lib/zai/resolveZaiLikeHandoff'
+import { pickFirstHttpUrl } from '@/lib/zone/verifiedRevenue'
 
 export type ZaiChatMeta = {
   likeId: string
@@ -12,6 +14,8 @@ export type ZaiChatMeta = {
   savingsGbp: number
   journeyKey: JourneyId | string
   sourceUrl?: string
+  offerUrl?: string
+  ctaLabel?: string
   answerHref?: string
   answerLabel?: string
   showLike: boolean
@@ -93,10 +97,9 @@ export function metaFromAskZaiContext(
     ctx.shift_title?.trim() || ctx.question?.trim() || ctx.category?.trim() || 'zai tip'
   const likeId = zaiLikeIdFromText(`${ctx.category}-${title}`)
   const savingsGbp = Number.parseFloat(ctx.personalSpend.replace(/[^\d.]/g, '')) || 0
-  const sourceUrl =
-    typeof ctx.scraped_source === 'string' && ctx.scraped_source.startsWith('http')
-      ? ctx.scraped_source
-      : undefined
+  const offerUrl = pickFirstHttpUrl(ctx.source_url, ctx.scraped_source)
+  const sourceUrl = offerUrl
+  const ctaLabel = inferZaiCtaLabel(ctx.category, title, offerUrl)
   const profileFallback = findProfileAnswerLink(journeyAnswers)
   const questionLabel = ctx.journey_question_label?.trim()
   const answerLabel = questionLabel
@@ -111,6 +114,8 @@ export function metaFromAskZaiContext(
     savingsGbp,
     journeyKey: ctx.category || 'home',
     sourceUrl,
+    offerUrl,
+    ctaLabel,
     answerHref: answerLabel ? answerHref : undefined,
     answerLabel,
     showLike: true,
@@ -125,7 +130,9 @@ export function metaFromZaiReply(
   const likeTitle = text.split(/[.!?]/)[0]?.trim().slice(0, 100) || 'zai pick'
   const moneyMatch = text.match(/£\s*([\d,]+)/)
   const savingsGbp = moneyMatch ? Number.parseInt(moneyMatch[1]!.replace(/,/g, ''), 10) : 0
-  const sourceUrl = extractFirstHttpsUrl(text)
+  const offerUrl = extractFirstHttpsUrl(text)
+  const sourceUrl = offerUrl
+  const ctaLabel = inferZaiCtaLabel('home', likeTitle, offerUrl)
   const profileLink = findProfileAnswerLink(journeyAnswers)
   return {
     likeId: zaiLikeIdFromText(likeTitle),
@@ -133,8 +140,33 @@ export function metaFromZaiReply(
     savingsGbp: Number.isFinite(savingsGbp) ? savingsGbp : 0,
     journeyKey: 'home',
     sourceUrl,
+    offerUrl,
+    ctaLabel,
     answerHref: profileLink?.href,
     answerLabel: profileLink?.label,
     showLike: true,
+  }
+}
+
+/** Merge Solo Focus / Ask context meta with streamed reply URLs and savings. */
+export function mergeZaiChatMeta(
+  base: ZaiChatMeta | undefined,
+  reply: ZaiChatMeta | undefined
+): ZaiChatMeta | undefined {
+  if (!base && !reply) return undefined
+  if (!base) return reply
+  if (!reply) return base
+  const offerUrl = pickFirstHttpUrl(reply.offerUrl, reply.sourceUrl, base.offerUrl, base.sourceUrl)
+  const journeyKey = base.journeyKey !== 'home' ? base.journeyKey : reply.journeyKey
+  return {
+    ...base,
+    savingsGbp: reply.savingsGbp > 0 ? reply.savingsGbp : base.savingsGbp,
+    journeyKey,
+    sourceUrl: offerUrl ?? base.sourceUrl ?? reply.sourceUrl,
+    offerUrl: offerUrl ?? base.offerUrl ?? reply.offerUrl,
+    ctaLabel: inferZaiCtaLabel(String(journeyKey), base.likeTitle, offerUrl),
+    answerHref: base.answerHref ?? reply.answerHref,
+    answerLabel: base.answerLabel ?? reply.answerLabel,
+    showLike: base.showLike || reply.showLike,
   }
 }

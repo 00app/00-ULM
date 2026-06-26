@@ -207,6 +207,16 @@ Rock habit count does **not** gate the Today's Tips heading — an empty Rock ra
 
 **Navigation (tablet+):** from **768px**, `ZoneDesktopNavRail` shows fixed `<Link>` routes to Zone / Likes / Settings / Zai. Floating nav on Zone is hidden at the same breakpoint (`.floating-nav--zone-rail-desktop` in `app/globals.css`). Below 768px, `AppFloatingNav` handles navigation.
 
+### Likes wall (`/likes`)
+
+| Source | Storage | Wall behaviour |
+|--------|---------|----------------|
+| Zone journey / tip / Rock | `AppContext.likedCards` + `likeCardSnapshots` | SAVE/CARBON from snapshot; GET/CLAIM/BUY from card offer URL |
+| Zai pick | `zz_zai_likes` + `likedCards` id | `resolveZaiPickHandoff` — stored URL or verified partner fallback |
+| Empty state | — | Title **no likes** only (no intro copy) |
+
+Actioned cards vanish from Likes (`/api/actioned`). Unlike removes snapshot + toggles `POST /api/likes`.
+
 ### Bento grid cell order (recommendations wall)
 
 Within the recommendations grid, **`buildGroovyGridItems`** (`lib/zone/gridOrder.ts`) orders cells:
@@ -287,8 +297,9 @@ Rock expand resolves the habit in `app/zone/page.tsx` via `ROCK_BY_SLUG` + `habi
 | **H1 (Marvin)** | **20–24 word** hook — mother: `headlineFromExpandedHook`; Rock: `headlineFromRockHabit` |
 | **Lead (Marvin H4)** | Locality audit opener — **≤30 words**; **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), never raw postcode |
 | **Body** | **Not rendered in UI** (May 2026) — `SoloFocusProseStack` is **lead-only**; £/CO₂e live in the metrics row. Neon `architect_prose` still stored for polish / Zai context paths. |
-| **Metrics** | Mother: verified £ + CO₂e from Neon when settled; Rock: catalog habit row |
-| **Trinity** | Ask Zai → deep dive; Continue in Zai → handoff; RECLAIM / BUY → `MotherCardRenderer` + `IndustrialHandoffButton` |
+| **Metrics** | Mother: verified £ + CO₂e from Neon when settled; Rock: catalog habit row (`StampedMoneyGbp` / `StampedCarbonKg`) |
+| **Top label** | `formatSoloFocusTopCategoryLabel` — e.g. **Home - Energy Saving Trust** when handoff provider known (replaces separate provider line below CTA) |
+| **Trinity** | GET/CLAIM/BUY → like (selected state, card stays open) → ask → nope (closes + feedback) |
 | **Questions** | **One** registry Q per open — zip-shut MC answer → **RESULT**; close → loop question (`DiscoveryTakeover`). **Rock:** close only — no loop, no tip verification |
 
 ### Warm auditor voice (copy — 2026)
@@ -328,7 +339,8 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | `headlineFromRockHabit` | Rock Solo Focus H1 — title + habit insight; pads with `EXPANDED_JOURNEY_HOOK` when &lt;15 words to reach **20–24** |
 | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook for **journey mothers**; strips truncated £ ellipsis; falls back when no verb detected |
 | `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp` | Drop duplicate payoff / repeated blocks before render |
-| `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *optimization plan*, *green funding frameworks*, thin *“Your X is high-value”* |
+| `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *verify the offer before you…*, *publishes guidance on this habit* |
+| `clampWords` / `clampWordsCompleteSentence` | Lead capped at **≤30** words — **complete sentences only** (no mid-thought `…`) |
 | `collapseDuplicateProseParagraphs` | No repeated sentences within a block |
 | `polishTrueTipParagraphsForHeadline` | Dedupe + de-headline-echo on open paragraph |
 | `isRawResearchDump` | Reject tariff/policy blobs |

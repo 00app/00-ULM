@@ -102,26 +102,40 @@ fi
 
 TOKEN=""
 TOKEN_SRC=""
-if [[ -n "${CRON_SECRET_FILE:-}" && -f "${CRON_SECRET_FILE}" ]]; then
+if [[ -n "${SCRAPER_SECRET_FILE:-}" && -f "${SCRAPER_SECRET_FILE}" ]]; then
+  TOKEN="$(tr -d '\n\r' < "${SCRAPER_SECRET_FILE}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  TOKEN_SRC="SCRAPER_SECRET_FILE"
+fi
+for f in "${ENV_FILE}" .env.production.local .env.local; do
+  [[ -n "$TOKEN" ]] && break
+  [[ -n "$f" && -f "$f" ]] || continue
+  v="$(zz_read_env_var "$f" SCRAPER_SECRET || true)"
+  if [[ -n "$v" ]]; then TOKEN="$v"; TOKEN_SRC="$f (SCRAPER_SECRET)"; break; fi
+done
+if [[ -z "$TOKEN" && -n "${SCRAPER_SECRET:-}" ]]; then
+  TOKEN="${SCRAPER_SECRET}"
+  TOKEN_SRC="shell (SCRAPER_SECRET)"
+fi
+if [[ -n "${CRON_SECRET_FILE:-}" && -f "${CRON_SECRET_FILE}" && -z "$TOKEN" ]]; then
   TOKEN="$(tr -d '\n\r' < "${CRON_SECRET_FILE}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-  TOKEN_SRC="CRON_SECRET_FILE"
+  TOKEN_SRC="CRON_SECRET_FILE (legacy fallback — set SCRAPER_SECRET)"
 fi
 for f in "${ENV_FILE}" .env.production.local .env.local; do
   [[ -n "$TOKEN" ]] && break
   [[ -n "$f" && -f "$f" ]] || continue
   v="$(zz_read_env_var "$f" CRON_SECRET || true)"
-  if [[ -n "$v" ]]; then TOKEN="$v"; TOKEN_SRC="$f"; break; fi
+  if [[ -n "$v" ]]; then TOKEN="$v"; TOKEN_SRC="$f (CRON_SECRET legacy — set SCRAPER_SECRET)"; break; fi
 done
 if [[ -z "$TOKEN" && -n "${CRON_SECRET:-}" ]]; then
   TOKEN="${CRON_SECRET}"
-  TOKEN_SRC="shell"
+  TOKEN_SRC="shell (CRON_SECRET legacy — set SCRAPER_SECRET)"
 fi
 
 POSTCODE="${POSTCODE// /}"
 POSTCODE="$(printf '%s' "$POSTCODE" | tr '[:lower:]' '[:upper:]')"
 
 if [[ -z "$TOKEN" || ${#TOKEN} -lt 16 ]]; then
-  echo "Missing CRON_SECRET (≥16 chars)." >&2
+  echo "Missing SCRAPER_SECRET (≥16 chars). CRON_SECRET is for /api/cron/* only." >&2
   exit 1
 fi
 if [[ ${#POSTCODE} -lt 4 ]]; then
