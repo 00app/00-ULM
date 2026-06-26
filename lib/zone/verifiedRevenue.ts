@@ -39,13 +39,28 @@ export function pickFirstHttpUrl(...candidates: Array<string | undefined | null>
   return undefined
 }
 
-export type RevenueCtaKind = 'swap' | 'grant' | 'reclaim'
+export type RevenueCtaKind = 'swap' | 'grant' | 'reclaim' | 'learn' | 'apply' | 'find' | 'view'
 
 export function resolveRevenueCtaLabel(kind: RevenueCtaKind, moneyGbp: number): string {
   void moneyGbp
-  if (kind === 'swap') return 'Get'
-  if (kind === 'grant') return 'Claim'
-  return 'Buy'
+  switch (kind) {
+    case 'swap':
+      return 'Get'
+    case 'grant':
+      return 'Claim'
+    case 'apply':
+      return 'Apply'
+    case 'find':
+      return 'Find'
+    case 'view':
+      return 'Go'
+    case 'learn':
+      return 'Read'
+    case 'reclaim':
+      return moneyGbp >= 120 ? 'Buy' : 'Read'
+    default:
+      return 'Read'
+  }
 }
 
 export function inferRevenueCtaKind(args: {
@@ -56,8 +71,13 @@ export function inferRevenueCtaKind(args: {
 }): RevenueCtaKind {
   const at = args.actionType.toLowerCase()
   if (at === 'switch' || args.needsSwitching) return 'swap'
+  if (at === 'apply') return 'apply'
+  if (at === 'find') return 'find'
+  if (at === 'view') return 'view'
+  if (at === 'buy') return 'reclaim'
+  if (at === 'learn' || !at) return 'learn'
   if (args.journey === 'home' && args.isPriorityHome) return 'grant'
-  return 'reclaim'
+  return 'learn'
 }
 
 export function formatVerifiedSourceNameFromLabel(sourceLabel?: string): string {

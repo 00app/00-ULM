@@ -1,7 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
-import { getSessionFromRequest } from '@/lib/auth'
 import { describeOutboundReadiness } from '@/lib/messaging/outboundGate'
+import {
+  attachSessionCookieToResponse,
+  resolveAnswersUser,
+} from '@/lib/answers/resolveAnswersUser'
 import {
   sendSignupZoneSms,
   type SignupSmsItem,
@@ -98,13 +101,14 @@ function parseSignupPayload(body: unknown): SignupZoneSmsInput & { smsOptIn: boo
  * POST { mobile, sms_opt_in, tips?, recommendations?, userName? } — signed-in users only.
  * SMS sends only when sms_opt_in is true (explicit PECR consent).
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   let body: unknown
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 })
   }
+  const bodyObj = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {}
   const raw =
     typeof body === 'object' && body !== null && typeof (body as { mobile?: unknown }).mobile === 'string'
       ? (body as { mobile: string }).mobile
@@ -133,10 +137,11 @@ export async function POST(req: Request) {
     )
   }
 
-  const session = await getSessionFromRequest()
-  if (!session?.userId) {
+  const auth = await resolveAnswersUser(req, bodyObj)
+  if (!auth?.userId) {
     return NextResponse.json({ error: 'Sign in to save your number and receive SMS' }, { status: 401 })
   }
+  const session = { userId: auth.userId }
 
   const clientId = getClientIdentifier(req)
   const ipLimit = await checkRateLimitAsync(`profile-mobile:ip:${clientId}`, MOBILE_SMS_MAX_PER_IP)
@@ -193,13 +198,17 @@ export async function POST(req: Request) {
 
   const readiness = describeOutboundReadiness()
   if (readiness.status !== 'ready') {
-    return NextResponse.json({
+    const res = NextResponse.json({
       ok: true,
       persisted: true,
       mobile_saved: true,
       mobile_last4: mobileLast4(mobile),
       sms: { sent: false, reason: readiness.reason },
     })
+    if (auth.attachSession) {
+      return attachSessionCookieToResponse(res, auth.userId)
+    }
+    return res
   }
 
   let welcomeSent = false
@@ -212,7 +221,7 @@ export async function POST(req: Request) {
   }
 
   const sms = await sendSignupZoneSms(mobile, { ...payload, userName })
-  return NextResponse.json({
+  const res = NextResponse.json({
     ok: true,
     persisted: true,
     mobile_saved: true,
@@ -228,4 +237,8 @@ export async function POST(req: Request) {
         }
       : { sent: false, reason: sms.reason, detail: sms.detail },
   })
+  if (auth.attachSession) {
+    return attachSessionCookieToResponse(res, auth.userId)
+  }
+  return res
 }

@@ -520,8 +520,13 @@ export default function ZonePage() {
     scrollToSoloFocusReturn(target)
   }, [])
 
+  const loopCompletedJourneyRef = useRef<JourneyId | null>(null)
+  const loopCloseCardIdRef = useRef<string | null>(null)
+  const [pendingLoopSpawnId, setPendingLoopSpawnId] = useState<string | null>(null)
+
   const pinAchievementCard = useCallback((card: ZoneTipCard) => {
     if (!card.achievement_discovery) return
+    setPendingLoopSpawnId(card.id)
     markCardVisited(card.id)
     setInjectedTips((prev) => [...prev.filter((c) => c.id !== card.id), card])
     setPinnedAchievements((prev) => [...prev.filter((c) => c.id !== card.id), card])
@@ -529,8 +534,6 @@ export default function ZonePage() {
     setVmSyncStamp(Date.now())
   }, [])
 
-  const loopCompletedJourneyRef = useRef<JourneyId | null>(null)
-  const loopCloseCardIdRef = useRef<string | null>(null)
   const [visitedCardIds, setVisitedCardIds] = useState<Set<string>>(() => readVisitedCardIds())
 
   const launchPatternShiftTakeover = useCallback(
@@ -624,12 +627,13 @@ export default function ZonePage() {
 
   const completeCleanBirth = useCallback(() => {
     const loopJid = loopCompletedJourneyRef.current
+    const spawnId = pendingLoopSpawnId?.trim() || null
     loopCompletedJourneyRef.current = null
+    setPendingLoopSpawnId(null)
     setPatternShiftJourneyId(null)
     closeAnySoloFocus()
     setExpandedCardId(null)
     setExpandedFromTip(null)
-    setExpandedTipId(null)
     setIsZoneVisible(true)
     setCleanBirthRevealKey((k) => k + 1)
     setRevealedCardCount((n) => Math.max(n, 1 + pinnedAchievements.length))
@@ -648,8 +652,28 @@ export default function ZonePage() {
       }
       setVisitedCardIds(readVisitedCardIds())
     }
+    if (spawnId) {
+      rememberSoloFocusReturn({
+        cardId: spawnId,
+        journeyKey: loopJid ?? 'home',
+        surface: 'discovery',
+      })
+      if (openSoloFocus(spawnId, 'discovery')) {
+        setExpandedTipId(spawnId)
+        return
+      }
+    }
+    setExpandedTipId(null)
     returnToSoloFocusOrigin()
-  }, [closeAnySoloFocus, pinnedAchievements.length, viewModel.journeys, returnToSoloFocusOrigin])
+  }, [
+    closeAnySoloFocus,
+    pendingLoopSpawnId,
+    pinnedAchievements.length,
+    viewModel.journeys,
+    returnToSoloFocusOrigin,
+    openSoloFocus,
+    rememberSoloFocusReturn,
+  ])
 
   /** Set synchronously before expand setState so the recovery guard does not close Solo Focus mid-open. */
   const soloFocusExpandIntentRef = useRef<string | null>(null)

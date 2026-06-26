@@ -8817,6 +8817,22 @@ html.zz-zai-document body {
   color: var(--color-purple);
 }
 
+/* Settings focus row — same horizontal circle row as intro/profile (not stacked). */
+.settings-page .settings-focus-controls,
+.settings-page .profile-step-controls--options.settings-focus-controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.65rem;
+  width: 100%;
+  margin-top: 0.75rem;
+}
+.settings-page .settings-focus-controls .profile-answer-btn {
+  flex: 0 0 auto;
+}
+
 .progress-bar-wrap {
   position: absolute;
   top: 3px;

@@ -80,7 +80,7 @@ export function proseViolatesJourneyCategory(journey: JourneyId, prose: string):
 }
 
 const BOILERPLATE_PROSE_RE =
-  /\b(?:open the verified source(?:\s+link)?\s+below to complete this action(?:\s+and lock in the saving)?|open the verified source to complete this action|use the link below to execute the verified offer|use the primary action below to claim|use the verified source to execute the action plan|execute the audited step|we treat the ~£|optimization plan|green funding frameworks)\b/i
+  /\b(?:open the verified source(?:\s+link)?\s+below to complete this action(?:\s+and lock in the saving)?|open the verified source to complete this action|open the verified regulator advice link below|use the link below to execute the verified offer|use the primary action below to claim|use the verified source to execute the action plan|execute the audited step|advice link below and confirm|regulator advice link|we treat the ~£|optimization plan|green funding frameworks)\b/i
 
 function stripBoilerplateFromParagraph(paragraph: string): string {
   const sentences = paragraph

@@ -161,31 +161,50 @@ export function DiscoveryTakeover({
         const fallbackTitle = headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
         const fallbackUrl = rec.actionUrl ?? rec.learnUrl ?? rec.ctaUrl ?? null
 
-        void fetch('/api/answers', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            journey_key: journeyId,
-            question_id: beat.questionId,
-            answer_value: answerValue,
-            postcode: pc || undefined,
-            lifestyle_mode: 'lifestyle_shift',
-            ...(restoreProof ? { restore_proof: restoreProof } : {}),
-          }),
-        }).catch(() => {})
+        let serverCard: ZoneTipCard | null = null
+        try {
+          const answersRes = await fetch('/api/answers', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              journey_key: journeyId,
+              question_id: beat.questionId,
+              answer_value: answerValue,
+              postcode: pc || undefined,
+              lifestyle_mode: 'lifestyle_shift',
+              ...(restoreProof ? { restore_proof: restoreProof } : {}),
+            }),
+          })
+          if (answersRes.ok) {
+            const data = (await answersRes.json()) as {
+              discovery?: { new_card_data?: unknown }
+              grid_pulse_card?: unknown
+            }
+            const raw = data.discovery?.new_card_data ?? data.grid_pulse_card
+            if (raw) {
+              const injected = injectNewDiscoveryCard(raw)
+              if (injected) serverCard = injected
+            }
+          }
+        } catch {
+          /* fall back to client recommendation */
+        }
 
-        const optimistic = birthAchievementCard(
-          {
-            journeyId,
-            questionId: beat.questionId,
-            answerValue,
-            title: fallbackTitle,
-            body: rec.body,
-            offerUrl: fallbackUrl,
-          },
-          onAchievementCard
-        )
+        const optimistic =
+          serverCard ??
+          birthAchievementCard(
+            {
+              journeyId,
+              questionId: beat.questionId,
+              answerValue,
+              title: fallbackTitle,
+              body: rec.body,
+              offerUrl: fallbackUrl,
+            },
+            onAchievementCard
+          )
+        if (serverCard) onAchievementCard?.(serverCard)
         if (optimistic) setCardReady(true)
 
         if (pc.length >= 4) {

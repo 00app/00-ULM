@@ -142,6 +142,7 @@ export default function ProfilePageClient() {
   }, [])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submittingRef = useRef(false)
+  const advancingRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const houseNumberRef = useRef<HTMLInputElement>(null)
   const hydratedRef = useRef(false)
@@ -664,31 +665,60 @@ export default function ProfilePageClient() {
     return (values[current?.id ?? ''] ?? '').trim()
   }, [current, values])
 
+  const commitInputStep = useCallback(() => {
+    if (!current || advancingRef.current || submittingRef.current || isSubmitting) return
+    advancingRef.current = true
+
+    let nextValues: Record<string, string>
+    if (current.id === 'postcode') {
+      const trimmedPc = (inputRef.current?.value ?? values.postcode ?? '').trim()
+      const compact = trimmedPc.replace(/\s+/g, '').toUpperCase()
+      if (!isValidUkPostcode(compact)) {
+        advancingRef.current = false
+        return
+      }
+      const trimmedHouse = (houseNumberRef.current?.value ?? values.houseNumber ?? '').trim()
+      inputRef.current?.blur()
+      houseNumberRef.current?.blur()
+      recenterProfileStep()
+      nextValues = {
+        ...values,
+        postcode: checkUkPostcode(compact).normalized,
+        houseNumber: trimmedHouse,
+      }
+    } else {
+      const trimmed = readLiveFieldValue()
+      if (current.type === 'input' && !trimmed) {
+        advancingRef.current = false
+        return
+      }
+      inputRef.current?.blur()
+      recenterProfileStep()
+      nextValues = { ...values, [current.id]: trimmed }
+    }
+
+    flushSync(() => {
+      persistStepValues(nextValues)
+    })
+    advanceProfileStep(nextValues)
+    advancingRef.current = false
+  }, [
+    current,
+    values,
+    isSubmitting,
+    readLiveFieldValue,
+    recenterProfileStep,
+    persistStepValues,
+    advanceProfileStep,
+  ])
+
   const handleNext = useCallback(() => {
-    if (!current || submittingRef.current || isSubmitting) return
-    const trimmed = readLiveFieldValue()
-    if (current.type === 'input' && !trimmed) return
-    inputRef.current?.blur()
-    recenterProfileStep()
-    advanceProfileStep({ ...values, [current.id]: trimmed })
-  }, [current, values, isSubmitting, advanceProfileStep, readLiveFieldValue, recenterProfileStep])
+    commitInputStep()
+  }, [commitInputStep])
 
   const handlePostcodeContinue = useCallback(() => {
-    if (!current || current.id !== 'postcode' || submittingRef.current || isSubmitting) return
-    const trimmedPc = (inputRef.current?.value ?? values.postcode ?? '').trim()
-    const compact = trimmedPc.replace(/\s+/g, '').toUpperCase()
-    if (!isValidUkPostcode(compact)) return
-    const trimmedHouse = (houseNumberRef.current?.value ?? values.houseNumber ?? '').trim()
-    inputRef.current?.blur()
-    houseNumberRef.current?.blur()
-    recenterProfileStep()
-    const normalized = checkUkPostcode(compact).normalized
-    advanceProfileStep({
-      ...values,
-      postcode: normalized,
-      houseNumber: trimmedHouse,
-    })
-  }, [current, values, isSubmitting, advanceProfileStep, recenterProfileStep])
+    commitInputStep()
+  }, [commitInputStep])
 
   if (!current) return null
 
@@ -855,17 +885,7 @@ export default function ProfilePageClient() {
                 delaySeconds={familyControlDelaySec(0)}
                 className=""
                 disabled={isSubmitting || (current.id === 'postcode' && !postcodeFormatValid)}
-                onClick={() => {
-                  if (current.id === 'postcode') {
-                    handlePostcodeContinue()
-                    return
-                  }
-                  const trimmed = readLiveFieldValue()
-                  if (!trimmed || isSubmitting) return
-                  inputRef.current?.blur()
-                  recenterProfileStep()
-                  advanceProfileStep({ ...values, [current.id]: trimmed })
-                }}
+                onClick={commitInputStep}
                 aria-label="Continue"
               >
                 <span className="profile-answer-btn__text zz-h4">CONTINUE</span>

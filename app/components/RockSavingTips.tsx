@@ -19,6 +19,8 @@ import { ROUTES } from '@/lib/routes'
 import { HumanCheckTurnstile } from '@/app/components/HumanCheckTurnstile'
 import { turnstileSiteKey } from '@/lib/security/botGuard'
 import { isValidUkMobileInput } from '@/lib/messaging/ukMobile'
+import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
+import { readSessionRestoreProof } from '@/lib/client/sessionRestoreProofStorage'
 
 /** Industrial lock: Tips/settings are pink base with yellow items. */
 const ROCK_CARD_BG = 'var(--color-pink)' as const
@@ -85,21 +87,42 @@ export function RockMobileSignupCard({
     setSignupBusy(true)
     setSignupMsg(null)
     try {
-      const res = await fetch('/api/profile/mobile', {
+      await ensureProfileSession()
+      const restoreProof = readSessionRestoreProof()
+
+      const postBody = {
+        mobile: raw,
+        sms_opt_in: true,
+        ...(honeypot.trim() ? { company_fax: honeypot.trim() } : {}),
+        ...(humanToken ? { turnstile_token: humanToken } : {}),
+        ...(userName?.trim() ? { userName: userName.trim() } : {}),
+        ...(tips?.length ? { tips: [...tips] } : {}),
+        ...(tipSlugs?.length ? { tipSlugs: [...tipSlugs] } : {}),
+        ...(recommendations?.length ? { recommendations: [...recommendations] } : {}),
+        ...(restoreProof ? { restore_proof: restoreProof } : {}),
+      }
+
+      let res = await fetch('/api/profile/mobile', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mobile: raw,
-          sms_opt_in: true,
-          ...(honeypot.trim() ? { company_fax: honeypot.trim() } : {}),
-          ...(humanToken ? { turnstile_token: humanToken } : {}),
-          ...(userName?.trim() ? { userName: userName.trim() } : {}),
-          ...(tips?.length ? { tips: [...tips] } : {}),
-          ...(tipSlugs?.length ? { tipSlugs: [...tipSlugs] } : {}),
-          ...(recommendations?.length ? { recommendations: [...recommendations] } : {}),
-        }),
+        body: JSON.stringify(postBody),
       })
+      if (res.status === 401) {
+        const restored = await ensureProfileSession()
+        if (restored) {
+          const retryProof = readSessionRestoreProof()
+          res = await fetch('/api/profile/mobile', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...postBody,
+              ...(retryProof ? { restore_proof: retryProof } : {}),
+            }),
+          })
+        }
+      }
       const data = (await res.json().catch(() => null)) as {
         ok?: boolean
         error?: string
@@ -149,6 +172,16 @@ export function RockMobileSignupCard({
           title: 'welcome text sent',
           subtitle: 'check your messages',
         })
+      } else if (data.sms?.sent === false) {
+        setSignupMsg(
+          data.sms.reason === 'missing_credentials' ||
+            data.sms.reason === 'missing_from_number' ||
+            data.sms.reason === 'messaging_disabled'
+            ? 'number saved — texts are warming up. try again in a minute.'
+            : data.sms.reason === 'send_failed'
+              ? 'number saved — text failed to send. try again.'
+              : 'number saved — we could not send a text right now. try again.'
+        )
       } else {
         setSmsSuccess({
           title: "you're signed up",
@@ -219,7 +252,16 @@ export function RockMobileSignupCard({
             >
               <span className="zz-h4 rock-mobile-send-label">send</span>
             </button>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              className="rock-mobile-send-btn"
+              disabled
+              aria-label="Enter a valid UK mobile number"
+            >
+              <span className="zz-h4 rock-mobile-send-label">send</span>
+            </button>
+          )}
         </div>
         {humanCheckRequired ? (
           <>

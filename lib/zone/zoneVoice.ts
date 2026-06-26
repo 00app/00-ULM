@@ -34,6 +34,10 @@ export const FORENSIC_MATE_BANNED_PHRASES = [
   'verify the offer',
   'before you commit spend',
   'publishes guidance on this habit',
+  'execute the audited step',
+  'advice link below',
+  'regulator advice',
+  'confirm your supplier',
 ] as const
 
 /** Single line for LLM system prompts (Content Architect, research triplet). */

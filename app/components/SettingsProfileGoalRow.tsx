@@ -54,7 +54,6 @@ export default function SettingsProfileGoalRow({ onChange }: SettingsProfileGoal
     <SettingsBentoCard label="Your focus" headline={activeLabel}>
       <div
         className="profile-step-controls profile-step-controls--options settings-focus-controls"
-        style={{ marginTop: '0.75rem', justifyContent: 'flex-start', flexWrap: 'wrap', gap: '0.65rem' }}
         role="group"
         aria-label="Change your focus"
       >

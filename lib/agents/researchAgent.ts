@@ -1266,12 +1266,12 @@ function mechanicalCategoryTripletFallback(params: {
       home: {
         gbp: 180,
         headline: `Home heat audit ${areaTag}`,
-        prose: `Older homes in ${areaLabel} leak heat through lofts, draughts, and lagging gaps — sealing those cuts bills before you chase a new boiler.\n\nJuly 2026 bills still track the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel) so every wasted kWh hurts until fabric is fixed.\n\nExecute the audited step in the CTA — Energy Saving Trust advice link below and plan loft and draught-proofing work before winter.`,
+        prose: `Older homes in ${areaLabel} leak heat through lofts, draughts, and lagging gaps — sealing those cuts bills before you chase a new boiler.\n\nJuly 2026 bills still track the energy price cap (~£${capTypical}/yr typical dual-fuel) so every wasted kWh hurts until fabric is fixed.\n\nUse the link below to plan loft and draught-proofing work before winter.`,
       },
       utilities: {
         gbp: 120,
         headline: `April cap signal ${areaTag}`,
-        prose: `${areaLabel} sits under the July 2026 Ofgem price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£120 dual-fuel standing-charge and direct-debit realignment as the immediate target before locking a fixed tariff.\n\nExecute the audited step in the CTA — Ofgem advice portal below to confirm your supplier statement matches the cap rates before you make any switch.`,
+        prose: `${areaLabel} sits under the July 2026 price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nStanding charges and direct-debit realignment are the immediate levers before locking a fixed tariff.\n\nUse the link below to check your supplier statement matches cap rates before you switch.`,
       },
       grants: {
         gbp: MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP,
@@ -1281,7 +1281,7 @@ function mechanicalCategoryTripletFallback(params: {
       solar: {
         gbp: 450,
         headline: `Solar export audit ${areaTag}`,
-        prose: `Solar in ${areaLabel} pays when generation, export rate, and daytime use align — typical homes cut import costs once an MCS install is sized to the roof.\n\nJuly 2026 import rates still follow the Ofgem cap frame (~£${capTypical}/yr typical dual-fuel), so export and self-use matter for what you buy overnight.\n\nExecute the audited step in the CTA — MCS certified installer directory below and compare export tariffs with your supplier before you lock an install quote.`,
+        prose: `Solar in ${areaLabel} pays when generation, export rate, and daytime use align — typical homes cut import costs once an MCS install is sized to the roof.\n\nJuly 2026 import rates still follow the price-cap frame (~£${capTypical}/yr typical dual-fuel), so export and self-use matter for what you buy overnight.\n\nUse the link below to compare export tariffs with your supplier before you lock an install quote.`,
       },
       travel: {
         gbp: 450,
@@ -1291,42 +1291,42 @@ function mechanicalCategoryTripletFallback(params: {
       holidays: {
         gbp: 250,
         headline: `Holiday flight audit ${areaTag}`,
-        prose: `Holidays from ${areaLabel} carry heavy footprint liabilities. Changing flight frequencies and selecting rail over short flights is a highly effective carbon protection.\n\nWe treat the ~£250 flight frequency reduction as the baseline to hedge against rising airline carbon taxes and seasonal fuel surcharges.\n\nExecute the audited step in the CTA — flight carbon comparison tool below and evaluate your footprint before choosing your next destination.`,
+        prose: `Holidays from ${areaLabel} carry a heavy footprint — fewer flights and rail over short hops cuts both kg and spend.\n\nOne less return flight a year often saves hundreds before airline surcharges climb again.\n\nUse the link below to compare flight vs rail for your next break before you book.`,
       },
       food: {
         gbp: 180,
         headline: `Food budget audit ${areaTag}`,
-        prose: `Food budgets in ${areaLabel} show substantial packaging and food waste overheads. Shifting to localized basket plans secures kitchen-table savings.\n\nWe treat the ~£180 food optimization path as the baseline for adopting a low-waste, plant-rich diet aligned with local outlets.\n\nExecute the audited step in the CTA — Love Food Hate Waste portal below and check their meal planners to optimize your weekly shopping list.`,
+        prose: `Food budgets in ${areaLabel} leak cash through packaging and waste — a tighter weekly basket plan lands savings at the till.\n\nLow-waste, plant-rich meals aligned with local shops often trim ~£180/yr without a loyalty gimmick.\n\nUse the link below to try a meal planner and cut what you throw away each week.`,
       },
       shopping: {
         gbp: 110,
         headline: `Shopping savings audit ${areaTag}`,
-        prose: `Shopping habits in ${areaLabel} reveal significant savings from adopting a repair-over-replace circular economy mindset for home goods and fashion.\n\nWe treat the ~£110 circular economy purchase shifts as the baseline for avoiding high-waste retail channels and fast-fashion outlets.\n\nExecute the audited step in the CTA — circular economy directory below and locate repair shops or low-waste retailers operating near you.`,
+        prose: `Shopping in ${areaLabel} rewards repair-over-replace — second-hand and fix-it shops beat fast-fashion churn on both £ and kg.\n\nShifting a few purchases to circular outlets can move ~£110/yr without changing your whole wardrobe.\n\nUse the link below to find repair shops or low-waste retailers near you.`,
       },
       money: {
         gbp: 320,
-        headline: `Green money audit ${areaTag}`,
-        prose: `Money and finance choices in ${areaLabel} shape structural footprint leakage. Moving cash balances to clean green accounts hedges capital liabilities.\n\nWe treat the ~£320 green investment shift as the baseline for using low-carbon ISAs or green bonds that offer stable yields without oil funding.\n\nExecute the audited step in the CTA — green finance comparison directory below and review certified clean banking options for UK savers.`,
+        headline: `Household spending ${areaTag}`,
+        prose: `Where you bank and save in ${areaLabel} still funds oil and gas unless you pick cleaner accounts.\n\nGreen ISAs and certified banks can move ~£320/yr of footprint without giving up yield entirely.\n\nUse the link below to compare greener banking options before you move cash.`,
       },
       tech: {
         gbp: 140,
         headline: `Tech efficiency audit ${areaTag}`,
-        prose: `Tech solutions in ${areaLabel}, including smart meters and automated smart thermostats, offer rapid bill protection under the April 2026 cap frame.\n\nWe treat the ~£140 smart-home heating precision plan as the baseline to avoid heating empty rooms or running inefficient boilers.\n\nExecute the audited step in the CTA — smart energy advice portal below and see if your supplier offers free smart meter installations locally.`,
+        prose: `Smart meters and thermostats in ${areaLabel} trim bills fast under the April 2026 cap frame.\n\nHeating empty rooms or running an old boiler quietly adds ~£140/yr — timers and zoning fix that.\n\nUse the link below to see if your supplier offers free smart meter installs locally.`,
       },
       water: {
         gbp: 90,
         headline: `Water conservation ${areaTag}`,
-        prose: `Water billing in ${areaLabel} is subject to rising sewage and metered tariff hikes, making local conservation highly profitable.\n\nWe treat the ~£90 rainwater butt and shower aeration plan as the baseline to reduce household metered volume charges.\n\nExecute the audited step in the CTA — water company advice directory below to claim free water-saving tap inserts and shower heads.`,
+        prose: `Water bills in ${areaLabel} keep rising on sewage and metered tariffs — conservation pays back quickly.\n\nRain butts and shower aerators can shave ~£90/yr off metered volume.\n\nUse the link below to claim free water-saving inserts from your water company.`,
       },
       waste: {
         gbp: 70,
         headline: `Waste reduction ${areaTag}`,
-        prose: `Waste management in ${areaLabel} is governed by local council landfill rules. Active soft-plastic sorting and home composting secures easy environmental wins.\n\nWe treat the ~£70 waste sorting and composting habit shift as the baseline to optimize organic waste separation and circular disposal.\n\nExecute the audited step in the CTA — local waste recycling directory below and confirm the collection dates and rules for your neighborhood.`,
+        prose: `Waste rules in ${areaLabel} follow local council collections — sorting soft plastics and composting cuts landfill trips.\n\nA steady compost and recycling habit can save ~£70/yr in bags, trips, and contamination fines.\n\nUse the link below to confirm collection dates and rules for your street.`,
       },
       carbon: {
         gbp: 100,
         headline: `Carbon reduction ${areaTag}`,
-        prose: `Carbon footprint tracking in ${areaLabel} aligns with the 12,000 kWh / 1 tonne baseline, acting as an early protection system against future green levies.\n\nWe treat the ~£100 carbon reduction plan as the baseline for tracking daily energy inputs and eliminating non-essential household footprints.\n\nExecute the audited step in the CTA — UK carbon calculator below and audit your family footprint against the national transition timeline.`,
+        prose: `Carbon tracking in ${areaLabel} maps to the 12,000 kWh ≈ 1 tonne baseline — small daily cuts compound.\n\nLogging heat, travel, and food for a fortnight often finds ~£100/yr of easy wins.\n\nUse the link below to run your household footprint against the national timeline.`,
       },
     }
 
@@ -1385,7 +1385,7 @@ function mechanicalCategoryTripletFallback(params: {
       ) || `APRIL CAP SIGNAL ${areaTag}`
     const architect_prose =
       normalizeArchitectProseThreeParagraphs(
-        `${areaLabel} sits under the July 2026 Ofgem price-cap frame — typical dual-fuel around £${TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nWe treat the ~£${gbp} green-levy movement and standing-charge maths as the audit signal, not generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nExecute the audited step in the CTA — Ofgem household advice link below and confirm your supplier statement matches the cap period before you switch.`
+        `${areaLabel} sits under the July 2026 price-cap frame — typical dual-fuel around £${TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nGreen-levy movement and standing-charge maths matter more than generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nUse the link below to check your supplier statement matches the cap period before you switch.`
       ) ?? ''
     if (!architect_prose) return null
     return {
