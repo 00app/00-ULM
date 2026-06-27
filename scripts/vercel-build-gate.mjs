@@ -24,4 +24,14 @@ console.log('→ vercel-build-gate: lint')
 run(process.execPath, [vercelCheck, 'lint'])
 
 console.log('✓ verify passed — starting production build')
+console.log('')
+console.log(
+  'ℹ Serial lint/typecheck passed in this build. If the Vercel dashboard still shows'
+)
+console.log(
+  '  Checks Failed (Staged), that is the separate Deployment Checks layer — not this log.'
+)
+console.log('  Fix once: Settings → Deployment Checks → remove native Lint/Typecheck.')
+console.log('  Then: npm run diagnose:vercel-checks  or  docs/DEPLOY-VERCEL.md')
+console.log('')
 run(process.execPath, [buildScript], process.env)

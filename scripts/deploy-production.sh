@@ -25,11 +25,7 @@ if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
   exit 1
 fi
 
-echo "→ Guard: native Vercel lint/typecheck script names must stay disabled…"
-npm run fix:vercel-checks
-
-echo "→ Local verify (typecheck + lint — also runs at start of vercel.json buildCommand)…"
-npm run verify
+bash "${ROOT}/scripts/pre-deploy-guard.sh"
 
 # Never upload stale .vercel/output — remote build runs install + verify + next build.
 rm -rf .vercel/output

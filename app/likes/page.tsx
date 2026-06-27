@@ -123,16 +123,25 @@ export default function LikesPage() {
         background: 'unset',
         color: 'var(--color-yellow)',
         minHeight: '100vh',
-        paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))',
       }}
       initial={pageEnter.initial}
       animate={pageEnter.animate}
       transition={pageEnter.transition}
     >
       <ZoneModalCloseLink />
-      <h3 className="zz-page-title">{hasLikes ? 'Likes' : 'no likes'}</h3>
+
+      <div className="settings-heading-wrap">
+        <h3 className="zz-page-title">{hasLikes ? 'Likes' : 'no likes'}</h3>
+      </div>
+
       {hasLikes ? (
-        <motion.div className="groovy-zone-grid mx-auto pb-40">
+        <div className="settings-grid-wrap">
+          <motion.div
+            className="settings-answer-grid likes-answer-grid"
+            initial={pageEnter.initial}
+            animate={pageEnter.animate}
+            transition={FAMILY_TRANSITION_SHORT}
+          >
           {likedZaiPicks.map((pick) => {
             const textColor = 'var(--color-yellow)'
             const gbp = parseMoneyGbpFromDisplay(pick.money)
@@ -142,16 +151,14 @@ export default function LikesPage() {
             return (
               <article
                 key={pick.id}
-                className="bento-card-groovy zz-family-bloom"
+                className="settings-card-cell likes-card-cell"
+              >
+              <div
+                className="bento-card-groovy likes-bento-card zz-family-bloom flex flex-col justify-between w-full h-full"
                 style={{
-                  width: '100%',
-                  borderRadius: 60,
                   background: 'var(--color-pink)',
                   color: textColor,
                   ['--color-ink' as string]: textColor,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 16,
                 }}
               >
                 <span className="card-top-label" style={{ color: textColor }}>ZAI PICK</span>
@@ -182,6 +189,7 @@ export default function LikesPage() {
                   onUnlike={() => handleUnlike(pick.id)}
                   onActioned={() => void handleActioned(pick.id)}
                 />
+              </div>
               </article>
             )
           })}
@@ -206,17 +214,15 @@ export default function LikesPage() {
             return (
               <article
                 key={card.id}
-                className="bento-card-groovy zz-family-bloom zone-bento-card"
+                className="settings-card-cell likes-card-cell"
+              >
+              <div
+                className="bento-card-groovy likes-bento-card zz-family-bloom zone-bento-card flex flex-col justify-between w-full h-full"
                 style={{
-                  width: '100%',
-                  borderRadius: 60,
                   background: bg,
                   color: textColor,
                   ['--color-ink' as string]: textColor,
                   boxShadow: 'none',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 16,
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -251,10 +257,12 @@ export default function LikesPage() {
                   onUnlike={() => handleUnlike(card.id)}
                   onActioned={() => void handleActioned(card.id)}
                 />
+              </div>
               </article>
             )
           })}
-        </motion.div>
+          </motion.div>
+        </div>
       ) : null}
     </motion.div>
   )
