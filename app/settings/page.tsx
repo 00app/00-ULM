@@ -6,7 +6,7 @@ import ZoneBackToZoneLink from '@/app/components/ZoneBackToZoneLink'
 import { useRouter } from 'next/navigation'
 import { useApp, type ProfileAge } from '@/app/context/AppContext'
 import { motion } from 'framer-motion'
-import { JOURNEY_ORDER, JOURNEYS, getFunkyOptionDisplay, type JourneyId } from '@/lib/journeys'
+import { JOURNEY_ORDER, JOURNEYS, getOptionFullLabel, type JourneyId } from '@/lib/journeys'
 import { readLoopAnswersForSettings } from '@/lib/zone/loopQuestions'
 import { readOfferFeedbackForSettings } from '@/lib/zone/offerFeedbackLoop'
 import { ROUTES } from '@/lib/routes'
@@ -20,8 +20,8 @@ import {
   FAMILY_TRANSITION_ATOMIC,
 } from '@/lib/motion-family'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
-import { SoloFocusOverlay } from '@/app/components/SoloFocusOverlay'
 import { SettingsLoopEditOverlay } from '@/app/components/SettingsLoopEditOverlay'
+import { SettingsJourneyEditOverlay } from '@/app/components/SettingsJourneyEditOverlay'
 import type { LoopAnswerSettingsRow } from '@/lib/zone/loopQuestions'
 import { buildZoneViewModel } from '@/lib/logic/zone'
 import { useCountUp } from '@/lib/utils/useCountUp'
@@ -29,7 +29,7 @@ import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { ResetDataCircleButton } from '@/app/components/ResetDataCircleButton'
-import SettingsBentoCard from '@/app/components/SettingsBentoCard'
+import SettingsBentoCard, { SettingsJourneyFactRow } from '@/app/components/SettingsBentoCard'
 import SettingsProfileGoalRow from '@/app/components/SettingsProfileGoalRow'
 import { readEffectiveProfileGoal } from '@/lib/profile/profileGoalPreference'
 
@@ -64,7 +64,8 @@ const PROFILE_FIELD_META: Array<{
 function formatProfilePreviewValue(key: ProfileStorageKey, raw: string): string {
   const v = raw.trim()
   if (!v) return ''
-  return getFunkyOptionDisplay(v) || v
+  if (key === 'name' || key === 'postcode') return v
+  return getOptionFullLabel(v)
 }
 
 /** Pin drop — Update location */
@@ -223,7 +224,7 @@ export default function SettingsPage() {
         const answers: { question: string; answer: string }[] = []
         def.questions.forEach((q) => {
           const v = ans[q.id]?.trim()
-          if (v) answers.push({ question: SHORT_QUESTION_LABELS[q.id] || q.label, answer: getFunkyOptionDisplay(v) || v })
+          if (v) answers.push({ question: SHORT_QUESTION_LABELS[q.id] || q.label, answer: getOptionFullLabel(v) })
         })
         if (answers.length > 0) cards.push({ journey: jid as JourneyId, title: def.name, answers })
       } catch {
@@ -450,13 +451,20 @@ export default function SettingsPage() {
                   className="bento-card-groovy settings-bento-card settings-card-bento settings-journey-card-shell flex flex-col justify-between w-full h-full"
                   style={{ backgroundColor: 'var(--color-pink)', color: 'var(--color-yellow)' }}
                 >
-                  <div className="settings-headline-only-row flex items-start justify-between gap-2 w-full shrink-0">
-                    <h3 className="card-headline m-0 flex-1 min-w-0">
-                      {[card.title.toUpperCase(), ...card.answers.map((ans) => (getFunkyOptionDisplay(ans.answer) || ans.answer).toUpperCase())].join(' · ')}
-                    </h3>
+                  <div className="flex items-center justify-between w-full shrink-0">
+                    <span className="card-top-label">{card.title}</span>
                     <div className="card-top-arrow card-top-arrow--action flex items-center justify-center flex-shrink-0" aria-hidden>
                       <PencilIcon />
                     </div>
+                  </div>
+                  <div className="flex flex-col gap-2 settings-journey-answers">
+                    {card.answers.map((ans, idx) => (
+                      <SettingsJourneyFactRow
+                        key={`${card.journey}-${idx}`}
+                        label={ans.question}
+                        value={ans.answer}
+                      />
+                    ))}
                   </div>
                 </div>
               </motion.div>
@@ -470,30 +478,16 @@ export default function SettingsPage() {
           <SettingsLoopEditOverlay
             row={activeLoopEdit}
             onClose={() => setActiveLoopEdit(null)}
-            onSaved={() => {
-              setRefreshKey((k) => k + 1)
-              void import('@/lib/sessionStateSync').then((m) => m.syncSessionState())
-            }}
           />
         ) : null}
 
-        {activeJourneyEdit && (
-          <SoloFocusOverlay
-            key={`edit-${activeJourneyEdit.id}`}
-            category={activeJourneyEdit.title}
-            recommendation="Edit"
-            insight=""
-            moneyValue="0"
-            carbonValue="0"
-            onClose={() => setActiveJourneyEdit(null)}
+        {activeJourneyEdit ? (
+          <SettingsJourneyEditOverlay
             journeyId={activeJourneyEdit.id}
-            onJourneyAnswered={() => {
-              setRefreshKey((k) => k + 1)
-              import('@/lib/sessionStateSync').then((m) => m.syncSessionState())
-            }}
-            startInQuestionMode={true}
+            title={activeJourneyEdit.title}
+            onClose={() => setActiveJourneyEdit(null)}
           />
-        )}
+        ) : null}
       </>
 
       {profileRows.length === 0 && loopRows.length === 0 && journeyCardsData.length === 0 && (

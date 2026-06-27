@@ -1,18 +1,13 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
-import type { JourneyId } from '@/lib/journeys'
-import {
-  getLoopBeatByQuestionId,
-  loopQuestionDisplayText,
-  type LoopAnswerSettingsRow,
-} from '@/lib/zone/loopQuestions'
-import { persistLoopAnswerLocal } from '@/lib/zone/loopMemory'
-import { syncSessionState } from '@/lib/sessionStateSync'
+import { getJourneyQuestions, type JourneyId } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
+import { useApp } from '@/app/context/AppContext'
+import { syncSessionState } from '@/lib/sessionStateSync'
 import { submitSoloFocusJourneyAnswer } from '@/lib/zone/submitSoloFocusJourneyAnswer'
 import {
   answersEqual,
@@ -32,72 +27,80 @@ import {
 } from '@/lib/motion-family'
 
 type Props = {
-  row: LoopAnswerSettingsRow
+  journeyId: JourneyId
+  title: string
   onClose: () => void
 }
 
-function resolveJourneyId(row: LoopAnswerSettingsRow, beat: { journeyKeys: JourneyId[] }): JourneyId {
-  if (row.journeyId) return row.journeyId
-  if (beat.journeyKeys.length > 0) return beat.journeyKeys[0]!
-  return 'home'
-}
-
-export function SettingsLoopEditOverlay({ row, onClose }: Props) {
+export function SettingsJourneyEditOverlay({ journeyId, title, onClose }: Props) {
   const router = useRouter()
   const reduceMotion = useReducedMotion()
-  const beat = getLoopBeatByQuestionId(row.questionId)
+  const { state } = useApp()
   const [locked, setLocked] = useState(false)
-  const journeyId = beat ? resolveJourneyId(row, beat) : ('home' as JourneyId)
-  const priorRef = useRef(
-    beat ? readJourneyAnswerRaw(journeyId, beat.questionId) : ''
+  const [step, setStep] = useState(0)
+  const snapshotRef = useRef<Record<string, string>>({})
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`journey_${journeyId}_answers`)
+      snapshotRef.current = raw ? (JSON.parse(raw) as Record<string, string>) : {}
+    } catch {
+      snapshotRef.current = {}
+    }
+  }, [journeyId])
+
+  const questions = useMemo(() => getJourneyQuestions(journeyId), [journeyId])
+  const answeredQuestions = useMemo(
+    () => questions.filter((q) => readJourneyAnswerRaw(journeyId, q.id).length > 0),
+    [journeyId, questions]
   )
+  const editQuestions = answeredQuestions.length > 0 ? answeredQuestions : questions
+  const question = editQuestions[step] ?? editQuestions[0]
 
   const handleAnswer = useCallback(
     async (answerValue: string) => {
-      if (!beat || locked) return
+      if (!question || locked) return
       const answer = String(answerValue ?? '').trim()
       if (!answer) return
 
-      if (answersEqual(priorRef.current, answer)) {
+      const prior = String(snapshotRef.current[question.id] ?? readJourneyAnswerRaw(journeyId, question.id)).trim()
+      if (answersEqual(prior, answer)) {
         onClose()
         return
       }
 
       setLocked(true)
-      const jid = resolveJourneyId(row, beat)
-      persistLoopAnswerLocal({
-        journeyId: jid,
-        questionId: beat.questionId,
-        answer,
-      })
-      dispatchAnswerCommitted({ journeyId: jid, questionId: beat.questionId, answerValue: answer })
+      dispatchAnswerCommitted({ journeyId, questionId: question.id, answerValue: answer })
       try {
         persistUnifiedUserProfileMemory()
       } catch {
         /* ignore */
       }
 
+      const postcode = state.profile?.postcode ?? null
       await submitSoloFocusJourneyAnswer({
-        journeyId: jid,
-        questionId: beat.questionId,
+        journeyId,
+        questionId: question.id,
         answerValue: answer,
-        postcode: null,
-        cardId: `journey-${jid}`,
+        postcode,
+        cardId: `journey-${journeyId}`,
       })
 
       void syncSessionState()
+
       writeSettingsEditZoneHandoff({
-        journeyKey: jid,
-        cardId: `journey-${jid}`,
+        journeyKey: journeyId,
+        cardId: `journey-${journeyId}`,
         surface: 'journey',
       })
+
       onClose()
       router.push(ROUTES.ZONE)
     },
-    [beat, locked, row, onClose, router]
+    [question, locked, journeyId, onClose, router, state.profile?.postcode]
   )
 
-  if (!beat || typeof document === 'undefined') return null
+  if (!question || typeof document === 'undefined') return null
 
   const motionSafe = reduceMotion === true
   const stepMotion = familyProfileStepProps(motionSafe)
@@ -106,10 +109,10 @@ export function SettingsLoopEditOverlay({ row, onClose }: Props) {
 
   return createPortal(
     <main
-      className="discovery-clean-birth zone-loop-takeover settings-loop-edit"
+      className="discovery-clean-birth zone-loop-takeover settings-journey-edit"
       role="dialog"
       aria-modal
-      aria-labelledby="settings-loop-edit-question"
+      aria-labelledby="settings-journey-edit-question"
       style={{
         position: 'fixed',
         inset: 0,
@@ -132,7 +135,7 @@ export function SettingsLoopEditOverlay({ row, onClose }: Props) {
     >
       <button
         type="button"
-        className="zz-close-btn settings-loop-edit-close"
+        className="zz-close-btn settings-journey-edit-close"
         aria-label="Back to settings"
         onClick={onClose}
       >
@@ -150,10 +153,33 @@ export function SettingsLoopEditOverlay({ row, onClose }: Props) {
           className="card-top-label solo-focus-zone-category m-0 text-center w-full block"
           style={{ color: 'var(--color-yellow)' }}
         >
-          loop answer
+          {title}
         </span>
+        {editQuestions.length > 1 ? (
+          <div className="flex flex-row flex-wrap gap-2 justify-center w-full">
+            {editQuestions.map((q, i) => (
+              <button
+                key={q.id}
+                type="button"
+                className={`zz-h4 settings-journey-edit-step${i === step ? ' settings-journey-edit-step--active' : ''}`}
+                style={{
+                  color: i === step ? 'var(--color-purple)' : 'var(--color-yellow)',
+                  background: i === step ? 'var(--color-yellow)' : 'transparent',
+                  border: '2px solid var(--color-yellow)',
+                  borderRadius: 9999,
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setStep(i)}
+                disabled={locked}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <motion.div
-          id="settings-loop-edit-question"
+          id="settings-journey-edit-question"
           className="text-marvin profile-question-headline"
           style={{
             marginBottom: 0,
@@ -168,24 +194,21 @@ export function SettingsLoopEditOverlay({ row, onClose }: Props) {
           exit={headlineMotion.exit}
           transition={FAMILY_TRANSITION_LONG}
         >
-          {loopQuestionDisplayText(beat)}
+          {question.label}
         </motion.div>
         <div className="profile-step-controls profile-step-controls--options w-full">
-          {beat.options.map((opt, optionIndex) => (
+          {(question.options ?? []).map((opt, optionIndex) => (
             <ProfileAnswerBtn
-              key={opt.value}
+              key={opt}
               className=""
               reduceMotion={reduceMotion}
               optionIndex={optionIndex}
               delaySeconds={familyControlDelaySec(optionIndex, controlsAfterQuestionSec)}
               disabled={locked}
-              onClick={() => handleAnswer(opt.value)}
-              aria-label={
-                opt.ariaLabel ??
-                String(opt.label).replace(/_/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
-              }
+              onClick={() => void handleAnswer(opt)}
+              aria-label={opt.replace(/_/g, ' ')}
             >
-              <span className="profile-answer-btn__text zz-h4">{opt.label.replace(/_/g, '\n')}</span>
+              <span className="profile-answer-btn__text zz-h4">{opt.replace(/_/g, '\n')}</span>
             </ProfileAnswerBtn>
           ))}
         </div>

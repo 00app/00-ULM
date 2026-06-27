@@ -225,9 +225,9 @@ export default function TruthLedgerClient() {
                         {ledger.counts.truthSavings}
                       </span>
                     </div>
-                    <p className="truth-ledger-sync-line m-0">
+                    <h4 className="truth-ledger-sync-line zz-h4 m-0">
                       {(ledger.profile.postcode ?? '—').toUpperCase()} · SYNCED {formatWhen(ledger.generatedAt)}
-                    </p>
+                    </h4>
                   </div>
                 </SettingsBentoCard>
               </motion.div>
@@ -292,14 +292,15 @@ export default function TruthLedgerClient() {
             </section>
           </>
         ) : null}
+      </div>
 
-        {!loading && !ledger && !error ? (
-          <h4 className="zz-h4 text-center max-w-[28rem] w-full mx-auto m-0 mt-2" style={{ color: 'var(--color-yellow)' }}>
-            No ledger data yet.
-          </h4>
-        ) : null}
+      {!loading && !ledger && !error ? (
+        <h4 className="zz-h4 text-center max-w-[28rem] w-full mx-auto m-0 mt-2" style={{ color: 'var(--color-yellow)' }}>
+          No ledger data yet.
+        </h4>
+      ) : null}
 
-        <div className="settings-cta-circles settings-cta-circles--tight z-10 relative">
+      <div className="settings-cta-circles settings-cta-circles--tight z-10 relative">
           <motion.button
             type="button"
             onClick={() => void refresh()}
@@ -323,7 +324,6 @@ export default function TruthLedgerClient() {
             </span>
           </Link>
         </div>
-      </div>
     </motion.div>
   )
 }

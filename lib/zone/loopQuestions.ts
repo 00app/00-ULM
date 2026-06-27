@@ -2,7 +2,7 @@ import type { JourneyId } from '@/lib/journeys'
 import {
   JOURNEY_IDS,
   JOURNEY_ORDER,
-  getFunkyOptionDisplay,
+  getOptionFullLabel,
   isValidJourneyId,
   isValidJourneyQuestion,
 } from '@/lib/journeys'
@@ -373,7 +373,7 @@ function loopAnswerDisplay(beat: LoopQuestionBeat, raw: string): string {
   const t = raw.trim()
   const hit = beat.options.find((o) => o.value === t)
   if (hit) return hit.label
-  return getFunkyOptionDisplay(t) || t
+  return getOptionFullLabel(t)
 }
 
 export function getLoopBeatByQuestionId(questionId: string): LoopQuestionBeat | null {

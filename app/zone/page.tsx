@@ -35,6 +35,11 @@ import {
   type SoloFocusReturnTarget,
   zoneCardDomId,
 } from '@/lib/zone/soloFocusReturn'
+import {
+  consumeSettingsEditZoneHandoff,
+  scrollSettingsEditZoneHandoff,
+  ANSWER_COMMITTED_EVENT,
+} from '@/lib/zone/settingsEditHandoff'
 import { useSoloFocusHudBodyClass } from '@/lib/hooks/useSoloFocusHudBodyClass'
 import { openZoneExternalHandoff } from '@/lib/zone/zoneHandoff'
 import type { ZoneViewModel, ZoneJourneyCard, ZoneTipCard, NeonJourneyResearchRow } from '@/lib/logic/zone'
@@ -225,7 +230,6 @@ type GroovyItem = GroovyGridCell
 
 const UNLOCKED_COUNT_KEY = 'zoneUnlockedCount'
 const SENTINEL_RECENT_CHAT_KEY = 'zz_recent_chat_history'
-const ANSWER_COMMITTED_EVENT = 'zz_answer_committed'
 
 function inferHouseholdSize(label?: string): number | undefined {
   const t = (label ?? '').toLowerCase()
@@ -2064,6 +2068,15 @@ export default function ZonePage() {
     () => journeyKeysFromDisplayItems(displayItems),
     [displayItems]
   )
+
+  useEffect(() => {
+    if (!hydrated || displayItems.length === 0) return
+    const handoff = consumeSettingsEditZoneHandoff()
+    if (!handoff) return
+    setVmSyncStamp(Date.now())
+    setRefreshKey((k) => k + 1)
+    scrollSettingsEditZoneHandoff(handoff)
+  }, [hydrated, displayItems.length])
 
   useEffect(() => {
     if (!hydrated || sessionRestoreDone.current || displayItems.length === 0) return

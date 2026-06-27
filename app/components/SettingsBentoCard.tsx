@@ -90,9 +90,9 @@ export default function SettingsBentoCard({
     >
       {hideLabel ? (
         <div className="settings-headline-only-row flex items-start justify-between gap-2 w-full shrink-0">
-          <h3 className="card-headline m-0 flex-1 min-w-0" style={{ color: textColor }}>
-            {headline}
-          </h3>
+          <div className="settings-journey-answers flex-1 min-w-0">
+            <SettingsJourneyFactRow label={label} value={headline} />
+          </div>
           {arrowSlot()}
         </div>
       ) : (
@@ -117,7 +117,7 @@ export function SettingsJourneyFactRow({ label, value }: { label: string; value:
   return (
     <div className="settings-journey-answer-row">
       <h4 className="settings-journey-q zz-h4">{label}</h4>
-      <h4 className="settings-journey-a zz-h4">{value}</h4>
+      <h3 className="settings-journey-a zz-h3 m-0">{value}</h3>
     </div>
   )
 }

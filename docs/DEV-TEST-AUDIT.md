@@ -207,8 +207,8 @@ npm run dev:clean
 | Settings edit | Behaviour |
 |---------------|-----------|
 | Profile row (pencil) | `/profile?q={id}&returnTo=/settings` — one question, then back to Settings |
-| Loop row (pencil) | In-place loop beat overlay — answer updates `zz_loop_answers_log` + `journey_*_answers`, returns to Settings |
-| Journey card (pencil) | `SoloFocusOverlay` question mode — journey MC answers, then back to Settings |
+| Loop row (pencil) | In-place loop beat overlay — if answer **unchanged**, back to Settings; if **changed**, `POST /api/answers` + navigate to Zone and scroll to journey mother tile |
+| Journey card (pencil) | `SettingsJourneyEditOverlay` — MC re-answer; unchanged → Settings; changed → Zone scroll to `#zone-journey-{key}` |
 
 ### Neon `Connection terminated due to connection timeout` (prep / migrations)
 
