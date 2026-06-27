@@ -138,6 +138,7 @@ import {
   zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
+import { buildHeroLeadRows } from '@/lib/zone/heroLeadLines'
 import {
   capDiscoveryTipsForGrid,
   capTipsPerJourney,
@@ -2271,6 +2272,42 @@ export default function ZonePage() {
     ]
   )
 
+  const openZoneGridTip = useCallback(
+    (tip: ZoneTipCard, journeyCell: ZoneJourneyCard | null) => {
+      if (!zoneInteractable) return
+      if (tip.id.startsWith('inject-')) {
+        soloFocusExpandIntentRef.current = tip.id
+        rememberSoloFocusReturn({
+          cardId: tip.id,
+          journeyKey: (tip.journey_key ?? 'home') as JourneyId,
+          surface: 'discovery',
+        })
+        rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
+        if (!openSoloFocus(tip.id, 'discovery')) return
+        setExpandedCardId(null)
+        setExpandedFromTip(null)
+        setExpandedTipId(tip.id)
+        return
+      }
+      if (journeyCell) {
+        openZoneJourneySoloFocus(journeyCell, tip)
+        return
+      }
+      soloFocusExpandIntentRef.current = tip.id
+      rememberSoloFocusReturn({
+        cardId: tip.id,
+        journeyKey: (tip.journey_key ?? 'home') as JourneyId,
+        surface: 'grid-tip',
+      })
+      rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
+      if (!openSoloFocus(tip.id, 'tip')) return
+      setExpandedCardId(null)
+      setExpandedFromTip(null)
+      setExpandedTipId(tip.id)
+    },
+    [zoneInteractable, openSoloFocus, openZoneJourneySoloFocus, rememberSoloFocusReturn]
+  )
+
   useEffect(() => {
     const pinFloor = 1 + pinnedAchievements.length
     const showPinnedWhileLoading = pinnedAchievements.length > 0 && isZoneVisible && architecturalPulsePhase === 'done'
@@ -2564,19 +2601,18 @@ export default function ZonePage() {
     if (!leadKey) return null
     return viewModel.journeys.find((j) => j.journey_key === leadKey) ?? null
   }, [viewModel.journeys, viewModel.hero.journey_key])
-  const primaryHeroWinFigure =
-    primaryHeroJourney && (primaryHeroJourney.moneyGbp ?? 0) > 0
-      ? `${Math.round(primaryHeroJourney.moneyGbp ?? 0).toLocaleString('en-GB')}/yr`
-      : null
-  const primaryHeroLeadLines = useMemo(() => {
-    if (!primaryHeroJourney) return ['Check out your stats']
-    const category = formatZoneCategoryLabel(primaryHeroJourney.journey_key)
-    const line1 = `Biggest win: ${category}`
-    if (primaryHeroWinFigure) {
-      return [line1, `Biggest category win: £${primaryHeroWinFigure}`]
-    }
-    return [line1]
-  }, [primaryHeroJourney, primaryHeroWinFigure])
+  const heroLeadRows = useMemo(
+    () =>
+      buildHeroLeadRows({
+        gridCells: groovyItems,
+        primaryJourney: primaryHeroJourney,
+        categoryLabel: primaryHeroJourney
+          ? formatZoneCategoryLabel(primaryHeroJourney.journey_key)
+          : '',
+        rockHabits: rockHabitsWithOffers,
+      }),
+    [groovyItems, primaryHeroJourney, rockHabitsWithOffers]
+  )
   const displayMoney = useCountUp(heroMoney, { duration: 120 })
   const displayCarbon = useCountUp(heroCarbon, { duration: 120 })
   const heroDataSource = dbConnected && neonVerifiedMoney ? 'VERIFIED AUDIT' : 'ESTIMATED AUDIT'
@@ -2629,7 +2665,7 @@ export default function ZonePage() {
                     ? 'ping'
                     : 'visible'
               }
-              className={`${spanClass} groovy-cell-radius h-full min-h-0${cell.type === 'hero' ? ' zone-hero-cell' : ''}${cell.type === 'journey' && primaryJourneyKeySet.has(cell.item.journey_key) ? ' zone-primary-slice-card' : ''}${skeletonCell ? ' zone-bento-skeleton' : ''}`.trim() || 'groovy-cell-radius'}
+              className={`${spanClass} groovy-cell-radius h-full min-h-0${cell.type === 'hero' ? ' zone-hero-cell' : ''}${cell.type === 'journey' && primaryJourneyKeySet.has(cell.item.journey_key) ? ' zone-primary-slice-card' : ''}${skeletonCell ? ' zone-bento-skeleton' : ''}${isHidden ? ' zone-bento-cell--hidden' : ''}`.trim() || 'groovy-cell-radius'}
               data-primary-slice={cell.type === 'journey' && primaryJourneyKeySet.has(cell.item.journey_key) ? '1' : undefined}
               style={{
                 willChange: 'transform',
@@ -2667,35 +2703,59 @@ export default function ZonePage() {
                         >
                           <ZoneBentoCardHeader journeyId="profile" label="YOUR PROFILE" />
                         </Link>
-                        {primaryHeroJourney ? (
-                          <button
-                            type="button"
-                            className="zone-hero-win-cta"
-                            disabled={!zoneInteractable}
-                            aria-label={`Open ${formatZoneCategoryLabel(primaryHeroJourney.journey_key)} offer`}
-                            onClick={() => openZoneJourneySoloFocus(primaryHeroJourney)}
-                          >
-                            {primaryHeroLeadLines.map((line) => (
-                              <h3
-                                key={line}
-                                className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
-                                lang="en"
+                        {heroLeadRows.map((row) => {
+                          if (row.kind === 'tip') {
+                            return (
+                              <button
+                                key={row.rockSlug ? `rock-${row.rockSlug}` : row.tip?.id ?? 'hero-tip'}
+                                type="button"
+                                className="zone-hero-win-cta"
+                                disabled={!zoneInteractable}
+                                aria-label={`Open tip: ${row.headline}`}
+                                onClick={() => {
+                                  if (row.rockSlug) openRockTip(`rock-${row.rockSlug}`)
+                                  else if (row.tip) openZoneGridTip(row.tip, row.journeyCell)
+                                }}
                               >
-                                {line}
-                              </h3>
-                            ))}
-                          </button>
-                        ) : (
-                          primaryHeroLeadLines.map((line) => (
+                                <h3
+                                  className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
+                                  lang="en"
+                                >
+                                  {row.line}
+                                </h3>
+                              </button>
+                            )
+                          }
+                          if (row.journey) {
+                            const winJourney = row.journey
+                            return (
+                              <button
+                                key="hero-win"
+                                type="button"
+                                className="zone-hero-win-cta"
+                                disabled={!zoneInteractable}
+                                aria-label={`Open ${formatZoneCategoryLabel(winJourney.journey_key)} offer`}
+                                onClick={() => openZoneJourneySoloFocus(winJourney)}
+                              >
+                                <h3
+                                  className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
+                                  lang="en"
+                                >
+                                  {row.line}
+                                </h3>
+                              </button>
+                            )
+                          }
+                          return (
                             <h3
-                              key={line}
+                              key="hero-win"
                               className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
                               lang="en"
                             >
-                              {line}
+                              {row.line}
                             </h3>
-                          ))
-                        )}
+                          )
+                        })}
                       </div>
                       <div
                         key={`zone-hero-metrics-${Math.round(heroMoney)}-${Math.round(heroCarbon)}`}
@@ -2767,39 +2827,7 @@ export default function ZonePage() {
                 const greenPulse = isDiscoveryInject && !tip.achievement_discovery && carbonKgNum > 500
                 const snapBloomIn = discoverySnapTipId === tip.id
                 const isAchievementDiscovery = Boolean(tip.achievement_discovery)
-                const handleTipClick = () => {
-                  if (!zoneInteractable) return
-                  /* Discovery injections: own Solo Focus + context trap; do not hijack journey tile expand. */
-                  if (tip.id.startsWith('inject-')) {
-                    soloFocusExpandIntentRef.current = tip.id
-                    rememberSoloFocusReturn({
-                      cardId: tip.id,
-                      journeyKey: (tip.journey_key ?? 'home') as JourneyId,
-                      surface: 'discovery',
-                    })
-                    rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
-                    if (!openSoloFocus(tip.id, 'discovery')) return
-                    setExpandedCardId(null)
-                    setExpandedFromTip(null)
-                    setExpandedTipId(tip.id)
-                    return
-                  }
-                  if (journeyCell) {
-                    openZoneJourneySoloFocus(journeyCell.item, tip)
-                  } else {
-                    soloFocusExpandIntentRef.current = tip.id
-                    rememberSoloFocusReturn({
-                      cardId: tip.id,
-                      journeyKey: (tip.journey_key ?? 'home') as JourneyId,
-                      surface: 'grid-tip',
-                    })
-                    rememberSoloFocusOpen(tip.id, (tip.journey_key ?? 'home') as JourneyId)
-                    if (!openSoloFocus(tip.id, 'tip')) return
-                    setExpandedCardId(null)
-                    setExpandedFromTip(null)
-                    setExpandedTipId(tip.id)
-                  }
-                }
+                const handleTipClick = () => openZoneGridTip(tip, journeyCell?.item ?? null)
                 return (
                   <motion.button
                     type="button"
@@ -3209,7 +3237,9 @@ export default function ZonePage() {
                 className="zone-section-heading zone-rock-section-heading zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0"
                 data-testid="zone-section-today-tips"
               >
-                today&apos;s tips
+                today&apos;s
+                <br />
+                tips.
               </h3>
               <RockSavingTips
                 habits={rockHabitsWithOffers}
@@ -3225,7 +3255,9 @@ export default function ZonePage() {
               className="zone-section-heading zone-category-section-heading zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0"
               data-testid="zone-section-recommendations"
             >
-              recommendations
+              personalised
+              <br />
+              recommendation.
             </h3>
           ) : null}
           <motion.div

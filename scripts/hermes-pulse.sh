@@ -128,7 +128,14 @@ while [[ $# -gt 0 ]]; do
       HOST="$1"
       shift
       ;;
+    \#*)
+      # zsh without `interactivecomments` passes pasted doc comments through npm as args
+      break
+      ;;
     *)
+      if [[ "$AUTH_ONLY" == "1" || "$SMOKE" == "1" ]]; then
+        break
+      fi
       echo "Unknown arg: $1" >&2
       echo "Usage: bash scripts/hermes-pulse.sh [--weekly|--repair-only|--smoke|--auth-only] [--env-file PATH] [--secret-file PATH]" >&2
       echo "  npm: run scripts without inline comments (npm passes # to bash)." >&2

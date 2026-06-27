@@ -5,18 +5,22 @@ import { z } from 'zod'
 import { NextResponse } from 'next/server'
 import { FUNNEL_EVENT_NAMES } from '@/lib/analytics/funnelEvents'
 
-const answerValueSchema = z.union([z.string(), z.number(), z.boolean()])
+const answerValueSchema = z.union([
+  z.string().trim().max(2000),
+  z.number().finite(),
+  z.boolean(),
+])
 
 export const answersPostBodySchema = z
   .object({
-    journey_id: z.string().trim().optional(),
-    journey_key: z.string().trim().optional(),
-    question_id: z.string().trim().optional(),
-    question_key: z.string().trim().optional(),
+    journey_id: z.string().trim().max(64).optional(),
+    journey_key: z.string().trim().max(64).optional(),
+    question_id: z.string().trim().max(120).optional(),
+    question_key: z.string().trim().max(120).optional(),
     answer: answerValueSchema.optional(),
     answer_value: answerValueSchema.optional(),
-    solo_focus: z.union([z.boolean(), z.number(), z.string()]).optional(),
-    postcode: z.string().optional(),
+    solo_focus: z.union([z.boolean(), z.number(), z.string().max(16)]).optional(),
+    postcode: z.string().trim().max(12).optional(),
     user_id: z.string().uuid().optional(),
   })
   .superRefine((body, ctx) => {

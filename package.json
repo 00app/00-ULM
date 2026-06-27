@@ -76,6 +76,7 @@
     "db:repair-research:prod": "tsx scripts/repair-latest-research-row.ts --env-file .env.production.local",
     "db:clean-zone": "tsx scripts/clean-zone-research-data.ts",
     "db:clean-zone:prod": "tsx scripts/clean-zone-research-data.ts --env-file .env.production.local",
+    "db:cleanup-junk-postcode": "tsx scripts/cleanup-junk-postcode.ts",
     "zone:reset-dev": "tsx scripts/reset-zone-dev.ts",
     "zone:rebuild": "npm run clean:cache && npm run db:clean-zone && npm run zone:reset-dev",
     "api:smoke": "bash scripts/api-smoke-all.sh",

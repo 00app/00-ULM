@@ -39,6 +39,24 @@ if [[ ${#POSITIONAL[@]} -ge 1 ]]; then
   fi
 fi
 
+POSTCODE_UPPER="$(printf '%s' "$POSTCODE" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
+BLOCKED_POSTCODES=(YOURPOSTCODE YOUR_POSTCODE POSTCODE EXAMPLEPOSTCODE)
+for blocked in "${BLOCKED_POSTCODES[@]}"; do
+  if [[ "$POSTCODE_UPPER" == "$blocked" ]]; then
+    echo "Refusing placeholder postcode: ${POSTCODE}" >&2
+    echo "Use a real UK postcode, e.g. npm run scrape:fresh -- M11AG" >&2
+    exit 1
+  fi
+done
+if [[ ${#POSTCODE_UPPER} -lt 5 || ${#POSTCODE_UPPER} -gt 8 ]]; then
+  echo "Refusing invalid postcode length: ${POSTCODE}" >&2
+  exit 1
+fi
+if [[ ! "$POSTCODE_UPPER" =~ ^[A-Z0-9]+$ ]]; then
+  echo "Refusing invalid postcode characters: ${POSTCODE}" >&2
+  exit 1
+fi
+
 CATEGORIES=(
   home utilities grants solar travel holidays food shopping money tech water waste carbon
 )

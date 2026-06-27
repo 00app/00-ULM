@@ -29,6 +29,7 @@ function loadEnvLocal(options) {
     ) {
       val = val.slice(1, -1).replace(/\\n/g, '\n')
     }
+    if (!val) continue
     if (preferLocal || process.env[key] === undefined || process.env[key] === '') {
       process.env[key] = val
     }

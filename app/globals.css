@@ -1482,10 +1482,21 @@ input[type='number'] {
 }
 
 /** Bento personas — square (default), wide (2 cols), tall (2 rows). Mobile resets below. */
-.span-wide { grid-column: span 2; }
-.span-tall { grid-row: span 2; }
+.span-wide,
+.bento-footprint-wide { grid-column: span 2; }
+.span-tall,
+.bento-footprint-tall { grid-row: span 2; }
 .bento-hero-span { grid-column: 1 / -1; }
 .zone-grid-full-row { grid-column: 1 / -1; }
+
+/* Packed bento — explicit placement from lib/zone/bentoPack.ts; collapse hidden Solo Focus cells. */
+.zone-bento-cell--hidden {
+  display: none !important;
+}
+
+.groovy-zone-grid--packed {
+  grid-auto-flow: row dense;
+}
 .groovy-cell-radius {
   border-radius: 60px;
   container-type: inline-size;
@@ -1726,6 +1737,16 @@ main.zone > .zone-content-rail {
   padding: 0;
 }
 
+.zone-rock-strip .zone-lead-tip-list .zone-hero-win-cta {
+  color: var(--color-yellow);
+}
+
+@media (hover: hover) {
+  .zone-rock-strip .zone-lead-tip-list .zone-hero-win-cta:not(:disabled):hover h3.zone-hero-profile-lead {
+    color: var(--zz-hover-text);
+  }
+}
+
 .zone-rock-strip .rock-saving-tips-grid {
   padding-top: 0;
   margin-top: 0;
@@ -1779,7 +1800,9 @@ main.zone > .zone-content-rail {
     grid-row: auto !important;
   }
   .groovy-zone-grid .span-wide,
+  .groovy-zone-grid .bento-footprint-wide,
   .groovy-zone-grid .span-tall,
+  .groovy-zone-grid .bento-footprint-tall,
   .groovy-zone-grid > .bento-hero-span {
     grid-column: 1 !important;
     grid-row: span 1 !important;
@@ -1804,10 +1827,12 @@ main.zone > .zone-content-rail {
   .groovy-zone-grid > .bento-hero-span {
     grid-column: 1 / -1;
   }
-  .groovy-zone-grid .span-wide {
+  .groovy-zone-grid .span-wide,
+  .groovy-zone-grid .bento-footprint-wide {
     grid-column: span 2;
   }
-  .groovy-zone-grid .span-tall {
+  .groovy-zone-grid .span-tall,
+  .groovy-zone-grid .bento-footprint-tall {
     grid-row: span 2;
     min-height: clamp(380px, 52vw, 560px);
   }
@@ -1827,10 +1852,12 @@ main.zone > .zone-content-rail {
   .groovy-zone-grid > .bento-hero-span {
     grid-column: 1 / -1;
   }
-  .groovy-zone-grid .span-wide {
+  .groovy-zone-grid .span-wide,
+  .groovy-zone-grid .bento-footprint-wide {
     grid-column: span 2;
   }
-  .groovy-zone-grid .span-tall {
+  .groovy-zone-grid .span-tall,
+  .groovy-zone-grid .bento-footprint-tall {
     grid-row: span 2;
     min-height: clamp(400px, 36vw, 580px);
   }
@@ -2682,6 +2709,7 @@ body, p, span, input, button, textarea, select,
 
 /* Tall journey tiles — inner card fills 2-row shell */
 .groovy-zone-grid .span-tall .bento-card-groovy,
+.groovy-zone-grid .bento-footprint-tall .bento-card-groovy,
 .bento-card-groovy.span-tall-block {
   min-height: 100%;
 }
@@ -4961,16 +4989,6 @@ body.zai-composer-dock-active {
   max-width: 100%;
   margin: 0;
 }
-.zai-interface .zai-input-row .ask-zai-input,
-.zai-interface .zai-input-row .zone-ask-zai-pill,
-.zai-composer-dock .zai-input-row .ask-zai-input,
-.zai-composer-dock .zai-input-row .zone-ask-zai-pill:not(.zz-zai-composer-input) {
-  box-shadow: 0 2px 0 color-mix(in srgb, var(--zai-ink) 24%, transparent);
-}
-.zai-interface .zai-input-row .zz-zai-composer-input,
-.zai-composer-dock .zai-input-row .zz-zai-composer-input {
-  box-shadow: none !important;
-}
 .zai-interface .zai-ask-input:not(.zz-zai-composer-input),
 .zai-composer-dock .zai-ask-input:not(.zz-zai-composer-input),
 .zai-composer-dock .zai-input-row .ask-zai-input:not(.zz-zai-composer-input) {
@@ -5027,6 +5045,11 @@ body.zai-composer-dock-active {
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  appearance: none;
+  -webkit-appearance: none;
   border-radius: 9999px;
   padding: 14px 20px;
   text-align: center;
@@ -5037,15 +5060,29 @@ body.zai-composer-dock-active {
   text-transform: none !important;
   line-height: 1.2 !important;
   box-sizing: border-box;
+  isolation: isolate;
+  background-clip: padding-box;
+  -webkit-background-clip: padding-box;
   transition:
     background-color var(--zz-interaction-duration) var(--zz-interaction-ease),
     color var(--zz-interaction-duration) var(--zz-interaction-ease);
+}
+.zz-zai-composer-input:hover,
+.zz-zai-composer-input:focus,
+.zz-zai-composer-input:focus-visible,
+.zz-zai-composer-input:active {
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
 }
 .zone-ask-zai-dock > .zz-zai-composer-input {
   flex: none;
   width: min(var(--max-w-zone), calc(100vw - 40px));
   max-width: min(var(--max-w-zone), calc(100vw - 40px));
   pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }
 .zz-zai-composer-input::placeholder {
   color: var(--color-purple) !important;
@@ -9705,6 +9742,20 @@ main.zone.zone-main-shell {
   padding-inline: max(20px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
   box-sizing: border-box;
   pointer-events: none;
+  box-shadow: none !important;
+  filter: none !important;
+  isolation: isolate;
+}
+/* Flat purple bar — blocks Zone wall (e.g. Rock SAVE labels) bleeding through pill corners. */
+.zone-ask-zai-dock::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(-20px - env(safe-area-inset-bottom, 0px));
+  height: calc(96px + env(safe-area-inset-bottom, 0px));
+  background: var(--color-purple);
+  pointer-events: none;
+  z-index: 0;
 }
 body.zone-ask-zai-dock-active {
   --zone-ask-zai-dock-clearance: 120px;

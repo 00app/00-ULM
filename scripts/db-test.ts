@@ -2,14 +2,15 @@
  * Smoke-test Neon: connectivity + public table list (uses Neon HTTP driver — works without TCP/pg WebSockets).
  */
 import { neon } from '@neondatabase/serverless'
-import { loadEnvLocal } from './load-env-local'
-import { sanitizeNeonConnectionString } from '../lib/db'
+import { loadDatabaseEnv, requireDatabaseUrl } from './resolve-database-env'
 
 async function main() {
-  loadEnvLocal({ preferLocal: true })
-  const url = sanitizeNeonConnectionString(process.env.DATABASE_URL?.trim() ?? '')
-  if (!url) {
-    console.error('❌ DATABASE_URL missing — set in .env.local')
+  loadDatabaseEnv()
+  let url: string
+  try {
+    url = requireDatabaseUrl()
+  } catch (e) {
+    console.error(`❌ ${e instanceof Error ? e.message : e}`)
     process.exit(1)
   }
 

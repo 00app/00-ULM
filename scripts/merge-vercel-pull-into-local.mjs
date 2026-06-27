@@ -13,7 +13,6 @@ const LOCAL_PATH = path.join(ROOT, '.env.local')
 const PULL_PATH = path.join(ROOT, process.argv[2] || '.env.vercel.pull')
 
 const MERGE_KEYS = [
-  'DATABASE_URL',
   'GEMINI_API_KEY',
   'AI_GATEWAY_API_KEY',
   'VERCEL_AI_GATEWAY_API_KEY',
@@ -36,6 +35,9 @@ const MERGE_KEYS = [
   'MISTRAL_API_KEY',
   'OPENROUTER_API_KEY',
 ]
+
+/** Vercel CLI never returns these reliably — never round-trip rewrite from parsed values. */
+const PRESERVE_RAW_KEYS = new Set(['DATABASE_URL', 'POSTGRES_URL', 'POSTGRES_PRISMA_URL'])
 
 function parseLine(line) {
   const trimmed = line.trim()
@@ -63,6 +65,26 @@ function loadMap(filePath) {
   return map
 }
 
+function loadRawLocal(filePath) {
+  const order = []
+  const raw = new Map()
+  if (!fs.existsSync(filePath)) return { order, raw }
+  for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
+    const parsed = parseLine(line)
+    if (!parsed) continue
+    if (!raw.has(parsed.key)) order.push(parsed.key)
+    raw.set(parsed.key, line.replace(/\r$/, ''))
+  }
+  return { order, raw }
+}
+
+function formatEnvLine(key, val) {
+  const needsQuote = /[\s#"'\\]/.test(val)
+  return needsQuote
+    ? `${key}="${val.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+    : `${key}=${val}`
+}
+
 if (!fs.existsSync(PULL_PATH)) {
   console.error(`❌ Missing ${path.basename(PULL_PATH)} — run:`)
   console.error('   vercel env pull .env.vercel.pull --environment=production --yes')
@@ -71,8 +93,10 @@ if (!fs.existsSync(PULL_PATH)) {
 
 const pull = loadMap(PULL_PATH)
 const local = loadMap(LOCAL_PATH)
+const { order: localOrder, raw: localRaw } = loadRawLocal(LOCAL_PATH)
 let merged = 0
 const skippedEmpty = []
+const mergedKeys = new Set()
 
 for (const key of MERGE_KEYS) {
   if (!pull.has(key)) continue
@@ -82,6 +106,7 @@ for (const key of MERGE_KEYS) {
     continue
   }
   local.set(key, val)
+  mergedKeys.add(key)
   merged++
 }
 
@@ -91,9 +116,22 @@ if (merged === 0 && skippedEmpty.length === 0) {
 }
 
 const lines = []
+const written = new Set()
+for (const key of localOrder) {
+  written.add(key)
+  if (mergedKeys.has(key)) {
+    lines.push(formatEnvLine(key, local.get(key) ?? ''))
+  } else if (PRESERVE_RAW_KEYS.has(key) && localRaw.has(key)) {
+    lines.push(localRaw.get(key))
+  } else if (localRaw.has(key)) {
+    lines.push(localRaw.get(key))
+  } else {
+    lines.push(formatEnvLine(key, local.get(key) ?? ''))
+  }
+}
 for (const [key, val] of local.entries()) {
-  const needsQuote = /[\s#"'\\]/.test(val)
-  lines.push(needsQuote ? `${key}="${val.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : `${key}=${val}`)
+  if (written.has(key)) continue
+  lines.push(formatEnvLine(key, val))
 }
 
 fs.writeFileSync(LOCAL_PATH, `${lines.join('\n')}\n`, 'utf8')
@@ -108,5 +146,13 @@ if (skippedEmpty.length > 0) {
   console.log('⚠ Vercel returned empty values (paste manually in .env.local from dashboard):')
   for (const key of skippedEmpty) {
     console.log(`   · ${key}`)
+  }
+  if (skippedEmpty.includes('CRON_SECRET') && !local.get('CRON_SECRET')?.trim()) {
+    console.log('   CRON_SECRET: paste from Vercel dashboard for npm run hermes:ping locally.')
+  }
+  if (!local.get('DATABASE_URL')?.trim()) {
+    console.log('')
+    console.log('   DATABASE_URL is required for npm run db:test and db:cleanup-junk-postcode.')
+    console.log('   Neon console → Connection string → pooled → paste into .env.local')
   }
 }
