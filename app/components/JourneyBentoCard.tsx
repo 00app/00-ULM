@@ -62,6 +62,7 @@ import {
   resolveExpandedTrueTipInsight,
   shouldShowSoloFocusArchitectActionLine,
   resolveSoloFocusHandoffUrls,
+  resolveSoloFocusCtaLabel,
   stripExpandedCardTitleNoise,
   wrapResultSupportingAsterisks,
   isAcceptableZoneJourneyHeadline,
@@ -83,9 +84,7 @@ import { useCountUp } from '@/lib/utils/useCountUp'
 import { parseMoneyGbpFromImpactDisplay, parseCarbonKgFromImpactDisplay } from '@/lib/soloFocusImpactParse'
 import { useSoloFocusExpandedGestures } from '@/lib/hooks/useSoloFocusExpandedGestures'
 import {
-  inferRevenueCtaKind,
   pickFirstHttpUrl,
-  resolveRevenueCtaLabel,
 } from '@/lib/zone/verifiedRevenue'
 import {
   filterMorphDeckForJourney,
@@ -421,15 +420,15 @@ export function JourneyBentoCard({
 
   const moneyTargetGbp = parseMoneyGbpFromImpactDisplay(displayMoneyValue)
   const carbonTargetKg = parseCarbonKgFromImpactDisplay(displayCarbonValue)
-  const journeyResearchCov = researchCategoryCoverage?.[journeyId]
-  const focusJourneyKey = normalizeCategoryToJourneyKey(journeyId)
+  const journeyResearchCov = researchCategoryCoverage?.[focusCategoryJourneyId]
+  const focusJourneyKey = normalizeCategoryToJourneyKey(focusCategoryJourneyId)
   const sanitizedCovProse = journeyResearchCov?.architectProse?.trim()
     ? sanitizeArchitectProseForJourney(focusJourneyKey, journeyResearchCov.architectProse)
     : null
   const verifiedAuditMatchesJourney =
     verifiedAuditMoneyGbp != null &&
     Number.isFinite(verifiedAuditMoneyGbp) &&
-    (verifiedAuditCategory ?? '').trim().toLowerCase() === journeyId &&
+    (verifiedAuditCategory ?? '').trim().toLowerCase() === focusCategoryJourneyId &&
     Boolean(
       (verifiedArchitectProse?.trim() && sanitizeArchitectProseForJourney(focusJourneyKey, verifiedArchitectProse)) ||
         sanitizedCovProse
@@ -520,8 +519,19 @@ export function JourneyBentoCard({
     researchCategoryCoverage === undefined || researchCategoryCoverage === null
       ? true
       : journeyResearchCov == null
+  const morphCardOfferUrl = currentMorphData
+    ? pickFirstHttpUrl(
+        currentMorphData.actions?.actionUrl,
+        currentMorphData.actions?.learnUrl
+      )
+    : undefined
+  const morphCardSourceUrl = currentMorphData
+    ? pickFirstHttpUrl(currentMorphData.source, currentMorphData.actions?.learnUrl)
+    : undefined
   const soloHandoff = resolveSoloFocusHandoffUrls({
-    journeyKey: journeyId,
+    journeyKey: focusCategoryJourneyId,
+    cardOfferUrl: morphCardOfferUrl,
+    cardSourceUrl: morphCardSourceUrl,
     coverageOfferUrl: journeyResearchCov?.latestOfferUrl,
     coverageSourceUrl: journeyResearchCov?.latestSourceUrl,
     fallbackOfferUrl: pickPrimaryHttpUrl(liveDiscoveryUrl, partnerHttp),
@@ -536,13 +546,14 @@ export function JourneyBentoCard({
     typeof currentMorphData?.actions?.actionType === 'string'
       ? currentMorphData.actions.actionType.toLowerCase()
       : (typeof learnActionType === 'string' ? learnActionType.toLowerCase() : '')
-  const revenueKind = inferRevenueCtaKind({
-    journey: displayJourneyId as JourneyId,
+  const journeyCtaLabel = resolveSoloFocusCtaLabel({
+    journeyKey: focusCategoryJourneyId,
+    headline: String(displayTitle || title || ''),
+    handoff: soloHandoff,
+    moneyGbp: motherMoneyTargetGbp,
     actionType: ctaActionTypeRaw || 'learn',
     needsSwitching: ctaActionTypeRaw === 'switch',
-    isPriorityHome: Boolean(isPriorityAlert && ctaActionTypeRaw !== 'switch'),
   })
-  const journeyCtaLabel = resolveRevenueCtaLabel(revenueKind, motherMoneyTargetGbp)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -908,19 +919,13 @@ export function JourneyBentoCard({
 
   const handleOpenOfferUrl = useCallback(() => {
     triggerHaptic('light')
-    const url = pickPrimaryHttpUrl(resolvedOfferUrl)
-    const fallback = pickPrimaryHttpUrl(
-      journeyResearchCov?.latestOfferUrl ?? journeyResearchCov?.latestSourceUrl ?? ''
-    )
-    const target = url || fallback
+    const target = pickPrimaryHttpUrl(soloHandoff.ctaUrl, soloHandoff.offerUrl)
     const handoffId = cardId ?? `journey-${journeyId}`
     if (target && openZoneExternalHandoff({ cardId: handoffId, url: target, title, journeyKey: journeyId })) {
       return
     }
-    if (!openOfferUrlInNewTab(target)) {
-      openOfferUrlInNewTab(fallback)
-    }
-  }, [resolvedOfferUrl, journeyResearchCov, triggerHaptic, cardId, journeyId, title])
+    openOfferUrlInNewTab(target)
+  }, [soloHandoff.ctaUrl, soloHandoff.offerUrl, triggerHaptic, cardId, journeyId, title])
 
   // —— EXPANDED (Solo Focus): v1.7 Active Intelligence — strict 00-00 Industrial Layout ——
   if (kineticGrid && (effectiveOpen || isExiting)) {
@@ -966,10 +971,7 @@ export function JourneyBentoCard({
       architectSuppliedBy,
       sourceLabel: attributionSourceLabel ?? undefined,
       sourceName,
-      liveScrapeSourceUrl:
-        verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
-          ? verifiedAuditSourceUrl.trim()
-          : pickPrimaryHttpUrl(resolvedOfferUrl) ?? soloHandoff.sourceLinkUrl ?? undefined,
+      liveScrapeSourceUrl: soloHandoff.sourceLinkUrl || undefined,
     })
     const pulseSourceUrl =
       soloHandoff.ctaUrl?.trim().startsWith('http') ? soloHandoff.ctaUrl.trim() : diagnosticUrlJourney

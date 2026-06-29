@@ -44,6 +44,7 @@ import {
   stripExpandedCardTitleNoise,
   wrapResultSupportingAsterisks,
   resolveSoloFocusHandoffUrls,
+  resolveSoloFocusCtaLabel,
 } from '@/lib/soloFocusCopy'
 import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
@@ -81,9 +82,7 @@ import { useSoloFocusHudBodyClass } from '@/lib/hooks/useSoloFocusHudBodyClass'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
 import {
-  inferRevenueCtaKind,
   pickFirstHttpUrl,
-  resolveRevenueCtaLabel,
 } from '@/lib/zone/verifiedRevenue'
 import {
   journeyResearchSettled,
@@ -202,7 +201,7 @@ export function SoloFocusOverlay({
   onDiscoveryTrapComplete,
   startInQuestionMode = false,
   onEmbeddedAnswerSuccess,
-  ctaLabel,
+  ctaLabel: _ctaLabel,
   partnerLink,
   verifiedSourceName,
   verifiedSourceDate,
@@ -427,24 +426,14 @@ export function SoloFocusOverlay({
   const overlayResearchSettled = journeyResearchSettled(journeyResearchCov, {
     journeyId: normalizeCategoryToJourneyKey(journeyId ?? 'home'),
   })
-  const covOfferHttp =
-    isRockHabitTip || !journeyResearchCov?.latestOfferUrl?.trim().startsWith('http')
-      ? ''
-      : journeyResearchCov.latestOfferUrl.trim()
-  const covSourceHttp =
-    isRockHabitTip || !journeyResearchCov?.latestSourceUrl?.trim().startsWith('http')
-      ? ''
-      : journeyResearchCov.latestSourceUrl.trim()
   const liveDiscoveryUrl =
     [
-      covSourceHttp,
-      covOfferHttp,
       liveClaimUrl,
       morphLearnResolved,
       resultCitation?.url,
       offerUrl,
-      sourceUrl,
       discoveryRecUrl,
+      partnerHttp,
     ]
       .find(
         (u) => typeof u === 'string' && u.trim().length > 0 && !isGenericHomepageUrl(u.trim())
@@ -469,12 +458,25 @@ export function SoloFocusOverlay({
     : researchCategoryCoverage === undefined || researchCategoryCoverage === null
       ? true
       : journeyResearchCov == null
+  const morphCardOfferUrl = currentMorphData
+    ? pickFirstHttpUrl(
+        currentMorphData.actions?.actionUrl,
+        currentMorphData.actions?.learnUrl
+      )
+    : undefined
+  const morphCardSourceUrl = currentMorphData
+    ? pickFirstHttpUrl(currentMorphData.source, currentMorphData.actions?.learnUrl)
+    : undefined
+  const cardOfferUrl = morphCardOfferUrl || pickFirstHttpUrl(offerUrl)
+  const cardSourceUrl = morphCardSourceUrl || pickFirstHttpUrl(sourceUrl)
   const soloHandoff = resolveSoloFocusHandoffUrls({
     journeyKey: String(displayJourneyId || journeyId || 'home'),
+    cardOfferUrl,
+    cardSourceUrl,
     coverageOfferUrl: isRockHabitTip ? null : journeyResearchCov?.latestOfferUrl,
     coverageSourceUrl: isRockHabitTip ? null : journeyResearchCov?.latestSourceUrl,
-    fallbackOfferUrl: pickPrimaryHttpUrl(offerUrl, liveDiscoveryUrl, partnerHttp),
-    fallbackSourceUrl: pickPrimaryHttpUrl(sourceUrl, covSourceHttp),
+    fallbackOfferUrl: pickPrimaryHttpUrl(liveDiscoveryUrl, partnerHttp),
+    fallbackSourceUrl: pickPrimaryHttpUrl(partnerHttp),
     buildZaiUrl: () => (allowZaiFallback ? buildZaiAuditUrl() : ''),
   })
   const resolvedOpenUrl = soloHandoff.ctaUrl.trim()
@@ -594,15 +596,16 @@ export function SoloFocusOverlay({
     isDiscoveryMotherCard || partnerHttp
       ? ''
       : 'No live retailer link this week — figures still come from your saved audit row.'
-  const overlayCtaKind = inferRevenueCtaKind({
-    journey: (journeyId ?? 'home') as JourneyId,
+  const effectiveHandoffLabel = resolveSoloFocusCtaLabel({
+    journeyKey: String(focusCategoryJourneyId || journeyId || 'home'),
+    headline: recommendationTitle,
+    handoff: soloHandoff,
+    moneyGbp: motherMoneyTargetGbp,
     actionType: tipNeedsSwitching
       ? 'switch'
       : String(currentMorphData?.actions?.actionType || 'learn').toLowerCase(),
     needsSwitching: tipNeedsSwitching,
-    isPriorityHome: Boolean(isPriorityHome),
   })
-  const effectiveHandoffLabel = ctaLabel ?? resolveRevenueCtaLabel(overlayCtaKind, motherMoneyTargetGbp)
   const persistViewState = useCallback((next: OverlayViewState, opts?: { preserveResultContext?: boolean }) => {
     setViewState(next)
     if (next === 'QUESTION' && !opts?.preserveResultContext) {

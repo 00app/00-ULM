@@ -13,6 +13,19 @@ import { isValidUkPostcode } from '@/lib/geocode/ukPostcode'
 import { resolveAffluenceAuditMode } from '@/lib/zone/affluenceCheck'
 import { isStudent, isBetweenJobs } from '@/lib/profile/employmentSegment'
 import { grantsJourneyTitleForProfile } from '@/lib/zone/zoneEligibility'
+import {
+  formatSoloFocusNavTipLabel,
+  isBannedSoloFocusNavTipFragment,
+  navRailDestinationLabel,
+} from '@/lib/zone/soloFocusNavLabels'
+import {
+  soloFocusNavNeighbors,
+  type SoloFocusNavEntry,
+} from '@/lib/zone/soloFocusJourneyNav'
+import {
+  resolveSoloFocusCtaLabel,
+  resolveSoloFocusHandoffUrls,
+} from '@/lib/soloFocusCopy'
 
 type Check = { name: string; pass: boolean; detail?: string }
 
@@ -161,6 +174,60 @@ assert(
   }).includes('zero-upfront')
 )
 assert('legacy unemployed maps to between jobs segment', isBetweenJobs('UNEMPLOYED'))
+
+assert(
+  'banned nav fragment detects remember copy',
+  isBannedSoloFocusNavTipFragment('We remember this choice')
+)
+assert(
+  'achievement tip label falls back not remember prose',
+  !formatSoloFocusNavTipLabel('YOUR WALL NOW REMEMBERS THIS SHIFT', 'grants').includes('remember')
+)
+assert('nav rail destination is uppercase category', navRailDestinationLabel('solar') === 'SOLAR')
+
+const soloNavRing: SoloFocusNavEntry[] = [
+  { cardId: 'tip-grants-ach', journeyKey: 'grants', kind: 'tip', label: 'we remember' },
+  { cardId: 'journey-solar', journeyKey: 'solar', kind: 'journey', label: 'SOLAR' },
+  { cardId: 'tip-tech', journeyKey: 'tech', kind: 'tip', label: 'tech +' },
+]
+const solarNeighbors = soloFocusNavNeighbors('journey-solar', soloNavRing, 'solar')
+assert(
+  'solar prev nav label is grants category',
+  solarNeighbors?.prevLabel === 'GRANTS',
+  solarNeighbors?.prevLabel
+)
+assert(
+  'solar next nav label is tech category',
+  solarNeighbors?.nextLabel === 'TECH',
+  solarNeighbors?.nextLabel
+)
+
+const grantHandoff = resolveSoloFocusHandoffUrls({
+  journeyKey: 'grants',
+  coverageOfferUrl: 'https://www.gov.uk/apply-warm-home-discount-scheme',
+  coverageSourceUrl: 'https://www.energysavingtrust.org.uk/',
+  fallbackOfferUrl: 'https://www.currys.co.uk/search?q=energy',
+  buildZaiUrl: () => '/zai?context=grants',
+})
+assert(
+  'solo focus cta uses offer_url not source_url',
+  grantHandoff.ctaUrl.includes('warm-home-discount'),
+  grantHandoff.ctaUrl
+)
+assert(
+  'solo focus source link stays on source_url',
+  grantHandoff.sourceLinkUrl.includes('energysavingtrust'),
+  grantHandoff.sourceLinkUrl
+)
+assert(
+  'solo focus grant cta label matches offer',
+  resolveSoloFocusCtaLabel({
+    journeyKey: 'grants',
+    headline: 'Warm home discount',
+    handoff: grantHandoff,
+    moneyGbp: 150,
+  }) === 'Claim'
+)
 
 const failed = checks.filter((c) => !c.pass)
 if (failed.length > 0) {

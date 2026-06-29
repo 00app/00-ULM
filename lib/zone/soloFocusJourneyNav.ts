@@ -6,6 +6,7 @@ import { isCategoryWallTip, journeyKeyFromTip } from '@/lib/zone/perCategoryCard
 import {
   formatSoloFocusNavMotherLabel,
   formatSoloFocusNavTipLabel,
+  navRailDestinationLabel,
 } from '@/lib/zone/soloFocusNavLabels'
 
 export { singularSoloFocusNavLabel } from '@/lib/zone/soloFocusNavLabels'
@@ -276,6 +277,10 @@ export function advanceNavRingIndex(
     ) {
       continue
     }
+    // Nav rail shows category only — never echo the open journey on prev/next.
+    if (current?.journeyKey && candidate.journeyKey === current.journeyKey) {
+      continue
+    }
     break
   } while (step < len)
   if (next === idx && len > 1) {
@@ -312,8 +317,8 @@ export function soloFocusNavNeighbors(
   return {
     prev,
     next,
-    prevLabel: prev.label,
-    nextLabel: next.label,
+    prevLabel: navRailDestinationLabel(prev.journeyKey),
+    nextLabel: navRailDestinationLabel(next.journeyKey),
   }
 }
 

@@ -51,10 +51,9 @@ import {
 import { buildContentArchitectCardPayload } from '@/lib/zone/architectZoneRequest'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import {
-  inferRevenueCtaKind,
   pickFirstHttpUrl,
-  resolveRevenueCtaLabel,
 } from '@/lib/zone/verifiedRevenue'
+import { resolveZoneCardOfferUrl } from '@/lib/zone/zoneOfferUrl'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { ROUTES } from '@/lib/routes'
@@ -2973,8 +2972,6 @@ export default function ZonePage() {
                   })()}
                   verifiedAuditSourceUrl={(() => {
                     const cov = researchCategoryCoverage?.[cell.item.journey_key]
-                    const offer = cov?.latestOfferUrl?.trim()
-                    if (offer?.startsWith('http')) return offer
                     const src = cov?.latestSourceUrl?.trim()
                     if (src?.startsWith('http')) return src
                     return researchMeta?.auditSourceUrl ?? null
@@ -3314,7 +3311,6 @@ export default function ZonePage() {
           const isRockTip = Boolean(rockTip)
           const isInjectDiscovery = isDiscoveryInjectCard(tip.id)
           const tipVisitedForFocus = isZoneCardVisited(tip.id, tip.journey_key)
-          const rawOfferUrl = tip.cta?.url || tip.actions?.actionUrl || tip.actions?.learnUrl || tip.source
           const tipNarrative = (tip.explanation ?? [])
             .map((p) => (typeof p === 'string' ? p.trim() : ''))
             .filter(Boolean)
@@ -3322,28 +3318,24 @@ export default function ZonePage() {
             .join('\n\n')
           const tipActionType = (tip.actions?.actionType || '').toLowerCase()
           const behavioralHint = /turn down|flow temp|lower|switch off|reduce|habit|behaviour|set your/i
+          const rawOfferUrl = tip.cta?.url || tip.actions?.actionUrl || tip.actions?.learnUrl || tip.source
           const isBehavioralTip =
             !/^https?:\/\//i.test(String(rawOfferUrl || '')) ||
             (tipActionType === 'learn' && behavioralHint.test(`${tip.title} ${(tip.explanation ?? []).join(' ')}`))
+          const tipCardOfferUrl = isBehavioralTip ? '' : resolveZoneCardOfferUrl(tip)
+          const tipCardSourceUrl =
+            pickFirstHttpUrl(tip.source, tip.actions?.learnUrl) ?? ''
           const tipContext = encodeURIComponent(`${tip.title} ${(tipNarrative || '').slice(0, 220)}`.trim())
           const partnerFirst = pickFirstHttpUrl(tip.partner_link) ?? ''
           const offerUrl = isBehavioralTip
             ? `/zai?context=${tipContext}`
-            : rawOfferUrl || partnerFirst
+            : tipCardOfferUrl || partnerFirst
           const ja = state.journeyAnswers ?? {}
           const electricityProvider = ja.home?.electricity_provider || ja.home?.energy_provider
           const gasProvider = ja.home?.gas_provider || ja.home?.energy_provider
           const hasGreenTariff = ja.home?.green_tariff === 'YES'
           const isOctopus = electricityProvider === 'OCTOPUS' || gasProvider === 'OCTOPUS'
           const tipNeedsSwitching = tip.journey_key === 'home' && !isOctopus && !hasGreenTariff
-          const tipMoneyGbp = parseMoneyGbpFromDisplay(tip.data.money || '0')
-          const tipCtaKind = inferRevenueCtaKind({
-            journey: tip.journey_key,
-            actionType: tipActionType || 'learn',
-            needsSwitching: tipNeedsSwitching,
-            isPriorityHome: tip.journey_key === 'home' && !!localData?.council,
-          })
-          const tipCtaLabel = resolveRevenueCtaLabel(tipCtaKind, tipMoneyGbp)
           const tipCov = researchCategoryCoverage?.[tip.journey_key]
           const tipSanitizedProse = tipCov?.architectProse?.trim()
             ? sanitizeArchitectProseForJourney(tip.journey_key, tipCov.architectProse)
@@ -3375,11 +3367,9 @@ export default function ZonePage() {
                 sourceUrl={
                   isRockTip
                     ? tip.source || tip.actions?.learnUrl || partnerFirst || undefined
-                    : tipCov?.latestOfferUrl?.trim().startsWith('http')
-                      ? tipCov.latestOfferUrl.trim()
-                      : tipCov?.latestSourceUrl?.trim().startsWith('http')
-                        ? tipCov.latestSourceUrl.trim()
-                        : tip.source || tip.actions?.learnUrl
+                    : tipCov?.latestSourceUrl?.trim().startsWith('http')
+                      ? tipCov.latestSourceUrl.trim()
+                      : tipCardSourceUrl || tip.source || tip.actions?.learnUrl || partnerFirst || undefined
                 }
                 sourceLabel={tip.sourceLabel}
                 architectSuppliedBy={tip.architectSuppliedBy}
@@ -3436,7 +3426,6 @@ export default function ZonePage() {
                   setRefreshKey((k) => k + 1)
                 }}
                 onDiscoveryTrapComplete={() => setRefreshKey((k) => k + 1)}
-                ctaLabel={tipCtaLabel}
                 partnerLink={tip.partner_link}
                 verifiedSourceName={tip.source_name}
                 verifiedSourceDate={tip.source_date}
@@ -3447,11 +3436,9 @@ export default function ZonePage() {
                 verifiedAuditSourceUrl={
                   isRockTip
                     ? null
-                    : tipCov?.latestOfferUrl?.trim().startsWith('http')
-                      ? tipCov.latestOfferUrl.trim()
-                      : tipCov?.latestSourceUrl?.trim().startsWith('http')
-                        ? tipCov.latestSourceUrl.trim()
-                        : null
+                    : tipCov?.latestSourceUrl?.trim().startsWith('http')
+                      ? tipCov.latestSourceUrl.trim()
+                      : null
                 }
                 verifiedAuditCategory={tipAuditMatches ? tip.journey_key : null}
                 researchCategoryCoverage={researchCategoryCoverage}

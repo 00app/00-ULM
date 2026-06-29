@@ -38,6 +38,21 @@ export function formatSoloFocusNavMotherLabel(journeyKey: JourneyId): string {
   return formatZoneCategoryLabel(journeyKey)
 }
 
+/** Prev/next rail always shows the destination category — never tip prose fragments. */
+export function navRailDestinationLabel(journeyKey: JourneyId): string {
+  return formatSoloFocusNavMotherLabel(journeyKey)
+}
+
+const NAV_BANNED_LABEL_RE =
+  /\b(remember|remembers|shift|pattern learned|your wall|wall now)\b/i
+
+/** True when tip title/body must not become a nav fragment (achievement / loop marketing). */
+export function isBannedSoloFocusNavTipFragment(text: string): boolean {
+  const t = stripExpandedCardTitleNoise(String(text ?? '')).trim()
+  if (!t) return false
+  return NAV_BANNED_LABEL_RE.test(t)
+}
+
 /** Discovery / morph tips — lowercase title fragment; avoid echoing the mother category. */
 export function singularSoloFocusNavLabel(journeyKey: JourneyId): string {
   const full = formatZoneCategoryLabel(journeyKey).toLowerCase()
@@ -69,6 +84,9 @@ export function formatSoloFocusNavTipLabel(
   const pick = (count: number) => words.slice(0, count).join(' ').trim()
   let label = pick(2)
   if (label.length > 16) label = pick(1)
+  if (isBannedSoloFocusNavTipFragment(label) || isBannedSoloFocusNavTipFragment(raw)) {
+    return fallback
+  }
   if (!label || label === fallback || label === motherLower) {
     const wider = pick(3)
     if (wider && wider !== fallback && wider !== motherLower) return wider.slice(0, 16).trim()

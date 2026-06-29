@@ -18,6 +18,8 @@ import { isTruncatedSentence, stripTrailingEllipsis, clampWordsCompleteSentence 
 import { humanizeZoneHeadline, humanizeZoneProse } from '@/lib/zone/plainEnglishCopy'
 import { formatCarbonValue, formatMoneyValue } from '@/lib/format'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
+import { inferZaiCtaLabel } from '@/lib/zai/resolveZaiLikeHandoff'
+import { inferRevenueCtaKind, resolveRevenueCtaLabel } from '@/lib/zone/verifiedRevenue'
 import { applySessionProseVariety } from '@/lib/zone/sessionProseLedger'
 import { MAX_SOLO_FOCUS_PROSE_BLOCKS } from '@/lib/zone/zoneVoice'
 
@@ -1453,6 +1455,10 @@ export function formatAuditSourceLinkDisplay(url: string, maxLen = 96): string {
 /** CTA uses offer_url; Source link uses source_url; CTA falls back to Ask Zai when no offer. */
 export function resolveSoloFocusHandoffUrls(args: {
   journeyKey: string
+  /** Tip / morph card explicit BUY URL — wins over Neon when set. */
+  cardOfferUrl?: string | null
+  /** Tip / morph citation page — wins over Neon source when set. */
+  cardSourceUrl?: string | null
   coverageOfferUrl?: string | null
   coverageSourceUrl?: string | null
   fallbackOfferUrl?: string | null
@@ -1462,11 +1468,39 @@ export function resolveSoloFocusHandoffUrls(args: {
   const j = coerceJourneyId(args.journeyKey)
   const pick = (u?: string | null) =>
     typeof u === 'string' && u.trim().startsWith('http') ? sanitizeZoneOfferUrl(u, j) : ''
-  const offerUrl = pick(args.coverageOfferUrl) || pick(args.fallbackOfferUrl)
-  const sourceUrl = pick(args.coverageSourceUrl) || pick(args.fallbackSourceUrl)
+  const offerUrl =
+    pick(args.cardOfferUrl) || pick(args.coverageOfferUrl) || pick(args.fallbackOfferUrl)
+  const sourceUrl =
+    pick(args.cardSourceUrl) || pick(args.coverageSourceUrl) || pick(args.fallbackSourceUrl)
   const ctaIsZai = !offerUrl
   const ctaUrl = offerUrl || args.buildZaiUrl()
   return { ctaUrl, offerUrl, sourceLinkUrl: sourceUrl, ctaIsZai }
+}
+
+/** Primary CTA label synced to the resolved handoff URL (Claim / Buy / Get / Read / ASK ZAI). */
+export function resolveSoloFocusCtaLabel(args: {
+  journeyKey: string
+  headline: string
+  handoff: { ctaUrl: string; ctaIsZai: boolean }
+  moneyGbp: number
+  actionType?: string
+  needsSwitching?: boolean
+}): string {
+  if (args.handoff.ctaIsZai || !args.handoff.ctaUrl.trim().startsWith('http')) {
+    return 'ASK ZAI'
+  }
+  if (args.needsSwitching || args.actionType?.toLowerCase() === 'switch') {
+    return resolveRevenueCtaLabel('swap', args.moneyGbp)
+  }
+  const fromUrl = inferZaiCtaLabel(args.journeyKey, args.headline, args.handoff.ctaUrl)
+  if (fromUrl !== 'Read') return fromUrl
+  const kind = inferRevenueCtaKind({
+    journey: coerceJourneyId(args.journeyKey),
+    actionType: args.actionType ?? '',
+    needsSwitching: Boolean(args.needsSwitching),
+    isPriorityHome: coerceJourneyId(args.journeyKey) === 'home',
+  })
+  return resolveRevenueCtaLabel(kind, args.moneyGbp)
 }
 
 /**
