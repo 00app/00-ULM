@@ -13,6 +13,7 @@ import {
 import { persistPropertyPrefillForUser } from '@/lib/intelligence/persistPropertyPrefill'
 import { buildResearchProfilePayload } from '@/lib/profile/buildResearchProfilePayload'
 import { inferHouseholdIncomeBracket } from '@/lib/profile/inferHouseholdIncomeBracket'
+import { normalizeEmploymentStatus } from '@/lib/profile/employmentSegment'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,16 +55,10 @@ export async function POST(request: NextRequest) {
   }
   try {
     const body = await request.json()
-    const empIn =
-      typeof body?.employment_status === 'string' ? body.employment_status.trim().toUpperCase().slice(0, 32) : ''
     const employment_status =
-      empIn === 'STUDENT' || empIn === 'EMPLOYED' || empIn === 'BETWEEN_JOBS'
-        ? empIn
-        : empIn === 'SELF_EMPLOYED'
-          ? 'EMPLOYED'
-          : empIn === 'UNEMPLOYED' || empIn === 'NOT_WORK'
-            ? 'BETWEEN_JOBS'
-            : null
+      normalizeEmploymentStatus(
+        typeof body?.employment_status === 'string' ? body.employment_status : undefined
+      ) ?? null
 
     const houseNumber =
       typeof body?.house_number === 'string' ? body.house_number.trim().slice(0, 32) : ''

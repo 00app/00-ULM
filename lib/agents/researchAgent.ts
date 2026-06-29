@@ -828,12 +828,24 @@ function parseResearchTripletJson(raw: string): {
   }
 }
 
+function buildGoalDirectiveBlock(goal?: string | null): string {
+  const g = String(goal ?? '').toLowerCase().trim()
+  if (g === 'money' || g === 'save' || g === 'save_money') {
+    return `Goal directive — MONEY: Lead every recommendation with the verified £/year saving first. Use active CTA verbs: Switch, Compare, Claim. Minimise carbon language unless it directly inflates the £ figure. Foreground tariff switching, bill grants, and cashback over low-carbon-only schemes.\n\n`
+  }
+  if (g === 'carbon' || g === 'reduce' || g === 'reduce_carbon') {
+    return `Goal directive — CARBON: Lead every recommendation with the kg CO₂ saved per year first. Foreground low-carbon mechanisms: solar, heat pumps, EV, plant-based diet, circular economy. Show £ saving only when it reinforces the sustainability narrative, not as the headline.\n\n`
+  }
+  return `Goal directive — BALANCED: Quote both £/year saving AND kg CO₂ saved. Prioritise dual-benefit schemes where one action yields meaningful numbers on both axes (solar PV, EV smart tariff, heat pump). Neither metric should dominate.\n\n`
+}
+
 function buildResearchProfileAuditorContext(data: ResearchProfileData | null | undefined): string {
   if (!data || typeof data !== 'object') return ''
   const townLine =
     typeof data.locality_display === 'string' && data.locality_display.trim()
       ? `Town for prose (paragraph 1 — use this name, never the postcode): ${data.locality_display.trim()}\n\n`
       : ''
+  const goalDirective = buildGoalDirectiveBlock(data.primary_goal ?? data.goal)
   const affluence = buildAffluenceAuditorPromptBlock({
     employment_status: data.employment_status,
     postcode: data.postcode,
@@ -848,8 +860,8 @@ function buildResearchProfileAuditorContext(data: ResearchProfileData | null | u
     rows.push(`- ${key}: ${s.length > 280 ? `${s.slice(0, 280)}…` : s}`)
     if (rows.length >= 24) break
   }
-  if (!rows.length) return `${townLine}${affluence}`
-  return `${townLine}${affluence}Household auditing context (treat as ground truth — interrogate the markdown through this lens, not generic “grants” SEO):\n${rows.join('\n')}\n\n`
+  if (!rows.length) return `${townLine}${goalDirective}${affluence}`
+  return `${townLine}${goalDirective}${affluence}Household auditing context (treat as ground truth — interrogate the markdown through this lens, not generic “grants” SEO):\n${rows.join('\n')}\n\n`
 }
 
 function researchTripletNeedsRecovery(triplet: {

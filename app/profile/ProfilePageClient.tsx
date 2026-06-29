@@ -184,10 +184,6 @@ export default function ProfilePageClient() {
   }, [step])
 
   useEffect(() => {
-    advancingRef.current = false
-  }, [step])
-
-  useEffect(() => {
     router.prefetch(ROUTES.PROFILE_SUMMARY)
   }, [router])
 

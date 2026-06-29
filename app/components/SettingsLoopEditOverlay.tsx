@@ -77,22 +77,26 @@ export function SettingsLoopEditOverlay({ row, onClose }: Props) {
         /* ignore */
       }
 
-      await submitSoloFocusJourneyAnswer({
-        journeyId: jid,
-        questionId: beat.questionId,
-        answerValue: answer,
-        postcode: null,
-        cardId: `journey-${jid}`,
-      })
+      try {
+        await submitSoloFocusJourneyAnswer({
+          journeyId: jid,
+          questionId: beat.questionId,
+          answerValue: answer,
+          postcode: null,
+          cardId: `journey-${jid}`,
+        })
 
-      void syncSessionState()
-      writeSettingsEditZoneHandoff({
-        journeyKey: jid,
-        cardId: `journey-${jid}`,
-        surface: 'journey',
-      })
-      onClose()
-      router.push(ROUTES.ZONE)
+        void syncSessionState()
+        writeSettingsEditZoneHandoff({
+          journeyKey: jid,
+          cardId: `journey-${jid}`,
+          surface: 'journey',
+        })
+        onClose()
+        router.push(ROUTES.ZONE)
+      } catch {
+        setLocked(false)
+      }
     },
     [beat, locked, row, onClose, router]
   )

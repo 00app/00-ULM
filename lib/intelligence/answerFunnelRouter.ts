@@ -122,6 +122,39 @@ function scoreJourneys(params: {
     }
   }
 
+  const transport = (params.profile.transport_baseline ?? '').toLowerCase()
+  if (transport.includes('car')) {
+    bump('travel', 25)
+    bump('money', 10)
+  } else if (transport.includes('bike') || transport.includes('cycl')) {
+    bump('carbon', 10)
+    bump('travel', 5)
+  } else if (transport.includes('bus') || transport.includes('train') || transport.includes('rail') || transport.includes('public')) {
+    bump('travel', 10)
+    bump('carbon', 5)
+  }
+
+  const household = (params.profile.household ?? '').toLowerCase()
+  if (household.includes('famil') || household === 'family') {
+    bump('food', 15)
+    bump('water', 10)
+    bump('shopping', 8)
+    bump('waste', 8)
+  } else if (household.includes('shared') || household.includes('housemate')) {
+    bump('food', 8)
+    bump('waste', 8)
+    bump('tech', 5)
+  }
+
+  const homeType = (params.profile.home_type ?? '').toLowerCase()
+  if (homeType.includes('flat') || homeType.includes('apartment')) {
+    bump('solar', -30)
+    bump('utilities', 10)
+  } else if (homeType.includes('house') || homeType.includes('detach') || homeType.includes('semi') || homeType.includes('terrac') || homeType.includes('bungalow')) {
+    bump('solar', 15)
+    bump('home', 8)
+  }
+
   for (const [i, jid] of guardrailPriorityJourneys(params.profile).entries()) {
     bump(jid, 45 - i * 3)
   }

@@ -5867,11 +5867,6 @@ body.zai-composer-dock-active {
     font-size: var(--zz-h3-desktop);
   }
 }
-.settings-page .settings-journey-answers {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
 
 /* Hero card: pink bg, yellow text (variant of settings bento card) */
 .settings-hero-card .card-top-label,

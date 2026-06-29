@@ -9,8 +9,8 @@
 import { JourneyId, JOURNEY_ORDER } from '@/lib/journeys'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import type { ImpactProfile, Persona } from '@/lib/brains/types'
-import { normalizeEmploymentStatus, type ImpactResult } from '@/lib/brains/calculations'
-import { normalizeEmploymentStatus as normalizeEmploymentSegment } from '@/lib/profile/employmentSegment'
+import { type ImpactResult } from '@/lib/brains/calculations'
+import { normalizeEmploymentStatus } from '@/lib/profile/employmentSegment'
 import type { ScrapedOverlayResult } from '@/lib/brains/buildUserImpact'
 import type { ScrapedDataPoint } from '@/lib/scraper/sources'
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
@@ -449,7 +449,7 @@ function profileDrivenJourneyTitle(
     case 'shopping':
       return profile?.goal === 'money' ? 'buy less, save more' : 'shop with lower impact'
     case 'money': {
-      const emp = normalizeEmploymentSegment(profile?.employment_status)
+      const emp = normalizeEmploymentStatus(profile?.employment_status)
       if (emp === 'STUDENT') return 'stretch student budget further'
       if (emp === 'BETWEEN_JOBS') return 'protect monthly essentials'
       return 'optimise monthly spending'
@@ -1226,7 +1226,7 @@ export function buildZoneViewModel({
         : age === 'RETIRED'
           ? { home: 600 }
           : {}
-    const employment = normalizeEmploymentSegment(profile?.employment_status)
+    const employment = normalizeEmploymentStatus(profile?.employment_status)
     if (employment === 'STUDENT') {
       base.tech = (base.tech ?? 0) + 400
       base.food = (base.food ?? 0) + 350

@@ -42,10 +42,9 @@ export function pickFirstHttpUrl(...candidates: Array<string | undefined | null>
 export type RevenueCtaKind = 'swap' | 'grant' | 'reclaim' | 'learn' | 'apply' | 'find' | 'view'
 
 export function resolveRevenueCtaLabel(kind: RevenueCtaKind, moneyGbp: number): string {
-  void moneyGbp
   switch (kind) {
     case 'swap':
-      return 'Get'
+      return 'Switch'
     case 'grant':
       return 'Claim'
     case 'apply':
@@ -53,11 +52,11 @@ export function resolveRevenueCtaLabel(kind: RevenueCtaKind, moneyGbp: number): 
     case 'find':
       return 'Find'
     case 'view':
-      return 'Go'
+      return 'Check'
     case 'learn':
       return 'Read'
     case 'reclaim':
-      return moneyGbp >= 120 ? 'Buy' : 'Read'
+      return moneyGbp >= 200 ? 'Compare' : moneyGbp >= 50 ? 'Buy' : 'Read'
     default:
       return 'Read'
   }

@@ -77,25 +77,29 @@ export function SettingsJourneyEditOverlay({ journeyId, title, onClose }: Props)
         /* ignore */
       }
 
-      const postcode = state.profile?.postcode ?? null
-      await submitSoloFocusJourneyAnswer({
-        journeyId,
-        questionId: question.id,
-        answerValue: answer,
-        postcode,
-        cardId: `journey-${journeyId}`,
-      })
+      try {
+        const postcode = state.profile?.postcode ?? null
+        await submitSoloFocusJourneyAnswer({
+          journeyId,
+          questionId: question.id,
+          answerValue: answer,
+          postcode,
+          cardId: `journey-${journeyId}`,
+        })
 
-      void syncSessionState()
+        void syncSessionState()
 
-      writeSettingsEditZoneHandoff({
-        journeyKey: journeyId,
-        cardId: `journey-${journeyId}`,
-        surface: 'journey',
-      })
+        writeSettingsEditZoneHandoff({
+          journeyKey: journeyId,
+          cardId: `journey-${journeyId}`,
+          surface: 'journey',
+        })
 
-      onClose()
-      router.push(ROUTES.ZONE)
+        onClose()
+        router.push(ROUTES.ZONE)
+      } catch {
+        setLocked(false)
+      }
     },
     [question, locked, journeyId, onClose, router, state.profile?.postcode]
   )

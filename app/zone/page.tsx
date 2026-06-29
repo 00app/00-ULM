@@ -2353,7 +2353,8 @@ export default function ZonePage() {
     let deduped = prepareRockHabitsForRail(
       rockVisibleHabits,
       viewModel,
-      MAX_ROCK_SAVING_TIPS_RAIL
+      MAX_ROCK_SAVING_TIPS_RAIL,
+      state.profile?.goal
     )
     if (deduped.length === 0) {
       deduped = capRockHabitsPerJourney(ROCK_HABITS, 1).slice(0, MAX_ROCK_SAVING_TIPS_RAIL)

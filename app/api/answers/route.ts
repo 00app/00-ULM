@@ -62,6 +62,7 @@ import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import { attachSessionCookieToResponse, resolveAnswersUser } from '@/lib/answers/resolveAnswersUser'
 import { answersPostBodySchema, invalidBodyResponse } from '@/lib/api/schemas'
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
+import { tooManyRequestsResponse } from '@/lib/requestAuth'
 import { captureServerError } from '@/lib/observability/captureError'
 import { processCalculatedLoopSpawn } from '@/lib/zone/engineDataRouter'
 import {
@@ -98,12 +99,7 @@ export async function POST(request: NextRequest) {
   try {
     const id = getClientIdentifier(request)
     const { ok, retryAfter } = await checkRateLimitAsync(`answers-post:${id}`, ANSWERS_POST_MAX_PER_MINUTE)
-    if (!ok) {
-      return NextResponse.json(
-        { error: 'Too many requests' },
-        { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined }
-      )
-    }
+    if (!ok) return tooManyRequestsResponse(retryAfter)
 
     const rawBody = await request.json()
     const bodyParsed = answersPostBodySchema.safeParse(rawBody)

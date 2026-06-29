@@ -62,6 +62,17 @@ export function filterRockHabitsAgainstWall(
   return out
 }
 
+function sortByGoalBias(habits: RockHabit[], goal?: string | null): RockHabit[] {
+  const g = String(goal ?? '').toLowerCase().trim()
+  if (g === 'money' || g === 'save' || g === 'save_money') {
+    return [...habits].sort((a, b) => b.money_gbp - a.money_gbp)
+  }
+  if (g === 'carbon' || g === 'reduce' || g === 'reduce_carbon') {
+    return [...habits].sort((a, b) => b.carbon_kg - a.carbon_kg)
+  }
+  return habits
+}
+
 /**
  * Today's Tips rail — prefer off-wall journeys; then catalog habits whose titles differ from wall hooks.
  * One habit per journey_key; up to `limit` slots (RockSavingTips shows six).
@@ -69,7 +80,8 @@ export function filterRockHabitsAgainstWall(
 export function prepareRockHabitsForRail(
   rotationHabits: RockHabit[],
   viewModel: ZoneViewModel,
-  limit: number
+  limit: number,
+  goal?: string | null
 ): RockHabit[] {
   const season = getUkSeason()
   const wallFilteredRotation = filterRockHabitsAgainstWall(rotationHabits, viewModel)
@@ -119,5 +131,6 @@ export function prepareRockHabitsForRail(
     }
   }
 
-  return prioritizeSeasonTipsForVisibleRail(out.slice(0, limit), season)
+  const result = prioritizeSeasonTipsForVisibleRail(out.slice(0, limit), season)
+  return sortByGoalBias(result, goal)
 }
