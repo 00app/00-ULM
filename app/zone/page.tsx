@@ -2363,7 +2363,7 @@ export default function ZonePage() {
       const url = rockOfferByJourney[h.journey_key]
       return mergeRockHabitWithJourneyOffer(h, url)
     })
-  }, [rockVisibleHabits, rockOfferByJourney, viewModel])
+  }, [rockVisibleHabits, rockOfferByJourney, viewModel, state.profile?.goal])
 
   const zoneSignupTipSlugs = useMemo(
     () => rockHabitsWithOffers.slice(0, 6).map((h) => h.slug),
