@@ -26,18 +26,23 @@ export async function createSession(userId: string, sessionDays: number = SESSIO
 }
 
 export async function getSessionFromRequest(): Promise<{ userId: string } | null> {
-  const cookieStore = await cookies()
-  const raw = cookieStore.get(SESSION_COOKIE)?.value ?? null
-  const token = raw ? unsealSessionToken(raw) : null
-  if (!token) return null
+  try {
+    const cookieStore = await cookies()
+    const raw = cookieStore.get(SESSION_COOKIE)?.value ?? null
+    const token = raw ? unsealSessionToken(raw) : null
+    if (!token) return null
 
-  const result = await pool.query(
-    `SELECT user_id FROM sessions WHERE token = $1 AND expires_at > now()`,
-    [token]
-  )
-  const row = result.rows[0]
-  if (!row) return null
-  return { userId: String(row.user_id) }
+    const result = await pool.query(
+      `SELECT user_id FROM sessions WHERE token = $1 AND expires_at > now()`,
+      [token]
+    )
+    const row = result.rows[0]
+    if (!row) return null
+    return { userId: String(row.user_id) }
+  } catch (err) {
+    console.error('[auth] session lookup failed:', err instanceof Error ? err.message : err)
+    return null
+  }
 }
 
 /** Set signed session cookie on an API response. */

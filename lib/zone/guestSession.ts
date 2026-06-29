@@ -22,14 +22,13 @@ export function getGuestSessionCookieOptions(maxAge = GUEST_SESSION_MAX_AGE) {
 }
 
 export function setGuestSessionCookie(res: NextResponse, sessionId: string): void {
-  if (!isSessionSigningConfigured()) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[guestSession] SESSION_SECRET missing (≥16 chars) — zz_sid cookie skipped')
-    }
+  if (!isSessionSigningConfigured() && process.env.NODE_ENV === 'production') {
+    console.error('[guestSession] SESSION_SECRET missing (≥16 chars) — zz_sid cookie skipped')
     return
   }
   try {
-    res.cookies.set(GUEST_SESSION_COOKIE, sealGuestSessionId(sessionId), getGuestSessionCookieOptions())
+    const value = isSessionSigningConfigured() ? sealGuestSessionId(sessionId) : sessionId
+    res.cookies.set(GUEST_SESSION_COOKIE, value, getGuestSessionCookieOptions())
   } catch (err) {
     console.error('[guestSession] cookie set failed:', err instanceof Error ? err.message : err)
   }

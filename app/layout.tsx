@@ -37,7 +37,7 @@ export default function RootLayout({
     <html
       lang="en-GB"
       className={roboto.variable}
-      style={{ backgroundColor: '#2a004a' }}
+      style={{ backgroundColor: '#0c0a32' }}
       suppressHydrationWarning
     >
       <head>

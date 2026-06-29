@@ -159,11 +159,12 @@ export function getSummaryWaste(profile?: ImpactProfile, employment?: Employment
 
   let wasteCash = energyCash + carCash
   let wasteCarbon = energyCarbon + carCarbon
-  if (employment === 'UNEMPLOYED') {
+  if (employment === 'BETWEEN_JOBS') {
     wasteCash *= 0.96
     wasteCarbon *= 0.97
-  } else if (employment === 'SELF_EMPLOYED') {
-    wasteCash *= 1.02
+  } else if (employment === 'STUDENT') {
+    wasteCash *= 0.97
+    wasteCarbon *= 0.98
   }
 
   return {

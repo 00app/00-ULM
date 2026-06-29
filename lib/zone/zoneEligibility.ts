@@ -1,21 +1,14 @@
 import type { ZoneTipCard } from '@/lib/logic/zone'
+import {
+  isActiveEmployed,
+  isBetweenJobs,
+  isStudent,
+  normalizeEmploymentStatus,
+} from '@/lib/profile/employmentSegment'
 
 const MEANS_TESTED_RE = /\b(eco4|eco\s*4|bus\s+grant|income[\s-]?related|benefit|means[\s-]?test|warm\s+home)\b/i
 
-export function isActiveEmployed(employmentStatus?: string | null): boolean {
-  const s = String(employmentStatus ?? '')
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, '_')
-  return (
-    s === 'EMPLOYED' ||
-    s === 'FULL_TIME' ||
-    s === 'PART_TIME' ||
-    s === 'SELF_EMPLOYED' ||
-    s === 'EMPLOYED_FULL_TIME' ||
-    s === 'EMPLOYED_PART_TIME'
-  )
-}
+export { isActiveEmployed, isStudent, isBetweenJobs, normalizeEmploymentStatus } from '@/lib/profile/employmentSegment'
 
 /** High-value outward districts — asset-optimization tone (not survival). */
 export function isHighValuePostcode(postcode?: string | null): boolean {
@@ -50,6 +43,12 @@ export function grantsJourneyTitleForProfile(args: {
 }): string {
   if (isHighValuePostcode(args.postcode)) {
     return 'optimise assets and legacy efficiency'
+  }
+  if (isStudent(args.employmentStatus)) {
+    return 'student bills and shared-house wins'
+  }
+  if (isBetweenJobs(args.employmentStatus)) {
+    return 'zero-upfront grants and bill relief'
   }
   if (isActiveEmployed(args.employmentStatus)) {
     return 'productivity and investment-grade upgrades'

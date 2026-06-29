@@ -10,6 +10,9 @@ import { resolveOnboardingResearchJourneys } from '@/lib/zone/onboardingResearch
 import { buildGuardrailedResearchProfile } from '@/lib/profile/onboardingGuardrails'
 import { isProfileOnboardingCompleteFields } from '@/lib/profile/onboardingComplete'
 import { isValidUkPostcode } from '@/lib/geocode/ukPostcode'
+import { resolveAffluenceAuditMode } from '@/lib/zone/affluenceCheck'
+import { isStudent, isBetweenJobs } from '@/lib/profile/employmentSegment'
+import { grantsJourneyTitleForProfile } from '@/lib/zone/zoneEligibility'
 
 type Check = { name: string; pass: boolean; detail?: string }
 
@@ -27,7 +30,7 @@ const BASE_PROFILE = {
   powerType: 'gas_electric',
   transport: 'car',
   age: 'MID',
-  employmentStatus: 'employed',
+  employmentStatus: 'EMPLOYED',
   goal: 'money',
 }
 
@@ -126,6 +129,38 @@ assert(
   'all JIT journeys are valid',
   [...moneyJit, ...carbonJit].every((j) => JOURNEY_ORDER.includes(j))
 )
+
+const studentJit = resolveOnboardingResearchJourneys({
+  goal: 'money',
+  home_power: 'gas_electric',
+  employment_status: 'STUDENT',
+  postcode: 'M11AG',
+})
+assert('student profile prioritises grants in JIT', studentJit.includes('grants'), studentJit.join(','))
+
+const betweenJobsAff = resolveAffluenceAuditMode({
+  employment_status: 'BETWEEN_JOBS',
+  postcode: 'M11AG',
+})
+assert('between jobs uses bill survival mode', betweenJobsAff.mode === 'bill_survival')
+assert('student is not active employed', !isStudent('EMPLOYED') && isStudent('STUDENT'))
+assert(
+  'student grants title',
+  grantsJourneyTitleForProfile({
+    employmentStatus: 'STUDENT',
+    postcode: 'M11AG',
+    defaultTitle: 'grants',
+  }).includes('student')
+)
+assert(
+  'between jobs grants title',
+  grantsJourneyTitleForProfile({
+    employmentStatus: 'BETWEEN_JOBS',
+    postcode: 'M11AG',
+    defaultTitle: 'grants',
+  }).includes('zero-upfront')
+)
+assert('legacy unemployed maps to between jobs segment', isBetweenJobs('UNEMPLOYED'))
 
 const failed = checks.filter((c) => !c.pass)
 if (failed.length > 0) {

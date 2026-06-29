@@ -27,7 +27,7 @@ export default function GlobalError({
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '100vh',
-          background: '#7800ce',
+          background: '#141268',
           padding: 20,
           textAlign: 'center',
           color: '#FDFD00'

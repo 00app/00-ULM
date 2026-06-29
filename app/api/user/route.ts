@@ -57,7 +57,13 @@ export async function POST(request: NextRequest) {
     const empIn =
       typeof body?.employment_status === 'string' ? body.employment_status.trim().toUpperCase().slice(0, 32) : ''
     const employment_status =
-      empIn === 'EMPLOYED' || empIn === 'SELF_EMPLOYED' || empIn === 'UNEMPLOYED' ? empIn : null
+      empIn === 'STUDENT' || empIn === 'EMPLOYED' || empIn === 'BETWEEN_JOBS'
+        ? empIn
+        : empIn === 'SELF_EMPLOYED'
+          ? 'EMPLOYED'
+          : empIn === 'UNEMPLOYED' || empIn === 'NOT_WORK'
+            ? 'BETWEEN_JOBS'
+            : null
 
     const houseNumber =
       typeof body?.house_number === 'string' ? body.house_number.trim().slice(0, 32) : ''

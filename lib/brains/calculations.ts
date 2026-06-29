@@ -37,6 +37,8 @@ import type { JourneyId } from '@/lib/journeys'
 import type { EmploymentStatus } from '@/lib/brains/types'
 import { formatZoneCardMoney } from '@/lib/format'
 
+export { normalizeEmploymentStatus } from '@/lib/profile/employmentSegment'
+
 /** July 2026 typical household cap (£/yr) — single import for summary + calculators. */
 export const BASELINE_2026_CAP_GBP = TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP
 export const ELEC_UNIT_RATE_PENCE = APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH
@@ -699,19 +701,8 @@ export function estimateDiscoveryCarbonKg(
   return 450
 }
 
-export function normalizeEmploymentStatus(
-  raw: string | undefined | null
-): EmploymentStatus | undefined {
-  const u = String(raw ?? '')
-    .toUpperCase()
-    .trim()
-  if (u === 'EMPLOYED' || u === 'SELF_EMPLOYED' || u === 'UNEMPLOYED') return u
-  return undefined
-}
-
 /**
  * Employment “master switch” — tilts money/carbon emphasis and adds lifestyle-architect copy.
- * Hardware & habits vs grants: unemployed → low-barrier wins; self-employed → tax context; employed → benefits / salary sacrifice.
  */
 export function applyEmploymentFinancialPhysics(
   result: ImpactResult,
@@ -723,23 +714,23 @@ export function applyEmploymentFinancialPhysics(
   const extra: string[] = []
 
   switch (employment) {
-    case 'UNEMPLOYED':
+    case 'BETWEEN_JOBS':
       if (journeyKey === 'home' || journeyKey === 'waste' || journeyKey === 'food') {
         moneyGbp = Math.round(moneyGbp * 1.04)
       }
       extra.push(
-        'Low-barrier wins first: cooler washes, radiator reflectors, fridge eco mode — small £, no upfront.'
+        'Between jobs: zero-upfront habits first — cooler washes, radiator tweaks, fridge eco mode.'
       )
       extra.push(
-        'On a tight budget, ask your supplier about hardship / fuel schemes and Universal Credit cost-of-living help where relevant.'
+        'Ask your supplier about hardship tariffs and council cost-of-living help where relevant.'
       )
       break
-    case 'SELF_EMPLOYED':
-      if (journeyKey === 'home' || journeyKey === 'tech') {
-        moneyGbp = Math.round(moneyGbp * 1.06)
+    case 'STUDENT':
+      if (journeyKey === 'food' || journeyKey === 'tech' || journeyKey === 'shopping') {
+        moneyGbp = Math.round(moneyGbp * 1.05)
       }
       extra.push(
-        'Self-employed: a defensible share of home energy and qualifying efficiency kit may count against tax — verify with HMRC guidance and your accountant.'
+        'Student: shared-bill wins — batch cooking, standby off, shorter hot washes, split meter reads fairly.'
       )
       break
     case 'EMPLOYED':
@@ -747,7 +738,7 @@ export function applyEmploymentFinancialPhysics(
         moneyGbp = Math.round(moneyGbp * 1.05)
       }
       extra.push(
-        'Employed: salary sacrifice (cycles, EVs where offered) and workplace pension options stack with tariff and grant wins — check what payroll runs in 2026.'
+        'Employed: salary sacrifice (cycles, EVs where offered) and workplace perks stack with tariff wins — check payroll in 2026.'
       )
       break
     default:

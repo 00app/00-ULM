@@ -2799,17 +2799,6 @@ export default function ZonePage() {
                 const tipVisited = isZoneCardVisited(tip.id, tip.journey_key)
                 const tipDeepDive = deepDivePendingId === tip.id
                 const discoveryChild = isDiscoveryInjectCard(tip.id)
-                const tipBg = tipVisited
-                  ? 'var(--color-pink)'
-                  : discoveryChild
-                    ? 'var(--color-yellow)'
-                    : 'var(--color-purple)'
-                const tipInk = tipVisited
-                  ? 'var(--color-yellow)'
-                  : discoveryChild
-                    ? 'var(--color-purple)'
-                    : 'var(--color-yellow)'
-                const tipTextColor = tipInk
                 const semanticWin = tip.dominant_win ?? 'money'
                 /* Category nested tips → parent journey Solo Focus (full article + question + loop). */
                 const journeyCell = groovyItems.find(
@@ -2836,6 +2825,7 @@ export default function ZonePage() {
                     className={[
                       'bento-card-groovy flex flex-col min-h-0 w-full h-full cursor-pointer border-0 text-left',
                       greenPulse ? 'discovery-card-green-pulse' : '',
+                      discoveryChild && !tipVisited ? 'zone-card--discovery' : '',
                       tipVisited ? 'zone-card--visited' : '',
                       tipDeepDive ? 'zone-card--deep-dive-pending' : '',
                     ]
@@ -2844,12 +2834,6 @@ export default function ZonePage() {
                     style={{
                       borderRadius: 60,
                       boxShadow: 'none',
-                      color: tipTextColor,
-                      ['--journey-bg' as string]: tipBg,
-                      ['--journey-text' as string]: tipTextColor,
-                      ['--color-ink' as string]: tipTextColor,
-                      ['--semantic-money' as string]: tipTextColor,
-                      ['--semantic-carbon' as string]: tipTextColor,
                     }}
                     onClick={handleTipClick}
                     initial={snapBloomIn ? FAMILY_ATOMIC_SURFACE_INITIAL : false}
@@ -2861,23 +2845,19 @@ export default function ZonePage() {
                     <ZoneBentoCardHeader
                       journeyId={tip.journey_key ?? 'carbon'}
                       showPlus={isAchievementDiscovery}
-                      textColor={tipTextColor}
                     />
                     <h3 className="card-headline m-0 min-w-0" lang="en">
                       {tipHeadline}
                     </h3>
                     {tipDeepDive ? (
-                      <p className="zz-body-bold m-0 mt-2 uppercase" style={{ color: tipTextColor }}>
+                      <p className="zz-body-bold m-0 mt-2 uppercase">
                         Deep dive in progress...
                       </p>
                     ) : null}
                     <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
                       <div className="data-stack data-stack--tight">
-                        <span className="data-label" style={{ color: tipTextColor }}>{ENGINE_UI_LABELS.potentialSavings}</span>
-                        <span
-                          className="data-value text-data data-stamp-metric"
-                          style={{ color: 'var(--color-ink)' }}
-                        >
+                        <span className="data-label">{ENGINE_UI_LABELS.potentialSavings}</span>
+                        <span className="data-value text-data data-stamp-metric">
                           <StampedMoneyGbp
                             gbp={parseMoneyGbpFromDisplay(
                               moneyDisp && !/^\s*£/.test(moneyDisp) ? `£${moneyDisp}` : moneyDisp || '0'
@@ -2886,11 +2866,8 @@ export default function ZonePage() {
                         </span>
                       </div>
                       <div className="data-stack data-stack--tight">
-                        <span className="data-label" style={{ color: tipTextColor }}>{ENGINE_UI_LABELS.carbon}</span>
-                        <span
-                          className="data-value text-data data-stamp-metric"
-                          style={{ color: 'var(--color-ink)' }}
-                        >
+                        <span className="data-label">{ENGINE_UI_LABELS.carbon}</span>
+                        <span className="data-value text-data data-stamp-metric">
                           <StampedCarbonKg kg={parseCarbonKgFromDisplay(String(carbonDisp || '0'))} />
                         </span>
                       </div>

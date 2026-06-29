@@ -108,7 +108,6 @@ export async function fetchLivingPulseSnapshot(
     } catch {
       /* fall through */
     }
-    console.warn('[pulse] Safe Sentinel fallback active')
     return buildFallbackSnapshot(local, postcode)
   }
 
@@ -118,7 +117,6 @@ export async function fetchLivingPulseSnapshot(
 
   const useFallback = !ofgem || carbon == null
   if (useFallback) {
-    console.warn('[pulse] Safe Sentinel fallback active')
     return { ...buildFallbackSnapshot(local, postcode), agilePPerKwh: agile }
   }
 

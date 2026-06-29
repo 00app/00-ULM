@@ -35,7 +35,7 @@ export interface AppProfile {
   homePower?: string
   transport: string
   age: string
-  /** EMPLOYED | SELF_EMPLOYED | UNEMPLOYED — set in onboarding step before goal */
+  /** STUDENT | EMPLOYED | BETWEEN_JOBS — set in onboarding before goal */
   employmentStatus?: string
   goal: string
 }

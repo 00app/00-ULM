@@ -194,12 +194,12 @@ export function employmentWinFocus(
   body: string
 } {
   switch (employment) {
-    case 'SELF_EMPLOYED':
+    case 'STUDENT':
       return {
-        kineticTag: 'TAX-WINS',
-        headline: 'Your books change the physics.',
+        kineticTag: 'BUDGET',
+        headline: 'Small wins, shared bills.',
         body:
-          'Self-employed: we’re prioritising tax-efficient upgrades and home-office splits — capital allowances on kit, heating apportionment, and green kit that pays back through deductions. Your grid and postcode are locked in for 2026 UK rates.',
+          'Student: we weight low-upfront habits — batch cooking, standby off, fair meter splits in shared housing — and keep grant routes when your postcode supports them.',
       }
     case 'EMPLOYED':
       return {
@@ -207,18 +207,18 @@ export function employmentWinFocus(
         headline: 'Salary sacrifice beats list price.',
         body: `Employed: salary-sacrifice EVs and cycle schemes often beat cash purchases; workplace pension and perks stack with commute and travel wins. ${gridMatchPhrase(areaDisplay)}`,
       }
-    case 'UNEMPLOYED':
+    case 'BETWEEN_JOBS':
       return {
         kineticTag: 'HABITS',
         headline: 'Zero-upfront wins first.',
         body:
-          'We’re weighting low-barrier habits — cooler washes, phantom load, radiator tweaks — and hardship-capable routes. Local grid data still shapes what’s worth doing where you live.',
+          'Between jobs: we weight low-barrier habits — cooler washes, phantom load, radiator tweaks — and hardship-capable grant routes. Local grid data still shapes what’s worth doing where you live.',
       }
     default:
       return {
         kineticTag: 'WINS',
         headline: 'Your numbers are live.',
-        body: `We’ve run your profile against 2026 UK defaults and ${areaDisplay === 'the UK' ? 'UK-wide' : areaDisplay} signals. Employment status fine-tunes whether we lead with tax, benefits, or habits — add it in profile anytime.`,
+        body: `We’ve run your profile against 2026 UK defaults and ${areaDisplay === 'the UK' ? 'UK-wide' : areaDisplay} signals. Employment status fine-tunes whether we lead with benefits, budget habits, or grants — add it in profile anytime.`,
       }
   }
 }

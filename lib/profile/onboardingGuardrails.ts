@@ -10,6 +10,7 @@ import {
   inferHouseholdIncomeBracket,
   normalizeHouseholdIncomeBracket,
 } from '@/lib/profile/inferHouseholdIncomeBracket'
+import { normalizeEmploymentStatus } from '@/lib/profile/employmentSegment'
 import { profileHomePowerToEnergyType } from '@/lib/profile/homePower'
 import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
 import type { PropertyIntelligence } from '@/lib/intelligence/propertyIntelligenceTypes'
@@ -69,11 +70,12 @@ export const ONBOARDING_FIELD_GUARDRAILS: Record<
   },
   age: {
     required: true,
-    funnelEffect: 'JUNIOR/MID/RETIRED adjusts grant eligibility tone and income inference.',
+    funnelEffect: 'JUNIOR/MID/RETIRED life-stage persona — tip sort, income inference, summary tone.',
   },
   employment_status: {
     required: true,
-    funnelEffect: 'Employed → asset optimization; unemployed → bill survival + grant seeds.',
+    funnelEffect:
+      'STUDENT → budget + grant seeds; EMPLOYED → salary-sacrifice / asset lane; BETWEEN_JOBS → bill survival + grants JIT.',
     scrapeUnlock: ['grants', 'money'],
   },
   household_income_bracket: {
@@ -136,6 +138,11 @@ export function buildOnboardingProfileSignals(
       property_value_band: pi?.landRegistry?.propertyValueBand,
     })
 
+  const employmentRaw = values.employmentStatus ?? values.employment_status
+  const employment_status =
+    normalizeEmploymentStatus(employmentRaw) ??
+    (typeof employmentRaw === 'string' ? employmentRaw.trim().toUpperCase() : undefined)
+
   const base: LocalizedProfileInput = {
     ...(pc.length >= 4 ? { postcode: pc } : {}),
     home_type: values.homeType ?? values.home_type ?? undefined,
@@ -143,7 +150,7 @@ export function buildOnboardingProfileSignals(
     heating: profileHomePowerToEnergyType(power) || undefined,
     transport_baseline: values.transport ?? values.transport_baseline ?? undefined,
     household: values.livingSituation ?? values.household ?? undefined,
-    employment_status: values.employmentStatus ?? values.employment_status ?? undefined,
+    employment_status: employment_status || undefined,
     house_number: (values.houseNumber ?? values.house_number)?.trim() || undefined,
     goal,
     primary_goal: goal,

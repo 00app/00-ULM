@@ -338,8 +338,6 @@ export function RockSavingTips({
           const tip = habitToTipCard(h)
           const liked = likedCardIds.includes(tip.id)
           const visited = visitedTipIds.has(tip.id)
-          const tipBg = visited ? ROCK_CARD_BG : 'var(--color-purple)'
-          const tipInk = 'var(--color-yellow)' as const
           const jid = h.journey_key
           const tipHeadline = clampRockTipHeadline(h.title)
           const gbp = parseMoneyGbpFromDisplay(String(tip.data.money ?? '0'))
@@ -359,9 +357,6 @@ export function RockSavingTips({
                 .filter(Boolean)
                 .join(' ')}
               style={{
-                ['--journey-bg' as string]: tipBg,
-                ['--journey-text' as string]: tipInk,
-                ['--color-ink' as string]: tipInk,
                 borderRadius: 60,
                 boxShadow: 'none',
               }}
@@ -372,18 +367,18 @@ export function RockSavingTips({
               </h3>
               <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
                 <div className="data-stack data-stack--tight">
-                  <span className="data-label" style={{ color: tipInk }}>
+                  <span className="data-label">
                     SAVE
                   </span>
-                  <span className="data-value text-data data-stamp-metric" style={{ color: 'var(--color-ink)' }}>
+                  <span className="data-value text-data data-stamp-metric">
                     <StampedMoneyGbp gbp={gbp} />
                   </span>
                 </div>
                 <div className="data-stack data-stack--tight">
-                  <span className="data-label" style={{ color: tipInk }}>
+                  <span className="data-label">
                     CARBON
                   </span>
-                  <span className="data-value text-data data-stamp-metric" style={{ color: 'var(--color-ink)' }}>
+                  <span className="data-value text-data data-stamp-metric">
                     <StampedCarbonKg kg={kg} />
                     {liked ? (
                       <span className="rock-tip-liked-disc" aria-label="Liked">

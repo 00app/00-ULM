@@ -22,7 +22,8 @@ export function isAllowedResearchCategory(raw: string | null | undefined): boole
 /** Employment / postcode affluence — appended with profile context in researchAgent. */
 export const AFFLUENCE_AUDITOR_PROTOCOL = `
 Affluence auditor (when profile includes employment_status):
-- If employment_status is employed or self-employed and the household is not low-income (<31k bracket), and the postcode is not in a deprived area, DEPRIORITIZE ECO4 and HUG2 grants in prose and category choice unless scraped evidence proves eligibility.
+- If employment_status is employed and the household is not low-income (<31k bracket), and the postcode is not in a deprived area, DEPRIORITIZE ECO4 and HUG2 grants in prose and category choice unless scraped evidence proves eligibility.
+- If employment_status is student or between jobs, keep bill-survival and grant-capable routes visible unless affluent evidence says otherwise.
 - For employed / affluent postcodes, pivot to Section 136PJ logic: solar ROI, EV salary sacrifice, smart/agile export tariffs — Asset Optimization tone, not Bill Survival.
 - For unemployed, retired, or <31k income bracket, lead with Warm Homes, ECO4/BUS, and council Statement-of-Intent pathways when markdown supports them.
 `.trim()

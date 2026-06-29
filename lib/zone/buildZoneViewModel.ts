@@ -10,6 +10,7 @@ import { JourneyId, JOURNEY_ORDER } from '@/lib/journeys'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import type { ImpactProfile, Persona } from '@/lib/brains/types'
 import { normalizeEmploymentStatus, type ImpactResult } from '@/lib/brains/calculations'
+import { normalizeEmploymentStatus as normalizeEmploymentSegment } from '@/lib/profile/employmentSegment'
 import type { ScrapedOverlayResult } from '@/lib/brains/buildUserImpact'
 import type { ScrapedDataPoint } from '@/lib/scraper/sources'
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
@@ -412,7 +413,6 @@ function profileDrivenJourneyTitle(
   const household = norm(profile?.household)
   const transport = norm(profile?.transport_baseline)
   const age = norm(typeof profile?.age === 'string' ? profile.age : undefined)
-  const employment = norm(profile?.employment_status)
   const tenure = norm(home.tenure ?? home.housing_tenure)
   const fuel = norm(travel.fuel_type)
   const outward = outwardFromPostcode(profile?.postcode)
@@ -448,10 +448,12 @@ function profileDrivenJourneyTitle(
       return 'lower food footprint'
     case 'shopping':
       return profile?.goal === 'money' ? 'buy less, save more' : 'shop with lower impact'
-    case 'money':
-      if (employment === 'SELF_EMPLOYED') return 'optimise monthly cash flow'
-      if (employment === 'UNEMPLOYED') return 'protect monthly essentials'
+    case 'money': {
+      const emp = normalizeEmploymentSegment(profile?.employment_status)
+      if (emp === 'STUDENT') return 'stretch student budget further'
+      if (emp === 'BETWEEN_JOBS') return 'protect monthly essentials'
       return 'optimise monthly spending'
+    }
     case 'carbon':
       return profile?.goal === 'money' ? 'track carbon while saving' : 'track and reduce carbon'
     case 'tech':
@@ -1217,12 +1219,26 @@ export function buildZoneViewModel({
   const age = profile?.age ?? 'MID'
   const sortGoal = normalizePrimaryGoal(profile?.goal)
   const goalWeights = goalSortWeights(profile?.goal)
-  const personaBoost: Partial<Record<JourneyId, number>> =
-    age === 'JUNIOR'
-      ? { tech: 600, food: 600 }
-      : age === 'RETIRED'
-        ? { home: 600 }
-        : {}
+  const personaBoost: Partial<Record<JourneyId, number>> = (() => {
+    const base: Partial<Record<JourneyId, number>> =
+      age === 'JUNIOR'
+        ? { tech: 600, food: 600 }
+        : age === 'RETIRED'
+          ? { home: 600 }
+          : {}
+    const employment = normalizeEmploymentSegment(profile?.employment_status)
+    if (employment === 'STUDENT') {
+      base.tech = (base.tech ?? 0) + 400
+      base.food = (base.food ?? 0) + 350
+      base.shopping = (base.shopping ?? 0) + 300
+    }
+    if (employment === 'BETWEEN_JOBS') {
+      base.home = (base.home ?? 0) + 350
+      base.food = (base.food ?? 0) + 300
+      base.waste = (base.waste ?? 0) + 250
+    }
+    return base
+  })()
   const journeySortScore = (journeyKey: JourneyId) => {
     const boost = personaBoost[journeyKey] ?? 0
     const neonSave = neonJourneyResearch?.[journeyKey]?.savingGbp

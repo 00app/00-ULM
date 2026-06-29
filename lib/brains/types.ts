@@ -5,11 +5,11 @@
 
 import type { JourneyId } from '@/lib/journeys'
 
-/** Age persona for tips: Junior (tech, food) | Adult (MID) | Retired (home, holidays) */
+/** Life-stage persona for tips: starting out | mid-life | retired */
 export type Persona = 'JUNIOR' | 'MID' | 'RETIRED'
 
-/** Employed | self-employed | unemployed — master switch for financial-physics tilt in buildUserImpact */
-export type EmploymentStatus = 'EMPLOYED' | 'SELF_EMPLOYED' | 'UNEMPLOYED'
+/** Student | employed | between jobs — master switch for grants vs benefits lane */
+export type EmploymentStatus = 'STUDENT' | 'EMPLOYED' | 'BETWEEN_JOBS'
 
 /** Profile shape used by buildUserImpact and buildZoneViewModel */
 export interface ImpactProfile {

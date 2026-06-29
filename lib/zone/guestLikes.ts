@@ -9,9 +9,15 @@ function parseLikedIds(profile: unknown): string[] {
 }
 
 export async function readGuestLikedCardIds(sessionId: string): Promise<string[]> {
-  const res = await pool.query(`SELECT profile FROM guest_sessions WHERE session_id = $1`, [sessionId])
-  if (!res.rows?.length) return []
-  return parseLikedIds(res.rows[0].profile)
+  try {
+    const res = await pool.query(`SELECT profile FROM guest_sessions WHERE session_id = $1`, [sessionId])
+    if (!res.rows?.length) return []
+    return parseLikedIds(res.rows[0].profile)
+  } catch (err) {
+    const code = typeof err === 'object' && err !== null && 'code' in err ? String((err as { code: string }).code) : ''
+    if (code === '42P01') return []
+    throw err
+  }
 }
 
 export async function toggleGuestLike(

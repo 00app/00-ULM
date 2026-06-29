@@ -8,6 +8,7 @@ import { loadEnvLocal } from './load-env-local'
 import { withNeonPool } from './neon-wake'
 
 const MIGRATION_FILES = [
+  '014_guest_sessions.sql',
   '20260519_ulm_genome_expansion.sql',
   '20260522_guest_visits_and_research_hygiene.sql',
   '20260521_drop_legacy_unused_tables.sql',
@@ -42,8 +43,7 @@ async function main() {
         const m = err instanceof Error ? err.message : String(err)
         if (
           m.includes('already exists') ||
-          m.includes('duplicate') ||
-          m.includes('does not exist')
+          m.includes('duplicate')
         ) {
           console.log(`✓  db/migrations/${file} (already applied)`)
           continue

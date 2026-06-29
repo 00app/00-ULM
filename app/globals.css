@@ -116,7 +116,9 @@ nextjs-portal > * {
 
   /* Authorised palette only */
   --color-yellow: #FFD700;
-  --color-purple: #7800ce;
+  --zai-deep-blue: #141268;
+  --color-purple: var(--zai-deep-blue);
+  --color-purple-ambient: #0c0a32;
   --color-pink: #FF00FF;
   /* Profile answer selected + liked circle CTAs */
   --brand-select-bg: var(--color-purple);
@@ -127,7 +129,6 @@ nextjs-portal > * {
   /* Ask Zai + deep-dive — ULM yellow field, ULM dark ink (mechanical-pulse / postcode-first) */
   --ulm-yellow: var(--color-yellow);
   --ulm-dark: #1A1A1A;
-  --zai-deep-blue: #141268;
   --zai-field-bg: var(--ulm-yellow);
   --zai-ink: var(--ulm-dark);
   --zai-pill-bg: var(--zai-deep-blue);
@@ -248,7 +249,7 @@ nextjs-portal > * {
    GLOBAL ENVIRONMENT — interactive grainy gradient (liquid mesh + sand)
    ========================================================================== */
 html {
-  background-color: #2a004a;
+  background-color: var(--color-purple-ambient);
 }
 
 html,
@@ -263,7 +264,7 @@ body {
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background-color: #2a004a;
+  background-color: var(--color-purple-ambient);
   opacity: 1;
   visibility: visible;
 }
@@ -291,7 +292,7 @@ body {
 }
 
 .zz-blob--purple {
-  background-color: #7800ce;
+  background-color: var(--color-purple);
   width: 130vw;
   height: 130vh;
   left: -15vw;
@@ -1112,7 +1113,7 @@ p,
 
 /* 0-0 MVP Final Lock */
 :root {
-  --color-purple: #7800CE;
+  --color-purple: var(--zai-deep-blue);
   --color-yellow: #FFD700;
   --color-pink: #FF00FF;
 }
@@ -1145,6 +1146,31 @@ p,
   --journey-bg: var(--color-pink);
   --journey-text: var(--color-yellow);
   --color-ink: var(--color-yellow);
+}
+
+/* Discovery inject — yellow surface, purple ink (beats tip pink default) */
+.bento-card-groovy.zone-card--discovery[data-zone-surface='tip'],
+.groovy-zone-grid .bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] {
+  background: var(--color-yellow) !important;
+  background-color: var(--color-yellow) !important;
+  color: var(--color-purple) !important;
+  --journey-bg: var(--color-yellow);
+  --journey-text: var(--color-purple);
+  --color-ink: var(--color-purple);
+}
+.bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .card-top-label,
+.bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .zone-bento-card-header__label,
+.bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .zone-bento-card-header__plus,
+.bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .card-headline,
+.bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .data-label,
+.bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .data-value,
+.bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .text-data,
+.groovy-zone-grid .bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .card-top-label,
+.groovy-zone-grid .bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .zone-bento-card-header__label,
+.groovy-zone-grid .bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .card-headline,
+.groovy-zone-grid .bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .data-label,
+.groovy-zone-grid .bento-card-groovy.zone-card--discovery[data-zone-surface='tip'] .data-value {
+  color: var(--color-purple) !important;
 }
 
 .expanded-solo-focus {
@@ -1926,7 +1952,9 @@ body, p, span, input, button, textarea, select,
   min-height: 0;
   height: fit-content;
   background: var(--color-purple) !important;
-  color: var(--journey-color, var(--color-purple)) !important;
+  color: var(--color-yellow) !important;
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
   z-index: 10;
   border-radius: var(--radius-groovy);
   overflow: auto;
@@ -2741,8 +2769,8 @@ body, p, span, input, button, textarea, select,
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* v4.1 — fixed viewport gutter: 10px mobile / 40px desktop (+ safe areas) */
-  padding: calc(10px + env(safe-area-inset-top, 0px)) 10px calc(10px + env(safe-area-inset-bottom, 0px)) 10px;
+  /* v4.2 — edge-to-edge mobile; 40px desktop gutter (+ safe areas) */
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px) 0;
   background-color: transparent;
   background: transparent !important;
   backdrop-filter: none !important;
@@ -6892,8 +6920,19 @@ body.ask-zai-deep-dive-active {
   cursor: default;
 }
 .expanded-solo-focus .solo-focus-trinity--80 {
-  gap: 14px;
+  gap: 20px;
   flex-wrap: wrap;
+}
+@media (max-width: 767px) {
+  .expanded-solo-focus .solo-focus-trinity--80 {
+    gap: 15px;
+  }
+  .expanded-solo-focus .solo-focus-mother-stack .solo-focus-mother-metrics > * + * {
+    margin-top: 30px !important;
+  }
+  .expanded-solo-focus .solo-focus-mother-metrics .solo-focus-journey-nav--inset {
+    margin-top: 30px !important;
+  }
 }
 .ask-zai-deep-dive-pill-row {
   gap: 10px;
@@ -8566,7 +8605,8 @@ html.zz-zai-document body {
 }
 
 .zz-profile-page .profile-optional-suffix {
-  opacity: 0.72;
+  color: var(--color-yellow);
+  opacity: 1;
   font-weight: 700;
 }
 
@@ -8664,6 +8704,12 @@ html.zz-zai-document body {
   .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .card-headline,
   .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-label,
   .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-value,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-value .data-stamp-metric,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-stamp-figures,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-symbol-unit,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-carbon-units,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-co2-mark,
+  .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .data-co2-sub,
   .groovy-zone-grid .bento-card-groovy:not(.zone-card--visited):hover .text-data,
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .card-top-label,
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .zone-bento-card-header__label,
@@ -8671,8 +8717,40 @@ html.zz-zai-document body {
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .card-headline,
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-label,
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-value,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-value .data-stamp-metric,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-stamp-figures,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-symbol-unit,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-carbon-units,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-co2-mark,
+  .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .data-co2-sub,
   .rock-saving-tips-grid .bento-card-groovy:not(.zone-card--visited):hover .text-data {
     color: var(--zz-hover-text) !important;
+    stroke: var(--zz-hover-text) !important;
+    -webkit-text-fill-color: var(--zz-hover-text) !important;
+  }
+  /* Discovery inject — yellow rest → purple rollover */
+  .groovy-zone-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover {
+    background: var(--color-purple) !important;
+    background-color: var(--color-purple) !important;
+    color: var(--color-yellow) !important;
+    --journey-bg: var(--color-purple);
+    --journey-text: var(--color-yellow);
+    --color-ink: var(--color-yellow);
+  }
+  .groovy-zone-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover .card-top-label,
+  .groovy-zone-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover .zone-bento-card-header__label,
+  .groovy-zone-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover .card-headline,
+  .groovy-zone-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover .data-label,
+  .groovy-zone-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover .data-value,
+  .groovy-zone-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover .data-stamp-figures,
+  .groovy-zone-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover .data-symbol-unit,
+  .groovy-zone-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover .data-carbon-units,
+  .groovy-zone-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover .data-co2-mark,
+  .groovy-zone-grid .bento-card-groovy.zone-card--discovery:not(.zone-card--visited):hover .data-co2-sub {
+    color: var(--color-yellow) !important;
+    stroke: var(--color-yellow) !important;
+    -webkit-text-fill-color: var(--color-yellow) !important;
   }
   /* Visited (pink) — no hover colour change */
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover,
@@ -8690,6 +8768,11 @@ html.zz-zai-document body {
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .card-headline,
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .data-label,
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .data-value,
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .data-stamp-figures,
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .data-symbol-unit,
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .data-carbon-units,
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .data-co2-mark,
+  .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .data-co2-sub,
   .groovy-zone-grid .bento-card-groovy.zone-card--visited:hover .text-data,
   .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .card-top-label,
   .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .zone-bento-card-header__label,
@@ -8697,8 +8780,15 @@ html.zz-zai-document body {
   .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .card-headline,
   .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .data-label,
   .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .data-value,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .data-stamp-figures,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .data-symbol-unit,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .data-carbon-units,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .data-co2-mark,
+  .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .data-co2-sub,
   .rock-saving-tips-grid .bento-card-groovy.zone-card--visited:hover .text-data {
     color: var(--color-yellow) !important;
+    stroke: var(--color-yellow) !important;
+    -webkit-text-fill-color: var(--color-yellow) !important;
   }
   /* Settings + Likes bento tiles */
   .settings-page .settings-bento-card.bento-card-groovy:not(.settings-bento-card--info):hover,

@@ -5,9 +5,13 @@
 
 import {
   filterTipsForEmployment,
-  isActiveEmployed,
   isHighValuePostcode,
 } from '@/lib/zone/zoneEligibility'
+import {
+  isActiveEmployed,
+  isBillSurvivalSegment,
+  isStudent,
+} from '@/lib/profile/employmentSegment'
 
 export type AffluenceAuditMode = 'asset_optimization' | 'bill_survival'
 
@@ -57,10 +61,15 @@ export function resolveAffluenceAuditMode(input: AffluenceProfileInput): {
   deprioritizeMeansTestedGrants: boolean
 } {
   const employed = isActiveEmployed(input.employment_status)
+  const student = isStudent(input.employment_status)
+  const billSurvival = isBillSurvivalSegment(input.employment_status)
   const polished = isHighValuePostcode(input.postcode)
   const lowIncome = isLowIncomeBracket(input.household_income_bracket)
 
-  if (employed && (polished || !lowIncome) && !lowIncome) {
+  if (billSurvival) {
+    return { mode: 'bill_survival', deprioritizeMeansTestedGrants: false }
+  }
+  if (employed && (polished || !lowIncome) && !lowIncome && !student) {
     return { mode: 'asset_optimization', deprioritizeMeansTestedGrants: true }
   }
   return { mode: 'bill_survival', deprioritizeMeansTestedGrants: false }
@@ -79,11 +88,20 @@ export function buildAffluenceAuditorPromptBlock(input: AffluenceProfileInput): 
   ]
   if (deprioritizeMeansTestedGrants || (employed && polished)) {
     lines.push(
-      '- If employment_status is employed/self-employed and the household is not low-income (<31k), DEPRIORITIZE ECO4 and HUG2 grant-led copy unless markdown proves eligibility.',
+      '- If employment_status is employed and the household is not low-income (<31k), DEPRIORITIZE ECO4 and HUG2 grant-led copy unless markdown proves eligibility.',
       '- Pivot to Section 136PJ logic: solar ROI, EV salary sacrifice, smart/agile export tariffs, and investment-grade efficiency — not bill-survival framing.',
       polished
         ? '- Postcode reads as affluent: use Asset Optimization tone (legacy efficiency, ROI, export income) — not Bill Survival.'
         : '- Use a productivity / investment tone rather than means-tested grant urgency.'
+    )
+  } else if (isStudent(input.employment_status)) {
+    lines.push(
+      '- Student segment: lead with shared-bill habits, low-upfront tech longevity, and budget food wins — keep council/grant routes when eligibility evidence exists.',
+      '- Do not assume parental affluence; postcode and household context govern grant tone.'
+    )
+  } else if (isBillSurvivalSegment(input.employment_status)) {
+    lines.push(
+      '- Between jobs: lead with bill survival, Warm Homes / council schemes, and means-tested grants when evidence supports eligibility.'
     )
   } else {
     lines.push(
@@ -93,4 +111,8 @@ export function buildAffluenceAuditorPromptBlock(input: AffluenceProfileInput): 
   return `${lines.join('\n')}\n\n`
 }
 
-export { filterTipsForEmployment, isActiveEmployed, isHighValuePostcode }
+export {
+  filterTipsForEmployment,
+  isHighValuePostcode,
+} from '@/lib/zone/zoneEligibility'
+export { isActiveEmployed, isStudent, isBetweenJobs } from '@/lib/profile/employmentSegment'

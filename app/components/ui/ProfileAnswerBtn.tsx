@@ -38,6 +38,10 @@ export default function ProfileAnswerBtn({
 }: ProfileAnswerBtnProps) {
   const delay = delaySeconds ?? familyControlDelaySec(optionIndex)
   const enterMotion = familyAtomicProps(Boolean(reduceMotion))
+  const activate = () => {
+    if (disabled) return
+    onClick()
+  }
   return (
     <motion.button
       type="button"
@@ -51,7 +55,18 @@ export default function ProfileAnswerBtn({
         ...FAMILY_TRANSITION_ATOMIC,
         delay,
       }}
-      onClick={onClick}
+      onPointerDown={(e) => {
+        if (disabled) return
+        e.preventDefault()
+        activate()
+      }}
+      onKeyDown={(e) => {
+        if (disabled) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          activate()
+        }
+      }}
     >
       {children}
     </motion.button>

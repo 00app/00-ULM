@@ -15,7 +15,7 @@ export interface ProfileForMemory {
   transport_baseline?: string
   age?: string
   goal?: string
-  /** EMPLOYED | SELF_EMPLOYED | UNEMPLOYED — lifestyle-architect / financial-physics pivot */
+  /** STUDENT | EMPLOYED | BETWEEN_JOBS — lifestyle-architect / financial-physics pivot */
   employment_status?: string
 }
 

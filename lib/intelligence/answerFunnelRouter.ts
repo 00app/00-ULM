@@ -9,6 +9,7 @@ import {
   type ProfileGoalValue,
 } from '@/lib/profile/goalWeighting'
 import { guardrailPriorityJourneys } from '@/lib/profile/onboardingGuardrails'
+import { isBetweenJobs, isStudent } from '@/lib/profile/employmentSegment'
 import { resolveAffluenceAuditMode } from '@/lib/zone/affluenceCheck'
 import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
 import { isHighDeprivationArea, isLowDeprivationArea } from '@/lib/intelligence/deprivationClient'
@@ -107,6 +108,17 @@ function scoreJourneys(params: {
       bump('utilities', 8)
     } else {
       bump('grants', 12)
+    }
+    if (isStudent(params.profile.employment_status)) {
+      bump('food', 10)
+      bump('shopping', 8)
+      bump('tech', 6)
+    }
+    if (isBetweenJobs(params.profile.employment_status)) {
+      bump('grants', 8)
+      bump('food', 6)
+      bump('waste', 5)
+      bump('home', 4)
     }
   }
 

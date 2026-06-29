@@ -7,7 +7,7 @@ import {
   finalizeAuthenticatedResponse,
   resolveAuthenticatedUser,
 } from '@/lib/auth/resolveAuthenticatedUser'
-import { guestIpHashFromRequest } from '@/lib/zone/guestSession'
+import { guestIpHashFromRequest, resolveGuestSessionId, setGuestSessionCookie } from '@/lib/zone/guestSession'
 import { ensureGuestSessionRow } from '@/lib/zone/ensureGuestSessionRow'
 import { OFFER_SIGNALS, type OfferSignal } from '@/lib/zone/offerSignals'
 import { updateHermesMemoryAfterOfferSignal } from '@/lib/agents/hermes-memory'
@@ -179,21 +179,24 @@ export async function POST(request: NextRequest) {
         return finalizeAuthenticatedResponse(res, auth)
       }
       const identity = await resolveRequestIdentity(request)
-      if (identity?.kind === 'guest') {
-        await pool.query(
-          `UPDATE offer_signals
-           SET feedback_answer = $4
-           WHERE id = (
-             SELECT id FROM offer_signals
-             WHERE guest_session_id = $1 AND card_id = $2 AND signal = $3
-             ORDER BY created_at DESC
-             LIMIT 1
-           )`,
-          [identity.sessionId, card_id, signal, feedback_answer]
-        )
-        return NextResponse.json({ ok: true, signal, feedback: true })
-      }
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      const guestSessionId =
+        identity?.kind === 'guest' ? identity.sessionId : resolveGuestSessionId(request)
+      const ipHash = guestIpHashFromRequest(request)
+      await ensureGuestSessionRow(guestSessionId, ipHash)
+      await pool.query(
+        `UPDATE offer_signals
+         SET feedback_answer = $4
+         WHERE id = (
+           SELECT id FROM offer_signals
+           WHERE guest_session_id = $1 AND card_id = $2 AND signal = $3
+           ORDER BY created_at DESC
+           LIMIT 1
+         )`,
+        [guestSessionId, card_id, signal, feedback_answer]
+      )
+      const res = NextResponse.json({ ok: true, signal, feedback: true })
+      setGuestSessionCookie(res, guestSessionId)
+      return res
     }
 
     if (auth?.userId) {
@@ -230,24 +233,27 @@ export async function POST(request: NextRequest) {
     }
 
     const identity = await resolveRequestIdentity(request)
-    if (!identity || identity.kind !== 'guest') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const guestSessionId =
+      identity?.kind === 'guest' ? identity.sessionId : resolveGuestSessionId(request)
+    const ipHash = guestIpHashFromRequest(request)
+    await ensureGuestSessionRow(guestSessionId, ipHash)
 
     await pool.query(
       `INSERT INTO offer_signals (
         guest_session_id, card_id, signal, journey_key, card_title, money_gbp, created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-      [identity.sessionId, card_id, signal, journey_key, card_title, money_gbp]
+      [guestSessionId, card_id, signal, journey_key, card_title, money_gbp]
     )
 
     if (signal === 'dislike') {
-      await appendGuestDislike(identity.sessionId, card_id, guestIpHashFromRequest(request))
+      await appendGuestDislike(guestSessionId, card_id, ipHash)
     } else if (signal === 'like') {
-      await removeGuestDislike(identity.sessionId, card_id)
+      await removeGuestDislike(guestSessionId, card_id)
     }
 
-    return NextResponse.json({ ok: true, signal })
+    const res = NextResponse.json({ ok: true, signal })
+    setGuestSessionCookie(res, guestSessionId)
+    return res
   } catch (error) {
     console.error('[offer-signals] POST', error)
     return NextResponse.json({ error: 'Failed to record signal' }, { status: 500 })

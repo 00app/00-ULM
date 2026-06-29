@@ -2,7 +2,8 @@
  * Localized profile prefix for Firecrawl + Gemini — keeps scrape/synthesis tied to household context.
  */
 
-import { isActiveEmployed, isLowIncomeBracket } from '@/lib/zone/affluenceCheck'
+import { isActiveEmployed, isBetweenJobs, isStudent } from '@/lib/profile/employmentSegment'
+import { isLowIncomeBracket } from '@/lib/zone/affluenceCheck'
 
 /** Mirrors `ResearchProfileData` — kept local to avoid circular imports with researchAgent. */
 export type LocalizedProfileInput = {
@@ -155,10 +156,22 @@ export function buildLocalizedResearchPrefix(params: {
   return lines.join('\n')
 }
 
-/** Employed / affluent → SEG, agile tariffs, salary sacrifice; low income → ECO4, social tariffs, council grants. */
+/** Employed → SEG, agile tariffs; student / between jobs → grants + budget seeds. */
 export function buildEmploymentAwareResearchSeeds(profile?: LocalizedProfileInput | null): string[] {
   const employed = isActiveEmployed(profile?.employment_status)
+  const student = isStudent(profile?.employment_status)
+  const betweenJobs = isBetweenJobs(profile?.employment_status)
   const lowIncome = isLowIncomeBracket(profile?.household_income_bracket)
+
+  if (student) {
+    return [
+      'https://www.moneysavingexpert.com/utilities/',
+      'https://energysavingtrust.org.uk/advice/grants-and-loans/',
+      'https://www.gov.uk/find-energy-grants-help-pay-bills',
+      'https://www.gov.uk/apply-warm-home-discount-scheme',
+      'https://www.which.co.uk/money/saving-energy',
+    ]
+  }
   if (employed && !lowIncome) {
     return [
       'https://energysavingtrust.org.uk/energy-at-home/generating-your-own-energy/solar-panels/',
@@ -171,7 +184,7 @@ export function buildEmploymentAwareResearchSeeds(profile?: LocalizedProfileInpu
       'https://www.which.co.uk/money/saving-energy',
     ]
   }
-  if (!employed || lowIncome) {
+  if (betweenJobs || !employed || lowIncome) {
     return [
       'https://www.gov.uk/apply-warm-homes-local-grant',
       'https://www.gov.uk/energy-company-obligation',

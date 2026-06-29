@@ -3,32 +3,56 @@ import { postcodeToLatLon } from '@/lib/brains'
 import { generateLocalOfferCards } from '@/lib/brains'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { runLiveGrounding } from '@/lib/sentinel/liveGrounding'
+import { requireAiRouteAuth } from '@/lib/requestAuth'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
-// This route is always dynamic (uses nextUrl.searchParams)
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
+/** Firecrawl/Gemini path — tighter than generic guest AI (6/min). */
+const LOCAL_OFFERS_MAX_PER_MINUTE = 3
+
 export async function GET(req: NextRequest) {
+  const gate = await requireAiRouteAuth(req)
+  if (gate) return gate
+
+  const id = getClientIdentifier(req)
+  const { ok, retryAfter } = await checkRateLimitAsync(
+    `local-offers:${id}`,
+    LOCAL_OFFERS_MAX_PER_MINUTE
+  )
+  if (!ok) {
+    return NextResponse.json(
+      { error: 'Too many requests', items: [] },
+      {
+        status: 429,
+        headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined,
+      }
+    )
+  }
+
   try {
-    const postcode = req.nextUrl.searchParams.get('postcode')
+    const raw = req.nextUrl.searchParams.get('postcode')?.trim() ?? ''
+    const postcode = raw.replace(/\s+/g, '').toUpperCase()
     const tenure = (req.nextUrl.searchParams.get('tenure') ?? '').toLowerCase()
-    
-    if (!postcode) {
+
+    if (postcode.length < 4) {
       return NextResponse.json({ items: [] })
     }
+    if (postcode.length > 12) {
+      return NextResponse.json({ error: 'postcode too long', items: [] }, { status: 400 })
+    }
 
-    // Geocode postcode to coordinates using brains layer
     const coords = await postcodeToLatLon(postcode)
-    
+
     if (!coords) {
       return NextResponse.json({ items: [] })
     }
 
-    // Generate local offer cards using brains layer
     const offerCards = await generateLocalOfferCards(coords.lat, coords.lon)
     const local = await getLocalData(postcode)
-    const compactPostcode = postcode.replace(/\s+/g, '').toUpperCase()
+    const compactPostcode = postcode
     const grounded = await runLiveGrounding({
       postcode: compactPostcode,
       tenureType: tenure === 'rent' ? 'rent' : 'own',
@@ -56,7 +80,6 @@ export async function GET(req: NextRequest) {
       },
     ]
 
-    // Map to ZoneItem format
     const items = [...injectedLiveItems, ...offerCards].map((o) => ({
       id: o.id,
       type: 'card' as const,

@@ -1208,13 +1208,6 @@ export function JourneyBentoCard({
           .filter(Boolean)
           .join(' ')}
         style={{
-          ...(isVisited
-            ? {
-                '--journey-bg': 'var(--color-pink)',
-                '--journey-text': 'var(--color-yellow)',
-                '--color-ink': 'var(--color-yellow)',
-              }
-            : surfaceVars),
           height: '100%',
           ...(isTall && { minHeight: '100%' }),
         }}

@@ -4,7 +4,12 @@
  */
 
 import { isHighDeprivationArea, isLowDeprivationArea } from '@/lib/intelligence/deprivationClient'
-import { isActiveEmployed, isHighValuePostcode } from '@/lib/zone/zoneEligibility'
+import {
+  isActiveEmployed,
+  isBetweenJobs,
+  isHighValuePostcode,
+  isStudent,
+} from '@/lib/zone/zoneEligibility'
 
 export type HouseholdIncomeBracket = '<31k' | '31k-50k' | '50k+'
 
@@ -14,12 +19,12 @@ export function normalizeHouseholdIncomeBracket(
   const b = String(raw ?? '').trim().toLowerCase()
   if (!b) return null
   if (b === '<31k' || b.startsWith('<') || b.includes('under 31')) return '<31k'
-  if (b === '31k-50k' || b.includes('31') && b.includes('50')) return '31k-50k'
+  if (b === '31k-50k' || (b.includes('31') && b.includes('50'))) return '31k-50k'
   if (b === '50k+' || b.includes('50k+') || b.includes('over 50')) return '50k+'
   return null
 }
 
-/** Infer bracket from employment, age, postcode affluence, and IMD — never blocks onboarding. */
+/** Infer bracket from employment, life stage, postcode affluence, and IMD — never blocks onboarding. */
 export function inferHouseholdIncomeBracket(params: {
   employment_status?: string | null
   age_group?: string | null
@@ -32,10 +37,8 @@ export function inferHouseholdIncomeBracket(params: {
   if (explicit) return explicit
 
   const employed = isActiveEmployed(params.employment_status)
-  const unemployed = String(params.employment_status ?? '')
-    .trim()
-    .toUpperCase()
-    .includes('UNEMPLOYED')
+  const student = isStudent(params.employment_status)
+  const betweenJobs = isBetweenJobs(params.employment_status)
   const retired = String(params.age_group ?? '')
     .trim()
     .toUpperCase()
@@ -46,7 +49,11 @@ export function inferHouseholdIncomeBracket(params: {
     params.property_value_band === '500K_PLUS' ||
     params.property_value_band === '250K_500K'
 
-  if (unemployed || (isHighDeprivationArea(imd) && !employed)) return '<31k'
+  if (betweenJobs || (isHighDeprivationArea(imd) && !employed)) return '<31k'
+  if (student) {
+    if (affluentPostcode && isLowDeprivationArea(imd)) return '31k-50k'
+    return '<31k'
+  }
   if (retired && isHighDeprivationArea(imd)) return '<31k'
   if (employed && (affluentPostcode || highValue || isLowDeprivationArea(imd))) return '50k+'
   if (employed) return '31k-50k'

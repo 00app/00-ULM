@@ -7,9 +7,9 @@
 import type { JourneyId } from '@/lib/journeys'
 
 export const COLOR_YELLOW = '#FFD700'
-export const COLOR_PURPLE = '#7800ce'
+export const COLOR_PURPLE = '#141268'
 export const COLOR_PINK = '#FF00FF'
-export const COLOR_SOFT_CREAM = '#7800ce'
+export const COLOR_SOFT_CREAM = '#141268'
 
 export interface JourneyColorEntry {
   journey: JourneyId

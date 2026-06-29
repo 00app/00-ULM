@@ -84,10 +84,11 @@ export function SoloFocusActionTrinity({
           className="circle-btn solo-focus-action-btn solo-focus-action-80 solo-focus-ask-zai-btn solo-focus-trinity-zai zz-shimmer-cta"
           onClick={onAskZai}
           transition={INDUSTRIAL_OPACITY_SNAP}
-          aria-label="Ask about this offer"
+          aria-label="Ask Zai"
         >
           <span className="circle-btn-label-stack" aria-hidden="true">
             <span>ask</span>
+            <span>zai</span>
           </span>
         </motion.button>
       ) : null}
@@ -97,14 +98,14 @@ export function SoloFocusActionTrinity({
           className="circle-btn solo-focus-action-btn solo-focus-action-80 solo-focus-trinity-dislike zz-shimmer-cta"
           onClick={onDislike}
           transition={INDUSTRIAL_OPACITY_SNAP}
-          aria-label="Not interested"
+          aria-label="Dislike"
           style={{
             backgroundColor: isDisliked ? 'var(--brand-select-bg)' : 'var(--color-pink)',
             color: isDisliked ? 'var(--brand-select-fg)' : 'var(--color-yellow)',
           }}
         >
           <span className="circle-btn-label-stack" aria-hidden="true">
-            <span>nope</span>
+            <span>dislike</span>
           </span>
         </motion.button>
       ) : null}

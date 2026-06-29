@@ -20,8 +20,13 @@ import { ROUTES } from '@/lib/routes'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import type { ProfileAge } from '@/app/context/AppContext'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
-import { persistProfileLocality, prefetchProfileLocalityForHandoff, resolveProfileLocalityForPostcode } from '@/lib/geocode/resolvePostcodeLocality'
-import { checkUkPostcode, formatPostcodeOutcodeFallback, isValidUkPostcode } from '@/lib/geocode/ukPostcode'
+import { isRealLocalityLabel } from '@/lib/brains/summaryLogic'
+import {
+  persistProfileLocality,
+  prefetchProfileLocalityForHandoff,
+  readCachedProfileLocality,
+} from '@/lib/geocode/resolvePostcodeLocality'
+import { checkUkPostcode, isValidUkPostcode } from '@/lib/geocode/ukPostcode'
 import {
   isProfileOnboardingCompleteFields,
   PROFILE_GOAL_STORAGE_KEY,
@@ -49,7 +54,7 @@ function isProfileMobileKeyboardViewport(): boolean {
 }
 
 const PROFILE_QUESTIONS = [
-  { id: 'name', label: 'name', type: 'input' as const, placeholder: 'alex' },
+  { id: 'name', label: 'name', type: 'input' as const, placeholder: 'First name' },
   { id: 'postcode', label: 'postcode', type: 'input' as const, placeholder: 'postcode' },
   {
     id: 'livingSituation',
@@ -77,18 +82,22 @@ const PROFILE_QUESTIONS = [
   },
   {
     id: 'age',
-    label: 'how old are you?',
+    label: 'stage in life?',
     type: 'options' as const,
-    options: ['JUNIOR', 'MID', 'RETIRED'] as ProfileAge[],
+    options: [
+      { label: 'STARTING\nOUT', value: 'JUNIOR', ariaLabel: 'Starting out' },
+      { label: 'MID-LIFE', value: 'MID', ariaLabel: 'Mid-life' },
+      'RETIRED',
+    ],
   },
   {
     id: 'employmentStatus',
     label: 'employment status?',
     type: 'options' as const,
     options: [
+      'STUDENT',
       'EMPLOYED',
-      { label: 'SELF-\nEMPLOYED', value: 'SELF_EMPLOYED', ariaLabel: 'Self-employed' },
-      { label: 'NOT WORK', value: 'UNEMPLOYED', ariaLabel: 'Not in paid work' },
+      { label: 'BETWEEN\nJOBS', value: 'BETWEEN_JOBS', ariaLabel: 'Between jobs' },
     ],
   },
 ]
@@ -169,6 +178,14 @@ export default function ProfilePageClient() {
     if (PROFILE_QUESTIONS.length === 0) return
     if (step < 0 || step >= PROFILE_QUESTIONS.length) setStep(0)
   }, [step, setStep])
+
+  useEffect(() => {
+    advancingRef.current = false
+  }, [step])
+
+  useEffect(() => {
+    advancingRef.current = false
+  }, [step])
 
   useEffect(() => {
     router.prefetch(ROUTES.PROFILE_SUMMARY)
@@ -314,25 +331,24 @@ export default function ProfilePageClient() {
       setPostcodeFormatValid(false)
       return
     }
-    const outcode = formatPostcodeOutcodeFallback(pc)
     const valid = isValidUkPostcode(pc)
     setPostcodeFormatValid(valid)
     if (!valid) {
-      setPostcodeLocalityLabel(pc.length >= 3 ? outcode : '')
+      setPostcodeLocalityLabel('')
       return
     }
-    setPostcodeLocalityLabel(outcode)
+    const cached = readCachedProfileLocality(pc)
+    setPostcodeLocalityLabel(cached && isRealLocalityLabel(cached) ? cached : '')
     const houseNumber = (values.houseNumber ?? '').trim()
     const tid = window.setTimeout(() => {
-      void resolveProfileLocalityForPostcode(pc)
-        .then(({ label, source }) => {
-          if (label && source !== 'postcode') persistProfileLocality(pc, label)
-          setPostcodeLocalityLabel(source === 'postcode' ? outcode : label)
+      void prefetchProfileLocalityForHandoff(pc)
+        .then(({ label, local }) => {
+          if (!isRealLocalityLabel(label)) return
+          setPostcodeLocalityLabel(label)
+          if (local) setLocationState({ locationName: label, local })
         })
-        .catch(() => {
-          setPostcodeLocalityLabel(outcode)
-        })
-      fetch('/api/local-intelligence', {
+        .catch(() => {})
+      void fetch('/api/local-intelligence', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -354,8 +370,9 @@ export default function ProfilePageClient() {
             country: typeof d.country === 'string' ? d.country : undefined,
           }
           const locationName = formatLocationDisplayName(local, pc)
-          if (!locationName) return
+          if (!isRealLocalityLabel(locationName)) return
           persistProfileLocality(pc, locationName)
+          setPostcodeLocalityLabel(locationName)
           setLocationState({ locationName, local })
 
           const epc = d?.openDataAnchor?.epc as
@@ -701,7 +718,6 @@ export default function ProfilePageClient() {
       persistStepValues(nextValues)
     })
     advanceProfileStep(nextValues)
-    advancingRef.current = false
   }, [
     current,
     values,

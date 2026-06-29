@@ -7,7 +7,7 @@ const config: Config = {
       colors: {
         yellow: '#FFD700',
         pink: '#FF00FF',
-        purple: '#7800ce',
+        purple: '#141268',
       },
       fontFamily: {
         sans: ['var(--font-roboto)', 'sans-serif'],
