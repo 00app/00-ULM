@@ -5,9 +5,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 # Vercel CLI does not always pick up VERCEL_TOKEN from env (e.g. in CI) — pass it explicitly when set.
+# A personal account token defaults to the user's own scope, not the project's team, so pass
+# --scope too or `vercel promote` fails with "Deployment belongs to a different team".
 TOKEN_ARGS=()
 if [[ -n "${VERCEL_TOKEN:-}" ]]; then
-  TOKEN_ARGS=(--token "$VERCEL_TOKEN")
+  TOKEN_ARGS+=(--token "$VERCEL_TOKEN")
+fi
+if [[ -n "${VERCEL_ORG_ID:-}" ]]; then
+  TOKEN_ARGS+=(--scope "$VERCEL_ORG_ID")
 fi
 vercel() { command vercel "${TOKEN_ARGS[@]}" "$@"; }
 
