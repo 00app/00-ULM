@@ -6139,6 +6139,25 @@ body.zai-composer-dock-active {
   }
 }
 
+@media (min-width: 1024px) {
+  .intro-decision-screen .cookie-essential-notice {
+    left: auto;
+    right: max(12px, env(safe-area-inset-right, 0px));
+    width: min(33%, 480px);
+  }
+
+  .cookie-essential-notice {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .cookie-essential-notice__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
 .zone-rock-signup-wrap .rock-mobile-opt-in-checkbox {
   flex-shrink: 0;
   width: 40px;
