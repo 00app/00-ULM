@@ -672,9 +672,25 @@ function normalizeSavingAmountGbp(n: unknown): number | null {
 
 const MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH = 40
 
+/** Clip to ~maxWords without cutting mid-sentence — prefer the last full sentence inside (or just past) budget. */
 function clipArchitectParagraphToMaxWords(p: string, maxWords: number): string {
-  const words = p.trim().split(/\s+/).filter(Boolean)
-  if (words.length <= maxWords) return p.trim()
+  const trimmed = p.trim()
+  const words = trimmed.split(/\s+/).filter(Boolean)
+  if (words.length <= maxWords) return trimmed
+
+  // Search for the last sentence-ending punctuation within budget, then a short grace window
+  // past it (CTA sentences often run a few words over) before falling back to a hard word cut.
+  const GRACE_WORDS = 15
+  const searchWords = words.slice(0, maxWords + GRACE_WORDS).join(' ')
+  const sentenceEnds = [...searchWords.matchAll(/[.!?](?=\s|$)/g)]
+  for (let i = sentenceEnds.length - 1; i >= 0; i--) {
+    const idx = sentenceEnds[i].index ?? -1
+    if (idx < 0) continue
+    const candidate = searchWords.slice(0, idx + 1).trim()
+    if (candidate.split(/\s+/).filter(Boolean).length <= maxWords + GRACE_WORDS) {
+      return candidate
+    }
+  }
   return words.slice(0, maxWords).join(' ')
 }
 

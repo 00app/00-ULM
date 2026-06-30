@@ -222,7 +222,14 @@ export async function POST(request: NextRequest) {
         questionId: qKey,
         answerValue: String(value),
         profileData: profileData ?? null,
-      }).catch(() => {})
+      }).catch((error) => {
+        captureServerError(error, {
+          route: '/api/answers',
+          method: 'POST',
+          tags: { context: 'runLoopSpawnResearch' },
+          extra: { journeyId: jKey, questionId: qKey },
+        })
+      })
     }
 
     const hybridBirthEnabled =
