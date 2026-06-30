@@ -6085,11 +6085,14 @@ body.zai-composer-dock-active {
 }
 
 .intro-decision-screen .cookie-essential-notice {
-  position: fixed;
-  top: calc(20px + env(safe-area-inset-top, 0px));
-  left: 50%;
-  right: auto;
-  transform: translateX(-50%);
+  /* left/right + auto margins, not transform: Framer Motion sets an inline transform for the
+     blur/fade animation that would otherwise override a CSS translateX centering trick. */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
   width: min(90vw, 420px);
   z-index: 10;
 }
