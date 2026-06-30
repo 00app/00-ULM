@@ -637,19 +637,11 @@ export async function GET(request: NextRequest) {
         category?: string | null
         architect_prose?: string | null
       }
+      // Own-user content always wins — never raced against another user's row in the same
+      // query. Postcode-matched fallback only runs when this user has no row of their own,
+      // and only as a last resort while their personalized research is still in flight.
       let researchMetaRow: ResearchMetaDbRow | undefined
-      if (researchUserId && postcode.length >= 4) {
-        const byUserOrPc = await pool.query(
-          `SELECT ${selectCols}
-           FROM research_results
-           WHERE user_id = $1::uuid
-              OR ${sqlResearchPostcodeMatches('postcode', 2)}
-           ORDER BY created_at DESC NULLS LAST
-           LIMIT 1`,
-          [researchUserId, compactUkPostcode(postcode)]
-        )
-        researchMetaRow = byUserOrPc.rows?.[0]
-      } else if (researchUserId) {
+      if (researchUserId) {
         const byUser = await pool.query(
           `SELECT ${selectCols}
            FROM research_results
@@ -664,7 +656,8 @@ export async function GET(request: NextRequest) {
         const byPc = await pool.query(
           `SELECT ${selectCols}
            FROM research_results
-           WHERE ${sqlResearchPostcodeMatches('postcode', 1)}
+           WHERE user_id IS NULL
+              AND ${sqlResearchPostcodeMatches('postcode', 1)}
            ORDER BY created_at DESC NULLS LAST
            LIMIT 1`,
           [compactUkPostcode(postcode)]
