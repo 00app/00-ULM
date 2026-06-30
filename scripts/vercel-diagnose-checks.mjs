@@ -91,7 +91,7 @@ console.log(`
 3. ADD GitHub Actions checks — job names must match exactly:
      • Lint       (.github/workflows/vercel-production-gate.yml)
      • Typecheck  (same workflow)
-4. GitHub → repo Settings → Secrets → VERCEL_TOKEN
+4. GitHub → repo Settings → Secrets → VERCEL_TOKEN_00
    (enables .github/workflows/promote-production.yml auto-promote)
 `.trim())
 

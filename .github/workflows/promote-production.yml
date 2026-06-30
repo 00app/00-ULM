@@ -1,7 +1,7 @@
 # Auto-promote Ready production deployments to www.00-00.online when dashboard
 # deployment checks block alias assignment despite a green build.
 #
-# Requires GitHub secret VERCEL_TOKEN (Vercel → Account → Tokens).
+# Requires GitHub secret VERCEL_TOKEN_00 (Vercel → Account → Tokens).
 name: Promote production
 
 on:
@@ -52,13 +52,13 @@ jobs:
 
       - name: Promote Ready production deployment
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN_00 }}
           VERCEL_ORG_ID: team_xhNMA5PqxstBr7SMSwbgdcux
           VERCEL_PROJECT_ID: prj_vFWtVnYgOU4tzxdkT6qsiLrDi7Kj
         run: |
           set -euo pipefail
           if [[ -z "${VERCEL_TOKEN:-}" ]]; then
-            echo "⚠ VERCEL_TOKEN secret missing — skip auto-promote (run npm run promote locally)."
+            echo "⚠ VERCEL_TOKEN_00 secret missing — skip auto-promote (run npm run promote locally)."
             exit 0
           fi
           TARGET="${{ github.event.deployment_status.target_url || '' }}"
