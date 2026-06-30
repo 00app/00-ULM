@@ -6085,10 +6085,12 @@ body.zai-composer-dock-active {
 }
 
 .intro-decision-screen .cookie-essential-notice {
-  position: absolute;
-  top: calc(12px + env(safe-area-inset-top, 0px));
-  left: max(12px, env(safe-area-inset-left, 0px));
-  right: max(12px, env(safe-area-inset-right, 0px));
+  position: fixed;
+  top: calc(20px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(90vw, 420px);
   z-index: 10;
 }
 
@@ -6141,8 +6143,6 @@ body.zai-composer-dock-active {
 
 @media (min-width: 1024px) {
   .intro-decision-screen .cookie-essential-notice {
-    left: auto;
-    right: max(12px, env(safe-area-inset-right, 0px));
     width: min(33%, 480px);
   }
 
