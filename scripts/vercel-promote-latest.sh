@@ -4,6 +4,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# Vercel CLI does not always pick up VERCEL_TOKEN from env (e.g. in CI) — pass it explicitly when set.
+TOKEN_ARGS=()
+if [[ -n "${VERCEL_TOKEN:-}" ]]; then
+  TOKEN_ARGS=(--token "$VERCEL_TOKEN")
+fi
+vercel() { command vercel "${TOKEN_ARGS[@]}" "$@"; }
+
 URL="${1:-}"
 if [[ -n "$URL" ]]; then
   echo "→ Waiting for ${URL} to reach Ready…"

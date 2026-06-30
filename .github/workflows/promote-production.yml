@@ -40,10 +40,12 @@ jobs:
 
       - name: Wait for Vercel production build (push only)
         if: github.event_name == 'push'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN_00 }}
         run: |
           echo "→ Waiting up to 12m for Ready production deployment…"
           for _ in $(seq 1 72); do
-            if vercel ls 00-ulm 2>/dev/null | awk '/Production/ && /Ready/ {found=1} END{exit !found}'; then
+            if vercel ls 00-ulm --token "$VERCEL_TOKEN" 2>/dev/null | awk '/Production/ && /Ready/ {found=1} END{exit !found}'; then
               exit 0
             fi
             sleep 10
