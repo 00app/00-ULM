@@ -1698,6 +1698,23 @@ export async function persistResearchResult(params: {
         ? params.carbonImpactKg
         : null
 
+    // De-dupe guard: several independent Zone components can race to trigger research for the
+    // same (user, category, postcode) on page load — none of them know about each other, and
+    // this is a plain INSERT with no uniqueness constraint. Skip the write if an identical-key
+    // row already landed in the last 30s rather than persisting near-duplicate content.
+    const dedupeUserId = params.userId?.trim() || null
+    const dedupePostcode = params.postcode?.trim() || null
+    if (dedupeUserId && mergedCategory && dedupePostcode) {
+      const recent = await pool.query(
+        `SELECT 1 FROM research_results
+         WHERE user_id = $1::uuid AND category = $2 AND postcode = $3
+           AND created_at > NOW() - INTERVAL '30 seconds'
+         LIMIT 1`,
+        [dedupeUserId, mergedCategory, dedupePostcode]
+      )
+      if (recent.rows.length > 0) return
+    }
+
     await pool.query(
       `INSERT INTO research_results (
          user_id, postcode, profile_snapshot, markdown, citations,
