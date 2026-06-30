@@ -357,8 +357,13 @@ export async function runZeroResearch(params: {
   }
 
   const { fetchFirecrawlMarkdownForUrls } = await import('@/lib/agents/scraper')
+  const { fetchMarkdownForUrlsFreeFirst } = await import('@/lib/agents/freeScraper')
   const batchUrls = seedUrls.slice(0, 8)
-  const scrapedBatch = await fetchFirecrawlMarkdownForUrls(batchUrls, { minChars: 80, maxUrls: batchUrls.length })
+  const scrapedBatch = await fetchMarkdownForUrlsFreeFirst(batchUrls, {
+    minChars: 80,
+    maxUrls: batchUrls.length,
+    fallback: (missed) => fetchFirecrawlMarkdownForUrls(missed, { minChars: 80, maxUrls: missed.length }),
+  })
   const scrapedByUrl = new Map(scrapedBatch.map((r) => [r.url, r]))
   for (const url of batchUrls) {
     const scraped = scrapedByUrl.get(url)
@@ -1519,6 +1524,46 @@ function sanitizeResearchProviderName(
 }
 
 /**
+ * Cost guard: true when a row for this (user|ownerless, category, postcode) already landed
+ * recently — skip the expensive Firecrawl scrape + Gemini call entirely, not just the DB write.
+ * Owned rows use a short window (just enough to absorb the page-load race between Zone
+ * components); ownerless/seed rows use a long window since that content doesn't need to be
+ * regenerated more than once a day and every re-scrape burns real Firecrawl/Gemini cost for
+ * zero personalization benefit.
+ */
+export async function hasRecentResearchResult(
+  userId: string | null | undefined,
+  category: string | null | undefined,
+  postcode: string | null | undefined
+): Promise<boolean> {
+  const uid = userId?.trim() || null
+  const cat = normalizeResearchCategory(category)
+  const pc = postcode?.trim() || null
+  if (!cat || !pc) return false
+  try {
+    const pool = getDbPool()
+    const result = uid
+      ? await pool.query(
+          `SELECT 1 FROM research_results
+           WHERE user_id = $1::uuid AND category = $2 AND postcode = $3
+             AND created_at > NOW() - INTERVAL '60 seconds'
+           LIMIT 1`,
+          [uid, cat, pc]
+        )
+      : await pool.query(
+          `SELECT 1 FROM research_results
+           WHERE user_id IS NULL AND category = $1 AND postcode = $2
+             AND created_at > NOW() - INTERVAL '24 hours'
+           LIMIT 1`,
+          [cat, pc]
+        )
+    return result.rows.length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
  * Persist research result to Neon (research_results table).
  * Call after runZeroResearch or triggerSupplementalResearch to store for returning users.
  */
@@ -1698,12 +1743,9 @@ export async function persistResearchResult(params: {
         ? params.carbonImpactKg
         : null
 
-    // De-dupe guard: several independent Zone components can race to trigger research for the
-    // same (user, category, postcode) on page load — none of them know about each other, and
-    // this is a plain INSERT with no uniqueness constraint. Skip the write if an identical-key
-    // row already landed in the last 30s rather than persisting near-duplicate content.
-    // Covers both owned (per-user) and ownerless (shared seed pool) rows — confirmed both can
-    // race: ownerless writes hit this same code path via seed/trigger scripts with no userId.
+    // De-dupe guard (backstop): the real cost-saving check runs in hasRecentResearchResult()
+    // before any Firecrawl/Gemini work starts (see runTriggerResearchForCategory). This is the
+    // last line of defense for any caller that writes via persistResearchResult directly.
     const dedupeUserId = params.userId?.trim() || null
     const dedupePostcode = params.postcode?.trim() || null
     if (mergedCategory && dedupePostcode) {
@@ -1930,6 +1972,13 @@ export async function runTriggerResearchForCategory(params: {
 }): Promise<ZeroResearchResult> {
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
   const cat = normalizeResearchCategory(params.category) ?? 'home'
+
+  // Cost guard: skip the Firecrawl scrape + Gemini call entirely when a recent row already
+  // covers this (user|ownerless, category, postcode) — checked before any paid API work starts.
+  if (await hasRecentResearchResult(params.userId, cat, pc)) {
+    return { markdown: '', citations: [] }
+  }
+
   const journeyKey = resolveSurgicalJourneyKey(cat) ?? normalizeCategoryToJourneyKey(cat)
   const local = await getLocalData(pc).catch(() => null)
   const localityContext = local
@@ -2055,6 +2104,14 @@ export async function runZeroResearchWithProfile(params: {
   /** When set, biases Gemini triplet + persist toward this `research_results.category`. */
   category?: string | null
 }): Promise<ZeroResearchResult> {
+  // Cost guard: GET /api/scrape-sync?postcode=X is hit independently by several Zone components
+  // on every page load (no coordination between them) — skip the whole Firecrawl/Gemini chain
+  // when a recent row already covers this (user|ownerless, category, postcode).
+  const guardCategory = normalizeResearchCategory(params.category) ?? 'general'
+  if (await hasRecentResearchResult(params.userId, guardCategory, params.postcode)) {
+    return { markdown: '', citations: [] }
+  }
+
   const gatewayResult = await triggerSupplementalResearch({
     postcode: params.postcode,
     region: params.region,
