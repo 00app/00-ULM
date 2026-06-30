@@ -2106,9 +2106,19 @@ export async function runZeroResearchWithProfile(params: {
 }): Promise<ZeroResearchResult> {
   // Cost guard: GET /api/scrape-sync?postcode=X is hit independently by several Zone components
   // on every page load (no coordination between them) — skip the whole Firecrawl/Gemini chain
-  // when a recent row already covers this (user|ownerless, category, postcode).
+  // when a recent row already covers this (user, category, postcode).
   const guardCategory = normalizeResearchCategory(params.category) ?? 'general'
   if (await hasRecentResearchResult(params.userId, guardCategory, params.postcode)) {
+    return { markdown: '', citations: [] }
+  }
+  // This is the general/baseline research path only (never the answer-specific JIT loop-spawn
+  // pass — that goes through runTriggerResearchForCategory directly with its own answer
+  // context). So when this user has no fresh row of their own yet, but the shared ownerless
+  // pool already has fresh content for this category+postcode, reuse it instead of paying for
+  // another near-identical scrape — the existing read path already serves ownerless rows to
+  // users with no row of their own (see scrape-sync's research_results lookup), so there's
+  // nothing more to write here.
+  if (params.userId && (await hasRecentResearchResult(null, guardCategory, params.postcode))) {
     return { markdown: '', citations: [] }
   }
 
