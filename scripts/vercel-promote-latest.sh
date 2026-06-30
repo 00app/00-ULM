@@ -14,7 +14,7 @@ fi
 if [[ -n "${VERCEL_ORG_ID:-}" ]]; then
   TOKEN_ARGS+=(--scope "$VERCEL_ORG_ID")
 fi
-vercel() { command vercel "${TOKEN_ARGS[@]}" "$@"; }
+vercel() { command vercel "${TOKEN_ARGS[@]+"${TOKEN_ARGS[@]}"}" "$@"; }
 
 URL="${1:-}"
 if [[ -n "$URL" ]]; then
