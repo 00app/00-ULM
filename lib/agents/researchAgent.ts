@@ -1702,16 +1702,26 @@ export async function persistResearchResult(params: {
     // same (user, category, postcode) on page load — none of them know about each other, and
     // this is a plain INSERT with no uniqueness constraint. Skip the write if an identical-key
     // row already landed in the last 30s rather than persisting near-duplicate content.
+    // Covers both owned (per-user) and ownerless (shared seed pool) rows — confirmed both can
+    // race: ownerless writes hit this same code path via seed/trigger scripts with no userId.
     const dedupeUserId = params.userId?.trim() || null
     const dedupePostcode = params.postcode?.trim() || null
-    if (dedupeUserId && mergedCategory && dedupePostcode) {
-      const recent = await pool.query(
-        `SELECT 1 FROM research_results
-         WHERE user_id = $1::uuid AND category = $2 AND postcode = $3
-           AND created_at > NOW() - INTERVAL '30 seconds'
-         LIMIT 1`,
-        [dedupeUserId, mergedCategory, dedupePostcode]
-      )
+    if (mergedCategory && dedupePostcode) {
+      const recent = dedupeUserId
+        ? await pool.query(
+            `SELECT 1 FROM research_results
+             WHERE user_id = $1::uuid AND category = $2 AND postcode = $3
+               AND created_at > NOW() - INTERVAL '30 seconds'
+             LIMIT 1`,
+            [dedupeUserId, mergedCategory, dedupePostcode]
+          )
+        : await pool.query(
+            `SELECT 1 FROM research_results
+             WHERE user_id IS NULL AND category = $1 AND postcode = $2
+               AND created_at > NOW() - INTERVAL '30 seconds'
+             LIMIT 1`,
+            [mergedCategory, dedupePostcode]
+          )
       if (recent.rows.length > 0) return
     }
 
