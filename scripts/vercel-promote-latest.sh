@@ -22,13 +22,15 @@ if [[ -n "$URL" ]]; then
   done
 fi
 if [[ -z "$URL" ]]; then
-  URL="$(vercel ls 00-ulm 2>/dev/null | awk '/Production/ && /Ready/ {print $2; exit}')"
+  ls_out="$(vercel ls 00-ulm 2>&1)" || { echo "❌ vercel ls failed:" >&2; echo "$ls_out" >&2; exit 1; }
+  URL="$(echo "$ls_out" | awk '/Production/ && /Ready/ {print $2; exit}')"
 fi
 if [[ -z "$URL" ]]; then
-  URL="$(vercel ls 00-ulm 2>/dev/null | grep -oE 'https://00-[a-z0-9]+-gary-lomi-lomicos-projects\.vercel\.app' | head -1)"
+  URL="$(echo "${ls_out:-}" | grep -oE 'https://00-[a-z0-9]+-gary-lomi-lomicos-projects\.vercel\.app' | head -1)"
 fi
 if [[ -z "$URL" ]]; then
-  echo "❌ No Ready production deployment found." >&2
+  echo "❌ No Ready production deployment found. Last \`vercel ls\` output:" >&2
+  echo "${ls_out:-<empty>}" >&2
   exit 1
 fi
 
