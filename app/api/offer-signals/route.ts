@@ -11,6 +11,7 @@ import { guestIpHashFromRequest, resolveGuestSessionId, setGuestSessionCookie } 
 import { ensureGuestSessionRow } from '@/lib/zone/ensureGuestSessionRow'
 import { OFFER_SIGNALS, type OfferSignal } from '@/lib/zone/offerSignals'
 import { updateHermesMemoryAfterOfferSignal } from '@/lib/agents/hermes-memory'
+import { captureServerError } from '@/lib/observability/captureError'
 
 export const runtime = 'nodejs'
 
@@ -226,7 +227,14 @@ export async function POST(request: NextRequest) {
         journeyKey: journey_key,
         signal,
         cardTitle: card_title,
-      }).catch(() => {})
+      }).catch((error) => {
+        captureServerError(error, {
+          route: '/api/offer-signals',
+          method: 'POST',
+          tags: { context: 'updateHermesMemoryAfterOfferSignal' },
+          extra: { cardId: card_id, journeyKey: journey_key, signal },
+        })
+      })
 
       const res = NextResponse.json({ ok: true, signal })
       return finalizeAuthenticatedResponse(res, auth)

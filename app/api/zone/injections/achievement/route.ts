@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
+import { captureServerError } from '@/lib/observability/captureError'
 import {
   getJourneyAnswerRowId,
   persistDiscoveryInjection,
@@ -46,8 +47,22 @@ export async function POST(request: NextRequest) {
     if (session?.userId && journeyKey && questionId && answerValue) {
       const jid = journeyKey as JourneyId
       if (isValidLoopOrJourneyQuestion(jid, questionId)) {
-        await upsertJourneyAnswerJsonb(session.userId, jid, questionId, answerValue).catch(() => {})
-        void upsertUserGenomeFromAnswer(session.userId, jid, questionId, answerValue).catch(() => {})
+        await upsertJourneyAnswerJsonb(session.userId, jid, questionId, answerValue).catch((error) => {
+          captureServerError(error, {
+            route: '/api/zone/injections/achievement',
+            method: 'POST',
+            tags: { context: 'upsertJourneyAnswerJsonb' },
+            extra: { journeyKey: jid, questionId },
+          })
+        })
+        void upsertUserGenomeFromAnswer(session.userId, jid, questionId, answerValue).catch((error) => {
+          captureServerError(error, {
+            route: '/api/zone/injections/achievement',
+            method: 'POST',
+            tags: { context: 'upsertUserGenomeFromAnswer' },
+            extra: { journeyKey: jid, questionId },
+          })
+        })
       }
       const parentAnswerId = await getJourneyAnswerRowId(session.userId, journeyKey, questionId)
       void persistDiscoveryInjection(session.userId, card.id, card, 'achievement_takeover', {

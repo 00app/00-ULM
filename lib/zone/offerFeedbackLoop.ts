@@ -145,5 +145,10 @@ export async function persistOfferFeedbackRemote(params: {
       card_title: params.cardTitle,
       feedback_answer: params.feedbackAnswer,
     }),
-  }).catch(() => {})
+  }).catch((error) => {
+    console.error('[offerFeedbackLoop] persistOfferFeedbackRemote failed', error, {
+      cardId: params.cardId,
+      signal: params.signal,
+    })
+  })
 }

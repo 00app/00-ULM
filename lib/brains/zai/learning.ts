@@ -1,4 +1,5 @@
 import { getDbPool } from '@/lib/db'
+import { captureServerError } from '@/lib/observability/captureError'
 import {
   getJourneyAnswersJsonbOnly,
   persistDiscoveryInjection,
@@ -123,7 +124,12 @@ export async function triggerImpactRecomputation(
         questionId: lastShift.questionId,
         answerValue: lastShift.answerValue,
       },
-    }).catch(() => {})
+    }).catch((error) => {
+      captureServerError(error, {
+        tags: { context: 'updateHermesMemoryAfterAnswer' },
+        extra: { userId, journeyId: lastShift.journeyId, questionId: lastShift.questionId },
+      })
+    })
   }
 
   return {
