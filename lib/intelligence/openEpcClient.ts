@@ -1,7 +1,10 @@
 /**
- * Open Data Communities — Domestic EPC search (England & Wales).
- * Requires OPENEPC_EMAIL + OPENEPC_API_KEY (HTTP Basic). Skips gracefully when unset.
- * @see https://epc.opendatacommunities.org/docs/api/domestic
+ * GOV.UK EPC API — Domestic certificate search (England & Wales).
+ * Migrated from epc.opendatacommunities.org (shut down May 2026) to the new
+ * get-energy-performance-data.communities.gov.uk service.
+ * Requires OPENEPC_BEARER_TOKEN (Bearer auth). Skips gracefully when unset.
+ * Register at https://get-energy-performance-data.communities.gov.uk/
+ * @see https://get-energy-performance-data.communities.gov.uk/api-technical-documentation
  */
 
 import {
@@ -50,7 +53,8 @@ export type OpenEpcProfile = {
   addressMatched?: boolean
 }
 
-const EPC_BASE = 'https://epc.opendatacommunities.org/api/v1/domestic/search'
+const EPC_SEARCH_BASE = 'https://api.get-energy-performance-data.communities.gov.uk/api/domestic/search'
+const EPC_CERT_BASE = 'https://api.get-energy-performance-data.communities.gov.uk/api/certificate'
 
 const EPC_STALE_YEARS = 10
 
@@ -68,11 +72,13 @@ function ratingToThermalMultiplier(rating: string | undefined): number {
   return map[r] ?? 1.1
 }
 
-function epcCredentials(): { email: string; apiKey: string } | null {
-  const email = process.env.OPENEPC_EMAIL?.trim() ?? process.env.EPC_API_EMAIL?.trim()
-  const apiKey = process.env.OPENEPC_API_KEY?.trim() ?? process.env.EPC_API_KEY?.trim()
-  if (!email || !apiKey) return null
-  return { email, apiKey }
+function epcBearerToken(): string | null {
+  return (
+    process.env.OPENEPC_BEARER_TOKEN?.trim() ??
+    process.env.OPENEPC_API_KEY?.trim() ??
+    process.env.EPC_API_KEY?.trim() ??
+    null
+  )
 }
 
 function pickLatestRow(rows: Record<string, unknown>[]): Record<string, unknown> | null {
@@ -85,8 +91,10 @@ function pickLatestRow(rows: Record<string, unknown>[]): Record<string, unknown>
   return sorted[0] ?? null
 }
 
+/** Try each key plus its camelCase variant (old API used hyphens, new uses camelCase). */
 function rowString(row: Record<string, unknown>, ...keys: string[]): string | undefined {
-  for (const key of keys) {
+  const expanded = keys.flatMap((k) => [k, k.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())])
+  for (const key of expanded) {
     const raw = row[key]
     if (raw == null || raw === '') continue
     const s = String(raw).trim()
@@ -96,7 +104,8 @@ function rowString(row: Record<string, unknown>, ...keys: string[]): string | un
 }
 
 function rowNumber(row: Record<string, unknown>, ...keys: string[]): number | undefined {
-  for (const key of keys) {
+  const expanded = keys.flatMap((k) => [k, k.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())])
+  for (const key of expanded) {
     const raw = row[key]
     if (raw == null || raw === '') continue
     const n = typeof raw === 'number' ? raw : Number.parseFloat(String(raw))
@@ -129,8 +138,10 @@ function rowToOpenEpcProfile(
   compact: string,
   addressMatched?: boolean
 ): OpenEpcProfile {
-  const current = rowString(row, 'current-energy-rating', 'current_energy_rating')
-  const potential = rowString(row, 'potential-energy-rating', 'potential_energy_rating')
+  // New API uses camelCase (currentEnergyEfficiencyBand); old used hyphenated (current-energy-rating).
+  // rowString() auto-expands hyphens to camelCase, so both are covered.
+  const current = rowString(row, 'current-energy-rating', 'current_energy_rating', 'currentEnergyEfficiencyBand')
+  const potential = rowString(row, 'potential-energy-rating', 'potential_energy_rating', 'potentialEnergyEfficiencyBand')
   const propertyType = rowString(row, 'property-type', 'property_type')
   const mainFuel = rowString(row, 'main-fuel', 'main_fuel')
   const walls = rowString(row, 'walls-description', 'walls_description')
@@ -192,6 +203,24 @@ function rowToOpenEpcProfile(
   }
 }
 
+async function fetchFullCertificate(
+  certificateNumber: string,
+  token: string
+): Promise<Record<string, unknown> | null> {
+  try {
+    const url = `${EPC_CERT_BASE}?certificate_number=${encodeURIComponent(certificateNumber)}`
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(8_000),
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    const json = (await res.json()) as { data?: Record<string, unknown> }
+    return json?.data ?? null
+  } catch {
+    return null
+  }
+}
+
 export async function fetchOpendataEpcProfile(
   postcode: string,
   options?: FetchOpendataEpcOptions
@@ -209,30 +238,35 @@ export async function fetchOpendataEpcProfile(
   }
   if (compact.length < 4) return empty
 
-  const creds = epcCredentials()
-  if (!creds) return empty
+  const token = epcBearerToken()
+  if (!token) return empty
 
-  const auth = Buffer.from(`${creds.email}:${creds.apiKey}`).toString('base64')
-  const size = houseToken ? 25 : 5
-  const url = `${EPC_BASE}?postcode=${encodeURIComponent(compact)}&size=${size}`
+  const pageSize = houseToken ? 25 : 5
+  const url = `${EPC_SEARCH_BASE}?postcode=${encodeURIComponent(compact)}&page_size=${pageSize}`
 
   try {
     const res = await fetch(url, {
       signal: AbortSignal.timeout(10_000),
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Basic ${auth}`,
-      },
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
     })
     if (!res.ok) return empty
-    const json = (await res.json()) as { rows?: Record<string, unknown>[] }
-    const allRows = Array.isArray(json?.rows) ? json.rows : []
+    const json = (await res.json()) as { data?: Record<string, unknown>[]; rows?: Record<string, unknown>[] }
+    // New API returns `data[]`; handle legacy `rows[]` just in case
+    const allRows = Array.isArray(json?.data) ? json.data : Array.isArray(json?.rows) ? json.rows : []
     const rows = houseToken ? filterEpcRowsByHouseNumber(allRows, houseToken) : allRows
     if (houseToken && rows.length === 0) return empty
-    const row = pickLatestRow(rows)
-    if (!row) return empty
+    const summaryRow = pickLatestRow(rows)
+    if (!summaryRow) return empty
 
-    return rowToOpenEpcProfile(row, compact, houseToken ? true : undefined)
+    // Fetch full certificate detail for the rich fields (costs, walls, fuel, etc.)
+    const certNum = String(summaryRow.certificateNumber ?? summaryRow['lmk-key'] ?? '').trim()
+    const fullRow = certNum ? await fetchFullCertificate(certNum, token) : null
+
+    return rowToOpenEpcProfile(
+      fullRow ?? summaryRow,
+      compact,
+      houseToken ? true : undefined
+    )
   } catch {
     return empty
   }

@@ -2294,7 +2294,7 @@ flowchart TB
 | API | Auth | Used for |
 |-----|------|----------|
 | [postcodes.io](https://postcodes.io) | none | Council / region anchor |
-| [epc.opendatacommunities.org](https://epc.opendatacommunities.org/docs/api/domestic) | HTTP Basic (`OPENEPC_EMAIL` + `OPENEPC_API_KEY`) | Domestic EPC search by postcode; optional house-number filter (`lib/intelligence/epcAddressMatch.ts`) |
+| [get-energy-performance-data.communities.gov.uk](https://get-energy-performance-data.communities.gov.uk/api-technical-documentation) | Bearer token (`OPENEPC_BEARER_TOKEN`) | Domestic EPC search by postcode; two-step: search → full certificate fetch (`lib/intelligence/openEpcClient.ts`). Register free at the new service. Old `epc.opendatacommunities.org` shut down May 2026. |
 | [carbonintensity.org.uk](https://api.carbonintensity.org.uk) | none | `GET /intensity` (live gCO₂/kWh), `GET /generation` (fuel mix %), regional postcode |
 | [environment.data.gov.uk](https://environment.data.gov.uk/flood-monitoring) | none | Water lane — latest station readings (`/data/readings?_limit=N`) |
 | [api.octopus.energy](https://api.octopus.energy) | none | Indicative Agile p/kWh (electric / mixed homes) |
@@ -3121,8 +3121,7 @@ Full scrape → copy → presentation pipeline: **[ZONE-CONTENT-AND-DATA.md](ZON
 ```env
 MODEL_STRATEGY=bucket_failover
 HYBRID_DATA_PIPELINE=1
-OPENEPC_EMAIL=
-OPENEPC_API_KEY=
+OPENEPC_BEARER_TOKEN=   # get-energy-performance-data.communities.gov.uk — register free, copy bearer token from account dashboard
 ```
 
 ---
@@ -3158,7 +3157,7 @@ Full product loop: **[ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md)**. **How
 | Module | Role |
 |--------|------|
 | `lib/intelligence/nesoGridClient.ts` | Regional gCO₂/kWh (Carbon Intensity API) |
-| `lib/intelligence/openEpcClient.ts` | EPC register (needs `OPENEPC_EMAIL` + `OPENEPC_API_KEY`); optional `houseNumber` filters by register address |
+| `lib/intelligence/openEpcClient.ts` | EPC register (needs `OPENEPC_BEARER_TOKEN`); two-step search → full cert fetch; optional `houseNumber` filters by register address |
 | `lib/intelligence/epcAddressMatch.ts` | Address-token filter before `pickLatestRow` when house number set |
 | `lib/intelligence/freeTierHydration.ts` | Tier A parallel hydrate → `user_genome.open_data_anchor` (stores `houseNumber` on anchor) |
 | `lib/zone/engineDataRouter.ts` | `processCalculatedLoopSpawn` — deterministic deltas + one discovery card |
@@ -3173,9 +3172,10 @@ MODEL_STRATEGY=bucket_failover   # enables hybrid Solo Focus spawn + scrape gate
 ### Optional explicit toggle (also on when bucket_failover):
 HYBRID_DATA_PIPELINE=1
 
-### OpenEPC (England & Wales) — skip silently if unset
-OPENEPC_EMAIL=you@example.com
-OPENEPC_API_KEY=your-register-key
+### EPC register (England & Wales) — skip silently if unset
+# New API: register free at https://get-energy-performance-data.communities.gov.uk/
+# Copy the bearer token from your account dashboard
+OPENEPC_BEARER_TOKEN=your-bearer-token
 ```
 
 #### Hermes
