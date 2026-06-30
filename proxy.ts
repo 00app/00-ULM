@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { passesAdminApiMiddlewareGate } from '@/lib/adminApiGate'
 import { attachGuestSessionCookieIfMissing } from '@/lib/proxyGuestCookie'
-import { shouldRedirectLandingToZone } from '@/lib/returningUserGate'
+import { shouldRedirectLandingToZone, shouldRedirectProfileToZone } from '@/lib/returningUserGate'
 import { ROUTES } from '@/lib/routes'
 
 /** Public GET — Zone reads cached Neon research without a session (no auth in proxy). */
@@ -23,6 +23,12 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
   if (request.method === 'GET' && path === ROUTES.HOME) {
     if (await shouldRedirectLandingToZone(request)) {
+      return NextResponse.redirect(new URL(ROUTES.ZONE, request.url))
+    }
+  }
+
+  if (request.method === 'GET' && path === ROUTES.PROFILE) {
+    if (await shouldRedirectProfileToZone(request)) {
       return NextResponse.redirect(new URL(ROUTES.ZONE, request.url))
     }
   }

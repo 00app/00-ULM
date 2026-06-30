@@ -28,10 +28,12 @@ import {
 } from '@/lib/geocode/resolvePostcodeLocality'
 import { checkUkPostcode, isValidUkPostcode } from '@/lib/geocode/ukPostcode'
 import {
+  guestProfileOnboardingComplete,
   isProfileOnboardingCompleteFields,
   PROFILE_GOAL_STORAGE_KEY,
   PROFILE_STORAGE_KEYS,
   readStoredProfileGoal,
+  userRowOnboardingComplete,
   type ProfileOnboardingFields,
 } from '@/lib/profile/onboardingComplete'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
@@ -234,6 +236,44 @@ export default function ProfilePageClient() {
     setStep(nextStep)
     setProfileHydrated(true)
   }, [qParam, setStep])
+
+  /**
+   * Returning-user fallback — localStorage alone is not durable (cleared cache, new device,
+   * private browsing). If the DB-backed session/guest profile is already complete, skip
+   * onboarding instead of forcing all 8 steps again. Never fires on the Settings single-field
+   * edit deep link (`q`/`returnTo` present) — that visit to `/profile` is intentional.
+   */
+  useEffect(() => {
+    if (!profileHydrated) return
+    if (qParam || returnTo) return
+    if (isProfileOnboardingComplete(values)) {
+      router.replace(ROUTES.ZONE)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const userRes = await fetch('/api/user', { cache: 'no-store' })
+        const userJson = await userRes.json().catch(() => null)
+        if (cancelled) return
+        if (userJson?.user && userRowOnboardingComplete(userJson.user)) {
+          router.replace(ROUTES.ZONE)
+          return
+        }
+        const sessionRes = await fetch('/api/session-state', { cache: 'no-store' })
+        const sessionJson = await sessionRes.json().catch(() => null)
+        if (cancelled) return
+        if (sessionJson?.profile && guestProfileOnboardingComplete(sessionJson.profile)) {
+          router.replace(ROUTES.ZONE)
+        }
+      } catch {
+        /* network failure — fall through to onboarding, never block on this check */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [profileHydrated, qParam, returnTo, values, router])
 
   useEffect(() => {
     if (!profileHydrated) return

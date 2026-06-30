@@ -15,7 +15,23 @@ import { GUEST_SESSION_COOKIE, parseGuestSessionCookie } from '@/lib/zone/guestS
 export async function shouldRedirectLandingToZone(request: NextRequest): Promise<boolean> {
   const skip = request.nextUrl.searchParams.get('skip')
   if (skip === '1' || skip === 'message') return false
+  return isRequestSessionOnboardingComplete(request)
+}
 
+/**
+ * Same DB-backed completeness check as the landing gate, applied to `/profile`.
+ * Bypassed when `q`/`returnTo` are present — that's the deliberate Settings single-field
+ * edit deep link, not a fresh onboarding visit, and must not redirect away.
+ */
+export async function shouldRedirectProfileToZone(request: NextRequest): Promise<boolean> {
+  const skip = request.nextUrl.searchParams.get('skip')
+  if (skip === '1' || skip === 'message') return false
+  if (request.nextUrl.searchParams.get('q')) return false
+  if (request.nextUrl.searchParams.get('returnTo')) return false
+  return isRequestSessionOnboardingComplete(request)
+}
+
+async function isRequestSessionOnboardingComplete(request: NextRequest): Promise<boolean> {
   const sessionRaw = request.cookies.get(SESSION_COOKIE)?.value?.trim()
   const token = sessionRaw ? unsealSessionToken(sessionRaw) : null
   if (token && isDatabaseConfigured()) {
