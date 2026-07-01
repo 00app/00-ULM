@@ -6,9 +6,9 @@ import Firecrawl from '@mendable/firecrawl-js'
 import { resolveFirecrawlApiKey } from '@/lib/sentinel/api-config'
 import { shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
 
-/** Ofgem: check if energy price cap is rising or falling (households). */
+/** Ofgem: energy price cap and standing charges explained. */
 export const OFGEM_LIVE_PRICE_CAP_URL =
-  'https://www.ofgem.gov.uk/information-consumers/energy-advice-households/check-if-energy-price-cap-rising-or-falling'
+  'https://www.ofgem.gov.uk/information-consumers/energy-advice-households/energy-price-cap-and-standing-charges-explained'
 
 /** v1.8.14 OrbaLogic seeds — BBC Energy topic + UK pump-price index (Content Architect / research context). */
 export const BBC_ENERGY_NEWS_TOPIC_URL = 'https://www.bbc.co.uk/news/topics/cwlw3xz0xxvt/energy'

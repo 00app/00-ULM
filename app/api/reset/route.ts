@@ -3,8 +3,8 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { SESSION_COOKIE, getSessionCookieAttributes } from '@/lib/auth'
-import { GUEST_SESSION_COOKIE, getGuestSessionCookieOptions } from '@/lib/zone/guestSession'
-import { parseGuestSessionCookie, unsealSessionToken } from '@/lib/sessionCookieSign'
+import { GUEST_SESSION_COOKIE, getGuestSessionCookieOptions, parseGuestSessionCookie } from '@/lib/zone/guestSession'
+import { unsealSessionToken } from '@/lib/sessionCookieSign'
 import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {

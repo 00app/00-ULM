@@ -102,6 +102,79 @@ const JOURNEY_FIRECRAWL_SEEDS: Partial<Record<JourneyId, string[]>> = {
   carbon: ['https://www.ofgem.gov.uk/'],
 }
 
+/**
+ * Per-category seed URLs that work with the free scraper (static/SSR HTML, no JS rendering needed).
+ * Used as the scrape source when Firecrawl is unavailable — gives Gemini live web content per domain.
+ */
+export const JOURNEY_FREE_SEEDS: Partial<Record<JourneyId, string[]>> = {
+  home: [
+    'https://energysavingtrust.org.uk/advice/reducing-home-heat-loss/',
+    'https://www.gov.uk/energy-grants-calculator',
+    'https://www.ofgem.gov.uk/information-consumers/energy-advice-households/energy-price-cap-and-standing-charges-explained',
+  ],
+  utilities: [
+    'https://www.ofgem.gov.uk/information-consumers/energy-advice-households/energy-price-cap-and-standing-charges-explained',
+    'https://energysavingtrust.org.uk/advice/home-energy-efficiency/',
+    'https://www.gov.uk/energy-grants-calculator',
+  ],
+  grants: [
+    'https://www.gov.uk/apply-boiler-upgrade-scheme',
+    'https://www.gov.uk/apply-warm-homes-local-grant',
+    'https://www.gov.uk/energy-company-obligation',
+    'https://energysavingtrust.org.uk/advice/grants-and-loans/',
+  ],
+  solar: [
+    'https://energysavingtrust.org.uk/advice/solar-panels/',
+    'https://www.gov.uk/feed-in-tariffs',
+    'https://www.gov.uk/guidance/smart-export-guarantee',
+  ],
+  travel: [
+    'https://www.gov.uk/guidance/rail-fares-and-season-tickets',
+    'https://www.gov.uk/buy-vehicle-tax-disc',
+    'https://www.gov.uk/plug-in-car-van-grants',
+  ],
+  holidays: [
+    'https://www.visitbritain.com/en/destinations',
+    'https://www.gov.uk/foreign-travel-advice',
+    'https://www.eurostar.com/uk-en/deals',
+  ],
+  food: [
+    'https://www.lovefoodhatewaste.com/why-save-food/facts-about-food-waste/',
+    'https://wrap.org.uk/taking-action/food-drink/actions/food-waste-reduction-roadmap',
+    'https://www.gov.uk/government/collections/food-waste-prevention',
+  ],
+  shopping: [
+    'https://wrap.org.uk/taking-action/textiles',
+    'https://www.gov.uk/guidance/buy-second-hand-goods-and-clothes',
+    'https://www.recyclenow.com/',
+  ],
+  money: [
+    'https://www.gov.uk/apply-warm-home-discount-scheme',
+    'https://www.gov.uk/pension-credit',
+    'https://energysavingtrust.org.uk/advice/grants-and-loans/',
+  ],
+  tech: [
+    'https://energysavingtrust.org.uk/advice/smart-meters/',
+    'https://www.gov.uk/guidance/energy-saving-tips',
+    'https://energysavingtrust.org.uk/advice/home-appliances/',
+  ],
+  water: [
+    'https://www.waterwise.org.uk/save-water/',
+    'https://www.gov.uk/find-local-council',
+    'https://energysavingtrust.org.uk/advice/water/',
+  ],
+  waste: [
+    'https://www.gov.uk/recycling-collections',
+    'https://www.recyclenow.com/',
+    'https://wrap.org.uk/taking-action/food-drink/actions/food-waste-reduction-roadmap',
+  ],
+  carbon: [
+    'https://energysavingtrust.org.uk/advice/home-insulation/',
+    'https://www.gov.uk/guidance/measuring-and-reporting-environmental-impacts-guidance-for-businesses',
+    'https://www.ofgem.gov.uk/information-consumers/energy-advice-households/energy-price-cap-and-standing-charges-explained',
+  ],
+}
+
 export function buildLocalizedResearchPrefix(params: {
   postcode: string
   profileData?: LocalizedProfileInput | null

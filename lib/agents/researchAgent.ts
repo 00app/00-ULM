@@ -15,6 +15,7 @@ import {
   buildCategoryFirecrawlSeedUrls,
   buildEmploymentAwareResearchSeeds,
   buildLocalizedResearchPrefix,
+  JOURNEY_FREE_SEEDS,
 } from '@/lib/intelligence/researchProfilePayload'
 import { buildDataTruthContextBlock } from '@/lib/intelligence/answerFunnelRouter'
 import { buildAnswerFunnelFromResearchProfile } from '@/lib/intelligence/enrichProfileDataFromGenome'
@@ -2050,17 +2051,68 @@ export async function runTriggerResearchForCategory(params: {
     }
   }
 
-  const deep = await deepGeminiSearchUkEnergyMarkdown({
-    postcode: pc,
-    profileData: params.profileData ?? null,
-    localityContext,
-    category: cat,
-    lifestyleShift: params.lifestyleShift,
-    userContext: params.userContext ?? null,
-  })
-  if (deep) {
-    markdown = `${markdown}\n\n---\n\n${deep.markdown}`
-    citations.push(...deep.citations)
+  // Free scrape pass — always runs (no API key required). Fetches static UK gov/charity pages
+  // per category. Caps at 2 URLs when Firecrawl already provided context, 3 when it didn't.
+  {
+    const { fetchMarkdownForUrlsFreeFirst } = await import('@/lib/agents/freeScraper')
+    const freeSeeds = JOURNEY_FREE_SEEDS[journeyKey] ?? []
+    const alreadyScrapedUrls = new Set(citations.map((c) => c.url).filter(Boolean))
+    const unseenSeeds = freeSeeds.filter((u) => !alreadyScrapedUrls.has(u))
+    const maxFreeUrls = citations.length > 0 ? 2 : 3
+    if (unseenSeeds.length > 0) {
+      const freeRows = await fetchMarkdownForUrlsFreeFirst(unseenSeeds, { minChars: 120, maxUrls: maxFreeUrls })
+      if (freeRows.length > 0) {
+        const freeBody = freeRows
+          .map((r) => `### Free source: ${r.title || r.url}\n${r.markdown.slice(0, 3000)}`)
+          .join('\n\n---\n\n')
+        markdown = `${markdown}\n\n---\n\n## Live UK sources (free scrape)\n\n${freeBody}`
+        for (const r of freeRows) {
+          citations.push({
+            source_name: r.title?.trim() || new URL(r.url).hostname.replace(/^www\./, ''),
+            url: r.url,
+            snippet: r.markdown.slice(0, 320),
+            title: r.title,
+          })
+        }
+      }
+    }
+  }
+
+  // ZeroAgent pass — Gemini with function calling drives the research itself.
+  // The model selects which free UK data APIs to call, executes them, then synthesises.
+  // Runs regardless of bucket-failover mode — it uses free APIs, not paid Firecrawl.
+  // Only skipped when OPENROUTER_API_KEY is absent.
+  let agentDidSynthesize = false
+  if (process.env.OPENROUTER_API_KEY?.trim()) {
+    const { runZeroAgent } = await import('@/lib/agents/zeroAgent')
+    const agent = await runZeroAgent({
+      postcode: pc,
+      category: cat,
+      profileBlock: profilePrefix,
+      localityContext,
+    })
+    if (agent && agent.markdown.length > 80) {
+      markdown = `${markdown}\n\n---\n\n## Agent synthesis\n\n${agent.markdown}`
+      citations.push(...agent.citations.map((c) => ({ ...c, title: c.title })))
+      agentDidSynthesize = true
+      console.log(`[zeroAgent] ${cat}@${pc} — tools: ${agent.toolsUsed.join(', ')}`)
+    }
+  }
+
+  // Fallback: direct Gemini pass when agent didn't run or produced nothing
+  if (!agentDidSynthesize) {
+    const deep = await deepGeminiSearchUkEnergyMarkdown({
+      postcode: pc,
+      profileData: params.profileData ?? null,
+      localityContext,
+      category: cat,
+      lifestyleShift: params.lifestyleShift,
+      userContext: params.userContext ?? null,
+    })
+    if (deep) {
+      markdown = `${markdown}\n\n---\n\n${deep.markdown}`
+      citations.push(...deep.citations)
+    }
   }
 
   const parsed = await parseApril2026UnitRatesFromMarkdown(markdown)
