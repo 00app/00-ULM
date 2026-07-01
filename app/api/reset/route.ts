@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
-import { GUEST_SESSION_COOKIE } from '@/lib/zone/guestSession'
+import { GUEST_SESSION_COOKIE, getGuestSessionCookieOptions } from '@/lib/zone/guestSession'
 import { parseGuestSessionCookie } from '@/lib/sessionCookieSign'
 
 export async function POST(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({ success: true })
     // Expire the guest cookie so a fresh one is minted on next visit
-    response.cookies.set(GUEST_SESSION_COOKIE, '', { maxAge: 0, path: '/' })
+    response.cookies.set(GUEST_SESSION_COOKIE, '', { ...getGuestSessionCookieOptions(0), path: '/' })
     return response
   } catch (error) {
     console.error('Error resetting data:', error)
