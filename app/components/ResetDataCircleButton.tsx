@@ -12,13 +12,17 @@ export function ResetDataCircleButton() {
   const router = useRouter()
   const reduceMotion = useHydrationSafeReducedMotion()
 
-  const handleReset = () => {
+  const handleReset = async () => {
     const ok = window.confirm(
       'Reset all data on this device? Your profile, Zone wall, and session will be cleared. This cannot be undone.'
     )
     if (!ok) return
     clearAllAppUserData()
-    router.push(ROUTES.INTRO)
+    try {
+      await fetch('/api/reset', { method: 'POST', credentials: 'include' })
+    } catch {
+      // non-fatal — localStorage already cleared
+    }
     window.location.href = ROUTES.INTRO
   }
 
