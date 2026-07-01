@@ -769,7 +769,7 @@ export function SoloFocusOverlay({
   const requestOfferFeedbackExit = useCallback(
     (signal: 'like' | 'dislike') => {
       triggerHaptic('medium')
-      const visitId = String(cardId ?? activeCardId ?? '').trim()
+      const visitId = String(soloFocusCardId || (cardId ?? activeCardId ?? '')).trim()
       const ctx = snapshotCardContext()
       if (ctx) persistSoloFocusCardContext(ctx)
       onPatternShiftClose?.(loopJourneyKey, {
@@ -788,6 +788,7 @@ export function SoloFocusOverlay({
       loopJourneyKey,
       onPatternShiftClose,
       onClose,
+      soloFocusCardId,
       cardId,
       activeCardId,
       displayTitle,
@@ -907,7 +908,7 @@ export function SoloFocusOverlay({
       >
       <PulseExpandedSync providerName={handoffAttribution.pulseProviderName} sourceUrl={pulseSourceUrl} />
         <div className="solo-focus-shell-wrap w-full min-w-0">
-      <SoloFocusViewportUtilityStrip onClose={requestClose} />
+      <SoloFocusViewportUtilityStrip onClose={requestClose} hidden={askZaiDeepDiveOpen} />
         <motion.div
           className="solo-focus-stack solo-focus-rail flex flex-col justify-start w-full min-w-0"
         >

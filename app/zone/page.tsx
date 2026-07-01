@@ -3377,6 +3377,13 @@ export default function ZonePage() {
                 onClose={closeAnySoloFocus}
                 onPatternShiftClose={(jid, meta) => {
                   const visitId = meta?.cardId?.trim() || tip.id
+                  if (meta?.offerFeedback === 'like' || meta?.offerFeedback === 'dislike') {
+                    launchPatternShiftTakeover(jid, {
+                      ...meta,
+                      cardId: visitId,
+                    })
+                    return
+                  }
                   const pinkOnly =
                     isRockTip || shouldCloseMarkPinkOnly(visitId, jid)
                   launchPatternShiftTakeover(jid, {

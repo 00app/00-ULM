@@ -5,10 +5,12 @@ import { CloseXOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 
 type SoloFocusViewportUtilityStripProps = {
   onClose: () => void
+  hidden?: boolean
 }
 
 /** Close — same viewport lock + X glyph as Likes / Zai / Settings (.zz-back-btn--viewport-lock). */
-export function SoloFocusViewportUtilityStrip({ onClose }: SoloFocusViewportUtilityStripProps) {
+export function SoloFocusViewportUtilityStrip({ onClose, hidden }: SoloFocusViewportUtilityStripProps) {
+  if (hidden) return null
   return (
     <FixedViewportPortal>
       <button
