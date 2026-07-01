@@ -246,6 +246,7 @@ export default function ProfilePageClient() {
   useEffect(() => {
     if (!profileHydrated) return
     if (qParam || returnTo) return
+    if (submittingRef.current) return
     if (isProfileOnboardingComplete(values)) {
       router.replace(ROUTES.ZONE)
       return
