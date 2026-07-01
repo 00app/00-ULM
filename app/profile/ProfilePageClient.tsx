@@ -133,6 +133,7 @@ export default function ProfilePageClient() {
   const searchParams = useSearchParams()
   const qParam = searchParams?.get('q')
   const returnTo = searchParams?.get('returnTo')
+  const skipParam = searchParams?.get('skip')
   const { refreshProfile, setLocationState } = useApp()
   
   const PROFILE_STEP_KEY = 'zz_profile_onboarding_step'
@@ -245,7 +246,7 @@ export default function ProfilePageClient() {
    */
   useEffect(() => {
     if (!profileHydrated) return
-    if (qParam || returnTo) return
+    if (qParam || returnTo || skipParam === '1') return
     if (submittingRef.current) return
     if (isProfileOnboardingComplete(values)) {
       router.replace(ROUTES.ZONE)
@@ -274,7 +275,7 @@ export default function ProfilePageClient() {
     return () => {
       cancelled = true
     }
-  }, [profileHydrated, qParam, returnTo, values, router])
+  }, [profileHydrated, qParam, returnTo, skipParam, values, router])
 
   useEffect(() => {
     if (!profileHydrated) return

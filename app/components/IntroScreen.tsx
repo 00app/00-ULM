@@ -195,7 +195,7 @@ export default function IntroScreen() {
     const tid = window.setTimeout(() => {
       if (introGoalAlreadySet()) {
         trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
-        router.push(ROUTES.PROFILE)
+        router.push(ROUTES.PROFILE + '?skip=1')
         return
       }
       setScreen((s) => (s === 'value-message' ? 'goal' : s))
@@ -215,7 +215,7 @@ export default function IntroScreen() {
         syncSessionState()
       }
       trackFunnelEvent('intro_complete', { page: ROUTES.PROFILE })
-      router.push(ROUTES.PROFILE)
+      router.push(ROUTES.PROFILE + '?skip=1')
     },
     [router]
   )
@@ -253,7 +253,7 @@ export default function IntroScreen() {
           onComplete={() => {
             if (introGoalAlreadySet()) {
               trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
-              router.push(ROUTES.PROFILE)
+              router.push(ROUTES.PROFILE + '?skip=1')
               return
             }
             setScreen((s) => (s === 'value-message' ? 'goal' : s))
