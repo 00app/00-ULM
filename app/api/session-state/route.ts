@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDbPool, isDatabaseConfigured } from '@/lib/db'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import {
+  GUEST_SESSION_COOKIE,
   guestIpHashFromRequest,
   normaliseVisitedCardIds,
   normaliseVisitedJourneyKeys,
@@ -43,6 +44,10 @@ function emptySessionPayload() {
 
 /** GET — return profile, journey_answers, completed_journeys for this session (or IP fallback). */
 export async function GET(request: NextRequest) {
+  // Whether a zz_sid cookie was sent — used to suppress the IP fallback after reset.
+  // If a cookie exists but no DB row is found, the user just reset: return clean state.
+  // Only fall back to IP when there is NO cookie (genuinely new device/browser).
+  const hasSidCookie = Boolean(request.cookies.get(GUEST_SESSION_COOKIE)?.value?.trim())
   const sessionId = resolveGuestSessionId(request)
   if (!isDatabaseConfigured()) {
     const res = NextResponse.json(emptySessionPayload())
@@ -69,7 +74,8 @@ export async function GET(request: NextRequest) {
     let setCookieValue = sessionId
     if (bySession.rows.length > 0) {
       row = bySession.rows[0] as typeof row
-    } else if (ipHash) {
+    } else if (!hasSidCookie && ipHash) {
+      // IP fallback only for virgin devices (no cookie at all) — never after a reset
       const byIp = await pool.query(
         `SELECT session_id, profile, journey_answers, completed_journeys, visited_card_ids, visited_journey_keys
          FROM guest_sessions WHERE ip_hash = $1 ORDER BY updated_at DESC LIMIT 1`,
