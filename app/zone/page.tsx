@@ -3103,6 +3103,15 @@ export default function ZonePage() {
                 initial="hidden"
                 animate="visible"
               >
+                {zoneWelcome.foundCountLine}
+              </motion.h3>
+              <motion.h3
+                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+                style={{ color: 'var(--color-yellow)' }}
+                variants={STACCATO_CHILD_VARIANTS}
+                initial="hidden"
+                animate="visible"
+              >
                 {zoneWelcome.localityLine}
               </motion.h3>
               <motion.h3
@@ -3113,15 +3122,6 @@ export default function ZonePage() {
                 animate="visible"
               >
                 {zoneWelcome.savingsMoneyLine}
-              </motion.h3>
-              <motion.h3
-                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-savings m-0"
-                style={{ color: 'var(--color-yellow)' }}
-                variants={STACCATO_CHILD_VARIANTS}
-                initial="hidden"
-                animate="visible"
-              >
-                {zoneWelcome.savingsCarbonLine}
               </motion.h3>
             </div>
           </motion.div>

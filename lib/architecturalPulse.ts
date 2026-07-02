@@ -67,6 +67,8 @@ export type ZoneWelcomeCopy = {
   localityLine: string
   savingsMoneyLine: string
   savingsCarbonLine: string
+  /** e.g. "we've found 9 things," */
+  foundCountLine: string
 }
 
 /** Profile hero card — under biggest-win category headline (Roboto body). */
@@ -76,7 +78,7 @@ export const ZONE_PROFILE_HERO_MISSION =
 /** Zone welcome — savings potential from grid journey + tip cards (≥1k → K/T shorthand). */
 export function buildZoneWelcomeCopy(
   name: string | undefined,
-  _completedCount: number,
+  completedCount: number,
   gridSavingsMoneyGbp: number,
   gridSavingsCarbonKg: number,
   locality?: string | null
@@ -92,13 +94,16 @@ export function buildZoneWelcomeCopy(
       ? `${carbonCompact.figure}t co2`
       : `${carbonCompact.figure}kg co2`
   const localityName = locality?.trim().split(',')[0].trim() || null
+  const count = Math.max(1, completedCount)
+  const thingLabel = count === 1 ? 'thing' : 'things'
 
   return {
     timeOfDayLine: formatTimeOfDayGreeting(),
     nameLine: `${first}.`,
-    localityLine: localityName ? `${localityName} audit complete.` : 'audit complete.',
-    savingsMoneyLine: `we found ${moneyLabel}`,
-    savingsCarbonLine: `going to waste. and ${carbonLabel}.`,
+    foundCountLine: `we've found ${count} ${thingLabel},`,
+    localityLine: `that could save you ${moneyLabel} and`,
+    savingsMoneyLine: `reduce your co2 by ${carbonLabel}.`,
+    savingsCarbonLine: '',
   }
 }
 
