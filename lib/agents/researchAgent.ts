@@ -64,13 +64,23 @@ import {
 import { buildAffluenceAuditorPromptBlock } from '@/lib/zone/affluenceCheck'
 import {
   clampZoneBentoHeadline,
+  headlineFromArchitectProse,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
+  MAX_JOURNEY_CARD_HEADLINE_WORDS,
   MAX_ZONE_CARD_HEADLINE_WORDS,
+  MIN_JOURNEY_CARD_HEADLINE_WORDS,
   MIN_ZONE_CARD_HEADLINE_WORDS,
+  normalizeCardHeadlineKey,
   stripExpandedCardTitleNoise,
   ZONE_BENTO_HOOK,
   zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
+
+/** Journey mother-card headline bounds — passed to clampZoneBentoHeadline for all category cards. */
+const JOURNEY_CARD_HEADLINE_BOUNDS = {
+  min: MIN_JOURNEY_CARD_HEADLINE_WORDS,
+  max: MAX_JOURNEY_CARD_HEADLINE_WORDS,
+}
 
 export interface ResearchCitation {
   source_name: string
@@ -1189,7 +1199,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
            WHERE id::text = $1`,
           [
             row.id,
-            clampZoneBentoHeadline(mechanical.agent_headline, journeyKey),
+            clampZoneBentoHeadline(mechanical.agent_headline, journeyKey, JOURNEY_CARD_HEADLINE_BOUNDS),
             mechanical.architect_prose,
             mechanical.saving_amount_gbp,
             mechanical.category,
@@ -1220,10 +1230,11 @@ export async function repairResearchResultsMissingHeadlines(params: {
       categoryHint: row.category,
     })
     const headline = clampZoneBentoHeadline(
-      normalizeGeminiAgentHeadline(triplet?.agent_headline, MAX_ZONE_CARD_HEADLINE_WORDS) ??
+      normalizeGeminiAgentHeadline(triplet?.agent_headline, MAX_JOURNEY_CARD_HEADLINE_WORDS) ??
         triplet?.agent_headline ??
         '',
-      normalizeCategoryToJourneyKey(row.category ?? triplet?.category ?? 'home')
+      normalizeCategoryToJourneyKey(row.category ?? triplet?.category ?? 'home'),
+      JOURNEY_CARD_HEADLINE_BOUNDS
     )
     const architect = normalizeArchitectProseThreeParagraphs(triplet?.architect_prose)
     const saving = normalizeSavingAmountGbp(triplet?.saving_amount_gbp)
@@ -1299,67 +1310,67 @@ function mechanicalCategoryTripletFallback(params: {
     const fallbacks: Record<string, { gbp: number; headline: string; prose: string }> = {
       home: {
         gbp: 180,
-        headline: `Home heat audit ${areaTag}`,
+        headline: `seal draughts and loft gaps in ${areaTag} homes first`,
         prose: `Older homes in ${areaLabel} leak heat through lofts, draughts, and lagging gaps — sealing those cuts bills before you chase a new boiler.\n\nJuly 2026 bills still track the energy price cap (~£${capTypical}/yr typical dual-fuel) so every wasted kWh hurts until fabric is fixed.\n\nUse the link below to plan loft and draught-proofing work before winter.`,
       },
       utilities: {
         gbp: 120,
-        headline: `April cap signal ${areaTag}`,
+        headline: `compare your household tariff before you fix a ${areaTag} deal`,
         prose: `${areaLabel} sits under the July 2026 price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nStanding charges and direct-debit realignment are the immediate levers before locking a fixed tariff.\n\nUse the link below to check your supplier statement matches cap rates before you switch.`,
       },
       grants: {
         gbp: MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP,
-        headline: `Heat pump grant ${areaTag}`,
+        headline: `check heat pump grant rules for your ${areaTag} home`,
         prose: `${areaLabel} may qualify for the government's heat pump grant in 2026 when your home and energy rating meet GOV.UK rules — many homes get up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString('en-GB')} toward an air-source heat pump; oil and LPG homes may access up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nThat sits beside your heating bills so you see grant cash and lower running costs together, not generic comparison-site chatter.\n\nUse the link below to check you qualify and compare installer quotes before you sign anything.`,
       },
       solar: {
         gbp: 450,
-        headline: `Solar export audit ${areaTag}`,
+        headline: `size solar panels to your roof in ${areaTag} now`,
         prose: `Solar in ${areaLabel} pays when generation, export rate, and daytime use align — typical homes cut import costs once an MCS install is sized to the roof.\n\nJuly 2026 import rates still follow the price-cap frame (~£${capTypical}/yr typical dual-fuel), so export and self-use matter for what you buy overnight.\n\nUse the link below to compare export tariffs with your supplier before you lock an install quote.`,
       },
       travel: {
         gbp: 450,
-        headline: `Swap one commute ${areaTag}`,
+        headline: `swap one weekly car commute for rail in ${areaTag}`,
         prose: `Around ${areaLabel}, one regular car commute is often the priciest habit on your travel row — a single rail or bus day each week is a gentle first swap.\n\nLocal timetables and season tickets still beat ad-hoc fuel top-ups when you plan the same journey twice.\n\nUse the link below to check rail or bus options for your usual route before you renew insurance or fuel cards.`,
       },
       holidays: {
         gbp: 250,
-        headline: `Holiday flight audit ${areaTag}`,
+        headline: `cut flights from ${areaTag} with more local rail trips`,
         prose: `Holidays from ${areaLabel} carry a heavy footprint — fewer flights and rail over short hops cuts both kg and spend.\n\nOne less return flight a year often saves hundreds before airline surcharges climb again.\n\nUse the link below to compare flight vs rail for your next break before you book.`,
       },
       food: {
         gbp: 180,
-        headline: `Food budget audit ${areaTag}`,
+        headline: `plan meals from your fridge to cut ${areaTag} waste`,
         prose: `Food budgets in ${areaLabel} leak cash through packaging and waste — a tighter weekly basket plan lands savings at the till.\n\nLow-waste, plant-rich meals aligned with local shops often trim ~£180/yr without a loyalty gimmick.\n\nUse the link below to try a meal planner and cut what you throw away each week.`,
       },
       shopping: {
         gbp: 110,
-        headline: `Shopping savings audit ${areaTag}`,
+        headline: `repair before you replace home items in ${areaTag} again`,
         prose: `Shopping in ${areaLabel} rewards repair-over-replace — second-hand and fix-it shops beat fast-fashion churn on both £ and kg.\n\nShifting a few purchases to circular outlets can move ~£110/yr without changing your whole wardrobe.\n\nUse the link below to find repair shops or low-waste retailers near you.`,
       },
       money: {
         gbp: 320,
-        headline: `Household spending ${areaTag}`,
+        headline: `move idle cash to a better rate from ${areaTag}`,
         prose: `Where you bank and save in ${areaLabel} still funds oil and gas unless you pick cleaner accounts.\n\nGreen ISAs and certified banks can move ~£320/yr of footprint without giving up yield entirely.\n\nUse the link below to compare greener banking options before you move cash.`,
       },
       tech: {
         gbp: 140,
-        headline: `Tech efficiency audit ${areaTag}`,
+        headline: `cut standby power on devices around your ${areaTag} home`,
         prose: `Smart meters and thermostats in ${areaLabel} trim bills fast under the April 2026 cap frame.\n\nHeating empty rooms or running an old boiler quietly adds ~£140/yr — timers and zoning fix that.\n\nUse the link below to see if your supplier offers free smart meter installs locally.`,
       },
       water: {
         gbp: 90,
-        headline: `Water conservation ${areaTag}`,
+        headline: `fix drips and fit aerators in your ${areaTag} home`,
         prose: `Water bills in ${areaLabel} keep rising on sewage and metered tariffs — conservation pays back quickly.\n\nRain butts and shower aerators can shave ~£90/yr off metered volume.\n\nUse the link below to claim free water-saving inserts from your water company.`,
       },
       waste: {
         gbp: 70,
-        headline: `Waste reduction ${areaTag}`,
+        headline: `sort recycling and compost at your ${areaTag} home today`,
         prose: `Waste rules in ${areaLabel} follow local council collections — sorting soft plastics and composting cuts landfill trips.\n\nA steady compost and recycling habit can save ~£70/yr in bags, trips, and contamination fines.\n\nUse the link below to confirm collection dates and rules for your street.`,
       },
       carbon: {
         gbp: 100,
-        headline: `Carbon reduction ${areaTag}`,
+        headline: `track your biggest home habit each month in ${areaTag} living`,
         prose: `Carbon tracking in ${areaLabel} maps to the 12,000 kWh ≈ 1 tonne baseline — small daily cuts compound.\n\nLogging heat, travel, and food for a fortnight often finds ~£100/yr of easy wins.\n\nUse the link below to run your household footprint against the national timeline.`,
       },
     }
@@ -1369,10 +1380,11 @@ function mechanicalCategoryTripletFallback(params: {
     const fallback = fallbacks[targetCat] ?? fallbacks.home
     const prose = normalizeArchitectProseThreeParagraphs(fallback.prose)
     if (!prose) return null
-    const hook = ZONE_BENTO_HOOK[journeyKey] ?? fallback.headline
+    // Locality-aware headline always wins here — we're already inside the branch that has a
+    // real area label. ZONE_BENTO_HOOK (fully generic, no locality) is only for when there's none.
     return {
       saving_amount_gbp: fallback.gbp,
-      agent_headline: clampZoneBentoHeadline(hook, journeyKey),
+      agent_headline: clampZoneBentoHeadline(fallback.headline, journeyKey, JOURNEY_CARD_HEADLINE_BOUNDS),
       architect_prose: prose,
       offer_url: trustedUrlForJourney(journeyKey),
       category: journeyKey,
@@ -1391,10 +1403,10 @@ function mechanicalCategoryTripletFallback(params: {
     const gbp = MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP
     const agent_headline =
       zoneCardHeadlineFromRaw(
-        `Heat pump grant in ${areaTag}`,
-        `Heat pump grant in ${areaTag}`,
-        MAX_ZONE_CARD_HEADLINE_WORDS
-      ) || `Heat pump grant in ${areaTag}`
+        `check heat pump grant rules for your ${areaTag} home`,
+        `check heat pump grant rules for your ${areaTag} home`,
+        MAX_JOURNEY_CARD_HEADLINE_WORDS
+      ) || `check heat pump grant rules for your ${areaTag} home`
     const architect_prose =
       normalizeArchitectProseThreeParagraphs(
         `${areaLabel} may qualify for the government's heat pump grant in 2026 when your home and energy rating meet GOV.UK rules — many homes get up to £${gbp.toLocaleString('en-GB')} toward an air-source heat pump; oil and LPG homes may access up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nThat sits beside your heating bills so you see grant cash and lower running costs together, not generic comparison-site chatter.\n\nUse the link below to check you qualify and compare installer quotes before you sign anything.`
@@ -1402,7 +1414,7 @@ function mechanicalCategoryTripletFallback(params: {
     if (!architect_prose) return null
     return {
       saving_amount_gbp: gbp,
-      agent_headline: clampZoneBentoHeadline(agent_headline, 'grants'),
+      agent_headline: clampZoneBentoHeadline(agent_headline, 'grants', JOURNEY_CARD_HEADLINE_BOUNDS),
       architect_prose,
       offer_url: trustedUrlForJourney('grants'),
       category: 'grants',
@@ -1413,10 +1425,10 @@ function mechanicalCategoryTripletFallback(params: {
     const gbp = TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP
     const agent_headline =
       zoneCardHeadlineFromRaw(
-        `April cap signal ${areaLabel}`,
-        `APRIL CAP SIGNAL ${areaTag}`,
-        MAX_ZONE_CARD_HEADLINE_WORDS
-      ) || `APRIL CAP SIGNAL ${areaTag}`
+        `compare your household tariff before you fix a ${areaLabel} deal`,
+        `compare your household tariff before you fix a ${areaTag} deal`,
+        MAX_JOURNEY_CARD_HEADLINE_WORDS
+      ) || `compare your household tariff before you fix a ${areaTag} deal`
     const architect_prose =
       normalizeArchitectProseThreeParagraphs(
         `${areaLabel} sits under the July 2026 price-cap frame — typical dual-fuel around £${TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nGreen-levy movement and standing-charge maths matter more than generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nUse the link below to check your supplier statement matches the cap period before you switch.`
@@ -1424,7 +1436,7 @@ function mechanicalCategoryTripletFallback(params: {
     if (!architect_prose) return null
     return {
       saving_amount_gbp: gbp,
-      agent_headline: clampZoneBentoHeadline(agent_headline, 'utilities'),
+      agent_headline: clampZoneBentoHeadline(agent_headline, 'utilities', JOURNEY_CARD_HEADLINE_BOUNDS),
       architect_prose,
       offer_url: trustedUrlForJourney('utilities'),
       category: 'utilities',
@@ -1689,9 +1701,9 @@ export async function persistResearchResult(params: {
 
     const journeyKeyForHeadline = normalizeCategoryToJourneyKey(mergedCategory ?? 'home')
     let mergedAgentHeadline =
-      normalizeGeminiAgentHeadline(params.agentHeadline ?? undefined, MAX_ZONE_CARD_HEADLINE_WORDS) ??
-      normalizeGeminiAgentHeadline(markdownTriplet?.agent_headline, MAX_ZONE_CARD_HEADLINE_WORDS) ??
-      normalizeGeminiAgentHeadline(geminiTriplet?.agent_headline, MAX_ZONE_CARD_HEADLINE_WORDS) ??
+      normalizeGeminiAgentHeadline(params.agentHeadline ?? undefined, MAX_JOURNEY_CARD_HEADLINE_WORDS) ??
+      normalizeGeminiAgentHeadline(markdownTriplet?.agent_headline, MAX_JOURNEY_CARD_HEADLINE_WORDS) ??
+      normalizeGeminiAgentHeadline(geminiTriplet?.agent_headline, MAX_JOURNEY_CARD_HEADLINE_WORDS) ??
       null
 
     const headlineWordCount = mergedAgentHeadline
@@ -1702,7 +1714,7 @@ export async function persistResearchResult(params: {
       !mergedAgentHeadline &&
       !mergedArchitectProse
     const needsMechanicalHeadline =
-      headlineWordCount > 0 && headlineWordCount < MIN_ZONE_CARD_HEADLINE_WORDS
+      headlineWordCount > 0 && headlineWordCount < MIN_JOURNEY_CARD_HEADLINE_WORDS
     if ((tripletEmpty || needsMechanicalHeadline) && (mergedOffer || mergedCategory)) {
       const mechanical = mechanicalCategoryTripletFallback({
         category: mergedCategory,
@@ -1720,10 +1732,25 @@ export async function persistResearchResult(params: {
     }
 
     if (mergedAgentHeadline) {
+      const headlineJourneyKey = normalizeCategoryToJourneyKey(mergedCategory ?? 'home')
       mergedAgentHeadline = clampZoneBentoHeadline(
         mergedAgentHeadline,
-        normalizeCategoryToJourneyKey(mergedCategory ?? 'home')
+        headlineJourneyKey,
+        JOURNEY_CARD_HEADLINE_BOUNDS
       )
+      // Clamp fell back to the fully generic per-journey hook (lost any locality reference) —
+      // try deriving a real headline from the architect_prose first, since that reliably carries
+      // the locality name even when the headline extraction itself was too short/low-quality.
+      const genericHook = ZONE_BENTO_HOOK[headlineJourneyKey]
+      const fellBackToGenericHook =
+        genericHook != null &&
+        normalizeCardHeadlineKey(mergedAgentHeadline) === normalizeCardHeadlineKey(genericHook)
+      if (fellBackToGenericHook && mergedArchitectProse) {
+        const fromProse = headlineFromArchitectProse(mergedArchitectProse, MAX_JOURNEY_CARD_HEADLINE_WORDS)
+        if (fromProse) {
+          mergedAgentHeadline = clampZoneBentoHeadline(fromProse, headlineJourneyKey, JOURNEY_CARD_HEADLINE_BOUNDS)
+        }
+      }
     }
 
     const journeyKeyFinal = normalizeCategoryToJourneyKey(mergedCategory ?? 'home')
@@ -1768,38 +1795,52 @@ export async function persistResearchResult(params: {
       if (recent.rows.length > 0) return
     }
 
-    await pool.query(
-      `INSERT INTO research_results (
-         user_id, postcode, profile_snapshot, markdown, citations,
-         elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
-         deep_link, verified_saving, category, offer_url, saving_amount_gbp, locality_context,
-         provider_name, agent_headline, architect_prose, research_snapshot,
-         is_high_impact, carbon_impact_kg, created_at
-       )
-       VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13::numeric, $14, $15, $16, $17, $18::jsonb, $19, $20::numeric, NOW())`,
-      [
-        params.userId?.trim() || null,
-        params.postcode ?? null,
-        JSON.stringify(params.profileData ?? {}),
-        workingMarkdown,
-        JSON.stringify(mergedCitations),
-        params.elecUnitRateGbpPerKwh ?? null,
-        params.gasUnitRateGbpPerKwh ?? null,
-        mergedSourceForDb,
-        deepResolved,
-        verifiedForDb,
-        mergedCategory,
-        mergedOffer,
-        savingForDb,
-        params.localityContext ?? null,
-        providerName,
-        mergedAgentHeadline,
-        mergedArchitectProse,
-        params.invokePayload !== undefined ? JSON.stringify(params.invokePayload) : null,
-        highImpact,
-        carbonKg,
-      ]
-    )
+    const insertResearchResultRow = (userIdForInsert: string | null) =>
+      pool.query(
+        `INSERT INTO research_results (
+           user_id, postcode, profile_snapshot, markdown, citations,
+           elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
+           deep_link, verified_saving, category, offer_url, saving_amount_gbp, locality_context,
+           provider_name, agent_headline, architect_prose, research_snapshot,
+           is_high_impact, carbon_impact_kg, created_at
+         )
+         VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13::numeric, $14, $15, $16, $17, $18::jsonb, $19, $20::numeric, NOW())`,
+        [
+          userIdForInsert,
+          params.postcode ?? null,
+          JSON.stringify(params.profileData ?? {}),
+          workingMarkdown,
+          JSON.stringify(mergedCitations),
+          params.elecUnitRateGbpPerKwh ?? null,
+          params.gasUnitRateGbpPerKwh ?? null,
+          mergedSourceForDb,
+          deepResolved,
+          verifiedForDb,
+          mergedCategory,
+          mergedOffer,
+          savingForDb,
+          params.localityContext ?? null,
+          providerName,
+          mergedAgentHeadline,
+          mergedArchitectProse,
+          params.invokePayload !== undefined ? JSON.stringify(params.invokePayload) : null,
+          highImpact,
+          carbonKg,
+        ]
+      )
+
+    try {
+      await insertResearchResultRow(params.userId?.trim() || null)
+    } catch (insertErr: unknown) {
+      // User row was deleted (e.g. GDPR reset) between when this background job started and
+      // when it tried to persist — fall back to a guest-scoped row instead of losing the work.
+      const code = (insertErr as { code?: string } | null)?.code
+      if (code === '23503' && params.userId?.trim()) {
+        await insertResearchResultRow(null)
+      } else {
+        throw insertErr
+      }
+    }
 
     const stillIncomplete =
       (savingForDb == null || savingForDb <= 0) &&
@@ -1858,7 +1899,7 @@ export async function seedMechanicalJourneysForPostcode(
       }
 
       const journeyKey = normalizeCategoryToJourneyKey(mechanical.category)
-      const headline = clampZoneBentoHeadline(mechanical.agent_headline, journeyKey)
+      const headline = clampZoneBentoHeadline(mechanical.agent_headline, journeyKey, JOURNEY_CARD_HEADLINE_BOUNDS)
       const offerUrl = sanitizeZoneOfferUrl(mechanical.offer_url, journeyKey)
 
       await pool.query(
@@ -2081,9 +2122,9 @@ export async function runTriggerResearchForCategory(params: {
   // ZeroAgent pass — Gemini with function calling drives the research itself.
   // The model selects which free UK data APIs to call, executes them, then synthesises.
   // Runs regardless of bucket-failover mode — it uses free APIs, not paid Firecrawl.
-  // Only skipped when OPENROUTER_API_KEY is absent.
+  // Direct Gemini is the primary provider; OpenRouter is the fallback.
   let agentDidSynthesize = false
-  if (process.env.OPENROUTER_API_KEY?.trim()) {
+  if (process.env.GEMINI_API_KEY?.trim() || process.env.OPENROUTER_API_KEY?.trim()) {
     const { runZeroAgent } = await import('@/lib/agents/zeroAgent')
     const agent = await runZeroAgent({
       postcode: pc,

@@ -899,9 +899,12 @@ export function polishTrueTipParagraphsForHeadline(
   ]
 }
 
-/** Zone / bento card face — Marvin stamp (8–10 words). */
+/** Zone / bento card face — Marvin stamp (8–10 words). Today's Tips (Rock catalog) use this. */
 export const MIN_ZONE_CARD_HEADLINE_WORDS = 8
 export const MAX_ZONE_CARD_HEADLINE_WORDS = 10
+/** Journey mother-card face (GRANTS/SOLAR/etc.) — same stamp style, more room for locality + a figure. */
+export const MIN_JOURNEY_CARD_HEADLINE_WORDS = 9
+export const MAX_JOURNEY_CARD_HEADLINE_WORDS = 12
 /** Solo Focus hook H1 — Marvin, ~3–4 lines (20–24 words). */
 export const MIN_EXPANDED_VIEW_HEADLINE_WORDS = 20
 export const MAX_EXPANDED_VIEW_HEADLINE_WORDS = 24
@@ -1023,6 +1026,20 @@ const INCOMPLETE_HEADLINE_ENDINGS = new Set([
   'my',
   'you',
   'not',
+  'when',
+  'what',
+  'who',
+  'why',
+  'how',
+  'which',
+  'while',
+  'although',
+  'because',
+  'since',
+  'if',
+  'unless',
+  'that',
+  'than',
 ])
 
 /** Two-letter tokens that can end a valid zone stamp (e.g. EV, UK). */
@@ -1112,10 +1129,11 @@ export function headlineFromArchitectProse(
 export function enforceHeadlineWordLimits(
   text: string,
   expanded = false,
-  journeyId?: JourneyId | string
+  journeyId?: JourneyId | string,
+  bounds?: { min: number; max: number }
 ): string {
-  const min = expanded ? MIN_EXPANDED_VIEW_HEADLINE_WORDS : MIN_ZONE_CARD_HEADLINE_WORDS
-  const max = expanded ? MAX_EXPANDED_VIEW_HEADLINE_WORDS : MAX_ZONE_CARD_HEADLINE_WORDS
+  const min = bounds?.min ?? (expanded ? MIN_EXPANDED_VIEW_HEADLINE_WORDS : MIN_ZONE_CARD_HEADLINE_WORDS)
+  const max = bounds?.max ?? (expanded ? MAX_EXPANDED_VIEW_HEADLINE_WORDS : MAX_ZONE_CARD_HEADLINE_WORDS)
   const jid = journeyId ? coerceJourneyId(String(journeyId)) : undefined
   const journeyHook = jid ? (expanded ? EXPANDED_JOURNEY_HOOK[jid] : ZONE_BENTO_HOOK[jid]) : undefined
   const fallback = journeyHook ?? 'save money on home bills near you'
@@ -1270,14 +1288,23 @@ export function resolveZoneGridTipHeadline(
   return headline
 }
 
-/** Zone bento face — enforce 8–10 words with per-journey hook fallback. */
-export function clampZoneBentoHeadline(text: string, journeyId?: JourneyId | string): string {
+/**
+ * Zone bento face — enforce word bounds with per-journey hook fallback.
+ * Today's Tips (Rock catalog) call this with no override → 8–10 words.
+ * Journey mother cards pass `{ min: MIN_JOURNEY_CARD_HEADLINE_WORDS, max: MAX_JOURNEY_CARD_HEADLINE_WORDS }`
+ * (9–12 words) — same stamp style, more room for locality + a figure.
+ */
+export function clampZoneBentoHeadline(
+  text: string,
+  journeyId?: JourneyId | string,
+  bounds?: { min: number; max: number }
+): string {
   const jid = journeyId ? coerceJourneyId(String(journeyId)) : undefined
   const hook = jid ? ZONE_BENTO_HOOK[jid] : undefined
   const raw = text?.trim() || hook || 'save money on home bills near you'
   const source =
     (isLowQualityZoneHeadline(raw) || isGenericSpringHeadline(raw)) && hook ? hook : raw
-  return humanizeZoneHeadline(enforceHeadlineWordLimits(source, false, jid), jid)
+  return humanizeZoneHeadline(enforceHeadlineWordLimits(source, false, jid, bounds), jid)
 }
 
 /** Rock / Today's Tips — catalog habit titles (3–10 words); never substitute journey wall hooks. */

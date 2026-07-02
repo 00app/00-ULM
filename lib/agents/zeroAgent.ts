@@ -1,6 +1,7 @@
 /**
  * ZeroAgent — tool-calling agent for per-category UK household research.
- * Uses OpenRouter (google/gemini-2.5-flash via OpenAI-compatible tool calling).
+ * Primary: direct Gemini function calling (free tier, GEMINI_API_KEY).
+ * Fallback: OpenRouter (google/gemini-2.5-flash via OpenAI-compatible tool calling).
  * The model decides which free UK data APIs to call, executes them, and synthesises
  * a grounded markdown insight with a verified £/year saving and a live https link.
  *
@@ -13,9 +14,10 @@ import type { JourneyId } from '@/lib/journeys'
 import { normalizeCategoryToJourneyKey } from '@/lib/zone/trustedJourneyUrls'
 
 const MAX_TOOL_ROUNDS = 5
-const MAX_OUTPUT_TOKENS = 1536
+const MAX_OUTPUT_TOKENS = 1200
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const ROUND_TIMEOUT_MS = 30_000
+const GEMINI_AGENT_MODEL = 'gemini-2.5-flash'
 
 // Which tools are relevant per journey — keeps the model focused, reduces hallucination
 const CATEGORY_TOOL_HINTS: Partial<Record<JourneyId, string[]>> = {
@@ -113,32 +115,133 @@ type OpenAiResponse = {
   }>
 }
 
-export async function runZeroAgent(params: {
-  postcode: string
+/** Extract https URLs from the final text, merge with tool-sourced citations. */
+function finalizeAgentResult(
+  text: string,
+  toolsUsed: string[],
+  toolCitations: ZeroAgentResult['citations']
+): ZeroAgentResult | null {
+  const trimmed = text.trim()
+  if (trimmed.length < 80) return null
+
+  const urlMatches = trimmed.matchAll(/https:\/\/[^\s\)\]\"<>]+/g)
+  const citations: ZeroAgentResult['citations'] = []
+  const seen = new Set<string>()
+  for (const m of urlMatches) {
+    const url = m[0].replace(/[.,;!]+$/, '')
+    if (seen.has(url)) continue
+    seen.add(url)
+    try {
+      const host = new URL(url).hostname.replace(/^www\./, '')
+      citations.push({ source_name: host, url, snippet: trimmed.slice(0, 320) })
+    } catch { /* invalid url */ }
+  }
+
+  const mergedCitations = [...toolCitations]
+  for (const c of citations) {
+    if (!mergedCitations.some((t) => t.url === c.url)) mergedCitations.push(c)
+  }
+  return { markdown: trimmed, toolsUsed, citations: mergedCitations }
+}
+
+/** Run one tool call and capture scrape_url results as citations. */
+async function runAgentTool(
+  name: string,
+  args: Record<string, unknown>,
+  toolsUsed: string[],
+  toolCitations: ZeroAgentResult['citations']
+): Promise<Record<string, unknown>> {
+  toolsUsed.push(name)
+  const result = await executeAgentTool(name, args)
+  if (name === 'scrape_url' && result.found && typeof result.url === 'string') {
+    const host = (() => { try { return new URL(result.url as string).hostname.replace(/^www\./, '') } catch { return result.url as string } })()
+    toolCitations.push({
+      source_name: host,
+      url: result.url as string,
+      snippet: typeof result.content === 'string' ? (result.content as string).slice(0, 320) : '',
+      title: typeof result.title === 'string' ? result.title : undefined,
+    })
+  }
+  return result
+}
+
+function agentUserMessage(category: string, pc: string): string {
+  return `Research the ${category} domain for postcode ${pc}. Start by fetching postcode geo, then gather relevant data, then synthesise a grounded insight.`
+}
+
+/** Primary path — direct Gemini function calling (free tier, no OpenRouter credits). */
+async function runZeroAgentGemini(params: {
+  pc: string
   category: string
-  profileBlock: string
-  localityContext?: string | null
+  systemPrompt: string
+}): Promise<ZeroAgentResult | null> {
+  const apiKey = process.env.GEMINI_API_KEY?.trim()
+  if (!apiKey) return null
+  console.log(`[zeroAgent] model: gemini-direct/${GEMINI_AGENT_MODEL} postcode: ${params.pc} category: ${params.category}`)
+
+  const toolsUsed: string[] = []
+  const toolCitations: ZeroAgentResult['citations'] = []
+
+  try {
+    const { GoogleGenerativeAI } = await import('@google/generative-ai')
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel(
+      {
+        model: GEMINI_AGENT_MODEL,
+        systemInstruction: params.systemPrompt,
+        tools: [{ functionDeclarations: AGENT_TOOL_DECLARATIONS }],
+        generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, temperature: 0.3 },
+      },
+      { timeout: ROUND_TIMEOUT_MS }
+    )
+
+    const chat = model.startChat()
+    let result = await chat.sendMessage(agentUserMessage(params.category, params.pc))
+
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const calls = result.response.functionCalls()
+      if (!calls || calls.length === 0) {
+        return finalizeAgentResult(result.response.text() ?? '', toolsUsed, toolCitations)
+      }
+      const responses = await Promise.all(
+        calls.map(async (call) => ({
+          functionResponse: {
+            name: call.name,
+            response: await runAgentTool(
+              call.name,
+              (call.args ?? {}) as Record<string, unknown>,
+              toolsUsed,
+              toolCitations
+            ),
+          },
+        }))
+      )
+      result = await chat.sendMessage(responses)
+    }
+    return null // hit max rounds without finishing
+  } catch (err) {
+    console.warn('[zeroAgent] gemini-direct failed:', err instanceof Error ? err.message.slice(0, 200) : err)
+    return null
+  }
+}
+
+/** Fallback path — OpenRouter OpenAI-compatible tool calling. */
+async function runZeroAgentOpenRouter(params: {
+  pc: string
+  category: string
+  systemPrompt: string
 }): Promise<ZeroAgentResult | null> {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim()
   if (!apiKey) return null
 
-  const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
-  const journeyKey = normalizeCategoryToJourneyKey(params.category)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://www.00-00.online'
   const model = process.env.OPENROUTER_MODEL?.trim() || 'google/gemini-2.5-flash'
-  console.log(`[zeroAgent] model: ${model} postcode: ${pc} category: ${params.category}`)
-
-  const systemPrompt = buildSystemPrompt({
-    postcode: pc,
-    category: params.category,
-    journeyKey,
-    profileBlock: params.profileBlock,
-    localityContext: params.localityContext ?? null,
-  })
+  const pc = params.pc
+  console.log(`[zeroAgent] model: openrouter/${model} postcode: ${pc} category: ${params.category}`)
 
   const messages: OpenAiMessage[] = [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: `Research the ${params.category} domain for postcode ${pc}. Start by fetching postcode geo, then gather relevant data, then synthesise a grounded insight.` },
+    { role: 'system', content: params.systemPrompt },
+    { role: 'user', content: agentUserMessage(params.category, pc) },
   ]
 
   const tools = toOpenAiTools()
@@ -181,47 +284,15 @@ export async function runZeroAgent(params: {
 
       // Model returned final text — we're done
       if (!msg.tool_calls || msg.tool_calls.length === 0) {
-        const text = (msg.content ?? '').trim()
-        if (text.length < 80) return null
-
-        const urlMatches = text.matchAll(/https:\/\/[^\s\)\]\"<>]+/g)
-        const citations: ZeroAgentResult['citations'] = []
-        const seen = new Set<string>()
-        for (const m of urlMatches) {
-          const url = m[0].replace(/[.,;!]+$/, '')
-          if (seen.has(url)) continue
-          seen.add(url)
-          try {
-            const host = new URL(url).hostname.replace(/^www\./, '')
-            citations.push({ source_name: host, url, snippet: text.slice(0, 320) })
-          } catch { /* invalid url */ }
-        }
-
-        // Merge tool-sourced citations (scrape_url calls) with URL regex citations
-        const mergedCitations = [...toolCitations]
-        for (const c of citations) {
-          if (!mergedCitations.some((t) => t.url === c.url)) mergedCitations.push(c)
-        }
-        return { markdown: text, toolsUsed, citations: mergedCitations }
+        return finalizeAgentResult(msg.content ?? '', toolsUsed, toolCitations)
       }
 
       // Execute tool calls in parallel and feed results back
       const toolResults = await Promise.all(
         msg.tool_calls.map(async (call) => {
-          toolsUsed.push(call.function.name)
           let args: Record<string, unknown> = {}
           try { args = JSON.parse(call.function.arguments) } catch { /* ignore */ }
-          const result = await executeAgentTool(call.function.name, args)
-          // Capture scrape_url results as citations with real URL + title
-          if (call.function.name === 'scrape_url' && result.found && typeof result.url === 'string') {
-            const host = (() => { try { return new URL(result.url as string).hostname.replace(/^www\./, '') } catch { return result.url as string } })()
-            toolCitations.push({
-              source_name: host,
-              url: result.url as string,
-              snippet: typeof result.content === 'string' ? (result.content as string).slice(0, 320) : '',
-              title: typeof result.title === 'string' ? result.title : undefined,
-            })
-          }
+          const result = await runAgentTool(call.function.name, args, toolsUsed, toolCitations)
           return {
             role: 'tool' as const,
             tool_call_id: call.id,
@@ -238,4 +309,29 @@ export async function runZeroAgent(params: {
     console.warn('[zeroAgent] failed:', err instanceof Error ? err.message : err)
     return null
   }
+}
+
+/**
+ * ZeroAgent entry — direct Gemini first (free tier), OpenRouter as fallback.
+ * Returns null when neither provider is configured or both fail.
+ */
+export async function runZeroAgent(params: {
+  postcode: string
+  category: string
+  profileBlock: string
+  localityContext?: string | null
+}): Promise<ZeroAgentResult | null> {
+  const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
+  const systemPrompt = buildSystemPrompt({
+    postcode: pc,
+    category: params.category,
+    journeyKey: normalizeCategoryToJourneyKey(params.category),
+    profileBlock: params.profileBlock,
+    localityContext: params.localityContext ?? null,
+  })
+
+  const viaGemini = await runZeroAgentGemini({ pc, category: params.category, systemPrompt })
+  if (viaGemini) return viaGemini
+
+  return runZeroAgentOpenRouter({ pc, category: params.category, systemPrompt })
 }

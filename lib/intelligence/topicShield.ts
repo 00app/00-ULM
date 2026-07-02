@@ -65,7 +65,7 @@ export function buildLaneLockPromptBlock(
   const lines = [
     `CURRENT_DOMAIN: ${journeyKey} — you are physically barred from referencing any other journey domain.`,
     `LANE LOCK: EXCLUSIVELY audit **${key}**. Ignore solar, travel, food, grants, etc. unless this domain is grants and the URL is grant-specific.`,
-    'Stop once you have one defensible triplet: numeric £/year saving, agent_headline (max 7 words), and exactly three paragraphs of architect_prose.',
+    'Stop once you have one defensible triplet: numeric £/year saving, agent_headline (9-12 words, must open with the locality name from context), and exactly three paragraphs of architect_prose.',
   ]
 
   if (skipLowIncomePath) {

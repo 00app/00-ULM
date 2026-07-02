@@ -72,11 +72,13 @@ export async function fetchLiveEnergyData(): Promise<string> {
       md = extractMarkdown(res)
     }
 
-    return md
+    if (md.length >= MIN_MARKDOWN_CHARS) return md
   } catch (err) {
-    console.warn('[scraper] Ofgem Firecrawl scrape failed:', err)
-    return ''
+    console.warn('[scraper] Ofgem Firecrawl scrape failed, falling back to free path:', err)
   }
+
+  const rows = await fetchMarkdownForUrlsFreeFirst([OFGEM_LIVE_PRICE_CAP_URL], { minChars: MIN_MARKDOWN_CHARS })
+  return rows[0]?.markdown ?? ''
 }
 
 /**
@@ -98,15 +100,25 @@ export async function fetchUkEconomicSeedMarkdown(): Promise<string> {
   }
 
   const chunks: string[] = []
+  const missedUrls: string[] = []
   for (const url of [BBC_ENERGY_NEWS_TOPIC_URL, PETROL_PRICES_UK_URL]) {
     try {
       const res = await client.scrapeUrl(url, baseParams)
       const md = extractMarkdown(res)
       if (md.length >= 80) {
         chunks.push(`### Source: ${url}\n\n${md}`)
+      } else {
+        missedUrls.push(url)
       }
     } catch {
-      /* ignore single-source failure */
+      missedUrls.push(url)
+    }
+  }
+
+  if (missedUrls.length > 0) {
+    const freeRows = await fetchMarkdownForUrlsFreeFirst(missedUrls, { minChars: 80 })
+    for (const r of freeRows) {
+      chunks.push(`### Source: ${r.url}\n\n${r.markdown}`)
     }
   }
 
