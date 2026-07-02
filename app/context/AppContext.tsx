@@ -130,6 +130,30 @@ function readJourneyAnswersFromStorage(): Record<JourneyId, Record<string, strin
   return out
 }
 
+function shallowEqualProfile(a: AppProfile, b: AppProfile): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof AppProfile>
+  for (const key of keys) {
+    if (a[key] !== b[key]) return false
+  }
+  return true
+}
+
+function shallowEqualJourneyAnswers(
+  a: Record<JourneyId, Record<string, string>>,
+  b: Record<JourneyId, Record<string, string>>
+): boolean {
+  const jids = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<JourneyId>
+  for (const jid of jids) {
+    const aa = a[jid] ?? {}
+    const bb = b[jid] ?? {}
+    const keys = new Set([...Object.keys(aa), ...Object.keys(bb)])
+    for (const key of keys) {
+      if (aa[key] !== bb[key]) return false
+    }
+  }
+  return true
+}
+
 function readProfileFromStorage(): AppProfile | null {
   if (typeof window === 'undefined') return null
   const name = localStorage.getItem('profile_name') ?? ''
@@ -184,8 +208,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lastPostcodeSynced, setLastPostcodeSynced] = useState<string>('')
 
   const refreshProfile = useCallback(() => {
-    setProfile(readProfileFromStorage())
-    setJourneyAnswers(readJourneyAnswersFromStorage())
+    // Keep the previous object reference when field values are unchanged — downstream effects
+    // across the app key off `profile` by reference (not deep-equality), so a fresh object on
+    // every call (even with identical data) cascades into redundant re-fetches everywhere.
+    setProfile((prev) => {
+      const next = readProfileFromStorage()
+      if (prev && next && shallowEqualProfile(prev, next)) return prev
+      return next
+    })
+    setJourneyAnswers((prev) => {
+      const next = readJourneyAnswersFromStorage()
+      return shallowEqualJourneyAnswers(prev, next) ? prev : next
+    })
   }, [])
 
   useEffect(() => {
@@ -276,8 +310,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const onMemory = () => {
-      setProfile(readProfileFromStorage())
-      setJourneyAnswers(readJourneyAnswersFromStorage())
+      setProfile((prev) => {
+        const next = readProfileFromStorage()
+        if (prev && next && shallowEqualProfile(prev, next)) return prev
+        return next
+      })
+      setJourneyAnswers((prev) => {
+        const next = readJourneyAnswersFromStorage()
+        return shallowEqualJourneyAnswers(prev, next) ? prev : next
+      })
     }
     window.addEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onMemory)
     return () => window.removeEventListener(UNIFIED_PROFILE_MEMORY_EVENT, onMemory)

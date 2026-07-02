@@ -35,6 +35,7 @@ export const ROCK_HABITS: RockHabit[] = [
     provider_name: 'EST',
     learn_url: 'https://www.energysavingtrust.org.uk/advice/reducing-home-heat-loss/',
     seasons: ['autumn', 'winter'],
+    applicable: { home_type: ['HOUSE'] },
   },
   {
     slug: 'router-sleep',
@@ -56,6 +57,7 @@ export const ROCK_HABITS: RockHabit[] = [
     provider_name: 'Waterwise',
     learn_url: 'https://www.waterwise.org.uk/save-water/',
     seasons: ['spring', 'summer'],
+    applicable: { home_type: ['HOUSE'] },
   },
   {
     slug: 'speed-cap-60',
@@ -65,6 +67,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 210,
     carbon_kg: 300,
     provider_name: 'AA',
+    applicable: { transport: ['CAR', 'MIX'] },
   },
   {
     slug: 'radiator-foil',
@@ -75,6 +78,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 35,
     provider_name: 'Screwfix',
     seasons: ['autumn', 'winter'],
+    applicable: { power_type: ['GAS', 'MIX', 'OIL'] },
   },
   {
     slug: 'air-fryer-swap',
@@ -113,6 +117,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 250,
     provider_name: 'tado',
     seasons: ['autumn', 'winter'],
+    applicable: { power_type: ['GAS', 'MIX', 'OIL'] },
   },
   {
     slug: 'draught-excluders',
@@ -215,6 +220,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 95,
     carbon_kg: 180,
     provider_name: 'RAC',
+    applicable: { transport: ['CAR', 'MIX'] },
   },
   {
     slug: 'tyre-pressure',
@@ -224,6 +230,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 80,
     carbon_kg: 140,
     provider_name: 'AA',
+    applicable: { transport: ['CAR', 'MIX'] },
   },
   {
     slug: 'railcard',
@@ -252,6 +259,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 110,
     carbon_kg: 160,
     provider_name: 'IAM RoadSmart',
+    applicable: { transport: ['CAR', 'MIX'] },
   },
   {
     slug: 'preloved-fashion',
@@ -298,6 +306,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 45,
     provider_name: 'RHS',
     seasons: ['spring', 'summer', 'autumn'],
+    applicable: { home_type: ['HOUSE'] },
   },
   {
     slug: 'mps-mail',
@@ -362,6 +371,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 300,
     provider_name: 'EST',
     seasons: ['autumn', 'winter'],
+    applicable: { home_type: ['HOUSE'] },
   },
   {
     slug: 'floor-insulation',
@@ -372,6 +382,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 120,
     provider_name: 'Rockwool',
     seasons: ['autumn', 'winter'],
+    applicable: { home_type: ['HOUSE'] },
   },
   {
     slug: 'cylinder-jacket',
@@ -382,6 +393,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 60,
     provider_name: 'British Gas',
     seasons: ['autumn', 'winter'],
+    applicable: { home_type: ['HOUSE'], power_type: ['GAS', 'OIL', 'MIX'] },
   },
   {
     slug: 'secondary-glaze',
@@ -401,6 +413,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 140,
     carbon_kg: 90,
     provider_name: 'Tesla',
+    applicable: { power_type: ['ELECTRIC', 'SOLAR', 'BATTERY'] },
   },
   {
     slug: 'heat-pump-check',
@@ -410,6 +423,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 0,
     carbon_kg: 35,
     provider_name: 'Nesta',
+    applicable: { power_type: ['GAS', 'OIL', 'MIX'] },
   },
   {
     slug: 'ev-off-peak',
@@ -419,6 +433,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 220,
     carbon_kg: 100,
     provider_name: 'Octopus',
+    applicable: { transport: ['CAR', 'MIX'] },
   },
   {
     slug: 'green-mortgage',
@@ -465,6 +480,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 90,
     provider_name: 'Nest',
     seasons: ['autumn', 'winter'],
+    applicable: { power_type: ['GAS', 'OIL', 'MIX'] },
   },
   {
     slug: 'radiator-bleed',
@@ -475,6 +491,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 22,
     provider_name: 'EST',
     seasons: ['autumn', 'winter'],
+    applicable: { power_type: ['GAS', 'OIL', 'MIX'] },
   },
   {
     slug: 'loft-top-up',
@@ -485,6 +502,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 350,
     provider_name: 'EST',
     seasons: ['autumn', 'winter'],
+    applicable: { home_type: ['HOUSE'] },
   },
   {
     slug: 'curtains-dusk',
@@ -542,6 +560,7 @@ export const ROCK_HABITS: RockHabit[] = [
     carbon_kg: 8,
     provider_name: 'RHS',
     seasons: ['spring', 'summer'],
+    applicable: { home_type: ['HOUSE'] },
   },
   {
     slug: 'jeans-cold',

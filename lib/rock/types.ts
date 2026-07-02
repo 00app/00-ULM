@@ -13,4 +13,14 @@ export interface RockHabit {
   learn_url?: string
   /** When set, tip ranks higher in its UK season on Today's Tips — never hidden off-season. */
   seasons?: UkSeason[]
+  /**
+   * Profile gate — when set, the tip only shows to users whose profile matches at least one value
+   * in each supplied list. Omitting a key = no restriction on that dimension.
+   * Values match the stored profile strings (HOME_TYPE, transport_baseline, power_type).
+   */
+  applicable?: {
+    home_type?: string[]
+    transport?: string[]
+    power_type?: string[]
+  }
 }

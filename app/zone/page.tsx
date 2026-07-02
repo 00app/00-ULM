@@ -167,7 +167,7 @@ import {
   buildOfferPreferenceWeights,
 } from '@/lib/zone/offerPreference'
 import { OFFER_PREFERENCE_CHANGED_EVENT } from '@/lib/zone/offerSignals'
-import { prepareRockHabitsForRail } from '@/lib/zone/filterRockHabits'
+import { filterHabitsByProfile, prepareRockHabitsForRail } from '@/lib/zone/filterRockHabits'
 import { capRockHabitsPerJourney } from '@/lib/zone/perCategoryCardCap'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
@@ -441,6 +441,9 @@ export default function ZonePage() {
   const [dbHealthHint, setDbHealthHint] = useState<string | null>(null)
   const [vmResolved, setVmResolved] = useState(true)
   const scrapeSyncGenRef = useRef(0)
+  /** Dedupe guard for fetchLivingPulseSnapshot — the enclosing effect refires on any profile-refresh
+   * event (tier2 answers, unified-memory syncs, the 2.5s postcode poll), not just a real postcode change. */
+  const livingPulseFetchRef = useRef<{ postcode: string; at: number } | null>(null)
   const [revealedCardCount, setRevealedCardCount] = useState(0)
   const [engineStatus, setEngineStatus] = useState<ZoneEngineStatus>('idle')
   const zoneBootstrapRef = useRef(false)
@@ -1634,6 +1637,12 @@ export default function ZonePage() {
 
     void (async () => {
       const pr = postcode.length >= 4 ? postcode : scrapePostcode
+      const lastFetch = livingPulseFetchRef.current
+      const LIVING_PULSE_DEDUPE_MS = 30_000
+      if (lastFetch && lastFetch.postcode === pr && Date.now() - lastFetch.at < LIVING_PULSE_DEDUPE_MS) {
+        return
+      }
+      livingPulseFetchRef.current = { postcode: pr, at: Date.now() }
       const pulse = await fetchLivingPulseSnapshot(pr, localData)
       if (cancelled) return
       const nextMarketContext = {
@@ -2354,16 +2363,34 @@ export default function ZonePage() {
       rockVisibleHabits,
       viewModel,
       MAX_ROCK_SAVING_TIPS_RAIL,
-      state.profile?.goal
+      state.profile?.goal,
+      {
+        home_type: state.profile?.homeType ?? null,
+        transport: state.profile?.transport ?? null,
+        power_type: state.profile?.homePower ?? null,
+      }
     )
     if (deduped.length === 0) {
-      deduped = capRockHabitsPerJourney(ROCK_HABITS, 1).slice(0, MAX_ROCK_SAVING_TIPS_RAIL)
+      const profileFiltered = filterHabitsByProfile(ROCK_HABITS, {
+        home_type: state.profile?.homeType ?? null,
+        transport: state.profile?.transport ?? null,
+        power_type: state.profile?.homePower ?? null,
+      })
+      deduped = capRockHabitsPerJourney(profileFiltered, 1).slice(0, MAX_ROCK_SAVING_TIPS_RAIL)
     }
     return deduped.map((h) => {
       const url = rockOfferByJourney[h.journey_key]
       return mergeRockHabitWithJourneyOffer(h, url)
     })
-  }, [rockVisibleHabits, rockOfferByJourney, viewModel, state.profile?.goal])
+  }, [
+    rockVisibleHabits,
+    rockOfferByJourney,
+    viewModel,
+    state.profile?.goal,
+    state.profile?.homeType,
+    state.profile?.transport,
+    state.profile?.homePower,
+  ])
 
   const zoneSignupTipSlugs = useMemo(
     () => rockHabitsWithOffers.slice(0, 6).map((h) => h.slug),
@@ -2583,15 +2610,21 @@ export default function ZonePage() {
   const heroMoney = heroWasteTotals.totalMoney + rockLikedImpact.money
   const heroCarbon = heroWasteTotals.totalCarbon + rockLikedImpact.carbon
   const welcomeJourneyCount = useMemo(() => {
-    const fromStorage = completedJourneys.length
-    const fromCards = viewModel.journeys.filter((j) => {
-      if (!j.id.startsWith('journey-')) return false
+    // Count visible (non-disliked) journey cards with real value
+    const visibleJourneys = displayItems.filter((cell) => {
+      if (cell.type !== 'journey') return false
+      const j = cell.item
+      if (!j?.id.startsWith('journey-')) return false
       const m = Number(j.moneyGbp ?? parseMoneyGbpFromDisplay(j.data?.money ?? '0'))
       const c = Number(j.carbonKg ?? parseCarbonKgFromDisplay(j.data?.carbon ?? '0'))
       return m > 0 || c > 0
     }).length
-    return Math.max(fromStorage, fromCards)
-  }, [completedJourneys.length, viewModel.journeys])
+    // Add visible tips
+    const visibleTips = rockHabitsWithOffers.length
+    const total = visibleJourneys + visibleTips
+    // Fall back to storage count if grid hasn't hydrated yet
+    return total > 0 ? total : completedJourneys.length
+  }, [displayItems, rockHabitsWithOffers, completedJourneys.length])
   const primaryJourneyKeySet = useMemo(
     () => new Set(viewModel.primaryMoneyJourneyKeys),
     [viewModel.primaryMoneyJourneyKeys]

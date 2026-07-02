@@ -820,6 +820,8 @@ export default function ProfilePageClient() {
     commitInputStep()
   }, [commitInputStep])
 
+  useEffect(() => () => { if (insightTimerRef.current) clearTimeout(insightTimerRef.current) }, [])
+
   if (!current) return null
 
   const handleOptionClick = (opt: unknown) => {
@@ -894,8 +896,6 @@ export default function ProfilePageClient() {
   }
 
   const profileShellClass = keyboardLift ? 'zz-profile-page zz-profile-page--keyboard' : 'zz-profile-page'
-
-  useEffect(() => () => { if (insightTimerRef.current) clearTimeout(insightTimerRef.current) }, [])
 
   if (!profileHydrated || !current) {
     return (

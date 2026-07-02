@@ -35,6 +35,37 @@ type FilterRockOpts = {
   excludeWallJourneyKeys?: boolean
 }
 
+export type HabitProfileFilter = {
+  home_type?: string | null
+  transport?: string | null
+  power_type?: string | null
+}
+
+/** Filter a habit list by profile — soft gate: missing profile fields never exclude. */
+export function filterHabitsByProfile(
+  habits: RockHabit[],
+  profile?: HabitProfileFilter | null
+): RockHabit[] {
+  if (!profile) return habits
+  return habits.filter((h) => habitMatchesProfile(h, profile))
+}
+
+/** Return false only when we are confident the habit is irrelevant for this profile. */
+function habitMatchesProfile(h: RockHabit, profile: HabitProfileFilter): boolean {
+  const { applicable } = h
+  if (!applicable) return true
+  if (applicable.home_type && profile.home_type) {
+    if (!applicable.home_type.includes(profile.home_type)) return false
+  }
+  if (applicable.transport && profile.transport) {
+    if (!applicable.transport.includes(profile.transport)) return false
+  }
+  if (applicable.power_type && profile.power_type) {
+    if (!applicable.power_type.includes(profile.power_type)) return false
+  }
+  return true
+}
+
 /** Drop Rock habits that repeat a journey mother tile or wall tip headline. */
 export function filterRockHabitsAgainstWall(
   habits: RockHabit[],
@@ -81,11 +112,12 @@ export function prepareRockHabitsForRail(
   rotationHabits: RockHabit[],
   viewModel: ZoneViewModel,
   limit: number,
-  goal?: string | null
+  goal?: string | null,
+  profile?: HabitProfileFilter | null
 ): RockHabit[] {
   const season = getUkSeason()
-  const wallFilteredRotation = filterRockHabitsAgainstWall(rotationHabits, viewModel)
-  const wallFilteredCatalog = filterRockHabitsAgainstWall(ROCK_HABITS, viewModel)
+  const wallFilteredRotation = filterRockHabitsAgainstWall(filterHabitsByProfile(rotationHabits, profile), viewModel)
+  const wallFilteredCatalog = filterRockHabitsAgainstWall(filterHabitsByProfile(ROCK_HABITS, profile), viewModel)
   const seasonSortedRotation = sortRockHabitsBySeasonStable(wallFilteredRotation, season)
   const seasonSortedCatalog = sortRockHabitsBySeasonStable(wallFilteredCatalog, season)
   const wallJourneys = getWallMotherJourneyKeys(viewModel)
