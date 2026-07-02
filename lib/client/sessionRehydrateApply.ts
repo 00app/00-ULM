@@ -10,22 +10,24 @@ export function applySessionStatePayload(data: Record<string, unknown> | null): 
     completedJourneys?: string[]
   }
 
+  // Fill gaps, never clobber: a stale/empty server session snapshot (e.g. read racing just
+  // ahead of the fire-and-forget POST that persists it) must not erase profile fields the user
+  // just submitted locally. Only apply a server value when it is non-empty.
+  const setIfNonEmpty = (key: string, value: unknown) => {
+    const t = value == null ? '' : String(value).trim()
+    if (t) localStorage.setItem(key, t)
+  }
+
   if (profile && typeof profile === 'object') {
-    if (profile.name != null) localStorage.setItem(LOCAL_STORAGE_KEYS.PROFILE_NAME, String(profile.name))
-    if (profile.postcode != null) localStorage.setItem(LOCAL_STORAGE_KEYS.PROFILE_POSTCODE, String(profile.postcode))
-    if (profile.household != null) localStorage.setItem(LOCAL_STORAGE_KEYS.PROFILE_HOUSEHOLD, String(profile.household))
-    if (profile.home_type != null) localStorage.setItem(LOCAL_STORAGE_KEYS.PROFILE_HOME_TYPE, String(profile.home_type))
-    if (profile.transport != null) localStorage.setItem(LOCAL_STORAGE_KEYS.PROFILE_TRANSPORT, String(profile.transport))
-    if (profile.age != null) localStorage.setItem(LOCAL_STORAGE_KEYS.PROFILE_AGE, String(profile.age))
-    if (profile.employment_status != null) {
-      localStorage.setItem(LOCAL_STORAGE_KEYS.PROFILE_EMPLOYMENT_STATUS, String(profile.employment_status))
-    }
-    if (profile.home_power != null) {
-      localStorage.setItem(LOCAL_STORAGE_KEYS.PROFILE_HOME_POWER, String(profile.home_power))
-    }
-    if (profile.goal != null && String(profile.goal).trim()) {
-      localStorage.setItem('profile_goal', String(profile.goal).trim())
-    }
+    setIfNonEmpty(LOCAL_STORAGE_KEYS.PROFILE_NAME, profile.name)
+    setIfNonEmpty(LOCAL_STORAGE_KEYS.PROFILE_POSTCODE, profile.postcode)
+    setIfNonEmpty(LOCAL_STORAGE_KEYS.PROFILE_HOUSEHOLD, profile.household)
+    setIfNonEmpty(LOCAL_STORAGE_KEYS.PROFILE_HOME_TYPE, profile.home_type)
+    setIfNonEmpty(LOCAL_STORAGE_KEYS.PROFILE_TRANSPORT, profile.transport)
+    setIfNonEmpty(LOCAL_STORAGE_KEYS.PROFILE_AGE, profile.age)
+    setIfNonEmpty(LOCAL_STORAGE_KEYS.PROFILE_EMPLOYMENT_STATUS, profile.employment_status)
+    setIfNonEmpty(LOCAL_STORAGE_KEYS.PROFILE_HOME_POWER, profile.home_power)
+    setIfNonEmpty('profile_goal', profile.goal)
   }
 
   if (journeyAnswers && typeof journeyAnswers === 'object') {

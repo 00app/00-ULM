@@ -101,7 +101,8 @@ export function buildZoneWelcomeCopy(
     timeOfDayLine: formatTimeOfDayGreeting(),
     nameLine: `${first}.`,
     foundCountLine: `we've found ${count} ${thingLabel},`,
-    localityLine: `that could save you ${moneyLabel} and`,
+    // Non-breaking space before "and" — stops it orphaning alone on the next line (typographic widow).
+    localityLine: `that could save you ${moneyLabel} and`,
     savingsMoneyLine: `reduce your co2 by ${carbonLabel}.`,
     savingsCarbonLine: '',
   }

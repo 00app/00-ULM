@@ -37,7 +37,7 @@ const REDIRECT_NO_PROFILE_MS = 1800
 const PAGE_EXIT_NAV_MS = 550
 const LOCALITY_DISPLAY_SAFETY_MS = 2800
 const EXIT_NAV_SAFETY_MS = 6000
-const SUMMARY_SETTLE_MS = 500
+const SUMMARY_SETTLE_MS = 1500
 /** Wait for Neon `/api/summary` before starting ticker so £/CO₂ beats do not republish mid-cycle. */
 const SUMMARY_GENOME_SETTLE_MS = 1200
 
@@ -445,7 +445,15 @@ export default function ProfileSummaryPage() {
     const hasProfile = getProfileFromStorage() ?? state.profile
     if (hasProfile) return
     if (isStoredProfileOnboardingComplete()) return
-    const t = setTimeout(() => router.replace(ROUTES.PROFILE), REDIRECT_NO_PROFILE_MS)
+    const t = setTimeout(() => {
+      // Re-check at fire time, not just at effect-setup time — localStorage/state.profile may
+      // have populated in the interim (hard navigation from /profile can lag a few ms behind
+      // this effect's first run), and a stale check here would bounce a complete profile back.
+      const stillNoProfile = !(getProfileFromStorage() ?? state.profile)
+      if (stillNoProfile && !isStoredProfileOnboardingComplete()) {
+        router.replace(ROUTES.PROFILE)
+      }
+    }, REDIRECT_NO_PROFILE_MS)
     return () => clearTimeout(t)
   }, [mounted, state.profile, router])
 
@@ -510,7 +518,7 @@ export default function ProfileSummaryPage() {
     }, SUMMARY_SETTLE_MS)
   }
 
-  if (!summaryPack || !displayReady || !fontsReady || !tickerWords?.length) {
+  if (!summaryPack || !displayReady || !tickerWords?.length) {
     return (
       <motion.div
         className="zz-profile-page summary-page--minimal mode-ui"

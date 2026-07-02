@@ -65,7 +65,7 @@ type ProfileQuestion = {
 }
 
 const PROFILE_QUESTIONS: ProfileQuestion[] = [
-  { id: 'postcode', label: 'postcode', type: 'input' as const, placeholder: 'postcode',
+  { id: 'postcode', label: 'where do you live?', type: 'input' as const, placeholder: 'postcode',
     getInsight: (_v, locality) => locality ? `${locality}.\nwe've pulled local data.` : null },
   {
     id: 'livingSituation',
@@ -122,7 +122,7 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
       { label: 'BETWEEN\nJOBS', value: 'BETWEEN_JOBS', ariaLabel: 'Between jobs' },
     ],
   },
-  { id: 'name', label: 'last thing —\nwhat should we\ncall you?', type: 'input' as const, placeholder: 'first name' },
+  { id: 'name', label: 'what should we\ncall you?', type: 'input' as const, placeholder: 'first name' },
 ]
 
 const STORAGE_KEYS: Record<string, string> = { ...PROFILE_STORAGE_KEYS }
@@ -512,6 +512,7 @@ export default function ProfilePageClient() {
       dest = dest.trim()
       if (!dest.startsWith('http') && !dest.startsWith('/')) dest = `/${dest.replace(/^\/+/, '')}`
       if (!isProfileOnboardingComplete(mergedValues)) {
+        advancingRef.current = false
         if (!resolveProfileGoal(mergedValues)) {
           router.replace(`${ROUTES.INTRO}?step=goal`)
           return
@@ -569,7 +570,12 @@ export default function ProfilePageClient() {
           const profileData = buildResearchProfilePayload(mergedValues, { postcode: pc })
 
           try {
-            const res = await createUser(payload)
+            const res = await Promise.race([
+              createUser(payload),
+              new Promise<never>((_, reject) =>
+                window.setTimeout(() => reject(new Error('createUser timeout')), 8000)
+              ),
+            ])
             applyPropertyPrefillFromApiResponse(res)
             const userId = res?.user?.id ?? res?.id
             if (userId) {
@@ -746,7 +752,7 @@ export default function ProfilePageClient() {
       insightTimerRef.current = setTimeout(() => {
         setInsightReveal(null)
         advanceProfileStep(nextValues)
-      }, 1800)
+      }, 5000)
     },
     [advanceProfileStep]
   )
@@ -861,7 +867,7 @@ export default function ProfilePageClient() {
       insightTimerRef.current = setTimeout(() => {
         setInsightReveal(null)
         persistAndAdvance({ ...values, [current.id]: optValue })
-      }, 1800)
+      }, 5000)
       return
     }
     persistAndAdvance({ ...values, [current.id]: optValue })
@@ -904,24 +910,24 @@ export default function ProfilePageClient() {
           <motion.div
             key="insight-reveal"
             className="profile-step-slam w-full flex flex-col items-center"
-            style={{ gap: 16, maxWidth: 520 }}
+            style={{ gap: 16, maxWidth: 800 }}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.3 }}
           >
-            <h3
-              className="zz-h3 text-marvin m-0 text-center"
-              style={{ color: 'var(--color-yellow)', whiteSpace: 'pre-line', maxWidth: 'min(92vw, 28rem)' }}
+            <h2
+              className="zz-h2 text-marvin m-0 text-center"
+              style={{ color: 'var(--color-yellow)', whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
             >
               {insightReveal}
-            </h3>
+            </h2>
           </motion.div>
         ) : (
         <motion.div
           key={step}
           className="profile-step-slam w-full flex flex-col items-center"
-          style={{ gap: 40, maxWidth: 520 }}
+          style={{ gap: 40, maxWidth: 800 }}
           initial={stepMotion.initial}
           animate={stepMotion.animate}
           exit={stepMotion.exit}
@@ -937,7 +943,7 @@ export default function ProfilePageClient() {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '0.06em',
-              maxWidth: 'min(92vw, 28rem)',
+              maxWidth: 'min(92vw, 48rem)',
               textAlign: 'center',
             }}
             initial={headlineMotion.initial}
@@ -966,7 +972,7 @@ export default function ProfilePageClient() {
                     autoFocus
                   />
                   <label className="profile-optional-field-label zz-h4" htmlFor="profile-house-number">
-                    house number <span className="profile-optional-suffix">(optional)</span>
+                    house/flat no. <span className="profile-optional-suffix">(for better results)</span>
                   </label>
                   <InputField
                     ref={houseNumberRef}
