@@ -2623,9 +2623,10 @@ export default function ZonePage() {
         state?.profile?.name,
         welcomeJourneyCount,
         heroMoney,
-        heroCarbon
+        heroCarbon,
+        state?.locationState?.locationName
       ),
-    [state?.profile?.name, welcomeJourneyCount, heroMoney, heroCarbon]
+    [state?.profile?.name, welcomeJourneyCount, heroMoney, heroCarbon, state?.locationState?.locationName]
   )
 
   const renderWallBentoCells = (wallSection: 'hero' | 'categories') =>
@@ -3102,7 +3103,7 @@ export default function ZonePage() {
                 initial="hidden"
                 animate="visible"
               >
-                {zoneWelcome.savingsLeadLine}
+                {zoneWelcome.localityLine}
               </motion.h3>
               <motion.h3
                 className="zz-h3 zone-welcome zone-welcome-block zone-welcome-savings m-0"

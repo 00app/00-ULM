@@ -64,7 +64,7 @@ export type ZoneReadinessInput = {
 export type ZoneWelcomeCopy = {
   timeOfDayLine: string
   nameLine: string
-  savingsLeadLine: string
+  localityLine: string
   savingsMoneyLine: string
   savingsCarbonLine: string
 }
@@ -78,7 +78,8 @@ export function buildZoneWelcomeCopy(
   name: string | undefined,
   _completedCount: number,
   gridSavingsMoneyGbp: number,
-  gridSavingsCarbonKg: number
+  gridSavingsCarbonKg: number,
+  locality?: string | null
 ): ZoneWelcomeCopy {
   const raw = ((name ?? '').trim().split(/\s+/)[0] || 'guest').toLowerCase()
   const first = raw ? `${raw.charAt(0).toUpperCase()}${raw.slice(1)}` : 'Guest'
@@ -90,13 +91,14 @@ export function buildZoneWelcomeCopy(
     carbonCompact.suffix === 't'
       ? `${carbonCompact.figure}t co2`
       : `${carbonCompact.figure}kg co2`
+  const localityName = locality?.trim().split(',')[0].trim() || null
 
   return {
     timeOfDayLine: formatTimeOfDayGreeting(),
     nameLine: `${first}.`,
-    savingsLeadLine: 'we could save',
-    savingsMoneyLine: `you ${moneyLabel} and`,
-    savingsCarbonLine: `${carbonLabel}/year.`,
+    localityLine: localityName ? `${localityName} audit complete.` : 'audit complete.',
+    savingsMoneyLine: `we found ${moneyLabel}`,
+    savingsCarbonLine: `going to waste. and ${carbonLabel}.`,
   }
 }
 

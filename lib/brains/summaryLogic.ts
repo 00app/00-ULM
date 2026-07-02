@@ -326,11 +326,11 @@ export function buildSummaryStaccatoWords(input: ProfileSummaryNarrativeInput): 
     for (const w of t.split(/\s+/).filter(Boolean)) out.push(w)
   }
 
-  out.push('HELLO', greetName)
-  pushWords('based on your profile')
-  pushWords('people in')
-  pushWords(localityWord)
-  out.push('waste', gbp, 'and', carbonAmount, 'CO₂', 'per', 'year')
+  out.push(localityWord)
+  pushWords('audit complete.')
+  out.push('we', 'found', gbp)
+  pushWords('going to waste.')
+  out.push('and', carbonAmount, 'CO₂.')
   return out
 }
 

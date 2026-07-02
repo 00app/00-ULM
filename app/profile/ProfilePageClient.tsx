@@ -55,19 +55,31 @@ function isProfileMobileKeyboardViewport(): boolean {
   return window.matchMedia(PROFILE_MOBILE_KEYBOARD_MQ).matches
 }
 
-const PROFILE_QUESTIONS = [
-  { id: 'name', label: 'name', type: 'input' as const, placeholder: 'First name' },
-  { id: 'postcode', label: 'postcode', type: 'input' as const, placeholder: 'postcode' },
+type ProfileQuestion = {
+  id: string
+  label: string
+  type: 'input' | 'options'
+  placeholder?: string
+  options?: unknown[]
+  getInsight?: (value: string, locality: string) => string | null
+}
+
+const PROFILE_QUESTIONS: ProfileQuestion[] = [
+  { id: 'postcode', label: 'postcode', type: 'input' as const, placeholder: 'postcode',
+    getInsight: (_v, locality) => locality ? `${locality}.\nwe've pulled local data.` : null },
   {
     id: 'livingSituation',
     label: 'who do you live with?',
     type: 'options' as const,
     options: ['ALONE', 'COUPLE', 'FAMILY', 'SHARED'],
   },
-  { id: 'homeType', label: 'your home?', type: 'options' as const, options: ['FLAT', 'HOUSE'] },
+  { id: 'homeType', label: 'your home?', type: 'options' as const, options: ['FLAT', 'HOUSE'],
+    getInsight: (v) =>
+      v === 'HOUSE' ? 'houses unlock more grant schemes than flats.\ngood.' :
+      v === 'FLAT' ? 'some grants are trickier in flats.\nwe\'ll find what\'s available.' : null },
   {
     id: 'powerType',
-    label: 'power type?',
+    label: 'how do you heat your home?',
     type: 'options' as const,
     options: [
       'GAS',
@@ -75,12 +87,20 @@ const PROFILE_QUESTIONS = [
       { label: 'MIXED', value: 'MIX', ariaLabel: 'Mixed — gas and electric' },
       'OTHER',
     ],
+    getInsight: (v, locality) =>
+      v === 'GAS' ? `gas homes in ${locality || 'your area'} pay around £180 more per year\nthan heat pumps since April.` :
+      v === 'ELECTRIC' ? 'fully electric. you\'re already ahead\nof most households.' :
+      v === 'MIX' ? 'mixed. there\'s room to optimise\nboth sides.' : null,
   },
   {
     id: 'transport',
     label: 'how do you get around?',
     type: 'options' as const,
     options: ['WALK', 'BIKE', 'PUBLIC', 'CAR', 'MIX'],
+    getInsight: (v) =>
+      v === 'CAR' ? 'drivers here spend around £2,100 a year on fuel.\nthere\'s room to move.' :
+      v === 'PUBLIC' ? 'public transport keeps your carbon\nlower than most households.' :
+      v === 'WALK' || v === 'BIKE' ? 'no fuel spend. that\'s a real\nadvantage.' : null,
   },
   {
     id: 'age',
@@ -102,6 +122,7 @@ const PROFILE_QUESTIONS = [
       { label: 'BETWEEN\nJOBS', value: 'BETWEEN_JOBS', ariaLabel: 'Between jobs' },
     ],
   },
+  { id: 'name', label: 'last thing —\nwhat should we\ncall you?', type: 'input' as const, placeholder: 'first name' },
 ]
 
 const STORAGE_KEYS: Record<string, string> = { ...PROFILE_STORAGE_KEYS }
@@ -163,6 +184,8 @@ export default function ProfilePageClient() {
   const [keyboardLift, setKeyboardLift] = useState(false)
   const [postcodeLocalityLabel, setPostcodeLocalityLabel] = useState('')
   const [postcodeFormatValid, setPostcodeFormatValid] = useState(false)
+  const [insightReveal, setInsightReveal] = useState<string | null>(null)
+  const insightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const recenterProfileStep = useCallback(() => {
     setKeyboardLift(false)
@@ -713,6 +736,21 @@ export default function ProfilePageClient() {
     [step, returnTo, submitProfile, isSubmitting, persistStepValues, setStep]
   )
 
+  const advanceWithInsight = useCallback(
+    (nextValues: Record<string, string>, insightText: string | null) => {
+      if (!insightText) {
+        advanceProfileStep(nextValues)
+        return
+      }
+      setInsightReveal(insightText)
+      insightTimerRef.current = setTimeout(() => {
+        setInsightReveal(null)
+        advanceProfileStep(nextValues)
+      }, 1800)
+    },
+    [advanceProfileStep]
+  )
+
   const readLiveFieldValue = useCallback(() => {
     if (current?.type === 'input' && inputRef.current) {
       return inputRef.current.value.trim()
@@ -755,15 +793,17 @@ export default function ProfilePageClient() {
     flushSync(() => {
       persistStepValues(nextValues)
     })
-    advanceProfileStep(nextValues)
+    const insight = current.getInsight?.(nextValues[current.id] ?? '', postcodeLocalityLabel) ?? null
+    advanceWithInsight(nextValues, insight)
   }, [
     current,
     values,
     isSubmitting,
+    postcodeLocalityLabel,
     readLiveFieldValue,
     recenterProfileStep,
     persistStepValues,
-    advanceProfileStep,
+    advanceWithInsight,
   ])
 
   const handleNext = useCallback(() => {
@@ -813,7 +853,17 @@ export default function ProfilePageClient() {
       return
     }
 
+    const insight = current.getInsight?.(optValue, postcodeLocalityLabel) ?? null
     setValue(current.id, optValue)
+    if (insight) {
+      persistStepValues({ ...values, [current.id]: optValue })
+      setInsightReveal(insight)
+      insightTimerRef.current = setTimeout(() => {
+        setInsightReveal(null)
+        persistAndAdvance({ ...values, [current.id]: optValue })
+      }, 1800)
+      return
+    }
     persistAndAdvance({ ...values, [current.id]: optValue })
   }
 
@@ -839,6 +889,8 @@ export default function ProfilePageClient() {
 
   const profileShellClass = keyboardLift ? 'zz-profile-page zz-profile-page--keyboard' : 'zz-profile-page'
 
+  useEffect(() => () => { if (insightTimerRef.current) clearTimeout(insightTimerRef.current) }, [])
+
   if (!profileHydrated || !current) {
     return (
       <main className={profileShellClass} style={profileShellStyle} aria-busy="true" aria-label="Loading profile" />
@@ -848,6 +900,24 @@ export default function ProfilePageClient() {
   return (
     <main className={profileShellClass} style={profileShellStyle}>
       <AnimatePresence mode="wait">
+        {insightReveal ? (
+          <motion.div
+            key="insight-reveal"
+            className="profile-step-slam w-full flex flex-col items-center"
+            style={{ gap: 16, maxWidth: 520 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h3
+              className="zz-h3 text-marvin m-0 text-center"
+              style={{ color: 'var(--color-yellow)', whiteSpace: 'pre-line', maxWidth: 'min(92vw, 28rem)' }}
+            >
+              {insightReveal}
+            </h3>
+          </motion.div>
+        ) : (
         <motion.div
           key={step}
           className="profile-step-slam w-full flex flex-col items-center"
@@ -978,6 +1048,7 @@ export default function ProfilePageClient() {
             </div>
           )}
         </motion.div>
+        )}
       </AnimatePresence>
     </main>
   )
