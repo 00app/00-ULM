@@ -642,6 +642,8 @@ Index: `.cursor/rules/README.md`
 | Prose / headline quality | `contentProseSanitize.ts`, `soloFocusCopy.ts`, `researchGateAudit.ts` |
 | Truth ledger audit | `lib/intelligence/buildIntelligenceLedger.ts` |
 
+**Security (OWASP-aligned):** `SCRAPER_SECRET` authorizes scrape-sync POST only; `CRON_SECRET` is `/api/cron/*` only. Session restore requires HMAC `restore_proof` (no dev UUID bypass). Rate limits on scrape-sync GET (10/min anonymous), likes POST, restore-session. See `lib/security/productionSecrets.ts`.
+
 ##### C — Ship gate commands
 
 ```bash
@@ -707,6 +709,11 @@ flowchart TB
 | MC answer | `runLoopSpawnResearch` | per answer — `loopSpawnResearch.ts` |
 | Solo Focus +1 | `POST /api/scrape-sync` + `journey_key` | Topic Shield |
 | Weekly repair | `GET /api/cron/zone-research` | Hermes — `CRON_SECRET` |
+| ZeroAgent (per category) | `runZeroAgent` inside `runTriggerResearchForCategory` | free UK data APIs + tool calling — `lib/agents/zeroAgent.ts` |
+
+**ZeroAgent provider order:** direct Gemini function calling (`GEMINI_API_KEY`, free tier) is primary; OpenRouter (`OPENROUTER_API_KEY`, `google/gemini-2.5-flash`) is the fallback, only tried when Gemini errors or is unconfigured. Both share the same tool declarations (`AGENT_TOOL_DECLARATIONS` in `agentTools.ts`) and finalize/citation logic. Runs regardless of `bucket_failover` — it calls free UK APIs, not paid Firecrawl.
+
+**Category headline word-count tiers** (`lib/soloFocusCopy.ts`): Today's Tips (Rock catalog) stay at 8–10 words (`MIN/MAX_ZONE_CARD_HEADLINE_WORDS`). Journey mother cards get 9–12 words (`MIN/MAX_JOURNEY_CARD_HEADLINE_WORDS`) — more room for the locality name + a figure without truncating mid-clause. Pass `{ min, max }` bounds explicitly to `clampZoneBentoHeadline`/`enforceHeadlineWordLimits` for journey-card call sites; omit for tips (keeps the tighter default). If you touch the LLM prompt's stated word target (`topicShield.ts`), keep it in sync with these constants — a prompt asking for fewer words than the validator's minimum accepts guarantees every real LLM headline gets rejected and replaced by the generic per-journey fallback (`ZONE_BENTO_HOOK`), silently killing locality-specific copy for that category.
 
 Detail: [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md)
 
@@ -721,8 +728,15 @@ Detail: [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md)
 | Property intelligence | `user_genome.property_intelligence` | EPC pre-fills, Truth Ledger register |
 | Journey answers | `journey_*_answers` | £/kg calculators, supplemental scrape |
 | Likes / nope | `offer_signals` | Grid weights, scrape avoid hints |
+| Home type / transport / power | `RockHabit.applicable` gate | Today's Tips catalog filter — `lib/zone/filterRockHabits.ts`; soft gate, missing profile fields never exclude a tip |
 
 Detail: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md)
+
+**Never clobber local with empty server data.** Any code that rehydrates client state from a server snapshot (`sessionRehydrateApply.ts`, `SessionStateRehydrate`, similar sync-on-mount patterns) must only overwrite a local field when the server value is genuinely non-empty. A stale or not-yet-persisted server session read racing ahead of a fire-and-forget `POST` can return blank fields; a `!= null` check lets an empty string through and wipes data the user just entered. This exact bug caused a full onboarding-completion loop in production (fixed 2026-07 — bounced users back to the postcode question right after they finished). Same principle for any "fill gaps, don't overwrite" merge.
+
+##### Profile object identity (AppContext)
+
+`AppContext`'s `profile` and `journeyAnswers` state must keep the previous object reference when the underlying values haven't changed (`refreshProfile` and the `UNIFIED_PROFILE_MEMORY_EVENT` listener both shallow-compare before calling `setProfile`/`setJourneyAnswers`). Effects across the app (Zone's view-model builder, content-architect batching) key off these objects **by reference**, not deep equality — a fresh object on every refresh cascades into redundant re-fetches everywhere a `profile`/`journeyAnswers` dependency exists, even when nothing actually changed. This caused `/api/pulse/living` to fire dozens of times back-to-back for one postcode (2026-07), starving the DB/CPU badly enough that only 1 of 13 research categories ever completed for affected users. If you add a new effect keyed on `state.profile` or `state.journeyAnswers`, either trust the identity stability (do nothing) or add your own dedupe guard for the expensive part specifically — don't assume the effect re-firing is free.
 
 ##### Mechanical truth (never fake)
 
@@ -1150,9 +1164,10 @@ Zero Zero is a UK postcode-driven energy and lifestyle auditor. A user provides 
 | Zone | `/zone` | Welcome → profile hero → Today's Tips + Rock → Recommendations bento → signup | `GET /api/scrape-sync`, `buildZoneViewModel`, `buildGroovyGridItems` |
 | Solo Focus | Overlay | 1 MC question → answer → result; discovery birth | `POST /api/answers` |
 | Solo Focus close | Lifestyle loop question → short pulse → atomic exit → grid | `DiscoveryTakeover` |
-| Solo Focus like / nope | Offer feedback question → grid or `/likes` | `OfferFeedbackTakeover`, `offer_signals` |
+| Solo Focus like | Card **stays open**; like button selected state; `offer_signals` + snapshot; Zai may route to `/likes` on first like | `SoloFocusActionTrinity`, `trackZoneLike`, `LikesCardActionTrinity` |
+| Solo Focus nope | Offer feedback question → grid; card suppressed | `OfferFeedbackTakeover`, `offer_signals` |
 | Zai | `/zai` | Read-only chat (Gemini); no MC birth | `POST /api/zai` |
-| Likes / Settings | `/likes`, `/settings` | Saved cards, reset, diagnostics | localStorage + session |
+| Likes / Settings | `/likes`, `/settings` | Liked Zone + Zai picks (not actioned); trinity GET/CLAIM/BUY + unlike + done | `AppContext`, `zz_zai_likes`, `likeCardSnapshots` |
 
 **Canonical path:** Profile → Summary → Zone. Session (`POST /api/user`) is required for SMS and full Neon user rows.
 
@@ -1427,14 +1442,16 @@ npm run zone:audit-gates -- YOURPOSTCODE
 | T9 | MC answer close | Discovery card in tips | `injectNewDiscoveryCard` |
 | T10 | Mobile opt-in | Welcome + tips SMS; URLs topic-aligned | `signupZoneSms` |
 | T11 | Employed user | No means-tested grant tips on Rock | `filterTipsForEmployment` |
-| T12 | Solo Focus **like** | Feedback question → `/likes`; row in Settings | `OfferFeedbackTakeover`, `offer_signals` |
-| T13 | Solo Focus **nope** | Card suppressed on wall; feedback in Settings | `gridOrder`, `offerPreference` |
+| T12 | Solo Focus **like** | Card **remains open**; like circle shows selected colours; row on `/likes` with offer CTA | `SoloFocusActionTrinity`, `LikesCardActionTrinity`, `resolveZaiPickHandoff` |
+| T13 | Solo Focus **nope** | Card closes; feedback question; card suppressed on wall | `OfferFeedbackTakeover`, `gridOrder`, `offerPreference` |
 | T14 | Solo Focus **close (X)** | Lifestyle loop question (not offer feedback) | `DiscoveryTakeover`, `loopQuestions` |
 | T15 | Expand any journey card | No ellipsis in H1 or lead | `isTruncatedSentence` guard |
 | T16 | Expand any journey card | Lead contains town name | `buildAuditorDetectionParagraph` |
 | T17 | Expand Rock tip | Headline is 20–24 words | `headlineFromRockHabit` |
 | T18 | Zone wall section order | After pulse: welcome → profile card → today's tips h3 → Rock → recommendations h3 → category grid → signup; headings **not** inside bento flex | `zone-section-*` testids, `wallSectionsReady` |
 | T19 | Nav links (≥768px) | Zone rail: Likes / Settings / Zai `<Link>` routes return 200 | `ZoneDesktopNavRail`, `floating-nav--zone-rail-desktop` |
+| T20 | `/likes` empty | Title **no likes** only — no intro paragraph | `app/likes/page.tsx` |
+| T21 | `/likes` with picks | Top label + headline + SAVE/CARBON + **GET/CLAIM/BUY** → unlike → done | `LikesCardActionTrinity`, `resolveZaiPickHandoff` |
 
 ##### 9.4 What to check when something looks wrong
 
@@ -1469,8 +1486,10 @@ npm run zone:audit-gates -- YOURPOSTCODE
 | `lib/rock/resolveRockHabitLearnUrl.ts` | Topic-aligned tip URLs |
 | `lib/journeys.ts` | 13×3 question registry |
 | `lib/zone/ulmLimits.ts` | 24 cells, 3 injects/journey |
-| `lib/zone/offerFeedbackLoop.ts` | Like/nope feedback beats + Settings log |
-| `app/components/OfferFeedbackTakeover.tsx` | Post–like/nope one-shot question |
+| `lib/zone/offerFeedbackLoop.ts` | Nope feedback beats + Settings log |
+| `app/components/OfferFeedbackTakeover.tsx` | Post–**nope** one-shot question (like no longer closes Solo Focus) |
+| `app/components/LikesCardActionTrinity.tsx` | Likes wall — offer CTA + unlike + done |
+| `lib/zai/resolveZaiLikeHandoff.ts` | Zai pick BUY/GET/CLAIM + partner URL fallback |
 | `app/components/DiscoveryTakeover.tsx` | Lifestyle loop + clean birth exit |
 
 ---
@@ -1481,7 +1500,8 @@ npm run zone:audit-gates -- YOURPOSTCODE
 2. Journey mother tiles (13)  
 3. Solo Focus: question → answer → result → optional discovery  
 4. **Close (X):** lifestyle loop question → short pulse (`audit` / `done.`) → atomic shell exit → grid  
-5. **Like / nope:** offer feedback question → atomic exit → grid or `/likes` (disliked cards suppressed)  
+5. **Like:** card stays open — user can still read prose and tap GET/CLAIM/BUY; like recorded to `/likes`  
+6. **Nope:** offer feedback question → atomic exit → grid (disliked cards suppressed)  
 6. Today's Tips (Rock) — visit only, no loop scrape on close  
 7. Mobile signup below Rock when grid collapsed  
 
@@ -1835,6 +1855,16 @@ Rock habit count does **not** gate the Today's Tips heading — an empty Rock ra
 
 **Navigation (tablet+):** from **768px**, `ZoneDesktopNavRail` shows fixed `<Link>` routes to Zone / Likes / Settings / Zai. Floating nav on Zone is hidden at the same breakpoint (`.floating-nav--zone-rail-desktop` in `app/globals.css`). Below 768px, `AppFloatingNav` handles navigation.
 
+##### Likes wall (`/likes`)
+
+| Source | Storage | Wall behaviour |
+|--------|---------|----------------|
+| Zone journey / tip / Rock | `AppContext.likedCards` + `likeCardSnapshots` | SAVE/CARBON from snapshot; GET/CLAIM/BUY from card offer URL |
+| Zai pick | `zz_zai_likes` + `likedCards` id | `resolveZaiPickHandoff` — stored URL or verified partner fallback |
+| Empty state | — | Title **no likes** only (no intro copy) |
+
+Actioned cards vanish from Likes (`/api/actioned`). Unlike removes snapshot + toggles `POST /api/likes`.
+
 ##### Bento grid cell order (recommendations wall)
 
 Within the recommendations grid, **`buildGroovyGridItems`** (`lib/zone/gridOrder.ts`) orders cells:
@@ -1915,8 +1945,9 @@ Rock expand resolves the habit in `app/zone/page.tsx` via `ROCK_BY_SLUG` + `habi
 | **H1 (Marvin)** | **20–24 word** hook — mother: `headlineFromExpandedHook`; Rock: `headlineFromRockHabit` |
 | **Lead (Marvin H4)** | Locality audit opener — **≤30 words**; **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), never raw postcode |
 | **Body** | **Not rendered in UI** (May 2026) — `SoloFocusProseStack` is **lead-only**; £/CO₂e live in the metrics row. Neon `architect_prose` still stored for polish / Zai context paths. |
-| **Metrics** | Mother: verified £ + CO₂e from Neon when settled; Rock: catalog habit row |
-| **Trinity** | Ask Zai → deep dive; Continue in Zai → handoff; RECLAIM / BUY → `MotherCardRenderer` + `IndustrialHandoffButton` |
+| **Metrics** | Mother: verified £ + CO₂e from Neon when settled; Rock: catalog habit row (`StampedMoneyGbp` / `StampedCarbonKg`) |
+| **Top label** | `formatSoloFocusTopCategoryLabel` — e.g. **Home - Energy Saving Trust** when handoff provider known (replaces separate provider line below CTA) |
+| **Trinity** | GET/CLAIM/BUY → like (selected state, card stays open) → ask → nope (closes + feedback) |
 | **Questions** | **One** registry Q per open — zip-shut MC answer → **RESULT**; close → loop question (`DiscoveryTakeover`). **Rock:** close only — no loop, no tip verification |
 
 ##### Warm auditor voice (copy — 2026)
@@ -1956,7 +1987,8 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | `headlineFromRockHabit` | Rock Solo Focus H1 — title + habit insight; pads with `EXPANDED_JOURNEY_HOOK` when &lt;15 words to reach **20–24** |
 | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook for **journey mothers**; strips truncated £ ellipsis; falls back when no verb detected |
 | `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp` | Drop duplicate payoff / repeated blocks before render |
-| `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *optimization plan*, *green funding frameworks*, thin *“Your X is high-value”* |
+| `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *verify the offer before you…*, *publishes guidance on this habit* |
+| `clampWords` / `clampWordsCompleteSentence` | Lead capped at **≤30** words — **complete sentences only** (no mid-thought `…`) |
 | `collapseDuplicateProseParagraphs` | No repeated sentences within a block |
 | `polishTrueTipParagraphsForHeadline` | Dedupe + de-headline-echo on open paragraph |
 | `isRawResearchDump` | Reject tariff/policy blobs |
@@ -2294,7 +2326,7 @@ flowchart TB
 | API | Auth | Used for |
 |-----|------|----------|
 | [postcodes.io](https://postcodes.io) | none | Council / region anchor |
-| [get-energy-performance-data.communities.gov.uk](https://get-energy-performance-data.communities.gov.uk/api-technical-documentation) | Bearer token (`OPENEPC_BEARER_TOKEN`) | Domestic EPC search by postcode; two-step: search → full certificate fetch (`lib/intelligence/openEpcClient.ts`). Register free at the new service. Old `epc.opendatacommunities.org` shut down May 2026. |
+| [epc.opendatacommunities.org](https://epc.opendatacommunities.org/docs/api/domestic) | HTTP Basic (`OPENEPC_EMAIL` + `OPENEPC_API_KEY`) | Domestic EPC search by postcode; optional house-number filter (`lib/intelligence/epcAddressMatch.ts`) |
 | [carbonintensity.org.uk](https://api.carbonintensity.org.uk) | none | `GET /intensity` (live gCO₂/kWh), `GET /generation` (fuel mix %), regional postcode |
 | [environment.data.gov.uk](https://environment.data.gov.uk/flood-monitoring) | none | Water lane — latest station readings (`/data/readings?_limit=N`) |
 | [api.octopus.energy](https://api.octopus.energy) | none | Indicative Agile p/kWh (electric / mixed homes) |
@@ -3121,7 +3153,8 @@ Full scrape → copy → presentation pipeline: **[ZONE-CONTENT-AND-DATA.md](ZON
 ```env
 MODEL_STRATEGY=bucket_failover
 HYBRID_DATA_PIPELINE=1
-OPENEPC_BEARER_TOKEN=   # get-energy-performance-data.communities.gov.uk — register free, copy bearer token from account dashboard
+OPENEPC_EMAIL=
+OPENEPC_API_KEY=
 ```
 
 ---
@@ -3157,7 +3190,7 @@ Full product loop: **[ULM-APPLICATION-LOOP.md](ULM-APPLICATION-LOOP.md)**. **How
 | Module | Role |
 |--------|------|
 | `lib/intelligence/nesoGridClient.ts` | Regional gCO₂/kWh (Carbon Intensity API) |
-| `lib/intelligence/openEpcClient.ts` | EPC register (needs `OPENEPC_BEARER_TOKEN`); two-step search → full cert fetch; optional `houseNumber` filters by register address |
+| `lib/intelligence/openEpcClient.ts` | EPC register (needs `OPENEPC_EMAIL` + `OPENEPC_API_KEY`); optional `houseNumber` filters by register address |
 | `lib/intelligence/epcAddressMatch.ts` | Address-token filter before `pickLatestRow` when house number set |
 | `lib/intelligence/freeTierHydration.ts` | Tier A parallel hydrate → `user_genome.open_data_anchor` (stores `houseNumber` on anchor) |
 | `lib/zone/engineDataRouter.ts` | `processCalculatedLoopSpawn` — deterministic deltas + one discovery card |
@@ -3172,10 +3205,9 @@ MODEL_STRATEGY=bucket_failover   # enables hybrid Solo Focus spawn + scrape gate
 ### Optional explicit toggle (also on when bucket_failover):
 HYBRID_DATA_PIPELINE=1
 
-### EPC register (England & Wales) — skip silently if unset
-# New API: register free at https://get-energy-performance-data.communities.gov.uk/
-# Copy the bearer token from your account dashboard
-OPENEPC_BEARER_TOKEN=your-bearer-token
+### OpenEPC (England & Wales) — skip silently if unset
+OPENEPC_EMAIL=you@example.com
+OPENEPC_API_KEY=your-register-key
 ```
 
 #### Hermes
@@ -4809,15 +4841,14 @@ Production alias **`https://www.00-00.online`** should then serve this build.
 | **`vercel.json` `installCommand`** | `npm ci --include=dev` (checks + build see eslint/tsc) |
 | **`npm run deploy`** | verify → `vercel deploy --prod` → wait Ready → **`scripts/vercel-promote-latest.sh`** |
 
-Missing `lint`/`typecheck` scripts lets Vercel skip flaky native checks; serial verify still runs in `vercel-build-gate.mjs`.
+**Permanent repo fix (native checks):** Do **not** define `lint` or `typecheck` in `package.json`. Vercel skips native checks when those scripts are absent; `vercel-build-gate.mjs` already runs the same gate serially during build. `npm run fix:vercel-checks` enforces absence.
 
-**Permanent repo fix (native checks):** Do **not** define `lint` or `typecheck` in `package.json`. Vercel Native Deployment Checks bind to those exact names and run in parallel with the build — they often fail with *failed unexpectedly* while `vercel-build-gate.mjs` already verified the same code. Use `lint:ci` / `typecheck:ci` + `npm run fix:vercel-checks`.
-
-**Dashboard (if checks still show after deploy):**
+**Dashboard (required once):**
 
 1. **Project 00-ulm** → **Settings** → **Build and Deployment** → **Deployment Checks**
-2. **Remove** or mark **not required** the built-in **Lint** and **Typecheck** checks (Next 16 + flat ESLint often yields *internal error* with no log).
-3. **Add** → **GitHub Actions** → require jobs **`Lint`** and **`Typecheck`** from `.github/workflows/vercel-production-gate.yml` (exact names).
+2. **Remove** built-in **Lint** and **Typecheck** (Native or Next.js) if they show *failed unexpectedly* / *internal error*
+3. **Add** → **GitHub Actions** → require jobs **`Lint`** and **`Typecheck`** from `.github/workflows/vercel-production-gate.yml` (exact job names)
+4. **GitHub** → repo **Settings** → **Secrets** → add **`VERCEL_TOKEN`** so `.github/workflows/promote-production.yml` can auto-promote when checks block alias assignment
 
 Until step 3 is done, a green **build** can still show **Checks Failed** — run `npm run promote` so `www.00-00.online` serves the Ready deployment.
 
@@ -5024,6 +5055,8 @@ npm run env:merge   # optional — merges exported shell vars into .env.local
 
 **Stale shell `DATABASE_URL`:** if `db:test` passes but `/api/health` fails locally, run `unset DATABASE_URL`. `next.config.js` loads `.env.local` with `preferLocal: true` so the file wins over exported vars.
 
+**Corrupted key values (literal `\n`):** a key pasted as `KEY="value\n"` or `KEY="value\\n"` bakes a literal backslash-n into the string — `.trim()` does not strip it. This reads as a totally valid, non-empty env var, so the failure looks like a revoked/invalid API key (Gemini returned `400 API key not valid` from a genuinely correct key) with no hint the `.env.local` file itself is the problem. Symptom: a provider that "should work" always fails, and every call silently falls through to a fallback provider (bucket_failover), masking the real cause. Fix: re-paste the value with no surrounding quotes and no trailing `\n`/`\\n`; verify with `node -e "console.log(JSON.stringify(process.env.KEY.slice(-6)))"` after loading the file — the last few characters should be plain text, not `\n"` or similar. Check every key in the file when you find one, not just the one that's failing (they tend to come in from the same paste/export batch).
+
 ##### Known blockers (audit snapshot)
 
 | Layer | Status | Action |
@@ -5171,6 +5204,18 @@ Harmless — build and deploy finished; CLI lost the polling connection. Confirm
 | `next start` without a build | Run `npm run build:clean` first; `start` no longer stubs middleware manifests. |
 
 Boundary file: root **`proxy.ts`** (`export function proxy`). Next 16 renamed `middleware.ts` → `proxy.ts`; the dev bundle still emits `.next/dev/server/middleware.js`.
+
+##### `Internal Server Error` on every route (dev server still running)
+
+**Cause:** running `npm run build` (production) while `npm run dev` is active in the same project — both write to `.next`, and the production build overwrites/deletes files the dev server needs (`.next/dev/routes-manifest.json`, `.next/dev/server/app-paths-manifest.json`). The dev server keeps running but every route 500s from that point on.
+
+**Fix:** stop the dev server, `npm run purge:disk` (or `rm -rf .next`), restart with `npm run dev:clean`.
+
+**Rule:** never run a verification `npm run build` against a live local dev server's `.next`. Either stop the dev server first, or skip the local production build entirely and trust the Vercel remote build / build gate as the source of truth — that's what it's for, and it runs in an isolated environment that can't corrupt your local session.
+
+##### Idle dev server pinned at high CPU
+
+If `next-server` sits at 150–250%+ CPU with no active browser tab hitting it, don't assume it's normal warm-up — check `ps -p <pid> -o pid,pcpu,etime` a second time a minute later. If CPU is climbing rather than settling, stop the server (frees CPU/RAM immediately) rather than letting it run in the background; a runaway dev server degrades the whole machine, not just the app. Re-check after a clean `.next` wipe + restart before assuming it's a real bug in application code.
 
 ##### Hydration + console noise (dev)
 

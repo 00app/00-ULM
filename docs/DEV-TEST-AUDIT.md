@@ -85,6 +85,8 @@ npm run env:merge   # optional — merges exported shell vars into .env.local
 
 **Stale shell `DATABASE_URL`:** if `db:test` passes but `/api/health` fails locally, run `unset DATABASE_URL`. `next.config.js` loads `.env.local` with `preferLocal: true` so the file wins over exported vars.
 
+**Corrupted key values (literal `\n`):** a key pasted as `KEY="value\n"` or `KEY="value\\n"` bakes a literal backslash-n into the string — `.trim()` does not strip it. This reads as a totally valid, non-empty env var, so the failure looks like a revoked/invalid API key (Gemini returned `400 API key not valid` from a genuinely correct key) with no hint the `.env.local` file itself is the problem. Symptom: a provider that "should work" always fails, and every call silently falls through to a fallback provider (bucket_failover), masking the real cause. Fix: re-paste the value with no surrounding quotes and no trailing `\n`/`\\n`; verify with `node -e "console.log(JSON.stringify(process.env.KEY.slice(-6)))"` after loading the file — the last few characters should be plain text, not `\n"` or similar. Check every key in the file when you find one, not just the one that's failing (they tend to come in from the same paste/export batch).
+
 ### Known blockers (audit snapshot)
 
 | Layer | Status | Action |
@@ -232,6 +234,18 @@ Harmless — build and deploy finished; CLI lost the polling connection. Confirm
 | `next start` without a build | Run `npm run build:clean` first; `start` no longer stubs middleware manifests. |
 
 Boundary file: root **`proxy.ts`** (`export function proxy`). Next 16 renamed `middleware.ts` → `proxy.ts`; the dev bundle still emits `.next/dev/server/middleware.js`.
+
+### `Internal Server Error` on every route (dev server still running)
+
+**Cause:** running `npm run build` (production) while `npm run dev` is active in the same project — both write to `.next`, and the production build overwrites/deletes files the dev server needs (`.next/dev/routes-manifest.json`, `.next/dev/server/app-paths-manifest.json`). The dev server keeps running but every route 500s from that point on.
+
+**Fix:** stop the dev server, `npm run purge:disk` (or `rm -rf .next`), restart with `npm run dev:clean`.
+
+**Rule:** never run a verification `npm run build` against a live local dev server's `.next`. Either stop the dev server first, or skip the local production build entirely and trust the Vercel remote build / build gate as the source of truth — that's what it's for, and it runs in an isolated environment that can't corrupt your local session.
+
+### Idle dev server pinned at high CPU
+
+If `next-server` sits at 150–250%+ CPU with no active browser tab hitting it, don't assume it's normal warm-up — check `ps -p <pid> -o pid,pcpu,etime` a second time a minute later. If CPU is climbing rather than settling, stop the server (frees CPU/RAM immediately) rather than letting it run in the background; a runaway dev server degrades the whole machine, not just the app. Re-check after a clean `.next` wipe + restart before assuming it's a real bug in application code.
 
 ### Hydration + console noise (dev)
 
