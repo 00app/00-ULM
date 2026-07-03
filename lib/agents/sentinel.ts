@@ -1,9 +1,12 @@
-import { tool } from 'ai'
+import { generateText, gateway, stepCountIs, tool } from 'ai'
 import { z } from 'zod'
 import { getLiveBaseline } from '@/app/lib/skills/liveImpact'
 import { scrapeFirecrawlZoneResearchStructured } from '@/lib/agents/researchAgent'
+import { isAiGatewayConfigured } from '@/lib/intelligence/aiGateway'
+import { GEMINI_GATEWAY_ZONE, GEMINI_PRECISION_TEMPERATURE } from '@/lib/intelligence/geminiModels'
 
-export const SENTINEL_REASONING_MODEL = 'gemini-3.1-pro-preview'
+/** Matches the codebase-wide Flash standard (see geminiModels.ts) — no preview/Pro tiers. */
+export const SENTINEL_REASONING_MODEL = GEMINI_GATEWAY_ZONE
 const SENTINEL_FIRECRAWL_URL = 'https://www.gov.uk/energy-advice-households'
 const SENTINEL_FIRECRAWL_PROMPT =
   'Extract current official heat pump support ceilings and any rural uplift cues for remote UK outward codes (e.g. KW).'
@@ -68,46 +71,95 @@ function parseGrantExtract(extract: unknown): SentinelGrantResult {
   }
 }
 
+const defaultGrant: SentinelGrantResult = {
+  found: false,
+  heatPumpGrantGbp: null,
+  ruralUpliftGbp: null,
+  totalRuralGrantGbp: null,
+  claimOfferUrl: '',
+  title: 'LIVE HEAT UPGRADE GRANT',
+  firecrawlSourceUrl: SENTINEL_FIRECRAWL_URL,
+}
+
+/** Deterministic path — no model call. Used when the gateway isn't configured, and as the
+ * safety net if the tool-calling pass throws or returns nothing usable. Sentinel must never
+ * fail the request just because reasoning is unavailable. */
+async function runSentinelBrainRefreshMechanical(args: SentinelRefreshArgs): Promise<SentinelRefreshResult> {
+  const liveImpact = await getLiveBaseline({ region: args.region })
+  const remote = /^(KW|IV|HS|ZE|PH|PA|AB|TR|LL)/i.test((args.postcode ?? '').replace(/\s+/g, '').toUpperCase())
+  const grant = !args.runScrapeSync || !remote
+    ? defaultGrant
+    : parseGrantExtract((await scrapeFirecrawlZoneResearchStructured(SENTINEL_FIRECRAWL_URL))?.extract)
+
+  return { model: 'mechanical', tool_calling: true, liveImpact, grant }
+}
+
 export async function runSentinelBrainRefresh(args: SentinelRefreshArgs): Promise<SentinelRefreshResult> {
+  if (!isAiGatewayConfigured()) {
+    return runSentinelBrainRefreshMechanical(args)
+  }
+
+  let capturedLiveImpact: Awaited<ReturnType<typeof getLiveBaseline>> | null = null
+  let capturedGrantExtract: unknown = null
+  let grantToolCalled = false
+
   const liveImpactTool = tool({
     description:
-      "Live-Impact Skill: returns Ofgem-locked April 2026 rates and current UK regional grid intensity for Sentinel's freshness cycle.",
+      "Live-Impact Skill: returns Ofgem-locked current UK energy rates and regional grid intensity for Sentinel's freshness cycle. Always call this first.",
     inputSchema: z.object({ region: z.string().optional() }),
-    execute: async ({ region }) => getLiveBaseline({ region }),
+    execute: async ({ region }) => {
+      capturedLiveImpact = await getLiveBaseline({ region: region ?? args.region })
+      return capturedLiveImpact
+    },
   })
+
+  const remote = /^(KW|IV|HS|ZE|PH|PA|AB|TR|LL)/i.test((args.postcode ?? '').replace(/\s+/g, '').toUpperCase())
+
   const scrapeEnergyGrantsTool = tool({
     description:
-      'Firecrawl v2 structured extract for UK household energy support pages; returns support ceilings and uplift cues.',
-    inputSchema: z.object({
-      postcode: z.string().optional(),
-    }),
+      'Firecrawl structured extract for UK household energy support pages; returns heat pump grant ceilings and rural uplift cues. Only call this when the postcode is a remote/rural UK outward code (Scottish Highlands & Islands, Cornwall — KW, IV, HS, ZE, PH, PA, AB, TR, LL) and the caller asked for a scrape sync.',
+    inputSchema: z.object({ postcode: z.string().optional() }),
     execute: async () => {
+      grantToolCalled = true
       const structured = await scrapeFirecrawlZoneResearchStructured(SENTINEL_FIRECRAWL_URL)
+      capturedGrantExtract = structured?.extract ?? null
       return {
         url: SENTINEL_FIRECRAWL_URL,
         prompt: SENTINEL_FIRECRAWL_PROMPT,
-        extract: structured?.extract ?? null,
+        extract: capturedGrantExtract,
       }
     },
   })
 
-  void liveImpactTool
-  void scrapeEnergyGrantsTool
-  const liveImpact = await getLiveBaseline({ region: args.region })
-
-  const remote = /^(KW|IV|HS|ZE|PH|PA|AB|TR|LL)/i.test((args.postcode ?? '').replace(/\s+/g, '').toUpperCase())
-  const defaultGrant: SentinelGrantResult = {
-    found: false,
-    heatPumpGrantGbp: null,
-    ruralUpliftGbp: null,
-    totalRuralGrantGbp: null,
-    claimOfferUrl: '',
-    title: 'LIVE HEAT UPGRADE GRANT',
-    firecrawlSourceUrl: SENTINEL_FIRECRAWL_URL,
+  try {
+    await generateText({
+      model: gateway(SENTINEL_REASONING_MODEL),
+      system:
+        'You are the Sentinel freshness agent for a UK household savings app. Call get_live_impact once to refresh baseline rates and grid intensity. ' +
+        (args.runScrapeSync && remote
+          ? 'This postcode is remote/rural and a scrape sync was requested — also call scrape_energy_grants once to check for a live heat pump grant uplift.'
+          : 'Do not call scrape_energy_grants — no scrape sync was requested, or this postcode is not remote/rural.') +
+        ' Do not produce a text summary; your job is only to trigger the tool calls.',
+      prompt: `region=${args.region ?? 'unknown'} postcode=${args.postcode ?? 'unknown'} runScrapeSync=${Boolean(args.runScrapeSync)}`,
+      tools: { get_live_impact: liveImpactTool, scrape_energy_grants: scrapeEnergyGrantsTool },
+      stopWhen: stepCountIs(3),
+      temperature: GEMINI_PRECISION_TEMPERATURE,
+      maxOutputTokens: 256,
+    })
+  } catch (err) {
+    console.warn('[sentinel] tool-calling brain refresh failed, falling back to mechanical:', err instanceof Error ? err.message : err)
+    return runSentinelBrainRefreshMechanical(args)
   }
-  const grant = !args.runScrapeSync || !remote
-    ? defaultGrant
-    : parseGrantExtract((await scrapeFirecrawlZoneResearchStructured(SENTINEL_FIRECRAWL_URL))?.extract)
+
+  // Model chose not to call a tool, or the gateway returned no usable result — mechanical fallback
+  // guarantees Sentinel still has a live baseline rather than returning stale/empty data.
+  const liveImpact = capturedLiveImpact ?? (await getLiveBaseline({ region: args.region }))
+  const grant =
+    grantToolCalled
+      ? parseGrantExtract(capturedGrantExtract)
+      : !args.runScrapeSync || !remote
+        ? defaultGrant
+        : parseGrantExtract((await scrapeFirecrawlZoneResearchStructured(SENTINEL_FIRECRAWL_URL))?.extract)
 
   return {
     model: SENTINEL_REASONING_MODEL,

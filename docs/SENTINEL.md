@@ -63,7 +63,7 @@ flowchart TB
 |--------|------|
 | `app/hooks/useSentinel.ts` | Client: build priorities, throttle refresh (5 min), optional 24h scrape via API |
 | `app/api/sentinel/route.ts` | Auth session: brain refresh + `syncUserZone` + persist `user_genome.sentinel` |
-| `lib/agents/sentinel.ts` | `runSentinelBrainRefresh` — Gemini tool calling (Live-Impact + structured Firecrawl extract) |
+| `lib/agents/sentinel.ts` | `runSentinelBrainRefresh` — Gemini tool calling via AI Gateway (Live-Impact + structured Firecrawl extract), mechanical fallback when the gateway isn't configured or the call fails |
 | `lib/sentinel/runner.ts` | `advanceHomeJourneySentinelAfterAnswer`, `syncUserZone`, mother/child slide builders |
 | `lib/sentinel/scraper.ts` | Soft-save cards (flow temp, phantom standby, food waste) |
 | `lib/sentinel/liveGrounding.ts` | Gemini grounding for mother copy; also used by **`/api/local-offers`** |
@@ -198,7 +198,7 @@ Both may use **Firecrawl** — shared keys via `lib/sentinel/api-config.ts` and 
 
 | Variable | Sentinel use |
 |----------|----------------|
-| `GEMINI_API_KEY` | Brain refresh tool calling (`SENTINEL_REASONING_MODEL` default `gemini-3.1-pro-preview` in agent) |
+| `AI_GATEWAY_API_KEY` (or Vercel OIDC) | Brain refresh tool calling via `generateText` + Vercel AI Gateway (`SENTINEL_REASONING_MODEL` = `GEMINI_GATEWAY_ZONE`, same Flash-tier standard as research — no preview/Pro models). Falls back to the deterministic path (direct `getLiveBaseline` + conditional Firecrawl scrape, `model: "mechanical"` in the result) when the gateway isn't configured or the call errors — Sentinel never fails a request over this. |
 | `FIRE_CRAWL_KEY_2` / `FIRECRAWL_API_KEY` | Grant page extract |
 | `DATABASE_URL` | `journey_state`, `users` updates |
 | Session cookie | `POST /api/sentinel` (signed-in path) |
