@@ -15,6 +15,11 @@ export async function createUser(profile: {
 }) {
   const response = await fetch('/api/user', {
     method: 'POST',
+    // Onboarding navigates away (window.location.assign) shortly after this call races against
+    // an 8s timeout — without keepalive, that hard navigation aborts the fetch mid-flight and the
+    // browser never receives the Set-Cookie session header, even though the account was created
+    // server-side. That's how a real account ends up looking like "Guest" forever.
+    keepalive: true,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ...profile,

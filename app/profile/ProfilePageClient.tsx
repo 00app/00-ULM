@@ -241,19 +241,23 @@ export default function ProfilePageClient() {
       )
       if (index !== -1) nextStep = index
     } else {
+      // A stored step index only means "resume here" if every question before it is actually
+      // answered in `stored`. Otherwise a stale index (e.g. from an earlier attempt whose
+      // localStorage got cleared/reset) would skip straight past an unanswered question —
+      // postcode being step 0, this is exactly how it went missing.
+      const incomplete = firstIncompleteProfileStepIndex(
+        Object.keys(stored).length > 0 ? stored : {}
+      )
+      const incompleteCap = incomplete >= 0 ? incomplete : PROFILE_QUESTIONS.length - 1
       try {
         const raw = sessionStorage.getItem(PROFILE_STEP_KEY)
         const n = raw ? parseInt(raw, 10) : NaN
         if (Number.isFinite(n) && n >= 0 && n < PROFILE_QUESTIONS.length) {
-          nextStep = n
-        } else {
-          const incomplete = firstIncompleteProfileStepIndex(
-            Object.keys(stored).length > 0 ? stored : {}
-          )
-          if (incomplete >= 0) nextStep = incomplete
+          nextStep = Math.min(n, incompleteCap)
+        } else if (incomplete >= 0) {
+          nextStep = incomplete
         }
       } catch {
-        const incomplete = firstIncompleteProfileStepIndex(stored)
         if (incomplete >= 0) nextStep = incomplete
       }
     }
