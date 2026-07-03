@@ -327,114 +327,151 @@ export default function ProfileSummaryPage() {
       }
     }
 
-    const gridIntensityGPerKwh =
-      typeof contextLocal?.localCarbonG === 'number' && contextLocal.localCarbonG > 0
-        ? contextLocal.localCarbonG
-        : syncFallbackGridIntensityGPerKwh(postcode)
-
-    const impact = buildUserImpact(
-      { profile, journeyAnswers },
-      { gridIntensityGPerKwh }
-    )
-
-    let totalsMoney = impact.totals.totalMoney
-    let totalsCarbon = impact.totals.totalCarbon
-    let genomeSavingsMoney: number | undefined
-
-    const councilImmediate = resolveImmediateSummaryCouncilLabel({
-      postcodeDisplay,
-      cachedLocality,
-      locationName: locationFromContext,
-      local: contextLocal,
-    })
-    const hasRealLocality = isRealLocalityLabel(councilImmediate)
+    // Hard safety net — if literally anything below throws or hangs (a malformed journey-answer
+    // blob from months of accumulated localStorage, an edge case in buildUserImpact, a stalled
+    // fetch), the user must never be stuck on the loading logo forever. This fires unconditionally
+    // after a few seconds unless a real publish has already happened.
+    const hardSafetyTimer = window.setTimeout(() => {
+      if (cancelled || displayReadyRef.current) return
+      console.warn('[summary] hard safety timeout — publishing zero-value fallback')
+      setSummaryPack({
+        waste: { annualWasteCash: 0, annualWasteCarbon: 0, totalsMoney: 0, totalsCarbon: 0 },
+        narrative: {
+          employment_status: undefined,
+          displayName: profile.name || undefined,
+          councilLabel: 'the UK',
+          postcodeDisplay,
+          local: null,
+          totalsMoney: 0,
+          totalsCarbon: 0,
+          annualWasteCash: 0,
+          annualWasteCarbon: 0,
+        },
+      })
+      setDisplayReady(true)
+    }, 9000)
 
     let safetyTimer: number | undefined
 
-    if (postcode.length < 4) {
-      publishSummary(contextLocal, 'the UK', totalsMoney, totalsCarbon, impact.summaryWaste)
-    } else if (!hasRealLocality) {
-      safetyTimer = window.setTimeout(() => {
-        if (cancelled || displayReadyRef.current) return
-        const outward = postcode.replace(/\s+/g, '').toUpperCase().match(/^([A-Z]{1,2}\d{1,2}[A-Z]?)/)?.[1]
-        const fallback = outward && outward.length >= 2 ? outward : 'the UK'
-        publishSummary(contextLocal, fallback, totalsMoney, totalsCarbon, impact.summaryWaste)
-      }, LOCALITY_DISPLAY_SAFETY_MS)
-    }
+    try {
+      const gridIntensityGPerKwh =
+        typeof contextLocal?.localCarbonG === 'number' && contextLocal.localCarbonG > 0
+          ? contextLocal.localCarbonG
+          : syncFallbackGridIntensityGPerKwh(postcode)
 
-    ;(async () => {
-      let local: SummaryLocalContext | null = contextLocal
-      let resolvedLocationName = hasRealLocality ? councilImmediate : ''
+      const impact = buildUserImpact(
+        { profile, journeyAnswers },
+        { gridIntensityGPerKwh }
+      )
 
-      if (postcode.length >= 4 && !hasRealLocality) {
-        const handoff = await prefetchProfileLocalityForHandoff(postcode)
-        if (handoff?.local) {
-          local = {
-            council: handoff.local.council,
-            region: handoff.local.region ?? handoff.local.council,
-            localCarbonG: handoff.local.localCarbonG,
-            ward: handoff.local.ward,
-            locality: handoff.local.locality,
-            outcode: handoff.local.outcode,
-            country: handoff.local.country,
+      let totalsMoney = impact.totals.totalMoney
+      let totalsCarbon = impact.totals.totalCarbon
+      let genomeSavingsMoney: number | undefined
+
+      const councilImmediate = resolveImmediateSummaryCouncilLabel({
+        postcodeDisplay,
+        cachedLocality,
+        locationName: locationFromContext,
+        local: contextLocal,
+      })
+      const hasRealLocality = isRealLocalityLabel(councilImmediate)
+
+      if (postcode.length < 4) {
+        publishSummary(contextLocal, 'the UK', totalsMoney, totalsCarbon, impact.summaryWaste)
+      } else if (!hasRealLocality) {
+        safetyTimer = window.setTimeout(() => {
+          if (cancelled || displayReadyRef.current) return
+          const outward = postcode.replace(/\s+/g, '').toUpperCase().match(/^([A-Z]{1,2}\d{1,2}[A-Z]?)/)?.[1]
+          const fallback = outward && outward.length >= 2 ? outward : 'the UK'
+          publishSummary(contextLocal, fallback, totalsMoney, totalsCarbon, impact.summaryWaste)
+        }, LOCALITY_DISPLAY_SAFETY_MS)
+      }
+
+      ;(async () => {
+        try {
+          let local: SummaryLocalContext | null = contextLocal
+          let resolvedLocationName = hasRealLocality ? councilImmediate : ''
+
+          if (postcode.length >= 4 && !hasRealLocality) {
+            const handoff = await prefetchProfileLocalityForHandoff(postcode)
+            if (handoff?.local) {
+              local = {
+                council: handoff.local.council,
+                region: handoff.local.region ?? handoff.local.council,
+                localCarbonG: handoff.local.localCarbonG,
+                ward: handoff.local.ward,
+                locality: handoff.local.locality,
+                outcode: handoff.local.outcode,
+                country: handoff.local.country,
+              }
+            }
+            if (handoff?.label?.trim() && isRealLocalityLabel(handoff.label)) {
+              resolvedLocationName = handoff.label.trim()
+            }
           }
+
+          if (!isRealLocalityLabel(resolvedLocationName)) {
+            resolvedLocationName =
+              resolveImmediateSummaryCouncilLabel({
+                postcodeDisplay,
+                cachedLocality: readCachedProfileLocality(postcode),
+                locationName: locationFromContext,
+                local,
+              }) || ''
+          }
+
+          if (cancelled) return
+          if (safetyTimer != null) window.clearTimeout(safetyTimer)
+
+          const displayLabel = isRealLocalityLabel(resolvedLocationName)
+            ? resolvedLocationName
+            : isRealLocalityLabel(councilImmediate)
+              ? councilImmediate
+              : 'the UK'
+
+          let summaryBody: {
+            savings?: number
+            carbon?: number
+            genomeTotals?: { totalMoney?: number; totalCarbon?: number }
+          } | null = null
+          try {
+            const summaryRes = await Promise.race([
+              fetch('/api/summary?type=profile', { credentials: 'include', cache: 'no-store' }).then((sr) =>
+                sr.ok ? sr.json() : null
+              ),
+              new Promise<null>((resolve) => window.setTimeout(() => resolve(null), SUMMARY_GENOME_SETTLE_MS)),
+            ])
+            summaryBody = summaryRes
+          } catch {
+            summaryBody = null
+          }
+
+          if (cancelled) return
+
+          if (summaryBody) {
+            const gMoney = summaryBody.genomeTotals?.totalMoney ?? summaryBody.savings
+            const gCarbon = summaryBody.genomeTotals?.totalCarbon ?? summaryBody.carbon
+            if (typeof gMoney === 'number' && gMoney > 0) genomeSavingsMoney = Math.round(gMoney)
+            if (typeof gMoney === 'number' && gMoney > 0) totalsMoney = gMoney
+            if (typeof gCarbon === 'number' && gCarbon > 0) totalsCarbon = gCarbon
+          }
+
+          publishSummary(local, displayLabel, totalsMoney, totalsCarbon, impact.summaryWaste, genomeSavingsMoney)
+        } catch (err) {
+          console.warn('[summary] async resolution failed, falling back:', err)
+          if (!cancelled) publishSummary(contextLocal, 'the UK', totalsMoney, totalsCarbon, impact.summaryWaste)
         }
-        if (handoff?.label?.trim() && isRealLocalityLabel(handoff.label)) {
-          resolvedLocationName = handoff.label.trim()
-        }
+      })()
+    } catch (err) {
+      console.warn('[summary] sync computation failed, falling back:', err)
+      if (!cancelled) {
+        publishSummary(contextLocal, 'the UK', 0, 0, { annualWasteCash: 0, annualWasteCarbon: 0 })
       }
-
-      if (!isRealLocalityLabel(resolvedLocationName)) {
-        resolvedLocationName =
-          resolveImmediateSummaryCouncilLabel({
-            postcodeDisplay,
-            cachedLocality: readCachedProfileLocality(postcode),
-            locationName: locationFromContext,
-            local,
-          }) || ''
-      }
-
-      if (cancelled) return
-      if (safetyTimer != null) window.clearTimeout(safetyTimer)
-
-      const displayLabel = isRealLocalityLabel(resolvedLocationName)
-        ? resolvedLocationName
-        : isRealLocalityLabel(councilImmediate)
-          ? councilImmediate
-          : 'the UK'
-
-      let summaryBody: {
-        savings?: number
-        carbon?: number
-        genomeTotals?: { totalMoney?: number; totalCarbon?: number }
-      } | null = null
-      try {
-        const summaryRes = await Promise.race([
-          fetch('/api/summary?type=profile', { credentials: 'include', cache: 'no-store' }).then((sr) =>
-            sr.ok ? sr.json() : null
-          ),
-          new Promise<null>((resolve) => window.setTimeout(() => resolve(null), SUMMARY_GENOME_SETTLE_MS)),
-        ])
-        summaryBody = summaryRes
-      } catch {
-        summaryBody = null
-      }
-
-      if (cancelled) return
-
-      if (summaryBody) {
-        const gMoney = summaryBody.genomeTotals?.totalMoney ?? summaryBody.savings
-        const gCarbon = summaryBody.genomeTotals?.totalCarbon ?? summaryBody.carbon
-        if (typeof gMoney === 'number' && gMoney > 0) genomeSavingsMoney = Math.round(gMoney)
-        if (typeof gMoney === 'number' && gMoney > 0) totalsMoney = gMoney
-        if (typeof gCarbon === 'number' && gCarbon > 0) totalsCarbon = gCarbon
-      }
-
-      publishSummary(local, displayLabel, totalsMoney, totalsCarbon, impact.summaryWaste, genomeSavingsMoney)
-    })()
+    }
 
     return () => {
       cancelled = true
+      window.clearTimeout(hardSafetyTimer)
       if (safetyTimer != null) window.clearTimeout(safetyTimer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- omit locationState; publishSummary writes it and would loop
