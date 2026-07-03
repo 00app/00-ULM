@@ -18,7 +18,14 @@ import { isHighSolarPotential } from '@/lib/intelligence/solarIrradianceClient'
 import type { PropertyIntelligence } from '@/lib/intelligence/propertyIntelligenceTypes'
 import type { LocalizedProfileInput } from '@/lib/intelligence/researchProfilePayload'
 
-export const ANSWER_FUNNEL_JIT_CAP = 4
+/**
+ * All 13 journeys — was capped at 4 to limit paid Firecrawl+Gemini spend. ZeroAgent (free-tier
+ * direct Gemini + free UK data APIs, see lib/agents/zeroAgent.ts) is now the primary onboarding
+ * research path, and this fires fire-and-forget in the background (never blocks the UI) — so
+ * there's no longer a cost/latency reason to leave 9 of 13 categories generic until a JIT click
+ * or the weekly Hermes sweep happens to reach them.
+ */
+export const ANSWER_FUNNEL_JIT_CAP = JOURNEY_ORDER.length
 
 export type AnswerFunnelTone = 'bill_survival' | 'asset_optimization'
 
@@ -47,6 +54,11 @@ function scoreJourneys(params: {
   journeyAnswers?: Partial<Record<JourneyId, Record<string, string>>>
 }): Map<JourneyId, number> {
   const scores = new Map<JourneyId, number>()
+  // Baseline every journey at 0 so a category with no matching bump condition (shopping, tech,
+  // waste, water, carbon, holidays for many profiles) still appears in the ranked candidate list.
+  // The cap is now JOURNEY_ORDER.length (all 13) — without this, uncapped no longer meant
+  // "all categories fire," it meant "every category that happened to score is uncapped."
+  for (const jid of JOURNEY_ORDER) scores.set(jid, 0)
   const bump = (jid: JourneyId, n: number) => scores.set(jid, (scores.get(jid) ?? 0) + n)
 
   bump('home', 100)
