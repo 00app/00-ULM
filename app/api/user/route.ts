@@ -134,8 +134,33 @@ export async function POST(request: NextRequest) {
         insertParams
       )
 
+    const runUpdate = (existingId: string) =>
+      pool.query(
+        `UPDATE users
+         SET name = $1, postcode = $2, household = $3, home_type = $4, transport_baseline = $5,
+             age_group = $6, employment_status = $7, user_genome = user_genome || $8::jsonb
+         WHERE id = $9
+         RETURNING id, name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome, created_at`,
+        [...insertParams, existingId]
+      )
+
+    // Reattach repeat onboarding to an existing account instead of forking a new user row each
+    // time. Two ways to find "the same person" without a real login system: (1) their browser
+    // already carries a valid session cookie — reuse that user, or (2) no session, but a user with
+    // the same normalized name+postcode already exists — reuse that one. Only fall through to a
+    // fresh INSERT when neither matches.
+    const currentSession = await getSessionFromRequest().catch(() => null)
+    let existingUserId: string | null = currentSession?.userId ?? null
+    if (!existingUserId) {
+      const match = await pool.query(
+        `SELECT id FROM users WHERE LOWER(name) = LOWER($1) AND postcode = $2 ORDER BY created_at DESC LIMIT 1`,
+        [raw.name, raw.postcode]
+      )
+      existingUserId = match.rows[0]?.id ? String(match.rows[0].id) : null
+    }
+
     const [result, local, propertyIntelligence] = await Promise.all([
-      runInsert().catch(async (insertErr: unknown) => {
+      (existingUserId ? runUpdate(existingUserId) : runInsert()).catch(async (insertErr: unknown) => {
         const msg = insertErr instanceof Error ? insertErr.message : String(insertErr)
         if (!/user_genome|employment_status|age_group|gen_random_uuid/i.test(msg)) throw insertErr
         console.warn('[api/user] INSERT fallback (legacy schema):', msg)
