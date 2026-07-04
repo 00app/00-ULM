@@ -46,7 +46,7 @@ import {
   lacksGroundedZaiContext,
   stripZaiChatMarkdown,
   ZAI_FALLBACK_CONNECTING,
-  ZAI_FALLBACK_UNCERTAIN,
+  ZAI_FALLBACK_NEEDS_CONTEXT,
 } from '@/lib/zai/chatBoundaries'
 import { polishZaiServerBodyCopy } from '@/lib/zai/polishBodyCopy'
 import {
@@ -694,7 +694,7 @@ export async function POST(req: NextRequest) {
         totalCarbon,
       })
     ) {
-      const thin = stripZaiChatMarkdown(ZAI_FALLBACK_UNCERTAIN)
+      const thin = stripZaiChatMarkdown(ZAI_FALLBACK_NEEDS_CONTEXT)
       if (!streamRequested) {
         return NextResponse.json({ answer: thin }, { status: 200 })
       }

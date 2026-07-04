@@ -73,6 +73,14 @@ export const ZAI_CHAT_EDITORIAL_RULES = {
 export const ZAI_FALLBACK_UNCERTAIN =
   "I don't have enough information to be confident on that one. Let's stick to your bills or travel moves."
 
+/** Shown when postcode + journey answers + totals are all missing — genuinely different case
+ * from ZAI_FALLBACK_UNCERTAIN (an off-topic/uncertain reply). This one must never contradict
+ * the question that was just asked, since it can fire in response to the app's own suggested
+ * prompts ("cut home energy bills") — telling the user to "stick to bills" after they already
+ * asked about bills read as broken. Give them a concrete next step instead. */
+export const ZAI_FALLBACK_NEEDS_CONTEXT =
+  "I don't have your postcode or profile answers yet, so I can't give you real numbers. Tell me your postcode here, or finish your profile, and I'll dig into actual savings for your area."
+
 export const ZAI_FALLBACK_CONNECTING = "Give me a sec — still checking what's live near you."
 
 export const ZAI_FORBIDDEN_TOPIC_DECLINE =
