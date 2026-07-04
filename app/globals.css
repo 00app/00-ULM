@@ -789,8 +789,11 @@ h1, h2, h3, h4, h5, h6,
 .solo-focus-recommendation-headline {
   line-height: 0.8 !important;
   letter-spacing: -0.02em !important;
+  text-wrap: balance;
 }
 
+/* Body copy: pretty only fixes the last line's orphan without rebalancing every line like
+   headlines do (wrong tool for longer paragraphs). Unsupported browsers just get normal wrap. */
 p,
 .zz-body,
 .zz-body-bold,
@@ -798,6 +801,7 @@ p,
 .text-roboto,
 .text-roboto-bold {
   line-height: 1.2 !important;
+  text-wrap: pretty;
 }
 
 /* ==========================================================================
