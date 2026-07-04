@@ -4894,7 +4894,7 @@ body.zai-composer-dock-active {
 }
 .zai-interface .zai-bubble-chat--user {
   background: var(--zai-deep-blue) !important;
-  color: #fff !important;
+  color: var(--color-yellow) !important;
 }
 .zai-interface .zai-msg-footer a,
 .zai-interface .zai-msg-footer .zz-body {
@@ -4934,7 +4934,7 @@ body.zai-composer-dock-active {
   font-weight: 700;
   line-height: 0.8;
   letter-spacing: 0.02em;
-  text-transform: uppercase;
+  text-transform: none;
   background: var(--zai-pill-bg);
   color: var(--zai-pill-text);
   transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;

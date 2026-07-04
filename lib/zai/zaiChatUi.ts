@@ -7,6 +7,7 @@ import { ROUTES } from '@/lib/routes'
 import type { AskZaiContext } from '@/lib/expandStorage'
 import { inferZaiCtaLabel } from '@/lib/zai/resolveZaiLikeHandoff'
 import { pickFirstHttpUrl } from '@/lib/zone/verifiedRevenue'
+import { ZAI_FALLBACK_NEEDS_CONTEXT } from '@/lib/zai/chatBoundaries'
 
 export type ZaiChatMeta = {
   likeId: string
@@ -122,10 +123,27 @@ export function metaFromAskZaiContext(
   }
 }
 
+/** When Zai says it needs postcode/profile context, give the message an actual way to fix
+ * that instead of leaving it as a dead end — link straight to the profile. */
+export function metaForNeedsContextReply(text: string): ZaiChatMeta | undefined {
+  if (text.trim() !== ZAI_FALLBACK_NEEDS_CONTEXT) return undefined
+  return {
+    likeId: zaiLikeIdFromText('needs-profile-context'),
+    likeTitle: 'finish your profile',
+    savingsGbp: 0,
+    journeyKey: 'home',
+    answerHref: ROUTES.PROFILE,
+    answerLabel: 'Finish your profile',
+    showLike: false,
+  }
+}
+
 export function metaFromZaiReply(
   text: string,
   journeyAnswers?: Record<string, Record<string, string>>
 ): ZaiChatMeta | undefined {
+  const needsContext = metaForNeedsContextReply(text)
+  if (needsContext) return needsContext
   if (!looksLikeRecommendation(text)) return undefined
   const likeTitle = text.split(/[.!?]/)[0]?.trim().slice(0, 100) || 'zai pick'
   const moneyMatch = text.match(/£\s*([\d,]+)/)
