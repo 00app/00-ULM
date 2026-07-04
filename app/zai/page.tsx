@@ -422,7 +422,7 @@ export default function ZaiPage() {
                           href={msg.meta.sourceUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="zz-body underline"
+                          className="zai-source-link zz-h5 underline"
                           onClick={() => {
                             void fetch('/api/likes/track', {
                               method: 'POST',
@@ -446,12 +446,13 @@ export default function ZaiPage() {
                           className="circle-btn zai-like-btn zz-shimmer-cta"
                           onClick={() => handleZaiLike(msg.meta!)}
                           style={{
-                            width: 60,
-                            height: 60,
-                            minWidth: 60,
-                            minHeight: 60,
+                            width: 40,
+                            height: 40,
+                            minWidth: 40,
+                            minHeight: 40,
                             borderRadius: '50%',
                             border: 'none',
+                            marginLeft: 'auto',
                             backgroundColor: state.likedCards.includes(msg.meta.likeId)
                               ? 'var(--brand-select-bg)'
                               : 'var(--color-pink)',
@@ -460,7 +461,7 @@ export default function ZaiPage() {
                               : 'var(--color-yellow)',
                           }}
                         >
-                          <HeartOutlineIcon size={22} />
+                          <HeartOutlineIcon size={16} />
                         </motion.button>
                       ) : null}
                     </motion.div>

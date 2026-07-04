@@ -2433,6 +2433,14 @@ body, p, span, input, button, textarea, select,
   color: var(--color-pink) !important;
   opacity: 0.88;
 }
+.zai-interface .zai-msg-footer .zai-source-link {
+  color: var(--color-yellow) !important;
+  text-transform: none !important;
+  line-height: 1;
+}
+.zai-interface .zai-msg-footer .zai-source-link:hover {
+  opacity: 0.88;
+}
 
 .zai-interface .zai-like-btn {
   border: none !important;
@@ -4882,11 +4890,11 @@ body.zai-composer-dock-active {
 }
 .zai-interface .zai-bubble-chat--zai {
   background: var(--zai-field-bg) !important;
-  color: var(--zai-ink) !important;
+  color: var(--zai-deep-blue) !important;
 }
 .zai-interface .zai-bubble-chat--user {
-  background: var(--zai-ink) !important;
-  color: var(--zai-pill-text) !important;
+  background: var(--zai-deep-blue) !important;
+  color: #fff !important;
 }
 .zai-interface .zai-msg-footer a,
 .zai-interface .zai-msg-footer .zz-body {
