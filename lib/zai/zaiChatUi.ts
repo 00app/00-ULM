@@ -134,7 +134,10 @@ export function metaForNeedsContextReply(text: string): ZaiChatMeta | undefined 
     journeyKey: 'home',
     answerHref: ROUTES.PROFILE,
     answerLabel: 'Finish your profile',
-    showLike: true,
+    // Not a real recommendation — nothing to save/claim, so no like button. If someone reaches
+    // Zai without a postcode/journey answers, the fix is finishing onboarding, not "liking" a
+    // system nudge as if it were a £0/0kg tip.
+    showLike: false,
   }
 }
 
