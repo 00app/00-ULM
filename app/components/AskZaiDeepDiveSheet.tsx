@@ -14,7 +14,11 @@ import { renderZaiChatProse } from '@/lib/zai/renderChatProse'
 import { JOURNEY_ORDER } from '@/lib/journeys'
 import { ROUTES } from '@/lib/routes'
 import { useApp } from '@/app/context/AppContext'
-import ZaiComposerDock from '@/app/components/ZaiComposerDock'
+import {
+  FAMILY_ATOMIC_SURFACE_ANIMATE,
+  FAMILY_ATOMIC_SURFACE_INITIAL,
+  FAMILY_TRANSITION_ATOMIC,
+} from '@/lib/motion-family'
 import {
   buildDeepDivePlainSummary,
   buildDeepDiveQuestionPills,
@@ -335,12 +339,14 @@ export function AskZaiDeepDiveSheet({
             exit={{ opacity: 0 }}
             transition={INDUSTRIAL_OPACITY_SNAP}
             onClick={onClose}
+            onTap={onClose}
             style={{
               position: 'fixed',
               inset: 0,
               zIndex: 240,
               border: 'none',
               cursor: 'pointer',
+              touchAction: 'manipulation',
             }}
           />
           <motion.div
@@ -417,7 +423,16 @@ export function AskZaiDeepDiveSheet({
             </div>
           </motion.div>
 
-          <ZaiComposerDock className="zai-composer-dock--ask-sheet" bodyClass="">
+          {/* Inlined instead of <ZaiComposerDock> — that component does its own createPortal,
+              and nesting a second portal inside this sheet's own portal (under AnimatePresence)
+              made the Go button intermittently miss real tap/click events (confirmed: a native
+              .click() worked, a coordinate-based tap did not). One portal boundary is enough. */}
+          <motion.div
+            className="zai-composer-dock zai-composer-dock--fixed zai-composer-dock--ask-sheet"
+            initial={FAMILY_ATOMIC_SURFACE_INITIAL}
+            animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
+            transition={FAMILY_TRANSITION_ATOMIC}
+          >
             <div className="zai-input-row">
               <input
                 type="text"
@@ -433,15 +448,17 @@ export function AskZaiDeepDiveSheet({
               <motion.button
                 type="button"
                 onClick={() => void submit(draft)}
+                onTap={() => void submit(draft)}
                 disabled={!draft.trim() || busy}
                 className="zai-go-btn ask-zai-sheet-go-btn zz-h4 text-marvin"
+                style={{ touchAction: 'manipulation' }}
                 transition={INDUSTRIAL_OPACITY_SNAP}
                 aria-busy={busy}
               >
                 {busy ? '…' : 'Go'}
               </motion.button>
             </div>
-          </ZaiComposerDock>
+          </motion.div>
         </>
       ) : null}
     </AnimatePresence>,
