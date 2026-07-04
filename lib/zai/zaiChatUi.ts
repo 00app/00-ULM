@@ -134,7 +134,7 @@ export function metaForNeedsContextReply(text: string): ZaiChatMeta | undefined 
     journeyKey: 'home',
     answerHref: ROUTES.PROFILE,
     answerLabel: 'Finish your profile',
-    showLike: false,
+    showLike: true,
   }
 }
 
