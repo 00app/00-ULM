@@ -28,10 +28,11 @@ const TABLE_META: Record<string, { status: TableStatus; note: string }> = {
   research_results: { status: 'hot', note: 'JIT scrape + Hermes repair; research_snapshot JSONB' },
   scraped_summary: { status: 'hot', note: '001 crawler hero totals per journey_key' },
   user_profiles: { status: 'mirror', note: 'Hermes / Solo Focus genome mirror' },
-  zai_messages: { status: 'legacy-unused', note: 'Schema only — chat is client + /api/zai' },
+  zai_messages: { status: 'hot', note: 'Transcript persistence — app/api/zai/route.ts writes + GET restores it' },
   zone_questions: { status: 'legacy-unused', note: 'Superseded by journey_questions — drop when empty' },
   user_answers: { status: 'legacy-unused', note: 'Superseded by journey_answers_jsonb — drop when empty' },
   user_likes: { status: 'legacy-unused', note: 'Superseded by likes — drop when empty' },
+  offer_signals: { status: 'hot', note: 'app/api/offer-signals — dislike/avoid feedback loop' },
 }
 
 function safeIdentifier(name: string): string {
@@ -81,10 +82,11 @@ async function main() {
     }
 
     console.log('\n━━━ Safe cleanup candidates (20260521 + 20260526) ━━━')
+    // zai_messages was dropped 2026-05-21 as zero-write, then recreated + wired up for real
+    // 2026-07-04 (app/api/zai/route.ts persists the transcript there) — no longer a candidate.
     for (const t of [
       'card_views',
       'micro_answers',
-      'zai_messages',
       'zone_questions',
       'user_answers',
       'user_likes',
