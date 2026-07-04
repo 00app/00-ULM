@@ -13,6 +13,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAiRouteAuth } from "@/lib/requestAuth";
 import { getLocalData } from "@/lib/local/getLocalData";
 import { getSessionFromRequest } from "@/lib/auth";
+import { GUEST_SESSION_COOKIE, parseGuestSessionCookie } from '@/lib/zone/guestSession'
+import { appendZaiMessages, getRecentZaiMessages } from '@/lib/zai/chatHistory'
 import { getDbPool } from '@/lib/db';
 import { getJourneyAnswersJsonbOnly, getJourneyAnswersForUser } from '@/lib/db/neon'
 import { setGeminiQuotaExceeded } from '@/lib/geminiQuota'
@@ -264,6 +266,7 @@ function mandatoryOpenerPrefix(
 async function polishZaiReplyAndLearn(args: {
   text: string
   sessionUserId?: string
+  chatSessionKey?: string | null
   question: string
   journeyAnswersForContext: Record<string, Record<string, string>>
   impactProfile?: ImpactProfile
@@ -297,6 +300,10 @@ async function polishZaiReplyAndLearn(args: {
       /* non-blocking brain stomach */
     }
   }
+  void appendZaiMessages(args.chatSessionKey, [
+    { role: 'user', content: args.question },
+    { role: 'zai', content: text },
+  ])
   return text
 }
 
@@ -447,6 +454,8 @@ export async function POST(req: NextRequest) {
       sentinelGrantContextLine = ` sentinel grant context: ${grantTitle}; claim portal: ${grantUrl}; use the live amount provided in context.`
     }
     const session = await getSessionFromRequest()
+    const chatSessionKey =
+      session?.userId ?? parseGuestSessionCookie(req.cookies.get(GUEST_SESSION_COOKIE)?.value)
     let userGenomeForPrompt: Record<string, unknown> | null = null
     let journeyAnswersForContext: Record<string, Record<string, string>> = {}
     let profileForContext:
@@ -712,6 +721,7 @@ export async function POST(req: NextRequest) {
           const polished = await polishZaiReplyAndLearn({
             text: bucketText,
             sessionUserId: session?.userId,
+          chatSessionKey,
             question,
             journeyAnswersForContext,
             impactProfile: impactProfile ?? undefined,
@@ -729,6 +739,7 @@ export async function POST(req: NextRequest) {
         const answer = await polishZaiReplyAndLearn({
           text: bucketText,
           sessionUserId: session?.userId,
+          chatSessionKey,
           question,
           journeyAnswersForContext,
           impactProfile: impactProfile ?? undefined,
@@ -753,6 +764,7 @@ export async function POST(req: NextRequest) {
         const answer = await polishZaiReplyAndLearn({
           text: gwText,
           sessionUserId: session?.userId,
+          chatSessionKey,
           question,
           journeyAnswersForContext,
           impactProfile: impactProfile ?? undefined,
@@ -844,6 +856,12 @@ export async function POST(req: NextRequest) {
                     /* non-blocking */
                   }
                 }
+                if (streamedFull.trim()) {
+                  void appendZaiMessages(chatSessionKey, [
+                    { role: 'user', content: question },
+                    { role: 'zai', content: streamedFull },
+                  ])
+                }
                 controller.close()
               } catch (streamErr) {
                 const msg = streamErr instanceof Error ? streamErr.message : String(streamErr)
@@ -881,6 +899,7 @@ export async function POST(req: NextRequest) {
       const answer = await polishZaiReplyAndLearn({
         text,
         sessionUserId: session?.userId,
+        chatSessionKey,
         question,
         journeyAnswersForContext,
         impactProfile: impactProfile ?? undefined,
@@ -897,5 +916,18 @@ export async function POST(req: NextRequest) {
     }
   } catch {
     return NextResponse.json({ answer: ZAI_FALLBACK }, { status: 200 })
+  }
+}
+
+/** GET — restore the persisted transcript for this session/user so a reload doesn't lose it. */
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getSessionFromRequest()
+    const chatSessionKey =
+      session?.userId ?? parseGuestSessionCookie(req.cookies.get(GUEST_SESSION_COOKIE)?.value)
+    const messages = await getRecentZaiMessages(chatSessionKey)
+    return NextResponse.json({ messages })
+  } catch {
+    return NextResponse.json({ messages: [] })
   }
 }

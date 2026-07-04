@@ -148,6 +148,27 @@ export default function ZaiPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const coldStartDone = useRef(false)
   const pendingCtxMeta = useRef<ZaiChatMeta | undefined>(undefined)
+  const [historyChecked, setHistoryChecked] = useState(false)
+
+  // Restore the persisted transcript (zai_messages) before deciding whether to show the
+  // cold-start hook — otherwise every reload looked like a fresh conversation even though
+  // the DB had the real history.
+  useEffect(() => {
+    let cancelled = false
+    void fetch('/api/zai', { cache: 'no-store', credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { messages?: { role: 'user' | 'zai'; content: string }[] } | null) => {
+        if (cancelled || !data?.messages?.length) return
+        setMessages(data.messages.map((m) => ({ role: m.role, text: m.content })))
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setHistoryChecked(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const [postcode, setPostcode] = useState<string | null>(null)
   useEffect(() => {
@@ -167,6 +188,7 @@ export default function ZaiPage() {
   }, [messages])
 
   useEffect(() => {
+    if (!historyChecked) return
     if (coldStartDone.current) return
     if (getAskZaiContext()) return
     if (messages.length > 0) return
@@ -174,7 +196,7 @@ export default function ZaiPage() {
     const totals = resolveHeroTotals(state.heroTotals)
     const locality = state.locationState?.locationName || state.profile?.postcode || postcode
     setMessages([{ role: 'zai', text: buildColdStartHook(totals, locality) }])
-  }, [messages.length, postcode, state.heroTotals, state.locationState, state.profile?.postcode])
+  }, [historyChecked, messages.length, postcode, state.heroTotals, state.locationState, state.profile?.postcode])
 
   const hasConsumedContextRef = useRef(false)
   useEffect(() => {
