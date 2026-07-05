@@ -32,9 +32,16 @@ function pruneEmail(): void {
   }
 }
 
+/**
+ * Vercel's edge appends the true connecting IP as the LAST hop in x-forwarded-for;
+ * earlier hops are client-supplied and can be spoofed to rotate past rate limits.
+ */
 export function getClientIp(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for')
-  if (forwarded) return forwarded.split(',')[0].trim()
+  if (forwarded) {
+    const hops = forwarded.split(',').map((ip) => ip.trim()).filter(Boolean)
+    if (hops.length > 0) return hops[hops.length - 1]
+  }
   const real = request.headers.get('x-real-ip')
   if (real) return real.trim()
   return 'unknown'

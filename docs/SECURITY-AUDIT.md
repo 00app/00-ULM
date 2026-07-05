@@ -17,6 +17,8 @@ OWASP-focused review (Next.js / Vercel / Neon).
 | M-7 | Unauthenticated analytics writes | **Fixed** |
 | M-8 | `/api/analytics/click` stub | **Fixed** — route removed |
 | L-5 | Transitive `esbuild` CVE | **Fixed** — `esbuild` override `^0.28.1` in `package.json` |
+| M-9 | `getClientIp()` trusted first hop of `x-forwarded-for`, letting a client rotate a spoofed header to bypass login/signup/SMS rate limits | **Fixed** — now takes the last hop (the IP Vercel's edge appends itself); earlier hops are client-supplied and untrusted |
+| M-10 | `resolveResearchUserId()` accepted `user_id` from the query string for `SCRAPER_SECRET`-bearer requests, widening blast radius if the secret leaked (query params land in access/proxy logs and referrers) | **Fixed** — explicit `user_id` now accepted from POST body only |
 
 ## Production headers
 

@@ -102,7 +102,12 @@ function buildSessionResearchProfileData(
   return enrichResearchProfileFromSession(profileData, session)
 }
 
-/** Hermes bearer may supply explicit user_id; browser clients must match session cookie. */
+/**
+ * Hermes bearer may supply explicit user_id via POST body only; browser clients must
+ * match session cookie. Query-string user_id is intentionally not accepted — GET params
+ * are far more likely to land in access/proxy logs and referrer headers, which would
+ * widen the blast radius if SCRAPER_SECRET is ever compromised.
+ */
 function resolveResearchUserId(
   sessionUserId: string | null,
   request: NextRequest,
@@ -112,8 +117,6 @@ function resolveResearchUserId(
   if (!opts?.allowExplicitUserId) return null
   const fromBody = opts?.bodyUserId?.trim() ?? ''
   if (fromBody && isValidResearchUserId(fromBody)) return fromBody
-  const fromQuery = request.nextUrl.searchParams.get('user_id')?.trim() ?? ''
-  if (fromQuery && isValidResearchUserId(fromQuery)) return fromQuery
   return null
 }
 
