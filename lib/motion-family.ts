@@ -37,8 +37,6 @@ export const FAMILY_BLUR_SUMMARY_PX = 3
 
 export const FAMILY_ATOMIC_BLUR_IN_PX = 15
 export const FAMILY_ATOMIC_BLUR_OUT_PX = 10
-export const FAMILY_ATOMIC_LETTER_IN = '0.4em'
-export const FAMILY_ATOMIC_LETTER_OUT = '-0.02em'
 /** Keep numeric for Framer interpolation (prevents 'normal' runtime warnings). */
 export const FAMILY_ATOMIC_LETTER_LOCKED = '0em'
 
@@ -92,14 +90,21 @@ export function atomicWordHoldMs(text: string): number {
 // Variants
 // -----------------------------------------------------------------------------
 
-/** Intro / summary ticker — blur cloud + letter-spacing + rise (no horizontal glide). */
+/**
+ * Intro / summary ticker — blur cloud + rise (no horizontal glide).
+ * letter-spacing is held constant (not tweened): it's a layout-triggering property, and
+ * interpolating it every frame alongside filter:blur() forces Safari into a full text
+ * layout recalc per frame, dropping frames in a way Chrome tolerates better. Locking it
+ * removes that cost everywhere this variant is consumed, independent of how each call
+ * site wires its own `transition` prop.
+ */
 export const familyAtomicAssembly: Record<string, Variant> = {
   hidden: {
     opacity: 0,
     scale: 1.05,
     y: FAMILY_RISE_PX,
     filter: `blur(${FAMILY_ATOMIC_BLUR_IN_PX}px)`,
-    letterSpacing: FAMILY_ATOMIC_LETTER_IN,
+    letterSpacing: FAMILY_ATOMIC_LETTER_LOCKED,
   },
   visible: {
     opacity: 1,
@@ -114,7 +119,7 @@ export const familyAtomicAssembly: Record<string, Variant> = {
     scale: 0.95,
     y: FAMILY_RISE_PX * 0.5,
     filter: `blur(${FAMILY_ATOMIC_BLUR_OUT_PX}px)`,
-    letterSpacing: FAMILY_ATOMIC_LETTER_OUT,
+    letterSpacing: FAMILY_ATOMIC_LETTER_LOCKED,
     transition: familyTransition(FAMILY_DUR_SHORT * 0.75),
   },
 }
