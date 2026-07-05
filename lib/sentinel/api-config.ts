@@ -43,3 +43,8 @@ export function getGeminiClient(): GoogleGenerativeAI | null {
 export function hasLiveGroundingKeys(): boolean {
   return Boolean(FIRECRAWL_API_KEY && GEMINI_API_KEY)
 }
+
+/** Tavily — free-tier (1,000 credits/month) scrape backup, used only when Firecrawl misses a URL. */
+export function resolveTavilyApiKey(): string {
+  return process.env.Tavily_Key?.trim() || process.env.TAVILY_API_KEY?.trim() || ''
+}

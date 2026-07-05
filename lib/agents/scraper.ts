@@ -139,28 +139,48 @@ export async function fetchFirecrawlMarkdownForUrls(
   const minChars = params?.minChars ?? 120
   const maxUrls = params?.maxUrls ?? urls.length
 
-  const firecrawlFallback = shouldSkipFirecrawlScrape() ? undefined : async (missedUrls: string[]) => {
-    const client = getClient()
-    if (!client) return []
-    const baseParams = { formats: ['markdown'] as ('markdown')[], onlyMainContent: true }
+  const backupFallback = async (missedUrls: string[]) => {
     const out: Array<{ url: string; markdown: string; title?: string }> = []
-    for (const url of missedUrls) {
-      try {
-        let res = await client.scrapeUrl(url, baseParams)
-        let md = extractMarkdown(res)
-        if (md.length < minChars) {
-          res = await client.scrapeUrl(url, { ...baseParams, waitFor: BOT_BLOCK_RETRY_WAIT_MS })
-          md = extractMarkdown(res)
+    let stillMissed = missedUrls
+
+    if (!shouldSkipFirecrawlScrape()) {
+      const client = getClient()
+      if (client) {
+        const baseParams = { formats: ['markdown'] as ('markdown')[], onlyMainContent: true }
+        const nextMissed: string[] = []
+        for (const url of stillMissed) {
+          try {
+            let res = await client.scrapeUrl(url, baseParams)
+            let md = extractMarkdown(res)
+            if (md.length < minChars) {
+              res = await client.scrapeUrl(url, { ...baseParams, waitFor: BOT_BLOCK_RETRY_WAIT_MS })
+              md = extractMarkdown(res)
+            }
+            if (md.length >= minChars) {
+              const meta = res as { metadata?: { title?: unknown } }
+              const title = typeof meta.metadata?.title === 'string' ? meta.metadata.title : undefined
+              out.push({ url, markdown: md, title })
+            } else {
+              nextMissed.push(url)
+            }
+          } catch {
+            nextMissed.push(url)
+          }
         }
-        if (md.length >= minChars) {
-          const meta = res as { metadata?: { title?: unknown } }
-          const title = typeof meta.metadata?.title === 'string' ? meta.metadata.title : undefined
-          out.push({ url, markdown: md, title })
-        }
-      } catch { /* ignore */ }
+        stillMissed = nextMissed
+      }
     }
+
+    if (stillMissed.length > 0) {
+      const { hasTavilyApiKey, fetchTavilyMarkdownForUrls } = await import('@/lib/agents/tavilyScraper')
+      if (hasTavilyApiKey()) {
+        const tavilyRows = await fetchTavilyMarkdownForUrls(stillMissed, { minChars })
+        out.push(...tavilyRows)
+      }
+    }
+
     return out
   }
 
-  return fetchMarkdownForUrlsFreeFirst(urls, { minChars, maxUrls, fallback: firecrawlFallback })
+  return fetchMarkdownForUrlsFreeFirst(urls, { minChars, maxUrls, fallback: backupFallback })
 }
