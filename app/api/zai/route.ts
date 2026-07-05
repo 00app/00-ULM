@@ -694,6 +694,7 @@ export async function POST(req: NextRequest) {
         totalCarbon,
       })
     ) {
+      console.log('[zai] model=none path=needs_context fallback=true')
       const thin = stripZaiChatMarkdown(ZAI_FALLBACK_NEEDS_CONTEXT)
       if (!streamRequested) {
         return NextResponse.json({ answer: thin }, { status: 200 })
@@ -709,13 +710,14 @@ export async function POST(req: NextRequest) {
     let text: string
     try {
       if (isBucketFailoverEnabled()) {
-        const { text: bucketRaw } = await generateGatewayText({
+        const { text: bucketRaw, modelId: bucketModelId } = await generateGatewayText({
           prompt: gatewayPrompt,
           tag: `zai-${zaiTopic}`,
           tier: 'chat',
           maxOutputTokens: 512,
           temperature: 0.2,
         })
+        console.log(`[zai] model=${bucketModelId} path=bucket_failover fallback=${!bucketRaw?.trim()}`)
         const bucketText = bucketRaw?.trim() ? bucketRaw : ZAI_FALLBACK
         if (streamRequested) {
           const polished = await polishZaiReplyAndLearn({
@@ -750,7 +752,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (!streamRequested && isAiGatewayConfigured()) {
-        const { text: gwText } = await generateGatewayText({
+        const { text: gwText, modelId: gwModelId } = await generateGatewayText({
           prompt: gatewayPrompt,
           tag: `zai-${zaiTopic}`,
           tier: 'chat',
@@ -758,6 +760,7 @@ export async function POST(req: NextRequest) {
           temperature: 0.2,
           models: [...CHAT_GATEWAY_MODEL_CHAIN],
         })
+        console.log(`[zai] model=${gwModelId} path=ai_gateway fallback=${!gwText}`)
         if (!gwText) {
           return NextResponse.json({ answer: ZAI_FALLBACK }, { status: 200 })
         }
@@ -775,6 +778,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (!genAI) {
+        console.log('[zai] model=none path=no_provider_configured fallback=true')
         return NextResponse.json({ answer: ZAI_FALLBACK }, { status: 503 })
       }
 
@@ -782,6 +786,7 @@ export async function POST(req: NextRequest) {
         model: GEMINI_DIRECT_CHAT,
         systemInstruction,
       })
+      console.log(`[zai] model=${GEMINI_DIRECT_CHAT} path=gemini_direct stream=${streamRequested}`)
 
       if (streamRequested) {
         const opener = mandatoryOpenerPrefix(
@@ -868,6 +873,7 @@ export async function POST(req: NextRequest) {
                 const status = (streamErr as { status?: number })?.status
                 const isQuota = status === 429 || status === 529 || /429|529|quota|resource exhausted/i.test(msg)
                 if (isQuota) setGeminiQuotaExceeded()
+                console.log(`[zai] model=${GEMINI_DIRECT_CHAT} path=gemini_direct_stream fallback=true quota=${isQuota} error=${msg.slice(0, 160)}`)
                 controller.enqueue(textEncoder.encode(ZAI_FALLBACK))
                 controller.close()
               }
@@ -912,9 +918,12 @@ export async function POST(req: NextRequest) {
       const status = (geminiError as { status?: number })?.status
       const isQuota = status === 429 || status === 529 || /429|529|quota|resource exhausted/i.test(msg)
       if (isQuota) setGeminiQuotaExceeded()
+      console.log(`[zai] model=none path=error fallback=true quota=${isQuota} error=${msg.slice(0, 160)}`)
       return NextResponse.json({ answer: ZAI_FALLBACK }, { status: 200 })
     }
-  } catch {
+  } catch (outerError: unknown) {
+    const msg = outerError instanceof Error ? outerError.message : String(outerError)
+    console.log(`[zai] model=none path=outer_error fallback=true error=${msg.slice(0, 160)}`)
     return NextResponse.json({ answer: ZAI_FALLBACK }, { status: 200 })
   }
 }

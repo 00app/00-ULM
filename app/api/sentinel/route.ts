@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       postcode,
       runScrapeSync,
     })
+    console.log(`[sentinel] model=${sentinelBrain.model} fallback=${sentinelBrain.model === 'mechanical'}`)
     const liveImpact = sentinelBrain.liveImpact
 
     const appOrigin = resolveAppOrigin(request)

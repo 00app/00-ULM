@@ -133,7 +133,7 @@ flowchart TB
 | API | Auth | Used for |
 |-----|------|----------|
 | [postcodes.io](https://postcodes.io) | none | Council / region anchor |
-| [epc.opendatacommunities.org](https://epc.opendatacommunities.org/docs/api/domestic) | HTTP Basic (`OPENEPC_EMAIL` + `OPENEPC_API_KEY`) | Domestic EPC search by postcode; optional house-number filter (`lib/intelligence/epcAddressMatch.ts`) |
+| [get-energy-performance-data.communities.gov.uk](https://get-energy-performance-data.communities.gov.uk/api-technical-documentation) | Bearer (`OPENEPC_BEARER_TOKEN`) | Domestic EPC search by postcode; optional house-number filter (`lib/intelligence/epcAddressMatch.ts`). Migrated from `epc.opendatacommunities.org` (shut down May 2026) — old `OPENEPC_EMAIL`/`OPENEPC_API_KEY` vars are dead, confirmed `OPENEPC_BEARER_TOKEN` is what `lib/intelligence/openEpcClient.ts` actually reads |
 | [carbonintensity.org.uk](https://api.carbonintensity.org.uk) | none | `GET /intensity` (live gCO₂/kWh), `GET /generation` (fuel mix %), regional postcode |
 | [environment.data.gov.uk](https://environment.data.gov.uk/flood-monitoring) | none | Water lane — latest station readings (`/data/readings?_limit=N`) |
 | [api.octopus.energy](https://api.octopus.energy) | none | Indicative Agile p/kWh (electric / mixed homes) |

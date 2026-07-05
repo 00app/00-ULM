@@ -40,9 +40,12 @@ function isGrantsWarmHomesUrl(url: string): boolean {
 /** True when URL topic conflicts with the tile journey category. */
 export function offerUrlConflictsWithJourney(url: string, journeyKey: JourneyId): boolean {
   const trimmed = url.trim()
-  if (journeyKey === 'home' && isHomeBoilerUpgradeUrl(trimmed)) return false
+  // Boiler Upgrade Scheme is a genuine grant, not a home-only concern — it belongs on both
+  // 'home' and 'grants' (previously grants alone rejected it, leaving every grants row with
+  // no offer_url even though it's the URL most naturally returned for a grants query).
+  if ((journeyKey === 'home' || journeyKey === 'grants') && isHomeBoilerUpgradeUrl(trimmed)) return false
   if (journeyKey === 'grants' && isGrantsWarmHomesUrl(trimmed)) return false
-  if (journeyKey !== 'home' && isHomeBoilerUpgradeUrl(trimmed)) return true
+  if (journeyKey !== 'home' && journeyKey !== 'grants' && isHomeBoilerUpgradeUrl(trimmed)) return true
   if (journeyKey !== 'grants' && isGrantsWarmHomesUrl(trimmed)) return true
   if (journeyKey !== 'utilities' && isOfgemPriceCapUrl(trimmed)) return true
   return false

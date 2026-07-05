@@ -81,7 +81,10 @@ export const ZAI_FALLBACK_UNCERTAIN =
 export const ZAI_FALLBACK_NEEDS_CONTEXT =
   "I don't have your postcode or profile answers yet, so I can't give you real numbers. Tell me your postcode here, or finish your profile, and I'll dig into actual savings for your area."
 
-export const ZAI_FALLBACK_CONNECTING = "Give me a sec — still checking what's live near you."
+/** Used on any Gemini/gateway failure, transient or permanent (e.g. daily quota exhausted) —
+ * kept deliberately non-committal rather than implying an active retry that may not be
+ * happening, since callers don't currently distinguish the two cases. */
+export const ZAI_FALLBACK_CONNECTING = "Couldn't get a live answer just now — try again in a moment."
 
 export const ZAI_FORBIDDEN_TOPIC_DECLINE =
   "I cannot offer financial, legal, or medical advice. Let's stay focused on your home energy or travel moves."
