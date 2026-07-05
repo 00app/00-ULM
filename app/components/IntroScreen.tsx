@@ -152,40 +152,6 @@ export default function IntroScreen() {
   }, [screen, router])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (!('geolocation' in navigator)) return
-    if (localStorage.getItem('profile_postcode')) return
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const params = new URLSearchParams({
-            lat: String(position.coords.latitude),
-            lon: String(position.coords.longitude),
-          })
-          const res = await fetch(`/api/geocode?${params.toString()}`)
-          if (!res.ok) return
-          const json = (await res.json()) as { postcode?: string }
-          const postcode = typeof json.postcode === 'string' ? json.postcode.trim() : ''
-          if (!postcode) return
-          localStorage.setItem('profile_postcode', postcode.toUpperCase())
-          try {
-            persistUnifiedUserProfileMemory()
-          } catch {
-            //
-          }
-        } catch {
-          // Non-fatal: users can still enter postcode manually.
-        }
-      },
-      () => {
-        // Silent fallback to manual postcode flow.
-      },
-      { enableHighAccuracy: false, timeout: 6000, maximumAge: 300000 }
-    )
-  }, [])
-
-  useEffect(() => {
     if (screen !== 'value-message') return
     const safetyMs = introWordsMinDurationMs(
       INTRO_KINETIC_WORDS,
