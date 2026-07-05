@@ -169,6 +169,37 @@ export default function ProfileSummaryPage() {
 
   useLayoutEffect(() => setMounted(true), [])
 
+  // Absolute backstop — deliberately independent of the data-fetching effect below (which
+  // depends on profileEffectKey and can legitimately re-run mid-flight, e.g. a locationState
+  // update triggering a fresh profileEffectKey, cancelling its own in-progress hard safety timer
+  // before it ever fires). If that keeps happening, the "hard safety timer" inside that effect
+  // never actually gets a chance to run, and the user is stuck indefinitely with no fallback ever
+  // firing — this effect cannot be cancelled by that churn since it only depends on `mounted`.
+  useEffect(() => {
+    if (!mounted) return
+    const id = window.setTimeout(() => {
+      if (displayReadyRef.current) return
+      console.warn('[summary] absolute backstop fired — main effect never settled, publishing zero-value fallback')
+      setSummaryPack({
+        waste: { annualWasteCash: 0, annualWasteCarbon: 0, totalsMoney: 0, totalsCarbon: 0 },
+        narrative: {
+          employment_status: undefined,
+          displayName: state.profile?.name || undefined,
+          councilLabel: 'the UK',
+          postcodeDisplay: (state.profile?.postcode ?? '').trim(),
+          local: null,
+          totalsMoney: 0,
+          totalsCarbon: 0,
+          annualWasteCash: 0,
+          annualWasteCarbon: 0,
+        },
+      })
+      setDisplayReady(true)
+    }, 12000)
+    return () => window.clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately mount-only, see comment above
+  }, [mounted])
+
   useEffect(() => {
     let cancelled = false
     const timeout = window.setTimeout(() => {

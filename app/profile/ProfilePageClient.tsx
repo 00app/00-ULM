@@ -88,7 +88,7 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
       'OTHER',
     ],
     getInsight: (v, locality) =>
-      v === 'GAS' ? `gas homes in ${locality || 'your area'} pay around £180 more per year\nthan heat pumps since April.` :
+      v === 'GAS' ? `gas homes in ${locality || 'your area'} pay £180 more per year\nthan heat pumps.` :
       v === 'ELECTRIC' ? 'fully electric. you\'re already ahead\nof most households.' :
       v === 'MIX' ? 'mixed. there\'s room to optimise\nboth sides.' : null,
   },
@@ -98,7 +98,7 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
     type: 'options' as const,
     options: ['WALK', 'BIKE', 'PUBLIC', 'CAR', 'MIX'],
     getInsight: (v) =>
-      v === 'CAR' ? 'drivers here spend around £2,100 a year on fuel.\nthere\'s room to move.' :
+      v === 'CAR' ? 'drivers here spend £2,100 a year on fuel.\nthere\'s room to move.' :
       v === 'PUBLIC' ? 'public transport keeps your carbon\nlower than most households.' :
       v === 'WALK' || v === 'BIKE' ? 'no fuel spend. that\'s a real\nadvantage.' : null,
   },
@@ -122,13 +122,49 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
       { label: 'BETWEEN\nJOBS', value: 'BETWEEN_JOBS', ariaLabel: 'Between jobs' },
     ],
   },
-  { id: 'name', label: 'what should we\ncall you?', type: 'input' as const, placeholder: 'first name' },
+  { id: 'name', label: 'what should\nwe call you?', type: 'input' as const, placeholder: 'first name' },
 ]
 
 const STORAGE_KEYS: Record<string, string> = { ...PROFILE_STORAGE_KEYS }
 
 function resolveProfileGoal(v: Record<string, string>): string {
   return v.goal?.trim() || readStoredProfileGoal()
+}
+
+/**
+ * POST /api/user can reattach to an existing account (session match, or name+postcode match)
+ * and return a merged/updated row that differs from whatever was just typed locally — e.g. a
+ * returning user on a browser with a stale session cookie gets the account's real stored name
+ * back, not the name from this onboarding pass. Without this, localStorage (and everything that
+ * reads from it — Zone greeting, Truth Ledger, summary) keeps showing the stale local values
+ * forever, diverging from what the server actually persisted.
+ */
+function syncLocalStorageFromServerUser(user: Record<string, unknown> | undefined | null): void {
+  if (!user || typeof window === 'undefined') return
+  const setIfString = (key: string, value: unknown) => {
+    if (typeof value === 'string' && value.trim()) localStorage.setItem(key, value)
+  }
+  setIfString(STORAGE_KEYS.name, user.name)
+  setIfString(STORAGE_KEYS.postcode, user.postcode)
+  setIfString(STORAGE_KEYS.livingSituation, user.household)
+  setIfString(STORAGE_KEYS.homeType, user.home_type)
+  setIfString(STORAGE_KEYS.transport, user.transport_baseline)
+  setIfString(STORAGE_KEYS.age, user.age_group)
+  setIfString(STORAGE_KEYS.employmentStatus, user.employment_status)
+  const genome = user.user_genome && typeof user.user_genome === 'object'
+    ? (user.user_genome as Record<string, unknown>)
+    : null
+  if (genome) {
+    setIfString(STORAGE_KEYS.powerType, genome.home_power)
+    const goal = genome.profile_goal ?? genome.goal
+    if (typeof goal === 'string' && goal.trim()) {
+      try {
+        localStorage.setItem(PROFILE_GOAL_STORAGE_KEY, goal)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
 }
 
 function isProfileOnboardingComplete(v: Record<string, string>): boolean {
@@ -581,6 +617,7 @@ export default function ProfilePageClient() {
               ),
             ])
             applyPropertyPrefillFromApiResponse(res)
+            syncLocalStorageFromServerUser(res?.user)
             const userId = res?.user?.id ?? res?.id
             if (userId) {
               persistSessionRestoreProof(
@@ -665,6 +702,7 @@ export default function ProfilePageClient() {
 
       void createUser(payload)
         .then((res) => {
+          syncLocalStorageFromServerUser(res?.user)
           const userId = res?.user?.id ?? res?.id
           if (typeof window !== 'undefined' && userId) {
             persistSessionRestoreProof(
