@@ -16,6 +16,7 @@ docs/.obsidian/
 docs/**/*.key
 **/ssh-key*.key
 .continue/
+.claude/
 
 # webpack / eslint caches (regenerated)
 node_modules/.cache
