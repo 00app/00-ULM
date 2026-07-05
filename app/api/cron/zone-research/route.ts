@@ -138,7 +138,8 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
           userId: row.id,
         })
         results.push({ userId: row.id, postcode: pc, ok: true })
-      } catch {
+      } catch (e) {
+        console.warn(`[cron/zone-research] runZeroResearchWithProfile failed for ${row.id}/${pc}:`, e)
         results.push({ userId: row.id, postcode: pc, ok: false })
       }
       await new Promise((r) => setTimeout(r, 500))
