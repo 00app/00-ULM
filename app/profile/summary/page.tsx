@@ -187,12 +187,23 @@ export default function ProfileSummaryPage() {
     if (!mounted || typeof window === 'undefined') return
     lastLocationSyncRef.current = ''
     lastSummaryPublishRef.current = ''
-    const profileFromContext = state.profile
-    const fromStorage = getProfileFromStorage()
-    const profilePostcode = (profileFromContext?.postcode ?? fromStorage?.postcode ?? '').trim()
-    const profileName = (profileFromContext?.name ?? fromStorage?.name ?? '').trim()
 
-    if (!profilePostcode && !profileName) return
+    // Outer guard — everything below (localStorage reads, JSON parsing) runs before the hard
+    // safety timer gets armed. On Safari (private browsing / storage-partitioning edge cases),
+    // a raw localStorage.getItem() call can throw synchronously where Chrome wouldn't — if that
+    // happens here, the whole effect used to die before the safety net ever existed, leaving the
+    // user stuck on the loading logo with no fallback at all. This outer try/catch is the actual
+    // safety net for that case; the 9s timer below only helps once we get this far.
+    let cancelled = false
+    let hardSafetyTimer: number | undefined
+    let safetyTimer: number | undefined
+    try {
+      const profileFromContext = state.profile
+      const fromStorage = getProfileFromStorage()
+      const profilePostcode = (profileFromContext?.postcode ?? fromStorage?.postcode ?? '').trim()
+      const profileName = (profileFromContext?.name ?? fromStorage?.name ?? '').trim()
+
+      if (!profilePostcode && !profileName) return
 
     const postcode = (profilePostcode ?? '').replace(/\s+/g, '').trim().toUpperCase()
 
@@ -217,7 +228,6 @@ export default function ProfileSummaryPage() {
       ),
     }
 
-    let cancelled = false
     const journeyAnswers = loadJourneyAnswers()
 
     const postcodeDisplay = (profile.postcode ?? '').trim()
@@ -331,7 +341,7 @@ export default function ProfileSummaryPage() {
     // blob from months of accumulated localStorage, an edge case in buildUserImpact, a stalled
     // fetch), the user must never be stuck on the loading logo forever. This fires unconditionally
     // after a few seconds unless a real publish has already happened.
-    const hardSafetyTimer = window.setTimeout(() => {
+    hardSafetyTimer = window.setTimeout(() => {
       if (cancelled || displayReadyRef.current) return
       console.warn('[summary] hard safety timeout — publishing zero-value fallback')
       setSummaryPack({
@@ -350,8 +360,6 @@ export default function ProfileSummaryPage() {
       })
       setDisplayReady(true)
     }, 9000)
-
-    let safetyTimer: number | undefined
 
     try {
       const gridIntensityGPerKwh =
@@ -468,10 +476,32 @@ export default function ProfileSummaryPage() {
         publishSummary(contextLocal, 'the UK', 0, 0, { annualWasteCash: 0, annualWasteCarbon: 0 })
       }
     }
+    } catch (setupErr) {
+      // Anything above (localStorage reads, JSON parsing) threw before the hard safety timer
+      // even existed — publish immediately rather than leaving the user on the loading logo.
+      console.warn('[summary] pre-processing crashed, publishing immediate zero-value fallback:', setupErr)
+      if (!cancelled && !displayReadyRef.current) {
+        setSummaryPack({
+          waste: { annualWasteCash: 0, annualWasteCarbon: 0, totalsMoney: 0, totalsCarbon: 0 },
+          narrative: {
+            employment_status: undefined,
+            displayName: state.profile?.name || undefined,
+            councilLabel: 'the UK',
+            postcodeDisplay: (state.profile?.postcode ?? '').trim(),
+            local: null,
+            totalsMoney: 0,
+            totalsCarbon: 0,
+            annualWasteCash: 0,
+            annualWasteCarbon: 0,
+          },
+        })
+        setDisplayReady(true)
+      }
+    }
 
     return () => {
       cancelled = true
-      window.clearTimeout(hardSafetyTimer)
+      if (hardSafetyTimer != null) window.clearTimeout(hardSafetyTimer)
       if (safetyTimer != null) window.clearTimeout(safetyTimer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- omit locationState; publishSummary writes it and would loop
