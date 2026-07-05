@@ -323,7 +323,14 @@ export default function ProfileSummaryPage() {
       profileWaste: { annualWasteCash: number; annualWasteCarbon: number },
       genomeMoney?: number
     ) => {
-      if (cancelled || tickerLockedRef.current) return
+      // Deliberately NOT gated on tickerLockedRef: that flag only stops the ticker's words
+      // from being rebuilt mid-animation (see the effect below). If a provisional publish
+      // (e.g. the LOCALITY_DISPLAY_SAFETY_MS fallback) already locked the ticker before the
+      // real locality/genome result resolved, that real result must still update summaryPack
+      // and locationState — navigateToZone() seeds Zone's hero totals/locality straight from
+      // them, so silently dropping a late-arriving correction here means Zone starts from
+      // stale fallback data too.
+      if (cancelled) return
       const publishKey = [
         resolvedLocationName,
         local?.council ?? '',

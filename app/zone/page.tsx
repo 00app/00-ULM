@@ -2653,7 +2653,7 @@ export default function ZonePage() {
   const zoneWelcome = useMemo(
     () =>
       buildZoneWelcomeCopy(
-        state?.profile?.name,
+        state?.profile?.name ?? readProfileFieldsFromStorage().name,
         welcomeJourneyCount,
         heroMoney,
         heroCarbon,
