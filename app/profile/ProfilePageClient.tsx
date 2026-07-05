@@ -76,7 +76,7 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
   { id: 'homeType', label: 'your home?', type: 'options' as const, options: ['FLAT', 'HOUSE'],
     getInsight: (v) =>
       v === 'HOUSE' ? 'houses unlock more grant schemes than flats.\ngood.' :
-      v === 'FLAT' ? 'some grants are trickier in flats.\nwe\'ll find what\'s available.' : null },
+      v === 'FLAT' ? 'flats make grants trickier —\nwe\'ll check what\'s available.' : null },
   {
     id: 'powerType',
     label: 'how do you heat your home?',
@@ -88,7 +88,7 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
       'OTHER',
     ],
     getInsight: (v, locality) =>
-      v === 'GAS' ? `gas homes in ${locality || 'your area'} pay £180 more per year\nthan heat pumps.` :
+      v === 'GAS' ? `${locality || 'your area'} gas homes pay\n£180 more yearly.` :
       v === 'ELECTRIC' ? 'fully electric. you\'re already ahead\nof most households.' :
       v === 'MIX' ? 'mixed. there\'s room to optimise\nboth sides.' : null,
   },
@@ -98,8 +98,8 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
     type: 'options' as const,
     options: ['WALK', 'BIKE', 'PUBLIC', 'CAR', 'MIX'],
     getInsight: (v) =>
-      v === 'CAR' ? 'drivers here spend £2,100 a year on fuel.\nthere\'s room to move.' :
-      v === 'PUBLIC' ? 'public transport keeps your carbon\nlower than most households.' :
+      v === 'CAR' ? 'drivers here spend £2,100\na year on fuel.' :
+      v === 'PUBLIC' ? 'public transport keeps your carbon\nlower than most.' :
       v === 'WALK' || v === 'BIKE' ? 'no fuel spend. that\'s a real\nadvantage.' : null,
   },
   {
