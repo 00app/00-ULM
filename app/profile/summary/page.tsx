@@ -3,11 +3,11 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { useApp, readLocationStateFromStorage } from '@/app/context/AppContext'
+import { useApp, readLocationStateFromStorage, type AppProfile } from '@/app/context/AppContext'
 import { runProfileResearchHandshake } from '@/lib/researchSyncClient'
 import { buildResearchProfileFromStorage } from '@/lib/profile/buildResearchProfilePayload'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
-import { buildUserImpact } from '@/lib/brains/buildUserImpact'
+import { buildUserImpact, getSummaryWaste } from '@/lib/brains/buildUserImpact'
 import { syncFallbackGridIntensityGPerKwh } from '@/lib/brains/liveGridCarbonFactor'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import type { Persona } from '@/lib/brains/types'
@@ -74,6 +74,42 @@ function getProfileFromStorage() {
   const goal = localStorage.getItem('profile_goal') ?? ''
   if (!postcode && !name) return null
   return { name, postcode, livingSituation: household, homeType, transport, age: age || undefined, goal: goal || undefined }
+}
+
+/**
+ * Best-effort name/locality/waste for the timeout-driven fallbacks (absolute backstop,
+ * pre-processing-crashed), which fire outside the main effect and never had a chance to run
+ * the full buildUserImpact/locality-prefetch pipeline. Reads context + localStorage directly
+ * (an empty string counts as missing, same as the main path) so these fallbacks still show
+ * real name/town/£/CO2 whenever that data is actually available on the device, instead of
+ * hardcoding "there" / "the UK" / £0 / 0kg regardless of what's sitting in storage.
+ */
+function resolveFallbackNarrativeBasics(profileFromContext: AppProfile | null | undefined): {
+  displayName: string | undefined
+  councilLabel: string
+  postcodeDisplay: string
+  waste: { annualWasteCash: number; annualWasteCarbon: number }
+} {
+  const fromStorage = getProfileFromStorage()
+  const displayName = profileFromContext?.name?.trim() || fromStorage?.name?.trim() || undefined
+  const postcodeDisplay = (
+    profileFromContext?.postcode?.trim() || fromStorage?.postcode?.trim() || ''
+  )
+    .replace(/\s+/g, '')
+    .toUpperCase()
+  const cachedLocality = postcodeDisplay.length >= 4 ? readCachedProfileLocality(postcodeDisplay) : null
+  const outward = postcodeDisplay.match(/^([A-Z]{1,2}\d{1,2}[A-Z]?)/)?.[1]
+  const councilLabel = cachedLocality || (outward && outward.length >= 2 ? outward : 'the UK')
+  const waste = getSummaryWaste(
+    {
+      postcode: postcodeDisplay || undefined,
+      household: profileFromContext?.livingSituation || fromStorage?.livingSituation || undefined,
+      home_type: profileFromContext?.homeType || fromStorage?.homeType || undefined,
+      transport_baseline: profileFromContext?.transport || fromStorage?.transport || undefined,
+    },
+    normalizeEmploymentStatus(profileFromContext?.employmentStatus)
+  )
+  return { displayName, councilLabel, postcodeDisplay, waste }
 }
 
 function loadJourneyAnswers(): Record<JourneyId, Record<string, string>> {
@@ -179,19 +215,20 @@ export default function ProfileSummaryPage() {
     if (!mounted) return
     const id = window.setTimeout(() => {
       if (displayReadyRef.current) return
-      console.warn('[summary] absolute backstop fired — main effect never settled, publishing zero-value fallback')
+      console.warn('[summary] absolute backstop fired — main effect never settled, publishing best-effort fallback')
+      const fallback = resolveFallbackNarrativeBasics(state.profile)
       setSummaryPack({
-        waste: { annualWasteCash: 0, annualWasteCarbon: 0, totalsMoney: 0, totalsCarbon: 0 },
+        waste: { ...fallback.waste, totalsMoney: 0, totalsCarbon: 0 },
         narrative: {
           employment_status: undefined,
-          displayName: state.profile?.name || undefined,
-          councilLabel: 'the UK',
-          postcodeDisplay: (state.profile?.postcode ?? '').trim(),
+          displayName: fallback.displayName,
+          councilLabel: fallback.councilLabel,
+          postcodeDisplay: fallback.postcodeDisplay,
           local: null,
           totalsMoney: 0,
           totalsCarbon: 0,
-          annualWasteCash: 0,
-          annualWasteCarbon: 0,
+          annualWasteCash: fallback.waste.annualWasteCash,
+          annualWasteCarbon: fallback.waste.annualWasteCarbon,
         },
       })
       setDisplayReady(true)
@@ -385,19 +422,21 @@ export default function ProfileSummaryPage() {
     // after a few seconds unless a real publish has already happened.
     hardSafetyTimer = window.setTimeout(() => {
       if (cancelled || displayReadyRef.current) return
-      console.warn('[summary] hard safety timeout — publishing zero-value fallback')
+      console.warn('[summary] hard safety timeout — publishing best-effort fallback')
+      const hardTimeoutWaste = getSummaryWaste(profile, profile.employment_status)
+      const hardTimeoutOutward = postcode.match(/^([A-Z]{1,2}\d{1,2}[A-Z]?)/)?.[1]
       setSummaryPack({
-        waste: { annualWasteCash: 0, annualWasteCarbon: 0, totalsMoney: 0, totalsCarbon: 0 },
+        waste: { ...hardTimeoutWaste, totalsMoney: 0, totalsCarbon: 0 },
         narrative: {
           employment_status: undefined,
           displayName: profile.name || undefined,
-          councilLabel: 'the UK',
+          councilLabel: cachedLocality || (hardTimeoutOutward && hardTimeoutOutward.length >= 2 ? hardTimeoutOutward : 'the UK'),
           postcodeDisplay,
           local: null,
           totalsMoney: 0,
           totalsCarbon: 0,
-          annualWasteCash: 0,
-          annualWasteCarbon: 0,
+          annualWasteCash: hardTimeoutWaste.annualWasteCash,
+          annualWasteCarbon: hardTimeoutWaste.annualWasteCarbon,
         },
       })
       setDisplayReady(true)
@@ -515,26 +554,35 @@ export default function ProfileSummaryPage() {
     } catch (err) {
       console.warn('[summary] sync computation failed, falling back:', err)
       if (!cancelled) {
-        publishSummary(contextLocal, 'the UK', 0, 0, { annualWasteCash: 0, annualWasteCarbon: 0 })
+        const syncFailWaste = getSummaryWaste(profile, profile.employment_status)
+        const syncFailOutward = postcode.match(/^([A-Z]{1,2}\d{1,2}[A-Z]?)/)?.[1]
+        publishSummary(
+          contextLocal,
+          cachedLocality || (syncFailOutward && syncFailOutward.length >= 2 ? syncFailOutward : 'the UK'),
+          0,
+          0,
+          syncFailWaste
+        )
       }
     }
     } catch (setupErr) {
       // Anything above (localStorage reads, JSON parsing) threw before the hard safety timer
       // even existed — publish immediately rather than leaving the user on the loading logo.
-      console.warn('[summary] pre-processing crashed, publishing immediate zero-value fallback:', setupErr)
+      console.warn('[summary] pre-processing crashed, publishing best-effort fallback:', setupErr)
       if (!cancelled && !displayReadyRef.current) {
+        const crashFallback = resolveFallbackNarrativeBasics(state.profile)
         setSummaryPack({
-          waste: { annualWasteCash: 0, annualWasteCarbon: 0, totalsMoney: 0, totalsCarbon: 0 },
+          waste: { ...crashFallback.waste, totalsMoney: 0, totalsCarbon: 0 },
           narrative: {
             employment_status: undefined,
-            displayName: state.profile?.name || undefined,
-            councilLabel: 'the UK',
-            postcodeDisplay: (state.profile?.postcode ?? '').trim(),
+            displayName: crashFallback.displayName,
+            councilLabel: crashFallback.councilLabel,
+            postcodeDisplay: crashFallback.postcodeDisplay,
             local: null,
             totalsMoney: 0,
             totalsCarbon: 0,
-            annualWasteCash: 0,
-            annualWasteCarbon: 0,
+            annualWasteCash: crashFallback.waste.annualWasteCash,
+            annualWasteCarbon: crashFallback.waste.annualWasteCarbon,
           },
         })
         setDisplayReady(true)
