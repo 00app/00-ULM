@@ -231,8 +231,12 @@ export default function ProfileSummaryPage() {
     try {
       const profileFromContext = state.profile
       const fromStorage = getProfileFromStorage()
-      const profilePostcode = (profileFromContext?.postcode ?? fromStorage?.postcode ?? '').trim()
-      const profileName = (profileFromContext?.name ?? fromStorage?.name ?? '').trim()
+      // readProfileFromStorage() (AppContext) can return a non-null profile with an empty
+      // name/postcode when only some onboarding fields have landed yet — `??` treats that
+      // empty string as "defined" and never falls through to the (correct) storage read here.
+      // Use `||` so an empty string is treated the same as missing.
+      const profilePostcode = (profileFromContext?.postcode?.trim() || fromStorage?.postcode?.trim() || '')
+      const profileName = (profileFromContext?.name?.trim() || fromStorage?.name?.trim() || '')
 
       if (!profilePostcode && !profileName) return
 

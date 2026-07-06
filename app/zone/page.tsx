@@ -1560,7 +1560,7 @@ export default function ZonePage() {
     const profileFromStorage = readProfileFieldsFromStorage()
     const profile = {
       ...profileFromStorage,
-      name: state.profile?.name ?? profileFromStorage.name,
+      name: state.profile?.name || profileFromStorage.name,
       postcode:
         liveProfilePostcode ||
         state.profile?.postcode ||
@@ -1781,7 +1781,7 @@ export default function ZonePage() {
     const profileFromStorage = readProfileFieldsFromStorage()
     const profile = {
       ...profileFromStorage,
-      name: state.profile?.name ?? profileFromStorage.name,
+      name: state.profile?.name || profileFromStorage.name,
       postcode:
         liveProfilePostcode ||
         state.profile?.postcode ||
@@ -2653,7 +2653,7 @@ export default function ZonePage() {
   const zoneWelcome = useMemo(
     () =>
       buildZoneWelcomeCopy(
-        state?.profile?.name ?? readProfileFieldsFromStorage().name,
+        state?.profile?.name || readProfileFieldsFromStorage().name,
         welcomeJourneyCount,
         heroMoney,
         heroCarbon,
