@@ -335,7 +335,7 @@ export function DiscoveryTakeover({
           <motion.div
             key="clean-birth-question"
             className="zone-loop-question profile-step-slam w-full flex flex-col items-center"
-            style={{ maxWidth: 520, gap: 40 }}
+            style={{ maxWidth: 'min(900px, 100%)', gap: 40 }}
             initial={stepMotion.initial}
             animate={stepMotion.animate}
             exit={stepMotion.exit}
@@ -354,7 +354,6 @@ export function DiscoveryTakeover({
                 marginBottom: 0,
                 marginLeft: 'auto',
                 marginRight: 'auto',
-                maxWidth: 'min(92vw, 28rem)',
                 textAlign: 'center',
                 whiteSpace: 'pre-line',
               }}
