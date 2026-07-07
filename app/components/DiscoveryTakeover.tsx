@@ -276,10 +276,19 @@ export function DiscoveryTakeover({
     tryReveal()
   }, [phase, pulseWordsComplete, cardReady, tryReveal])
 
+  /**
+   * Guards both halves of the reveal gate. cardReady covers the async recompute; this timeout
+   * also forces pulseWordsComplete in case ArchitecturalPulse's onComplete callback never fires
+   * (e.g. a backgrounded/throttled tab stalls IntroWordCycle's internal timers) — otherwise
+   * tryReveal() waits on it forever and the takeover is stuck with no way out but a reload.
+   */
   useEffect(() => {
     if (phase !== 'pulse') return
     const safety = window.setTimeout(() => {
-      if (!revealFiredRef.current) setCardReady(true)
+      if (!revealFiredRef.current) {
+        setCardReady(true)
+        setPulseWordsComplete(true)
+      }
     }, CLEAN_BIRTH_PULSE_MAX_WAIT_MS)
     return () => window.clearTimeout(safety)
   }, [phase])
