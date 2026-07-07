@@ -13,7 +13,7 @@ export const TRUSTED_JOURNEY_URLS: Record<JourneyId, string> = {
   travel: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
   holidays: 'https://www.eurostar.com/uk-en/deals',
   food: 'https://www.lovefoodhatewaste.com',
-  shopping: 'https://wrap.org.uk/taking-action/food-waste',
+  shopping: 'https://wrap.org.uk/taking-action/textiles',
   money: 'https://www.moneysavingexpert.com/banking/',
   tech: 'https://www.backmarket.co.uk',
   water: 'https://www.waterwise.org.uk/save-water/',
