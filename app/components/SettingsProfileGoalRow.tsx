@@ -12,6 +12,7 @@ import {
   persistProfileGoal,
 } from '@/lib/profile/profileGoalPreference'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
+import { markCardVisited } from '@/lib/zone/visitedCards'
 
 type SettingsProfileGoalRowProps = {
   onChange?: () => void
@@ -40,6 +41,7 @@ export default function SettingsProfileGoalRow({ onChange }: SettingsProfileGoal
   }, [])
 
   const handleSelect = (value: ProfileGoalValue) => {
+    markCardVisited('settings-focus-goal')
     if (value === goal) return
     persistProfileGoal(value)
     setGoal(value)
@@ -51,7 +53,7 @@ export default function SettingsProfileGoalRow({ onChange }: SettingsProfileGoal
   const activeLabel = PROFILE_GOAL_CHOICES.find((c) => c.value === goal)?.label ?? 'BOTH'
 
   return (
-    <SettingsBentoCard label="Your focus" headline={activeLabel}>
+    <SettingsBentoCard label="Your focus" headline={activeLabel} cardId="settings-focus-goal">
       <div
         className="profile-step-controls profile-step-controls--options settings-focus-controls"
         role="group"

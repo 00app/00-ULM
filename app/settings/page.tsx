@@ -29,7 +29,7 @@ import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { ResetDataCircleButton } from '@/app/components/ResetDataCircleButton'
-import SettingsBentoCard, { SettingsJourneyFactRow } from '@/app/components/SettingsBentoCard'
+import SettingsBentoCard, { SettingsJourneyFactRow, useSettingsCardVisited } from '@/app/components/SettingsBentoCard'
 import SettingsProfileGoalRow from '@/app/components/SettingsProfileGoalRow'
 import { readEffectiveProfileGoal } from '@/lib/profile/profileGoalPreference'
 
@@ -97,6 +97,44 @@ function PencilIcon() {
   )
 }
 
+type JourneyCardData = { journey: JourneyId; title: string; answers: { question: string; answer: string }[] }
+
+/** Deep blue until opened, pink once visited — same rollover as Zone bento cards. */
+function SettingsJourneyCard({
+  card,
+  onOpen,
+}: {
+  card: JourneyCardData
+  onOpen: () => void
+}) {
+  const [visited, markVisited] = useSettingsCardVisited(`settings-journey-${card.journey}`)
+  return (
+    <div
+      className="bento-card-groovy settings-bento-card settings-card-bento settings-journey-card-shell flex flex-col justify-between w-full h-full"
+      style={{
+        backgroundColor: visited ? 'var(--color-pink)' : 'var(--color-purple)',
+        color: 'var(--color-yellow)',
+      }}
+      onClick={() => {
+        markVisited()
+        onOpen()
+      }}
+    >
+      <div className="flex items-center justify-between w-full shrink-0">
+        <span className="card-top-label">{card.title}</span>
+        <div className="card-top-arrow card-top-arrow--action flex items-center justify-center flex-shrink-0" aria-hidden>
+          <PencilIcon />
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 settings-journey-answers">
+        {card.answers.map((ans, idx) => (
+          <SettingsJourneyFactRow key={`${card.journey}-${idx}`} label={ans.question} value={ans.answer} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** Pin drop — Update location */
 const SHORT_QUESTION_LABELS: Record<string, string> = {
   energy_type: 'Heating',
@@ -139,6 +177,7 @@ export default function SettingsPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeJourneyEdit, setActiveJourneyEdit] = useState<{ id: JourneyId; title: string } | null>(null)
   const [activeLoopEdit, setActiveLoopEdit] = useState<LoopAnswerSettingsRow | null>(null)
+  const [truthLedgerVisited, markTruthLedgerVisited] = useSettingsCardVisited('settings-truth-ledger')
 
   useEffect(() => setHasMounted(true), [])
   useEffect(() => {
@@ -371,8 +410,12 @@ export default function SettingsPage() {
           >
             <Link
               href={ROUTES.SETTINGS_TRUTH}
+              onClick={markTruthLedgerVisited}
               className="bento-card-groovy settings-bento-card settings-truth-link flex flex-col justify-between w-full no-underline"
-              style={{ backgroundColor: 'var(--color-pink)', color: 'var(--color-yellow)' }}
+              style={{
+                backgroundColor: truthLedgerVisited ? 'var(--color-pink)' : 'var(--color-purple)',
+                color: 'var(--color-yellow)',
+              }}
             >
               <span className="card-top-label">Source of truth</span>
               <h3 className="card-headline m-0">TRUTH LEDGER</h3>
@@ -395,6 +438,7 @@ export default function SettingsPage() {
                   headline={row.answer}
                   hideLabel
                   editHref={`${ROUTES.PROFILE}?q=${encodeURIComponent(row.id)}&returnTo=${encodeURIComponent(ROUTES.SETTINGS)}`}
+                  cardId={`settings-profile-${row.id}`}
                 />
               </motion.div>
             ))}
@@ -415,6 +459,7 @@ export default function SettingsPage() {
                   headline={row.answer}
                   hideLabel
                   onEditClick={() => setActiveLoopEdit(row)}
+                  cardId={`settings-loop-${row.questionId}`}
                 />
               </motion.div>
             ))}
@@ -430,7 +475,7 @@ export default function SettingsPage() {
                   delay: 0.05 + (profileRows.length + loopRows.length + i) * 0.08,
                 }}
               >
-                <SettingsBentoCard label={row.label} headline={row.headline} hideLabel />
+                <SettingsBentoCard label={row.label} headline={row.headline} hideLabel cardId={`settings-offer-${row.id}`} />
               </motion.div>
             ))}
 
@@ -438,7 +483,6 @@ export default function SettingsPage() {
               <motion.div
                 key={`journey-${card.journey}`}
                 className="settings-card-cell cursor-pointer"
-                onClick={() => setActiveJourneyEdit({ id: card.journey, title: card.title })}
                 initial={settingsCellMotion.initial}
                 animate={settingsCellMotion.animate}
                 whileTap={reduceMotion ? undefined : { scale: 0.985 }}
@@ -447,26 +491,10 @@ export default function SettingsPage() {
                   delay: 0.05 + (profileRows.length + loopRows.length + offerFeedbackRows.length + j) * 0.08,
                 }}
               >
-                <div
-                  className="bento-card-groovy settings-bento-card settings-card-bento settings-journey-card-shell flex flex-col justify-between w-full h-full"
-                  style={{ backgroundColor: 'var(--color-pink)', color: 'var(--color-yellow)' }}
-                >
-                  <div className="flex items-center justify-between w-full shrink-0">
-                    <span className="card-top-label">{card.title}</span>
-                    <div className="card-top-arrow card-top-arrow--action flex items-center justify-center flex-shrink-0" aria-hidden>
-                      <PencilIcon />
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2 settings-journey-answers">
-                    {card.answers.map((ans, idx) => (
-                      <SettingsJourneyFactRow
-                        key={`${card.journey}-${idx}`}
-                        label={ans.question}
-                        value={ans.answer}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <SettingsJourneyCard
+                  card={card}
+                  onOpen={() => setActiveJourneyEdit({ id: card.journey, title: card.title })}
+                />
               </motion.div>
             ))}
           </motion.div>

@@ -1,10 +1,27 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { ArrowNEOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
+import { isCardVisited, markCardVisited } from '@/lib/zone/visitedCards'
 
 const CARD_TEXT = { default: 'var(--color-yellow)', hero: 'var(--color-yellow)' } as const
+
+/** Deep blue until opened, pink once visited — same rollover as Zone bento cards. */
+export function useSettingsCardVisited(cardId: string | undefined): [boolean, () => void] {
+  const [visited, setVisited] = useState(() => (cardId ? isCardVisited(cardId) : false))
+  useEffect(() => {
+    if (!cardId) return
+    setVisited(isCardVisited(cardId))
+    const sync = () => setVisited(isCardVisited(cardId))
+    window.addEventListener('zz-visited-cards-changed', sync)
+    return () => window.removeEventListener('zz-visited-cards-changed', sync)
+  }, [cardId])
+  const markVisited = () => {
+    if (cardId) markCardVisited(cardId)
+  }
+  return [visited, markVisited]
+}
 
 function PencilIcon() {
   return (
@@ -24,6 +41,7 @@ export default function SettingsBentoCard({
   children,
   isHero = false,
   hideLabel = false,
+  cardId,
 }: {
   label: string
   headline: string
@@ -35,16 +53,22 @@ export default function SettingsBentoCard({
   isHero?: boolean
   /** Preview tiles — headline + arrow only (no card-top-label). */
   hideLabel?: boolean
+  /** Deep blue until this card is opened, pink once visited (skip on isHero — Overview stays pink). */
+  cardId?: string
 }) {
   const textColor = isHero ? CARD_TEXT.hero : CARD_TEXT.default
-  const bgColor = 'var(--color-pink)'
+  const [visited, markVisited] = useSettingsCardVisited(isHero ? undefined : cardId)
+  const bgColor = isHero || visited ? 'var(--color-pink)' : 'var(--color-purple)'
 
   const arrowSlot = () => {
     if (onEditClick) {
       return (
         <button
           type="button"
-          onClick={onEditClick}
+          onClick={() => {
+            markVisited()
+            onEditClick()
+          }}
           className="card-top-arrow card-top-arrow--action flex items-center justify-center flex-shrink-0"
           aria-label={`Edit: ${label}`}
         >
@@ -56,6 +80,7 @@ export default function SettingsBentoCard({
       return (
         <Link
           href={editHref}
+          onClick={markVisited}
           className="card-top-arrow card-top-arrow--action flex items-center justify-center flex-shrink-0"
           aria-label={`Edit: ${label}`}
         >
@@ -69,6 +94,7 @@ export default function SettingsBentoCard({
           href={externalHref}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={markVisited}
           className="card-top-arrow card-top-arrow--action flex items-center justify-center flex-shrink-0"
           aria-label={externalLabel ?? `Open: ${label}`}
         >
