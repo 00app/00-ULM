@@ -12,7 +12,7 @@
   "crons": [
     {
       "path": "/api/cron/zone-research?limit=3",
-      "schedule": "0 5 * * 1"
+      "schedule": "0 5 * * *"
     }
   ]
 }
