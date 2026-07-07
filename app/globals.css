@@ -5758,7 +5758,9 @@ body.zai-composer-dock-active {
 .settings-page .settings-bento-card,
 .settings-page .settings-card-bento,
 .settings-page .settings-journey-card-shell {
-  background-color: var(--color-pink) !important;
+  /* Background is deliberately NOT forced here — SettingsBentoCard/SettingsJourneyCard set it
+     inline (blue until visited, pink once visited; see useSettingsCardVisited). An earlier
+     !important here silently overrode that on every card, all the time. */
   color: var(--color-yellow) !important;
   --journey-text: var(--color-yellow);
   --color-ink: var(--color-yellow);
