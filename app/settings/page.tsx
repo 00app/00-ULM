@@ -475,7 +475,7 @@ export default function SettingsPage() {
                   delay: 0.05 + (profileRows.length + loopRows.length + i) * 0.08,
                 }}
               >
-                <SettingsBentoCard label={row.label} headline={row.headline} hideLabel cardId={`settings-offer-${row.id}`} />
+                <SettingsBentoCard label={row.label} headline={row.headline} hideLabel />
               </motion.div>
             ))}
 

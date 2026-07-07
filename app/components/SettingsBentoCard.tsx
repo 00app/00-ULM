@@ -58,7 +58,9 @@ export default function SettingsBentoCard({
 }) {
   const textColor = isHero ? CARD_TEXT.hero : CARD_TEXT.default
   const [visited, markVisited] = useSettingsCardVisited(isHero ? undefined : cardId)
-  const bgColor = isHero || visited ? 'var(--color-pink)' : 'var(--color-purple)'
+  // No cardId means there's nothing to "open" (e.g. a read-only feedback-log row) — treat like
+  // Overview rather than leaving it permanently blue with no way to ever become pink.
+  const bgColor = isHero || !cardId || visited ? 'var(--color-pink)' : 'var(--color-purple)'
 
   const arrowSlot = () => {
     if (onEditClick) {
