@@ -11,6 +11,7 @@ import { useApp } from '../context/AppContext'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { buildZoneViewModel } from '@/lib/logic/zone'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
+import { getTipsTimeOfDay } from '@/lib/zone/timeOfDay'
 import { ZAI_AUDIT_COMPLETE_EVENT } from '@/lib/zai/zoneSync'
 import { buildGroovyGridItems, type GroovyGridCell } from '@/lib/zone/gridOrder'
 import {
@@ -3246,7 +3247,7 @@ export default function ZonePage() {
                 className="zone-section-heading zone-rock-section-heading zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0"
                 data-testid="zone-section-today-tips"
               >
-                today&apos;s
+                {getTipsTimeOfDay()}
                 <br />
                 tips.
               </h3>
