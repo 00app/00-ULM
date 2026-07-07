@@ -30,13 +30,13 @@
 | **Copy** | Per-journey headlines (`EXPANDED_JOURNEY_HOOK`) on **mother** tiles; Rock grid + Solo Focus use catalog habits (`clampRockTipHeadline`, `headlineFromRockHabit`) — not wall hooks |
 | **Prose** | Max 2 blocks in Solo Focus (Marvin lead ≤30 words + optional body); no duplicate payoff; no generic “policy and tariff pressure…” |
 | **Questions** | 13 journeys × 3 in `lib/journeys.ts`; Solo Focus = 1 Q; loop = `loopQuestions.ts` |
-| **Zone wall order** | welcome → profile hero → today's tips + Rock → recommendations + bento → signup (`zone-section-*` testids) |
+| **Zone wall order** | welcome → profile hero → today's tips (heading shows morning/afternoon/evening, `getTipsTimeOfDay`, 08:00/14:00/18:00) + Rock → recommendations (daily refresh) + bento → signup (`zone-section-*` testids) |
 | **Grid order** | `buildGroovyGridItems` — mothers by goal-weighted £ then `JOURNEY_ORDER`; injects nest under parent; max 2/category, 24 total |
 | **Discovery birth** | Only `POST /api/answers` → `injectNewDiscoveryCard` (cap 3/journey) |
 | **Zai** | Read-only on chat; scrape only on Deep Dive **Search deeper** |
-| **Credit** | `MODEL_STRATEGY=bucket_failover`; no `?force=true`; JIT max 4 URLs; Hermes weekly repair only |
+| **Credit** | `MODEL_STRATEGY=bucket_failover`; no `?force=true`; JIT max 4 URLs; daily Vercel Cron repair only |
 | **Deploy** | `npm run verify` → `npm run deploy` → `npm run promote` if Staged |
-| **Hermes** | Weekly `repair-mechanical` — not daily broad scrape in bucket mode |
+| **Cron trigger** | Daily `repair-mechanical` via Vercel Cron (was weekly on Hermes/Oracle VPS, retired 2026-07-07) — not a broad scrape in bucket mode |
 | **Ellipsis** | No sentence ending in `...` or `…` reaches Solo Focus or Zone bento |
 | **Coherence** | Every Solo Focus paragraph passes `isCoherentParagraph` before render |
 
@@ -127,7 +127,7 @@ UK postcode auditor: **profile** → **summary** → **Zone** (13 journey tiles 
 | Zone load | `GET /api/scrape-sync` | read |
 | MC answer | `POST /api/answers` | discovery + optional JIT |
 | Tip +1 / deep scrape | `POST /api/scrape-sync` | 1 `journey_key` |
-| Hermes | `/api/cron/zone-research` | weekly repair |
+| Vercel Cron | `/api/cron/zone-research` | daily repair |
 
 Profile → grid field matrix: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md). Trigger detail: [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md).
 
@@ -784,7 +784,7 @@ Detail: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md)
 | File | Topic |
 | --- | --- |
 | [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) | CI flakes, promote |
-| [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md) | Oracle cron |
+| [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md) | Vercel Cron (retired Oracle VPS runbook) |
 | [HERMES-ULM-JIT-BRIEF.md](HERMES-ULM-JIT-BRIEF.md) | JIT vs repair |
 
 ##### Reference only (rarely edit)
@@ -829,7 +829,7 @@ Detail: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md)
 *Source file: `INTELLIGENCE-PIPELINE-FINAL.md`*
 
 
-Hermes (Oracle VPS + Vercel cron) sits at the repair layer; the **browser onboarding path** below is what new users hit on first run.
+Vercel Cron (formerly Hermes on an Oracle VPS, retired 2026-07-07 — see FULL-APP-SPEC.md §11) sits at the repair layer; the **browser onboarding path** below is what new users hit on first run.
 
 #### 1. Profile complete (`ProfilePageClient.submitProfile`)
 
@@ -3254,9 +3254,11 @@ Zero Zero is a UK-first web app. A user provides a **postcode** and a short **pr
 | **Stomach** | Ingestion | **Firecrawl** — scrapes trusted UK pages (Ofgem, GOV.UK, grants, tariffs) |
 | **Memory** | Persistence | **Neon Postgres** — users, answers, `research_results` per category/postcode |
 | **Nervous system** | Orchestration | **Next.js on Vercel** — API routes: scrape → model → persist → JSON to browser |
-| **Hermes (VPS)** | External clock | **Oracle VPS** hits `/api/cron/zone-research` daily; does not run AI itself |
+| **Cron trigger** | External clock | **Vercel Cron** (`vercel.json`) hits `/api/cron/zone-research` daily at 05:00 UTC; does not run AI itself |
 
-Hermes only **wakes** the app. The app uses `DATABASE_URL`, `GEMINI_API_KEY`, and `FIRE_CRAWL_KEY_2` (or `FIRECRAWL_API_KEY`) to execute the pipeline.
+The cron trigger only **wakes** the app. The app uses `DATABASE_URL`, `GEMINI_API_KEY`, and `FIRE_CRAWL_KEY_2` (or `FIRECRAWL_API_KEY`) to execute the pipeline.
+
+**2026-07-07:** Hermes (the Oracle Cloud free-trial VPS that used to make this call) was retired after its trial credit expired — see §11.
 
 ---
 
@@ -3295,8 +3297,8 @@ flowchart TB
     sessions[(sessions)]
   end
 
-  subgraph hermes [Oracle VPS Hermes]
-    Cron["cron 05:00 Bearer CRON_SECRET"]
+  subgraph hermes [Vercel Cron]
+    Cron["cron 05:00 daily Bearer CRON_SECRET"]
   end
 
   Profile --> API_user
@@ -3733,22 +3735,38 @@ On persist, `saving_amount_gbp` and `verified_saving` are aligned.
 
 ---
 
-#### 11. Hermes and the Oracle VPS
+#### 11. Cron trigger (formerly Hermes / Oracle VPS)
 
-Hermes is the **scheduled HTTP trigger**, not a separate AI runtime.
+The scheduled trigger is just an **authenticated HTTP call**, not a separate AI runtime.
+It used to come from Hermes — an Oracle Cloud free-trial VPS (`ubuntu@140.238.100.237`,
+`zerozero-auditor`) — but that trial's credit expired on 2026-07-07 and the instance is now
+unreachable (confirmed via ping/SSH timeout). It has been replaced with **Vercel's own Cron
+Jobs feature**, configured in `vercel.json`:
+
+```json
+"crons": [{ "path": "/api/cron/zone-research?limit=3", "schedule": "0 5 * * *" }]
+```
+
+Vercel auto-injects `Authorization: Bearer <CRON_SECRET>` on trigger — the same header
+`authorizeCron()` in `app/api/cron/zone-research/route.ts` already checked, so no route
+changes were needed. Schedule is now **daily** (was weekly, `0 5 * * 1`, under Hermes) so
+Zone's Personalised Recommendation content refreshes more often. No VPS, no free-trial
+account, nothing that can run out of credit again. See [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md)
+and [HERMES-ULM-JIT-BRIEF.md](HERMES-ULM-JIT-BRIEF.md) for the retired VPS runbook.
 
 ##### 11.1 Typical setup
 
-1. **~05:00 daily** — VPS shell calls:
+1. **05:00 UTC daily** — Vercel Cron calls:
    ```
-   GET https://www.00-00.online/api/cron/zone-research?limit=20
-   Authorization: Bearer <CRON_SECRET>
+   GET https://www.00-00.online/api/cron/zone-research?limit=3
+   Authorization: Bearer <CRON_SECRET>   (auto-injected by Vercel)
    ```
 2. Handler (`app/api/cron/zone-research/route.ts`) loads users from **`users`** where postcode is set.
 3. For each user: **`runZeroResearchWithProfile`** → Firecrawl + Gemini → Neon.
 4. Zone clients read rows via **`GET /api/scrape-sync`**.
 
-Hermes needs only **`CRON_SECRET`** on the VPS. The app holds **`DATABASE_URL`** on Vercel.
+Nothing extra to host or provision — `CRON_SECRET` was already set in the Vercel production
+env, and `maxDuration = 300` on the route caps execution the same regardless of trigger source.
 
 ##### 11.2 Manual triggers
 
@@ -3759,23 +3777,17 @@ npm run hermes:ping
 ### Full smoke: one user through zone-research (~2–5 min)
 npm run hermes:pulse
 
-### VPS / daily batch (limit=20)
-bash scripts/hermes-pulse.sh
-
 bash scripts/curl-scrape-sync-trigger.sh https://www.00-00.online BN17
 ```
 
 Or `POST /api/scrape-sync` with `{ trigger: true, postcode, category, user_id }`.
 
-**VPS crontab example** (secret file, not in repo):
-
-```cron
-0 5 * * * CRON_SECRET_FILE=/home/ubuntu/.hermes/cron.secret /path/to/00-00/scripts/hermes-pulse.sh >> /var/log/hermes-pulse.log 2>&1
-```
+To change cadence or per-run limit, edit the `crons` entry in `vercel.json` and redeploy —
+no crontab, SSH, or secret file to manage.
 
 ##### 11.3 Four-step loop
 
-1. **Trigger (Hermes):** Cron hits `/api/cron/zone-research`.
+1. **Trigger (Vercel Cron):** daily hit on `/api/cron/zone-research`.
 2. **Extraction:** Firecrawl scrape → Gemini maps to thirteen journey categories → persist.
 3. **Consumption (Zone):** Bento tiles + Solo Focus expanded copy from Neon.
 4. **Expansion (user):** `POST /api/answers` → discovery → `injectNewDiscoveryCard`; supplemental Ask/inject paths capped at 3 per journey.
@@ -4411,10 +4423,16 @@ npm run verify
 *Source file: `HERMES-ULM-JIT-BRIEF.md`*
 
 
-**Audience:** whoever runs the Oracle VPS cron (`ubuntu@140.238.100.237`) and anyone testing from a Mac.  
+**2026-07-07 update:** the Oracle VPS described below is retired (free-trial credit expired,
+instance unreachable) and the trigger now runs on **Vercel's own Cron Jobs feature**, **daily**
+at 05:00 UTC (was weekly) — see §11 of [FULL-APP-SPEC.md](FULL-APP-SPEC.md) and the banner in
+[HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md). Everything below this point describes the retired
+VPS setup and the May 2026 daily→weekly change; kept for history, not current operation.
+
+**Audience (historical):** whoever ran the Oracle VPS cron (`ubuntu@140.238.100.237`) and anyone testing from a Mac.  
 **App:** `https://www.00-00.online` — Zero Zero intelligence loop.
 
-This is **not** the Python `hermes` chat CLI schedule. VPS cron uses **`bash scripts/hermes-pulse.sh`** (see [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md)).
+This is **not** the Python `hermes` chat CLI schedule. VPS cron used **`bash scripts/hermes-pulse.sh`** (see [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md)).
 
 **Product docs:** [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) (main scrape/copy) · [SENTINEL.md](SENTINEL.md) (parallel live layer — not Hermes) · [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) (inject paths, Gary mode).
 
@@ -4563,19 +4581,29 @@ Ensure Production has:
 *Source file: `HERMES-VPS-SETUP.md`*
 
 
+**This VPS is decommissioned.** Its Oracle Cloud free-trial credit expired on 2026-07-07;
+the instance (`ubuntu@140.238.100.237`) is unreachable (ping/SSH both time out) and Oracle's
+"Always Free" tier does not cover it. The daily `/api/cron/zone-research` trigger now runs on
+**Vercel's own Cron Jobs feature** (`vercel.json` → `crons`), which needed zero extra hosting
+and can't run out of free-trial credit the same way. See §11 of
+[FULL-APP-SPEC.md](FULL-APP-SPEC.md) for the current setup.
+
+The rest of this document is kept as a historical/operator reference for the retired VPS
+runbook — do not follow the SSH/crontab steps below expecting them to affect production.
+
 Reference for `ubuntu@140.238.100.237` — Hermes only **HTTP-triggers** Vercel; it does not run Gemini/Firecrawl locally.
 
 **Production target:** `https://www.00-00.online/api/cron/zone-research`
 
-**Operator brief (read first):** [`HERMES-ULM-JIT-BRIEF.md`](./HERMES-ULM-JIT-BRIEF.md) — Ulm JIT, weekly schedule, why `limit=12` timed out, correct curl/Mac commands.
+**Operator brief (read first):** [`HERMES-ULM-JIT-BRIEF.md`](./HERMES-ULM-JIT-BRIEF.md) — Ulm JIT, schedule history, why `limit=12` timed out, correct curl/Mac commands.
 
 ---
 
-#### Ulm JIT (May 2026) — what Hermes triggers now
+#### Ulm JIT (May 2026) — what Hermes used to trigger; now runs via Vercel Cron
 
 | Job | Schedule | Command |
 |-----|----------|---------|
-| **Weekly pulse** | Monday 05:00 UTC `0 5 * * 1` | `hermes-pulse.sh --weekly` → `?limit=3` (max 3 full user scrapes) |
+| **Daily pulse** | 05:00 UTC daily `0 5 * * *` (was weekly, `0 5 * * 1`, until 2026-07-07) | Vercel Cron → `GET /api/cron/zone-research?limit=3` (max 3 full user scrapes) |
 | **Repair backfill** | Manual / optional | `hermes-pulse.sh --repair-only` → `?repair=1&limit=12` (headline/£/prose only) |
 | **Auth smoke** | Anytime | `hermes-pulse.sh --auth-only` (~2s) |
 
@@ -4709,7 +4737,7 @@ If `No such file` for `hermes-pulse.sh`, clone or rsync the repo first (§2).
 
 | | Mac (dev) | Oracle VPS (Hermes) |
 |--|-----------|---------------------|
-| Schedule | Optional `install-hermes-crontab.sh --install` | **Required** for weekly pulse (`0 5 * * 1`) |
+| Schedule | Optional `install-hermes-crontab.sh --install` | Was **required** for the weekly pulse (`0 5 * * 1`) — retired, see banner above |
 | Secret | `~/.hermes/cron.secret` | Same path under `/home/ubuntu/` |
 | Log | `~/hermes-pulse.log` | `/home/ubuntu/hermes-pulse.log` |
 | Quick test | `npm run hermes:ping` (in repo on Mac) | `bash …/hermes-pulse.sh --secret-file … --auth-only` (**no npm**) |

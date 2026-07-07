@@ -20,9 +20,11 @@ Zero Zero is a UK-first web app. A user provides a **postcode** and a short **pr
 | **Stomach** | Ingestion | **Firecrawl** — scrapes trusted UK pages (Ofgem, GOV.UK, grants, tariffs) |
 | **Memory** | Persistence | **Neon Postgres** — users, answers, `research_results` per category/postcode |
 | **Nervous system** | Orchestration | **Next.js on Vercel** — API routes: scrape → model → persist → JSON to browser |
-| **Hermes (VPS)** | External clock | **Oracle VPS** hits `/api/cron/zone-research` daily; does not run AI itself |
+| **Cron trigger** | External clock | **Vercel Cron** (`vercel.json`) hits `/api/cron/zone-research` daily at 05:00 UTC; does not run AI itself |
 
-Hermes only **wakes** the app. The app uses `DATABASE_URL`, `GEMINI_API_KEY`, and `FIRE_CRAWL_KEY_2` (or `FIRECRAWL_API_KEY`) to execute the pipeline.
+The cron trigger only **wakes** the app. The app uses `DATABASE_URL`, `GEMINI_API_KEY`, and `FIRE_CRAWL_KEY_2` (or `FIRECRAWL_API_KEY`) to execute the pipeline.
+
+**2026-07-07:** Hermes (the Oracle Cloud free-trial VPS that used to make this call) was retired after its trial credit expired — see §11.
 
 ---
 
@@ -61,8 +63,8 @@ flowchart TB
     sessions[(sessions)]
   end
 
-  subgraph hermes [Oracle VPS Hermes]
-    Cron["cron 05:00 Bearer CRON_SECRET"]
+  subgraph hermes [Vercel Cron]
+    Cron["cron 05:00 daily Bearer CRON_SECRET"]
   end
 
   Profile --> API_user
@@ -499,22 +501,38 @@ On persist, `saving_amount_gbp` and `verified_saving` are aligned.
 
 ---
 
-## 11. Hermes and the Oracle VPS
+## 11. Cron trigger (formerly Hermes / Oracle VPS)
 
-Hermes is the **scheduled HTTP trigger**, not a separate AI runtime.
+The scheduled trigger is just an **authenticated HTTP call**, not a separate AI runtime.
+It used to come from Hermes — an Oracle Cloud free-trial VPS (`ubuntu@140.238.100.237`,
+`zerozero-auditor`) — but that trial's credit expired on 2026-07-07 and the instance is now
+unreachable (confirmed via ping/SSH timeout). It has been replaced with **Vercel's own Cron
+Jobs feature**, configured in `vercel.json`:
+
+```json
+"crons": [{ "path": "/api/cron/zone-research?limit=3", "schedule": "0 5 * * *" }]
+```
+
+Vercel auto-injects `Authorization: Bearer <CRON_SECRET>` on trigger — the same header
+`authorizeCron()` in `app/api/cron/zone-research/route.ts` already checked, so no route
+changes were needed. Schedule is now **daily** (was weekly, `0 5 * * 1`, under Hermes) so
+Zone's Personalised Recommendation content refreshes more often. No VPS, no free-trial
+account, nothing that can run out of credit again. See [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md)
+and [HERMES-ULM-JIT-BRIEF.md](HERMES-ULM-JIT-BRIEF.md) for the retired VPS runbook.
 
 ### 11.1 Typical setup
 
-1. **~05:00 daily** — VPS shell calls:
+1. **05:00 UTC daily** — Vercel Cron calls:
    ```
-   GET https://www.00-00.online/api/cron/zone-research?limit=20
-   Authorization: Bearer <CRON_SECRET>
+   GET https://www.00-00.online/api/cron/zone-research?limit=3
+   Authorization: Bearer <CRON_SECRET>   (auto-injected by Vercel)
    ```
 2. Handler (`app/api/cron/zone-research/route.ts`) loads users from **`users`** where postcode is set.
 3. For each user: **`runZeroResearchWithProfile`** → Firecrawl + Gemini → Neon.
 4. Zone clients read rows via **`GET /api/scrape-sync`**.
 
-Hermes needs only **`CRON_SECRET`** on the VPS. The app holds **`DATABASE_URL`** on Vercel.
+Nothing extra to host or provision — `CRON_SECRET` was already set in the Vercel production
+env, and `maxDuration = 300` on the route caps execution the same regardless of trigger source.
 
 ### 11.2 Manual triggers
 
@@ -525,23 +543,17 @@ npm run hermes:ping
 # Full smoke: one user through zone-research (~2–5 min)
 npm run hermes:pulse
 
-# VPS / daily batch (limit=20)
-bash scripts/hermes-pulse.sh
-
 bash scripts/curl-scrape-sync-trigger.sh https://www.00-00.online BN17
 ```
 
 Or `POST /api/scrape-sync` with `{ trigger: true, postcode, category, user_id }`.
 
-**VPS crontab example** (secret file, not in repo):
-
-```cron
-0 5 * * * CRON_SECRET_FILE=/home/ubuntu/.hermes/cron.secret /path/to/00-00/scripts/hermes-pulse.sh >> /var/log/hermes-pulse.log 2>&1
-```
+To change cadence or per-run limit, edit the `crons` entry in `vercel.json` and redeploy —
+no crontab, SSH, or secret file to manage.
 
 ### 11.3 Four-step loop
 
-1. **Trigger (Hermes):** Cron hits `/api/cron/zone-research`.
+1. **Trigger (Vercel Cron):** daily hit on `/api/cron/zone-research`.
 2. **Extraction:** Firecrawl scrape → Gemini maps to thirteen journey categories → persist.
 3. **Consumption (Zone):** Bento tiles + Solo Focus expanded copy from Neon.
 4. **Expansion (user):** `POST /api/answers` → discovery → `injectNewDiscoveryCard`; supplemental Ask/inject paths capped at 3 per journey.

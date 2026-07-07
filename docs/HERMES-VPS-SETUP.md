@@ -1,18 +1,28 @@
-# Hermes VPS setup (Oracle `zerozero-auditor`)
+# Hermes VPS setup (Oracle `zerozero-auditor`) — RETIRED 2026-07-07
+
+**This VPS is decommissioned.** Its Oracle Cloud free-trial credit expired on 2026-07-07;
+the instance (`ubuntu@140.238.100.237`) is unreachable (ping/SSH both time out) and Oracle's
+"Always Free" tier does not cover it. The daily `/api/cron/zone-research` trigger now runs on
+**Vercel's own Cron Jobs feature** (`vercel.json` → `crons`), which needed zero extra hosting
+and can't run out of free-trial credit the same way. See §11 of
+[FULL-APP-SPEC.md](FULL-APP-SPEC.md) for the current setup.
+
+The rest of this document is kept as a historical/operator reference for the retired VPS
+runbook — do not follow the SSH/crontab steps below expecting them to affect production.
 
 Reference for `ubuntu@140.238.100.237` — Hermes only **HTTP-triggers** Vercel; it does not run Gemini/Firecrawl locally.
 
 **Production target:** `https://www.00-00.online/api/cron/zone-research`
 
-**Operator brief (read first):** [`HERMES-ULM-JIT-BRIEF.md`](./HERMES-ULM-JIT-BRIEF.md) — Ulm JIT, weekly schedule, why `limit=12` timed out, correct curl/Mac commands.
+**Operator brief (read first):** [`HERMES-ULM-JIT-BRIEF.md`](./HERMES-ULM-JIT-BRIEF.md) — Ulm JIT, schedule history, why `limit=12` timed out, correct curl/Mac commands.
 
 ---
 
-## Ulm JIT (May 2026) — what Hermes triggers now
+## Ulm JIT (May 2026) — what Hermes used to trigger; now runs via Vercel Cron
 
 | Job | Schedule | Command |
 |-----|----------|---------|
-| **Weekly pulse** | Monday 05:00 UTC `0 5 * * 1` | `hermes-pulse.sh --weekly` → `?limit=3` (max 3 full user scrapes) |
+| **Daily pulse** | 05:00 UTC daily `0 5 * * *` (was weekly, `0 5 * * 1`, until 2026-07-07) | Vercel Cron → `GET /api/cron/zone-research?limit=3` (max 3 full user scrapes) |
 | **Repair backfill** | Manual / optional | `hermes-pulse.sh --repair-only` → `?repair=1&limit=12` (headline/£/prose only) |
 | **Auth smoke** | Anytime | `hermes-pulse.sh --auth-only` (~2s) |
 
@@ -146,7 +156,7 @@ If `No such file` for `hermes-pulse.sh`, clone or rsync the repo first (§2).
 
 | | Mac (dev) | Oracle VPS (Hermes) |
 |--|-----------|---------------------|
-| Schedule | Optional `install-hermes-crontab.sh --install` | **Required** for weekly pulse (`0 5 * * 1`) |
+| Schedule | Optional `install-hermes-crontab.sh --install` | Was **required** for the weekly pulse (`0 5 * * 1`) — retired, see banner above |
 | Secret | `~/.hermes/cron.secret` | Same path under `/home/ubuntu/` |
 | Log | `~/hermes-pulse.log` | `/home/ubuntu/hermes-pulse.log` |
 | Quick test | `npm run hermes:ping` (in repo on Mac) | `bash …/hermes-pulse.sh --secret-file … --auth-only` (**no npm**) |

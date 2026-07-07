@@ -29,7 +29,7 @@
 | Doc | Topic |
 | --- | --- |
 | [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) | Vercel CI, promote |
-| [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md) | Oracle VPS cron |
+| [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md) | Vercel Cron (retired Oracle VPS runbook) |
 | [HERMES-ULM-JIT-BRIEF.md](HERMES-ULM-JIT-BRIEF.md) | JIT vs Hermes repair |
 | [HYBRID-DATA-PIPELINE.md](HYBRID-DATA-PIPELINE.md) | API cost tiers |
 | [SENTINEL.md](SENTINEL.md) | Sentinel live layer |

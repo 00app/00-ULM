@@ -1,6 +1,6 @@
 # Intelligence pipeline — final trigger matrix
 
-Hermes (Oracle VPS + Vercel cron) sits at the repair layer; the **browser onboarding path** below is what new users hit on first run.
+Vercel Cron (formerly Hermes on an Oracle VPS, retired 2026-07-07 — see FULL-APP-SPEC.md §11) sits at the repair layer; the **browser onboarding path** below is what new users hit on first run.
 
 ## 1. Profile complete (`ProfilePageClient.submitProfile`)
 

@@ -1,9 +1,15 @@
 # Hermes operator brief — Ulm JIT build (May 2026)
 
-**Audience:** whoever runs the Oracle VPS cron (`ubuntu@140.238.100.237`) and anyone testing from a Mac.  
+**2026-07-07 update:** the Oracle VPS described below is retired (free-trial credit expired,
+instance unreachable) and the trigger now runs on **Vercel's own Cron Jobs feature**, **daily**
+at 05:00 UTC (was weekly) — see §11 of [FULL-APP-SPEC.md](FULL-APP-SPEC.md) and the banner in
+[HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md). Everything below this point describes the retired
+VPS setup and the May 2026 daily→weekly change; kept for history, not current operation.
+
+**Audience (historical):** whoever ran the Oracle VPS cron (`ubuntu@140.238.100.237`) and anyone testing from a Mac.  
 **App:** `https://www.00-00.online` — Zero Zero intelligence loop.
 
-This is **not** the Python `hermes` chat CLI schedule. VPS cron uses **`bash scripts/hermes-pulse.sh`** (see [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md)).
+This is **not** the Python `hermes` chat CLI schedule. VPS cron used **`bash scripts/hermes-pulse.sh`** (see [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md)).
 
 **Product docs:** [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) (main scrape/copy) · [SENTINEL.md](SENTINEL.md) (parallel live layer — not Hermes) · [SUPPLEMENTAL-SYSTEMS.md](SUPPLEMENTAL-SYSTEMS.md) (inject paths, Gary mode).
 

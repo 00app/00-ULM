@@ -184,7 +184,7 @@ Detail: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md)
 | File | Topic |
 | --- | --- |
 | [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md) | CI flakes, promote |
-| [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md) | Oracle cron |
+| [HERMES-VPS-SETUP.md](HERMES-VPS-SETUP.md) | Vercel Cron (retired Oracle VPS runbook) |
 | [HERMES-ULM-JIT-BRIEF.md](HERMES-ULM-JIT-BRIEF.md) | JIT vs repair |
 
 ### Reference only (rarely edit)
