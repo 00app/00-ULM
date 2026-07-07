@@ -716,14 +716,26 @@ export default function ZonePage({
    * so none of that open/close/loop logic is touched. Scoped to journey cards only (id is
    * `journey-<journeyKey>`, per lib/zone/buildZoneViewModel.ts) — achievement/discovery/inject
    * cards keep today's URL-less behavior.
+   *
+   * suppressNextPathnameSyncRef guards against the two effects fighting each other: some close
+   * paths (loop takeover in particular) clear expandedCardId well before the resulting
+   * router.push('/zone') below actually lands, so pathname can briefly still read
+   * /zone/card/<key> after expandedCardId is already null. Without the guard, the pathname-sync
+   * effect below would see that stale mismatch and re-open the card right after this effect
+   * just closed it. Set the flag immediately before every push here; the pathname effect
+   * consumes (and clears) it on the very next run instead of treating that change as an
+   * external navigation.
    */
+  const suppressNextPathnameSyncRef = useRef(false)
   useEffect(() => {
     const journeyKey = expandedCardId?.startsWith('journey-') ? expandedCardId.slice('journey-'.length) : null
     if (journeyKey) {
       if (pathname !== `/zone/card/${journeyKey}`) {
+        suppressNextPathnameSyncRef.current = true
         router.push(`/zone/card/${journeyKey}`)
       }
     } else if (pathname?.startsWith('/zone/card/')) {
+      suppressNextPathnameSyncRef.current = true
       router.push('/zone')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts to expandedCardId only; pathname read, not a trigger
@@ -733,9 +745,14 @@ export default function ZonePage({
    * The other half of the sync: URL -> expandedCardId. Covers back/forward button (lands on
    * plain /zone while a card is still open internally — close it) and arriving at
    * /zone/card/[journeyKey] by a route the app's own open-card logic never ran (shared link,
-   * bookmark, tab restore intercepted from an already-mounted /zone).
+   * bookmark, tab restore intercepted from an already-mounted /zone). Skips the one pathname
+   * change caused by this component's own push above (see suppressNextPathnameSyncRef comment).
    */
   useEffect(() => {
+    if (suppressNextPathnameSyncRef.current) {
+      suppressNextPathnameSyncRef.current = false
+      return
+    }
     if (!pathname) return
     const match = pathname.match(/^\/zone\/card\/([^/]+)$/)
     if (match) {
