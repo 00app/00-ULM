@@ -5,10 +5,10 @@ import { trackFunnelEvent, trackFunnelEventOnce } from '@/lib/analytics/trackFun
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { formatLocationDisplayName } from '@/lib/locationIdentity'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { motion, LayoutGroup } from 'framer-motion'
 import { useApp } from '../context/AppContext'
-import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
+import { JOURNEY_ORDER, isValidJourneyId, type JourneyId } from '@/lib/journeys'
 import { buildZoneViewModel } from '@/lib/logic/zone'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import { getTipsTimeOfDay } from '@/lib/zone/timeOfDay'
@@ -298,8 +298,14 @@ function neonJourneyResearchFromCoverage(
   return Object.keys(out).length > 0 ? out : undefined
 }
 
-export default function ZonePage() {
+export default function ZonePage({
+  initialExpandedCardId,
+}: {
+  /** Set by the /zone/card/[journeyKey] fallback route (direct load — no /zone page to intercept from). */
+  initialExpandedCardId?: string | null
+} = {}) {
   const router = useRouter()
+  const pathname = usePathname()
   const reduceMotion = useHydrationSafeReducedMotion()
   const { state, toggleLike, setHeroTotals, setLocationState, openSoloFocus, closeSoloFocus, refreshProfile } = useApp()
 
@@ -310,7 +316,7 @@ export default function ZonePage() {
   const [localData, setLocalData] = useState<LocalIntelligence | null>(null)
   const [localJustLoaded, setLocalJustLoaded] = useState(false)
   /** In-grid reflow: expanded card gets grid-column 1 / -1 and pushes siblings (no overlay) */
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(initialExpandedCardId ?? null)
   /** When user opened a tip and we expanded the matching journey card, keep the tip so Solo Focus shows offer copy + impact */
   const [expandedFromTip, setExpandedFromTip] = useState<ZoneTipCard | null>(null)
   /** Tip expand: full-screen tip overlay */
@@ -700,6 +706,48 @@ export default function ZonePage() {
   useEffect(() => {
     expandedTipIdRef.current = expandedTipId
   }, [expandedTipId])
+
+  /**
+   * Give the open card a real, addressable URL — /zone/card/[journeyKey] intercepted from
+   * /zone (see app/zone/@modal) — so a spawned tab (offer CTA) closing back to this tab still
+   * points at the card that was open, instead of Zone silently re-rendering to the grid.
+   * Deliberately independent of the ~11 existing setExpandedCardId(...) call sites (open via
+   * card tap, close via X/loop/discovery/escape/etc.) — this only reacts to the resulting state,
+   * so none of that open/close/loop logic is touched. Scoped to journey cards only (id is
+   * `journey-<journeyKey>`, per lib/zone/buildZoneViewModel.ts) — achievement/discovery/inject
+   * cards keep today's URL-less behavior.
+   */
+  useEffect(() => {
+    const journeyKey = expandedCardId?.startsWith('journey-') ? expandedCardId.slice('journey-'.length) : null
+    if (journeyKey) {
+      if (pathname !== `/zone/card/${journeyKey}`) {
+        router.push(`/zone/card/${journeyKey}`)
+      }
+    } else if (pathname?.startsWith('/zone/card/')) {
+      router.push('/zone')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts to expandedCardId only; pathname read, not a trigger
+  }, [expandedCardId])
+
+  /**
+   * The other half of the sync: URL -> expandedCardId. Covers back/forward button (lands on
+   * plain /zone while a card is still open internally — close it) and arriving at
+   * /zone/card/[journeyKey] by a route the app's own open-card logic never ran (shared link,
+   * bookmark, tab restore intercepted from an already-mounted /zone).
+   */
+  useEffect(() => {
+    if (!pathname) return
+    const match = pathname.match(/^\/zone\/card\/([^/]+)$/)
+    if (match) {
+      const journeyKey = decodeURIComponent(match[1])
+      const cardId = `journey-${journeyKey}`
+      if (isValidJourneyId(journeyKey) && expandedCardIdRef.current !== cardId) {
+        setExpandedCardId(cardId)
+      }
+    } else if (pathname === '/zone' && expandedCardIdRef.current) {
+      setExpandedCardId(null)
+    }
+  }, [pathname])
 
   useEffect(() => {
     const onPrefs = () => {
@@ -3165,7 +3213,7 @@ export default function ZonePage() {
               className="app-boot-glitch app-boot-atomic zone-wall-loading-overlay"
             />
           ) : null}
-          {sentinelPulseLabel ? (
+          {sentinelPulseLabel && process.env.NODE_ENV !== 'production' ? (
             <motion.p
               key={sentinelPulseLabel}
               className="zz-body-bold m-0 mt-2 uppercase"
