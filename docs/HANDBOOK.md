@@ -644,6 +644,8 @@ Index: `.cursor/rules/README.md`
 
 **Security (OWASP-aligned):** `SCRAPER_SECRET` authorizes scrape-sync POST only; `CRON_SECRET` is `/api/cron/*` only. Session restore requires HMAC `restore_proof` (no dev UUID bypass). Rate limits on scrape-sync GET (10/min anonymous), likes POST, restore-session. See `lib/security/productionSecrets.ts`.
 
+**Re-auditing offer/learn URL liveness (`trustedJourneyUrls.ts`, `resolveRockHabitLearnUrl.ts`, `lib/brains/calculations.ts`, `lib/brains/recommendations.ts`, `habitsCatalog.ts`):** these are hand-maintained hardcoded fallbacks, so they rot as partner sites restructure — worth a periodic sweep, not a one-off. `curl` is not sufficient: several UK retail/corporate sites (RAC, AA, Tesco, Sony, Royal Mail, Tesla, John Lewis, Levi's) run bot-detection that returns 403/404 to any automated non-browser request, live page or not — confirmed directly (`rac.co.uk/drive/advice/fuel-efficiency/` once returned curl 404 while rendering fine in a real browser). Verify with a real Chromium instance instead, and escalate before writing off a link as dead: try forcing HTTP/1.1 (some blocks are protocol-layer, not IP-based — John Lewis and Levi's help center both opened up this way), and when using `site:` search to find where content moved, scope it to the whole domain family including help/support subdomains, not just the apex domain (Levi's GB denim-care content lives on `levihelp.levi.com`, not `levi.com`). Only treat a result as a confirmed dead link when it renders the site's own branded 404 (e.g. "Page not found - GOV.UK") — a generic Akamai/Cloudflare "Access Denied" page means the check was blocked, not that the link is dead; don't guess a replacement in that case.
+
 ##### C — Ship gate commands
 
 ```bash
@@ -1892,6 +1894,8 @@ Built in **`lib/zone/buildZoneViewModel.ts`**, rendered as **`JourneyBentoCard`*
 **Atomic crystallize:** bento ripple via `ZONE_ATOMIC_BENTO_VARIANTS` + stagger (`lib/motion-family.ts`). Wall hidden until `revealedCardCount ≥ 1` and `pulseWordsComplete`.
 
 **Grid reveal stability (`app/zone/page.tsx`):** after Architectural Pulse completes, cards stagger in at **2×** `ZONE_GRID_STAGGER_CHILD_DELAY_SEC` (not 3×). `revealedCardCount` only resets to **0** when pulse phase is not `done` — not when `displayItems` grows after scrape-sync (avoids flash-then-stall). Dev localhost bootstrap seeds unsettled journeys once; it does **not** schedule `refreshKey` poll timers (those used to re-hydrate the whole grid and interrupt reveal).
+
+**`pulseWordsComplete` needs its own timeout, not just `cardReady`'s:** inside `DiscoveryTakeover`'s loop-close reveal (`tryReveal()` requires both `cardReady` **and** `pulseWordsComplete`), `cardReady` has always had a safety-net `setTimeout` in case the async recompute stalls — but `pulseWordsComplete` used to only flip via `ArchitecturalPulse`'s `onComplete` callback chain (down through `IntroWordCycle`'s internal word-cycle timers), with no fallback of its own. If that callback chain ever stalled (backgrounded/throttled tab is the likely real-world trigger), the reveal gate waited on it forever and the whole grid stayed permanently blank — no error, no recovery but a manual reload. Fixed by folding `pulseWordsComplete` into the same existing safety timeout. If either half of this reveal gate is ever reworked, both halves need an independent escape hatch — one timeout guarding only one of the two AND-ed conditions defeats the purpose.
 
 ##### Today's Tips rail (Rock)
 
@@ -3633,6 +3637,8 @@ The browser must **not** call Ofgem or Nominatim directly. Use `/api/pulse/livin
 3. User answers → **zip-shut** (`ZIP_SHUTTER_SPRING` / `SOLO_FOCUS_ZIP_SHUT_SEC`).
 4. Next question **fade-open** (opacity + y) when `soloFocusZipShut` — no intro shimmer on handoff.
 
+**Addressable card URL:** an open journey card gets a real URL, `/zone/card/[journeyKey]`, so a spawned offer tab closing back to this tab lands on the same card instead of a bare Zone refresh. Implemented as a Next.js intercepting route from `/zone` (`app/zone/@modal/(.)card/[journeyKey]/page.tsx`, renders nothing — the already-mounted `/zone` page reacts to the URL) with a full-page fallback for direct loads/deep links (`app/zone/card/[journeyKey]/page.tsx`, renders `ZonePage` pre-opened on that card). Two effects in `app/zone/page.tsx` sync `expandedCardId` ↔ pathname both ways (open pushes the URL, close/back-button pops it); a `suppressNextPathnameSyncRef` guard stops the two effects re-triggering each other on the push they themselves caused. Scoped to `journey-*` cards only — Today's Tips / achievement / discovery cards keep the URL-less overlay behavior.
+
 **Session cap:** `SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION` in `lib/animations.ts`.
 
 ##### 8.2 On answer — server sequence
@@ -5025,6 +5031,7 @@ Run in order from repo root. **All green locally** before browser UAT; **product
 | Zone grid | 13 journeys; utilities unlocked when power type set; purple/yellow hover swap; visited pink |
 | COMPUTING vs LIVE | Fresh postcode → COMPUTING titles until Neon stream; no fake £ without `research_results` |
 | Solo Focus | Marvin H1 + **lead only**; SAVE/CARBON stamp; MC answer updates grants/solar/travel £ where mapped |
+| Solo Focus URL | Opening a journey card pushes `/zone/card/[journeyKey]` (back button + tab restore return to the same card); closing (X / loop / discovery) pops back to `/zone` — no full Zone refresh |
 | Rock strip | TECH/HOLIDAYS labels **same colour as headline** at rest + hover |
 | Rock / SMS URLs | e-bike habit → gov.uk cycle-to-work, **not** Eurostar; water butt → Waterwise, not Recyclenow |
 | Mobile signup | Checkbox opt-in required; welcome SMS + tips/recs SMS; STOP opts out |

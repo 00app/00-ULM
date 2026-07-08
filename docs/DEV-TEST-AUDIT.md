@@ -27,6 +27,7 @@ Run in order from repo root. **All green locally** before browser UAT; **product
 | Zone grid | 13 journeys; utilities unlocked when power type set; purple/yellow hover swap; visited pink |
 | COMPUTING vs LIVE | Fresh postcode → COMPUTING titles until Neon stream; no fake £ without `research_results` |
 | Solo Focus | Marvin H1 + **lead only**; SAVE/CARBON stamp; MC answer updates grants/solar/travel £ where mapped |
+| Solo Focus URL | Opening a journey card pushes `/zone/card/[journeyKey]` (back button + tab restore return to the same card); closing (X / loop / discovery) pops back to `/zone` — no full Zone refresh |
 | Rock strip | TECH/HOLIDAYS labels **same colour as headline** at rest + hover |
 | Rock / SMS URLs | e-bike habit → gov.uk cycle-to-work, **not** Eurostar; water butt → Waterwise, not Recyclenow |
 | Mobile signup | Checkbox opt-in required; welcome SMS + tips/recs SMS; STOP opts out |

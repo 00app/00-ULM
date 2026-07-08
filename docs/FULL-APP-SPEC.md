@@ -399,6 +399,8 @@ The browser must **not** call Ofgem or Nominatim directly. Use `/api/pulse/livin
 3. User answers → **zip-shut** (`ZIP_SHUTTER_SPRING` / `SOLO_FOCUS_ZIP_SHUT_SEC`).
 4. Next question **fade-open** (opacity + y) when `soloFocusZipShut` — no intro shimmer on handoff.
 
+**Addressable card URL:** an open journey card gets a real URL, `/zone/card/[journeyKey]`, so a spawned offer tab closing back to this tab lands on the same card instead of a bare Zone refresh. Implemented as a Next.js intercepting route from `/zone` (`app/zone/@modal/(.)card/[journeyKey]/page.tsx`, renders nothing — the already-mounted `/zone` page reacts to the URL) with a full-page fallback for direct loads/deep links (`app/zone/card/[journeyKey]/page.tsx`, renders `ZonePage` pre-opened on that card). Two effects in `app/zone/page.tsx` sync `expandedCardId` ↔ pathname both ways (open pushes the URL, close/back-button pops it); a `suppressNextPathnameSyncRef` guard stops the two effects re-triggering each other on the push they themselves caused. Scoped to `journey-*` cards only — Today's Tips / achievement / discovery cards keep the URL-less overlay behavior.
+
 **Session cap:** `SOLO_FOCUS_MAX_QUESTIONS_PER_SESSION` in `lib/animations.ts`.
 
 ### 8.2 On answer — server sequence

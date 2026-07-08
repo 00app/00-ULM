@@ -245,6 +245,8 @@ Built in **`lib/zone/buildZoneViewModel.ts`**, rendered as **`JourneyBentoCard`*
 
 **Grid reveal stability (`app/zone/page.tsx`):** after Architectural Pulse completes, cards stagger in at **2×** `ZONE_GRID_STAGGER_CHILD_DELAY_SEC` (not 3×). `revealedCardCount` only resets to **0** when pulse phase is not `done` — not when `displayItems` grows after scrape-sync (avoids flash-then-stall). Dev localhost bootstrap seeds unsettled journeys once; it does **not** schedule `refreshKey` poll timers (those used to re-hydrate the whole grid and interrupt reveal).
 
+**`pulseWordsComplete` needs its own timeout, not just `cardReady`'s:** inside `DiscoveryTakeover`'s loop-close reveal (`tryReveal()` requires both `cardReady` **and** `pulseWordsComplete`), `cardReady` has always had a safety-net `setTimeout` in case the async recompute stalls — but `pulseWordsComplete` used to only flip via `ArchitecturalPulse`'s `onComplete` callback chain (down through `IntroWordCycle`'s internal word-cycle timers), with no fallback of its own. If that callback chain ever stalled (backgrounded/throttled tab is the likely real-world trigger), the reveal gate waited on it forever and the whole grid stayed permanently blank — no error, no recovery but a manual reload. Fixed by folding `pulseWordsComplete` into the same existing safety timeout. If either half of this reveal gate is ever reworked, both halves need an independent escape hatch — one timeout guarding only one of the two AND-ed conditions defeats the purpose.
+
 ### Today's Tips rail (Rock)
 
 Separate from 13 journey mother bentos — **not** duplicate wall headlines or journey audit copy.
