@@ -38,9 +38,10 @@ export function trustedUrlForJourney(j: JourneyId): string {
 
 /** Secondary CTAs when the primary trusted URL is already on the wall for this journey. */
 export const TRUSTED_JOURNEY_URL_ALTERNATES: Partial<Record<JourneyId, readonly string[]>> = {
+  // gov.uk/guidance/rail-fares-and-season-tickets (dead, confirmed real 404) intentionally
+  // dropped — no stable evergreen successor found, only news/press-release pages.
   travel: [
-    'https://www.gov.uk/guidance/rail-fares-and-season-tickets',
-    'https://www.thetrainline.com/train-times/cheap-train-tickets',
+    'https://www.thetrainline.com/information/cheap-train-tickets',
   ],
   holidays: ['https://www.visitbritain.com/'],
   utilities: ['https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap'],

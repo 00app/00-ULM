@@ -9,8 +9,9 @@ import { trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 
 /** Slug overrides where journey_key fallback would mismatch habit topic. */
 const ROCK_SLUG_OFFER_URLS: Partial<Record<string, string>> = {
-  // curtains-dusk (John Lewis), jeans-cold (Levi's), tablet-over-tv (Sony) — left as-is:
-  // these block automated checks outright, so live-vs-dead couldn't be confirmed either way.
+  // jeans-cold (Levi's) — left as-is: the caring-for-your-denim article only exists on
+  // Levi's US/CA regions now, GB has no equivalent care-guide page (only a denim glossary,
+  // wrong topic) — swapping to a US-region URL would trade one mismatch for another.
   'e-bike-scheme': 'https://www.gov.uk/government/publications/cycle-to-work-scheme-implementation-guidance',
   railcard: 'https://www.railcard.co.uk/',
   'speed-cap-60': 'https://www.theaa.com/driving-advice/',
@@ -29,11 +30,11 @@ const ROCK_SLUG_OFFER_URLS: Partial<Record<string, string>> = {
   'jeans-cold': 'https://www.levi.com/GB/en_GB/blog/article/sustainability/caring-for-your-denim',
   'library-ebooks': 'https://librariesconnected.org.uk/',
   'print-double': 'https://support.hp.com/gb-en/help',
-  'curtains-dusk': 'https://www.johnlewis.com/browse/electricals/energy-saving',
+  'curtains-dusk': 'https://www.johnlewis.com/content/electricals-tech/energy-saving-appliances',
   'line-dry-week': 'https://www.whirlpool.co.uk/',
   'pension-esg': 'https://www.which.co.uk/',
   'air-fryer-swap': 'https://www.ninjakitchen.co.uk/',
-  'tablet-over-tv': 'https://www.sony.co.uk/electronics/eco',
+  'tablet-over-tv': 'https://www.sony.co.uk/electronics/eco/sustainable-development',
   'bamboo-tp': 'https://uk.whogivesacrap.org/',
   'led-everywhere': 'https://www.lighting.philips.co.uk/consumer',
   'shower-four-min': 'https://www.waterwise.org.uk/save-water/',
@@ -56,8 +57,10 @@ function normalizeProviderKey(name: string): string {
 
 /** Publisher home / advice pages keyed by catalog `provider_name`. */
 const ROCK_PROVIDER_OFFER_URLS: Record<string, string> = {
-  // tesco, royal mail, sony, tesla — left as-is: these block automated checks outright
-  // (Akamai "Access Denied", not a branded 404), so live-vs-dead couldn't be confirmed.
+  // tesco, royal mail, sony, tesla all block automated fetches outright (Akamai "Access
+  // Denied"), but each is confirmed correct via search-index cross-check: exact URL is
+  // the top indexed result (tesco, royal mail, tesla) or the domain's current live
+  // homepage (sony) — no change needed despite the fetch block.
   est: 'https://www.energysavingtrust.org.uk/',
   'energy saving trust': 'https://www.energysavingtrust.org.uk/',
   aa: 'https://www.theaa.com/driving-advice/',
