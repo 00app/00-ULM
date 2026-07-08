@@ -9,10 +9,9 @@ import { trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 
 /** Slug overrides where journey_key fallback would mismatch habit topic. */
 const ROCK_SLUG_OFFER_URLS: Partial<Record<string, string>> = {
-  // e-bike-scheme, curtains-dusk (John Lewis), jeans-cold (Levi's), tablet-over-tv (Sony) —
-  // left as-is: no confirmed-live replacement found (gov.uk guesses 404'd; JL/Levi's/Sony block
-  // automated checks so live-vs-dead couldn't be confirmed either way).
-  'e-bike-scheme': 'https://www.gov.uk/guidance/cycle-to-work-implementing-an-effective-scheme',
+  // curtains-dusk (John Lewis), jeans-cold (Levi's), tablet-over-tv (Sony) — left as-is:
+  // these block automated checks outright, so live-vs-dead couldn't be confirmed either way.
+  'e-bike-scheme': 'https://www.gov.uk/government/publications/cycle-to-work-scheme-implementation-guidance',
   railcard: 'https://www.railcard.co.uk/',
   'speed-cap-60': 'https://www.theaa.com/driving-advice/',
   'cruise-control': 'https://www.iamroadsmart.com/advice/',
