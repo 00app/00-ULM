@@ -87,9 +87,9 @@ export function getDiscoveryRecommendation(
       headline: 'FLIGHT CARBON CAP',
       body: 'If you keep flying, offset-ready tariffs and fewer legs still trim cost — compare 2026 airline bundles.',
       gridJourneyKey: 'travel',
-      learnUrl: 'https://www.gov.uk/guidance/cycle-to-work-scheme',
+      learnUrl: 'https://www.gov.uk/browse/abroad',
       ctaLabel: 'Travel options',
-      ctaUrl: 'https://www.gov.uk/guidance/cycle-to-work-scheme',
+      ctaUrl: 'https://www.gov.uk/browse/abroad',
     }
   }
 
@@ -143,10 +143,10 @@ export function getDiscoveryRecommendation(
         headline: 'USED EV GRANT',
         body: 'EV chargepoint grant plus lower pence-per-mile often beats petrol when grants close the upfront gap.',
         gridJourneyKey: 'money',
-        learnUrl: 'https://www.gov.uk/ev-chargepoint-grant',
-        actionUrl: 'https://www.gov.uk/ev-chargepoint-grant',
+        learnUrl: 'https://www.gov.uk/zero-emission-vehicle-grants',
+        actionUrl: 'https://www.gov.uk/zero-emission-vehicle-grants',
         ctaLabel: 'EV grant',
-        ctaUrl: 'https://www.gov.uk/ev-chargepoint-grant',
+        ctaUrl: 'https://www.gov.uk/zero-emission-vehicle-grants',
       }
     }
     return {
@@ -242,10 +242,10 @@ export function getDiscoveryRecommendation(
         headline: 'EV CHARGEPOINT SAVING',
         body: 'The EV chargepoint grant and lower per-mile costs stack up — see GOV.UK chargepoint scheme.',
         gridJourneyKey: 'travel',
-        learnUrl: 'https://www.gov.uk/ev-chargepoint-grant',
-        actionUrl: 'https://www.gov.uk/ev-chargepoint-grant',
+        learnUrl: 'https://www.gov.uk/zero-emission-vehicle-grants',
+        actionUrl: 'https://www.gov.uk/zero-emission-vehicle-grants',
         ctaLabel: 'Chargepoint grant',
-        ctaUrl: 'https://www.gov.uk/ev-chargepoint-grant',
+        ctaUrl: 'https://www.gov.uk/zero-emission-vehicle-grants',
         followUp: {
           question: 'Do you have off-street parking at home?',
           options: ['YES', 'NO'],
@@ -257,9 +257,9 @@ export function getDiscoveryRecommendation(
       headline: 'LOW-CARBON COMMUTE',
       body: 'Public and active travel keeps bills and emissions down — see local season tickets and cycle schemes.',
       gridJourneyKey: 'travel',
-      learnUrl: 'https://www.gov.uk/guidance/cycle-to-work-scheme',
+      learnUrl: 'https://www.gov.uk/tax-relief-for-employees',
       ctaLabel: 'Explore options',
-      ctaUrl: 'https://www.gov.uk/guidance/cycle-to-work-scheme',
+      ctaUrl: 'https://www.gov.uk/tax-relief-for-employees',
     }
   }
 

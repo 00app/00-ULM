@@ -242,7 +242,7 @@ export function calculateTravel(
     moneyGbp: Math.max(0, money),
     source: 'defra transport factors (2026 petrol)',
     explanation: travelExplain,
-    claimOfferUrl: isEv || a.fuel_type === 'HYBRID' ? 'https://www.gov.uk/ev-chargepoint-grant' : undefined,
+    claimOfferUrl: isEv || a.fuel_type === 'HYBRID' ? 'https://www.gov.uk/zero-emission-vehicle-grants' : undefined,
     insight: mode === 'CAR' || isPetrol || isDiesel ? 'Switching to an EV could save you £1,400/yr.' : 'Your commute is high-value.',
   }
 }
@@ -345,7 +345,7 @@ export function calculateMoney(a: Record<string, string>): ImpactResult {
       'a variable or unknown tariff is the highest-risk position heading into the next ofgem window — locking into a fixed below the april £1,641 cap sets your cost floor.',
       'ethical current accounts, isas, and pension switches earn market-rate returns without funding fossil extraction — no income penalty for moving your cash.',
     ],
-    claimOfferUrl: 'https://www.gov.uk/apply-warm-home-discount-scheme',
+    claimOfferUrl: 'https://www.gov.uk/the-warm-home-discount-scheme',
   }
 }
 

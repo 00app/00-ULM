@@ -45,7 +45,7 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 22,
     carbon_kg: 15,
     provider_name: 'Energy Saving Trust',
-    learn_url: 'https://www.energysavingtrust.org.uk/advice/electrical-appliances/',
+    learn_url: 'https://www.energysavingtrust.org.uk/',
   },
   {
     slug: 'water-butt',
