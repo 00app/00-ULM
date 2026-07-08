@@ -9,9 +9,6 @@ import { trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 
 /** Slug overrides where journey_key fallback would mismatch habit topic. */
 const ROCK_SLUG_OFFER_URLS: Partial<Record<string, string>> = {
-  // jeans-cold (Levi's) — left as-is: the caring-for-your-denim article only exists on
-  // Levi's US/CA regions now, GB has no equivalent care-guide page (only a denim glossary,
-  // wrong topic) — swapping to a US-region URL would trade one mismatch for another.
   'e-bike-scheme': 'https://www.gov.uk/government/publications/cycle-to-work-scheme-implementation-guidance',
   railcard: 'https://www.railcard.co.uk/',
   'speed-cap-60': 'https://www.theaa.com/driving-advice/',
@@ -27,7 +24,9 @@ const ROCK_SLUG_OFFER_URLS: Partial<Record<string, string>> = {
   'freezer-defrost': 'https://www.hotpoint.co.uk/support/',
   'slow-cooker': 'https://www.morphyrichards.co.uk/',
   'pan-lids': 'https://www.energysavingtrust.org.uk/',
-  'jeans-cold': 'https://www.levi.com/GB/en_GB/blog/article/sustainability/caring-for-your-denim',
+  // Genuine GB care-guide content — it's on the help-center subdomain (levihelp.levi.com),
+  // not the main levi.com/GB blog, which is why an earlier levi.com-scoped search missed it.
+  'jeans-cold': 'https://levihelp.levi.com/hc/en-gb/articles/17526810803345-How-to-Wash-and-Dry-Your-Denim',
   'library-ebooks': 'https://librariesconnected.org.uk/',
   'print-double': 'https://support.hp.com/gb-en/help',
   'curtains-dusk': 'https://www.johnlewis.com/content/electricals-tech/energy-saving-appliances',
