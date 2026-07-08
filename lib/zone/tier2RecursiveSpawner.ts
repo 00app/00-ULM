@@ -1,5 +1,6 @@
 import type { JourneyId } from '@/lib/journeys'
 import { isValidJourneyQuestion } from '@/lib/journeys'
+import { wrapWithAwinAffiliateLink } from '@/lib/monetization/awinAffiliateLink'
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import { resolveClientResearchUserId } from '@/lib/zone/garyMode'
 import { safeGetItem, safeSetItem } from '@/lib/zone/safeProfileStorage'
@@ -94,11 +95,11 @@ export async function refreshZoneTotalsAfterTier2(postcode: string): Promise<voi
   }
 }
 
-export function openOfferUrlInNewTab(url: string | null | undefined): boolean {
+export function openOfferUrlInNewTab(url: string | null | undefined, clickref?: string): boolean {
   const u = typeof url === 'string' ? url.trim() : ''
   if (!u.startsWith('http')) return false
   try {
-    window.open(u, '_blank', 'noopener,noreferrer')
+    window.open(wrapWithAwinAffiliateLink(u, clickref), '_blank', 'noopener,noreferrer')
     return true
   } catch {
     return false

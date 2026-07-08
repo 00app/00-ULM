@@ -440,6 +440,8 @@ sequenceDiagram
 
 **Copy resolver:** `resolveExpandedTrueTipInsight` · `buildResearchResultsTrueTipBody` · `toThreeTrueTipParagraphs` · `resolveSoloFocusInsightDisplay`.
 
+**Affiliate monetization (Awin):** `lib/monetization/awinAffiliateLink.ts` wraps the resolved destination URL at the moment of the three click sites (`IndustrialHandoffButton`, `openZoneExternalHandoff`, `openOfferUrlInNewTab`) — not a URL source, applied after `offerUrlGuard.ts` has already validated the destination. Requires `AWIN_PUBLISHER_ID` env var **and** a host entry in `AWIN_MERCHANT_IDS` (populate per-merchant as Awin programs get approved — do not guess merchant IDs); genuinely a no-op, URLs pass through unchanged, until both exist. `clickref` carries journey/card id through for Awin-side attribution.
+
 ---
 
 ## 9. Mother card vs child card (Tier 2)

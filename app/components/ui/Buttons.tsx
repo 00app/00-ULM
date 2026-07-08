@@ -11,6 +11,7 @@ import { motion } from 'framer-motion'
 import type { JourneyId } from '@/lib/journeys'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
+import { wrapWithAwinAffiliateLink } from '@/lib/monetization/awinAffiliateLink'
 
 import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 
@@ -222,7 +223,7 @@ export function IndustrialHandoffButton({
       cta_label: ctaLabel,
     })
     setTimeout(() => {
-      window.open(url, '_blank', 'noopener,noreferrer')
+      window.open(wrapWithAwinAffiliateLink(url, journeyId), '_blank', 'noopener,noreferrer')
     }, 150)
   }
 

@@ -3,6 +3,7 @@ import type { JourneyId } from '@/lib/journeys'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { recordCardVisitHandoff } from '@/lib/zone/visitedCards'
+import { wrapWithAwinAffiliateLink } from '@/lib/monetization/awinAffiliateLink'
 
 export type ZoneExternalHandoff = {
   cardId: string
@@ -33,7 +34,7 @@ export function openZoneExternalHandoff(handoff: ZoneExternalHandoff): boolean {
     link_kind: 'external',
   })
   try {
-    window.open(url, '_blank', 'noopener,noreferrer')
+    window.open(wrapWithAwinAffiliateLink(url, handoff.cardId), '_blank', 'noopener,noreferrer')
     return true
   } catch {
     return false

@@ -924,7 +924,7 @@ export function JourneyBentoCard({
     if (target && openZoneExternalHandoff({ cardId: handoffId, url: target, title, journeyKey: journeyId })) {
       return
     }
-    openOfferUrlInNewTab(target)
+    openOfferUrlInNewTab(target, journeyId)
   }, [soloHandoff.ctaUrl, soloHandoff.offerUrl, triggerHaptic, cardId, journeyId, title])
 
   // —— EXPANDED (Solo Focus): v1.7 Active Intelligence — strict 00-00 Industrial Layout ——
