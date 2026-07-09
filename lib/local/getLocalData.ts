@@ -121,17 +121,29 @@ async function getLocalDataFromOpenStreetMap(cleanPostcode: string): Promise<Loc
   }
 }
 
+/**
+ * UK postcode AREA -> region, exact match only. Areas are 1-2 letters (e.g. "E", "EX", "SW"),
+ * fully distinct codes assigned by Royal Mail — never prefixes of each other despite looking
+ * like it as raw strings. Do not go back to regex prefix-testing the outcode: `/^(...|N|...)/`
+ * matches any outcode starting with "N" — Northampton (NN), Newcastle (NE), Nottingham (NG),
+ * Norwich (NR) all silently resolved to London before this was an exact table, same failure
+ * for L->North West catching Llandudno/Llandrindod (Wales), S->North East catching Swansea
+ * (Wales), G->Scotland catching Guildford/Gloucester (only saved by check order, not correctness).
+ */
+const POSTCODE_AREA_TO_REGION: Record<string, string> = {
+  EC: 'London', WC: 'London', N: 'London', NW: 'London', SE: 'London', SW: 'London', E: 'London', W: 'London',
+  BN: 'South East', PO: 'South East', SO: 'South East', GU: 'South East', RH: 'South East', KT: 'South East', RG: 'South East', OX: 'South East',
+  BS: 'South West', BA: 'South West', EX: 'South West', PL: 'South West', TR: 'South West', TA: 'South West', TQ: 'South West', GL: 'South West', SN: 'South West',
+  B: 'Midlands', CV: 'Midlands', DE: 'Midlands', DY: 'Midlands', LE: 'Midlands', NG: 'Midlands', NN: 'Midlands', ST: 'Midlands', WS: 'Midlands', WV: 'Midlands',
+  M: 'North West', L: 'North West', OL: 'North West', SK: 'North West', WA: 'North West', WN: 'North West', FY: 'North West', PR: 'North West', BB: 'North West', BL: 'North West',
+  NE: 'North East', DH: 'North East', SR: 'North East', DL: 'North East', TS: 'North East', YO: 'North East', HU: 'North East', DN: 'North East', S: 'North East', LS: 'North East', HD: 'North East', HX: 'North East', WF: 'North East',
+  AB: 'Scotland', DD: 'Scotland', DG: 'Scotland', EH: 'Scotland', FK: 'Scotland', G: 'Scotland', HS: 'Scotland', IV: 'Scotland', KA: 'Scotland', KW: 'Scotland', KY: 'Scotland', ML: 'Scotland', PA: 'Scotland', PH: 'Scotland', TD: 'Scotland', ZE: 'Scotland',
+  CF: 'Wales', LD: 'Wales', LL: 'Wales', NP: 'Wales', SA: 'Wales', SY: 'Wales',
+}
+
 function getRegionFromOutcode(outcode: string): string {
-  const o = outcode.toUpperCase()
-  if (/^(EC|WC|N|NW|SE|SW|E)/.test(o)) return 'London'
-  if (/^(BN|PO|SO|GU|RH|KT|RG|OX)/.test(o)) return 'South East'
-  if (/^(BS|BA|EX|PL|TR|TA|TQ|GL|SN)/.test(o)) return 'South West'
-  if (/^(B|CV|DE|DY|LE|NG|NN|ST|WS|WV)/.test(o)) return 'Midlands'
-  if (/^(M|L|OL|SK|WA|WN|FY|PR|BB|BL)/.test(o)) return 'North West'
-  if (/^(NE|DH|SR|DL|TS|YO|HU|DN|S|LS|HD|HX|WF)/.test(o)) return 'North East'
-  if (/^(AB|DD|DG|EH|FK|G|HS|IV|KA|KW|KY|ML|PA|PH|TD|ZE)/.test(o)) return 'Scotland'
-  if (/^(CF|LD|LL|NP|SA|SY)/.test(o)) return 'Wales'
-  return 'United Kingdom'
+  const area = outcode.toUpperCase().match(/^[A-Z]+/)?.[0] ?? outcode.toUpperCase()
+  return POSTCODE_AREA_TO_REGION[area] ?? 'United Kingdom'
 }
 
 export function getEmergencyPostcodeFallback(cleanPostcode: string): LocalIntelligence {
