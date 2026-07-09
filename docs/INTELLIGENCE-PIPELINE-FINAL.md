@@ -2,6 +2,8 @@
 
 Vercel Cron (formerly Hermes on an Oracle VPS, retired 2026-07-07 — see FULL-APP-SPEC.md §11) sits at the repair layer; the **browser onboarding path** below is what new users hit on first run.
 
+**Ingestion (2026-07):** the free scraper (`lib/agents/freeScraper.ts` — plain `fetch` + Readability + linkedom, no API cost) is primary for the static gov.uk/Ofgem/MoneySavingExpert/EnergySavingTrust sources that make up most seed URLs. Firecrawl is the fallback for whatever it can't reach, but `SKIP_FIRECRAWL=1` is currently set in production, so Firecrawl calls are disabled — the free scraper is effectively the sole ingestion path live. LLM synthesis of scraped markdown into the £/kg/prose triplet runs through **bucket failover** (`lib/intelligence/bucketFailover.ts`): Gemini → Groq → Mistral → OpenRouter, each provider gated on its own API key being set. OpenRouter's key is not currently set in Vercel, so the live chain is Gemini → Groq → Mistral.
+
 ## 1. Profile complete (`ProfilePageClient.submitProfile`)
 
 1. Persist profile to `localStorage` + unified memory.

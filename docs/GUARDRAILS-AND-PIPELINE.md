@@ -41,6 +41,11 @@ Index: `.cursor/rules/README.md`
 | Scrape boundaries | `lib/intelligence/scrapeBoundaries.ts`, `answerFunnelRouter.ts` |
 | Prose / headline quality | `contentProseSanitize.ts`, `soloFocusCopy.ts`, `researchGateAudit.ts` |
 | Truth ledger audit | `lib/intelligence/buildIntelligenceLedger.ts` |
+| LLM provider failover | `lib/intelligence/bucketFailover.ts`, `llmRateLimit.ts` |
+| Malformed LLM JSON | `lib/agents/researchAgent.ts` (`sanitizeJsonEmbeddedNewlines`) |
+| Content provenance flag | `research_results.is_mechanical_fallback` (see §2) |
+| Awin affiliate wrapping | `lib/monetization/awinAffiliateLink.ts` |
+| Postcode → region | `lib/local/getLocalData.ts` (exact area-code table) |
 
 **Security (OWASP-aligned):** `SCRAPER_SECRET` authorizes scrape-sync POST only; `CRON_SECRET` is `/api/cron/*` only. Session restore requires HMAC `restore_proof` (no dev UUID bypass). Rate limits on scrape-sync GET (10/min anonymous), likes POST, restore-session. See `lib/security/productionSecrets.ts`.
 
@@ -73,9 +78,12 @@ flowchart TB
     PROF --> SUM[Summary handshake]
   end
   subgraph ingest [Ingestion Tier B/C]
-    FC[Firecrawl UK sources]
-    GM[Gemini synthesis]
-    FC --> GM --> NEON[(research_results)]
+    SCR[Free scraper — fetch + Readability + linkedom<br/>gov.uk/Ofgem/MSE/EST, no API cost]
+    FC[Firecrawl — fallback for JS-heavy sites<br/>SKIP_FIRECRAWL=1 in prod: disabled]
+    BF[Bucket failover LLM synthesis<br/>Gemini → Groq → Mistral → OpenRouter]
+    SCR --> BF
+    FC -.->|only if SKIP_FIRECRAWL unset| BF
+    BF --> NEON[(research_results)]
   end
   subgraph free [Tier A — no credits]
     GEO[geocode / local-intelligence]
@@ -123,7 +131,7 @@ Detail: [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md)
 
 | Input | Storage | Effect |
 | --- | --- | --- |
-| Postcode | `profile_postcode`, Neon | All scrapes, council, grid carbon, copy locality |
+| Postcode | `profile_postcode`, Neon | All scrapes, council, grid carbon, copy locality — region resolved via `getLocalData.ts`'s exact postcode-area lookup table (postcodes.io primary, OpenStreetMap then this table as emergency fallback only) |
 | Goal | `profile_goal` | JIT pick, grid sort, loop rank, architect emphasis |
 | Power type | `profile_home_power` | Utilities unlock + JIT |
 | Employment + income | profile / genome | Affluence tone, grant deprioritisation |
@@ -149,6 +157,12 @@ Detail: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md)
 | Neon stream valid | Live £, headline, prose — **LIVE_AUDIT** |
 | Always | Both £ and carbon stamped when numbers exist |
 
+**`is_mechanical_fallback` (added 2026-07):** `research_results` boolean, `false` when the row's £/kg/prose came from real LLM triplet extraction, `true` when the pipeline fell through to the shared per-category mechanical template (no genuine £ or carbon — headline/prose only). `app/api/scrape-sync/route.ts`'s `RESEARCH_COVERAGE_SELECT` reads it and zeroes `sav`/`carbon` on fallback rows so a template row can never masquerade as a real saving; when a postcode has both a genuine and a fallback row for the same journey, the genuine one always wins regardless of £ size. Replaces the old `verified` column, which was a `GENERATED ALWAYS` column that was always `true` and carried no real signal.
+
+**LLM triplet-JSON parsing (fixed 2026-07):** small/fast bucket models (Groq's `llama-3.1-8b-instant` in particular) emit syntactically-plausible JSON with unescaped literal newlines inside long string fields — spec-invalid, `JSON.parse` throws, and the extraction silently fell through to the mechanical template for every user regardless of profile. `sanitizeJsonEmbeddedNewlines` in `researchAgent.ts` escapes raw `\n`/`\r` only inside quoted-string spans before parsing. If genuinely-different users start seeing near-identical Zone cards again, check `is_mechanical_fallback` on the relevant rows first — that flag is the fast diagnostic.
+
+**LLM cooldown gate — all, not any:** `isLlmRateLimited(providers)` (`lib/intelligence/llmRateLimit.ts`) must require every listed provider to be cooling down before skipping synthesis, not just one. It used to check `isAnyProviderCoolingDown`, so a single permanently-invalid key (e.g. an expired Gemini key stuck on cooldown) blocked triplet extraction for every user forever even though Groq/Mistral were healthy. `generateWithBucketFailover` already skips a cooling-down provider and tries the next internally — this gate only exists to short-circuit when truly nothing is left to try.
+
 ---
 
 ## 3. Surface checklist (is it ready?)
@@ -164,6 +178,10 @@ Detail: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md)
 | **Truth Ledger** | `/api/intelligence/ledger` + unified grid UI |
 | **Likes** | Snapshots + `/likes` |
 | **Zai / Ask** | Genome context; read-only chat; card context in Solo Focus |
+
+### Monetization (Awin)
+
+`wrapWithAwinAffiliateLink` (`lib/monetization/awinAffiliateLink.ts`) wraps an already-resolved, already-guarded destination URL at click time — three call sites: `IndustrialHandoffButton` (`app/components/ui/Buttons.tsx`), `openOfferUrlInNewTab` (`lib/zone/tier2RecursiveSpawner.ts`), `openZoneExternalHandoff` (`lib/zone/zoneHandoff.ts`). It is a no-op (returns the URL unchanged) unless **both** `NEXT_PUBLIC_AWIN_PUBLISHER_ID` is set **and** the destination host has an entry in `AWIN_MERCHANT_IDS`. As of 2026-07 the publisher ID is live in Vercel but `AWIN_MERCHANT_IDS` is empty — no Awin programs approved yet — so every click still goes direct. Add a host → `awinmid` entry as each program (e.g. AO.com) is approved; do not guess an ID.
 
 ---
 
@@ -222,4 +240,4 @@ Detail: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md)
 
 ---
 
-*Last consolidated: Jun 2026 — aligns with `.cursor/rules/` and production gate at `4d0739f`.*
+*Last consolidated: Jul 2026 — aligns with `.cursor/rules/` and production gate at `b553879`.*
