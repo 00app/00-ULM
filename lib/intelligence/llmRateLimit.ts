@@ -54,6 +54,20 @@ export function isAnyProviderCoolingDown(providers: readonly string[]): boolean 
   return providers.some((p) => isProviderCoolingDown(p))
 }
 
+/** True only when every listed provider is cooling down — i.e. genuinely nothing left to try. */
+export function isAllProvidersCoolingDown(providers: readonly string[]): boolean {
+  return providers.every((p) => isProviderCoolingDown(p))
+}
+
+/**
+ * Whether to skip LLM synthesis entirely rather than attempt the (bucket-failover) call.
+ * Must require ALL configured providers to be cooling down, not any single one — this used to
+ * check isAnyProviderCoolingDown, which meant one dead/invalid provider (e.g. an expired Gemini
+ * key permanently on cooldown) silently blocked every other configured provider forever, even
+ * ones that were perfectly healthy. generateWithBucketFailover already skips a cooling-down
+ * provider and tries the next one internally — this check exists only to short-circuit when
+ * there is truly nothing left to try, so it needs the same "all, not any" bar.
+ */
 export function isLlmRateLimited(providers?: readonly string[]): boolean {
   if (!providers?.length) {
     for (const until of cooldownUntil.values()) {
@@ -61,7 +75,7 @@ export function isLlmRateLimited(providers?: readonly string[]): boolean {
     }
     return false
   }
-  return isAnyProviderCoolingDown(providers)
+  return isAllProvidersCoolingDown(providers)
 }
 
 export async function sleepMs(ms: number): Promise<void> {
