@@ -31,6 +31,12 @@ const nextConfig = {
   // Lint + tsc run in vercel.json `buildCommand` via scripts/vercel-build-gate.mjs (eslint + tsc:check).
   // Do not set `eslint` here — Next 16 removed that option and Vercel native Lint checks crash with "internal error".
   typescript: { ignoreBuildErrors: true },
+  // jsdom (lib/agents/freeScraper.ts) depends on @exodus/bytes, a pure-ESM package with no CJS
+  // build — Next's default bundler tries to require() it and crashes at runtime. Excluding jsdom
+  // from bundling lets Node's own module resolution load it instead, which handles ESM/CJS
+  // interop correctly. This masked as a mechanical-triplet-fallback "cost saving" for a while:
+  // the fallback path never called the real scraper, so this crash never fired in production.
+  serverExternalPackages: ['jsdom'],
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }]
   },
