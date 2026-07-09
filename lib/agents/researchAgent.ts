@@ -921,6 +921,7 @@ async function extractResearchTripletWithGemini(
   agent_headline?: string
   architect_prose?: string
 } | null> {
+  console.log('[DEBUG-triplet-gate] extractResearchTripletWithGemini markdown.length:', markdown.length)
   if (markdown.length < 80) return null
   const journeyList = ALLOWED_TRIPLET_CATEGORIES.join(', ')
   const pc = postcode?.trim() ? `Postcode context: ${postcode.trim()}\n\n` : ''
@@ -964,7 +965,9 @@ ${markdown.slice(0, shouldPreferMechanicalTripletInBucket() ? 12_000 : 28_000)}`
         ? [`google/${options.model.trim().replace(/^google\//, '')}`, ...ARTICLE_GATEWAY_MODEL_CHAIN]
         : undefined,
     })
+    console.log('[DEBUG-triplet-gate] raw text from generateResearchText:', text?.slice(0, 300))
     const parsed = parseResearchTripletJson(text)
+    console.log('[DEBUG-triplet-gate] parsed result is null:', parsed == null)
     return parsed
   } catch (e) {
     console.warn(
