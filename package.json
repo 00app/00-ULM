@@ -149,7 +149,8 @@
     "axios": "^1.15.2",
     "postcss": "^8.5.14",
     "esbuild": "^0.28.1",
-    "html-encoding-sniffer": "4.0.0"
+    "html-encoding-sniffer": "4.0.0",
+    "whatwg-url": "15.1.0"
   },
   "engines": {
     "node": "24.x"
