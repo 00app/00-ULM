@@ -197,7 +197,9 @@ const RESEARCH_COVERAGE_SELECT = `SELECT DISTINCT ON (lower(trim(rr.category)))
           rr.source_url,
           rr.saving_amount_gbp,
           rr.verified_saving,
-          rr.verified`
+          rr.verified,
+          rr.is_mechanical_fallback,
+          rr.carbon_impact_kg`
 
 async function loadResearchCategoryCoverage(userId: string): Promise<Record<string, ResearchCategoryCoverageRow>> {
   try {
@@ -326,6 +328,7 @@ async function buildScrapedFromResearchResults(
       saving_amount_gbp: unknown
       verified_saving: unknown
       carbon_impact_kg: unknown
+      is_mechanical_fallback: unknown
     }>(
       userId
         ? `${RESEARCH_COVERAGE_SELECT}
@@ -346,9 +349,23 @@ async function buildScrapedFromResearchResults(
       const jid = researchCategoryToJourneyKey(String(row.cat || ''))
       if (!jid) continue
       const existing = byJourney.get(jid)
+      if (!existing) {
+        byJourney.set(jid, row)
+        continue
+      }
+      // Prefer genuine research over the mechanical fallback regardless of £ size — the
+      // fallback's fixed template amount (e.g. £7,500 grants) can otherwise out-rank a smaller
+      // but real finding just by being a bigger number.
+      const existingIsFallback = existing.is_mechanical_fallback === true
+      const rowIsFallback = row.is_mechanical_fallback === true
+      if (existingIsFallback && !rowIsFallback) {
+        byJourney.set(jid, row)
+        continue
+      }
+      if (!existingIsFallback && rowIsFallback) continue
       const sav = toNum(row.saving_amount_gbp) || toNum(row.verified_saving)
-      const prevSav = existing ? toNum(existing.saving_amount_gbp) || toNum(existing.verified_saving) : 0
-      if (!existing || sav > prevSav) byJourney.set(jid, row)
+      const prevSav = toNum(existing.saving_amount_gbp) || toNum(existing.verified_saving)
+      if (sav > prevSav) byJourney.set(jid, row)
     }
     const hasAny = [...byJourney.values()].some((row) => {
       const sav = toNum(row.saving_amount_gbp) || toNum(row.verified_saving)
@@ -359,8 +376,14 @@ async function buildScrapedFromResearchResults(
     if (!hasAny) return null
     return JOURNEY_ORDER.map((key) => {
       const row = byJourney.get(key)
-      const sav = row ? toNum(row.saving_amount_gbp) || toNum(row.verified_saving) : 0
-      const carbon = row ? toNum(row.carbon_impact_kg) : 0
+      // The mechanical fallback is the same shared per-category template regardless of who's
+      // asking — letting its £ figure through here would silently overwrite the real, already
+      // profile-computed calculateJourneyImpact() baseline (see applyScrapedOverlay's 20%-delta
+      // check) with a generic number. Prose/headline still surface below; only the £/kg figures
+      // are held back, since those are the ones making an explicit per-user claim.
+      const isFallback = row?.is_mechanical_fallback === true
+      const sav = row && !isFallback ? toNum(row.saving_amount_gbp) || toNum(row.verified_saving) : 0
+      const carbon = row && !isFallback ? toNum(row.carbon_impact_kg) : 0
       const prose = row && typeof row.architect_prose === 'string' ? row.architect_prose.trim() : ''
       const headline = row && typeof row.agent_headline === 'string' ? row.agent_headline.trim() : ''
       const tip = prose.length > 0 ? prose.slice(0, 280) : headline.length > 0 ? headline.slice(0, 280) : undefined

@@ -207,6 +207,13 @@ ALTER TABLE research_results
     OR (COALESCE(saving_amount_gbp, 0::numeric) > 0)
   ) STORED;
 
+-- `verified` above only means "has a nonzero saving figure" — true for the shared mechanical
+-- fallback template too, not a real provenance signal. is_mechanical_fallback tracks whether
+-- the saving_amount_gbp on this row came from that per-category template (same number for
+-- every user at the fallback) rather than genuine research, so buildScrapedFromResearchResults
+-- (app/api/scrape-sync/route.ts) can decline to let it override the profile-calculated baseline.
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS is_mechanical_fallback BOOLEAN NOT NULL DEFAULT false;
+
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS is_high_impact BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS carbon_impact_kg NUMERIC(12, 2);
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS last_visited_at TIMESTAMPTZ;

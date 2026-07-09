@@ -1195,7 +1195,8 @@ export async function repairResearchResultsMissingHeadlines(params: {
                saving_amount_gbp = COALESCE($4::numeric, saving_amount_gbp),
                category = COALESCE($5, category),
                offer_url = COALESCE($6, offer_url),
-               source_url = COALESCE($6, source_url)
+               source_url = COALESCE($6, source_url),
+               is_mechanical_fallback = true
            WHERE id::text = $1`,
           [
             row.id,
@@ -1631,7 +1632,8 @@ export async function persistResearchResult(params: {
        ADD COLUMN IF NOT EXISTS saving_amount_gbp NUMERIC(10,2),
        ADD COLUMN IF NOT EXISTS architect_prose TEXT,
        ADD COLUMN IF NOT EXISTS is_high_impact BOOLEAN NOT NULL DEFAULT false,
-       ADD COLUMN IF NOT EXISTS carbon_impact_kg NUMERIC(12,2)`
+       ADD COLUMN IF NOT EXISTS carbon_impact_kg NUMERIC(12,2),
+       ADD COLUMN IF NOT EXISTS is_mechanical_fallback BOOLEAN NOT NULL DEFAULT false`
     )
     const deepResolved = params.deepLink ?? params.sourceUrl ?? null
 
@@ -1715,6 +1717,11 @@ export async function persistResearchResult(params: {
       !mergedArchitectProse
     const needsMechanicalHeadline =
       headlineWordCount > 0 && headlineWordCount < MIN_JOURNEY_CARD_HEADLINE_WORDS
+    // Tracks specifically whether the £ figure (not just headline/prose) came from the shared
+    // per-category template rather than genuine research — that's the only thing gating the
+    // scraped-overlay in buildScrapedFromResearchResults needs to know. A row can legitimately
+    // use the mechanical headline/prose while keeping a real, already-settled saving amount.
+    let savingIsMechanicalFallback = false
     if ((tripletEmpty || needsMechanicalHeadline) && (mergedOffer || mergedCategory)) {
       const mechanical = mechanicalCategoryTripletFallback({
         category: mergedCategory,
@@ -1723,7 +1730,10 @@ export async function persistResearchResult(params: {
         postcode: params.postcode ?? null,
       })
       if (mechanical) {
-        if (savingForDb == null || savingForDb <= 0) savingForDb = mechanical.saving_amount_gbp
+        if (savingForDb == null || savingForDb <= 0) {
+          savingForDb = mechanical.saving_amount_gbp
+          savingIsMechanicalFallback = true
+        }
         mergedAgentHeadline = mechanical.agent_headline
         if (!mergedArchitectProse) mergedArchitectProse = mechanical.architect_prose
         if (mechanical.offer_url) mergedOffer = mechanical.offer_url
@@ -1802,9 +1812,9 @@ export async function persistResearchResult(params: {
            elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
            deep_link, verified_saving, category, offer_url, saving_amount_gbp, locality_context,
            provider_name, agent_headline, architect_prose, research_snapshot,
-           is_high_impact, carbon_impact_kg, created_at
+           is_high_impact, carbon_impact_kg, is_mechanical_fallback, created_at
          )
-         VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13::numeric, $14, $15, $16, $17, $18::jsonb, $19, $20::numeric, NOW())`,
+         VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13::numeric, $14, $15, $16, $17, $18::jsonb, $19, $20::numeric, $21, NOW())`,
         [
           userIdForInsert,
           params.postcode ?? null,
@@ -1826,6 +1836,7 @@ export async function persistResearchResult(params: {
           params.invokePayload !== undefined ? JSON.stringify(params.invokePayload) : null,
           highImpact,
           carbonKg,
+          savingIsMechanicalFallback,
         ]
       )
 
@@ -1912,7 +1923,7 @@ export async function seedMechanicalJourneysForPostcode(
       await pool.query(
         `INSERT INTO research_results (
            postcode, category, saving_amount_gbp, agent_headline, architect_prose,
-           offer_url, source_url, markdown, citations, verified, locality_context
+           offer_url, source_url, markdown, citations, is_mechanical_fallback, locality_context
          ) VALUES ($1, $2, $3::numeric, $4, $5, $6, $7, $8, $9::jsonb, true, $10)`,
         [
           pc,
