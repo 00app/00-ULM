@@ -31,13 +31,6 @@ const nextConfig = {
   // Lint + tsc run in vercel.json `buildCommand` via scripts/vercel-build-gate.mjs (eslint + tsc:check).
   // Do not set `eslint` here — Next 16 removed that option and Vercel native Lint checks crash with "internal error".
   typescript: { ignoreBuildErrors: true },
-  // jsdom (lib/agents/freeScraper.ts) is huge/complex and not meant to be webpack-bundled;
-  // excluding it lets Node's own module resolution load it at runtime instead. Note: the actual
-  // fix for the "require() of ES Module ... not supported" crash this masked for a while is the
-  // whatwg-url override in package.json (16.x pulls in a pure-ESM dependency jsdom@29 doesn't
-  // need) — this line alone would not have fixed that, since the crash came from whatwg-url's
-  // own internal require(), not from how Next bundles jsdom.
-  serverExternalPackages: ['jsdom'],
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }]
   },

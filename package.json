@@ -117,7 +117,7 @@
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
-    "jsdom": "27.3.0",
+    "linkedom": "^0.18.13",
     "lucide-react": "^1.8.0",
     "next": "^16.2.4",
     "pg": "^8.11.3",
@@ -148,9 +148,7 @@
   "overrides": {
     "axios": "^1.15.2",
     "postcss": "^8.5.14",
-    "esbuild": "^0.28.1",
-    "html-encoding-sniffer": "4.0.0",
-    "whatwg-url": "15.1.0"
+    "esbuild": "^0.28.1"
   },
   "engines": {
     "node": "24.x"

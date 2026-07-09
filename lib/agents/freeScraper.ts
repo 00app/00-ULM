@@ -3,9 +3,14 @@
  * Covers the static, server-rendered UK gov/charity/comparison sites that make up most of our
  * seed URLs (gov.uk, Ofgem, MoneySavingExpert, EnergySavingTrust, etc.) — none of them need a
  * headless browser. Firecrawl stays as the fallback for whatever this can't reach.
+ *
+ * Uses linkedom, not jsdom: jsdom's CSS engine has been steadily adopting pure-ESM dependencies
+ * (@exodus/bytes, @csstools/css-calc) that crash with "require() of ES Module ... not supported"
+ * under Vercel's bundled Node runtime — this route doesn't touch CSS at all, so a minimal DOM
+ * implementation sidesteps the whole category of problem rather than chasing each new dependency.
  */
 
-import { JSDOM } from 'jsdom'
+import { parseHTML } from 'linkedom'
 import { Readability } from '@mozilla/readability'
 import TurndownService from 'turndown'
 
@@ -14,6 +19,12 @@ const USER_AGENT =
   'Mozilla/5.0 (compatible; ZeroZeroBot/1.0; +https://www.00-00.online) AppleWebKit/537.36'
 
 const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
+
+/** linkedom's parseHTML takes no base-URL option — a <base> tag is the standards-compliant way. */
+function withBaseHref(html: string, url: string): string {
+  const href = url.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+  return `<base href="${href}">${html}`
+}
 
 async function fetchOneUrlFree(
   url: string,
@@ -32,8 +43,8 @@ async function fetchOneUrlFree(
     const html = await res.text()
     if (html.length < minChars) return null
 
-    const dom = new JSDOM(html, { url })
-    const article = new Readability(dom.window.document).parse()
+    const { document } = parseHTML(withBaseHref(html, url))
+    const article = new Readability(document).parse()
     if (!article?.content) return null
 
     const markdown = turndown.turndown(article.content).trim()
