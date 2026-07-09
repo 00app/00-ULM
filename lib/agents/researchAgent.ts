@@ -993,12 +993,18 @@ async function resolveResearchTripletWithRecovery(params: {
   extraCitations: ResearchCitation[]
 }> {
   if (params.skipGemini) {
+    console.log('[DEBUG-triplet-gate] bailed: skipGemini true')
     return { markdown: params.markdown, triplet: null, extraCitations: [] }
   }
-  if (
-    isLlmRateLimited(listConfiguredBucketProviders()) ||
-    shouldPreferMechanicalTripletInBucket()
-  ) {
+  const configuredProviders = listConfiguredBucketProviders()
+  const rateLimited = isLlmRateLimited(configuredProviders)
+  const preferMechanical = shouldPreferMechanicalTripletInBucket()
+  console.log(
+    '[DEBUG-triplet-gate]',
+    JSON.stringify({ configuredProviders, rateLimited, preferMechanical })
+  )
+  if (rateLimited || preferMechanical) {
+    console.log('[DEBUG-triplet-gate] bailed: rateLimited or preferMechanical')
     return { markdown: params.markdown, triplet: null, extraCitations: [] }
   }
   let markdown = params.markdown
@@ -1640,6 +1646,14 @@ export async function persistResearchResult(params: {
     const explicitTriplet = researchTripletExplicitFromParams(params)
     const skipGemini =
       params.skipResearchGeminiExtraction === true || explicitTriplet != null
+    console.log(
+      '[DEBUG-triplet-gate]',
+      JSON.stringify({
+        skipResearchGeminiExtraction: params.skipResearchGeminiExtraction,
+        explicitTripletIsNull: explicitTriplet == null,
+        skipGemini,
+      })
+    )
     const { markdown: workingMarkdown, triplet: geminiTriplet, extraCitations } =
       await resolveResearchTripletWithRecovery({
         markdown: params.markdown,
@@ -1648,6 +1662,7 @@ export async function persistResearchResult(params: {
         skipGemini,
         categoryHint: params.category ?? null,
       })
+    console.log('[DEBUG-triplet-gate] geminiTriplet is null:', geminiTriplet == null)
     const markdownTriplet =
       geminiTriplet ?? inferResearchTripletFromMarkdown(workingMarkdown, params.category ?? null)
     const mergedCitations = [...extraCitations, ...params.citations]
