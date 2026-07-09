@@ -820,6 +820,45 @@ function inferResearchTripletFromMarkdown(
   }
 }
 
+/**
+ * Smaller/faster bucket models (e.g. Groq's llama-3.1-8b-instant) reliably produce a well-formed
+ * JSON *shape* but frequently fail to escape literal newlines inside long multi-paragraph string
+ * values (architect_prose) — raw control characters inside a JSON string are illegal per spec, so
+ * JSON.parse rejects the whole payload even though every field is otherwise present and correct.
+ * Escapes newlines/carriage-returns only while inside a quoted string (tracking escape state so
+ * already-valid `\n` sequences aren't double-escaped) — structural whitespace between tokens is
+ * untouched.
+ */
+function sanitizeJsonEmbeddedNewlines(text: string): string {
+  let result = ''
+  let inString = false
+  let escaped = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!
+    if (escaped) {
+      result += ch
+      escaped = false
+      continue
+    }
+    if (ch === '\\') {
+      result += ch
+      escaped = true
+      continue
+    }
+    if (ch === '"') {
+      inString = !inString
+      result += ch
+      continue
+    }
+    if (inString && (ch === '\n' || ch === '\r')) {
+      result += ch === '\n' ? '\\n' : '\\r'
+      continue
+    }
+    result += ch
+  }
+  return result
+}
+
 function parseResearchTripletJson(raw: string): {
   category: string
   saving_amount_gbp: number
@@ -834,7 +873,7 @@ function parseResearchTripletJson(raw: string): {
   const end = t.lastIndexOf('}')
   if (start === -1 || end <= start) return null
   try {
-    const j = JSON.parse(t.slice(start, end + 1)) as Record<string, unknown>
+    const j = JSON.parse(sanitizeJsonEmbeddedNewlines(t.slice(start, end + 1))) as Record<string, unknown>
     const category = normalizeResearchCategory(typeof j.category === 'string' ? j.category : '')
     const saving_amount_gbp = normalizeSavingAmountGbp(j.saving_amount_gbp)
     const offer_url =
@@ -921,7 +960,6 @@ async function extractResearchTripletWithGemini(
   agent_headline?: string
   architect_prose?: string
 } | null> {
-  console.log('[DEBUG-triplet-gate] extractResearchTripletWithGemini markdown.length:', markdown.length)
   if (markdown.length < 80) return null
   const journeyList = ALLOWED_TRIPLET_CATEGORIES.join(', ')
   const pc = postcode?.trim() ? `Postcode context: ${postcode.trim()}\n\n` : ''
@@ -965,9 +1003,7 @@ ${markdown.slice(0, shouldPreferMechanicalTripletInBucket() ? 12_000 : 28_000)}`
         ? [`google/${options.model.trim().replace(/^google\//, '')}`, ...ARTICLE_GATEWAY_MODEL_CHAIN]
         : undefined,
     })
-    console.log('[DEBUG-triplet-gate] FULL raw text:', JSON.stringify(text))
     const parsed = parseResearchTripletJson(text)
-    console.log('[DEBUG-triplet-gate] parsed result is null:', parsed == null)
     return parsed
   } catch (e) {
     console.warn(
@@ -996,18 +1032,12 @@ async function resolveResearchTripletWithRecovery(params: {
   extraCitations: ResearchCitation[]
 }> {
   if (params.skipGemini) {
-    console.log('[DEBUG-triplet-gate] bailed: skipGemini true')
     return { markdown: params.markdown, triplet: null, extraCitations: [] }
   }
-  const configuredProviders = listConfiguredBucketProviders()
-  const rateLimited = isLlmRateLimited(configuredProviders)
-  const preferMechanical = shouldPreferMechanicalTripletInBucket()
-  console.log(
-    '[DEBUG-triplet-gate]',
-    JSON.stringify({ configuredProviders, rateLimited, preferMechanical })
-  )
-  if (rateLimited || preferMechanical) {
-    console.log('[DEBUG-triplet-gate] bailed: rateLimited or preferMechanical')
+  if (
+    isLlmRateLimited(listConfiguredBucketProviders()) ||
+    shouldPreferMechanicalTripletInBucket()
+  ) {
     return { markdown: params.markdown, triplet: null, extraCitations: [] }
   }
   let markdown = params.markdown
@@ -1649,14 +1679,6 @@ export async function persistResearchResult(params: {
     const explicitTriplet = researchTripletExplicitFromParams(params)
     const skipGemini =
       params.skipResearchGeminiExtraction === true || explicitTriplet != null
-    console.log(
-      '[DEBUG-triplet-gate]',
-      JSON.stringify({
-        skipResearchGeminiExtraction: params.skipResearchGeminiExtraction,
-        explicitTripletIsNull: explicitTriplet == null,
-        skipGemini,
-      })
-    )
     const { markdown: workingMarkdown, triplet: geminiTriplet, extraCitations } =
       await resolveResearchTripletWithRecovery({
         markdown: params.markdown,
@@ -1665,7 +1687,6 @@ export async function persistResearchResult(params: {
         skipGemini,
         categoryHint: params.category ?? null,
       })
-    console.log('[DEBUG-triplet-gate] geminiTriplet is null:', geminiTriplet == null)
     const markdownTriplet =
       geminiTriplet ?? inferResearchTripletFromMarkdown(workingMarkdown, params.category ?? null)
     const mergedCitations = [...extraCitations, ...params.citations]
