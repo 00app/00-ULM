@@ -20,6 +20,15 @@ import { readZaiLikes, removeZaiLike } from '@/lib/zai/zaiLikesStorage'
 import { resolveZaiPickHandoff, inferZaiCtaLabel } from '@/lib/zai/resolveZaiLikeHandoff'
 import { LikesCardActionTrinity } from '@/app/components/LikesCardActionTrinity'
 import { readLikeCardSnapshot, removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
+import type { JourneyId as LikeJourneyId } from '@/lib/journeys'
+
+type LikedCardEntry = {
+  id: string
+  journey_key: LikeJourneyId
+  title: string
+  data?: { money?: string; carbon?: string }
+  actions?: { actionUrl?: string; learnUrl?: string }
+}
 
 const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
 
@@ -64,14 +73,37 @@ export default function LikesPage() {
       .catch(() => setActionedIds(new Set()))
   }, [])
 
-  /** Potential only: show liked cards that are NOT yet actioned (actioned = Truth, vanish from Likes) */
+  /**
+   * Potential only: show liked cards that are NOT yet actioned (actioned = Truth, vanish from Likes).
+   * Snapshot (saved at like-time, keyed by the exact card id liked) is the primary source — it
+   * covers Rock-merged recommendation tiles and morph/discovery cards whose ids never appear in
+   * the current viewModel.journeys/tips (those two lists are a fixed 13 + a rotating, capped rail).
+   * Falling back to viewModel-only membership silently dropped every one of those from /likes even
+   * though the like was correctly recorded server-side and in the snapshot.
+   */
   const likedCards = useMemo(() => {
     const likedIds = state.likedCards ?? []
-    if (!viewModel || likedIds.length === 0) return []
+    if (likedIds.length === 0) return []
     const notActioned = (id: string) => !actionedIds.has(id)
-    const journeyCards = viewModel.journeys.filter((c) => likedIds.includes(c.id) && notActioned(c.id))
-    const tipCards = viewModel.tips.filter((c) => likedIds.includes(c.id) && notActioned(c.id))
-    return [...journeyCards, ...tipCards] as any[]
+    const result: LikedCardEntry[] = []
+    for (const id of likedIds) {
+      if (!notActioned(id)) continue
+      const snap = readLikeCardSnapshot(id)
+      if (snap) {
+        result.push({
+          id,
+          journey_key: snap.journey_key,
+          title: snap.title,
+          data: { money: snap.money, carbon: snap.carbon },
+          actions: snap.offerUrl ? { actionUrl: snap.offerUrl } : undefined,
+        })
+        continue
+      }
+      const fromViewModel =
+        viewModel?.journeys.find((c) => c.id === id) ?? viewModel?.tips.find((c) => c.id === id)
+      if (fromViewModel) result.push(fromViewModel as unknown as LikedCardEntry)
+    }
+    return result
   }, [viewModel, state.likedCards, actionedIds])
 
   const likedZaiPicks = useMemo(() => {
@@ -227,7 +259,7 @@ export default function LikesPage() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <span className="card-top-label" style={{ color: textColor }}>
-                    {journeyKey === 'transport' ? 'TRAVEL' : (journeyKey || 'CARD').replace(/-/g, ' ').toUpperCase()}
+                    {(journeyKey || 'CARD').replace(/-/g, ' ').toUpperCase()}
                   </span>
                 </div>
                 <h3 className="card-headline m-0 min-w-0 zone-bento-headline" style={{ color: textColor }}>
