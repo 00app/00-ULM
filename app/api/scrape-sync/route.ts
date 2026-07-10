@@ -226,7 +226,14 @@ async function loadResearchCategoryCoverage(userId: string): Promise<Record<stri
   }
 }
 
-/** Guest sessions: rows may be keyed by postcode only (`user_id` null). Merge postcode + user coverage. */
+/**
+ * Guest sessions: rows may be keyed by postcode only (`user_id` null). Merge postcode + user
+ * coverage. `byUser` has no postcode filter at all (a user's rows span every postcode they've
+ * ever queried, e.g. after moving house or fixing a typo) - it must only fill categories `byPc`
+ * doesn't have. Spreading `byUser` last used to let it unconditionally win for every category,
+ * so a stale row from a different postcode could silently outrank fresh, correctly-scoped
+ * research for the postcode actually being viewed.
+ */
 async function loadResearchCategoryCoverageResolved(
   userId: string | null,
   postcode: string
@@ -236,7 +243,7 @@ async function loadResearchCategoryCoverageResolved(
   if (pc.length < 4) return byUser
   const byPc = await loadResearchCategoryCoverageByPostcode(pc)
   if (Object.keys(byUser).length === 0) return byPc
-  return { ...byPc, ...byUser }
+  return { ...byUser, ...byPc }
 }
 
 /** Neon `last_visited_at` + guest `zz_sid` visits — pink lock without re-scrape / repair burn. */
@@ -331,11 +338,17 @@ async function buildScrapedFromResearchResults(
       is_mechanical_fallback: unknown
     }>(
       userId
-        ? `${RESEARCH_COVERAGE_SELECT}
+        ? // A row matching the postcode actually being viewed must win DISTINCT ON's per-category
+          // pick over any other row this user_id owns for a different postcode (house move, typo
+          // fix, or just re-querying under a stale session) - otherwise a newer wrong-postcode row
+          // silently outranks older-but-correct research every time, by created_at alone.
+          `${RESEARCH_COVERAGE_SELECT}
            FROM research_results rr
            WHERE (rr.user_id = $1::uuid OR ${sqlResearchPostcodeMatches('rr.postcode', 2)})
              AND rr.category IS NOT NULL AND btrim(rr.category) <> ''
-           ORDER BY lower(trim(rr.category)), rr.created_at DESC NULLS LAST`
+           ORDER BY lower(trim(rr.category)),
+             (CASE WHEN ${sqlResearchPostcodeMatches('rr.postcode', 2)} THEN 0 ELSE 1 END),
+             rr.created_at DESC NULLS LAST`
         : `${RESEARCH_COVERAGE_SELECT}
            FROM research_results rr
            WHERE ${sqlResearchPostcodeMatches('rr.postcode', 1)}
