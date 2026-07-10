@@ -353,10 +353,16 @@ export default function ZonePage({
   }, [categoryIntentWeights, state.dislikedCards, state.indifferentCardIds, refreshKey])
 
   const trackZoneLike = useCallback(
-    (id: string, title?: string, moneyGbp?: number) => {
+    (id: string, title?: string, moneyGbp?: number, explicitJourneyKey?: JourneyId) => {
       const tip = viewModel.tips.find((t) => t.id === id)
       const journey = viewModel.journeys.find((j) => j.id === id)
-      const jid = (tip?.journey_key ?? journey?.journey_key ?? 'home') as JourneyId
+      // Cards opened from a Rock-merged recommendation tile or a morph/discovery deck (ids like
+      // "rock-xxx" / "morph-xxx") never appear in viewModel.tips/journeys, so the tip/journey
+      // lookup below always misses for them. The caller (JourneyBentoCard/SoloFocusOverlay)
+      // already knows the real journey from the card it's actually showing — prefer that over
+      // silently defaulting to 'home', which used to mislabel every such like (wrong category,
+      // wrong /likes card colour).
+      const jid = (explicitJourneyKey ?? tip?.journey_key ?? journey?.journey_key ?? 'home') as JourneyId
       const wallTitle = journey?.title ?? ''
       const zoneTitle = tip
         ? clampZoneBentoHeadline(zoneCardHeadlineFromRaw(tip.title ?? title ?? '', wallTitle))

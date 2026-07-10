@@ -124,7 +124,7 @@ export interface SoloFocusOverlayProps {
   /** Close chevron → dismiss overlay, then pattern-shift takeover on Zone shell. */
   onPatternShiftClose?: PatternShiftCloseHandler
   cardId?: string
-  onLike?: (id: string, title?: string, moneyGbp?: number) => void
+  onLike?: (id: string, title?: string, moneyGbp?: number, journeyKey?: JourneyId) => void
   isLiked?: boolean
   journeyId?: JourneyId
   onJourneyAnswered?: () => void
@@ -803,8 +803,11 @@ export function SoloFocusOverlay({
     if (!id) return
     markSoloFocusEngagement(soloFocusEngagementRef.current, 'like')
     bumpCategoryIntent(loopJourneyKey, 'like')
-    const likeFn = onLike ?? toggleLike
-    likeFn(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
+    if (onLike) {
+      onLike(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)), loopJourneyKey)
+    } else {
+      toggleLike(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
+    }
     recordOfferSignal({
       card_id: id,
       signal: 'like',

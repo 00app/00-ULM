@@ -164,7 +164,7 @@ export interface JourneyBentoCardProps {
   /** Close chevron → dismiss Solo Focus, then full-screen pattern-shift question (Zone shell). */
   onPatternShiftClose?: PatternShiftCloseHandler
   cardId?: string
-  onLike?: (id: string, title?: string, moneyGbp?: number) => void
+  onLike?: (id: string, title?: string, moneyGbp?: number, journeyKey?: JourneyId) => void
   isLiked?: boolean
   learnUrl?: string
   /** Zone card actions.actionType when morph deck is empty (switch vs learn). */
@@ -694,7 +694,7 @@ export function JourneyBentoCard({
     triggerHaptic('medium')
     const id = String(activeCardId || cardId)
     markSoloFocusEngagement(soloFocusEngagementRef.current, 'like')
-    onLike(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)))
+    onLike(id, displayTitle, parseMoneyGbpFromImpactDisplay(String(displayMoneyValue)), activeJourneyId)
     recordOfferSignal({
       card_id: id,
       signal: 'like',
