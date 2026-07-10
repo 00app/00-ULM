@@ -71,6 +71,23 @@ export type ZoneWelcomeCopy = {
   foundCountLine: string
 }
 
+/**
+ * SSR-safe placeholder — real copy depends on the visitor's local clock (timeOfDayLine) and
+ * localStorage (nameLine), neither available during server render. Rendering buildZoneWelcomeCopy's
+ * real output on the server produces a text mismatch against the client's first paint (React
+ * hydration error #418) whenever the server's timezone/hour differs from the browser's, or the
+ * profile has a saved name (server always sees "Guest."). Use this fixed, deterministic value until
+ * the caller has confirmed it's running client-side post-mount, then swap to the real copy.
+ */
+export const ZONE_WELCOME_SSR_SAFE_EMPTY: ZoneWelcomeCopy = {
+  timeOfDayLine: '',
+  nameLine: '',
+  foundCountLine: '',
+  localityLine: '',
+  savingsMoneyLine: '',
+  savingsCarbonLine: '',
+}
+
 /** Profile hero card — under biggest-win category headline (Roboto body). */
 export const ZONE_PROFILE_HERO_MISSION =
   'with zero zero you save money and do your bit for the planet.'

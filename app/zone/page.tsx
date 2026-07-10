@@ -118,6 +118,7 @@ import {
   ZONE_READY_MAX_WAIT_MS,
   ZONE_SCRAPE_SYNC_MAX_ATTEMPTS,
   ZONE_SCRAPE_SYNC_RETRY_WAIT_MS,
+  ZONE_WELCOME_SSR_SAFE_EMPTY,
   buildZoneWelcomeCopy,
   computeIsZoneReady,
   preloadAppFonts,
@@ -2722,17 +2723,28 @@ export default function ZonePage({
   const displayCarbon = useCountUp(heroCarbon, { duration: 120 })
   const heroDataSource = dbConnected && neonVerifiedMoney ? 'VERIFIED AUDIT' : 'ESTIMATED AUDIT'
 
+  // Gated on `hydrated` (client-only, flips true in a useEffect): the real copy depends on the
+  // visitor's local clock and localStorage name, neither available server-side. Computing it
+  // unconditionally made SSR and the client's first paint disagree whenever the server's
+  // timezone/hour differed from the browser's, or a name was saved — a reliable React hydration
+  // error #418 (text mismatch) on every full page load. See ZONE_WELCOME_SSR_SAFE_EMPTY.
   const zoneWelcome = useMemo(
     () =>
-      buildZoneWelcomeCopy(
-        state?.profile?.name || readProfileFieldsFromStorage().name,
-        welcomeJourneyCount,
-        heroMoney,
-        heroCarbon,
-        state?.locationState?.locationName
-      ),
-    [state?.profile?.name, welcomeJourneyCount, heroMoney, heroCarbon, state?.locationState?.locationName]
+      hydrated
+        ? buildZoneWelcomeCopy(
+            state?.profile?.name || readProfileFieldsFromStorage().name,
+            welcomeJourneyCount,
+            heroMoney,
+            heroCarbon,
+            state?.locationState?.locationName
+          )
+        : ZONE_WELCOME_SSR_SAFE_EMPTY,
+    [hydrated, state?.profile?.name, welcomeJourneyCount, heroMoney, heroCarbon, state?.locationState?.locationName]
   )
+
+  // Same SSR/client-clock mismatch as zoneWelcome above, for the separate Today's Tips heading
+  // boundary (getTipsTimeOfDay has its own 08:00/14:00/18:00 cutoffs).
+  const tipsTimeOfDay = hydrated ? getTipsTimeOfDay() : ''
 
   const renderWallBentoCells = (wallSection: 'hero' | 'categories') =>
     displayItems.map((cell, i) => {
@@ -3318,7 +3330,7 @@ export default function ZonePage({
                 className="zone-section-heading zone-rock-section-heading zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0"
                 data-testid="zone-section-today-tips"
               >
-                {getTipsTimeOfDay()}
+                {tipsTimeOfDay}
                 <br />
                 tips.
               </h3>
