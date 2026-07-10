@@ -95,11 +95,12 @@ export async function refreshZoneTotalsAfterTier2(postcode: string): Promise<voi
   }
 }
 
+/** clickref is a JourneyId at this function's only call site — also used to resolve multi-programme hosts. */
 export function openOfferUrlInNewTab(url: string | null | undefined, clickref?: string): boolean {
   const u = typeof url === 'string' ? url.trim() : ''
   if (!u.startsWith('http')) return false
   try {
-    window.open(wrapWithAwinAffiliateLink(u, clickref), '_blank', 'noopener,noreferrer')
+    window.open(wrapWithAwinAffiliateLink(u, clickref, clickref), '_blank', 'noopener,noreferrer')
     return true
   } catch {
     return false

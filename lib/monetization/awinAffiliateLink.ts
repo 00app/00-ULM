@@ -17,24 +17,22 @@
 /**
  * Host -> Awin advertiser (merchant) ID, for programs actually approved on the account.
  *
- * One mid per host: this is a flat Record<string, string> with no concept of category/journey,
- * so a host that runs more than one Awin programme (e.g. moneysupermarket.com has separate
- * Energy and Money programmes, each with its own mid) cannot be represented here as-is — there is
- * currently NO disambiguation mechanism in this file or at any of the three call sites
- * (IndustrialHandoffButton, openZoneExternalHandoff, openOfferUrlInNewTab) to pick one mid over
- * another for the same host. Adding a second key would just silently overwrite the first at
- * object-literal-eval time. Do not resolve a same-host collision by picking one mid arbitrarily —
- * that misroutes commission for whichever programme loses. Leave both commented until there's an
- * explicit decision (e.g. extending this to per-journey lookup) — see moneysupermarket.com below.
+ * Most hosts run a single Awin programme — plain string mid. A host that runs more than one
+ * (e.g. moneysupermarket.com has separate Energy and Money programmes, each with its own mid)
+ * uses an object keyed by journey id instead; awinMerchantIdForUrl resolves it against whichever
+ * journey the click came from. A journey with no entry for that host resolves to no mid at all
+ * (never falls back to some other journey's mid, which would misroute commission).
  */
-const AWIN_MERCHANT_IDS: Record<string, string> = {
+const AWIN_MERCHANT_IDS: Record<string, string | Partial<Record<string, string>>> = {
   // 'octopus.energy': '00000',
 
-  // moneysupermarket.com — COLLISION, not wired in. Two confirmed mids on one host, no
-  // disambiguation mechanism exists yet (see comment above). Needs a decision before either
-  // goes live — do not uncomment just one without checking which journeys should route here.
-  // 'moneysupermarket.com': '22713', // Energy programme
-  // 'moneysupermarket.com': '61791', // Money programme
+  // moneysupermarket.com runs separate Energy and Money programmes on Awin. utilities is this
+  // app's tariff-switching journey (Energy programme); money is banking/savings (Money
+  // programme). Any other journey linking to moneysupermarket.com resolves to no mid.
+  'moneysupermarket.com': {
+    utilities: '22713', // Energy programme
+    money: '61791', // Money programme
+  },
 
   'backmarket.co.uk': '25205',
   'podpoint.com': '73493',
@@ -65,10 +63,19 @@ function hostOf(url: string): string {
   }
 }
 
-/** Merchant ID for this destination's host, if the account has an approved program for it. */
-export function awinMerchantIdForUrl(url: string): string | null {
+/**
+ * Merchant ID for this destination's host, if the account has an approved program for it.
+ * journeyKey disambiguates multi-programme hosts (see moneysupermarket.com above) — a journey
+ * with no entry for that host resolves to no mid, it never falls back to a different journey's.
+ */
+export function awinMerchantIdForUrl(url: string, journeyKey?: string | null): string | null {
   const host = hostOf(url)
-  return host ? (AWIN_MERCHANT_IDS[host] ?? null) : null
+  if (!host) return null
+  const entry = AWIN_MERCHANT_IDS[host]
+  if (entry == null) return null
+  if (typeof entry === 'string') return entry
+  const key = journeyKey?.trim()
+  return key ? (entry[key] ?? null) : null
 }
 
 /**
@@ -76,10 +83,13 @@ export function awinMerchantIdForUrl(url: string): string | null {
  * mapping exist; otherwise returns destinationUrl unchanged. clickref is Awin's free-text
  * publisher-side tracking field — pass through something that identifies where the click came
  * from (journey key, card id) so conversions can be attributed inside the Awin dashboard.
+ * journeyKey is separate from clickref (which callers may set to a card id, not a journey) —
+ * pass the journey the click actually came from so multi-programme hosts resolve correctly.
  */
 export function wrapWithAwinAffiliateLink(
   destinationUrl: string,
-  clickref?: string | null
+  clickref?: string | null,
+  journeyKey?: string | null
 ): string {
   const trimmed = typeof destinationUrl === 'string' ? destinationUrl.trim() : ''
   if (!trimmed.startsWith('https://')) return destinationUrl
@@ -87,7 +97,7 @@ export function wrapWithAwinAffiliateLink(
   const publisherId = resolveAwinPublisherId()
   if (!publisherId) return destinationUrl
 
-  const merchantId = awinMerchantIdForUrl(trimmed)
+  const merchantId = awinMerchantIdForUrl(trimmed, journeyKey)
   if (!merchantId) return destinationUrl
 
   const params = new URLSearchParams({

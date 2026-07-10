@@ -223,7 +223,7 @@ export function IndustrialHandoffButton({
       cta_label: ctaLabel,
     })
     setTimeout(() => {
-      window.open(wrapWithAwinAffiliateLink(url, journeyId), '_blank', 'noopener,noreferrer')
+      window.open(wrapWithAwinAffiliateLink(url, journeyId, journeyId), '_blank', 'noopener,noreferrer')
     }, 150)
   }
 

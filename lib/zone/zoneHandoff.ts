@@ -34,7 +34,11 @@ export function openZoneExternalHandoff(handoff: ZoneExternalHandoff): boolean {
     link_kind: 'external',
   })
   try {
-    window.open(wrapWithAwinAffiliateLink(url, handoff.cardId), '_blank', 'noopener,noreferrer')
+    window.open(
+      wrapWithAwinAffiliateLink(url, handoff.cardId, handoff.journeyKey),
+      '_blank',
+      'noopener,noreferrer'
+    )
     return true
   } catch {
     return false
