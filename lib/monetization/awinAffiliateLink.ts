@@ -14,9 +14,42 @@
  * meaningfully secret.
  */
 
-/** Host -> Awin advertiser (merchant) ID, for programs actually approved on the account. */
+/**
+ * Host -> Awin advertiser (merchant) ID, for programs actually approved on the account.
+ *
+ * One mid per host: this is a flat Record<string, string> with no concept of category/journey,
+ * so a host that runs more than one Awin programme (e.g. moneysupermarket.com has separate
+ * Energy and Money programmes, each with its own mid) cannot be represented here as-is — there is
+ * currently NO disambiguation mechanism in this file or at any of the three call sites
+ * (IndustrialHandoffButton, openZoneExternalHandoff, openOfferUrlInNewTab) to pick one mid over
+ * another for the same host. Adding a second key would just silently overwrite the first at
+ * object-literal-eval time. Do not resolve a same-host collision by picking one mid arbitrarily —
+ * that misroutes commission for whichever programme loses. Leave both commented until there's an
+ * explicit decision (e.g. extending this to per-journey lookup) — see moneysupermarket.com below.
+ */
 const AWIN_MERCHANT_IDS: Record<string, string> = {
   // 'octopus.energy': '00000',
+
+  // moneysupermarket.com — COLLISION, not wired in. Two confirmed mids on one host, no
+  // disambiguation mechanism exists yet (see comment above). Needs a decision before either
+  // goes live — do not uncomment just one without checking which journeys should route here.
+  // 'moneysupermarket.com': '22713', // Energy programme
+  // 'moneysupermarket.com': '61791', // Money programme
+
+  'backmarket.co.uk': '25205',
+  'podpoint.com': '73493',
+
+  // --- Pending Awin approval — mid not yet confirmed. Do not guess a mid or a domain; both
+  // stay commented until the real mid is pasted back (GET /publishers/2943149/programmes). ---
+  // 'TODO': 'TODO', // BT Broadband — utilities
+  // 'TODO': 'TODO', // Railcard — travel
+  // 'TODO': 'TODO', // Rail Discoveries — holidays
+  // 'TODO': 'TODO', // Project Solar UK — solar
+  // 'TODO': 'TODO', // Phones Direct — shopping/tech
+  // 'TODO': 'TODO', // AO Mobile Phones Direct — tech
+  // 'TODO': 'TODO', // Insulation & More — home
+  // 'TODO': 'TODO', // Clove Recycling — waste
+  // 'TODO': 'TODO', // EV King - Electric Car Charging Accessories — travel
 }
 
 function resolveAwinPublisherId(): string | null {
