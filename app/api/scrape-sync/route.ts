@@ -199,6 +199,7 @@ const RESEARCH_COVERAGE_SELECT = `SELECT DISTINCT ON (lower(trim(rr.category)))
           rr.verified_saving,
           rr.verified,
           rr.is_mechanical_fallback,
+          rr.is_headline_mechanical_fallback,
           rr.carbon_impact_kg`
 
 async function loadResearchCategoryCoverage(userId: string): Promise<Record<string, ResearchCategoryCoverageRow>> {

@@ -214,6 +214,14 @@ ALTER TABLE research_results
 -- (app/api/scrape-sync/route.ts) can decline to let it override the profile-calculated baseline.
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS is_mechanical_fallback BOOLEAN NOT NULL DEFAULT false;
 
+-- Deliberately separate from is_mechanical_fallback above, not a broadening of it: the £ figure
+-- and the headline can each independently come from the shared template (a genuine £ can pair
+-- with a too-short LLM headline that gets swapped for the template's headline text). Folding
+-- this into is_mechanical_fallback would make buildScrapedFromResearchResults wrongly zero out a
+-- real, already-settled £ figure just because the headline needed the template. Callers that
+-- want "is this row fully bespoke" must check BOTH flags, not just one.
+ALTER TABLE research_results ADD COLUMN IF NOT EXISTS is_headline_mechanical_fallback BOOLEAN NOT NULL DEFAULT false;
+
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS is_high_impact BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS carbon_impact_kg NUMERIC(12, 2);
 ALTER TABLE research_results ADD COLUMN IF NOT EXISTS last_visited_at TIMESTAMPTZ;

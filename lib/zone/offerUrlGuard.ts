@@ -123,7 +123,18 @@ export function sanitizeZoneOfferUrl(
   if (isInternalOrPreviewOfferUrl(trimmed)) return fallback
   if (isKnownDeadOfferUrl(trimmed)) return fallback
   if (isGenericGovHomepage(trimmed)) return fallback
-  if (offerUrlConflictsWithJourney(trimmed, journeyKey)) return fallback
+  if (offerUrlConflictsWithJourney(trimmed, journeyKey)) {
+    // offerUrlConflictsWithJourney only recognizes 3 specific known cross-category URL patterns
+    // (Boiler Upgrade Scheme, Warm Homes grant, Ofgem price-cap) — it is not a general topic
+    // classifier, so this branch firing at all is a genuine signal worth having in logs. A
+    // silently-swapped URL here is invisible otherwise; a future scrape source returning a
+    // mismatched URL this guard doesn't recognize would pass through with no trace at all.
+    console.warn(
+      `[offerUrlGuard] ${journeyKey} offer_url conflicted, using trusted fallback:`,
+      trimmed.slice(0, 160)
+    )
+    return fallback
+  }
   if (journeyKey !== 'utilities' && isOfgemPriceCapUrl(trimmed)) return fallback
 
   const host = hostOf(trimmed)

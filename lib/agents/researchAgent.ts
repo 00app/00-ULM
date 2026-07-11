@@ -1037,10 +1037,16 @@ async function resolveResearchTripletWithRecovery(params: {
   if (params.skipGemini) {
     return { markdown: params.markdown, triplet: null, extraCitations: [] }
   }
-  if (
-    isLlmRateLimited(listConfiguredBucketProviders()) ||
-    shouldPreferMechanicalTripletInBucket()
-  ) {
+  if (isLlmRateLimited(listConfiguredBucketProviders())) {
+    return { markdown: params.markdown, triplet: null, extraCitations: [] }
+  }
+  if (shouldPreferMechanicalTripletInBucket()) {
+    // Silent otherwise: this is a single env var (ALLOW_LLM_TRIPLET) away from every trigger/
+    // repair request going mechanical-only with zero indication anywhere in logs that LLM
+    // synthesis was never attempted at all (not rate-limited, not failed — never even tried).
+    console.warn(
+      '[researchAgent] mechanical-only mode active (ALLOW_LLM_TRIPLET not set truthy in bucket_failover mode) — skipping LLM triplet extraction entirely'
+    )
     return { markdown: params.markdown, triplet: null, extraCitations: [] }
   }
   let markdown = params.markdown
@@ -1230,15 +1236,39 @@ export async function repairResearchResultsMissingHeadlines(params: {
     if (mechanical) {
       try {
         const journeyKey = normalizeCategoryToJourneyKey(mechanical.category)
+        // The WHERE clause above (`incomplete`) is an OR of independent conditions — a row can
+        // land here missing only ONE of headline/prose/£. Previously this UPDATE overwrote all
+        // three unconditionally whenever ANY one was deficient, silently destroying a genuine £
+        // (or prose, or headline) that had nothing wrong with it. Each field now only takes the
+        // template value when that specific field was the actual reason for selection, and
+        // is_mechanical_fallback / is_headline_mechanical_fallback are set per-field to match —
+        // never forced true for a field that stayed genuine.
         await pool.query(
           `UPDATE research_results
-           SET agent_headline = $2,
-               architect_prose = $3,
-               saving_amount_gbp = COALESCE($4::numeric, saving_amount_gbp),
+           SET agent_headline = CASE
+                 WHEN agent_headline IS NULL OR TRIM(agent_headline) = ''
+                   OR cardinality(regexp_split_to_array(trim(agent_headline), '\\s+')) < ${MIN_ZONE_CARD_HEADLINE_WORDS}
+                 THEN $2
+                 ELSE agent_headline
+               END,
+               architect_prose = CASE
+                 WHEN architect_prose IS NULL OR TRIM(architect_prose) = ''
+                 THEN $3
+                 ELSE architect_prose
+               END,
+               saving_amount_gbp = CASE
+                 WHEN saving_amount_gbp IS NULL OR saving_amount_gbp <= 0
+                 THEN $4::numeric
+                 ELSE saving_amount_gbp
+               END,
                category = COALESCE($5, category),
                offer_url = COALESCE($6, offer_url),
                source_url = COALESCE($6, source_url),
-               is_mechanical_fallback = true
+               is_mechanical_fallback = is_mechanical_fallback
+                 OR saving_amount_gbp IS NULL OR saving_amount_gbp <= 0,
+               is_headline_mechanical_fallback = is_headline_mechanical_fallback
+                 OR agent_headline IS NULL OR TRIM(agent_headline) = ''
+                 OR cardinality(regexp_split_to_array(trim(agent_headline), '\\s+')) < ${MIN_ZONE_CARD_HEADLINE_WORDS}
            WHERE id::text = $1`,
           [
             row.id,
@@ -1675,7 +1705,8 @@ export async function persistResearchResult(params: {
        ADD COLUMN IF NOT EXISTS architect_prose TEXT,
        ADD COLUMN IF NOT EXISTS is_high_impact BOOLEAN NOT NULL DEFAULT false,
        ADD COLUMN IF NOT EXISTS carbon_impact_kg NUMERIC(12,2),
-       ADD COLUMN IF NOT EXISTS is_mechanical_fallback BOOLEAN NOT NULL DEFAULT false`
+       ADD COLUMN IF NOT EXISTS is_mechanical_fallback BOOLEAN NOT NULL DEFAULT false,
+       ADD COLUMN IF NOT EXISTS is_headline_mechanical_fallback BOOLEAN NOT NULL DEFAULT false`
     )
     const deepResolved = params.deepLink ?? params.sourceUrl ?? null
 
@@ -1759,11 +1790,18 @@ export async function persistResearchResult(params: {
       !mergedArchitectProse
     const needsMechanicalHeadline =
       headlineWordCount > 0 && headlineWordCount < MIN_JOURNEY_CARD_HEADLINE_WORDS
-    // Tracks specifically whether the £ figure (not just headline/prose) came from the shared
+    // savingIsMechanicalFallback tracks specifically whether the £ figure came from the shared
     // per-category template rather than genuine research — that's the only thing gating the
-    // scraped-overlay in buildScrapedFromResearchResults needs to know. A row can legitimately
-    // use the mechanical headline/prose while keeping a real, already-settled saving amount.
+    // scraped-overlay in buildScrapedFromResearchResults needs to know, so it stays scoped to
+    // the £ only (never broadened — folding headline-only templating into it would make that
+    // gate wrongly zero out a real, already-settled saving amount just because the headline
+    // needed the template). headlineIsMechanicalFallback is the separate, honest signal for the
+    // headline specifically: it was previously untracked, so a row with a 100% genuine £ and
+    // prose but a too-short LLM headline got its headline silently replaced by the generic
+    // per-category template text while the whole row still reported is_mechanical_fallback =
+    // false — i.e. "real". Both flags must be checked to know a row is genuinely fully bespoke.
     let savingIsMechanicalFallback = false
+    let headlineIsMechanicalFallback = false
     if ((tripletEmpty || needsMechanicalHeadline) && (mergedOffer || mergedCategory)) {
       const mechanical = mechanicalCategoryTripletFallback({
         category: mergedCategory,
@@ -1777,6 +1815,7 @@ export async function persistResearchResult(params: {
           savingIsMechanicalFallback = true
         }
         mergedAgentHeadline = mechanical.agent_headline
+        headlineIsMechanicalFallback = true
         if (!mergedArchitectProse) mergedArchitectProse = mechanical.architect_prose
         if (mechanical.offer_url) mergedOffer = mechanical.offer_url
         if (mechanical.category) mergedCategory = mechanical.category
@@ -1802,6 +1841,19 @@ export async function persistResearchResult(params: {
         if (fromProse) {
           mergedAgentHeadline = clampZoneBentoHeadline(fromProse, headlineJourneyKey, JOURNEY_CARD_HEADLINE_BOUNDS)
         }
+      }
+      // A second, independent way a headline ends up templated: this clamp can collapse straight
+      // to ZONE_BENTO_HOOK on quality grounds even when mechanicalCategoryTripletFallback above
+      // never ran (genuine £ + genuine prose, just a jargon-flagged or too-terse headline with no
+      // usable sentence to recover from). Check what we ended up with — original clamp or the
+      // prose-recovery attempt — not just the first pass, so a recovery that itself collapsed
+      // again still gets flagged.
+      if (
+        !headlineIsMechanicalFallback &&
+        genericHook != null &&
+        normalizeCardHeadlineKey(mergedAgentHeadline) === normalizeCardHeadlineKey(genericHook)
+      ) {
+        headlineIsMechanicalFallback = true
       }
     }
 
@@ -1854,9 +1906,10 @@ export async function persistResearchResult(params: {
            elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh, source_url,
            deep_link, verified_saving, category, offer_url, saving_amount_gbp, locality_context,
            provider_name, agent_headline, architect_prose, research_snapshot,
-           is_high_impact, carbon_impact_kg, is_mechanical_fallback, created_at
+           is_high_impact, carbon_impact_kg, is_mechanical_fallback,
+           is_headline_mechanical_fallback, created_at
          )
-         VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13::numeric, $14, $15, $16, $17, $18::jsonb, $19, $20::numeric, $21, NOW())`,
+         VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13::numeric, $14, $15, $16, $17, $18::jsonb, $19, $20::numeric, $21, $22, NOW())`,
         [
           userIdForInsert,
           params.postcode ?? null,
@@ -1879,6 +1932,7 @@ export async function persistResearchResult(params: {
           highImpact,
           carbonKg,
           savingIsMechanicalFallback,
+          headlineIsMechanicalFallback,
         ]
       )
 
@@ -1965,8 +2019,9 @@ export async function seedMechanicalJourneysForPostcode(
       await pool.query(
         `INSERT INTO research_results (
            postcode, category, saving_amount_gbp, agent_headline, architect_prose,
-           offer_url, source_url, markdown, citations, is_mechanical_fallback, locality_context
-         ) VALUES ($1, $2, $3::numeric, $4, $5, $6, $7, $8, $9::jsonb, true, $10)`,
+           offer_url, source_url, markdown, citations, is_mechanical_fallback,
+           is_headline_mechanical_fallback, locality_context
+         ) VALUES ($1, $2, $3::numeric, $4, $5, $6, $7, $8, $9::jsonb, true, true, $10)`,
         [
           pc,
           journeyKey,
