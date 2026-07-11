@@ -435,7 +435,13 @@ export async function runZeroResearch(params: {
  * cards comes from `buildUserImpact` / scrapes, not a separate `verified_saving_kg` column on this row (see
  * `verified_saving` / impact pipeline elsewhere).
  */
-/** Map retired direct-API ids → current Flash (see Google “no longer available to new users”). */
+/**
+ * Map retired direct-API ids → the current default (see Google "no longer available to new
+ * users"). Dated ids get retired over time (gemini-1.5/2.0, and as of 2026-07 gemini-2.5 too, on
+ * newer API-key projects) — always redirect to `fallback` (FLASH_DEFAULT-derived, kept current in
+ * geminiModels.ts) rather than a second hardcoded id here, so this doesn't go stale again on its
+ * own schedule. The "-latest" aliases are never retired by this check.
+ */
 function resolveGeminiResearchModel(
   envVal: string | undefined,
   fallback: string,
@@ -443,12 +449,9 @@ function resolveGeminiResearchModel(
 ): string {
   const v = envVal?.trim()
   if (!v) return fallback
-  if (/gemini-1\.5|gemini-2\.0|flash-lite/i.test(v)) {
-    const canonical = fallback.includes('gemini-2.5') ? fallback : 'gemini-2.5-flash'
-    console.warn(
-      `[researchAgent] ${label}=${v} unavailable on direct API; using ${canonical}`
-    )
-    return canonical
+  if (!v.includes('-latest') && /gemini-1\.5|gemini-2\.0|gemini-2\.5|flash-lite/i.test(v)) {
+    console.warn(`[researchAgent] ${label}=${v} unavailable on direct API; using ${fallback}`)
+    return fallback
   }
   return v
 }

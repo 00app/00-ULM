@@ -4,6 +4,7 @@
  * GET /api/scrape-sync, GET /api/local-intelligence.
  */
 
+import { FLASH_DEFAULT } from '@/lib/intelligence/geminiModels'
 import { MANIFEST_NEON_POOLER_HOST } from '@/lib/intelligence/manifest'
 import { appendResearchUserIdQuery } from '@/lib/zone/garyMode'
 import {
@@ -62,7 +63,7 @@ export async function pollMechanicalDiagnostics(params: {
   let apiFirecrawl = false
   let skipFirecrawl = false
   let firecrawlEnv: string | null = null
-  let geminiZoneModel = 'gemini-2.5-flash'
+  let geminiZoneModel = FLASH_DEFAULT
   let bucketFailover = false
   let researchForceDirect = true
   let apiAiGateway = false

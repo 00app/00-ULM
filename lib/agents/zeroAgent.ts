@@ -10,6 +10,7 @@
 
 import { AGENT_TOOL_DECLARATIONS, executeAgentTool } from '@/lib/agents/agentTools'
 import { EDITORIAL_MAGAZINE_CONSTRAINT } from '@/lib/intelligence/aiGateway'
+import { FLASH_DEFAULT } from '@/lib/intelligence/geminiModels'
 import type { JourneyId } from '@/lib/journeys'
 import { normalizeCategoryToJourneyKey } from '@/lib/zone/trustedJourneyUrls'
 
@@ -17,7 +18,8 @@ const MAX_TOOL_ROUNDS = 5
 const MAX_OUTPUT_TOKENS = 1200
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const ROUND_TIMEOUT_MS = 30_000
-const GEMINI_AGENT_MODEL = 'gemini-2.5-flash'
+/** Shared with the rest of the Gemini direct-API surface — see geminiModels.ts FLASH_DEFAULT. */
+const GEMINI_AGENT_MODEL = FLASH_DEFAULT
 
 // Which tools are relevant per journey — keeps the model focused, reduces hallucination
 const CATEGORY_TOOL_HINTS: Partial<Record<JourneyId, string[]>> = {

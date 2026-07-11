@@ -16,8 +16,14 @@ function isGeminiFreeTierEnv(): boolean {
   return v === '1' || v === 'true' || v === 'yes'
 }
 
-/** Direct API model id (v1beta). Free-tier env uses Flash-Lite; else 2.5 Flash. */
-export const FLASH_DEFAULT = isGeminiFreeTierEnv() ? 'gemini-2.0-flash-lite' : 'gemini-2.5-flash'
+/**
+ * Direct API model id (v1beta). Free-tier env uses the Flash-Lite alias; else the Flash alias.
+ * Use the "-latest" aliases, not dated model ids (gemini-2.5-flash, gemini-2.0-flash-lite) — Google
+ * retires dated ids for new API-key projects ("this model is no longer available to new users"),
+ * which silently killed Gemini in production (confirmed live 2026-07-11: 404 on gemini-2.5-flash,
+ * 0-quota on gemini-2.0-flash-lite, both fine on the "-latest" aliases with the same key).
+ */
+export const FLASH_DEFAULT = isGeminiFreeTierEnv() ? 'gemini-flash-lite-latest' : 'gemini-flash-latest'
 
 /** Direct `@google/generative-ai` model IDs (no `google/` prefix). */
 export const GEMINI_DIRECT_ZONE =

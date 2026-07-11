@@ -9,6 +9,7 @@ import type { ZoneTipCard } from '@/lib/logic/zone'
 import { buildDiscoveryInjectionCardAsync, buildDiscoveryInjectionId } from '@/lib/zone/discoveryCard'
 import { enforceTrueWinRails, TRUE_WIN_RAILS } from '@/lib/zone/trueWinRails'
 import { generateResearchText } from '@/lib/intelligence/aiGateway'
+import { GEMINI_DIRECT_ZONE } from '@/lib/intelligence/geminiModels'
 import { isBucketFailoverMode, shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
 
 export interface DiscoveryStructuredResponse {
@@ -133,7 +134,7 @@ Optional followUp: include for gas/heating paths (nested loop — insulation, ta
       const { GoogleGenerativeAI } = await import('@google/generative-ai')
       const genAI = new GoogleGenerativeAI(apiKey!)
       const model = genAI.getGenerativeModel({
-        model: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-2.5-flash',
+        model: GEMINI_DIRECT_ZONE,
         generationConfig: {
           responseMimeType: 'application/json',
           temperature: 0.2,
