@@ -430,7 +430,7 @@ export async function runZeroResearch(params: {
 
 /**
  * Intelligence loop — **Architect (Gemini)** on Vercel: raw Firecrawl markdown → structured JSON for Neon.
- * Output keys align with `research_results`: `category`, `saving_amount_gbp`, `offer_url`, `agent_headline` (8–10 words zone card),
+ * Output keys align with `research_results`: `category`, `saving_amount_gbp`, `offer_url`, `agent_headline` (9–12 words — MIN_JOURNEY_CARD_HEADLINE_WORDS, not the 8–10 Zone-face tier used by content-architect),
  * `architect_prose` (exactly three paragraphs, \\n\\n separated, max 40 words each, no UI section labels in text). Carbon kg for Zone
  * cards comes from `buildUserImpact` / scrapes, not a separate `verified_saving_kg` column on this row (see
  * `verified_saving` / impact pipeline elsewhere).
@@ -983,7 +983,7 @@ From the markdown below, return ONLY valid JSON (no markdown code fence) with ex
 - "category": one of: ${journeyList} — the single best thematic fit for the main opportunity in the text.
 - "saving_amount_gbp": non-negative number with up to two decimal places — annual GBP saving grounded in the scraped text (use 0 only if truly none inferable).
 - "offer_url": one https URL copied verbatim from the markdown or citation context. If no live URL exists, return an empty string.
-- "agent_headline": **Zone card heading** — **8 to 10 words**, punchy and benefit-driven (e.g. "line up your tariff with the april cap before you switch deals"). No colons. No section labels.
+- "agent_headline": **Zone card heading** — **9 to 12 words** (must be at least 9 — anything shorter gets rejected and replaced by a generic template, wasting this generation entirely), punchy and benefit-driven (e.g. "line up your tariff with the april cap before you switch deals"). No colons. No section labels.
 - "expanded_headline": **Expanded Solo Focus hook heading** — **10 to 20 words** (2–3 lines); benefit-led lifestyle hook for their town/setup, not a postcode. Optional; if omitted, agent_headline may be reused.
 - "architect_prose": exactly **THREE** paragraphs for Solo Focus (blank line between). **Hard cap: each paragraph at most ${MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH} words.**
 ${ZONE_WARM_AUDITOR_THREE_BEAT}

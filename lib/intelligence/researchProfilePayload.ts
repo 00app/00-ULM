@@ -95,7 +95,7 @@ const JOURNEY_FIRECRAWL_SEEDS: Partial<Record<JourneyId, string[]>> = {
     'https://www.gov.uk/apply-warm-home-discount-scheme',
   ],
   shopping: ['https://www.which.co.uk/money/shopping'],
-  tech: ['https://www.backmarket.co.uk/en-gb'],
+  tech: ['https://www.backmarket.co.uk/en-gb', 'https://www.gov.uk/guidance/smart-meters-how-they-work'],
   waste: ['https://www.gov.uk/recycling-collections'],
   water: ['https://www.waterwise.org.uk/'],
   solar: ['https://www.gov.uk/government/publications/solar-energy-uk'],
@@ -153,10 +153,15 @@ export const JOURNEY_FREE_SEEDS: Partial<Record<JourneyId, string[]>> = {
     'https://www.gov.uk/pension-credit',
     'https://energysavingtrust.org.uk/advice/grants-and-loans/',
   ],
+  // All three previous seeds confirmed dead 2026-07-11: gov.uk/guidance/energy-saving-tips is a
+  // genuine branded "Page not found - GOV.UK" (not a bot-block — checked the actual page title),
+  // and a live trigger against production showed zero scraped content / empty citations for tech
+  // specifically, confirmed against the app's own real output, not just a local curl test.
+  // Replaced with three URLs verified live (HTTP 200, real page titles) 2026-07-11.
   tech: [
-    'https://energysavingtrust.org.uk/advice/smart-meters/',
-    'https://www.gov.uk/guidance/energy-saving-tips',
-    'https://energysavingtrust.org.uk/advice/home-appliances/',
+    'https://www.gov.uk/guidance/smart-meters-how-they-work',
+    'https://www.ofgem.gov.uk/getting-smart-meter',
+    'https://www.smartenergygb.org/smart-living/smart-energy-tips/switching-appliances-off-stand-by',
   ],
   water: [
     'https://www.waterwise.org.uk/save-water/',
