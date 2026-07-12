@@ -173,10 +173,19 @@ export const JOURNEY_FREE_SEEDS: Partial<Record<JourneyId, string[]>> = {
     'https://www.recyclenow.com/',
     'https://wrap.org.uk/taking-action/food-drink/actions/food-waste-reduction-roadmap',
   ],
+  // Previous seeds confirmed topically wrong 2026-07-12, not dead like tech's were: the free
+  // scraper succeeded (real markdown, real citations) but the content was unusable — the gov.uk
+  // page is explicitly marked "[Withdrawn]" and is about corporate/business greenhouse-gas
+  // reporting (Companies Act 2006, quoted companies' Directors' Reports), not household carbon;
+  // the other two seeds duplicate home's/utilities' own content with no carbon-specific angle.
+  // Confirmed via a live production trigger + inspecting the actual scraped markdown, not curl.
+  // Replaced with three URLs verified live 2026-07-12: a genuinely current (not withdrawn) GOV.UK
+  // statistics release, Energy Saving Trust's household carbon-cutting tips (concrete £/kg figures
+  // per action), and Carbon Trust's own guides hub (matches the journey's trusted CTA domain).
   carbon: [
-    'https://energysavingtrust.org.uk/advice/home-insulation/',
-    'https://www.gov.uk/guidance/measuring-and-reporting-environmental-impacts-guidance-for-businesses',
-    'https://www.ofgem.gov.uk/information-consumers/energy-advice-households/energy-price-cap-and-standing-charges-explained',
+    'https://www.gov.uk/government/statistics/uks-carbon-footprint/carbon-footprint-for-the-uk-and-england-to-2023',
+    'https://energysavingtrust.org.uk/top-tips-to-reduce-your-carbon-emissions/',
+    'https://www.carbontrust.com/our-work-and-impact/guides-reports-and-videos',
   ],
 }
 
