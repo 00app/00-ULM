@@ -996,6 +996,16 @@ Markdown:
 ${markdown.slice(0, shouldPreferMechanicalTripletInBucket() ? 12_000 : 28_000)}`
   try {
     const tag = normalizeResearchCategory(options?.categoryHint ?? '') || 'architect-triplet'
+    // TEMP DEBUG (will revert): trace prompt assembly -> raw LLM output -> parsed triplet for a
+    // "good scraped content in, template £ out" diagnosis. Gated to a handful of categories to
+    // keep log volume sane.
+    const debugCats = new Set(['home', 'holidays', 'money', 'utilities'])
+    const debugOn = debugCats.has(tag)
+    if (debugOn) {
+      console.log(
+        `[DEBUG-triplet ${tag}] prompt length=${prompt.length} markdownInPrompt=${prompt.includes(markdown.slice(0, 200))} promptTail=${JSON.stringify(prompt.slice(-400))}`
+      )
+    }
     const { text } = await generateResearchText({
       prompt,
       tag,
@@ -1006,7 +1016,13 @@ ${markdown.slice(0, shouldPreferMechanicalTripletInBucket() ? 12_000 : 28_000)}`
         ? [`google/${options.model.trim().replace(/^google\//, '')}`, ...ARTICLE_GATEWAY_MODEL_CHAIN]
         : undefined,
     })
+    if (debugOn) {
+      console.log(`[DEBUG-triplet ${tag}] RAW LLM response (len=${text.length}): ${JSON.stringify(text)}`)
+    }
     const parsed = parseResearchTripletJson(text)
+    if (debugOn) {
+      console.log(`[DEBUG-triplet ${tag}] PARSED: ${JSON.stringify(parsed)}`)
+    }
     return parsed
   } catch (e) {
     console.warn(
