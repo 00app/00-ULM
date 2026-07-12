@@ -82,6 +82,25 @@ const JOURNEY_CARD_HEADLINE_BOUNDS = {
   max: MAX_JOURNEY_CARD_HEADLINE_WORDS,
 }
 
+/**
+ * A genuine LLM headline a couple of words under the 9-word target still carries real, specific
+ * content (locality, £ figure, benefit) — discarding it for the fully generic per-category
+ * template throws away more signal than a short-by-a-word headline costs. Only headlines this
+ * far below the floor (or empty, or already matching a known generic hook) are too short to trust.
+ */
+const HEADLINE_NEAR_MISS_TOLERANCE_WORDS = 3
+const HEADLINE_MECHANICAL_FLOOR_WORDS = Math.max(
+  1,
+  MIN_JOURNEY_CARD_HEADLINE_WORDS - HEADLINE_NEAR_MISS_TOLERANCE_WORDS
+)
+/** Same bounds as JOURNEY_CARD_HEADLINE_BOUNDS but with the relaxed near-miss floor, so a headline
+ * accepted as a near-miss isn't immediately re-collapsed by clampZoneBentoHeadline's own
+ * (stricter) min-word check right after it. */
+const JOURNEY_CARD_HEADLINE_BOUNDS_NEAR_MISS = {
+  min: HEADLINE_MECHANICAL_FLOOR_WORDS,
+  max: MAX_JOURNEY_CARD_HEADLINE_WORDS,
+}
+
 export interface ResearchCitation {
   source_name: string
   url: string
@@ -1804,8 +1823,18 @@ export async function persistResearchResult(params: {
       (savingForDb == null || savingForDb <= 0) &&
       !mergedAgentHeadline &&
       !mergedArchitectProse
+    const headlineMatchesKnownGenericHook =
+      mergedAgentHeadline != null &&
+      Object.values(ZONE_BENTO_HOOK).some(
+        (hook) => hook != null && normalizeCardHeadlineKey(hook) === normalizeCardHeadlineKey(mergedAgentHeadline!)
+      )
+    // Near-miss tolerance: a genuine headline within HEADLINE_NEAR_MISS_TOLERANCE_WORDS of the
+    // 9-word target is accepted as-is rather than fully discarded for the generic template — see
+    // HEADLINE_MECHANICAL_FLOOR_WORDS above. Only headlines below that floor, or ones that already
+    // match a known generic hook verbatim, still route through the mechanical overwrite.
     const needsMechanicalHeadline =
-      headlineWordCount > 0 && headlineWordCount < MIN_JOURNEY_CARD_HEADLINE_WORDS
+      headlineWordCount > 0 &&
+      (headlineWordCount < HEADLINE_MECHANICAL_FLOOR_WORDS || headlineMatchesKnownGenericHook)
     // savingIsMechanicalFallback tracks specifically whether the £ figure came from the shared
     // per-category template rather than genuine research — that's the only thing gating the
     // scraped-overlay in buildScrapedFromResearchResults needs to know, so it stays scoped to
@@ -1843,7 +1872,7 @@ export async function persistResearchResult(params: {
       mergedAgentHeadline = clampZoneBentoHeadline(
         mergedAgentHeadline,
         headlineJourneyKey,
-        JOURNEY_CARD_HEADLINE_BOUNDS
+        headlineIsMechanicalFallback ? JOURNEY_CARD_HEADLINE_BOUNDS : JOURNEY_CARD_HEADLINE_BOUNDS_NEAR_MISS
       )
       // Clamp fell back to the fully generic per-journey hook (lost any locality reference) —
       // try deriving a real headline from the architect_prose first, since that reliably carries
