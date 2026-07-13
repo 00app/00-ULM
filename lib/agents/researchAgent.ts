@@ -1015,8 +1015,6 @@ Markdown:
 ${markdown.slice(0, shouldPreferMechanicalTripletInBucket() ? 12_000 : 28_000)}`
   try {
     const tag = normalizeResearchCategory(options?.categoryHint ?? '') || 'architect-triplet'
-    // TEMP DEBUG (will revert): verify the £-prose-consistency prompt fix for carbon.
-    const debugOn = tag === 'carbon'
     const { text } = await generateResearchText({
       prompt,
       tag,
@@ -1027,16 +1025,7 @@ ${markdown.slice(0, shouldPreferMechanicalTripletInBucket() ? 12_000 : 28_000)}`
         ? [`google/${options.model.trim().replace(/^google\//, '')}`, ...ARTICLE_GATEWAY_MODEL_CHAIN]
         : undefined,
     })
-    if (debugOn) {
-      console.log(`[DEBUG-carbon-fix ${tag}] RAW LLM response (len=${text.length}): ${JSON.stringify(text)}`)
-    }
-    const parsed = parseResearchTripletJson(text)
-    if (debugOn) {
-      console.log(
-        `[DEBUG-carbon-fix ${tag}] PARSED saving_amount_gbp=${JSON.stringify(parsed?.saving_amount_gbp)} full=${JSON.stringify(parsed)}`
-      )
-    }
-    return parsed
+    return parseResearchTripletJson(text)
   } catch (e) {
     console.warn(
       '[researchAgent] extractResearchTripletWithGemini failed:',
