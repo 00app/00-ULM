@@ -336,14 +336,21 @@ export function calculateMoney(a: Record<string, string>): ImpactResult {
     money += 80 // default switching saving
   }
 
+  // Carbon: previously hardcoded to 0 — but ethical banking/pension switching is a real,
+  // if hard-to-pin-down-precisely, lever. Kept deliberately conservative rather than citing
+  // the large (contested) multiples some campaigns claim — see explanation caveat below.
+  let carbon = greenInvestments === 'HIGH' ? 220 : greenInvestments === 'SOME' ? 110 : 40
+  if (tariff === 'VARIABLE' || tariff === 'UNKNOWN') carbon += 30 // a tariff review usually prompts a wider bill/behaviour check too
+
   return {
-    carbonKg: 0,
+    carbonKg: Math.round(Math.max(0, carbon)),
     moneyGbp: Math.max(0, money),
-    source: 'ofgem + gov.uk',
+    source: 'ofgem + gov.uk + make my money matter',
     explanation: [
       `green levies moved off dual-fuel bills from april 2026 — £${TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP} off the typical household cap before any switching or green investment move.`,
       'a variable or unknown tariff is the highest-risk position heading into the next ofgem window — locking into a fixed below the april £1,641 cap sets your cost floor.',
       'ethical current accounts, isas, and pension switches earn market-rate returns without funding fossil extraction — no income penalty for moving your cash.',
+      'moving a pension or current account away from fossil-fuel-linked funds is a genuine carbon lever — make my money matter and similar campaigns argue it can be one of the highest-leverage individual actions available, though the exact size varies a lot by provider and is kept conservative here rather than overclaiming a specific multiple.',
     ],
     claimOfferUrl: 'https://www.gov.uk/the-warm-home-discount-scheme',
   }
