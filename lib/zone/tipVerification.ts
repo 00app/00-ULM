@@ -18,11 +18,6 @@ const VERIFICATION_BY_JOURNEY: Partial<Record<JourneyId, TipVerificationFollowUp
     options: ['YES', 'PARTLY', 'NO'],
     targetField: 'loft_insulation_depth',
   },
-  grants: {
-    question: 'Are you on any income-related benefits?',
-    options: ['YES', 'NO', 'PREFER NOT'],
-    targetField: 'income_benefits',
-  },
   travel: {
     question: 'Could you switch one flight to rail this year?',
     options: ['YES', 'MAYBE', 'NO'],

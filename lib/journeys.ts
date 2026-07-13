@@ -1,8 +1,7 @@
-/** Thirteen-domain intelligence loop — 3 questions per category (Infrastructure / Behaviour / Readiness). */
+/** Twelve-domain intelligence loop — 3 questions per category (Infrastructure / Behaviour / Readiness). */
 export const JOURNEY_IDS = [
   'home',
   'utilities',
-  'grants',
   'solar',
   'travel',
   'holidays',
@@ -86,30 +85,6 @@ export const JOURNEYS: Record<JourneyId, JourneyDefinition> = {
         label: 'Rough monthly energy spend?',
         type: 'options',
         options: ['UNDER_100', '100_TO_200', 'OVER_200', 'UNKNOWN'],
-      },
-    ],
-  },
-  grants: {
-    id: 'grants',
-    name: 'grants',
-    questions: [
-      {
-        id: 'boiler_age',
-        label: 'Is your boiler over 10 years old?',
-        type: 'options',
-        options: ['OVER_10YR', 'UNDER_10YR', 'UNKNOWN'],
-      },
-      {
-        id: 'income_benefits',
-        label: 'Are you on any income-related benefits?',
-        type: 'options',
-        options: ['YES', 'NO', 'PREFER_NOT'],
-      },
-      {
-        id: 'prior_eco_bus',
-        label: 'Have you had previous home insulation or heat pump grants?',
-        type: 'options',
-        options: ['YES', 'NO', 'UNSURE'],
       },
     ],
   },
@@ -368,7 +343,6 @@ export function getNextJourney(currentJourneyId: JourneyId | null, completedJour
 export const JOURNEY_LABELS: Record<JourneyId, string> = {
   home: 'Home',
   utilities: 'Utilities',
-  grants: 'Grants',
   solar: 'Solar',
   travel: 'Travel',
   holidays: 'Holidays',
@@ -384,7 +358,6 @@ export const JOURNEY_LABELS: Record<JourneyId, string> = {
 export const JOURNEY_COLORS: Record<JourneyId, string> = {
   home: 'var(--color-j-home)',
   utilities: 'var(--color-j-utilities)',
-  grants: 'var(--color-j-grants)',
   solar: 'var(--color-j-solar)',
   travel: 'var(--color-j-travel)',
   holidays: 'var(--color-j-holidays)',

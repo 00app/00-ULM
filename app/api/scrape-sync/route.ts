@@ -986,7 +986,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              'journey_key required for JIT scrape-sync trigger (e.g. solar, water, grants)',
+              'journey_key required for JIT scrape-sync trigger (e.g. solar, water, money)',
           },
           { status: 400 }
         )

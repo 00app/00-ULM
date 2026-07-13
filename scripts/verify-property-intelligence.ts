@@ -41,8 +41,6 @@ assert(epcHints.home?.insulation_level === 'NONE', 'walls no insulation → NONE
 assert(epcHints.home?.glazing_type === 'DOUBLE', 'partial double → DOUBLE')
 assert(epcHints.home?.property_type === 'TERRACED', 'mid-terrace → TERRACED')
 assert(epcHints.home_power === 'GAS', 'mains gas → GAS')
-assert(epcHints.grants?.suppressBoilerUpgrade === true, 'rented → suppress boiler grant')
-assert(epcHints.grants?.priorityPre1970 === true, '1930-1949 → pre-1970 priority')
 
 const pi: PropertyIntelligence = {
   enrichedAt: new Date().toISOString(),

@@ -54,7 +54,7 @@ import {
 import { updateHermesMemoryAfterAnswer } from '@/lib/agents/hermes-memory'
 import { runRebirthVaultDiscovery } from '@/lib/agents/rebirthVaultDiscovery'
 import { FIRECRAWL_API_KEY as resolvedFirecrawlKey } from '@/lib/sentinel/api-config'
-import { runHybridLiveZoneTipForAnswer } from '@/lib/agents/scraperAgent'
+import type { HybridLiveZoneTipResult } from '@/lib/agents/scraperAgent'
 import { advanceHomeJourneySentinelAfterAnswer } from '@/lib/sentinel/runner'
 import { resolveGridCarbonContextForPostcode } from '@/lib/brains/liveGridCarbonFactor'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
@@ -201,18 +201,7 @@ export async function POST(request: NextRequest) {
     const upsertPromise = upsertJourneyAnswerJsonb(user_id, jKey, qKey, String(value))
     const genomeUpsertPromise = upsertUserGenomeFromAnswer(user_id, jKey, qKey, String(value))
     const sourceCitationPromise = getLatestResearchCitation(postcodeNorm, user_id)
-    const hybridLiveZoneTipPromise =
-      jKey === 'grants' &&
-      qKey === 'boiler_age' &&
-      String(value).trim().toUpperCase() === 'OVER_10YR'
-        ? runHybridLiveZoneTipForAnswer({
-            journeyId: 'grants',
-            questionId: 'boiler_age',
-            answerValue: String(value),
-            postcode: postcodeNorm,
-            profileData,
-          }).catch(() => null)
-        : Promise.resolve(null)
+    const hybridLiveZoneTipPromise: Promise<HybridLiveZoneTipResult | null> = Promise.resolve(null)
 
     if (isValidJourneyId(jKey) && postcodeNorm && postcodeNorm.length >= 4) {
       void runLoopSpawnResearch({

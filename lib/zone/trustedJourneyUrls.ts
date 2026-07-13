@@ -8,7 +8,6 @@ import { JOURNEY_IDS } from '@/lib/journeys'
 export const TRUSTED_JOURNEY_URLS: Record<JourneyId, string> = {
   home: 'https://www.energysavingtrust.org.uk/advice/reducing-home-heat-loss/',
   utilities: 'https://www.moneysavingexpert.com/cheapenergyclub/',
-  grants: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
   solar: 'https://mcscertified.com/find-an-installer/',
   travel: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
   holidays: 'https://www.eurostar.com/uk-en/deals',
@@ -101,7 +100,6 @@ export function normalizeCategoryToJourneyKey(category: string): JourneyId {
     WASTE: 'waste',
     HOLIDAYS: 'holidays',
     HOLIDAY: 'holidays',
-    GRANTS: 'grants',
     SOLAR: 'solar',
     WATER: 'water',
     BILLS: 'money',

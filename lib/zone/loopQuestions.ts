@@ -151,16 +151,6 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
     ],
   },
   {
-    questionId: 'grants_bus_boiler',
-    question: 'check heat pump grant\nfor your home?',
-    journeyKeys: ['grants'],
-    options: [
-      { label: 'YES', value: 'YES', ariaLabel: 'Yes — check the grant' },
-      { label: 'INFO', value: 'MORE INFO', ariaLabel: 'Tell me more' },
-      { label: 'NO', value: 'NOT ELIGIBLE', ariaLabel: 'Not eligible' },
-    ],
-  },
-  {
     questionId: 'solar_roof_fit',
     question: 'solar panels\non your roof?',
     journeyKeys: ['solar'],
@@ -235,7 +225,6 @@ const LOOP_BEAT_GOAL_LEAN: Record<string, LoopGoalLean> = {
   utilities_supplier_switch: 'money',
   home_heat_pump: 'neutral',
   home_loft_insulate: 'money',
-  grants_bus_boiler: 'money',
   solar_roof_fit: 'money',
   shopping_repair_first: 'carbon',
   tech_standby_off: 'money',
@@ -277,9 +266,8 @@ export function scoreLoopBeatForProfile(
 
   if (toneMode === 'asset_optimization') {
     if (beat.questionId.includes('solar') || beat.questionId.includes('smart_tariff')) score += 10
-    if (beat.questionId.includes('grants')) score -= 4
   } else if (toneMode === 'bill_survival') {
-    if (beat.questionId.includes('grants') || beat.questionId.includes('tariff')) score += 8
+    if (beat.questionId.includes('tariff')) score += 8
   }
 
   return score

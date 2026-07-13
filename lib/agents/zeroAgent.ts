@@ -25,7 +25,6 @@ const GEMINI_AGENT_MODEL = FLASH_DEFAULT
 const CATEGORY_TOOL_HINTS: Partial<Record<JourneyId, string[]>> = {
   home: ['fetch_postcode_geo', 'fetch_epc_data', 'fetch_deprivation_index', 'scrape_url'],
   utilities: ['fetch_postcode_geo', 'fetch_epc_data', 'fetch_grid_intensity', 'scrape_url'],
-  grants: ['fetch_postcode_geo', 'fetch_epc_data', 'fetch_deprivation_index', 'fetch_land_registry', 'scrape_url'],
   solar: ['fetch_postcode_geo', 'fetch_solar_estimate', 'fetch_epc_data', 'fetch_dno_region', 'fetch_grid_intensity', 'scrape_url'],
   travel: ['fetch_postcode_geo', 'fetch_deprivation_index', 'scrape_url'],
   holidays: ['fetch_postcode_geo', 'fetch_flood_risk', 'scrape_url'],

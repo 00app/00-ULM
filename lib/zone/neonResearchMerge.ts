@@ -94,7 +94,6 @@ export function mergeNeonJourneyResearch(
 
 /**
  * Fold legacy Neon aliases onto first-class Zone journey keys.
- * `grants` stays on the grants tile — do not merge into `home` (13-domain wall).
  */
 export function foldCoverageRowsForZone(
   cov: Record<string, ResearchCategoryCoverageRow>
@@ -123,10 +122,6 @@ export function foldExtendedResearchCoverage(
   cov: Record<string, ResearchCategoryCoverageRow>
 ): Partial<Record<JourneyId, NeonJourneyResearchRow>> {
   const out: Partial<Record<JourneyId, NeonJourneyResearchRow>> = { ...base }
-  const grants = cov.grants ? coverageRowToNeon(cov.grants, 'grants') : null
-  if (grants) {
-    out.grants = mergeNeonJourneyResearch(out.grants, grants)
-  }
   const bills = cov.bills ? coverageRowToNeon(cov.bills, 'money') : null
   if (bills) {
     out.money = mergeNeonJourneyResearch(out.money, bills)

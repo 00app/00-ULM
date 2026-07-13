@@ -19,20 +19,12 @@ export type EpcMoneyAnswerHints = {
   monthly_energy_bill?: number
 }
 
-export type EpcGrantsAnswerHints = {
-  /** Rented tenure — boiler upgrade is landlord scheme only. */
-  suppressBoilerUpgrade?: boolean
-  /** Pre-1970 construction — high priority for grants journey. */
-  priorityPre1970?: boolean
-}
-
 export type EpcJourneyAnswerHints = {
   /** Profile-level home_power (GAS / ELECTRIC / MIX / OTHER). */
   home_power?: string
   home?: EpcHomeAnswerHints
   utilities?: EpcUtilitiesAnswerHints
   money?: EpcMoneyAnswerHints
-  grants?: EpcGrantsAnswerHints
 }
 
 export function mapEpcPropertyTypeToHomeTypeHint(
@@ -180,39 +172,6 @@ export function mapEpcHeatingCostsToSpendHints(epc: Pick<
   }
 }
 
-export function mapEpcTenureToGrantsHints(
-  tenure?: string | null
-): EpcGrantsAnswerHints | undefined {
-  const t = (tenure ?? '').trim().toLowerCase()
-  if (!t) return undefined
-  if (t.includes('rent') || t.includes('tenant') || t.includes('social housing')) {
-    return { suppressBoilerUpgrade: true }
-  }
-  if (t.includes('owner') || t.includes('freehold') || t.includes('leasehold')) {
-    return { suppressBoilerUpgrade: false }
-  }
-  return undefined
-}
-
-/** True when construction age band ends before 1970. */
-export function isEpcConstructionPre1970(constructionAgeBand?: string | null): boolean {
-  const band = (constructionAgeBand ?? '').trim()
-  if (!band) return false
-  const match = band.match(/(\d{4})\s*-\s*(\d{4})|before\s*(\d{4})|(\d{4})\s*\+/)
-  if (!match) return false
-  const endYear = Number(match[2] ?? match[3] ?? match[4] ?? match[1])
-  if (!Number.isFinite(endYear)) return false
-  if (match[0].toLowerCase().includes('before')) return endYear <= 1970
-  return endYear < 1970
-}
-
-export function mapEpcConstructionAgeToGrantsHints(
-  constructionAgeBand?: string | null
-): EpcGrantsAnswerHints | undefined {
-  if (!isEpcConstructionPre1970(constructionAgeBand)) return undefined
-  return { priorityPre1970: true }
-}
-
 /**
  * Compose all EPC → journey answer hints from a deep-read profile row.
  * Caller applies confidence / no-overwrite rules (see propertyAnswerPrefill.ts).
@@ -221,8 +180,6 @@ export function mapEpcToJourneyAnswerHints(epc: OpenEpcProfile): EpcJourneyAnswe
   if (!epc.found) return {}
 
   const spend = mapEpcHeatingCostsToSpendHints(epc)
-  const tenureGrants = mapEpcTenureToGrantsHints(epc.tenure)
-  const ageGrants = mapEpcConstructionAgeToGrantsHints(epc.constructionAgeBand)
 
   const home_power = mapEpcMainFuelToHomePower(epc.mainFuel, epc.mainsGasFlag)
   const property_type = mapEpcBuiltFormToPropertyType(epc.builtForm, epc.propertyType)
@@ -241,9 +198,6 @@ export function mapEpcToJourneyAnswerHints(epc: OpenEpcProfile): EpcJourneyAnswe
 
   if (spend.utilities) hints.utilities = spend.utilities
   if (spend.money) hints.money = spend.money
-
-  const grants = { ...tenureGrants, ...ageGrants }
-  if (Object.keys(grants).length > 0) hints.grants = grants
 
   return hints
 }

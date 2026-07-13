@@ -147,7 +147,6 @@ function thresholdRulesBlock(): string {
 - food: money_gbp > 100 → headline like "SWITCH TO SEASONAL VEG" unless a stronger UK policy beats it.
 - travel: money_gbp > 1000 → headline like "CLAIM EV INSTALL GRANT" (gov.uk chargepoint grant pathway).
 - waste: money_gbp > 50 → headline like "START FOOD COMPOSTING" (WRAP-aligned).
-- grants: money_gbp >= 6500 or flags include bus_eligible_hint → headline like "CHECK HEAT PUMP GRANT RULES" — air-source £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}; oil/LPG uplift £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} from July 2026 — cite GOV.UK only on grants cards. Never use the acronym BUS in user-facing text.
 - home: insulation, draughts, fabric — never heat-pump grant amounts on home cards.
 Use April 2026 context: typical cap saving ~£${PRICE_CAP_SAVING_APRIL_1}/yr when relevant (Ofgem).`
 }
@@ -334,8 +333,8 @@ function profileGoalPromptBlock(cards: ContentArchitectCardInput[]): string {
         : 'Paragraph 3 gives equal weight to £ and kg/t CO₂e.'
   const toneLine =
     tone === 'asset_optimization'
-      ? 'bill_survival off — stress ROI, export, smart tariffs; deprioritise means-tested grant copy unless journey_key is grants.'
-      : 'bill_survival on — stress cap relief, supplier switch, grants, monthly bill cuts.'
+      ? 'bill_survival off — stress ROI, export, smart tariffs; deprioritise means-tested grant copy.'
+      : 'bill_survival on — stress cap relief, supplier switch, monthly bill cuts.'
   return `
 Profile goal emphasis (mandatory):
 - profile_goal: ${goal}; ${lead}
@@ -415,10 +414,9 @@ ${forensicMateBannedPromptLine()}
 Market accuracy beats creative writing. If any value is uncertain, stay conservative and tie claims to provided source_url/source_hint.
 No emojis. No repeated sentences. Vary paragraph 1 openers across cards — do not reuse the same lead rhythm on every journey.
 STRICT CATEGORY BOUNDARIES (mandatory — violating a boundary invalidates the card):
-- Each card's copy must match journey_key only. If journey_key is grants and the topic is e-bike schemes, do NOT mention gas boilers, heat pumps, or Ofgem cap maths unless the grant is explicitly BUS/heat-pump.
+- Each card's copy must match journey_key only.
 - utilities = fuel mix, tariff, supplier, standing charges (no BUS, no loft insulation).
 - home = fabric, draughts, heating habits (no BUS grant £ amounts).
-- grants = heat pump and insulation grants only (no solar panel install copy, no generic cap essays).
 - solar = solar panels and export only (no heat pump grants, no boilers, no e-bike).
 - travel/holidays/food/shopping/water/waste/money/tech/carbon each need a distinct mechanism — never reuse the same opening sentence across cards.
 Banned in all user-facing text: parenthetical system notes, "(official cap pathway)", "your live pathway is", raw variable names, or conditional dev notes.
@@ -433,12 +431,12 @@ Absolute voice constraints:
 Keep headline <= ${MAX_HEADLINE_CHARS} chars, uppercase, no trailing period.
 Insight must follow the 3-beat structure (three paragraphs, blank line between) — see ZONE_WARM_AUDITOR_THREE_BEAT above.
 Paragraph 1 must open with locality (town name) when the card JSON includes locality — never the raw postcode string.
-Paragraph 2 may cite heat pump grant amounts £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP} / £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} only on grants/home-heat cards where relevant. No acronyms (BUS, ECO4, MCS) in output copy.
+Paragraph 2 must not cite heat pump grant £ amounts — grants is not a card category. No acronyms (BUS, ECO4, MCS) in output copy.
 Paragraph 3 holds the single £/kg payoff and the https source_url action — do not repeat payoff figures from paragraph 1.
 Use compact figures only: £1.4k / 0.3t style, never long-form integers in prose.
 When verified_saving_value is provided, cite it in paragraph 3 only (compact £) and mention offer_expiry_date when present.
 actionLine = one short imperative.
-Reply with ONLY valid JSON: an object whose keys are journey_key strings (home, utilities, grants, solar, travel, holidays, food, shopping, money, tech, water, waste, carbon). Each value: { "headline", "insight", "actionLine", "suppliedBy" }.`
+Reply with ONLY valid JSON: an object whose keys are journey_key strings (home, utilities, solar, travel, holidays, food, shopping, money, tech, water, waste, carbon). Each value: { "headline", "insight", "actionLine", "suppliedBy" }.`
 
   const user = `${lockedFactsBlock()}
 

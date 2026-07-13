@@ -31,27 +31,6 @@ export function filterTipsForEmployment(
   if (!deprioritizeMeansTested) return tips
   return tips.filter((t) => {
     const blob = `${t.title ?? ''} ${t.explanation?.join(' ') ?? ''} ${t.journey_key ?? ''}`.toLowerCase()
-    if (t.journey_key === 'grants' && MEANS_TESTED_RE.test(blob)) return false
     return !MEANS_TESTED_RE.test(blob)
   })
-}
-
-export function grantsJourneyTitleForProfile(args: {
-  employmentStatus?: string | null
-  postcode?: string | null
-  defaultTitle: string
-}): string {
-  if (isHighValuePostcode(args.postcode)) {
-    return 'optimise assets and legacy efficiency'
-  }
-  if (isStudent(args.employmentStatus)) {
-    return 'student bills and shared-house wins'
-  }
-  if (isBetweenJobs(args.employmentStatus)) {
-    return 'zero-upfront grants and bill relief'
-  }
-  if (isActiveEmployed(args.employmentStatus)) {
-    return 'productivity and investment-grade upgrades'
-  }
-  return args.defaultTitle
 }

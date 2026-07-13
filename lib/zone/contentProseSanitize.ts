@@ -68,7 +68,6 @@ const JOURNEY_PROSE_BANNED: Partial<Record<JourneyId, RegExp>> = {
   holidays: /\b(?:boiler\s+upgrade|loft\s+insulation|ofgem\s+price\s*cap|e-?bike|ebike)\b/i,
   tech: /\b(?:boiler\s+upgrade|bus\b|loft\s+insulation|ofgem\s+price\s*cap)\b/i,
   money: /\b(?:boiler\s+upgrade|loft\s+insulation|heat\s*pump|shower\s+head|e-?bike|ebike)\b/i,
-  grants: /\b(?:solar\s+panel\s+install|feed-in\s+tariff|mcs\s+certified\s+only)\b/i,
   home: /\b(?:e-bike\s+scheme|cycle\s+to\s+work\s+loan|bus\s+grant\s+only)\b/i,
   utilities: /\b(?:e-bike|food\s+compost|wrap\s+uk)\b/i,
   carbon: /\b(?:e-bike\s+scheme|meal\s+planner)\b/i,

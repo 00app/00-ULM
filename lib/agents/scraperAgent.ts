@@ -87,30 +87,22 @@ export async function runHybridLiveZoneTipForAnswer(params: {
   const target = resolveHybridPrimaryScrapeUrl({ journeyId, questionId, answerValue, postcode, profileData })
   if (!target) return null
 
-  const grantsBoilerSpawn =
-    journeyId === 'grants' &&
-    questionId === 'boiler_age' &&
-    answerValue.trim().toUpperCase() === 'OVER_10YR'
   const legacyGasSpawn =
     journeyId === 'home' && questionId === 'energy_type' && answerValue.trim().toUpperCase() === 'GAS'
-  if (!grantsBoilerSpawn && !legacyGasSpawn) {
+  if (!legacyGasSpawn) {
     return null
   }
 
   const pc = postcode?.replace(/\s+/g, '').trim() ?? ''
   const parsed = await researchLocalGrantsToDiscovery(pc, 'Heat Pump Grant')
-  const rec = getDiscoveryRecommendation(
-    grantsBoilerSpawn ? 'grants' : 'home',
-    grantsBoilerSpawn ? 'boiler_age' : 'energy_type',
-    grantsBoilerSpawn ? 'OVER_10YR' : 'GAS'
-  )
+  const rec = getDiscoveryRecommendation('home', 'energy_type', 'GAS')
   const id = `${buildDiscoveryInjectionId(journeyId, questionId, answerValue)}-hybrid-live`
 
   const zoneCard = validateInjectionCard({
     id,
     title: parsed.title,
-    journey_key: grantsBoilerSpawn ? 'grants' : 'home',
-    category: grantsBoilerSpawn ? 'grants' : 'home',
+    journey_key: 'home',
+    category: 'home',
     data: { money: parsed.valueMoneyStr, carbon: parsed.carbonStr },
     source: parsed.source_url,
     explanation: [parsed.description],

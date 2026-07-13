@@ -19,7 +19,7 @@ import type { PropertyIntelligence } from '@/lib/intelligence/propertyIntelligen
 import type { LocalizedProfileInput } from '@/lib/intelligence/researchProfilePayload'
 
 /**
- * All 13 journeys — was capped at 4 to limit paid Firecrawl+Gemini spend. ZeroAgent (free-tier
+ * All journeys — was capped at 4 to limit paid Firecrawl+Gemini spend. ZeroAgent (free-tier
  * direct Gemini + free UK data APIs, see lib/agents/zeroAgent.ts) is now the primary onboarding
  * research path, and this fires fire-and-forget in the background (never blocks the UI) — so
  * there's no longer a cost/latency reason to leave 9 of 13 categories generic until a JIT click
@@ -42,9 +42,9 @@ export type AnswerFunnelResult = {
 }
 
 const GOAL_JOURNEY_PRIORITIES: Record<ProfileGoalValue, JourneyId[]> = {
-  money: ['grants', 'money', 'shopping', 'travel'],
+  money: ['money', 'shopping', 'travel'],
   carbon: ['carbon', 'solar', 'travel', 'food'],
-  balanced: ['grants', 'travel', 'food', 'money'],
+  balanced: ['travel', 'food', 'money'],
 }
 
 function scoreJourneys(params: {
@@ -56,7 +56,7 @@ function scoreJourneys(params: {
   const scores = new Map<JourneyId, number>()
   // Baseline every journey at 0 so a category with no matching bump condition (shopping, tech,
   // waste, water, carbon, holidays for many profiles) still appears in the ranked candidate list.
-  // The cap is now JOURNEY_ORDER.length (all 13) — without this, uncapped no longer meant
+  // The cap is now JOURNEY_ORDER.length (all journeys) — without this, uncapped no longer meant
   // "all categories fire," it meant "every category that happened to score is uncapped."
   for (const jid of JOURNEY_ORDER) scores.set(jid, 0)
   const bump = (jid: JourneyId, n: number) => scores.set(jid, (scores.get(jid) ?? 0) + n)
@@ -73,7 +73,6 @@ function scoreJourneys(params: {
   const pi = params.propertyIntelligence
   const imd = params.profile.imd_decile ?? pi?.deprivation?.imdDecile
   if (isHighDeprivationArea(imd)) {
-    bump('grants', 40)
     bump('money', 15)
   }
   if (isLowDeprivationArea(imd)) {
@@ -88,12 +87,6 @@ function scoreJourneys(params: {
 
   if (isHighFloodRisk(pi?.flood?.floodRiskZone)) {
     bump('water', 25)
-    bump('grants', 10)
-  }
-
-  const epcTenure = (pi?.epc?.tenure ?? params.profile.tenure ?? '').toLowerCase()
-  if (epcTenure.includes('rent')) {
-    bump('grants', 5)
   }
 
   const valueBand = pi?.landRegistry?.propertyValueBand
@@ -118,8 +111,6 @@ function scoreJourneys(params: {
     if (aff.mode === 'asset_optimization') {
       bump('solar', 10)
       bump('utilities', 8)
-    } else {
-      bump('grants', 12)
     }
     if (isStudent(params.profile.employment_status)) {
       bump('food', 10)
@@ -127,7 +118,6 @@ function scoreJourneys(params: {
       bump('tech', 6)
     }
     if (isBetweenJobs(params.profile.employment_status)) {
-      bump('grants', 8)
       bump('food', 6)
       bump('waste', 5)
       bump('home', 4)

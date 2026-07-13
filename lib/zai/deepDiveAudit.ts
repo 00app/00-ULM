@@ -115,7 +115,6 @@ export function buildDeepDiveCalculationSummary(input: DeepDiveAuditInput): stri
 const DEEP_DIVE_PILLS: Partial<Record<JourneyId, [string, string, string]>> = {
   home: ['Show me the math', 'Why does this beat the April cap?', 'What do I do this week?'],
   utilities: ['Show me the math', 'How was the unit rate calculated?', 'Is this tariff still live?'],
-  grants: ['Show me the math', 'Is this grant guaranteed?', 'What proof do I need?'],
   solar: ['Show me the math', 'How was payback calculated?', 'Does my roof answer change this?'],
   travel: ['Show me the math', 'What is the carbon trade-off?', 'Cheapest swap this month?'],
   holidays: ['Show me the math', 'Where does the kg figure come from?', 'One lower-carbon swap?'],

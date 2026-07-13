@@ -12,7 +12,6 @@ import { isProfileOnboardingCompleteFields } from '@/lib/profile/onboardingCompl
 import { isValidUkPostcode } from '@/lib/geocode/ukPostcode'
 import { resolveAffluenceAuditMode } from '@/lib/zone/affluenceCheck'
 import { isStudent, isBetweenJobs } from '@/lib/profile/employmentSegment'
-import { grantsJourneyTitleForProfile } from '@/lib/zone/zoneEligibility'
 import {
   formatSoloFocusNavTipLabel,
   isBannedSoloFocusNavTipFragment,
@@ -70,7 +69,7 @@ const carbonJit = resolveOnboardingResearchJourneys({
   postcode: 'M11AG',
 })
 
-assert('money goal prioritises grants', moneyJit.includes('grants'), moneyJit.join(','))
+assert('money goal prioritises money journey', moneyJit.includes('money'), moneyJit.join(','))
 assert('carbon goal prioritises carbon journey', carbonJit.includes('carbon'), carbonJit.join(','))
 assert('onboarding JIT includes home', moneyJit.includes('home'))
 assert('utilities unlock adds utilities JIT', resolveOnboardingResearchJourneys({
@@ -149,7 +148,7 @@ const studentJit = resolveOnboardingResearchJourneys({
   employment_status: 'STUDENT',
   postcode: 'M11AG',
 })
-assert('student profile prioritises grants in JIT', studentJit.includes('grants'), studentJit.join(','))
+assert('student profile prioritises food in JIT', studentJit.includes('food'), studentJit.join(','))
 
 const betweenJobsAff = resolveAffluenceAuditMode({
   employment_status: 'BETWEEN_JOBS',
@@ -157,22 +156,6 @@ const betweenJobsAff = resolveAffluenceAuditMode({
 })
 assert('between jobs uses bill survival mode', betweenJobsAff.mode === 'bill_survival')
 assert('student is not active employed', !isStudent('EMPLOYED') && isStudent('STUDENT'))
-assert(
-  'student grants title',
-  grantsJourneyTitleForProfile({
-    employmentStatus: 'STUDENT',
-    postcode: 'M11AG',
-    defaultTitle: 'grants',
-  }).includes('student')
-)
-assert(
-  'between jobs grants title',
-  grantsJourneyTitleForProfile({
-    employmentStatus: 'BETWEEN_JOBS',
-    postcode: 'M11AG',
-    defaultTitle: 'grants',
-  }).includes('zero-upfront')
-)
 assert('legacy unemployed maps to between jobs segment', isBetweenJobs('UNEMPLOYED'))
 
 assert(
@@ -181,19 +164,19 @@ assert(
 )
 assert(
   'achievement tip label falls back not remember prose',
-  !formatSoloFocusNavTipLabel('YOUR WALL NOW REMEMBERS THIS SHIFT', 'grants').includes('remember')
+  !formatSoloFocusNavTipLabel('YOUR WALL NOW REMEMBERS THIS SHIFT', 'home').includes('remember')
 )
 assert('nav rail destination is uppercase category', navRailDestinationLabel('solar') === 'SOLAR')
 
 const soloNavRing: SoloFocusNavEntry[] = [
-  { cardId: 'tip-grants-ach', journeyKey: 'grants', kind: 'tip', label: 'we remember' },
+  { cardId: 'tip-money-ach', journeyKey: 'money', kind: 'tip', label: 'we remember' },
   { cardId: 'journey-solar', journeyKey: 'solar', kind: 'journey', label: 'SOLAR' },
   { cardId: 'tip-tech', journeyKey: 'tech', kind: 'tip', label: 'tech +' },
 ]
 const solarNeighbors = soloFocusNavNeighbors('journey-solar', soloNavRing, 'solar')
 assert(
-  'solar prev nav label is grants category',
-  solarNeighbors?.prevLabel === 'GRANTS',
+  'solar prev nav label is money category',
+  solarNeighbors?.prevLabel === 'MONEY',
   solarNeighbors?.prevLabel
 )
 assert(
@@ -203,11 +186,11 @@ assert(
 )
 
 const grantHandoff = resolveSoloFocusHandoffUrls({
-  journeyKey: 'grants',
+  journeyKey: 'home',
   coverageOfferUrl: 'https://www.gov.uk/apply-warm-home-discount-scheme',
   coverageSourceUrl: 'https://www.energysavingtrust.org.uk/',
   fallbackOfferUrl: 'https://www.currys.co.uk/search?q=energy',
-  buildZaiUrl: () => '/zai?context=grants',
+  buildZaiUrl: () => '/zai?context=home',
 })
 assert(
   'solo focus cta uses offer_url not source_url',
@@ -222,7 +205,7 @@ assert(
 assert(
   'solo focus grant cta label matches offer',
   resolveSoloFocusCtaLabel({
-    journeyKey: 'grants',
+    journeyKey: 'home',
     headline: 'Warm home discount',
     handoff: grantHandoff,
     moneyGbp: 150,

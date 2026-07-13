@@ -33,7 +33,6 @@ function emptyLead(journey_key: JourneyId): JourneyMoneyLead {
 export const UK_2026_MONEY_LEAD: Record<JourneyId, JourneyMoneyLead> = {
   home: emptyLead('home'),
   utilities: emptyLead('utilities'),
-  grants: emptyLead('grants'),
   solar: emptyLead('solar'),
   travel: emptyLead('travel'),
   holidays: emptyLead('holidays'),

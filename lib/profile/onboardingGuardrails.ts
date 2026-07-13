@@ -37,8 +37,8 @@ export const ONBOARDING_FIELD_GUARDRAILS: Record<
   goal: {
     required: true,
     funnelEffect:
-      'Leading question: money → grants/money/shopping/travel JIT; carbon → solar/travel/food; balanced → mixed cap-4 list.',
-    scrapeUnlock: ['grants', 'money', 'carbon'],
+      'Leading question: money → money/shopping/travel JIT; carbon → solar/travel/food; balanced → mixed cap-4 list.',
+    scrapeUnlock: ['money', 'carbon'],
   },
   postcode: {
     required: true,
@@ -75,13 +75,12 @@ export const ONBOARDING_FIELD_GUARDRAILS: Record<
   employment_status: {
     required: true,
     funnelEffect:
-      'STUDENT → budget + grant seeds; EMPLOYED → salary-sacrifice / asset lane; BETWEEN_JOBS → bill survival + grants JIT.',
-    scrapeUnlock: ['grants', 'money'],
+      'STUDENT → budget seeds; EMPLOYED → salary-sacrifice / asset lane; BETWEEN_JOBS → bill survival JIT.',
+    scrapeUnlock: ['money'],
   },
   household_income_bracket: {
     required: false,
-    funnelEffect: 'Inferred when absent — suppresses or boosts means-tested grant copy in scrapes.',
-    scrapeUnlock: ['grants'],
+    funnelEffect: 'Inferred when absent — suppresses or boosts means-tested tip copy in scrapes.',
   },
 }
 
@@ -208,9 +207,9 @@ export function guardrailPriorityJourneys(signals: LocalizedProfileInput): Journ
   const goal = normalizeProfileGoalValue(signals.goal ?? signals.primary_goal) as ProfileGoalValue
   const list: JourneyId[] = ['home']
   if (isUtilitiesZoneCardUnlocked({ home_power: signals.home_power })) list.push('utilities')
-  if (goal === 'money') list.push('grants', 'money', 'shopping')
+  if (goal === 'money') list.push('money', 'shopping')
   else if (goal === 'carbon') list.push('carbon', 'solar', 'travel')
-  else list.push('grants', 'travel', 'food')
+  else list.push('travel', 'food')
   const transport = String(signals.transport_baseline ?? '').toLowerCase()
   if (transport.includes('car') || transport.includes('drive')) list.push('travel')
   if (signals.flood_risk_zone && signals.flood_risk_zone !== 'LOW') list.push('water')

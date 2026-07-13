@@ -62,12 +62,6 @@ export function syntheticJourneyAnswersFromProfile(
         monthly_cost: monthly,
         green_tariff: 'NO',
       }
-    case 'grants':
-      return {
-        boiler_age: 'OVER_10YR',
-        income_benefits: 'NO',
-        prior_eco_bus: 'NO',
-      }
     case 'solar':
       return {
         roof_orientation: 'SOUTH',

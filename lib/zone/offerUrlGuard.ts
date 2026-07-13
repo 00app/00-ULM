@@ -1,5 +1,5 @@
 /**
- * Zone offer / source URLs — no broken gov.uk paths, no duplicate home↔grants landing pages.
+ * Zone offer / source URLs — no broken gov.uk paths, no cross-journey landing page conflicts.
  */
 
 import type { JourneyId } from '@/lib/journeys'
@@ -27,12 +27,12 @@ export function isInternalOrPreviewOfferUrl(url: string): boolean {
   }
 }
 
-/** Home-only BUS landing — must not appear on grants or other journeys. */
+/** Home-only BUS landing — must not appear on other journeys. */
 function isHomeBoilerUpgradeUrl(url: string): boolean {
   return /apply-boiler-upgrade|boiler-upgrade/i.test(url)
 }
 
-/** Grants warm-homes paths — must not appear on home or unrelated journeys. */
+/** Grants-only warm-homes paths — grants journey is retired, so these never belong on any tile. */
 function isGrantsWarmHomesUrl(url: string): boolean {
   return /warm-homes-plan|improve-energy-efficiency/i.test(url)
 }
@@ -40,13 +40,9 @@ function isGrantsWarmHomesUrl(url: string): boolean {
 /** True when URL topic conflicts with the tile journey category. */
 export function offerUrlConflictsWithJourney(url: string, journeyKey: JourneyId): boolean {
   const trimmed = url.trim()
-  // Boiler Upgrade Scheme is a genuine grant, not a home-only concern — it belongs on both
-  // 'home' and 'grants' (previously grants alone rejected it, leaving every grants row with
-  // no offer_url even though it's the URL most naturally returned for a grants query).
-  if ((journeyKey === 'home' || journeyKey === 'grants') && isHomeBoilerUpgradeUrl(trimmed)) return false
-  if (journeyKey === 'grants' && isGrantsWarmHomesUrl(trimmed)) return false
-  if (journeyKey !== 'home' && journeyKey !== 'grants' && isHomeBoilerUpgradeUrl(trimmed)) return true
-  if (journeyKey !== 'grants' && isGrantsWarmHomesUrl(trimmed)) return true
+  if (journeyKey === 'home' && isHomeBoilerUpgradeUrl(trimmed)) return false
+  if (journeyKey !== 'home' && isHomeBoilerUpgradeUrl(trimmed)) return true
+  if (isGrantsWarmHomesUrl(trimmed)) return true
   if (journeyKey !== 'utilities' && isOfgemPriceCapUrl(trimmed)) return true
   return false
 }
@@ -140,9 +136,6 @@ export function sanitizeZoneOfferUrl(
   const host = hostOf(trimmed)
   if (journeyKey === 'home' && host === 'gov.uk' && isHomeBoilerUpgradeUrl(trimmed)) {
     return trustedUrlForJourney('home')
-  }
-  if (journeyKey === 'grants' && isGrantsWarmHomesUrl(trimmed)) {
-    return trustedUrlForJourney('grants')
   }
 
   return trimmed

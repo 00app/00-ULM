@@ -31,7 +31,7 @@ const settledRow: ResearchCategoryCoverageRow = {
 const gate = auditJourneyResearchGate('home', settledRow)
 assert(gate.status === 'settled', 'settled coverage passes home gate')
 
-const missing = auditJourneyResearchGate('grants', undefined)
+const missing = auditJourneyResearchGate('solar', undefined)
 assert(missing.status === 'missing' && missing.issues.includes('no_neon_row'), 'missing row flagged')
 
 assert(

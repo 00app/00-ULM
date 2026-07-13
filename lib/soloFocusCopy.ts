@@ -110,7 +110,6 @@ export function isEnergyAuditDebrisHeadline(text: string): boolean {
 const JOURNEY_HEADLINE_TOPIC_CONFLICT: Partial<Record<JourneyId, RegExp>> = {
   solar:
     /\b(?:april\s*cap\s*signal|ofgem\s+price|heat\s*pump|boiler\s+upgrade|bus\b|dual-fuel|gas\s+boiler|e-bike|ebike)\b/i,
-  grants: /\b(?:april\s*cap\s*signal|solar\s+panel|loft\s+top-?up|e-?bike|ebike)\b/i,
   utilities: /\b(?:e-bike|ebike|food\s+compost|loft\s+top-?up|boiler\s+upgrade\s+scheme)\b/i,
   home: /\b(?:e-bike\s+scheme|ebike|cycle\s+to\s+work|solar\s+export)\b/i,
   water: /\b(?:electric(?:ity)?|gas\b|kwh|tariff|boiler|heat\s*pump|solar\s+panel|ofgem|octopus|grid\s+intensity)\b/i,
@@ -1243,7 +1242,6 @@ function isPartialExpandedJourneyHook(resolved: string, journeyHook: string): bo
 export const ZONE_BENTO_HOOK: Partial<Record<JourneyId, string>> = {
   home: 'seal draughts and loft gaps before buying a new boiler',
   utilities: 'check your tariff price before you lock in a deal',
-  grants: 'check heat pump and insulation grants before paying full price',
   solar: 'size solar to your roof and the power you use',
   travel: 'swap one car commute for a train or bus trip',
   holidays: 'pick a train for short trips instead of flying',
@@ -1263,7 +1261,6 @@ export const ZONE_BENTO_HOOK: Partial<Record<JourneyId, string>> = {
 const ZONE_GRID_INJECT_HOOK: Partial<Record<JourneyId, string>> = {
   home: 'check heat pump grant rules before booking an installer',
   utilities: 'match your meter read before you switch supplier plans',
-  grants: 'stack heat pump and insulation grants before paying full price',
   solar: 'book a roof survey before signing a solar export deal',
   travel: 'swap one car trip for rail before fuel costs rise',
   holidays: 'pick a train route for your next break before booking',
@@ -1428,8 +1425,6 @@ const EXPANDED_JOURNEY_HOOK: Partial<Record<JourneyId, string>> = {
     'SEAL DRAUGHTS AND LOFT GAPS AT HOME BEFORE YOU CHASE A NEW BOILER AND PAY FOR WASTED HEAT EACH WINTER',
   utilities:
     'LINE UP YOUR GAS AND ELECTRIC TARIFF BEFORE YOU LOCK IN A DEAL THAT BEATS WHAT YOU PAY NOW',
-  grants:
-    'CHECK HEAT PUMP AND INSULATION GRANT RULES AT HOME BEFORE YOU BOOK AN INSTALLER OR PAY FULL PRICE',
   solar:
     'SIZE SOLAR TO YOUR ROOF AND DAYTIME USE NOT A GENERIC KIT THAT EXPORTS POWER YOU NEVER USE AT HOME OR WORK',
   food:

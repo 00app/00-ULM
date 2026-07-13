@@ -14,7 +14,6 @@ const SOURCES: Record<JourneyId, JourneySource[]> = {
     { url: 'https://www.moneysavingexpert.com/utilities/', label: 'mse utilities' },
     { url: 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap', label: 'ofgem price cap' },
   ],
-  grants: [{ url: 'https://www.gov.uk/apply-boiler-upgrade-scheme', label: 'gov.uk grants' }],
   solar: [{ url: 'https://mcscertified.com', label: 'mcs solar uk' }],
   travel: [
     { url: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/', label: 'national rail railcards' },

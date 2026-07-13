@@ -13,7 +13,6 @@ function resolveJourneyId(id?: JourneyId | string | null): JourneyId | undefined
 }
 
 function grantsContext(journeyId?: JourneyId | null, text?: string): boolean {
-  if (journeyId === 'grants') return true
   if (journeyId === 'home' && text && /\b(?:grant|heat\s*pump|boiler\s*upgrade|insulation\s+grant)\b/i.test(text)) {
     return true
   }
@@ -161,12 +160,6 @@ const DETECTION_LEAD_BANK: Partial<Record<JourneyId, readonly string[]>> = {
     '£{money} a year drains away when draughts and insulation stay unchecked',
     'Sealing gaps targets the £{money} of warmth slipping out each winter',
   ],
-  grants: [
-    'Roughly £{money} a year in {topic} stays overlooked until you run the checks',
-    'About £{money} in grant-backed savings can slip past if you skip eligibility checks',
-    'Missed grant windows can hide roughly £{money} in annual bill relief',
-    '£{money} of supported upgrades can vanish when grant rules are never checked',
-  ],
   travel: [
     'Travel and fuel costs drain roughly £{money} a year on unchanged commute habits',
     'Roughly £{money} a year can slip away on {topic} without one route swap',
@@ -237,12 +230,6 @@ const DETECTION_CLOSER_BANK: Partial<Record<JourneyId, readonly string[]>> = {
     'sealing gaps stops warmth leaking before the next bill lands',
     'room-by-room draught work is cheap audit labour',
     'insulation shifts spend from loss to heat you keep',
-  ],
-  grants: [
-    'eligibility checks belong before any install quote is signed',
-    'grant rules set the ceiling — verify fit before retail price',
-    'supported upgrades only count once paperwork matches your home',
-    'the relief is in the rules, not the marketing page',
   ],
   travel: [
     'one day a week off the car route is enough to show in fuel',
@@ -343,7 +330,6 @@ export function buildFriendlyDetectionParagraph(params: {
     waste: 'bins and recycling',
     solar: 'solar on your roof',
     carbon: 'home energy use',
-    grants: 'grants and bill savings',
   }
   const topic = topicByJourney[params.journey] ?? 'home bills'
 

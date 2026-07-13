@@ -692,7 +692,7 @@ Return markdown only (no JSON, no code fences).`
     return null
   }
 }
-const ALLOWED_TRIPLET_CATEGORIES = [...JOURNEY_IDS, 'general', 'grants', 'bills'] as const
+const ALLOWED_TRIPLET_CATEGORIES = [...JOURNEY_IDS, 'general', 'bills'] as const
 
 function normalizeResearchCategory(raw: string | null | undefined): string | null {
   const s = raw?.trim().toLowerCase()
@@ -1427,11 +1427,6 @@ function mechanicalCategoryTripletFallback(params: {
         headline: `compare your household tariff before you fix a ${areaTag} deal`,
         prose: `${areaLabel} sits under the July 2026 price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nStanding charges and direct-debit realignment are the immediate levers before locking a fixed tariff.\n\nUse the link below to check your supplier statement matches cap rates before you switch.`,
       },
-      grants: {
-        gbp: MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP,
-        headline: `check heat pump grant rules for your ${areaTag} home`,
-        prose: `${areaLabel} may qualify for the government's heat pump grant in 2026 when your home and energy rating meet GOV.UK rules — many homes get up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString('en-GB')} toward an air-source heat pump; oil and LPG homes may access up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nThat sits beside your heating bills so you see grant cash and lower running costs together, not generic comparison-site chatter.\n\nUse the link below to check you qualify and compare installer quotes before you sign anything.`,
-      },
       solar: {
         gbp: 450,
         headline: `size solar panels to your roof in ${areaTag} now`,
@@ -1503,31 +1498,8 @@ function mechanicalCategoryTripletFallback(params: {
   const url = (params.offerUrl ?? '').trim()
   if (!url.startsWith('http')) return null
   if (!cat) {
-    if (url.includes('boiler-upgrade')) cat = 'grants'
-    else if (url.includes('ofgem') && /price-cap|energy-advice/i.test(url)) cat = 'bills'
+    if (url.includes('ofgem') && /price-cap|energy-advice/i.test(url)) cat = 'bills'
     else return null
-  }
-
-  if (cat === 'grants' && url.includes('boiler-upgrade')) {
-    const gbp = MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP
-    const agent_headline =
-      zoneCardHeadlineFromRaw(
-        `check heat pump grant rules for your ${areaTag} home`,
-        `check heat pump grant rules for your ${areaTag} home`,
-        MAX_JOURNEY_CARD_HEADLINE_WORDS
-      ) || `check heat pump grant rules for your ${areaTag} home`
-    const architect_prose =
-      normalizeArchitectProseThreeParagraphs(
-        `${areaLabel} may qualify for the government's heat pump grant in 2026 when your home and energy rating meet GOV.UK rules — many homes get up to £${gbp.toLocaleString('en-GB')} toward an air-source heat pump; oil and LPG homes may access up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString('en-GB')} from July 2026 where eligible.\n\nThat sits beside your heating bills so you see grant cash and lower running costs together, not generic comparison-site chatter.\n\nUse the link below to check you qualify and compare installer quotes before you sign anything.`
-      ) ?? ''
-    if (!architect_prose) return null
-    return {
-      saving_amount_gbp: gbp,
-      agent_headline: clampZoneBentoHeadline(agent_headline, 'grants', JOURNEY_CARD_HEADLINE_BOUNDS),
-      architect_prose,
-      offer_url: trustedUrlForJourney('grants'),
-      category: 'grants',
-    }
   }
 
   if (url.includes('ofgem') && /price-cap|energy-advice/i.test(url)) {

@@ -71,11 +71,6 @@ const JOURNEY_FIRECRAWL_SEEDS: Partial<Record<JourneyId, string[]>> = {
     'https://energysavingtrust.org.uk/',
     'https://www.which.co.uk/money/saving-energy',
   ],
-  grants: [
-    'https://www.gov.uk/apply-boiler-upgrade-scheme',
-    'https://www.gov.uk/energy-company-obligation',
-    'https://energysavingtrust.org.uk/advice/grants-and-loans/',
-  ],
   travel: [
     'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
     'https://www.thetrainline.com/',
@@ -116,12 +111,6 @@ export const JOURNEY_FREE_SEEDS: Partial<Record<JourneyId, string[]>> = {
     'https://www.ofgem.gov.uk/information-consumers/energy-advice-households/energy-price-cap-and-standing-charges-explained',
     'https://energysavingtrust.org.uk/advice/home-energy-efficiency/',
     'https://www.gov.uk/energy-grants-calculator',
-  ],
-  grants: [
-    'https://www.gov.uk/apply-boiler-upgrade-scheme',
-    'https://www.gov.uk/apply-warm-homes-local-grant',
-    'https://www.gov.uk/energy-company-obligation',
-    'https://energysavingtrust.org.uk/advice/grants-and-loans/',
   ],
   solar: [
     'https://energysavingtrust.org.uk/advice/solar-panels/',
@@ -332,11 +321,11 @@ export function buildCategoryFirecrawlSeedUrls(params: {
   if (journeyKey === 'travel' || transport.includes('train') || transport.includes('rail')) {
     add('https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/')
   }
-  if (deprivedArea && (journeyKey === 'grants' || journeyKey === 'home')) {
+  if (deprivedArea && journeyKey === 'home') {
     add('https://www.gov.uk/apply-boiler-upgrade-scheme')
     add('https://www.gov.uk/apply-warm-homes-local-grant')
     add('https://www.gov.uk/energy-company-obligation')
-  } else if (!skipGrantSeeds && (journeyKey === 'home' || journeyKey === 'grants')) {
+  } else if (!skipGrantSeeds && journeyKey === 'home') {
     add('https://www.gov.uk/apply-boiler-upgrade-scheme')
   }
   if (affluentArea && (journeyKey === 'solar' || journeyKey === 'utilities')) {

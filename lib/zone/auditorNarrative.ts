@@ -14,7 +14,6 @@ function auditTopicPhrase(journey: JourneyId): string {
     tech: 'tech',
     home: 'home energy',
     utilities: 'gas and electricity',
-    grants: 'grants and upgrades',
     solar: 'solar',
     travel: 'travel',
     food: 'food',
@@ -81,14 +80,6 @@ function proofSentenceBase(journey: JourneyId, sourceName: string, postcode: str
         return `${sourceName} separate gas standing from electric unit moves — dual-fuel bundles are not always the cheapest lock-in.`
       }
       return `${sourceName} tie unit rates and standing charges to the July 2026 cap near £${cap} — the tariff you are on still sets the ceiling on every kWh.`
-    case 'grants':
-      if (v === 1) {
-        return `${sourceName} cap installer quotes against grant rules — the headline £ only holds when paperwork and property type match.`
-      }
-      if (v === 2) {
-        return `${sourceName} still treat BUS and insulation schemes as separate tracks — stacking wrongly can void the higher grant.`
-      }
-      return `${sourceName} list heat pump and insulation grants with fixed caps and installer rules — the £ figure only holds once eligibility and quotes match your home.`
     case 'solar':
       if (v === 1) {
         return `${sourceName} model export payments against your daytime use — oversized arrays bleed payback if you are out all day.`
@@ -177,9 +168,6 @@ export function proofSentenceVariant(
 
 /** @deprecated Solo Focus no longer surfaces CTA-bridge filler — use {@link payoffSentence}. */
 export function bridgeSentence(journey: JourneyId): string {
-  if (journey === 'grants') {
-    return `Use the link below — check you qualify and compare installer quotes before you commit.`
-  }
   if (journey === 'tech') {
     return `Cut standby draw via the CTA — swap plugs and timers, then record the kWh drop against your audit.`
   }

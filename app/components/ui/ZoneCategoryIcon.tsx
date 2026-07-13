@@ -70,14 +70,6 @@ function pathsFor(kind: ZoneCategoryIconKind): ReactNode {
           <path d="M10 14h4M12 12v4" />
         </>
       )
-    case 'grants':
-      return (
-        <>
-          <path d="M9 5h6v3H9z" />
-          <path d="M7 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" />
-          <path d="M9 12h6M9 16h4" />
-        </>
-      )
     case 'solar':
       return (
         <>

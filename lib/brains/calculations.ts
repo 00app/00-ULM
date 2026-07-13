@@ -378,27 +378,6 @@ export function calculateCarbon(a: Record<string, string>): ImpactResult {
   }
 }
 
-export function calculateGrants(a: Record<string, string>): ImpactResult {
-  const oldBoiler = String(a.boiler_age ?? '').toUpperCase() === 'OVER_10YR'
-  const onBenefits = String(a.income_benefits ?? '').toUpperCase() === 'YES'
-  const prior = String(a.prior_eco_bus ?? '').toUpperCase() === 'YES'
-  let moneyGbp = oldBoiler ? 7500 : 1200
-  if (onBenefits) moneyGbp = Math.round(moneyGbp * 1.08)
-  if (prior) moneyGbp = Math.round(moneyGbp * 0.35)
-  const carbonKg = oldBoiler ? 900 : 200
-  return {
-    carbonKg,
-    moneyGbp,
-    source: 'gov.uk grants',
-    explanation: [
-      `the boiler upgrade scheme pays £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString()} toward an air-source heat pump — rising to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026.toLocaleString()} for oil and lpg properties from july 2026.`,
-      'eco4 targets band e, f, g rated homes — if you are on qualifying benefits and your property is hard-to-heat, a full fabric upgrade may cost you nothing.',
-      'grants stack: bus + warm home discount + local authority flex fund can combine for eligible households — check eligibility before booking any installer.',
-    ],
-    claimOfferUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
-  }
-}
-
 export function calculateSolar(a: Record<string, string>): ImpactResult {
   const orient = String(a.roof_orientation ?? '').toUpperCase()
   const shade = String(a.roof_shading ?? '').toUpperCase()

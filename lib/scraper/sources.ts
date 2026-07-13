@@ -33,13 +33,6 @@ export const SCRAPER_SOURCE_MATRIX: Record<JourneyId, ScraperSourceConfig> = {
     moneyMetric: 'dual-fuel tariff and cap savings',
     insightLabel: 'How you power your home and switch routes',
   },
-  grants: {
-    journey: 'grants',
-    primaryTarget: 'GOV.UK BUS & ECO4',
-    carbonMetric: 'scheme carbon abatement per household',
-    moneyMetric: 'grant caps and eligibility',
-    insightLabel: 'Boiler age and benefits-driven grant routes',
-  },
   solar: {
     journey: 'solar',
     primaryTarget: 'MCS & Ofgem export',

@@ -31,10 +31,7 @@ import {
 } from '@/lib/brains/profileJourneyBaseline'
 import { goalSortWeights } from '@/lib/profile/goalWeighting'
 import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
-import {
-  filterTipsForEmployment,
-  grantsJourneyTitleForProfile,
-} from '@/lib/zone/zoneEligibility'
+import { filterTipsForEmployment } from '@/lib/zone/zoneEligibility'
 import { resolveZoneAuditState, type ZoneAuditState } from '@/lib/zone/zoneAuditUi'
 import {
   cleanZonePreviewHeadline,
@@ -210,7 +207,6 @@ export function computePrimaryMoneyJourneyKeys(journeys: ZoneJourneyCard[]): Jou
 const JOURNEY_TITLES: Record<JourneyId, string> = {
   home: 'reduce home energy costs',
   utilities: 'trim gas and electric bills',
-  grants: 'unlock government grants',
   solar: 'size rooftop solar yield',
   travel: 'cut travel emissions',
   holidays: 'travel smarter on holiday',
@@ -570,7 +566,6 @@ function resolveBaselineMarketRate(args: {
   const moneyShare: Record<JourneyId, number> = {
     home: 0.2,
     utilities: 0.14,
-    grants: 0.12,
     solar: 0.1,
     travel: 0.12,
     holidays: 0.05,
@@ -585,7 +580,6 @@ function resolveBaselineMarketRate(args: {
   const carbonWeight: Record<JourneyId, number> = {
     home: 2.4,
     utilities: 2.0,
-    grants: 1.4,
     solar: 1.6,
     travel: 2.2,
     holidays: 1.2,
@@ -888,10 +882,7 @@ export function buildZoneViewModel({
     const needsSwitching = journeyKey === 'home' && !isOctopus && !hasGreenTariff
 
     const grantCtx = localData?.heat_pump_grant_context
-    const localCouncilTip =
-      journeyKey === 'grants' && council && grantCtx?.primary_scheme_label
-        ? `${grantCtx.primary_scheme_label} in ${council}${typeof grantCtx.primary_max_gbp === 'number' ? ` — up to £${grantCtx.primary_max_gbp.toLocaleString('en-GB')}.` : '.'}`
-        : undefined
+    const localCouncilTip: string | undefined = undefined
 
     const localCarbonG = localData?.localCarbonG
     const fallbackClaimUrl =
@@ -911,28 +902,13 @@ export function buildZoneViewModel({
     const hasLocalGridData = typeof localCarbonG === 'number' && Number.isFinite(localCarbonG)
     const gridContextJourneys = new Set<JourneyId>(['utilities', 'carbon', 'home'])
     const localContextBar = (() => {
-      if (journeyKey === 'grants' && council && grantCtx?.primary_scheme_label) {
-        const max =
-          typeof grantCtx.primary_max_gbp === 'number'
-            ? ` — up to £${grantCtx.primary_max_gbp.toLocaleString('en-GB')}`
-            : ''
-        return `${grantCtx.primary_scheme_label} in ${council}${max}.`
-      }
       if (gridContextJourneys.has(journeyKey) && hasLocalGridData) {
         return `Your local grid is running at ${Math.round(localCarbonG!)}g CO₂e/kWh.`
       }
       return undefined
     })()
 
-    const baselineTitleRaw = profileDrivenJourneyTitle(journeyKey, profile, journeyAnswers)
-    const baselineTitle =
-      journeyKey === 'grants'
-        ? grantsJourneyTitleForProfile({
-            employmentStatus: profile?.employment_status,
-            postcode: profile?.postcode,
-            defaultTitle: baselineTitleRaw,
-          })
-        : baselineTitleRaw
+    const baselineTitle = profileDrivenJourneyTitle(journeyKey, profile, journeyAnswers)
     const insightLabel = impact.insightLabel ?? impact.insight ?? undefined
     const neon = neonJourneyResearch?.[journeyKey]
     let moneyGbp = dynamicJourneyValues[journeyKey].moneyGbp

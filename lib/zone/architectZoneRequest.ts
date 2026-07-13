@@ -100,10 +100,7 @@ export function buildContentArchitectCardPayload(args: {
     journey_answers: args.journeyAnswers[j.journey_key] ?? {},
     profile_goal: args.segment?.profile_goal,
     tone_mode: args.segment?.tone_mode,
-    flags: [
-      ...(journey_key === 'grants' && args.localCouncil ? (['has_council'] as const) : []),
-      ...(journey_key === 'grants' && (j.moneyGbp ?? 0) >= 6500 ? (['bus_eligible_hint'] as const) : []),
-    ],
+    flags: [],
     }
   })
 }

@@ -25,7 +25,6 @@ import {
   calculateTech,
   calculateWaste,
   calculateHolidays,
-  calculateGrants,
   calculateSolar,
   calculateWater,
   calculateGeneralHomeLiving,
@@ -202,8 +201,6 @@ function calculateJourneyImpact(
       return calculateHome(answers, homeUnitRates, gridCarbon)
     case 'utilities':
       return calculateUtilities(answers, homeUnitRates, gridCarbon)
-    case 'grants':
-      return calculateGrants(answers)
     case 'solar':
       return calculateSolar(answers)
     case 'travel':

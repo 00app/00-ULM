@@ -32,23 +32,6 @@ export function getDiscoveryRecommendation(
 ): DiscoveryRecommendation {
   const a = u(answerRaw)
 
-  if (journeyId === 'grants' && questionId === 'boiler_age' && a === 'OVER_10YR') {
-    return {
-      headline: 'HEAT PUMP GRANT ELIGIBLE',
-      body: 'Boilers over ten years often qualify for the government heat pump grant — accredited installers near your postcode can quote swaps up to £7,500.',
-      gridJourneyKey: 'grants',
-      learnUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
-      actionUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
-      ctaLabel: 'Find installers',
-      ctaUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
-      followUp: {
-        question: 'Are you on any income-related benefits?',
-        options: ['YES', 'NO', 'PREFER_NOT'],
-        targetField: 'income_benefits',
-      },
-    }
-  }
-
   if (journeyId === 'home' && questionId === 'home_heat_pump') {
     if (a.includes('YES') || a.includes('CHECK')) {
       return {
