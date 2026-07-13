@@ -1002,7 +1002,7 @@ From the markdown below, return ONLY valid JSON (no markdown code fence) with ex
 - "category": one of: ${journeyList} — the single best thematic fit for the main opportunity in the text.
 - "saving_amount_gbp": non-negative number with up to two decimal places — annual GBP saving grounded in the scraped text (use 0 only if truly none inferable).
 - "offer_url": one https URL copied verbatim from the markdown or citation context. If no live URL exists, return an empty string.
-- "agent_headline": **Zone card heading** — **9 to 12 words** (must be at least 9 — anything shorter gets rejected and replaced by a generic template, wasting this generation entirely), punchy and benefit-driven (e.g. "line up your tariff with the april cap before you switch deals"). No colons. No section labels.
+- "agent_headline": **Zone card heading** — **9 to 12 words** (must be at least 9 — anything shorter gets rejected and replaced by a generic template, wasting this generation entirely), punchy and benefit-driven (e.g. "book your boiler service before the april price rise" — count the words before you answer). No colons. No section labels.
 - "expanded_headline": **Expanded Solo Focus hook heading** — **10 to 20 words** (2–3 lines); benefit-led lifestyle hook for their town/setup, not a postcode. Optional; if omitted, agent_headline may be reused.
 - "architect_prose": exactly **THREE** paragraphs for Solo Focus (blank line between). **Hard cap: each paragraph at most ${MAX_ARCHITECT_PROSE_WORDS_PER_PARAGRAPH} words.**
 ${ZONE_WARM_AUDITOR_THREE_BEAT}
@@ -1171,6 +1171,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
     category: string | null
     offer_url: string | null
     locality_context: string | null
+    agent_headline: string | null
   }
   let rows: Row[] = []
   try {
@@ -1189,7 +1190,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
     if (rowId != null) {
       const r = await pool.query<Row>(
         `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
-                offer_url, locality_context
+                offer_url, locality_context, agent_headline
          FROM research_results
          WHERE id = $1
            AND (${incomplete})`,
@@ -1199,7 +1200,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
     } else if (uid) {
       const r = await pool.query<Row>(
         `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
-                offer_url, locality_context
+                offer_url, locality_context, agent_headline
          FROM research_results
          WHERE user_id = $1::uuid
            AND (${incomplete})
@@ -1211,7 +1212,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
     } else if (pc.length >= 4) {
       const r = await pool.query<Row>(
         `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
-                offer_url, locality_context
+                offer_url, locality_context, agent_headline
          FROM research_results
          WHERE REPLACE(COALESCE(postcode, ''), ' ', '') = $1
            AND (${incomplete})
@@ -1223,7 +1224,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
     } else {
       const r = await pool.query<Row>(
         `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
-                offer_url, locality_context
+                offer_url, locality_context, agent_headline
          FROM research_results
          WHERE (${incomplete})
          ORDER BY created_at DESC NULLS LAST
@@ -1254,6 +1255,24 @@ export async function repairResearchResultsMissingHeadlines(params: {
     if (mechanical) {
       try {
         const journeyKey = normalizeCategoryToJourneyKey(mechanical.category)
+        // Same near-miss tolerance as the live persist gate in persistResearchResult (see
+        // HEADLINE_MECHANICAL_FLOOR_WORDS above): a genuine headline this repair job would
+        // otherwise catch on word count alone is left alone if it's within the near-miss window
+        // and doesn't already match a known generic hook. Without this, a headline the live gate
+        // just accepted as genuine gets overwritten right back to the template by this same-request
+        // sweep (app/api/scrape-sync/route.ts calls this immediately after every trigger).
+        const currentHeadline = (row.agent_headline ?? '').trim()
+        const currentHeadlineWordCount = currentHeadline
+          ? currentHeadline.split(/\s+/).filter(Boolean).length
+          : 0
+        const currentHeadlineMatchesKnownGenericHook =
+          currentHeadline.length > 0 &&
+          Object.values(ZONE_BENTO_HOOK).some(
+            (hook) => hook != null && normalizeCardHeadlineKey(hook) === normalizeCardHeadlineKey(currentHeadline)
+          )
+        const needsHeadlineRepair =
+          currentHeadlineWordCount > 0 &&
+          (currentHeadlineWordCount < HEADLINE_MECHANICAL_FLOOR_WORDS || currentHeadlineMatchesKnownGenericHook)
         // The WHERE clause above (`incomplete`) is an OR of independent conditions — a row can
         // land here missing only ONE of headline/prose/£. Previously this UPDATE overwrote all
         // three unconditionally whenever ANY one was deficient, silently destroying a genuine £
@@ -1264,8 +1283,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
         await pool.query(
           `UPDATE research_results
            SET agent_headline = CASE
-                 WHEN agent_headline IS NULL OR TRIM(agent_headline) = ''
-                   OR cardinality(regexp_split_to_array(trim(agent_headline), '\\s+')) < ${MIN_ZONE_CARD_HEADLINE_WORDS}
+                 WHEN agent_headline IS NULL OR TRIM(agent_headline) = '' OR $7::boolean
                  THEN $2
                  ELSE agent_headline
                END,
@@ -1285,8 +1303,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
                is_mechanical_fallback = is_mechanical_fallback
                  OR saving_amount_gbp IS NULL OR saving_amount_gbp <= 0,
                is_headline_mechanical_fallback = is_headline_mechanical_fallback
-                 OR agent_headline IS NULL OR TRIM(agent_headline) = ''
-                 OR cardinality(regexp_split_to_array(trim(agent_headline), '\\s+')) < ${MIN_ZONE_CARD_HEADLINE_WORDS}
+                 OR agent_headline IS NULL OR TRIM(agent_headline) = '' OR $7::boolean
            WHERE id::text = $1`,
           [
             row.id,
@@ -1295,6 +1312,7 @@ export async function repairResearchResultsMissingHeadlines(params: {
             mechanical.saving_amount_gbp,
             mechanical.category,
             mechanical.offer_url,
+            needsHeadlineRepair,
           ]
         )
         repaired += 1
