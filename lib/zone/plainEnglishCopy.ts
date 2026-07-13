@@ -24,6 +24,29 @@ function travelContext(journeyId?: JourneyId | null): boolean {
   return journeyId === 'travel' || journeyId === 'holidays'
 }
 
+/** Short, well-known acronyms that must stay uppercase through sentence-casing. */
+const KNOWN_HEADLINE_ACRONYMS = new Set(['uk', 'ev', 'gbp', 'co2'])
+
+/** Lowercase every word except the first and known acronyms — used only on shouting-case input. */
+function sentenceCaseHeadline(text: string): string {
+  let seenFirstWord = false
+  return text
+    .split(/(\s+)/)
+    .map((token) => {
+      if (/^\s*$/.test(token)) return token
+      const lower = token.toLowerCase()
+      const bareLower = lower.replace(/[^a-z0-9]/g, '')
+      const result = KNOWN_HEADLINE_ACRONYMS.has(bareLower)
+        ? token.toUpperCase()
+        : !seenFirstWord
+          ? lower.charAt(0).toUpperCase() + lower.slice(1)
+          : lower
+      seenFirstWord = true
+      return result
+    })
+    .join('')
+}
+
 /** Headlines / short stamps (Marvin — often uppercased upstream). */
 export function humanizeZoneHeadline(text: string, journeyId?: JourneyId | string | null): string {
   let t = text.replace(/\s+/g, ' ').trim()
@@ -55,7 +78,19 @@ export function humanizeZoneHeadline(text: string, journeyId?: JourneyId | strin
     .replace(/\bOFgem\b/gi, 'ENERGY REGULATOR')
     .replace(/\bOF\s*GEM\b/gi, 'ENERGY REGULATOR')
 
-  return t.replace(/\s+/g, ' ').trim()
+  t = t.replace(/\s+/g, ' ').trim()
+
+  // The LLM is asked for "punchy uppercase fragments" but complies inconsistently — some
+  // headlines come back fully shouting-case, others in natural sentence case. Normalize only the
+  // shouting ones (>60% of letters uppercase) so display casing is consistent either way.
+  const letters = t.replace(/[^a-zA-Z]/g, '')
+  const upperLetters = t.replace(/[^A-Z]/g, '')
+  const isShouting = letters.length > 0 && upperLetters.length / letters.length > 0.6
+  if (isShouting) {
+    t = sentenceCaseHeadline(t)
+  }
+
+  return t
 }
 
 /** Body / architect prose — sentence case, full scheme names where needed. */
