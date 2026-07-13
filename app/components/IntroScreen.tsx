@@ -135,12 +135,10 @@ export default function IntroScreen() {
       return
     }
     if (step === 'goal') {
-      if (introGoalAlreadySet()) {
-        trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
-        router.replace(ROUTES.PROFILE)
-        return
-      }
-      setScreen('goal')
+      // Goal is now asked inline in /profile (step two, right after the guest/create fork),
+      // not on this page — any old ?step=goal link just bounces straight through.
+      trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
+      router.replace(ROUTES.PROFILE)
     }
   }, [router])
 
@@ -159,12 +157,10 @@ export default function IntroScreen() {
       INTRO_ROUTE_WORD_EXIT_MS
     )
     const tid = window.setTimeout(() => {
-      if (introGoalAlreadySet()) {
-        trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
-        router.push(ROUTES.PROFILE + '?skip=1')
-        return
-      }
-      setScreen((s) => (s === 'value-message' ? 'goal' : s))
+      // Goal is asked inline in /profile now, not here — always hand off once the
+      // value-message animation finishes, regardless of whether goal is already set.
+      trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
+      router.push(ROUTES.PROFILE + '?skip=1')
     }, safetyMs)
     return () => window.clearTimeout(tid)
   }, [screen, router])
@@ -217,12 +213,9 @@ export default function IntroScreen() {
           wordDurations={INTRO_WORD_ATOMIC_DURATIONS}
           opacityTicker
           onComplete={() => {
-            if (introGoalAlreadySet()) {
-              trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
-              router.push(ROUTES.PROFILE + '?skip=1')
-              return
-            }
-            setScreen((s) => (s === 'value-message' ? 'goal' : s))
+            // Goal is asked inline in /profile now, not here.
+            trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
+            router.push(ROUTES.PROFILE + '?skip=1')
           }}
         />
       </div>

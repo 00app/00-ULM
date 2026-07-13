@@ -46,6 +46,7 @@ import { buildResearchProfilePayload } from '@/lib/profile/buildResearchProfileP
 import { applyPropertyPrefillFromApiResponse } from '@/lib/client/propertyAnswerSourcesStorage'
 import { mapEpcPropertyTypeToHomeTypeHint } from '@/lib/epc/mapEpcToProfileHints'
 import { flushSync } from 'react-dom'
+import { INTRO_GOAL_QUESTION, PROFILE_GOAL_CHOICES, type ProfileGoalValue } from '@/lib/profile/goalWeighting'
 
 /** Software-keyboard lift — phones only; tablet (768+) and desktop stay centred. */
 const PROFILE_MOBILE_KEYBOARD_MQ = '(max-width: 767px)'
@@ -355,6 +356,12 @@ export default function ProfilePageClient() {
     }
   }, [profileHydrated, qParam, returnTo, skipParam, values, router])
 
+  /**
+   * Goal ("save money" / "reduce carbon" / "or both") used to live on a separate /intro?step=goal
+   * page that this component bounced out to and back from. It's now asked inline, right after the
+   * guest/create fork and before postcode — see showGoalStep below. This effect just keeps `values`
+   * in sync if a goal already exists in localStorage (e.g. returning user), it no longer redirects.
+   */
   useEffect(() => {
     if (!profileHydrated) return
     const goal = resolveProfileGoal(values)
@@ -362,10 +369,8 @@ export default function ProfilePageClient() {
     const storedGoal = readStoredProfileGoal()
     if (storedGoal) {
       setValues((prev) => (prev.goal?.trim() ? prev : { ...prev, goal: storedGoal }))
-      return
     }
-    router.replace(`${ROUTES.INTRO}?step=goal`)
-  }, [profileHydrated, values, router])
+  }, [profileHydrated, values])
 
   /** Mobile: lift step when software keyboard opens; recenter when it closes. */
   useEffect(() => {
@@ -436,6 +441,22 @@ export default function ProfilePageClient() {
       }
     }
   }, [values.postcode])
+
+  /** Goal uses its own storage key (PROFILE_GOAL_STORAGE_KEY), not STORAGE_KEYS — same write path
+   *  as IntroScreen's handleGoalSelect and Settings' SettingsProfileGoalRow, so all three stay
+   *  consistent with each other. */
+  const handleGoalSelect = useCallback((value: ProfileGoalValue) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(PROFILE_GOAL_STORAGE_KEY, value)
+      try {
+        persistUnifiedUserProfileMemory()
+      } catch {
+        // ignore
+      }
+      syncSessionState()
+    }
+    setValues((prev) => ({ ...prev, goal: value }))
+  }, [])
 
   const current = PROFILE_QUESTIONS[step]
   const currentVal = values[current?.id] ?? ''
@@ -961,11 +982,14 @@ export default function ProfilePageClient() {
     )
   }
 
-  // Only a fresh visit sees the fork — deep links (Settings edits) and anyone who's already
-  // answered a question skip straight past it, so it never interrupts a resumed flow.
+  // Only a fresh visit sees the fork — deep links (Settings edits via ?q=/?returnTo=) and anyone
+  // who's already answered a question skip straight past it, so it never interrupts a resumed
+  // flow. Deliberately NOT gated on skipParam: IntroScreen always appends ?skip=1 when handing
+  // off from the intro/goal screen on `/` to `/profile` (see app/components/IntroScreen.tsx) —
+  // that's every normal first-time visitor, so treating it as "skip the fork too" made the fork
+  // unreachable in practice. skip=1 means "skip re-showing the intro screen," not "skip this."
   const hasAnsweredAnything = PROFILE_QUESTIONS.some((q) => (values[q.id] ?? '').trim())
-  const showEntryFork =
-    !qParam && !returnTo && skipParam !== '1' && entryChoice === null && !hasAnsweredAnything
+  const showEntryFork = !qParam && !returnTo && entryChoice === null && !hasAnsweredAnything
 
   if (showEntryFork) {
     return (
@@ -1043,6 +1067,61 @@ export default function ProfilePageClient() {
             >
               <span className="profile-answer-btn__text zz-h4">CREATE</span>
             </ProfileAnswerBtn>
+          </motion.div>
+        </AnimatePresence>
+      </main>
+    )
+  }
+
+  // Second question, right after the fork: save money / reduce carbon / or both. Same
+  // deep-link rules as the fork above (and same reason skipParam is deliberately excluded —
+  // IntroScreen's handoff always carries ?skip=1, which would otherwise make this unreachable
+  // for every normal first-time visitor). Skipped once a goal already exists. Reuses
+  // INTRO_GOAL_QUESTION / PROFILE_GOAL_CHOICES so this matches the (now unreachable in the
+  // main flow) /intro goal screen and Settings' goal editor exactly.
+  const showGoalStep = !qParam && !returnTo && !resolveProfileGoal(values)
+
+  if (showGoalStep) {
+    return (
+      <main className={profileShellClass} style={profileShellStyle}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="goal-step"
+            className="profile-step-slam w-full flex flex-col items-center"
+            style={{ gap: 40, maxWidth: 800 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h2
+              className="zz-h2 text-marvin m-0 text-center"
+              style={{ whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
+            >
+              {INTRO_GOAL_QUESTION}
+            </h2>
+            <div className="profile-step-controls profile-step-controls--options">
+              {PROFILE_GOAL_CHOICES.map((choice, optionIndex) => (
+                <ProfileAnswerBtn
+                  key={choice.value}
+                  reduceMotion={reduceMotion}
+                  optionIndex={optionIndex}
+                  delaySeconds={familyControlDelaySec(optionIndex)}
+                  className=""
+                  style={
+                    choice.theme
+                      ? ({ '--local-theme': choice.theme } as CSSProperties & { '--local-theme'?: string })
+                      : undefined
+                  }
+                  onClick={() => handleGoalSelect(choice.value)}
+                  aria-label={choice.ariaLabel}
+                >
+                  <span className="profile-answer-btn__text zz-h4 intro-goal-btn__text">
+                    {choice.displayLabel}
+                  </span>
+                </ProfileAnswerBtn>
+              ))}
+            </div>
           </motion.div>
         </AnimatePresence>
       </main>
