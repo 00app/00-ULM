@@ -1000,7 +1000,7 @@ ${GRANTS_AND_BILLS_CATEGORY_PROTOCOL}
 
 From the markdown below, return ONLY valid JSON (no markdown code fence) with exactly these keys:
 - "category": one of: ${journeyList} — the single best thematic fit for the main opportunity in the text.
-- "saving_amount_gbp": non-negative number with up to two decimal places — annual GBP saving grounded in the scraped text (use 0 only if truly none inferable).
+- "saving_amount_gbp": non-negative number with up to two decimal places — annual GBP saving grounded in the scraped text (use 0 only if truly none inferable). **Consistency check before you answer:** if any £ figure appears anywhere in the "architect_prose" you are about to write, "saving_amount_gbp" MUST equal that figure — copy the number across. Never submit 0 here if the prose you wrote names a £ amount; that is a contradiction and the response will be rejected.
 - "offer_url": one https URL copied verbatim from the markdown or citation context. If no live URL exists, return an empty string.
 - "agent_headline": **Zone card heading** — **9 to 12 words** (must be at least 9 — anything shorter gets rejected and replaced by a generic template, wasting this generation entirely), punchy and benefit-driven (e.g. "book your boiler service before the april price rise" — count the words before you answer). No colons. No section labels.
 - "expanded_headline": **Expanded Solo Focus hook heading** — **10 to 20 words** (2–3 lines); benefit-led lifestyle hook for their town/setup, not a postcode. Optional; if omitted, agent_headline may be reused.
@@ -1015,6 +1015,8 @@ Markdown:
 ${markdown.slice(0, shouldPreferMechanicalTripletInBucket() ? 12_000 : 28_000)}`
   try {
     const tag = normalizeResearchCategory(options?.categoryHint ?? '') || 'architect-triplet'
+    // TEMP DEBUG (will revert): verify the £-prose-consistency prompt fix for carbon.
+    const debugOn = tag === 'carbon'
     const { text } = await generateResearchText({
       prompt,
       tag,
@@ -1025,7 +1027,16 @@ ${markdown.slice(0, shouldPreferMechanicalTripletInBucket() ? 12_000 : 28_000)}`
         ? [`google/${options.model.trim().replace(/^google\//, '')}`, ...ARTICLE_GATEWAY_MODEL_CHAIN]
         : undefined,
     })
-    return parseResearchTripletJson(text)
+    if (debugOn) {
+      console.log(`[DEBUG-carbon-fix ${tag}] RAW LLM response (len=${text.length}): ${JSON.stringify(text)}`)
+    }
+    const parsed = parseResearchTripletJson(text)
+    if (debugOn) {
+      console.log(
+        `[DEBUG-carbon-fix ${tag}] PARSED saving_amount_gbp=${JSON.stringify(parsed?.saving_amount_gbp)} full=${JSON.stringify(parsed)}`
+      )
+    }
+    return parsed
   } catch (e) {
     console.warn(
       '[researchAgent] extractResearchTripletWithGemini failed:',
