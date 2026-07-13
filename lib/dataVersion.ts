@@ -28,6 +28,14 @@ export const LOCAL_STORAGE_KEYS = {
 const JOURNEY_PREFIX = 'journey_'
 const JOURNEY_SUFFIX = '_answers'
 
+/** Profile onboarding routing/resume state — sessionStorage, not part of the data-shape cache. */
+export const PROFILE_ENTRY_CHOICE_KEY = 'zz_profile_entry_choice'
+export const PROFILE_STEP_KEY = 'zz_profile_onboarding_step'
+
+/** sessionStorage keys a version-bump reset must not touch: they're per-visit routing/resume
+ *  state (which onboarding step, guest-vs-create), not stale journey/domain-shape cache. */
+const SESSION_STORAGE_PRESERVE_KEYS = new Set<string>([PROFILE_ENTRY_CHOICE_KEY, PROFILE_STEP_KEY])
+
 /** Keys to clear when resetting local data (live deploy). */
 export function getLocalDataKeysToReset(): string[] {
   if (typeof window === 'undefined') return []
@@ -62,7 +70,7 @@ export function clearSessionStorageForReset(): void {
     const drop: string[] = []
     for (let i = 0; i < sessionStorage.length; i++) {
       const k = sessionStorage.key(i)
-      if (k) drop.push(k)
+      if (k && !SESSION_STORAGE_PRESERVE_KEYS.has(k)) drop.push(k)
     }
     drop.forEach((k) => sessionStorage.removeItem(k))
   } catch {

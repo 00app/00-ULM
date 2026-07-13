@@ -38,6 +38,7 @@ import {
 } from '@/lib/profile/onboardingComplete'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
 import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
+import { PROFILE_ENTRY_CHOICE_KEY, PROFILE_STEP_KEY } from '@/lib/dataVersion'
 import { persistSessionRestoreProof } from '@/lib/client/sessionRestoreProofStorage'
 import { persistHomePowerFromProfile } from '@/lib/profile/homePower'
 import { syncSessionState } from '@/lib/sessionStateSync'
@@ -200,8 +201,7 @@ export default function ProfilePageClient() {
   const returnTo = searchParams?.get('returnTo')
   const skipParam = searchParams?.get('skip')
   const { refreshProfile, setLocationState } = useApp()
-  
-  const PROFILE_STEP_KEY = 'zz_profile_onboarding_step'
+
   const [step, setStepState] = useState(0)
   const setStep = useCallback((next: number | ((s: number) => number)) => {
     setStepState((prev) => {
@@ -236,8 +236,24 @@ export default function ProfilePageClient() {
    * PROFILE_QUESTIONS: that array drives the step/resume/completeness machinery and every
    * entry there is assumed to be a required, persisted field. This is neither — it's a
    * one-time routing choice, not profile data.
+   *
+   * Persisted to sessionStorage (not localStorage — this is a per-visit routing choice, not
+   * profile data that should survive across devices/sessions) so a reload between choosing
+   * CREATE and finishing the goal question doesn't bounce back to the fork screen. Anyone
+   * who's already answered a real question is separately protected by hasAnsweredAnything
+   * below regardless of this.
    */
-  const [entryChoice, setEntryChoice] = useState<'create' | 'guest' | null>(null)
+  const [entryChoice, setEntryChoiceState] = useState<'create' | 'guest' | null>(null)
+  const setEntryChoice = useCallback((next: 'create' | 'guest' | null) => {
+    setEntryChoiceState(next)
+    if (typeof window === 'undefined') return
+    try {
+      if (next) sessionStorage.setItem(PROFILE_ENTRY_CHOICE_KEY, next)
+      else sessionStorage.removeItem(PROFILE_ENTRY_CHOICE_KEY)
+    } catch {
+      // ignore
+    }
+  }, [])
 
   const recenterProfileStep = useCallback(() => {
     setKeyboardLift(false)
@@ -273,6 +289,14 @@ export default function ProfilePageClient() {
   useLayoutEffect(() => {
     if (hydratedRef.current || typeof window === 'undefined') return
     hydratedRef.current = true
+    try {
+      const storedEntryChoice = sessionStorage.getItem(PROFILE_ENTRY_CHOICE_KEY)
+      if (storedEntryChoice === 'create' || storedEntryChoice === 'guest') {
+        setEntryChoiceState(storedEntryChoice)
+      }
+    } catch {
+      // ignore
+    }
     const stored: Record<string, string> = {}
     PROFILE_QUESTIONS.forEach((q) => {
       const val = localStorage.getItem(STORAGE_KEYS[q.id] ?? q.id)
