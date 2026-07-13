@@ -1040,6 +1040,15 @@ const INCOMPLETE_HEADLINE_ENDINGS = new Set([
   'unless',
   'that',
   'than',
+  /* Bare trailing prepositions — always need an object ("materials slipping into" reads broken
+   * even though "into" itself wasn't previously flagged). */
+  'into',
+  'onto',
+  'upon',
+  'through',
+  'across',
+  'towards',
+  'toward',
 ])
 
 /** Two-letter tokens that can end a valid zone stamp (e.g. EV, UK). */
@@ -1225,38 +1234,46 @@ function isPartialExpandedJourneyHook(resolved: string, journeyHook: string): bo
   return h.includes(r) && r.length <= h.length * 0.88
 }
 
-/** Zone bento wall — 8–10 word Marvin stamp per journey (not Solo Focus). */
+/**
+ * Zone bento wall — 8–10 word Marvin stamp per journey (not Solo Focus).
+ * Every entry must fit within MAX_ZONE_CARD_HEADLINE_WORDS (10) as written — trimHeadlineToMaxWords
+ * will otherwise hard-slice these and can strand a dangling verb/adjective (e.g. "chase", "full")
+ * that survives the INCOMPLETE_HEADLINE_ENDINGS check but still reads as a broken mid-clause cut.
+ */
 export const ZONE_BENTO_HOOK: Partial<Record<JourneyId, string>> = {
-  home: 'seal draughts and loft gaps before you chase a new boiler',
-  utilities: 'line up your energy tariff before you lock in a new deal',
-  grants: 'check heat pump and insulation grants before you pay full price',
-  solar: 'size solar to your roof and the power you use each day',
-  travel: 'try one train or bus trip a week instead of the car commute',
-  holidays: 'pick a train for short trips instead of flying when you can',
-  food: 'plan meals from food you already have and cut waste each week',
-  shopping: 'repair and reuse home gear before you buy another new item',
-  money: 'move idle cash to a better rate without paying hidden fees',
+  home: 'seal draughts and loft gaps before buying a new boiler',
+  utilities: 'check your energy tariff before you lock in a deal',
+  grants: 'check heat pump and insulation grants before paying full price',
+  solar: 'size solar to your roof and the power you use',
+  travel: 'swap one car commute for a train or bus trip',
+  holidays: 'pick a train for short trips instead of flying',
+  food: 'plan meals from food you already have to cut waste',
+  shopping: 'repair and reuse home gear before buying something new',
+  money: 'move idle cash to a better rate without hidden fees',
   tech: 'cut standby on plugs and chargers you leave on overnight',
-  water: 'fix drips and fit aerators before your water bill climbs again',
+  water: 'fix drips and fit aerators before your water bill climbs',
   waste: 'sort recycling and compost at home to cut bin charges',
-  carbon: 'track one big energy habit each month and trim what you waste',
+  carbon: 'track one big energy habit each month to trim waste',
 }
 
-/** Discovery inject bento — distinct 8–10 word stamp when wall tile already uses ZONE_BENTO_HOOK. */
+/**
+ * Discovery inject bento — distinct 8–10 word stamp when wall tile already uses ZONE_BENTO_HOOK.
+ * Same 10-word ceiling constraint as ZONE_BENTO_HOOK above — keep every entry within it.
+ */
 const ZONE_GRID_INJECT_HOOK: Partial<Record<JourneyId, string>> = {
-  home: 'check heat pump grant rules before you book an installer visit',
+  home: 'check heat pump grant rules before booking an installer',
   utilities: 'match your meter read before you switch energy supplier',
-  grants: 'stack heat pump and insulation grants before you pay full price',
-  solar: 'book a roof survey before you sign a solar export contract',
-  travel: 'try one rail swap this month before you renew car fuel spend',
-  holidays: 'pick a train route for your next break before you book flights',
-  food: 'start a weekly meal plan from what is already in your fridge',
+  grants: 'stack heat pump and insulation grants before paying full price',
+  solar: 'book a roof survey before signing a solar export deal',
+  travel: 'swap one car trip for rail before fuel costs rise',
+  holidays: 'pick a train route for your next break before booking',
+  food: 'plan meals from what is already in your fridge',
   shopping: 'repair one item this month before you buy another replacement',
-  money: 'move idle cash to a better rate before fees eat your interest',
-  tech: 'turn off standby on five devices you leave on overnight at home',
-  water: 'fix one dripping tap and fit an aerator before the bill rises',
-  waste: 'set up food waste caddy collection before you pay landfill charges',
-  carbon: 'log your biggest energy habit this month before you buy offsets',
+  money: 'move idle cash before fees eat into your interest',
+  tech: 'turn off standby on devices you leave on overnight',
+  water: 'fit a tap aerator before your water bill rises',
+  waste: 'set up food waste collection before landfill charges rise',
+  carbon: 'log your biggest energy habit before you buy offsets',
 }
 
 /**
