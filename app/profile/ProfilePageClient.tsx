@@ -1013,22 +1013,6 @@ export default function ProfilePageClient() {
                     name="postal-code"
                     autoFocus
                   />
-                  <label className="profile-optional-field-label zz-h4" htmlFor="profile-house-number">
-                    house/flat no. <span className="profile-optional-suffix">(for better results)</span>
-                  </label>
-                  <InputField
-                    ref={houseNumberRef}
-                    id="profile-house-number"
-                    value={values.houseNumber ?? ''}
-                    onChange={(v) => setValue('houseNumber', v)}
-                    onAdvance={handlePostcodeContinue}
-                    onFocusLift={liftProfileStepForKeyboard}
-                    onBlurViewportReset={recenterProfileStep}
-                    placeholder="e.g. 12"
-                    autoComplete="address-line2"
-                    name="house-number"
-                    className="profile-house-number-input"
-                  />
                   {postcodeLocalityLabel ? (
                     <h4 className="zz-h4 m-0 profile-postcode-locality" aria-live="polite">
                       {postcodeLocalityLabel}
