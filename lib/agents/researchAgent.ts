@@ -1015,6 +1015,10 @@ Markdown:
 ${markdown.slice(0, shouldPreferMechanicalTripletInBucket() ? 12_000 : 28_000)}`
   try {
     const tag = normalizeResearchCategory(options?.categoryHint ?? '') || 'architect-triplet'
+    // TEMP DEBUG (will revert): trace raw LLM response -> parsed £ for the money/solar/carbon
+    // £-fallback diagnosis. Gated to a handful of categories to keep log volume sane.
+    const debugCats = new Set(['money', 'solar', 'carbon'])
+    const debugOn = debugCats.has(tag)
     const { text } = await generateResearchText({
       prompt,
       tag,
@@ -1025,7 +1029,16 @@ ${markdown.slice(0, shouldPreferMechanicalTripletInBucket() ? 12_000 : 28_000)}`
         ? [`google/${options.model.trim().replace(/^google\//, '')}`, ...ARTICLE_GATEWAY_MODEL_CHAIN]
         : undefined,
     })
-    return parseResearchTripletJson(text)
+    if (debugOn) {
+      console.log(`[DEBUG-money-fb ${tag}] RAW LLM response (len=${text.length}): ${JSON.stringify(text)}`)
+    }
+    const parsed = parseResearchTripletJson(text)
+    if (debugOn) {
+      console.log(
+        `[DEBUG-money-fb ${tag}] PARSED saving_amount_gbp=${JSON.stringify(parsed?.saving_amount_gbp)} full=${JSON.stringify(parsed)}`
+      )
+    }
+    return parsed
   } catch (e) {
     console.warn(
       '[researchAgent] extractResearchTripletWithGemini failed:',
@@ -1775,6 +1788,12 @@ export async function persistResearchResult(params: {
 
     let savingForDb = mergedSaving ?? null
     const verifiedForDb = savingForDb
+    // TEMP DEBUG (will revert): trace £ value at persist-decision time for money/solar/carbon.
+    if (['money', 'solar', 'carbon'].includes((mergedCategory ?? '').toLowerCase())) {
+      console.log(
+        `[DEBUG-money-fb ${mergedCategory}] PERSIST-STAGE savingForDb=${JSON.stringify(savingForDb)} params.savingAmountGbp=${JSON.stringify(params.savingAmountGbp)} markdownTriplet.saving=${JSON.stringify(markdownTriplet?.saving_amount_gbp)} geminiTriplet.saving=${JSON.stringify(geminiTriplet?.saving_amount_gbp)}`
+      )
+    }
 
     let mergedArchitectProse =
       normalizeArchitectProseThreeParagraphs(params.architectProse?.trim()) ??
