@@ -1242,7 +1242,7 @@ function isPartialExpandedJourneyHook(resolved: string, journeyHook: string): bo
  */
 export const ZONE_BENTO_HOOK: Partial<Record<JourneyId, string>> = {
   home: 'seal draughts and loft gaps before buying a new boiler',
-  utilities: 'check your energy tariff before you lock in a deal',
+  utilities: 'check your tariff price before you lock in a deal',
   grants: 'check heat pump and insulation grants before paying full price',
   solar: 'size solar to your roof and the power you use',
   travel: 'swap one car commute for a train or bus trip',
@@ -1253,7 +1253,7 @@ export const ZONE_BENTO_HOOK: Partial<Record<JourneyId, string>> = {
   tech: 'cut standby on plugs and chargers you leave on overnight',
   water: 'fix drips and fit aerators before your water bill climbs',
   waste: 'sort recycling and compost at home to cut bin charges',
-  carbon: 'track one big energy habit each month to trim waste',
+  carbon: 'track one big habit each month and cut your waste',
 }
 
 /**
@@ -1262,7 +1262,7 @@ export const ZONE_BENTO_HOOK: Partial<Record<JourneyId, string>> = {
  */
 const ZONE_GRID_INJECT_HOOK: Partial<Record<JourneyId, string>> = {
   home: 'check heat pump grant rules before booking an installer',
-  utilities: 'match your meter read before you switch energy supplier',
+  utilities: 'match your meter read before you switch supplier plans',
   grants: 'stack heat pump and insulation grants before paying full price',
   solar: 'book a roof survey before signing a solar export deal',
   travel: 'swap one car trip for rail before fuel costs rise',
@@ -1273,7 +1273,7 @@ const ZONE_GRID_INJECT_HOOK: Partial<Record<JourneyId, string>> = {
   tech: 'turn off standby on devices you leave on overnight',
   water: 'fit a tap aerator before your water bill rises',
   waste: 'set up food waste collection before landfill charges rise',
-  carbon: 'log your biggest energy habit before you buy offsets',
+  carbon: 'log your biggest monthly habit before you buy offsets',
 }
 
 /**
