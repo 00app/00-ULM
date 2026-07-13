@@ -8,6 +8,7 @@ export const PROFILE_STORAGE_KEYS = {
   houseNumber: 'profile_house_number',
   livingSituation: 'profile_household',
   homeType: 'profile_home_type',
+  homeOwnership: 'profile_home_ownership',
   powerType: 'profile_home_power',
   transport: 'profile_transport',
   age: 'profile_age',
@@ -20,6 +21,7 @@ export type ProfileOnboardingFields = {
   houseNumber?: string
   livingSituation?: string
   homeType?: string
+  homeOwnership?: string
   powerType?: string
   transport?: string
   age?: string
@@ -38,6 +40,7 @@ export function isProfileOnboardingCompleteFields(v: ProfileOnboardingFields): b
     isValidUkPostcode(pc) &&
     Boolean(v.livingSituation?.trim()) &&
     Boolean(v.homeType?.trim()) &&
+    Boolean(v.homeOwnership?.trim()) &&
     Boolean(v.powerType?.trim()) &&
     Boolean(v.transport?.trim()) &&
     Boolean(v.age?.trim()) &&
@@ -61,6 +64,7 @@ export function profileFieldsFromStorage(): ProfileOnboardingFields {
     houseNumber: read(PROFILE_STORAGE_KEYS.houseNumber),
     livingSituation: read(PROFILE_STORAGE_KEYS.livingSituation),
     homeType: read(PROFILE_STORAGE_KEYS.homeType),
+    homeOwnership: read(PROFILE_STORAGE_KEYS.homeOwnership),
     powerType: read(PROFILE_STORAGE_KEYS.powerType),
     transport: read(PROFILE_STORAGE_KEYS.transport),
     age: read(PROFILE_STORAGE_KEYS.age),
@@ -103,6 +107,10 @@ export function userRowOnboardingComplete(row: UserOnboardingRow | null | undefi
     (typeof genome.home_power === 'string' && genome.home_power.trim()) ||
     (typeof genome.homePower === 'string' && genome.homePower.trim()) ||
     ''
+  const homeOwnership =
+    (typeof genome.home_ownership === 'string' && genome.home_ownership.trim()) ||
+    (typeof genome.homeOwnership === 'string' && genome.homeOwnership.trim()) ||
+    ''
   const age =
     (typeof row.age_group === 'string' && row.age_group.trim()) ||
     (typeof genome.age_group === 'string' && genome.age_group.trim()) ||
@@ -113,6 +121,7 @@ export function userRowOnboardingComplete(row: UserOnboardingRow | null | undefi
     postcode: row.postcode ?? undefined,
     livingSituation: row.household ?? undefined,
     homeType: row.home_type ?? undefined,
+    homeOwnership: homeOwnership || undefined,
     powerType: homePower || undefined,
     transport: row.transport_baseline ?? undefined,
     age: age || undefined,
@@ -129,6 +138,7 @@ export function guestProfileOnboardingComplete(profile: unknown): boolean {
     postcode: String(p.postcode ?? ''),
     livingSituation: String(p.household ?? p.livingSituation ?? ''),
     homeType: String(p.home_type ?? p.homeType ?? ''),
+    homeOwnership: String(p.home_ownership ?? p.homeOwnership ?? ''),
     powerType: String(p.home_power ?? p.homePower ?? p.powerType ?? ''),
     transport: String(p.transport ?? p.transport_baseline ?? ''),
     age: String(p.age ?? p.age_group ?? ''),

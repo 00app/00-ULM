@@ -71,6 +71,12 @@ export async function POST(request: NextRequest) {
       homePowerRaw === 'OTHER'
         ? homePowerRaw
         : null
+    const homeOwnershipRaw =
+      typeof body?.home_ownership === 'string'
+        ? body.home_ownership.trim().toUpperCase().slice(0, 16)
+        : ''
+    const home_ownership =
+      homeOwnershipRaw === 'OWNER' || homeOwnershipRaw === 'RENTER' ? homeOwnershipRaw : null
 
     const raw = {
       name: typeof body?.name === 'string' ? body.name.trim().slice(0, 200) : '',
@@ -113,6 +119,7 @@ export async function POST(request: NextRequest) {
     if (household_income_bracket) genomeObj.household_income_bracket = household_income_bracket
     if (houseNumber) genomeObj.house_number = houseNumber
     if (home_power) genomeObj.home_power = home_power
+    if (home_ownership) genomeObj.home_ownership = home_ownership
     const genome = JSON.stringify(genomeObj)
 
     const insertParams = [

@@ -39,6 +39,7 @@ const BASE_PROFILE = {
   postcode: 'M11AG',
   livingSituation: 'family',
   homeType: 'semi',
+  homeOwnership: 'OWNER',
   powerType: 'gas_electric',
   transport: 'car',
   age: 'MID',

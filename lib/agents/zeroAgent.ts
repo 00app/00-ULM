@@ -11,6 +11,7 @@
 import { AGENT_TOOL_DECLARATIONS, executeAgentTool } from '@/lib/agents/agentTools'
 import { EDITORIAL_MAGAZINE_CONSTRAINT } from '@/lib/intelligence/aiGateway'
 import { FLASH_DEFAULT } from '@/lib/intelligence/geminiModels'
+import { isLiveLlmContentEnabled } from '@/lib/intelligence/scrapeBoundaries'
 import type { JourneyId } from '@/lib/journeys'
 import { normalizeCategoryToJourneyKey } from '@/lib/zone/trustedJourneyUrls'
 
@@ -322,6 +323,9 @@ export async function runZeroAgent(params: {
   profileBlock: string
   localityContext?: string | null
 }): Promise<ZeroAgentResult | null> {
+  // Disconnected, not deleted — see isLiveLlmContentEnabled. Callers already handle a null
+  // result by falling through to mechanical/template content.
+  if (!isLiveLlmContentEnabled()) return null
   const pc = params.postcode.replace(/\s+/g, '').toUpperCase()
   const systemPrompt = buildSystemPrompt({
     postcode: pc,

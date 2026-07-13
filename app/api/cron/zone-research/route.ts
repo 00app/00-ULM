@@ -3,7 +3,7 @@ import { getDbPool, shutdownDbPool } from '@/lib/db'
 import { repairResearchResultsMissingHeadlines, runZeroResearchWithProfile } from '@/lib/agents/researchAgent'
 import { profileGoalFromGenome } from '@/lib/agents/auditor'
 import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
-import { isBucketFailoverMode } from '@/lib/intelligence/scrapeBoundaries'
+import { isBucketFailoverMode, isLiveLlmContentEnabled } from '@/lib/intelligence/scrapeBoundaries'
 import { normalizeSecret } from '@/lib/intelligence/normalizeSecret'
 
 export const runtime = 'nodejs'
@@ -43,6 +43,11 @@ type UserResearchSeedRow = {
 async function runZoneResearchCron(request: NextRequest): Promise<Response> {
   if (!authorizeCron(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (!isLiveLlmContentEnabled()) {
+    // Hermes disconnected, not deleted — see isLiveLlmContentEnabled in scrapeBoundaries.ts.
+    // Set LIVE_LLM_CONTENT_ENABLED=1 to reconnect.
+    return NextResponse.json({ ok: true, skipped: true, reason: 'live_llm_content_disabled' })
   }
 
   const repairOnly =

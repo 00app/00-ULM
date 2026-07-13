@@ -78,6 +78,12 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
       v === 'HOUSE' ? 'houses unlock more grant schemes than flats.\ngood.' :
       v === 'FLAT' ? 'flats make grants trickier —\nwe\'ll check what\'s available.' : null },
   {
+    id: 'homeOwnership',
+    label: 'do you own or rent?',
+    type: 'options' as const,
+    options: ['OWNER', 'RENTER'],
+  },
+  {
     id: 'powerType',
     label: 'how do you heat your home?',
     type: 'options' as const,
@@ -156,6 +162,7 @@ function syncLocalStorageFromServerUser(user: Record<string, unknown> | undefine
     : null
   if (genome) {
     setIfString(STORAGE_KEYS.powerType, genome.home_power)
+    setIfString(STORAGE_KEYS.homeOwnership, genome.home_ownership)
     const goal = genome.profile_goal ?? genome.goal
     if (typeof goal === 'string' && goal.trim()) {
       try {
@@ -222,6 +229,14 @@ export default function ProfilePageClient() {
   const [postcodeFormatValid, setPostcodeFormatValid] = useState(false)
   const [insightReveal, setInsightReveal] = useState<string | null>(null)
   const insightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /**
+   * Guest-vs-create fork — shown once, before the first onboarding question, only on a
+   * genuinely fresh visit (no deep link, no answers yet). Deliberately kept outside
+   * PROFILE_QUESTIONS: that array drives the step/resume/completeness machinery and every
+   * entry there is assumed to be a required, persisted field. This is neither — it's a
+   * one-time routing choice, not profile data.
+   */
+  const [entryChoice, setEntryChoice] = useState<'create' | 'guest' | null>(null)
 
   const recenterProfileStep = useCallback(() => {
     setKeyboardLift(false)
@@ -606,6 +621,7 @@ export default function ProfilePageClient() {
             goal: mergedValues.goal ?? undefined,
             house_number: mergedValues.houseNumber?.trim() || undefined,
             home_power: mergedValues.powerType?.trim() || undefined,
+            home_ownership: mergedValues.homeOwnership?.trim() || undefined,
           }
           const profileData = buildResearchProfilePayload(mergedValues, { postcode: pc })
 
@@ -942,6 +958,94 @@ export default function ProfilePageClient() {
   if (!profileHydrated || !current) {
     return (
       <main className={profileShellClass} style={profileShellStyle} aria-busy="true" aria-label="Loading profile" />
+    )
+  }
+
+  // Only a fresh visit sees the fork — deep links (Settings edits) and anyone who's already
+  // answered a question skip straight past it, so it never interrupts a resumed flow.
+  const hasAnsweredAnything = PROFILE_QUESTIONS.some((q) => (values[q.id] ?? '').trim())
+  const showEntryFork =
+    !qParam && !returnTo && skipParam !== '1' && entryChoice === null && !hasAnsweredAnything
+
+  if (showEntryFork) {
+    return (
+      <main className={profileShellClass} style={profileShellStyle}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="entry-fork"
+            className="profile-step-slam w-full flex flex-col items-center"
+            style={{ gap: 40, maxWidth: 800 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h2
+              className="zz-h2 text-marvin m-0 text-center"
+              style={{ whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
+            >
+              quick look, or make it yours?
+            </h2>
+            <div className="profile-step-controls profile-step-controls--options">
+              <ProfileAnswerBtn
+                reduceMotion={reduceMotion}
+                optionIndex={0}
+                delaySeconds={familyControlDelaySec(0)}
+                className=""
+                onClick={() => setEntryChoice('guest')}
+                aria-label="Guest"
+              >
+                <span className="profile-answer-btn__text zz-h4">GUEST</span>
+              </ProfileAnswerBtn>
+              <ProfileAnswerBtn
+                reduceMotion={reduceMotion}
+                optionIndex={1}
+                delaySeconds={familyControlDelaySec(1)}
+                className=""
+                onClick={() => setEntryChoice('create')}
+                aria-label="Create"
+              >
+                <span className="profile-answer-btn__text zz-h4">CREATE</span>
+              </ProfileAnswerBtn>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </main>
+    )
+  }
+
+  if (entryChoice === 'guest') {
+    return (
+      <main className={profileShellClass} style={profileShellStyle}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="guest-coming-soon"
+            className="profile-step-slam w-full flex flex-col items-center"
+            style={{ gap: 40, maxWidth: 800 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h2
+              className="zz-h2 text-marvin m-0 text-center"
+              style={{ color: 'var(--color-yellow)', whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
+            >
+              guest is nearly ready.{'\n'}for now, create takes{'\n'}about a minute.
+            </h2>
+            <ProfileAnswerBtn
+              reduceMotion={reduceMotion}
+              optionIndex={0}
+              delaySeconds={familyControlDelaySec(0)}
+              className=""
+              onClick={() => setEntryChoice('create')}
+              aria-label="Create"
+            >
+              <span className="profile-answer-btn__text zz-h4">CREATE</span>
+            </ProfileAnswerBtn>
+          </motion.div>
+        </AnimatePresence>
+      </main>
     )
   }
 

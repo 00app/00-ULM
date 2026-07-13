@@ -14,6 +14,7 @@ import {
   isBucketFailoverEnabled,
   listConfiguredBucketProviders,
 } from '@/lib/intelligence/bucketFailover'
+import { isLiveLlmContentEnabled } from '@/lib/intelligence/scrapeBoundaries'
 import {
   CHAT_GATEWAY_MODEL_CHAIN,
   directModelForTier,
@@ -31,6 +32,7 @@ export {
   isBucketFailoverMode,
   isBroadResearchAllowed,
   shouldSkipGeminiInBucket,
+  isLiveLlmContentEnabled,
 } from '@/lib/intelligence/scrapeBoundaries'
 
 export {
@@ -127,6 +129,11 @@ export async function generateResearchText(params: GatewayGenerateParams): Promi
   modelId: string
   viaGateway: boolean
 }> {
+  if (!isLiveLlmContentEnabled()) {
+    // Disconnected, not deleted — every caller already falls through to mechanical/template
+    // content on a thrown error here (see extractResearchTripletWithGemini's try/catch).
+    throw new Error('[aiGateway] live LLM content generation is disabled (LIVE_LLM_CONTENT_ENABLED != 1)')
+  }
   if (isBucketFailoverEnabled()) {
     const bucket = await generateWithBucketFailover(params)
     touchHealth({

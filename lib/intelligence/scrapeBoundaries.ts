@@ -11,6 +11,20 @@ export function isBucketFailoverMode(): boolean {
   return process.env.MODEL_STRATEGY?.trim().toLowerCase() === 'bucket_failover'
 }
 
+/**
+ * Master kill switch for all live LLM content generation (Gemini direct, Groq/Mistral/OpenRouter
+ * bucket failover, and the Hermes cron sweep). OFF by default — the pivot to Claude-Code-driven,
+ * county-level static content means the app can't rely on free-tier LLM quota. Set
+ * LIVE_LLM_CONTENT_ENABLED=1 to reconnect once a paid tier funds it again. Nothing is deleted:
+ * every caller of generateResearchText / runZeroAgent already falls through to the existing
+ * mechanical/template fallback content when the LLM returns nothing, so disabling this flag just
+ * means that fallback path fires every time instead of only on provider failure.
+ */
+export function isLiveLlmContentEnabled(): boolean {
+  const v = process.env.LIVE_LLM_CONTENT_ENABLED?.trim().toLowerCase() ?? ''
+  return v === '1' || v === 'true' || v === 'yes'
+}
+
 /** Skip paid Gemini in the provider chain — use Groq / Mistral / OpenRouter only. */
 export function shouldSkipGeminiInBucket(): boolean {
   const skip = process.env.BUCKET_SKIP_GEMINI?.trim().toLowerCase() ?? ''
