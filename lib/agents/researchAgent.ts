@@ -75,6 +75,12 @@ import {
   ZONE_BENTO_HOOK,
   zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
+import {
+  calculateMoney,
+  calculateUtilities,
+  applyEmploymentFinancialPhysics,
+  normalizeEmploymentStatus,
+} from '@/lib/brains/calculations'
 
 /** Journey mother-card headline bounds — passed to clampZoneBentoHeadline for all category cards. */
 const JOURNEY_CARD_HEADLINE_BOUNDS = {
@@ -1246,11 +1252,16 @@ export async function repairResearchResultsMissingHeadlines(params: {
   for (const row of rows) {
     const cat = (row.category ?? '').trim().toLowerCase()
     if (cat && skipVisited.has(cat)) continue
+    const profileForFallback =
+      row.profile_snapshot && typeof row.profile_snapshot === 'object' && !Array.isArray(row.profile_snapshot)
+        ? (row.profile_snapshot as ResearchProfileData)
+        : null
     const mechanical = mechanicalCategoryTripletFallback({
       category: row.category,
       offerUrl: row.offer_url,
       localityContext: row.locality_context,
       postcode: row.postcode,
+      profileData: profileForFallback,
     })
     if (mechanical) {
       try {
@@ -1392,11 +1403,29 @@ function outwardFromPostcode(postcode?: string | null): string {
  * When Firecrawl/Gemini leave only `offer_url` (e.g. BUS gov.uk), still persist mechanical truth
  * so Zone does not fall back to "pattern learned" placeholders.
  */
+/**
+ * Deterministic pick from a pool — same seed always picks the same index, so a given user/day
+ * sees consistent content, but different postcodes/categories/days spread across the pool
+ * instead of everyone seeing pool[0] forever. Not cryptographic, just needs to be stable.
+ */
+function deterministicPoolPick<T>(pool: T[], seed: string): T {
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0
+  }
+  const idx = Math.abs(hash) % pool.length
+  return pool[idx]
+}
+
 function mechanicalCategoryTripletFallback(params: {
   category: string | null
   offerUrl: string | null
   localityContext: string | null
   postcode: string | null
+  /** When available, money/utilities use this for a real calculateMoney/calculateUtilities
+   *  figure instead of a flat guess. Optional and defensive — falls back to the old flat
+   *  number if absent, so this never breaks a call site that doesn't have profile data handy. */
+  profileData?: ResearchProfileData | null
 }): {
   saving_amount_gbp: number
   agent_headline: string
@@ -1416,65 +1445,77 @@ function mechanicalCategoryTripletFallback(params: {
   const capTypical = TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP
 
   if (outward || townRaw) {
-    const fallbacks: Record<string, { gbp: number; headline: string; prose: string }> = {
+    const fallbacks: Record<string, { gbp: number; headlines: string[]; prose: string }> = {
       home: {
         gbp: 180,
-        headline: `seal draughts and loft gaps in ${areaTag} homes first`,
+        headlines: [`seal draughts and loft gaps in ${areaTag} homes first`],
         prose: `Older homes in ${areaLabel} leak heat through lofts, draughts, and lagging gaps — sealing those cuts bills before you chase a new boiler.\n\nJuly 2026 bills still track the energy price cap (~£${capTypical}/yr typical dual-fuel) so every wasted kWh hurts until fabric is fixed.\n\nUse the link below to plan loft and draught-proofing work before winter.`,
       },
       utilities: {
         gbp: 120,
-        headline: `compare your household tariff before you fix a ${areaTag} deal`,
+        headlines: [
+          `compare your household tariff before you fix a ${areaTag} deal`,
+          `check your meter read before ${areaTag} suppliers renew your tariff`,
+          `a fixed deal below the cap beats drifting on variable in ${areaTag}`,
+          `standing charges add up fast for ${areaTag} homes on the wrong plan`,
+          `switch supplier before your ${areaTag} fixed term quietly expires`,
+        ],
         prose: `${areaLabel} sits under the July 2026 price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nStanding charges and direct-debit realignment are the immediate levers before locking a fixed tariff.\n\nUse the link below to check your supplier statement matches cap rates before you switch.`,
       },
       solar: {
         gbp: 450,
-        headline: `size solar panels to your roof in ${areaTag} now`,
+        headlines: [`size solar panels to your roof in ${areaTag} now`],
         prose: `Solar in ${areaLabel} pays when generation, export rate, and daytime use align — typical homes cut import costs once an MCS install is sized to the roof.\n\nJuly 2026 import rates still follow the price-cap frame (~£${capTypical}/yr typical dual-fuel), so export and self-use matter for what you buy overnight.\n\nUse the link below to compare export tariffs with your supplier before you lock an install quote.`,
       },
       travel: {
         gbp: 450,
-        headline: `swap one weekly car commute for rail in ${areaTag}`,
+        headlines: [`swap one weekly car commute for rail in ${areaTag}`],
         prose: `Around ${areaLabel}, one regular car commute is often the priciest habit on your travel row — a single rail or bus day each week is a gentle first swap.\n\nLocal timetables and season tickets still beat ad-hoc fuel top-ups when you plan the same journey twice.\n\nUse the link below to check rail or bus options for your usual route before you renew insurance or fuel cards.`,
       },
       holidays: {
         gbp: 250,
-        headline: `cut flights from ${areaTag} with more local rail trips`,
+        headlines: [`cut flights from ${areaTag} with more local rail trips`],
         prose: `Holidays from ${areaLabel} carry a heavy footprint — fewer flights and rail over short hops cuts both kg and spend.\n\nOne less return flight a year often saves hundreds before airline surcharges climb again.\n\nUse the link below to compare flight vs rail for your next break before you book.`,
       },
       food: {
         gbp: 180,
-        headline: `plan meals from your fridge to cut ${areaTag} waste`,
+        headlines: [`plan meals from your fridge to cut ${areaTag} waste`],
         prose: `Food budgets in ${areaLabel} leak cash through packaging and waste — a tighter weekly basket plan lands savings at the till.\n\nLow-waste, plant-rich meals aligned with local shops often trim ~£180/yr without a loyalty gimmick.\n\nUse the link below to try a meal planner and cut what you throw away each week.`,
       },
       shopping: {
         gbp: 110,
-        headline: `repair before you replace home items in ${areaTag} again`,
+        headlines: [`repair before you replace home items in ${areaTag} again`],
         prose: `Shopping in ${areaLabel} rewards repair-over-replace — second-hand and fix-it shops beat fast-fashion churn on both £ and kg.\n\nShifting a few purchases to circular outlets can move ~£110/yr without changing your whole wardrobe.\n\nUse the link below to find repair shops or low-waste retailers near you.`,
       },
       money: {
         gbp: 320,
-        headline: `move idle cash to a better rate from ${areaTag}`,
+        headlines: [
+          `move idle cash to a better rate from ${areaTag}`,
+          `check ${areaTag} savings rates before your fixed term rolls over`,
+          `an ethical current account switch pays off for ${areaTag} savers`,
+          `review your pension provider before your next ${areaTag} statement`,
+          `a better isa rate beats idle cash sitting in ${areaTag} accounts`,
+        ],
         prose: `Where you bank and save in ${areaLabel} still funds oil and gas unless you pick cleaner accounts.\n\nGreen ISAs and certified banks can move ~£320/yr of footprint without giving up yield entirely.\n\nUse the link below to compare greener banking options before you move cash.`,
       },
       tech: {
         gbp: 140,
-        headline: `cut standby power on devices around your ${areaTag} home`,
+        headlines: [`cut standby power on devices around your ${areaTag} home`],
         prose: `Smart meters and thermostats in ${areaLabel} trim bills fast under the April 2026 cap frame.\n\nHeating empty rooms or running an old boiler quietly adds ~£140/yr — timers and zoning fix that.\n\nUse the link below to see if your supplier offers free smart meter installs locally.`,
       },
       water: {
         gbp: 90,
-        headline: `fix drips and fit aerators in your ${areaTag} home`,
+        headlines: [`fix drips and fit aerators in your ${areaTag} home`],
         prose: `Water bills in ${areaLabel} keep rising on sewage and metered tariffs — conservation pays back quickly.\n\nRain butts and shower aerators can shave ~£90/yr off metered volume.\n\nUse the link below to claim free water-saving inserts from your water company.`,
       },
       waste: {
         gbp: 70,
-        headline: `sort recycling and compost at your ${areaTag} home today`,
+        headlines: [`sort recycling and compost at your ${areaTag} home today`],
         prose: `Waste rules in ${areaLabel} follow local council collections — sorting soft plastics and composting cuts landfill trips.\n\nA steady compost and recycling habit can save ~£70/yr in bags, trips, and contamination fines.\n\nUse the link below to confirm collection dates and rules for your street.`,
       },
       carbon: {
         gbp: 100,
-        headline: `track your biggest home habit each month in ${areaTag} living`,
+        headlines: [`track your biggest home habit each month in ${areaTag} living`],
         prose: `Carbon tracking in ${areaLabel} maps to the 12,000 kWh ≈ 1 tonne baseline — small daily cuts compound.\n\nLogging heat, travel, and food for a fortnight often finds ~£100/yr of easy wins.\n\nUse the link below to run your household footprint against the national timeline.`,
       },
     }
@@ -1484,11 +1525,43 @@ function mechanicalCategoryTripletFallback(params: {
     const fallback = fallbacks[targetCat] ?? fallbacks.home
     const prose = normalizeArchitectProseThreeParagraphs(fallback.prose)
     if (!prose) return null
+
+    // Deterministic headline variety: same user/postcode/category picks the same variant
+    // (consistent within a day/session) but different postcodes spread across the pool
+    // instead of everyone seeing headlines[0] forever.
+    const headlineSeed = `${params.postcode ?? ''}-${journeyKey}`
+    const headline = deterministicPoolPick(fallback.headlines, headlineSeed)
+
+    // Money/utilities: use the real calculateMoney/calculateUtilities figure (which already
+    // reflects whatever profile data we have — home_power, employment status, etc.) instead of
+    // the flat per-category constant, when profile data is available. Falls back to the flat
+    // constant otherwise so this never breaks a call site without profile data handy. Every
+    // other category keeps its existing flat constant for now — same scoping as the headline
+    // variety above, proven on these two first.
+    let gbp = fallback.gbp
+    if ((journeyKey === 'money' || journeyKey === 'utilities') && params.profileData) {
+      const pd = params.profileData
+      const answers: Record<string, string> = {
+        home_power: pd.home_power ?? '',
+        energy_type: pd.home_power ?? '',
+        monthly_cost: '',
+        green_tariff: '',
+      }
+      const employment = normalizeEmploymentStatus(pd.employment_status ?? undefined)
+      const calculated =
+        journeyKey === 'money'
+          ? applyEmploymentFinancialPhysics(calculateMoney(answers), employment, 'money')
+          : applyEmploymentFinancialPhysics(calculateUtilities(answers), employment, 'utilities')
+      if (Number.isFinite(calculated.moneyGbp) && calculated.moneyGbp > 0) {
+        gbp = Math.round(calculated.moneyGbp)
+      }
+    }
+
     // Locality-aware headline always wins here — we're already inside the branch that has a
     // real area label. ZONE_BENTO_HOOK (fully generic, no locality) is only for when there's none.
     return {
-      saving_amount_gbp: fallback.gbp,
-      agent_headline: clampZoneBentoHeadline(fallback.headline, journeyKey, JOURNEY_CARD_HEADLINE_BOUNDS),
+      saving_amount_gbp: gbp,
+      agent_headline: clampZoneBentoHeadline(headline, journeyKey, JOURNEY_CARD_HEADLINE_BOUNDS),
       architect_prose: prose,
       offer_url: trustedUrlForJourney(journeyKey),
       category: journeyKey,
@@ -1826,6 +1899,7 @@ export async function persistResearchResult(params: {
         offerUrl: mergedOffer ?? trustedUrlForJourney(journeyKeyForHeadline),
         localityContext: params.localityContext ?? null,
         postcode: params.postcode ?? null,
+        profileData: params.profileData ?? null,
       })
       if (mechanical) {
         if (savingForDb == null || savingForDb <= 0) {

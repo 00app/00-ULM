@@ -1,8 +1,14 @@
 /**
- * The Rock — exactly 60 habits (9 journey categories × balanced mix) for a 30-day × 2 tips/day trickle.
+ * The Rock — 68 habits (10 journey categories × balanced mix, money + utilities reinforced)
+ * for a 30-day × 2 tips/day trickle.
  *
  * `money_gbp` / `carbon_kg` are indicative annual figures, rounded for UX — anchored to April 2026
  * narrative in `lib/brains/constants.ts` (`MARCH_2026_ECONOMY` unit rates, `TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP`, grid intensity 129 g/kWh).
+ *
+ * `impact_tag` ('money' | 'carbon' | 'both') is the explicit goal-fit tag — prefer it over inferring
+ * from money_gbp/carbon_kg being zero/non-zero, which breaks for tips like pension-esg (carbon-only,
+ * money_gbp: 0 by design, not a data gap). `time_of_day` is a soft hint for future morning/afternoon/
+ * evening display grouping; the daily trickle itself still rotates on `lib/rock/rotation.ts`.
  */
 import type { RockHabit } from '@/lib/rock/types'
 import { resolveRockHabitLearnUrl } from '@/lib/rock/resolveRockHabitLearnUrl'
@@ -10,7 +16,7 @@ import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 import { defaultVerifiedArchitectSuppliedBy } from '@/lib/soloFocusSuppliedBy'
 import { VERIFIED_SOURCE_DATE, resolvePartnerLink, formatVerifiedSourceNameFromLabel } from '@/lib/zone/verifiedRevenue'
 
-export const ROCK_HABIT_COUNT = 60
+export const ROCK_HABIT_COUNT = 68
 
 export const ROCK_HABITS: RockHabit[] = [
   {
@@ -439,10 +445,12 @@ export const ROCK_HABITS: RockHabit[] = [
     slug: 'green-mortgage',
     journey_key: 'money',
     title: 'green mortgage ask',
-    insight: 'Ask your lender if greener retrofits unlock better rates.',
-    money_gbp: 0,
-    carbon_kg: 0,
+    insight: 'Ask your lender if greener retrofits unlock a lower rate — typical green discounts are small but real.',
+    money_gbp: 150,
+    carbon_kg: 10,
     provider_name: 'Barclays',
+    impact_tag: 'money',
+    time_of_day: 'evening',
   },
   {
     slug: 'meter-reads',
@@ -452,6 +460,8 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 35,
     carbon_kg: 0,
     provider_name: 'Ofgem',
+    impact_tag: 'money',
+    time_of_day: 'morning',
   },
   {
     slug: 'tariff-compare',
@@ -461,6 +471,8 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 180,
     carbon_kg: 40,
     provider_name: 'MoneySavingExpert',
+    impact_tag: 'both',
+    time_of_day: 'afternoon',
   },
   {
     slug: 'direct-debit',
@@ -470,6 +482,41 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 50,
     carbon_kg: 0,
     provider_name: 'Citizens Advice',
+    impact_tag: 'money',
+    time_of_day: 'evening',
+  },
+  {
+    slug: 'round-up-savings',
+    journey_key: 'money',
+    title: 'round-up your spending',
+    insight: 'Round-up saving apps sweep spare change into a pot without you noticing it go.',
+    money_gbp: 65,
+    carbon_kg: 0,
+    provider_name: 'Moneybox',
+    impact_tag: 'money',
+    time_of_day: 'morning',
+  },
+  {
+    slug: 'cashback-switch',
+    journey_key: 'money',
+    title: 'cashback on regular spend',
+    insight: 'Route routine online spending through a cashback site before you check out.',
+    money_gbp: 70,
+    carbon_kg: 0,
+    provider_name: 'Quidco',
+    impact_tag: 'money',
+    time_of_day: 'afternoon',
+  },
+  {
+    slug: 'subscription-audit',
+    journey_key: 'money',
+    title: 'audit your subscriptions',
+    insight: 'Forgotten trials and unused subscriptions quietly drain the current account every month.',
+    money_gbp: 120,
+    carbon_kg: 0,
+    provider_name: 'Which?',
+    impact_tag: 'money',
+    time_of_day: 'evening',
   },
   {
     slug: 'thermostat-one',
@@ -597,6 +644,66 @@ export const ROCK_HABITS: RockHabit[] = [
     money_gbp: 0,
     carbon_kg: 5,
     provider_name: 'Which?',
+    impact_tag: 'carbon',
+    time_of_day: 'evening',
+  },
+  {
+    slug: 'standing-charge-check',
+    journey_key: 'utilities',
+    title: 'check your standing charge',
+    insight: 'Standing charges vary by supplier even under the same price cap — compare before you fix.',
+    money_gbp: 40,
+    carbon_kg: 0,
+    provider_name: 'Ofgem',
+    impact_tag: 'money',
+    time_of_day: 'afternoon',
+  },
+  {
+    slug: 'boiler-service-annual',
+    journey_key: 'utilities',
+    title: 'annual boiler service',
+    insight: 'A serviced boiler runs efficiently — a skipped service quietly wastes gas all winter.',
+    money_gbp: 55,
+    carbon_kg: 70,
+    provider_name: 'Gas Safe Register',
+    impact_tag: 'both',
+    time_of_day: 'morning',
+    seasons: ['autumn', 'winter'],
+    applicable: { power_type: ['GAS', 'MIX'] },
+  },
+  {
+    slug: 'off-peak-shift',
+    journey_key: 'utilities',
+    title: 'shift heavy use off-peak',
+    insight: 'Run the washing machine and dishwasher in off-peak hours on a time-of-use tariff.',
+    money_gbp: 65,
+    carbon_kg: 35,
+    provider_name: 'Octopus',
+    impact_tag: 'both',
+    time_of_day: 'evening',
+  },
+  {
+    slug: 'dual-fuel-bundle',
+    journey_key: 'utilities',
+    title: 'bundle gas and electric',
+    insight: 'Dual-fuel deals often undercut buying each fuel separately — compare the bundle price.',
+    money_gbp: 70,
+    carbon_kg: 0,
+    provider_name: 'Uswitch',
+    impact_tag: 'money',
+    time_of_day: 'afternoon',
+    applicable: { power_type: ['GAS', 'MIX'] },
+  },
+  {
+    slug: 'prepayment-to-credit',
+    journey_key: 'utilities',
+    title: 'move off prepayment',
+    insight: 'Credit meters are often cheaper per unit than prepayment — ask your supplier if you qualify.',
+    money_gbp: 100,
+    carbon_kg: 0,
+    provider_name: 'Citizens Advice',
+    impact_tag: 'money',
+    time_of_day: 'evening',
   },
 ]
 
@@ -613,6 +720,16 @@ export const ROCK_BY_SLUG = new Map(ROCK_HABITS.map((h) => [h.slug, h]))
 
 export function rockCardId(slug: string): string {
   return `rock-${slug}`
+}
+
+/** Explicit goal-fit — prefers `impact_tag`; only infers from money_gbp/carbon_kg for older untagged entries. */
+export function resolveRockHabitImpactTag(h: RockHabit): 'money' | 'carbon' | 'both' {
+  if (h.impact_tag) return h.impact_tag
+  const hasMoney = h.money_gbp > 0
+  const hasCarbon = h.carbon_kg > 0
+  if (hasMoney && hasCarbon) return 'both'
+  if (hasCarbon) return 'carbon'
+  return 'money'
 }
 
 export function sumRockLikedImpact(likedCardIds: readonly string[]): { money: number; carbon: number } {

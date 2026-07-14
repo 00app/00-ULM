@@ -48,6 +48,14 @@ const ROCK_SLUG_OFFER_URLS: Partial<Record<string, string>> = {
   'greywater-plants': 'https://www.rhs.org.uk/',
   'heat-pump-check': 'https://www.nesta.org.uk/',
   'direct-debit': 'https://www.citizensadvice.org.uk/consumer/energy/energy-supply/get-help-paying-your-bills/',
+  'round-up-savings': 'https://www.moneybox.com/',
+  'cashback-switch': 'https://www.quidco.com/',
+  'subscription-audit': 'https://www.which.co.uk/reviews/subscription-services',
+  'standing-charge-check': 'https://www.ofgem.gov.uk/energy-price-cap',
+  'boiler-service-annual': 'https://www.gassaferegister.co.uk/',
+  'off-peak-shift': 'https://octopus.energy/smart/',
+  'dual-fuel-bundle': 'https://www.uswitch.com/gas-electricity/',
+  'prepayment-to-credit': 'https://www.citizensadvice.org.uk/consumer/energy/energy-supply/get-help-paying-your-bills/',
 }
 
 function normalizeProviderKey(name: string): string {
@@ -105,6 +113,10 @@ const ROCK_PROVIDER_OFFER_URLS: Record<string, string> = {
   'restart project': 'https://therestartproject.org/',
   refill: 'https://www.refill.org.uk/',
   vinted: 'https://www.vinted.co.uk/',
+  moneybox: 'https://www.moneybox.com/',
+  quidco: 'https://www.quidco.com/',
+  uswitch: 'https://www.uswitch.com/gas-electricity/',
+  'gas safe register': 'https://www.gassaferegister.co.uk/',
 }
 
 /** Host-level topic signals — reject when habit copy clearly targets a different subject. */
@@ -263,6 +275,10 @@ export function rockHabitProviderMatchesUrl(habit: RockHabit, url: string): bool
     [/backmarket/i, /backmarket/],
     [/gov\.uk\/library/i, /libraries/],
     [/gov\.uk/i, /^libraries$/],
+    [/moneybox\.com/i, /moneybox/],
+    [/quidco\.com/i, /quidco/],
+    [/uswitch\.com/i, /uswitch/],
+    [/gassaferegister\.co/i, /gas safe register/],
   ]
 
   for (const [hostRe, provRe] of aliases) {
