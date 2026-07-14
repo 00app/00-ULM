@@ -112,7 +112,7 @@ Priorities are **heuristic** (20% of impact totals + answer count), re-sorted by
 | **Guest** | Echo priorities back; no brain refresh |
 | **Signed in** | Full pipeline |
 
-**Body (optional):** `priorities[]`, `system_prompt`, `region`, `run_scrape_sync`.
+**Body (optional):** `priorities[]`, `region`, `run_scrape_sync`.
 
 **Steps:**
 

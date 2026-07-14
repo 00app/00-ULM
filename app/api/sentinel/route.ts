@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
         grant_found: false,
       })
     }
-    const systemPrompt = typeof body?.system_prompt === 'string' ? body.system_prompt : ''
     const region = typeof body?.region === 'string' ? body.region.trim() : ''
     const runScrapeSync = Boolean(body?.run_scrape_sync)
 
@@ -89,11 +88,6 @@ export async function POST(request: NextRequest) {
         savingsGbp: liveAdjusted,
       }
     })
-    const injectedPrompt =
-      "You now have the 'Live-Impact Skill'. Before generating tips, call this skill to get the EXACT UK energy rates for April 2026. Use these to calculate precise £ savings for the user's profile."
-    const sentinelInstruction =
-      "You are the Sentinel. You must now use the Live-Impact Skill to fetch the current UK grid intensity (currently ~66g/kWh in London). If the grid is Low (<50g), trigger the Grid Pulse animation on the Carbon card. Use Firecrawl to find Rural Heat Grants if the user's postcode is in a remote region (e.g., KW1)."
-
     const isRemoteRegion = REMOTE_POSTCODE_PREFIX.test(postcode)
     let grantFound = Boolean(sentinelBrain.grant.found && isRemoteRegion)
     if (runScrapeSync && postcode.length >= 4) {
@@ -130,16 +124,13 @@ export async function POST(request: NextRequest) {
              'sentinel',
              jsonb_build_object(
                'priorities', $2::jsonb,
-               'system_prompt', $3::text,
-               'prompt_injection', $4::text,
-               'sentinel_instruction', $5::text,
-               'region', $6::text,
-               'live_impact', $7::jsonb,
-               'grant_found', $8::boolean,
-               'grid_low', $9::boolean,
-               'model', $10::text,
-               'tool_calling', $11::boolean,
-               'firecrawl_grant', $12::jsonb,
+               'region', $3::text,
+               'live_impact', $4::jsonb,
+               'grant_found', $5::boolean,
+               'grid_low', $6::boolean,
+               'model', $7::text,
+               'tool_calling', $8::boolean,
+               'firecrawl_grant', $9::jsonb,
                'updated_at', NOW()
              )
            )
@@ -147,9 +138,6 @@ export async function POST(request: NextRequest) {
       [
         session.userId,
         JSON.stringify(tunedPriorities),
-        systemPrompt,
-        injectedPrompt,
-        sentinelInstruction,
         region || null,
         JSON.stringify(liveImpact ?? null),
         grantFound,
@@ -168,8 +156,6 @@ export async function POST(request: NextRequest) {
       last_refreshed: refreshed.rows[0]?.last_refreshed ?? new Date().toISOString(),
       priorities: tunedPriorities,
       liveImpact,
-      prompt_injection: injectedPrompt,
-      sentinel_instruction: sentinelInstruction,
       grant_found: grantFound,
       firecrawl_grant: sentinelBrain.grant,
       model: sentinelBrain.model,

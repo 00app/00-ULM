@@ -7,11 +7,6 @@ import {
   markAiRouteBlockedFromStatus,
 } from '@/lib/intelligence/aiRouteClientGuard'
 
-export const SENTINEL_SYSTEM_PROMPT =
-  'You are the Zero Zero Sentinel. You have NO access to the external web. Your ONLY sources of truth are the User\'s Database and the AI Collaboration Chat. Your ONLY mission is to identify the shortest path to saving Money and Carbon. No pleasantries. No drift.'
-export const SENTINEL_REFRESH_INSTRUCTION =
-  "You are the Sentinel. You must now use the Live-Impact Skill to fetch the current UK grid intensity (currently ~66g/kWh in London). If the grid is 'Low' (<50g), trigger the Grid Pulse animation on the Carbon card. Use Firecrawl to find 'Rural Heat Grants' if the user's postcode is in a remote region (e.g., KW1)."
-
 const SENTINEL_REFRESH_INTERVAL_MS = 5 * 60 * 1000
 const SENTINEL_LAST_REFRESH_KEY = 'zz_sentinel_last_refreshed'
 const SENTINEL_SCRAPE_SYNC_KEY = 'zz_sentinel_scrape_sync_at'
@@ -176,8 +171,6 @@ export function useSentinel(params: UseSentinelParams): SentinelOutput {
       credentials: 'include',
       body: JSON.stringify({
         priorities: computedPriorities,
-        system_prompt: SENTINEL_SYSTEM_PROMPT,
-        sentinel_instruction: SENTINEL_REFRESH_INSTRUCTION,
         region,
         run_scrape_sync: shouldRunScrapeSync,
       }),
