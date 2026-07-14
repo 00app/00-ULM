@@ -191,6 +191,8 @@ export function buildGuardrailedResearchProfile(
   set('household_income_bracket', signals.household_income_bracket)
   set('goal', signals.goal)
   set('primary_goal', signals.primary_goal)
+  set('wash_preference', values.washPreference ?? values.wash_preference)
+  set('flight_frequency', values.flightFrequency ?? values.flight_frequency)
   if (age) out.age_group = age
   if (signals.imd_decile != null) out.imd_decile = String(signals.imd_decile)
   if (signals.property_value_band) out.property_value_band = signals.property_value_band

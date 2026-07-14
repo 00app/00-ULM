@@ -32,6 +32,8 @@ export function buildResearchProfileFromStorage(opts?: { postcode?: string }): R
       goal: stored.goal,
       age: stored.age,
       household_income_bracket: stored.household_income_bracket,
+      washPreference: stored.wash_preference,
+      flightFrequency: stored.flight_frequency,
     },
     { postcode: opts?.postcode ?? stored.postcode }
   )

@@ -42,6 +42,8 @@ const BASE_PROFILE = {
   homeOwnership: 'OWNER',
   powerType: 'gas_electric',
   transport: 'car',
+  washPreference: 'SHOWER',
+  flightFrequency: 'ONE_TWO',
   age: 'MID',
   employmentStatus: 'EMPLOYED',
   goal: 'money',

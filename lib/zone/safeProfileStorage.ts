@@ -70,6 +70,8 @@ export function readProfileFieldsFromStorage(): {
   employment_status?: string
   goal?: string
   household_income_bracket?: string
+  wash_preference?: string
+  flight_frequency?: string
 } {
   return {
     name: safeGetItem('profile_name') ?? undefined,
@@ -83,5 +85,7 @@ export function readProfileFieldsFromStorage(): {
     employment_status: safeGetItem('profile_employment_status') ?? undefined,
     goal: safeGetItem('profile_goal') ?? undefined,
     household_income_bracket: safeGetItem('profile_household_income_bracket') ?? undefined,
+    wash_preference: safeGetItem('profile_wash_preference') ?? undefined,
+    flight_frequency: safeGetItem('profile_flight_frequency') ?? undefined,
   }
 }

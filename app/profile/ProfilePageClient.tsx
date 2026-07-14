@@ -111,6 +111,28 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
       v === 'WALK' || v === 'BIKE' ? 'no fuel spend. that\'s a real\nadvantage.' : null,
   },
   {
+    id: 'washPreference',
+    label: 'bath or shower,\nmostly?',
+    type: 'options' as const,
+    options: ['SHOWER', 'BATH', 'BOTH'],
+    getInsight: (v) =>
+      v === 'BATH' ? 'baths use more hot water —\nreal room to save.' :
+      v === 'SHOWER' ? 'showers already keep your\nwater bill lean.' : null,
+  },
+  {
+    id: 'flightFrequency',
+    label: 'how many flights\na year, roughly?',
+    type: 'options' as const,
+    options: [
+      'NONE',
+      { label: 'ONE OR\nTWO', value: 'ONE_TWO', ariaLabel: 'One or two' },
+      { label: 'THREE+', value: 'THREE_PLUS', ariaLabel: 'Three or more' },
+    ],
+    getInsight: (v) =>
+      v === 'THREE_PLUS' ? 'frequent flying is the biggest\nlever on this page.' :
+      v === 'NONE' ? 'no flights. your holiday footprint\nis already low.' : null,
+  },
+  {
     id: 'age',
     label: 'stage in life?',
     type: 'options' as const,
@@ -165,6 +187,8 @@ function syncLocalStorageFromServerUser(user: Record<string, unknown> | undefine
   if (genome) {
     setIfString(STORAGE_KEYS.powerType, genome.home_power)
     setIfString(STORAGE_KEYS.homeOwnership, genome.home_ownership)
+    setIfString(STORAGE_KEYS.washPreference, genome.wash_preference)
+    setIfString(STORAGE_KEYS.flightFrequency, genome.flight_frequency)
     const goal = genome.profile_goal ?? genome.goal
     if (typeof goal === 'string' && goal.trim()) {
       try {
@@ -667,6 +691,8 @@ export default function ProfilePageClient() {
             house_number: mergedValues.houseNumber?.trim() || undefined,
             home_power: mergedValues.powerType?.trim() || undefined,
             home_ownership: mergedValues.homeOwnership?.trim() || undefined,
+            wash_preference: mergedValues.washPreference?.trim() || undefined,
+            flight_frequency: mergedValues.flightFrequency?.trim() || undefined,
           }
           const profileData = buildResearchProfilePayload(mergedValues, { postcode: pc })
 

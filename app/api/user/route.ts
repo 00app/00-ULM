@@ -77,6 +77,24 @@ export async function POST(request: NextRequest) {
         : ''
     const home_ownership =
       homeOwnershipRaw === 'OWNER' || homeOwnershipRaw === 'RENTER' ? homeOwnershipRaw : null
+    const washPreferenceRaw =
+      typeof body?.wash_preference === 'string'
+        ? body.wash_preference.trim().toUpperCase().slice(0, 16)
+        : ''
+    const wash_preference =
+      washPreferenceRaw === 'SHOWER' || washPreferenceRaw === 'BATH' || washPreferenceRaw === 'BOTH'
+        ? washPreferenceRaw
+        : null
+    const flightFrequencyRaw =
+      typeof body?.flight_frequency === 'string'
+        ? body.flight_frequency.trim().toUpperCase().slice(0, 16)
+        : ''
+    const flight_frequency =
+      flightFrequencyRaw === 'NONE' ||
+      flightFrequencyRaw === 'ONE_TWO' ||
+      flightFrequencyRaw === 'THREE_PLUS'
+        ? flightFrequencyRaw
+        : null
 
     const raw = {
       name: typeof body?.name === 'string' ? body.name.trim().slice(0, 200) : '',
@@ -120,6 +138,8 @@ export async function POST(request: NextRequest) {
     if (houseNumber) genomeObj.house_number = houseNumber
     if (home_power) genomeObj.home_power = home_power
     if (home_ownership) genomeObj.home_ownership = home_ownership
+    if (wash_preference) genomeObj.wash_preference = wash_preference
+    if (flight_frequency) genomeObj.flight_frequency = flight_frequency
     const genome = JSON.stringify(genomeObj)
 
     const insertParams = [

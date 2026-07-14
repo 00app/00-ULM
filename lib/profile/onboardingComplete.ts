@@ -11,6 +11,8 @@ export const PROFILE_STORAGE_KEYS = {
   homeOwnership: 'profile_home_ownership',
   powerType: 'profile_home_power',
   transport: 'profile_transport',
+  washPreference: 'profile_wash_preference',
+  flightFrequency: 'profile_flight_frequency',
   age: 'profile_age',
   employmentStatus: 'profile_employment_status',
 } as const
@@ -24,6 +26,8 @@ export type ProfileOnboardingFields = {
   homeOwnership?: string
   powerType?: string
   transport?: string
+  washPreference?: string
+  flightFrequency?: string
   age?: string
   employmentStatus?: string
   goal?: string
@@ -43,6 +47,8 @@ export function isProfileOnboardingCompleteFields(v: ProfileOnboardingFields): b
     Boolean(v.homeOwnership?.trim()) &&
     Boolean(v.powerType?.trim()) &&
     Boolean(v.transport?.trim()) &&
+    Boolean(v.washPreference?.trim()) &&
+    Boolean(v.flightFrequency?.trim()) &&
     Boolean(v.age?.trim()) &&
     Boolean(v.employmentStatus?.trim()) &&
     Boolean(resolveProfileGoalFromFields(v))
@@ -67,6 +73,8 @@ export function profileFieldsFromStorage(): ProfileOnboardingFields {
     homeOwnership: read(PROFILE_STORAGE_KEYS.homeOwnership),
     powerType: read(PROFILE_STORAGE_KEYS.powerType),
     transport: read(PROFILE_STORAGE_KEYS.transport),
+    washPreference: read(PROFILE_STORAGE_KEYS.washPreference),
+    flightFrequency: read(PROFILE_STORAGE_KEYS.flightFrequency),
     age: read(PROFILE_STORAGE_KEYS.age),
     employmentStatus: read(PROFILE_STORAGE_KEYS.employmentStatus),
     goal: readStoredProfileGoal(),
@@ -111,6 +119,14 @@ export function userRowOnboardingComplete(row: UserOnboardingRow | null | undefi
     (typeof genome.home_ownership === 'string' && genome.home_ownership.trim()) ||
     (typeof genome.homeOwnership === 'string' && genome.homeOwnership.trim()) ||
     ''
+  const washPreference =
+    (typeof genome.wash_preference === 'string' && genome.wash_preference.trim()) ||
+    (typeof genome.washPreference === 'string' && genome.washPreference.trim()) ||
+    ''
+  const flightFrequency =
+    (typeof genome.flight_frequency === 'string' && genome.flight_frequency.trim()) ||
+    (typeof genome.flightFrequency === 'string' && genome.flightFrequency.trim()) ||
+    ''
   const age =
     (typeof row.age_group === 'string' && row.age_group.trim()) ||
     (typeof genome.age_group === 'string' && genome.age_group.trim()) ||
@@ -124,6 +140,8 @@ export function userRowOnboardingComplete(row: UserOnboardingRow | null | undefi
     homeOwnership: homeOwnership || undefined,
     powerType: homePower || undefined,
     transport: row.transport_baseline ?? undefined,
+    washPreference: washPreference || undefined,
+    flightFrequency: flightFrequency || undefined,
     age: age || undefined,
     employmentStatus: row.employment_status ?? undefined,
     goal: goal || undefined,
@@ -141,6 +159,8 @@ export function guestProfileOnboardingComplete(profile: unknown): boolean {
     homeOwnership: String(p.home_ownership ?? p.homeOwnership ?? ''),
     powerType: String(p.home_power ?? p.homePower ?? p.powerType ?? ''),
     transport: String(p.transport ?? p.transport_baseline ?? ''),
+    washPreference: String(p.wash_preference ?? p.washPreference ?? ''),
+    flightFrequency: String(p.flight_frequency ?? p.flightFrequency ?? ''),
     age: String(p.age ?? p.age_group ?? ''),
     employmentStatus: String(p.employment_status ?? p.employmentStatus ?? ''),
     goal: String(p.goal ?? ''),

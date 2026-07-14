@@ -84,6 +84,8 @@ import {
   calculateShopping,
   calculateTech,
   calculateWaste,
+  calculateWater,
+  calculateHolidays,
   applyEmploymentFinancialPhysics,
   normalizeEmploymentStatus,
 } from '@/lib/brains/calculations'
@@ -141,6 +143,10 @@ export interface ResearchProfileData {
   employment_status?: string | null
   household_income_bracket?: string | null
   primary_goal?: string | null
+  /** Bath/shower/both — feeds calculateWater's wash_preference branch. */
+  wash_preference?: string | null
+  /** none/one_two/three_plus flights a year — feeds calculateHolidays' annual_flights branch. */
+  flight_frequency?: string | null
   /** Optional house number / name for EPC address disambiguation at postcode. */
   house_number?: string | null
   [key: string]: string | null | undefined
@@ -1606,12 +1612,16 @@ function mechanicalCategoryTripletFallback(params: {
     // Honest scoping — not every category can genuinely vary yet:
     //  - money, utilities, home: branch on home_power (energy_type) — real variation.
     //  - travel: branches on transport_baseline (primary_transport) — real variation.
+    //  - water: branches on the wash_preference onboarding question (bath/shower/both) — real variation.
+    //  - holidays: branches on the flight_frequency onboarding question (none/one_two/three_plus) — real variation.
     //  - food, shopping, tech, waste: their calculators key on per-journey answers (diet_profile,
     //    retail_channel, smart_thermostat, composting…) that don't exist until a user answers
     //    that journey directly — not available here. They still get `applyEmploymentFinancialPhysics`,
     //    which is a small (4–5%) but genuine adjustment for specific employment/journey combos.
-    //  - solar, water, holidays, carbon: no profile field feeds their calculators at all — the
-    //    flat constant stays untouched here on purpose rather than faking personalisation.
+    //  - solar, carbon: no profile field feeds their calculators at all (solar needs roof data,
+    //    carbon needs footprint-tracking answers) — the flat constant stays untouched here on
+    //    purpose rather than faking personalisation. Solar is additionally gated by tenure
+    //    elsewhere (renters can't act on it) rather than needing its own onboarding question.
     let gbp = fallback.gbp
     if (params.profileData) {
       const pd = params.profileData
@@ -1651,6 +1661,24 @@ function mechanicalCategoryTripletFallback(params: {
           employment,
           'travel'
         ).moneyGbp
+      } else if (journeyKey === 'water') {
+        const answers: Record<string, string> = {
+          wash_preference: pd.wash_preference ?? '',
+        }
+        calculatedMoneyGbp = applyEmploymentFinancialPhysics(
+          calculateWater(answers),
+          employment,
+          'water'
+        ).moneyGbp
+      } else if (journeyKey === 'holidays') {
+        const answers: Record<string, string> = {
+          annual_flights: pd.flight_frequency ?? '',
+        }
+        calculatedMoneyGbp = applyEmploymentFinancialPhysics(
+          calculateHolidays(answers),
+          employment,
+          'holidays'
+        ).moneyGbp
       } else if (
         journeyKey === 'food' ||
         journeyKey === 'shopping' ||
@@ -1668,7 +1696,15 @@ function mechanicalCategoryTripletFallback(params: {
         calculatedMoneyGbp = applyEmploymentFinancialPhysics(baseResult, employment, journeyKey).moneyGbp
       }
 
-      if (calculatedMoneyGbp != null && Number.isFinite(calculatedMoneyGbp) && calculatedMoneyGbp > 0) {
+      // A calculated £0 usually means "no input data" (treat as missing, keep the flat constant
+      // below rather than show a fake £0) — except holidays, where "NONE" flights is a real,
+      // deliberately-answered £0 that should override the flat constant rather than be discarded.
+      const zeroIsMeaningful = journeyKey === 'holidays' && (pd.flight_frequency ?? '').trim() !== ''
+      if (
+        calculatedMoneyGbp != null &&
+        Number.isFinite(calculatedMoneyGbp) &&
+        (calculatedMoneyGbp > 0 || zeroIsMeaningful)
+      ) {
         gbp = Math.round(calculatedMoneyGbp)
       }
     }
