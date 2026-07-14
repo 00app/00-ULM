@@ -9,6 +9,7 @@ import {
   ZaiSparkIcon,
 } from '@/app/components/ui/MonoStrokeIcons'
 import { ROUTES } from '@/lib/routes'
+import { isZaiChatEnabled } from '@/lib/featureFlags'
 
 interface FloatingNavProps {
   active: 'likes' | 'zone' | 'summary' | 'chat'
@@ -86,7 +87,7 @@ export default function FloatingNav({
       aria-label="Main"
     >
       {navLink('likes', active === 'likes', <HeartOutlineIcon size={ICON_SIZE} />)}
-      {navLink('chat', active === 'chat', null, 'zai')}
+      {isZaiChatEnabled() ? navLink('chat', active === 'chat', null, 'zai') : null}
       {navLink('summary', active === 'summary', <ProfileOutlineIcon size={ICON_SIZE} />)}
     </div>
   )

@@ -50,6 +50,7 @@ import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
 import { injectNewDiscoveryCard } from '@/lib/discoveryInject'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
+import { isZaiChatEnabled, isDislikeEnabled } from '@/lib/featureFlags'
 import {
   PRICE_CAP_APRIL_2026,
   PRICE_CAP_MARCH_2026,
@@ -963,8 +964,8 @@ export function SoloFocusOverlay({
                           String(activeCardId || cardId || '')
                         )}
                         onLike={handleTrinityLike}
-                        onAskZai={handleTrinityAskZai}
-                        onDislike={handleTrinityDislike}
+                        onAskZai={isZaiChatEnabled() ? handleTrinityAskZai : undefined}
+                        onDislike={isDislikeEnabled() ? handleTrinityDislike : undefined}
                         onCtaClick={handleTrinityCta}
                       />
                       {(onNavigateJourney || onNavigateSoloFocus) && journeyId ? (

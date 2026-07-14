@@ -78,6 +78,12 @@ import {
 import {
   calculateMoney,
   calculateUtilities,
+  calculateHome,
+  calculateTravel,
+  calculateFood,
+  calculateShopping,
+  calculateTech,
+  calculateWaste,
   applyEmploymentFinancialPhysics,
   normalizeEmploymentStatus,
 } from '@/lib/brains/calculations'
@@ -1448,7 +1454,13 @@ function mechanicalCategoryTripletFallback(params: {
     const fallbacks: Record<string, { gbp: number; headlines: string[]; prose: string }> = {
       home: {
         gbp: 180,
-        headlines: [`seal draughts and loft gaps in ${areaTag} homes first`],
+        headlines: [
+          `seal draughts and loft gaps in ${areaTag} homes first`,
+          `fix the fabric before the boiler in ${areaTag}`,
+          `loft and draught checks pay back fastest in ${areaTag}`,
+          `stop paying to heat the outside in ${areaTag}`,
+          `a weekend of sealing beats a new ${areaTag} boiler quote`,
+        ],
         prose: `Older homes in ${areaLabel} leak heat through lofts, draughts, and lagging gaps — sealing those cuts bills before you chase a new boiler.\n\nJuly 2026 bills still track the energy price cap (~£${capTypical}/yr typical dual-fuel) so every wasted kWh hurts until fabric is fixed.\n\nUse the link below to plan loft and draught-proofing work before winter.`,
       },
       utilities: {
@@ -1464,27 +1476,57 @@ function mechanicalCategoryTripletFallback(params: {
       },
       solar: {
         gbp: 450,
-        headlines: [`size solar panels to your roof in ${areaTag} now`],
+        headlines: [
+          `size solar panels to your roof in ${areaTag} now`,
+          `a roof survey beats guessing on ${areaTag} solar`,
+          `daytime use decides solar payback in ${areaTag}`,
+          `check export rates before you fit solar in ${areaTag}`,
+          `an MCS quote is the first real step in ${areaTag}`,
+        ],
         prose: `Solar in ${areaLabel} pays when generation, export rate, and daytime use align — typical homes cut import costs once an MCS install is sized to the roof.\n\nJuly 2026 import rates still follow the price-cap frame (~£${capTypical}/yr typical dual-fuel), so export and self-use matter for what you buy overnight.\n\nUse the link below to compare export tariffs with your supplier before you lock an install quote.`,
       },
       travel: {
         gbp: 450,
-        headlines: [`swap one weekly car commute for rail in ${areaTag}`],
+        headlines: [
+          `swap one weekly car commute for rail in ${areaTag}`,
+          `one fewer car trip a week pays off in ${areaTag}`,
+          `check the season ticket price before you fuel up in ${areaTag}`,
+          `rail beats ad-hoc fuel top-ups from ${areaTag}`,
+          `a single weekly swap trims the ${areaTag} commute bill`,
+        ],
         prose: `Around ${areaLabel}, one regular car commute is often the priciest habit on your travel row — a single rail or bus day each week is a gentle first swap.\n\nLocal timetables and season tickets still beat ad-hoc fuel top-ups when you plan the same journey twice.\n\nUse the link below to check rail or bus options for your usual route before you renew insurance or fuel cards.`,
       },
       holidays: {
         gbp: 250,
-        headlines: [`cut flights from ${areaTag} with more local rail trips`],
+        headlines: [
+          `cut flights from ${areaTag} with more local rail trips`,
+          `one less return flight a year from ${areaTag}`,
+          `rail over short-haul flights from ${areaTag}`,
+          `compare the train before you book from ${areaTag}`,
+          `fewer flights, same breaks, from ${areaTag}`,
+        ],
         prose: `Holidays from ${areaLabel} carry a heavy footprint — fewer flights and rail over short hops cuts both kg and spend.\n\nOne less return flight a year often saves hundreds before airline surcharges climb again.\n\nUse the link below to compare flight vs rail for your next break before you book.`,
       },
       food: {
         gbp: 180,
-        headlines: [`plan meals from your fridge to cut ${areaTag} waste`],
+        headlines: [
+          `plan meals from your fridge to cut ${areaTag} waste`,
+          `a weekly meal plan trims the ${areaTag} food bill`,
+          `stop buying what you bin in ${areaTag}`,
+          `two meat-free meals a week for ${areaTag} households`,
+          `shop your fridge first in ${areaTag} this week`,
+        ],
         prose: `Food budgets in ${areaLabel} leak cash through packaging and waste — a tighter weekly basket plan lands savings at the till.\n\nLow-waste, plant-rich meals aligned with local shops often trim ~£180/yr without a loyalty gimmick.\n\nUse the link below to try a meal planner and cut what you throw away each week.`,
       },
       shopping: {
         gbp: 110,
-        headlines: [`repair before you replace home items in ${areaTag} again`],
+        headlines: [
+          `repair before you replace home items in ${areaTag} again`,
+          `second-hand first for ${areaTag} households`,
+          `fix it before you bin it in ${areaTag}`,
+          `a repair shop beats a new order in ${areaTag}`,
+          `consolidate deliveries to save in ${areaTag}`,
+        ],
         prose: `Shopping in ${areaLabel} rewards repair-over-replace — second-hand and fix-it shops beat fast-fashion churn on both £ and kg.\n\nShifting a few purchases to circular outlets can move ~£110/yr without changing your whole wardrobe.\n\nUse the link below to find repair shops or low-waste retailers near you.`,
       },
       money: {
@@ -1500,22 +1542,46 @@ function mechanicalCategoryTripletFallback(params: {
       },
       tech: {
         gbp: 140,
-        headlines: [`cut standby power on devices around your ${areaTag} home`],
+        headlines: [
+          `cut standby power on devices around your ${areaTag} home`,
+          `a smart thermostat pays back fast in ${areaTag}`,
+          `stop paying for standby in ${areaTag} homes`,
+          `a smart meter ends estimated bills in ${areaTag}`,
+          `one degree down on a smart stat saves in ${areaTag}`,
+        ],
         prose: `Smart meters and thermostats in ${areaLabel} trim bills fast under the April 2026 cap frame.\n\nHeating empty rooms or running an old boiler quietly adds ~£140/yr — timers and zoning fix that.\n\nUse the link below to see if your supplier offers free smart meter installs locally.`,
       },
       water: {
         gbp: 90,
-        headlines: [`fix drips and fit aerators in your ${areaTag} home`],
+        headlines: [
+          `fix drips and fit aerators in your ${areaTag} home`,
+          `a shower aerator pays back in weeks in ${areaTag}`,
+          `stop a dripping tap costing you in ${areaTag}`,
+          `a water butt cuts the ${areaTag} garden bill`,
+          `claim free water-saving kit in ${areaTag}`,
+        ],
         prose: `Water bills in ${areaLabel} keep rising on sewage and metered tariffs — conservation pays back quickly.\n\nRain butts and shower aerators can shave ~£90/yr off metered volume.\n\nUse the link below to claim free water-saving inserts from your water company.`,
       },
       waste: {
         gbp: 70,
-        headlines: [`sort recycling and compost at your ${areaTag} home today`],
+        headlines: [
+          `sort recycling and compost at your ${areaTag} home today`,
+          `composting cuts the ${areaTag} bin and the bill`,
+          `soft plastics have a home now in ${areaTag}`,
+          `check your council's ${areaTag} collection rules`,
+          `a steady sort-and-compost habit for ${areaTag}`,
+        ],
         prose: `Waste rules in ${areaLabel} follow local council collections — sorting soft plastics and composting cuts landfill trips.\n\nA steady compost and recycling habit can save ~£70/yr in bags, trips, and contamination fines.\n\nUse the link below to confirm collection dates and rules for your street.`,
       },
       carbon: {
         gbp: 100,
-        headlines: [`track your biggest home habit each month in ${areaTag} living`],
+        headlines: [
+          `track your biggest home habit each month in ${areaTag} living`,
+          `log heat, travel and food for a fortnight in ${areaTag}`,
+          `find your easiest win against the ${areaTag} baseline`,
+          `a fortnight of tracking beats guessing in ${areaTag}`,
+          `see where your ${areaTag} footprint really sits`,
+        ],
         prose: `Carbon tracking in ${areaLabel} maps to the 12,000 kWh ≈ 1 tonne baseline — small daily cuts compound.\n\nLogging heat, travel, and food for a fortnight often finds ~£100/yr of easy wins.\n\nUse the link below to run your household footprint against the national timeline.`,
       },
     }
@@ -1532,28 +1598,78 @@ function mechanicalCategoryTripletFallback(params: {
     const headlineSeed = `${params.postcode ?? ''}-${journeyKey}`
     const headline = deterministicPoolPick(fallback.headlines, headlineSeed)
 
-    // Money/utilities: use the real calculateMoney/calculateUtilities figure (which already
-    // reflects whatever profile data we have — home_power, employment status, etc.) instead of
-    // the flat per-category constant, when profile data is available. Falls back to the flat
-    // constant otherwise so this never breaks a call site without profile data handy. Every
-    // other category keeps its existing flat constant for now — same scoping as the headline
-    // variety above, proven on these two first.
+    // Real per-user £ figure instead of the flat per-category constant, when profile data is
+    // available and the category's calculation actually branches on fields we have (home_power,
+    // transport_baseline, employment_status). Falls back to the flat constant whenever the
+    // calculated result is 0/invalid, so this never breaks or shows a fake £0 to a user.
+    //
+    // Honest scoping — not every category can genuinely vary yet:
+    //  - money, utilities, home: branch on home_power (energy_type) — real variation.
+    //  - travel: branches on transport_baseline (primary_transport) — real variation.
+    //  - food, shopping, tech, waste: their calculators key on per-journey answers (diet_profile,
+    //    retail_channel, smart_thermostat, composting…) that don't exist until a user answers
+    //    that journey directly — not available here. They still get `applyEmploymentFinancialPhysics`,
+    //    which is a small (4–5%) but genuine adjustment for specific employment/journey combos.
+    //  - solar, water, holidays, carbon: no profile field feeds their calculators at all — the
+    //    flat constant stays untouched here on purpose rather than faking personalisation.
     let gbp = fallback.gbp
-    if ((journeyKey === 'money' || journeyKey === 'utilities') && params.profileData) {
+    if (params.profileData) {
       const pd = params.profileData
-      const answers: Record<string, string> = {
-        home_power: pd.home_power ?? '',
-        energy_type: pd.home_power ?? '',
-        monthly_cost: '',
-        green_tariff: '',
-      }
       const employment = normalizeEmploymentStatus(pd.employment_status ?? undefined)
-      const calculated =
-        journeyKey === 'money'
-          ? applyEmploymentFinancialPhysics(calculateMoney(answers), employment, 'money')
-          : applyEmploymentFinancialPhysics(calculateUtilities(answers), employment, 'utilities')
-      if (Number.isFinite(calculated.moneyGbp) && calculated.moneyGbp > 0) {
-        gbp = Math.round(calculated.moneyGbp)
+      let calculatedMoneyGbp: number | null = null
+
+      if (journeyKey === 'money' || journeyKey === 'utilities') {
+        const answers: Record<string, string> = {
+          home_power: pd.home_power ?? '',
+          energy_type: pd.home_power ?? '',
+          monthly_cost: '',
+          green_tariff: '',
+        }
+        const calculated =
+          journeyKey === 'money'
+            ? applyEmploymentFinancialPhysics(calculateMoney(answers), employment, 'money')
+            : applyEmploymentFinancialPhysics(calculateUtilities(answers), employment, 'utilities')
+        calculatedMoneyGbp = calculated.moneyGbp
+      } else if (journeyKey === 'home') {
+        const answers: Record<string, string> = {
+          home_power: pd.home_power ?? '',
+          energy_type: pd.home_power ?? '',
+          monthly_cost: '',
+          green_tariff: '',
+        }
+        calculatedMoneyGbp = applyEmploymentFinancialPhysics(
+          calculateHome(answers),
+          employment,
+          'home'
+        ).moneyGbp
+      } else if (journeyKey === 'travel') {
+        const answers: Record<string, string> = {
+          primary_transport: pd.transport_baseline ?? '',
+        }
+        calculatedMoneyGbp = applyEmploymentFinancialPhysics(
+          calculateTravel(answers, pd.transport_baseline ?? undefined),
+          employment,
+          'travel'
+        ).moneyGbp
+      } else if (
+        journeyKey === 'food' ||
+        journeyKey === 'shopping' ||
+        journeyKey === 'tech' ||
+        journeyKey === 'waste'
+      ) {
+        const baseResult =
+          journeyKey === 'food'
+            ? calculateFood({})
+            : journeyKey === 'shopping'
+              ? calculateShopping({})
+              : journeyKey === 'tech'
+                ? calculateTech({})
+                : calculateWaste({})
+        calculatedMoneyGbp = applyEmploymentFinancialPhysics(baseResult, employment, journeyKey).moneyGbp
+      }
+
+      if (calculatedMoneyGbp != null && Number.isFinite(calculatedMoneyGbp) && calculatedMoneyGbp > 0) {
+        gbp = Math.round(calculatedMoneyGbp)
       }
     }
 

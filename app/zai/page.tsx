@@ -34,6 +34,8 @@ import {
 import { ZAI_FALLBACK_CONNECTING } from '@/lib/zai/chatBoundaries'
 import { polishZaiBodyCopy } from '@/lib/zai/polishBodyCopy'
 import Link from 'next/link'
+import { isZaiChatEnabled } from '@/lib/featureFlags'
+import { ROUTES } from '@/lib/routes'
 
 const ZAI_FALLBACK = ZAI_FALLBACK_CONNECTING
 
@@ -139,6 +141,12 @@ function syncZaiLikeStorage(meta: ZaiChatMeta, liked: boolean, postcode?: string
 export default function ZaiPage() {
   const router = useRouter()
   const reduceMotion = useHydrationSafeReducedMotion()
+
+  // Zai chat is paused (feature flag) — bounce direct navigation/bookmarks (e.g. old links) to Zone.
+  useEffect(() => {
+    if (!isZaiChatEnabled()) router.replace(ROUTES.ZONE)
+  }, [router])
+
   const { state, toggleLike } = useApp()
   const pageEnter = familyPageEnterProps(reduceMotion)
   const msgMotion = familyAtomicProps(reduceMotion)
@@ -372,6 +380,11 @@ export default function ZaiPage() {
     },
     [state.likedCards, toggleLike, router, postcode, state.profile?.postcode]
   )
+
+  // Zai chat is paused (feature flag) — bounce direct navigation/bookmarks back to Zone.
+  // The redirect itself lives in the useEffect below (declared alongside the component's other
+  // hooks, unconditionally); this is just the render-output bail-out, not a hook.
+  if (!isZaiChatEnabled()) return null
 
   return (
     <motion.div

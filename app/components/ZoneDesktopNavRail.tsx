@@ -11,6 +11,7 @@ import {
   ProfileOutlineIcon,
   ZaiSparkIcon,
 } from '@/app/components/ui/MonoStrokeIcons'
+import { isZaiChatEnabled } from '@/lib/featureFlags'
 
 const ICON_SIZE = 18
 
@@ -33,7 +34,7 @@ export default function ZoneDesktopNavRail({ visible = true }: { visible?: boole
   const rail = (
     <nav className="zone-desktop-nav-rail" aria-label="Zone shortcuts" data-testid="zone-desktop-nav-rail">
       {item('Likes', ROUTES.LIKES, <HeartOutlineIcon size={ICON_SIZE} />)}
-      {item('Ask Zai', ROUTES.ZAI, <ZaiSparkIcon size={ICON_SIZE} />)}
+      {isZaiChatEnabled() ? item('Ask Zai', ROUTES.ZAI, <ZaiSparkIcon size={ICON_SIZE} />) : null}
       {item('Settings', ROUTES.SETTINGS, <ProfileOutlineIcon size={ICON_SIZE} />)}
     </nav>
   )

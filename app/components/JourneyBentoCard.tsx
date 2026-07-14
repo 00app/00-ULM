@@ -29,6 +29,7 @@ import { SoloFocusProseStack } from '@/app/components/SoloFocusProseStack'
 import { SoloFocusMotherStack } from '@/app/components/SoloFocusMotherStack'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
+import { isZaiChatEnabled, isDislikeEnabled } from '@/lib/featureFlags'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSoloFocusHandoffAttribution } from '@/lib/soloFocusSuppliedBy'
@@ -1142,8 +1143,8 @@ export function JourneyBentoCard({
                       String(activeCardId || cardId || '')
                     )}
                     onLike={onLike ? handleTrinityLike : undefined}
-                    onAskZai={showAskZaiTrinity || _onAskZai ? handleTrinityAskZai : undefined}
-                    onDislike={handleTrinityDislike}
+                    onAskZai={isZaiChatEnabled() && (showAskZaiTrinity || _onAskZai) ? handleTrinityAskZai : undefined}
+                    onDislike={isDislikeEnabled() ? handleTrinityDislike : undefined}
                     onCtaClick={handleTrinityCta}
                   />
                   {onNavigateJourney || onNavigateSoloFocus ? (

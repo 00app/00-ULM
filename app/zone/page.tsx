@@ -58,6 +58,7 @@ import { resolveZoneCardOfferUrl } from '@/lib/zone/zoneOfferUrl'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { ROUTES } from '@/lib/routes'
+import { isZaiChatEnabled } from '@/lib/featureFlags'
 import { useCountUp } from '@/lib/utils/useCountUp'
 import {
   ZONE_BENTO_CELL_VARIANTS,
@@ -3606,7 +3607,7 @@ export default function ZonePage({
           />
         ) : null}
 
-        {isZoneVisible && !zoneHandoffStaging && !isFocusViewOpen && !loopTakeoverOpen ? (
+        {isZaiChatEnabled() && isZoneVisible && !zoneHandoffStaging && !isFocusViewOpen && !loopTakeoverOpen ? (
           <ZoneAskZaiDock onActivate={() => router.push(ROUTES.ZAI)} />
         ) : null}
 
