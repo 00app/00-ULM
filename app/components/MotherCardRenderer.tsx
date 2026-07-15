@@ -87,7 +87,9 @@ export function MotherCardRenderer({
         </div>
         <div className="solo-focus-data-stack data-stack data-stack--tight data-stack--secondary solo-focus-carbon-stack">
           <span className="data-label" style={{ color: 'var(--color-ink)' }}>
-            CO<span className="data-co2-sub">2</span> OFFSET
+            {/* "Offset" implies paying someone else to compensate — this app only ever shows
+                CO2 avoided by the user's own behaviour change, never a purchased offset. */}
+            CO<span className="data-co2-sub">2</span> Saving
           </span>
           <span className="data-value solo-focus-data-value data-stamp-metric" style={{ color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums' }}>
             <StampedCarbonKg kg={carbonKg} omitCo2Suffix />

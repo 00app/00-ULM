@@ -7,7 +7,7 @@ import { useApp, type ProfileAge } from '@/app/context/AppContext'
 import { buildZoneViewModel } from '@/lib/logic/zone'
 import type { ZoneViewModel, ZoneJourneyCard, ZoneTipCard } from '@/lib/logic/zone'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
-import { getJourneyColorHex } from '@/lib/journeyColors'
+import { getJourneyColorHex, getJourneyCardTextHex } from '@/lib/journeyColors'
 import { parseMoneyGbpFromDisplay, parseCarbonKgFromDisplay } from '@/lib/format'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { motion } from 'framer-motion'
@@ -30,6 +30,10 @@ type LikedCardEntry = {
   actions?: { actionUrl?: string; learnUrl?: string }
 }
 
+// Card fill is purple for every journey (see EMOTION_GRID_HEX "purple flip") — this list only
+// varies which CTA fill colour (pink vs yellow) a given journey's action button gets. It must
+// NOT be used to pick body-text colour: that caused headline/stat text to render purple-on-purple
+// (invisible) for these five journeys. Use getJourneyCardTextHex() for text colour instead.
 const YELLOW_JOURNEY_IDS: JourneyId[] = ['home', 'food', 'money', 'tech', 'holidays']
 
 export default function LikesPage() {
@@ -229,7 +233,7 @@ export default function LikesPage() {
             const journeyKey = card.journey_key
             const snap = readLikeCardSnapshot(card.id)
             const bg = getJourneyColorHex(journeyKey)
-            const textColor = YELLOW_JOURNEY_IDS.includes(journeyKey) ? 'var(--color-purple)' : 'var(--color-yellow)'
+            const textColor = getJourneyCardTextHex(journeyKey)
             const gbp = parseMoneyGbpFromDisplay(snap?.money ?? String(card.data?.money ?? '0'))
             const kg = parseCarbonKgFromDisplay(snap?.carbon ?? String(card.data?.carbon ?? '0'))
             const isActioned = actionedIds.has(card.id)

@@ -355,7 +355,13 @@ export default function ZonePage({
   }, [categoryIntentWeights, state.dislikedCards, state.indifferentCardIds, refreshKey])
 
   const trackZoneLike = useCallback(
-    (id: string, title?: string, moneyGbp?: number, explicitJourneyKey?: JourneyId) => {
+    (
+      id: string,
+      title?: string,
+      moneyGbp?: number,
+      explicitJourneyKey?: JourneyId,
+      explicitCarbonKg?: number
+    ) => {
       const tip = viewModel.tips.find((t) => t.id === id)
       const journey = viewModel.journeys.find((j) => j.id === id)
       // Cards opened from a Rock-merged recommendation tile or a morph/discovery deck (ids like
@@ -373,7 +379,10 @@ export default function ZonePage({
         tip?.data?.money ??
         journey?.data?.money ??
         (moneyGbp != null && moneyGbp > 0 ? `£${Math.round(moneyGbp)}` : '£0')
-      const carbon = tip?.data?.carbon ?? journey?.data?.carbon ?? '0 kg'
+      const carbon =
+        tip?.data?.carbon ??
+        journey?.data?.carbon ??
+        (explicitCarbonKg != null && explicitCarbonKg > 0 ? `${Math.round(explicitCarbonKg)} kg` : '0 kg')
       const willLike = !(state.likedCards ?? []).includes(id)
       if (willLike) {
         saveLikeCardSnapshot({
@@ -1677,6 +1686,8 @@ export default function ZonePage({
         employment_status: profile.employment_status,
         goal: profile.goal,
         household_income_bracket: profile.household_income_bracket,
+        wash_preference: profile.wash_preference,
+        flight_frequency: profile.flight_frequency,
       },
       journeyAnswers,
       scraped: scraped ? Object.fromEntries(
@@ -1744,6 +1755,8 @@ export default function ZonePage({
           employment_status: profile.employment_status,
           goal: profile.goal,
           household_income_bracket: profile.household_income_bracket,
+          wash_preference: profile.wash_preference,
+          flight_frequency: profile.flight_frequency,
           property_intelligence_confidence:
             typeof window !== 'undefined'
               ? localStorage.getItem('property_intelligence_confidence') ?? undefined
@@ -1891,6 +1904,8 @@ export default function ZonePage({
         employment_status: profile.employment_status,
         goal: profile.goal,
         household_income_bracket: profile.household_income_bracket,
+        wash_preference: profile.wash_preference,
+        flight_frequency: profile.flight_frequency,
       },
       journeyAnswers,
       scraped: scraped

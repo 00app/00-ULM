@@ -15,6 +15,7 @@ import { validateInjectionCard } from '@/lib/zone/injections'
 import { clampZoneBentoHeadline } from '@/lib/soloFocusCopy'
 import { decodeUtf8Base64Url, encodeUtf8Base64Url } from '@/lib/zone/base64url'
 import { shouldSkipGeminiInBucket } from '@/lib/intelligence/scrapeBoundaries'
+import { offerProviderFromHandoffUrl } from '@/lib/soloFocusSuppliedBy'
 
 /** Reversible token for answer text (pulse can decode back to full option string). */
 function discoveryAnswerToken(answerValue: string): string {
@@ -29,14 +30,35 @@ export function decodeDiscoveryAnswerToken(token: string): string {
   return decoded || token
 }
 
-/** Stable id for pulse recompute: inject-{journey}__{questionId}__{token}__{timestamp} */
+/** djb2 — deterministic positive integer from a string (no crypto import needed client-side). */
+function deterministicDigitsFrom(s: string): string {
+  let hash = 5381
+  for (let i = 0; i < s.length; i++) {
+    hash = ((hash << 5) + hash + s.charCodeAt(i)) | 0
+  }
+  return String(Math.abs(hash))
+}
+
+/**
+ * Stable id for pulse recompute: inject-{journey}__{questionId}__{token}__{digest}.
+ *
+ * Every caller of this function names its result `stableId` / `id` expecting the SAME
+ * (journeyId, questionId, answerValue) triplet to always resolve to the SAME card id — that's
+ * how DiscoveryTakeover's optimistic-then-tier2-enriched birth sequence is meant to *replace*
+ * one card in place rather than add a second one, and how `parseDiscoveryInjectionId` round-trips
+ * an id back to its triplet. A `Date.now()` suffix here broke that contract: two births for the
+ * same answer, seconds apart, produced two different ids — the "wall ends up with a duplicate
+ * category card" bug. A deterministic digest of the triplet keeps ids reversible-and-unique per
+ * answer while actually being stable across repeat calls.
+ */
 export function buildDiscoveryInjectionId(
   journeyId: JourneyId,
   questionId: string,
   answerValue: string
 ): string {
   const token = discoveryAnswerToken(answerValue)
-  return `inject-${journeyId}__${questionId}__${token}__${Date.now()}`
+  const digest = deterministicDigitsFrom(`${journeyId}__${questionId}__${answerValue}`)
+  return `inject-${journeyId}__${questionId}__${token}__${digest}`
 }
 
 /** Parse ids from {@link buildDiscoveryInjectionId}; returns null if unknown shape. */
@@ -109,7 +131,10 @@ export async function buildDiscoveryInjectionCardAsync(
       carbon: formatCarbon(carbonKg),
     },
     source: rec.learnUrl,
-    sourceLabel: 'uk 2026 discovery',
+    // "uk 2026 discovery" was this engine's own internal pipeline name — real, but reads like
+    // a citation to a user, not the actual UK org behind the number. Name the real source the
+    // learn link points at (gov.uk, Ofgem, Energy Saving Trust, ...) instead.
+    sourceLabel: offerProviderFromHandoffUrl(rec.learnUrl) ?? 'UK Government Data',
     explanation: [rec.body],
     actions: {
       actionType: 'learn' as const,

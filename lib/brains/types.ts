@@ -24,6 +24,10 @@ export interface ImpactProfile {
   age?: Persona
   /** Lifestyle Architect: shifts £ emphasis and explanation lines (not grant-only). */
   employment_status?: EmploymentStatus
+  /** Bath/shower/both onboarding answer — feeds calculateWater's wash_preference branch. */
+  wash_preference?: string
+  /** none/one_two/three_plus flights a year — feeds calculateHolidays' annual_flights branch. */
+  flight_frequency?: string
 }
 
 /** Input to buildUserImpact — profile + all journey answers */

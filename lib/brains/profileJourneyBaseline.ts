@@ -8,7 +8,13 @@ import type { ImpactProfile } from '@/lib/brains/types'
 /** Loose profile slice — Zone VM uses a wider runtime shape than `ImpactProfile`. */
 export type ProfileBaselineInput = Pick<
   ImpactProfile,
-  'postcode' | 'home_type' | 'household' | 'transport_baseline' | 'home_power'
+  | 'postcode'
+  | 'home_type'
+  | 'household'
+  | 'transport_baseline'
+  | 'home_power'
+  | 'wash_preference'
+  | 'flight_frequency'
 >
 
 export function profileHasImpactBaseline(profile?: ProfileBaselineInput): boolean {
@@ -76,7 +82,7 @@ export function syntheticJourneyAnswersFromProfile(
       }
     case 'holidays':
       return {
-        annual_flights: 'ONE_TWO',
+        annual_flights: profile?.flight_frequency?.trim() || 'ONE_TWO',
         flight_duration: 'MEDIUM',
         carbon_offsets: 'NO',
       }
@@ -110,7 +116,7 @@ export function syntheticJourneyAnswersFromProfile(
     case 'water':
       return {
         garden_butt: 'YES',
-        wash_preference: 'SHOWER',
+        wash_preference: profile?.wash_preference?.trim() || 'SHOWER',
         rainwater_harvest: 'NO',
       }
     case 'waste':

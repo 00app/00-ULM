@@ -31,7 +31,7 @@ export function StampedCarbonKg({
   omitCo2Suffix = false,
 }: {
   kg: number
-  /** Solo Focus — label reads CO₂ OFFSET; value is figures + mass unit only. */
+  /** Solo Focus — label reads CO₂ Saving; value is figures + mass unit only. */
   omitCo2Suffix?: boolean
 }) {
   const p = getCarbonStampParts(kg)

@@ -1053,6 +1053,17 @@ const INCOMPLETE_HEADLINE_ENDINGS = new Set([
 /** Two-letter tokens that can end a valid zone stamp (e.g. EV, UK). */
 const VALID_SHORT_HEADLINE_ENDINGS = new Set(['uk', 'ev', 'co', 'go', 'up', 'no', 'so', 'do'])
 
+/**
+ * A word-count clamp landing right after "and"/"or" mid-list reads as a broken clause
+ * ("...SIZE SOLAR TO YOUR ROOF AND DAYTIME." — the list started but never finished). Flagging
+ * this backs the trim loop below up one more word each pass until it clears the whole dangling
+ * "and X" tail (the conjunction itself is already in INCOMPLETE_HEADLINE_ENDINGS, so once it
+ * becomes the last word it gets trimmed too). Trade-off: a few genuinely-complete short pairs
+ * ("cut costs and carbon") lose their second half — an acceptable cost for never shipping a
+ * headline that trails off mid-thought.
+ */
+const DANGLING_LIST_CONJUNCTIONS = new Set(['and', 'or', 'nor', '&'])
+
 /** Headline ends on a article/preposition — not a complete stamp. */
 function headlineEndsIncomplete(text: string): boolean {
   const words = splitHeadlineWords(text)
@@ -1062,6 +1073,10 @@ function headlineEndsIncomplete(text: string): boolean {
   /* Legacy 45-char DB clips — e.g. "…BEFORE YOU C" (mid-word). */
   if (last.length === 1) return true
   if (last.length === 2 && !VALID_SHORT_HEADLINE_ENDINGS.has(last)) return true
+  if (words.length >= 2) {
+    const penultimate = words[words.length - 2].replace(/[^a-z&]/gi, '').toLowerCase()
+    if (DANGLING_LIST_CONJUNCTIONS.has(penultimate)) return true
+  }
   return false
 }
 

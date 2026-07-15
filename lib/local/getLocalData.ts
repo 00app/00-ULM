@@ -4,6 +4,19 @@
  * for ZeroResearch / Zai and the Zone dashboard.
  */
 
+/**
+ * Strip the Postcodes.io "unparished area" admin suffix from any locality-derived string.
+ * `getLocalData()` below already produces a clean `locality` field for fresh fetches, but
+ * `locality_context` strings persisted to the DB before that fix (or reused via the mechanical
+ * fallback repair job) can still carry the raw suffix — this is the defensive, callable-anywhere
+ * version so any code reading a stored/cached locality string can clean it before it reaches
+ * user-facing prose or an LLM prompt.
+ */
+export function stripUnparishedArea(s: string | null | undefined): string {
+  if (!s) return ''
+  return s.replace(/,?\s*unparished area/gi, '').replace(/\s{2,}/g, ' ').trim()
+}
+
 /** April 2026 auditor lock — BUS vs Scottish HES; every field includes citation. */
 export interface HeatPumpGrantAuditorContext {
   primary_scheme_label: string
@@ -187,8 +200,13 @@ export async function getLocalData(postcode: string): Promise<LocalIntelligence 
     const region = result.region ?? council
     const ward = result.admin_ward
     const outcode = (result.outcode ?? clean.slice(0, 4)) as string
+    // Postcodes.io returns e.g. "Huddersfield, unparished area" for towns not split into civil
+    // parishes — that's a real administrative term, not a place name. Strip it so the display
+    // label is just "Huddersfield", not the raw admin string.
     const parish =
-      typeof result.parish === 'string' && result.parish.trim() ? result.parish.trim() : ''
+      typeof result.parish === 'string' && result.parish.trim()
+        ? result.parish.trim().replace(/,?\s*unparished area$/i, '').trim()
+        : ''
     const wardFirst =
       typeof ward === 'string' && ward.trim() ? String(ward).split(',')[0]?.trim() ?? '' : ''
     const locality = parish || wardFirst || undefined

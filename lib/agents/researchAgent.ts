@@ -42,7 +42,7 @@ import {
   parseApril2026UnitRatesFromMarkdown,
   triggerSupplementalResearch,
 } from '@/lib/agents/researcher'
-import { getLocalData } from '@/lib/local/getLocalData'
+import { getLocalData, stripUnparishedArea } from '@/lib/local/getLocalData'
 import { stripContentSystemLeakage } from '@/lib/zone/contentProseSanitize'
 import { sanitizeZoneOfferUrl, sanitizeZoneOfferUrlForPersist } from '@/lib/zone/offerUrlGuard'
 import { forensicMateBannedPromptLine, ZONE_WARM_AUDITOR_THREE_BEAT } from '@/lib/zone/zoneVoice'
@@ -1447,8 +1447,11 @@ function mechanicalCategoryTripletFallback(params: {
 } | null {
   let cat = normalizeResearchCategory(params.category)
   const outward = outwardFromPostcode(params.postcode)
+  // params.localityContext may be a stale DB value written before getLocalData() started
+  // stripping the Postcodes.io "unparished area" admin suffix — strip it here too so a row
+  // saved before that fix never leaks the raw admin term into card prose.
   const townRaw =
-    params.localityContext?.split(',')[0]?.trim() ||
+    stripUnparishedArea(params.localityContext?.split(',')[0]?.trim()) ||
     outward ||
     ''
   const areaLabel = townRaw || 'your area'
@@ -1542,7 +1545,7 @@ function mechanicalCategoryTripletFallback(params: {
           `check ${areaTag} savings rates before your fixed term rolls over`,
           `an ethical current account switch pays off for ${areaTag} savers`,
           `review your pension provider before your next ${areaTag} statement`,
-          `a better isa rate beats idle cash sitting in ${areaTag} accounts`,
+          `a better isa rate beats idle cash for ${areaTag} savers`,
         ],
         prose: `Where you bank and save in ${areaLabel} still funds oil and gas unless you pick cleaner accounts.\n\nGreen ISAs and certified banks can move ~£320/yr of footprint without giving up yield entirely.\n\nUse the link below to compare greener banking options before you move cash.`,
       },
@@ -1709,12 +1712,22 @@ function mechanicalCategoryTripletFallback(params: {
       }
     }
 
+    // The prose template above quotes an illustrative "~£<fallback.gbp>/yr" figure written
+    // against the flat constant. When the block above swaps in a real per-user calculateXxx()
+    // figure, that quoted number goes stale (e.g. prose still says "~£90/yr" while the stat
+    // badge shows £180) — an internal contradiction on the same card. Re-point the prose at the
+    // real number whenever the two diverge, rather than leaving the old flat figure in the copy.
+    const proseForDisplay =
+      gbp !== fallback.gbp
+        ? prose.replace(new RegExp(`£${fallback.gbp}(?=/yr)`, 'g'), `£${gbp}`)
+        : prose
+
     // Locality-aware headline always wins here — we're already inside the branch that has a
     // real area label. ZONE_BENTO_HOOK (fully generic, no locality) is only for when there's none.
     return {
       saving_amount_gbp: gbp,
       agent_headline: clampZoneBentoHeadline(headline, journeyKey, JOURNEY_CARD_HEADLINE_BOUNDS),
-      architect_prose: prose,
+      architect_prose: proseForDisplay,
       offer_url: trustedUrlForJourney(journeyKey),
       category: journeyKey,
     }

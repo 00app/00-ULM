@@ -1990,6 +1990,26 @@ body, p, span, input, button, textarea, select,
     color var(--zz-interaction-duration) var(--zz-interaction-ease);
 }
 
+/* Rollover / pressed feedback — reuses the transition already declared above. Scoped to the
+   clickable grid contexts (Zone wall, Rock tips) rather than every .bento-card-groovy use
+   (settings/likes cards reuse this class but aren't all a single click target). */
+@media (hover: hover) {
+  .groovy-zone-grid .bento-card-groovy.cursor-pointer:hover,
+  .rock-saving-tips-grid .bento-card-groovy.cursor-pointer:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.04);
+  }
+}
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:active,
+.rock-saving-tips-grid .bento-card-groovy.cursor-pointer:active {
+  transform: scale(var(--zz-press-scale));
+}
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:focus-visible,
+.rock-saving-tips-grid .bento-card-groovy.cursor-pointer:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
 .groovy-zone-grid .bento-card-groovy {
   background: var(--color-purple) !important;
   color: var(--color-yellow) !important;

@@ -657,6 +657,8 @@ export function buildZoneViewModel({
     /** From user_genome.property_intelligence.confidence — drives PROPERTY_VERIFIED badge. */
     property_intelligence_confidence?: string
     imd_decile?: number
+    wash_preference?: string
+    flight_frequency?: string
   }
   journeyAnswers: Record<JourneyId, Record<string, string>>
   /** S UPDATE: optional scraped data from 001 Scraper (`scraped_summary` / DB). Partial = only some journeys may have data. */
@@ -689,11 +691,14 @@ export function buildZoneViewModel({
         postcode: profile.postcode,
         household: profile.household,
         home_type: profile.home_type,
+        home_power: profile.home_power,
         transport_baseline: profile.transport_baseline,
         age: (['JUNIOR', 'MID', 'RETIRED'].includes(String(profile.age ?? ''))
           ? profile.age
           : undefined) as Persona | undefined,
         employment_status: normalizeEmploymentStatus(profile.employment_status),
+        wash_preference: profile.wash_preference,
+        flight_frequency: profile.flight_frequency,
       }
     : undefined
   const impactOptsBase = {

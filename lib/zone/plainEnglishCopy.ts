@@ -76,6 +76,9 @@ export function humanizeZoneHeadline(text: string, journeyId?: JourneyId | strin
     .replace(/\bULEZ\b/gi, 'CLEAN-AIR CHARGE')
     .replace(/\bOFgem\b/gi, 'ENERGY REGULATOR')
     .replace(/\bOF\s*GEM\b/gi, 'ENERGY REGULATOR')
+    // "an MCS quote" -> "an CERTIFIED quote" above; fix the article now the word starts with a
+    // consonant sound ("a certified", not "an certified").
+    .replace(/\ban(\s+CERTIFIED\b)/gi, 'a$1')
 
   t = t.replace(/\s+/g, ' ').trim()
 
@@ -109,6 +112,7 @@ export function humanizeZoneProse(text: string, journeyId?: JourneyId | string |
     .replace(/\bECO4\b/gi, 'home insulation grant')
     .replace(/\bHUG2\b/gi, 'home upgrade grant')
     .replace(/\bMCS\b/gi, 'certified')
+    .replace(/\ban(\s+certified\b)/gi, 'a$1')
     .replace(/\bULEZ\b/gi, 'clean-air charge')
     .replace(/\bOfgem\b/gi, 'energy regulator')
     .replace(/\bOFgem\b/gi, 'energy regulator')
