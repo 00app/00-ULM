@@ -47,8 +47,20 @@ export const ZONE_SCRAPE_SYNC_RETRY_WAIT_MS =
 export const ZONE_SCRAPE_SYNC_MAX_ATTEMPTS =
   typeof process !== 'undefined' && process.env.NODE_ENV === 'development' ? 3 : 1
 
-/** Clean Birth: max wait on post-answer pulse before Zone reveal (card + words). */
-export const CLEAN_BIRTH_PULSE_MAX_WAIT_MS = 4_500
+/**
+ * Clean Birth: max wait on post-answer pulse before Zone reveal (card + words).
+ *
+ * This forces the reveal (and therefore `completeCleanBirth`'s open-the-new-card check) to fire
+ * even if the network birth — ensureProfileSession() + POST /api/answers with solo_focus:true,
+ * which can hit Gemini/discovery generation server-side — hasn't returned yet. When that happens,
+ * pendingLoopSpawnId is still null, so the app falls back to reopening whatever was already on
+ * screen instead of the new card (live-audited: loop question re-showed the same £80 water card
+ * under a new badge), and the card only appears on the wall later as an orphan once the request
+ * finally resolves. 4.5s was too tight for this round trip in production. `ZONE_READY_MAX_WAIT_MS`
+ * below is the established ceiling for an equivalent network-bound reveal in this codebase —
+ * matching it here gives the real request room to finish before we give up on showing it.
+ */
+export const CLEAN_BIRTH_PULSE_MAX_WAIT_MS = 14_000
 
 /** Post–loop-answer pulse — two beats only (not full summary handoff). */
 export const CLEAN_BIRTH_PULSE_WORDS = ['audit', 'done.'] as const

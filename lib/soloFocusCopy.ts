@@ -980,12 +980,22 @@ function splitHeadlineWords(title: string): string[] {
     .filter(Boolean)
 }
 
-/** Strip terminal punctuation before word limits (period re-applied at display). */
+/**
+ * Strip terminal punctuation before word limits (period re-applied at display).
+ *
+ * A word-count clamp can land on a word that still carries ITS OWN trailing comma from a list
+ * in the source text (e.g. "...lofts, draughts," cut right before "and lagging gaps") — the old
+ * `[.!?…]+$` pattern only stripped sentence-enders, so the comma survived and the period landed
+ * right after it: "...lofts, draughts,." (live-audited on production). Stripping comma/semicolon/
+ * colon/dash here too means whatever punctuation the clamp happened to stop on, the re-applied
+ * "." always lands cleanly — this fixes stored DB headlines retroactively too, since every
+ * headline (fresh or from Neon) passes through this same function at display time.
+ */
 function stripHeadlineTerminalPunctuation(text: string): string {
   return text
     .trim()
     .replace(/\s+/g, ' ')
-    .replace(/[.!?…]+$/g, '')
+    .replace(/[.!?…,;:—–-]+$/g, '')
     .trim()
 }
 
@@ -1064,11 +1074,35 @@ const VALID_SHORT_HEADLINE_ENDINGS = new Set(['uk', 'ev', 'co', 'go', 'up', 'no'
  */
 const DANGLING_LIST_CONJUNCTIONS = new Set(['and', 'or', 'nor', '&'])
 
+/** Standalone em/en-dash token — `splitHeadlineWords` leaves " — " as its own word. */
+const DASH_TOKEN_RE = /^[—–]+$/
+
+/**
+ * A dash almost always introduces an appositive/clarifying clause ("...footprint — fewer
+ * flights and rail over short hops cuts both kg and spend") — if the word clamp lands only 1-2
+ * words past that dash, the clause reads as started-then-abandoned ("...COLLECTIONS —
+ * SORTING.", "...FOOTPRINT — FEWER FLIGHTS." — both live-audited on production, both sourced
+ * from stored DB prose so this has to be checked at display time, not just at generation time).
+ * 3+ words after a dash reads as a deliberate short clarifier, not a cut — left alone.
+ */
+function endsWithThinDashClause(words: string[]): boolean {
+  const dashIndex = words.reduce((found, w, i) => (DASH_TOKEN_RE.test(w) ? i : found), -1)
+  if (dashIndex === -1) return false
+  const wordsAfterDash = words.length - 1 - dashIndex
+  return wordsAfterDash >= 1 && wordsAfterDash <= 2
+}
+
 /** Headline ends on a article/preposition — not a complete stamp. */
 function headlineEndsIncomplete(text: string): boolean {
   const words = splitHeadlineWords(text)
   if (words.length === 0) return true
-  const last = words[words.length - 1].replace(/[^a-z]/gi, '').toLowerCase()
+  const lastRaw = words[words.length - 1]
+  const last = lastRaw.replace(/[^a-z]/gi, '').toLowerCase()
+  /* Trailing token is a lone dash (left behind once the trim loop below strips the words that
+     used to follow it via endsWithThinDashClause) — not a real word, nothing to show. Scoped to
+     dash tokens specifically so a headline that legitimately ends in a figure like "£320" (no
+     letters either, once stripped) is not swept up by the same check. */
+  if (!last && DASH_TOKEN_RE.test(lastRaw)) return true
   if (INCOMPLETE_HEADLINE_ENDINGS.has(last)) return true
   /* Legacy 45-char DB clips — e.g. "…BEFORE YOU C" (mid-word). */
   if (last.length === 1) return true
@@ -1077,6 +1111,7 @@ function headlineEndsIncomplete(text: string): boolean {
     const penultimate = words[words.length - 2].replace(/[^a-z&]/gi, '').toLowerCase()
     if (DANGLING_LIST_CONJUNCTIONS.has(penultimate)) return true
   }
+  if (endsWithThinDashClause(words)) return true
   return false
 }
 
