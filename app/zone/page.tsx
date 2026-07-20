@@ -3472,15 +3472,23 @@ export default function ZonePage({
           const isOctopus = electricityProvider === 'OCTOPUS' || gasProvider === 'OCTOPUS'
           const tipNeedsSwitching = tip.journey_key === 'home' && !isOctopus && !hasGreenTariff
           const tipCov = researchCategoryCoverage?.[tip.journey_key]
+          // tipCov is the CATEGORY-level cached research row — the same one the main journey
+          // card for tip.journey_key renders from. It's the right "verified" override for a
+          // generic tip that references a journey, but a loop-question-birthed discovery/
+          // achievement card is meant to show content specific to that answer. Letting the
+          // category-level row win here made a freshly-birthed card render with the identical
+          // headline/prose/£ as the pre-existing journey card, re-badged only by source label
+          // and carbon kg — live-audited as "loop question shows stale re-badged content."
+          const isCategoryScopedOverrideExempt = isRockTip || isInjectDiscovery || Boolean(tip.achievement_discovery)
           const tipSanitizedProse = tipCov?.architectProse?.trim()
             ? sanitizeArchitectProseForJourney(tip.journey_key, tipCov.architectProse)
             : null
-          const tipAuditMatches = isRockTip
+          const tipAuditMatches = isCategoryScopedOverrideExempt
             ? false
             : Boolean(
                 tipCov?.verified === true || (tipSanitizedProse != null && tipSanitizedProse.length > 0)
               )
-          const tipAuditMoney = isRockTip
+          const tipAuditMoney = isCategoryScopedOverrideExempt
             ? null
             : tipAuditMatches
               ? tipCov?.latestSavingGbp ?? tipCov?.latestVerifiedGbp ?? null
@@ -3500,7 +3508,7 @@ export default function ZonePage({
                 carbonValue={tip.data.carbon || '0 KG CO₂'}
                 offerUrl={offerUrl}
                 sourceUrl={
-                  isRockTip
+                  isCategoryScopedOverrideExempt
                     ? tip.source || tip.actions?.learnUrl || partnerFirst || undefined
                     : tipCov?.latestSourceUrl?.trim().startsWith('http')
                       ? tipCov.latestSourceUrl.trim()
@@ -3574,9 +3582,9 @@ export default function ZonePage({
                 tipNeedsSwitching={tipNeedsSwitching}
                 isPriorityHome={tip.journey_key === 'home' && !!localData?.council}
                 verifiedAuditMoneyGbp={tipAuditMoney}
-                verifiedArchitectProse={isRockTip ? null : tipSanitizedProse}
+                verifiedArchitectProse={isCategoryScopedOverrideExempt ? null : tipSanitizedProse}
                 verifiedAuditSourceUrl={
-                  isRockTip
+                  isCategoryScopedOverrideExempt
                     ? null
                     : tipCov?.latestSourceUrl?.trim().startsWith('http')
                       ? tipCov.latestSourceUrl.trim()
