@@ -1058,6 +1058,17 @@ const INCOMPLETE_HEADLINE_ENDINGS = new Set([
   'across',
   'towards',
   'toward',
+  /* Bare trailing modal auxiliary — always needs a following verb ("purchases to circular
+   * outlets can" is left dangling once the modal+verb pair check below strips the verb that
+   * used to follow). */
+  'can',
+  'could',
+  'will',
+  'would',
+  'should',
+  'may',
+  'might',
+  'must',
 ])
 
 /** Two-letter tokens that can end a valid zone stamp (e.g. EV, UK). */
@@ -1073,6 +1084,15 @@ const VALID_SHORT_HEADLINE_ENDINGS = new Set(['uk', 'ev', 'co', 'go', 'up', 'no'
  * headline that trails off mid-thought.
  */
 const DANGLING_LIST_CONJUNCTIONS = new Set(['and', 'or', 'nor', '&'])
+
+/**
+ * A modal auxiliary always introduces a following main verb + object — a clamp landing right
+ * after one leaves a bare verb with nothing to act on ("...outlets can move." was "...outlets
+ * can move ~£110/yr without changing your whole wardrobe." before the cut, live-audited on
+ * production). Scoped to the auxiliary + verb pair specifically so ordinary short headlines
+ * that happen to end in a verb ("save money") are untouched.
+ */
+const DANGLING_MODAL_AUXILIARIES = new Set(['can', 'could', 'will', 'would', 'should', 'may', 'might', 'must'])
 
 /** Standalone em/en-dash token — `splitHeadlineWords` leaves " — " as its own word. */
 const DASH_TOKEN_RE = /^[—–]+$/
@@ -1110,6 +1130,7 @@ function headlineEndsIncomplete(text: string): boolean {
   if (words.length >= 2) {
     const penultimate = words[words.length - 2].replace(/[^a-z&]/gi, '').toLowerCase()
     if (DANGLING_LIST_CONJUNCTIONS.has(penultimate)) return true
+    if (DANGLING_MODAL_AUXILIARIES.has(penultimate)) return true
   }
   if (endsWithThinDashClause(words)) return true
   return false
@@ -1126,6 +1147,22 @@ function trimHeadlineToMaxWords(
     words = words.slice(0, -1)
   }
   return words.join(' ')
+}
+
+/**
+ * Hand-authored journey hooks (EXPANDED_JOURNEY_HOOK / ZONE_BENTO_HOOK) are already
+ * grammatically complete — only cap word count, never re-run the incomplete-heuristic trim
+ * loop on them. That loop's DANGLING_LIST_CONJUNCTIONS check treats any "X or Y" ending as a
+ * cut-off list (right for raw/AI text), but on a trusted hook it's a false positive: it strips
+ * the real final word ("...offsets or kits" -> "...offsets or"), and the new ending is now
+ * genuinely incomplete — except the loop's own `minWords` floor stops it right there, shipping
+ * a broken headline built from a headline that was correct before we "fixed" it (live-audited:
+ * carbon's expanded-view hook rendered "...BEFORE YOU BUY OFFSETS OR." instead of "...OR KITS").
+ */
+function capTrustedHookWords(hook: string, max: number, min: number): string {
+  const words = splitHeadlineWords(hook)
+  if (words.length <= max) return ensureHeadlineSentenceEnd(hook)
+  return ensureHeadlineSentenceEnd(trimHeadlineToMaxWords(hook, max, min))
 }
 
 /** True when a headline is agent jargon or only generic filler tokens. */
@@ -1208,13 +1245,7 @@ export function enforceHeadlineWordLimits(
     (jid != null && headlineConflictsWithJourney(jid, resolved)) ||
     isLowQualityZoneHeadline(resolved)
   if (needsHook && journeyHook) {
-    return ensureHeadlineSentenceEnd(
-      trimHeadlineToMaxWords(
-        zoneCardHeadlineFromRaw(journeyHook, journeyHook, max).replace(/\.{3,}$|…$/g, '').trim(),
-        max,
-        min
-      )
-    )
+    return capTrustedHookWords(journeyHook, max, min)
   }
   if (words.length < min) {
     const fb = trimHeadlineToMaxWords(
