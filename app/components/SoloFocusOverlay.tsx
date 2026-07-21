@@ -89,7 +89,6 @@ import {
   journeyResearchSettled,
   type ResearchCategoryCoverageRow,
 } from '@/lib/researchSyncClient'
-import { resolveBirthedCardId, scheduleSoloFocusRebirthOpen } from '@/lib/soloFocusRebirth'
 import { bumpCategoryIntent } from '@/lib/zone/categoryIntent'
 import { recordOfferSignal } from '@/lib/zone/offerSignals'
 import {

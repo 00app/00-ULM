@@ -1,5 +1,15 @@
 /**
  * Shared discovery birth — Firecrawl/Gemini race + stored injection fallback.
+ *
+ * This used to be one of TWO separate orchestrators doing the same job: this file (used by
+ * POST /api/zone/injections and POST /api/research/question-card) and a second, inline race
+ * built directly inside POST /api/answers with its own hybrid/rebirthVault arms and timeout.
+ * Both wrapped the same lower-level `raceDiscoveryBirth`, just with different arms wired up.
+ * The `hybrid`/`structured`/`rebirthVault`/`timeoutMs` params below are optional precisely so
+ * the two existing callers (which never pass them) keep their exact original behavior —
+ * `structured` defaults to the Gemini pipeline exactly as before, `timeoutMs` still defaults to
+ * 8000 — while /api/answers can now pass its own arms through this one shared function instead
+ * of maintaining a second copy of the race-plus-fallback logic.
  */
 
 import type { JourneyId } from '@/lib/journeys'
@@ -24,6 +34,15 @@ export async function resolveDiscoveryBirthPayload(params: {
   currentJourneyForAlternate: JourneyId
   askedQuestionIds: string[]
   fallbackMode?: FallbackMode
+  /** Optional extra race arm — /api/answers' hybrid (processCalculatedLoopSpawn) path. Omitted by default. */
+  hybrid?: () => Promise<DiscoveryBirthPayload | null>
+  /** Override the default Gemini `structured` arm entirely (e.g. /api/answers swaps in a
+   *  deterministic-only version while hybrid mode is active). Defaults to runDiscoveryStructuredPipeline. */
+  structured?: () => Promise<DiscoveryBirthPayload | null>
+  /** Optional extra race arm — /api/answers' Action-Vault-scrape high-impact path. Omitted by default. */
+  rebirthVault?: () => Promise<DiscoveryBirthPayload | null>
+  /** Race timeout in ms. Defaults to 8000 (existing behavior for the two original callers). */
+  timeoutMs?: number
 }): Promise<DiscoveryBirthPayload | null> {
   const {
     targetJourney,
@@ -35,25 +54,32 @@ export async function resolveDiscoveryBirthPayload(params: {
     currentJourneyForAlternate,
     askedQuestionIds,
     fallbackMode = 'alternate-journey',
+    hybrid,
+    structured,
+    rebirthVault,
+    timeoutMs = 8000,
   } = params
 
   let discoveryPayload = await raceDiscoveryBirth({
-    structured: async () => {
-      const s = await runDiscoveryStructuredPipeline({
-        journeyId: targetJourney,
-        questionId,
-        answerValue,
-        postcode,
-        profileData,
-        userId,
-      })
-      if (!s?.new_card_data) return null
-      return {
-        recommendation_copy: s.recommendation_copy,
-        source_url: s.source_url,
-        new_card_data: s.new_card_data,
-      }
-    },
+    hybrid,
+    structured:
+      structured ??
+      (async () => {
+        const s = await runDiscoveryStructuredPipeline({
+          journeyId: targetJourney,
+          questionId,
+          answerValue,
+          postcode,
+          profileData,
+          userId,
+        })
+        if (!s?.new_card_data) return null
+        return {
+          recommendation_copy: s.recommendation_copy,
+          source_url: s.source_url,
+          new_card_data: s.new_card_data,
+        }
+      }),
     zeroHunter: async () => {
       const z = await runZeroHunterBirthAfterAnswer({
         journeyId: targetJourney,
@@ -70,7 +96,8 @@ export async function resolveDiscoveryBirthPayload(params: {
         new_card_data: z.zoneCard,
       }
     },
-    timeoutMs: 8000,
+    rebirthVault,
+    timeoutMs,
   })
 
   if (!discoveryPayload?.new_card_data) {

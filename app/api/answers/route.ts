@@ -18,11 +18,9 @@ import { isValidJourneyId, type JourneyId } from '@/lib/journeys'
 import { runLoopSpawnResearch } from '@/lib/zone/loopSpawnResearch'
 import { enrichResearchProfileFromSession } from '@/lib/intelligence/enrichProfileDataFromGenome'
 import { persistZoneTipInjectBody } from '@/lib/zone/persistZoneTipInject'
-import { runDiscoveryStructuredPipeline } from '@/lib/agents/discoveryStructured'
 import { generateDiscoveryWinWithGemini } from '@/lib/agents/discoveryWin'
-import { runZeroHunterBirthAfterAnswer } from '@/lib/agents/zeroHunterBirth'
 import { discoveryCardFromZoneTip } from '@/lib/types/discovery'
-import { raceDiscoveryBirth } from '@/lib/agents/discoveryBirthRace'
+import { resolveDiscoveryBirthPayload } from '@/lib/zone/discoveryBirthResolve'
 import { applyAprilEco4UrgencyBadge } from '@/lib/agents/discoveryCardTweaks'
 import {
   getNationalGridIntensityGPerKwh,
@@ -231,7 +229,18 @@ export async function POST(request: NextRequest) {
         new_card_data: import('@/lib/logic/zone').ZoneTipCard
       } | null = null
       try {
-        payload = await raceDiscoveryBirth({
+        payload = await resolveDiscoveryBirthPayload({
+          targetJourney: jKey as JourneyId,
+          questionId: qKey,
+          answerValue: String(value),
+          postcode: postcodeNorm,
+          profileData: profileData as ResearchProfileData | null,
+          userId: user_id,
+          // This route answers the CURRENT journey, so the "give me something rather than
+          // nothing" stored-injection fallback should prefer a card for that same journey.
+          currentJourneyForAlternate: jKey as JourneyId,
+          askedQuestionIds: [],
+          fallbackMode: 'prefer-target',
           hybrid: hybridBirthEnabled
               ? async () => {
                   const h = await processCalculatedLoopSpawn({
@@ -250,6 +259,10 @@ export async function POST(request: NextRequest) {
                   }
                 }
               : undefined,
+          // Only override the shared default `structured` arm (Gemini pipeline) when hybrid mode
+          // is active, where a deterministic-only card is preferred instead — otherwise leave this
+          // undefined so resolveDiscoveryBirthPayload's own runDiscoveryStructuredPipeline call runs,
+          // instead of keeping a second copy of that same call here.
           structured: hybridBirthEnabled
             ? async () => {
                 const stableId = buildDiscoveryInjectionId(
@@ -274,38 +287,7 @@ export async function POST(request: NextRequest) {
                   new_card_data: fallbackCard,
                 }
               }
-            : async () => {
-            const s = await runDiscoveryStructuredPipeline({
-              journeyId: jKey as JourneyId,
-              questionId: qKey,
-              answerValue: String(value),
-              postcode: postcodeNorm,
-              profileData,
-              userId: user_id,
-            })
-            if (!s?.new_card_data) return null
-            return {
-              recommendation_copy: s.recommendation_copy,
-              source_url: s.source_url,
-              new_card_data: s.new_card_data,
-            }
-          },
-          zeroHunter: async () => {
-            const z = await runZeroHunterBirthAfterAnswer({
-              journeyId: jKey as JourneyId,
-              questionId: qKey,
-              answerValue: String(value),
-              postcode: postcodeNorm,
-            })
-            if (!z?.zoneCard) return null
-            return {
-              recommendation_copy:
-                z.zoneCard.explanation?.[0] ??
-                `${z.discoveryCard.value} — ${z.discoveryCard.title}`.toLowerCase(),
-              source_url: z.discoveryCard.source_url,
-              new_card_data: z.zoneCard,
-            }
-          },
+            : undefined,
           rebirthVault:
             soloFocus &&
             resolvedFirecrawlKey &&
