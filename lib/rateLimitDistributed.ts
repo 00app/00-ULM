@@ -1,7 +1,10 @@
 /**
  * Optional Upstash / Vercel KV fixed-window rate limit (survives serverless cold starts).
- * Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN in production.
+ * Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN in production. Not required — if unset,
+ * `checkRateLimitAsync` (lib/rateLimit.ts) falls back to the Neon-backed table in
+ * `lib/rateLimitNeon.ts`, which needs no separate vendor since DATABASE_URL is already required.
  */
+import { isDatabaseConfigured } from '@/lib/db'
 
 const WINDOW_SEC = 60
 
@@ -61,6 +64,7 @@ export async function checkRateLimitDistributed(
   }
 }
 
-export function rateLimitBackendLabel(): 'upstash' | 'memory' {
-  return upstashConfigured() ? 'upstash' : 'memory'
+export function rateLimitBackendLabel(): 'upstash' | 'neon' | 'memory' {
+  if (upstashConfigured()) return 'upstash'
+  return isDatabaseConfigured() ? 'neon' : 'memory'
 }

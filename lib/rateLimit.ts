@@ -4,6 +4,7 @@
  * Note: On serverless (e.g. Vercel), each instance has its own map; for strict limits use Redis or similar.
  */
 import { checkRateLimitDistributed } from '@/lib/rateLimitDistributed'
+import { checkRateLimitNeon } from '@/lib/rateLimitNeon'
 
 const WINDOW_MS = 15 * 60 * 1000 // 15 minutes
 const MAX_ATTEMPTS_PER_IP = 8
@@ -79,13 +80,17 @@ export function checkRateLimit(
   return { ok: true }
 }
 
-/** Prefer Upstash when configured; otherwise in-memory (per instance). */
+/** Prefer Upstash when configured (rare — most deployments don't set it), else the Neon-backed
+ *  table (durable, shared across instances, no extra vendor since DATABASE_URL is already
+ *  required), else in-memory (per-instance, last resort). */
 export async function checkRateLimitAsync(
   key: string,
   maxPerMinute: number
 ): Promise<{ ok: boolean; retryAfter?: number }> {
-  const distributed = await checkRateLimitDistributed(key, maxPerMinute)
-  if (distributed) return distributed
+  const upstash = await checkRateLimitDistributed(key, maxPerMinute)
+  if (upstash) return upstash
+  const neon = await checkRateLimitNeon(key, maxPerMinute)
+  if (neon) return neon
   return checkRateLimit(key, maxPerMinute)
 }
 
