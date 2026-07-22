@@ -894,7 +894,7 @@ export function buildZoneViewModel({
       journeyKey === 'home' && council
         ? grantCtx?.source_url
         : journeyKey === 'travel'
-          ? 'https://www.gov.uk/ev-chargepoint-grant'
+          ? 'https://www.gov.uk/zero-emission-vehicle-grants'
           : undefined
     let claimOfferUrl = marketDeepLink || impact.claimOfferUrl || fallbackClaimUrl
     if (claimOfferUrl) {

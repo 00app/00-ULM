@@ -7,7 +7,7 @@ import { GEMINI_GATEWAY_ZONE, GEMINI_PRECISION_TEMPERATURE } from '@/lib/intelli
 
 /** Matches the codebase-wide Flash standard (see geminiModels.ts) — no preview/Pro tiers. */
 export const SENTINEL_REASONING_MODEL = GEMINI_GATEWAY_ZONE
-const SENTINEL_FIRECRAWL_URL = 'https://www.gov.uk/energy-advice-households'
+const SENTINEL_FIRECRAWL_URL = 'https://www.ofgem.gov.uk/energy-advice-households'
 const SENTINEL_FIRECRAWL_PROMPT =
   'Extract current official heat pump support ceilings and any rural uplift cues for remote UK outward codes (e.g. KW).'
 
@@ -51,7 +51,7 @@ function parseGrantExtract(extract: unknown): SentinelGrantResult {
   const sourceHints = JSON.stringify(obj).toLowerCase()
   const preferHes = /home energy scotland|rural uplift|kw|wick/.test(sourceHints)
   const claimOfferUrl = preferHes
-    ? 'https://www.homeenergyscotland.org/funding-grants/heat-pump-grants-loans/'
+    ? 'https://www.homeenergyscotland.org/find-funding'
     : 'https://www.gov.uk/apply-boiler-upgrade-scheme'
   const title =
     total != null

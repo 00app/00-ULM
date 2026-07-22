@@ -11,7 +11,7 @@ export type IntelligenceVaultId = 'A' | 'B' | 'C'
 export const VAULT_A_URLS = [
   'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap',
   'https://www.gov.uk/improve-energy-efficiency',
-  'https://www.gov.uk/find-energy-grants-help-pay-bills',
+  'https://www.gov.uk/government/collections/find-energy-grants-for-you-home-help-to-heat',
   'https://www.gov.uk/apply-boiler-upgrade-scheme',
   'https://www.moneysavingexpert.com/cheapenergyclub/',
   'https://www.moneysavingexpert.com/utilities/',

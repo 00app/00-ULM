@@ -38,7 +38,7 @@ export function resolveHybridPrimaryScrapeUrl(params: {
   const fuel = answerValue.trim().toUpperCase()
   if (journeyId === 'home' && questionId === 'energy_type' && answerValue.trim().toUpperCase() === 'GAS') {
     if (normalizedPostcode.startsWith('KW') && fuel === 'GAS' && homeType.length > 0) {
-      return 'https://www.homeenergyscotland.org/funding-grants/heat-pump-grants-loans/'
+      return 'https://www.homeenergyscotland.org/find-funding'
     }
     return 'https://www.gov.uk/apply-boiler-upgrade-scheme'
   }

@@ -39,9 +39,9 @@ function fallbackGrounding(
   const grant = expectedGrantForPostcode(compact, tenureType)
   const source = /^KW/.test(compact) ? 'Home Energy Scotland' : 'GOV.UK'
   const sourceUrl = /^KW/.test(compact)
-    ? 'https://www.homeenergyscotland.org/funding-grants/heat-pump-grants-loans/'
+    ? 'https://www.homeenergyscotland.org/find-funding'
     : tenureType === 'rent'
-      ? 'https://www.gov.uk/electric-vehicle-chargepoint-grant'
+      ? 'https://www.gov.uk/electric-vehicle-chargepoint-grant-household'
       : 'https://www.gov.uk/apply-boiler-upgrade-scheme'
   return {
     real_locality: locality,
@@ -104,9 +104,9 @@ export async function runLiveGrounding(params: {
   const energyUrl = 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap'
   const grantUrl =
     params.tenureType === 'rent'
-      ? 'https://www.gov.uk/electric-vehicle-chargepoint-grant'
+      ? 'https://www.gov.uk/electric-vehicle-chargepoint-grant-household'
       : /^KW/.test(compact)
-        ? 'https://www.homeenergyscotland.org/funding-grants/heat-pump-grants-loans/'
+        ? 'https://www.homeenergyscotland.org/find-funding'
         : 'https://www.gov.uk/apply-boiler-upgrade-scheme'
   const foodUrl = `https://www.trolley.co.uk/?search=${encodeURIComponent(compact)}`
 

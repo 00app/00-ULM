@@ -6,6 +6,7 @@ import { adminBasicAuthMatches } from '@/lib/adminBasicAuth'
 import { gatewayTokenMatches } from '@/lib/gatewayAuth'
 import type { PulseMetric } from '@/lib/adminPulse'
 import { FIRECRAWL_API_KEY } from '@/lib/sentinel/api-config'
+import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -13,6 +14,10 @@ export const runtime = 'nodejs'
 const FIRECRAWL_SCRAPE_URL = 'https://api.firecrawl.dev/v1/scrape'
 /** Matches {@link app/api/zai/route.ts} primary model for a real key/network check. */
 const GEMINI_PULSE_MODEL = process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash'
+/** This route triggers a real, billed Gemini call and Firecrawl scrape on every hit — cap it
+ *  like the other AI-triggering routes so a leaked GATEWAY_TOKEN/ADMIN_PASSWORD or a misconfigured
+ *  middleware matcher can't be looped for unbounded external API spend. */
+const PULSE_MAX_PER_MINUTE = 6
 
 /**
  * Live dependency probe: Neon SQL, Gemini completion, Firecrawl scrape.
@@ -22,6 +27,15 @@ export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest().catch(() => null)
   if (!session && !gatewayTokenMatches(request) && !adminBasicAuthMatches(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const id = getClientIdentifier(request)
+  const { ok, retryAfter } = await checkRateLimitAsync(`admin-pulse:${id}`, PULSE_MAX_PER_MINUTE)
+  if (!ok) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429, headers: retryAfter ? { 'Retry-After': String(retryAfter) } : undefined }
+    )
   }
 
   const timestamp = new Date().toISOString()

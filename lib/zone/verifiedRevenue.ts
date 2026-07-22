@@ -9,8 +9,8 @@ export const VERIFIED_SOURCE_DATE = 'April 2026'
 export const PARTNER_URLS = {
   estSwitch: 'https://www.energysavingtrust.org.uk/advice/switching-energy-supplier/',
   govEco: 'https://www.gov.uk/energy-company-obligation',
-  govWarmHome: 'https://www.gov.uk/apply-warm-home-discount-scheme',
-  govBillCalc: 'https://www.gov.uk/estimate-energy-bills',
+  govWarmHome: 'https://www.gov.uk/the-warm-home-discount-scheme',
+  govBillCalc: 'https://www.gov.uk/improve-energy-efficiency',
   ofgemCap: 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap',
   tflUlez: 'https://tfl.gov.uk/modes/driving/ultra-low-emission-zone',
   currysEfficient: 'https://www.currys.co.uk/search?q=energy+saving+appliances',

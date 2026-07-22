@@ -190,7 +190,7 @@ assert(
 
 const grantHandoff = resolveSoloFocusHandoffUrls({
   journeyKey: 'home',
-  coverageOfferUrl: 'https://www.gov.uk/apply-warm-home-discount-scheme',
+  coverageOfferUrl: 'https://www.gov.uk/the-warm-home-discount-scheme',
   coverageSourceUrl: 'https://www.energysavingtrust.org.uk/',
   fallbackOfferUrl: 'https://www.currys.co.uk/search?q=energy',
   buildZaiUrl: () => '/zai?context=home',

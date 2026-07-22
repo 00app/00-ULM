@@ -55,7 +55,7 @@ function titleCaseWords(value: string): string {
 }
 
 const HES_HEAT_PUMP_URL =
-  'https://www.homeenergyscotland.org/funding-grants/heat-pump-grants-loans/'
+  'https://www.homeenergyscotland.org/find-funding'
 const GOV_UK_BUS_URL = 'https://www.gov.uk/apply-boiler-upgrade-scheme'
 
 function attachHeatPumpGrantContext(cleanPostcode: string, data: LocalIntelligence): LocalIntelligence {

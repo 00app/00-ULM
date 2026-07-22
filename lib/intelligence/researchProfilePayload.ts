@@ -74,7 +74,7 @@ const JOURNEY_FIRECRAWL_SEEDS: Partial<Record<JourneyId, string[]>> = {
   travel: [
     'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
     'https://www.thetrainline.com/',
-    'https://www.gov.uk/guidance/rail-fares-and-season-tickets',
+    'https://www.thetrainline.com/information/cheap-train-tickets',
   ],
   holidays: [
     'https://www.eurostar.com/uk-en',
@@ -87,7 +87,7 @@ const JOURNEY_FIRECRAWL_SEEDS: Partial<Record<JourneyId, string[]>> = {
   ],
   money: [
     'https://www.moneysavingexpert.com/banking/',
-    'https://www.gov.uk/apply-warm-home-discount-scheme',
+    'https://www.gov.uk/the-warm-home-discount-scheme',
   ],
   shopping: ['https://www.which.co.uk/money/shopping'],
   tech: ['https://www.backmarket.co.uk/en-gb', 'https://www.gov.uk/guidance/smart-meters-how-they-work'],
@@ -118,8 +118,8 @@ export const JOURNEY_FREE_SEEDS: Partial<Record<JourneyId, string[]>> = {
     'https://www.gov.uk/guidance/smart-export-guarantee',
   ],
   travel: [
-    'https://www.gov.uk/guidance/rail-fares-and-season-tickets',
-    'https://www.gov.uk/buy-vehicle-tax-disc',
+    'https://www.thetrainline.com/information/cheap-train-tickets',
+    'https://www.gov.uk/vehicle-tax',
     'https://www.gov.uk/plug-in-car-van-grants',
   ],
   holidays: [
@@ -138,7 +138,7 @@ export const JOURNEY_FREE_SEEDS: Partial<Record<JourneyId, string[]>> = {
     'https://www.recyclenow.com/',
   ],
   money: [
-    'https://www.gov.uk/apply-warm-home-discount-scheme',
+    'https://www.gov.uk/the-warm-home-discount-scheme',
     'https://www.gov.uk/pension-credit',
     'https://energysavingtrust.org.uk/advice/grants-and-loans/',
   ],
@@ -243,8 +243,8 @@ export function buildEmploymentAwareResearchSeeds(profile?: LocalizedProfileInpu
     return [
       'https://www.moneysavingexpert.com/utilities/',
       'https://energysavingtrust.org.uk/advice/grants-and-loans/',
-      'https://www.gov.uk/find-energy-grants-help-pay-bills',
-      'https://www.gov.uk/apply-warm-home-discount-scheme',
+      'https://www.gov.uk/government/collections/find-energy-grants-for-you-home-help-to-heat',
+      'https://www.gov.uk/the-warm-home-discount-scheme',
       'https://www.which.co.uk/money/saving-energy',
     ]
   }
@@ -264,9 +264,9 @@ export function buildEmploymentAwareResearchSeeds(profile?: LocalizedProfileInpu
     return [
       'https://www.gov.uk/apply-warm-homes-local-grant',
       'https://www.gov.uk/energy-company-obligation',
-      'https://www.gov.uk/apply-warm-home-discount-scheme',
+      'https://www.gov.uk/the-warm-home-discount-scheme',
       'https://energysavingtrust.org.uk/advice/grants-and-loans/',
-      'https://www.gov.uk/find-energy-grants-help-pay-bills',
+      'https://www.gov.uk/government/collections/find-energy-grants-for-you-home-help-to-heat',
     ]
   }
   return []
