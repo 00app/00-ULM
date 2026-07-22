@@ -77,8 +77,8 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
   },
   { id: 'homeType', label: 'your home?', type: 'options' as const, options: ['FLAT', 'HOUSE'],
     getInsight: (v) =>
-      v === 'HOUSE' ? 'houses unlock more grant schemes than flats.\ngood.' :
-      v === 'FLAT' ? 'flats make grants trickier —\nwe\'ll check what\'s available.' : null },
+      v === 'HOUSE' ? 'houses have more room to save —\nroof, loft, and garden all help.' :
+      v === 'FLAT' ? 'flats still add up —\nwe\'ll focus on what\'s in your control.' : null },
   {
     id: 'homeOwnership',
     label: 'do you own or rent?',

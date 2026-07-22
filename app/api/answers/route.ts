@@ -27,7 +27,6 @@ import {
   gridCleanerPercentVs2025,
 } from '@/lib/grid/nationalGridLive'
 import { shouldBirthNightChargeCard, buildNightChargeDiscoveryCard } from '@/lib/agents/nightChargeBirth'
-import { fetchNextDiscoveryCards } from '@/lib/agents/discoveryEngine'
 import { enforceTrueWinRails, passesBoundaryGuard } from '@/lib/zone/trueWinRails'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { prioritizeMorphCardsForProfileTags, prioritizeRegionalMorphCards } from '@/lib/zone/morphRegionalPriority'
@@ -433,36 +432,8 @@ export async function POST(request: NextRequest) {
     const intensityG = await intensityPromise
     const grid_cleaner_pct = gridCleanerPercentVs2025(intensityG)
 
-    let nextData: { cards: import('@/lib/logic/zone').ZoneTipCard[] } | null = null
-    try {
-      nextData = await fetchNextDiscoveryCards(
-        user_id,
-        jKey,
-        qKey,
-        String(value),
-        postcodeNorm,
-        profileData as Record<string, unknown> | null
-      )
-    } catch {
-      /* morph deck may still use discovery-only cards */
-    }
-
-    const morphFromEngine = nextData?.cards ?? []
     const morphFromDiscovery = discoveryPayloadFinal?.new_card_data ? [discoveryPayloadFinal.new_card_data] : []
-    let morphCards = [...morphFromDiscovery, ...morphFromEngine]
-
-    /* NextWin morph cards were only returned in JSON — not persisted. Persist so Zone
-       injections + client refresh match Solo Focus morph deck when the discovery race is empty or slow. */
-    for (const raw of morphFromEngine) {
-      try {
-        const bounded = enforceTrueWinRails(raw)
-        if (!passesBoundaryGuard(bounded, postcodeNorm)) continue
-        persistZoneTipInjectBody({ cards: [bounded] })
-        void maybePersistDiscoveryInjection(user_id, bounded, 'next_win_invoke', jKey)
-      } catch {
-        /* ignore malformed morph row */
-      }
-    }
+    let morphCards = [...morphFromDiscovery]
 
     const hybridLive = hybridLiveEarly
     if (hybridLive?.card) {
