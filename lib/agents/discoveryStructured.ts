@@ -71,7 +71,10 @@ export async function runDiscoveryStructuredPipeline(params: {
   const researchMd = researchBlock?.markdown?.slice(0, 4000) ?? ''
 
   const stableId = buildDiscoveryInjectionId(journeyId, questionId, answerValue)
-  const fallbackCard = await buildDiscoveryInjectionCardAsync(journeyId, questionId, answerValue, stableId)
+  const fallbackCard = await buildDiscoveryInjectionCardAsync(journeyId, questionId, answerValue, stableId, {
+    postcode,
+    tenure: profileData?.tenure,
+  })
   if (!fallbackCard) return null
   const defaultSource = sanitizeHttpsUrl(
     fallbackCard.cta?.url ?? fallbackCard.source ?? 'https://www.gov.uk/',

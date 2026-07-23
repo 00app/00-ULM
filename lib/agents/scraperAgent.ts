@@ -30,7 +30,7 @@ export function resolveHybridPrimaryScrapeUrl(params: {
   questionId: string
   answerValue: string
   postcode?: string | null
-  profileData?: { home_type?: string | null; transport_baseline?: string | null } | null
+  profileData?: { home_type?: string | null; transport_baseline?: string | null; tenure?: string | null } | null
 }): string | null {
   const { journeyId, questionId, answerValue, postcode, profileData } = params
   const normalizedPostcode = (postcode ?? '').replace(/\s+/g, '').toUpperCase()
@@ -81,7 +81,7 @@ export async function runHybridLiveZoneTipForAnswer(params: {
   questionId: string
   answerValue: string
   postcode: string | null
-  profileData?: { home_type?: string | null; transport_baseline?: string | null } | null
+  profileData?: { home_type?: string | null; transport_baseline?: string | null; tenure?: string | null } | null
 }): Promise<HybridLiveZoneTipResult | null> {
   const { journeyId, questionId, answerValue, postcode, profileData } = params
   const target = resolveHybridPrimaryScrapeUrl({ journeyId, questionId, answerValue, postcode, profileData })
@@ -94,8 +94,8 @@ export async function runHybridLiveZoneTipForAnswer(params: {
   }
 
   const pc = postcode?.replace(/\s+/g, '').trim() ?? ''
-  const parsed = await researchLocalGrantsToDiscovery(pc, 'Heat Pump Grant')
-  const rec = getDiscoveryRecommendation('home', 'energy_type', 'GAS')
+  const parsed = await researchLocalGrantsToDiscovery(pc, 'Heat Pump Grant', { tenure: profileData?.tenure })
+  const rec = getDiscoveryRecommendation('home', 'energy_type', 'GAS', { postcode, tenure: profileData?.tenure })
   const id = `${buildDiscoveryInjectionId(journeyId, questionId, answerValue)}-hybrid-live`
 
   const zoneCard = validateInjectionCard({

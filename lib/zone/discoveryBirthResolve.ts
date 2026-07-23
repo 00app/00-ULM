@@ -86,6 +86,7 @@ export async function resolveDiscoveryBirthPayload(params: {
         questionId,
         answerValue,
         postcode,
+        tenure: profileData?.tenure,
       })
       if (!z?.zoneCard) return null
       return {

@@ -273,7 +273,8 @@ export async function POST(request: NextRequest) {
                   jKey as JourneyId,
                   qKey,
                   String(value),
-                  stableId
+                  stableId,
+                  { postcode: postcodeNorm, tenure: (profileData as ResearchProfileData | null)?.tenure }
                 )
                 if (!fallbackCard) return null
                 const copy =

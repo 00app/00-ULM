@@ -17,16 +17,17 @@ export async function runZeroHunterBirthAfterAnswer(params: {
   questionId: string
   answerValue: string
   postcode: string | null
+  tenure?: string | null
 }): Promise<{ discoveryCard: DiscoveryCard; zoneCard: ZoneTipCard } | null> {
-  const { journeyId, questionId, answerValue, postcode } = params
+  const { journeyId, questionId, answerValue, postcode, tenure } = params
   const pc = postcode?.replace(/\s+/g, '').trim() ?? ''
 
   const gasPowerAnswer =
     (journeyId === 'home' && questionId === 'energy_type' && answerValue.trim().toUpperCase() === 'GAS') ||
     (journeyId === 'utilities' && questionId === 'home_power' && answerValue.trim().toUpperCase() === 'GAS')
   if (gasPowerAnswer) {
-    const parsed = await researchLocalGrantsToDiscovery(pc, 'Heat Pump Grant')
-    const rec = getDiscoveryRecommendation(journeyId, questionId, 'GAS')
+    const parsed = await researchLocalGrantsToDiscovery(pc, 'Heat Pump Grant', { tenure })
+    const rec = getDiscoveryRecommendation(journeyId, questionId, 'GAS', { postcode, tenure })
     const id = buildDiscoveryInjectionId(journeyId, questionId, answerValue)
     const zoneCard = validateInjectionCard({
       id,

@@ -200,7 +200,8 @@ export async function processCalculatedLoopSpawn(
   })
 
   const journeyId = payload.journeyKey as JourneyId
-  const rec = getDiscoveryRecommendation(journeyId, payload.questionId, payload.userAnswer)
+  const discoveryCtx = { postcode: pc, tenure: payload.profileData?.tenure }
+  const rec = getDiscoveryRecommendation(journeyId, payload.questionId, payload.userAnswer, discoveryCtx)
   const stableId = buildDiscoveryInjectionId(
     journeyId,
     payload.questionId,
@@ -239,7 +240,8 @@ export async function processCalculatedLoopSpawn(
     journeyId,
     payload.questionId,
     payload.userAnswer,
-    stableId
+    stableId,
+    discoveryCtx
   )
   if (!fallback) return null
 

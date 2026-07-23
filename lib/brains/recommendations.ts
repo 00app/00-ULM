@@ -5,6 +5,7 @@
 
 import type { JourneyId } from '@/lib/journeys'
 import { isLoopQuestionId } from '@/lib/zone/loopQuestions'
+import { homeHeatingSchemeForUser } from '@/lib/zone/homeHeatingScheme'
 
 export interface DiscoveryRecommendation {
   /** Short shout (card title / H1 energy) */
@@ -28,12 +29,25 @@ function u(s: string): string {
 export function getDiscoveryRecommendation(
   journeyId: JourneyId,
   questionId: string,
-  answerRaw: string
+  answerRaw: string,
+  ctx?: { postcode?: string | null; tenure?: string | null }
 ): DiscoveryRecommendation {
   const a = u(answerRaw)
 
   if (journeyId === 'home' && questionId === 'home_heat_pump') {
     if (a.includes('YES') || a.includes('CHECK')) {
+      if (ctx) {
+        const scheme = homeHeatingSchemeForUser(ctx)
+        return {
+          headline: scheme.headline,
+          body: scheme.body,
+          gridJourneyKey: 'home',
+          learnUrl: scheme.learnUrl,
+          actionUrl: scheme.ctaUrl,
+          ctaLabel: scheme.ctaLabel,
+          ctaUrl: scheme.ctaUrl,
+        }
+      }
       return {
         headline: 'HEAT PUMP GRANT CHECK',
         body: 'Government heat pump grant support can close the gap when your tariff and insulation stack — accredited installers quote against your postcode.',
@@ -186,6 +200,24 @@ export function getDiscoveryRecommendation(
   ) {
     const gridJourneyKey = journeyId === 'utilities' ? 'utilities' : 'home'
     if (a === 'GAS') {
+      const followUp = {
+        question: 'Is your home insulated?',
+        options: ['YES', 'NO', 'PARTIAL'],
+        targetField: 'home_insulation_level',
+      }
+      if (ctx) {
+        const scheme = homeHeatingSchemeForUser(ctx)
+        return {
+          headline: scheme.headline,
+          body: scheme.body,
+          gridJourneyKey,
+          learnUrl: scheme.learnUrl,
+          actionUrl: scheme.ctaUrl,
+          ctaLabel: scheme.ctaLabel,
+          ctaUrl: scheme.ctaUrl,
+          followUp,
+        }
+      }
       return {
         headline: 'HEAT PUMP UPGRADE',
         body: 'Gas-heated homes can access official heat pump support up to £7,500 where rules apply — insulation quality still changes what installers quote.',
@@ -194,11 +226,7 @@ export function getDiscoveryRecommendation(
         actionUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
         ctaLabel: 'Check eligibility',
         ctaUrl: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
-        followUp: {
-          question: 'Is your home insulated?',
-          options: ['YES', 'NO', 'PARTIAL'],
-          targetField: 'home_insulation_level',
-        },
+        followUp,
       }
     }
     if (a === 'ELECTRIC') {

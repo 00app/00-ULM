@@ -7,6 +7,8 @@ import { sanitizeAgentMarkdown } from '@/lib/agents/zeroHunterMarkdown'
 import { MARCH_2026_ECONOMY } from '@/lib/brains/constants'
 import { formatCarbon } from '@/lib/format'
 import { estimateDiscoveryCarbonKg } from '@/lib/brains/calculations'
+import { homeHeatingSchemeForUser } from '@/lib/zone/homeHeatingScheme'
+import { ukCountryFromPostcode } from '@/lib/zone/ukCountryFromPostcode'
 
 function carbonLabelForTopic(topic: string): string {
   if (/heat|pump|boiler|bus/i.test(topic)) {
@@ -50,9 +52,33 @@ function isAllowedCitationHost(url: string): boolean {
  */
 export async function researchLocalGrantsToDiscovery(
   postcode: string,
-  topic: string
+  topic: string,
+  ctx?: { tenure?: string | null }
 ): Promise<ResearchLocalGrantsParsed> {
-  const seedUrl = /heat|pump|boiler|bus/i.test(topic) ? BUS_URL : OFGEM_CAP_URL
+  const isHeatTopic = /heat|pump|boiler|bus/i.test(topic)
+
+  // BUS is England & Wales, owner-occupier oriented — the scrape/prompt below is calibrated
+  // specifically for that page. Scotland, NI, and renters get a different real scheme entirely,
+  // so route them to the correct static scheme rather than reusing a BUS-shaped scrape prompt.
+  // The £ figure below still reuses the BUS constant as a placeholder for those branches — that's
+  // a known gap (no verified per-scheme figure for HES/NI yet), not a claim those schemes pay BUS
+  // amounts specifically.
+  if (isHeatTopic) {
+    const country = ukCountryFromPostcode(postcode)
+    const isRenter = (ctx?.tenure ?? '').toUpperCase().includes('RENT')
+    if (country !== 'england-wales' || isRenter) {
+      const scheme = homeHeatingSchemeForUser({ postcode, tenure: ctx?.tenure })
+      return {
+        title: scheme.headline,
+        valueMoneyStr: `£${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString()}`,
+        carbonStr: carbonLabelForTopic(topic),
+        source_url: scheme.learnUrl,
+        description: scheme.body,
+      }
+    }
+  }
+
+  const seedUrl = isHeatTopic ? BUS_URL : OFGEM_CAP_URL
   const scraped = await firecrawl.scrapeUrl(seedUrl)
   const md = sanitizeAgentMarkdown(scraped?.markdown ?? '', 8000)
   const fallback: ResearchLocalGrantsParsed = {

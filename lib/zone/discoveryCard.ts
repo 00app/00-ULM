@@ -110,9 +110,10 @@ export async function buildDiscoveryInjectionCardAsync(
   journeyId: JourneyId,
   questionId: string,
   answerValue: string,
-  forcedId?: string
+  forcedId?: string,
+  userCtx?: { postcode?: string | null; tenure?: string | null }
 ): Promise<ReturnType<typeof validateInjectionCard>> {
-  const rec = getDiscoveryRecommendation(journeyId, questionId, answerValue)
+  const rec = getDiscoveryRecommendation(journeyId, questionId, answerValue, userCtx)
   const saving = ukAverageSavingForDiscoveryAnswer(journeyId, questionId, answerValue)
   const carbonKg = estimateDiscoveryCarbonKg(journeyId, questionId, answerValue)
   const id = forcedId ?? buildDiscoveryInjectionId(journeyId, questionId, answerValue)
