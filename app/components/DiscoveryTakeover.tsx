@@ -48,6 +48,7 @@ type Props = {
     transport_baseline?: string | null
     household?: string | null
     employment_status?: string | null
+    home_ownership?: string | null
   }
   onRevealComplete: () => void
   onAchievementCard?: (card: ZoneTipCard) => void
@@ -157,7 +158,10 @@ export function DiscoveryTakeover({
         markLoopDoneForJourney(journeyId)
         const { ensureProfileSession } = await import('@/lib/client/ensureProfileSession')
         await ensureProfileSession()
-        const rec = getDiscoveryRecommendation(journeyId, beat.questionId, answerValue)
+        const rec = getDiscoveryRecommendation(journeyId, beat.questionId, answerValue, {
+          postcode: pc || profileData?.postcode || null,
+          tenure: profileData?.home_ownership ?? null,
+        })
         const fallbackTitle = headlineFromTitle(rec.headline || rec.body, MAX_ZONE_CARD_HEADLINE_WORDS)
         const fallbackUrl = rec.actionUrl ?? rec.learnUrl ?? rec.ctaUrl ?? null
 
@@ -394,8 +398,8 @@ export function DiscoveryTakeover({
         ) : phase === 'pulse' ? (
           <motion.div
             key="clean-birth-pulse"
-            className="w-full flex items-center justify-center"
-            style={{ minHeight: 'min(72vh, 520px)' }}
+            className="w-full flex flex-col items-center justify-center"
+            style={{ minHeight: 'min(72vh, 520px)', gap: 20 }}
             initial={stepMotion.initial}
             animate={stepMotion.animate}
             exit={stepMotion.exit}
@@ -406,6 +410,38 @@ export function DiscoveryTakeover({
               inline
               onComplete={() => setPulseWordsComplete(true)}
             />
+            {/* The word-cycle above holds its final word statically once done, but the server
+                round-trip (POST /api/answers, which can hit a live Firecrawl/Gemini scrape) can
+                still be running for several more seconds — up to CLEAN_BIRTH_PULSE_MAX_WAIT_MS.
+                With nothing on screen changing during that gap, the takeover reads as a frozen
+                app (live-observed). This dot pulse fills that dead-air window only. */}
+            {pulseWordsComplete && !cardReady ? (
+              <motion.div
+                aria-hidden="true"
+                className="flex items-center justify-center"
+                style={{ gap: 8 }}
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.span
+                    key={i}
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: 'var(--color-yellow)',
+                      display: 'inline-block',
+                    }}
+                    animate={{ opacity: [0.25, 1, 0.25] }}
+                    transition={{
+                      duration: 1.1,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                      delay: i * 0.18,
+                    }}
+                  />
+                ))}
+              </motion.div>
+            ) : null}
           </motion.div>
         ) : null}
       </AnimatePresence>

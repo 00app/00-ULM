@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { motion, LayoutGroup } from 'framer-motion'
 import { useApp } from '../context/AppContext'
+import { profileFieldsFromStorage } from '@/lib/profile/onboardingComplete'
 import { JOURNEY_ORDER, isValidJourneyId, type JourneyId } from '@/lib/journeys'
 import { buildZoneViewModel } from '@/lib/logic/zone'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
@@ -3612,6 +3613,14 @@ export default function ZonePage({
               transport_baseline: state.profile?.transport ?? null,
               household: state.profile?.livingSituation ?? null,
               employment_status: state.profile?.employmentStatus ?? null,
+              // AppContext's profile doesn't carry tenure, so read it straight from onboarding
+              // storage — same source questionHandler.ts/loopQuestions.ts already use for this
+              // field. Without this, the client-side optimistic recommendation (shown while the
+              // server round-trip for /api/answers is still in flight) never knew whether the
+              // user rents or owns, so it fell back to generic owner-in-England/Wales content
+              // even after the tenure-aware scheme routing was added server-side.
+              home_ownership:
+                typeof window !== 'undefined' ? profileFieldsFromStorage().homeOwnership ?? null : null,
             }}
             onAchievementCard={pinLoopSpawnCard}
             onRevealComplete={completeCleanBirth}

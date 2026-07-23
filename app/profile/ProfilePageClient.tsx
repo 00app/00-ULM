@@ -954,7 +954,17 @@ export default function ProfilePageClient() {
   if (!current) return null
 
   const handleOptionClick = (opt: unknown) => {
-    if (submittingRef.current || isSubmitting) return
+    // Guard against a fast double-click/double-tap firing this twice for the same step.
+    // commitInputStep (input-type questions) already guards via advancingRef; option-type
+    // questions had no equivalent guard, so a second click landing before the step re-rendered
+    // ran persistAndAdvance/setStep a second time against stale `current`/`values`, corrupting
+    // the step sequence (reproduced live: a fast double-click on an age option sent the flow
+    // back to an earlier question and silently dropped a previously-answered field).
+    // advancingRef is cleared by the existing `useEffect(() => { advancingRef.current = false }, [step])`
+    // once the step actually changes, and also below if an insight screen is shown instead of an
+    // immediate step change.
+    if (submittingRef.current || isSubmitting || advancingRef.current) return
+    advancingRef.current = true
     const isObj = typeof opt === 'object' && opt !== null
     const optValue = isObj ? String((opt as { value: string }).value) : String(opt)
     const isLastStep = step >= PROFILE_QUESTIONS.length - 1
@@ -997,6 +1007,10 @@ export default function ProfilePageClient() {
       setInsightReveal(insight)
       insightTimerRef.current = setTimeout(() => {
         setInsightReveal(null)
+        // Step isn't changing yet at this exact instant (insight screen still showing until
+        // this timer fires), so the [step]-keyed effect won't clear advancingRef for us here —
+        // do it explicitly right before the real advance.
+        advancingRef.current = false
         persistAndAdvance({ ...values, [current.id]: optValue })
       }, 5000)
       return
