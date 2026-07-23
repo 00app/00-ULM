@@ -691,7 +691,18 @@ export default function ZonePage({
       }
       setVisitedCardIds(readVisitedCardIds())
     }
-    if (spawnId) {
+    // openSoloFocus() always returns true — it just sets UI state, it never checks that the
+    // card it's being told to open actually exists. If the loop-question's async birth (server
+    // POST /api/answers, or the client-optimistic fallback in runCleanBirthLabor) hadn't finished
+    // pinning the card by the time this reveal fires — e.g. the 14s safety timeout forced the
+    // reveal before the network round-trip returned — spawnId pointed at a card nothing had ever
+    // rendered, openSoloFocus "succeeded" anyway, and the app was left showing a Solo Focus shell
+    // with no matching card: it looked like it never returned to the zone grid. Only take the
+    // open-the-new-card path when that card is actually present in injectedTips (pinLoopSpawnCard
+    // adds it there synchronously in the same call that sets pendingLoopSpawnId); otherwise fall
+    // through to the normal return-to-zone path below.
+    const spawnCardExists = Boolean(spawnId) && injectedTips.some((t) => t.id === spawnId)
+    if (spawnId && spawnCardExists) {
       rememberSoloFocusReturn({
         cardId: spawnId,
         journeyKey: loopJid ?? 'home',
@@ -709,6 +720,7 @@ export default function ZonePage({
     pendingLoopSpawnId,
     pinnedAchievements.length,
     viewModel.journeys,
+    injectedTips,
     returnToSoloFocusOrigin,
     openSoloFocus,
     rememberSoloFocusReturn,

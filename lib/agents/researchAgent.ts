@@ -90,6 +90,8 @@ import {
   normalizeEmploymentStatus,
 } from '@/lib/brains/calculations'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
+import { homeHeatingSchemeForUser } from '@/lib/zone/homeHeatingScheme'
+import { ukCountryFromPostcode } from '@/lib/zone/ukCountryFromPostcode'
 
 /** Journey mother-card headline bounds — passed to clampZoneBentoHeadline for all category cards. */
 const JOURNEY_CARD_HEADLINE_BOUNDS = {
@@ -1620,10 +1622,15 @@ function mechanicalCategoryTripletFallback(params: {
     const prose = normalizeArchitectProseThreeParagraphs(fallback.prose)
     if (!prose) return null
 
-    // Deterministic headline variety: same user/postcode/category picks the same variant
-    // (consistent within a day/session) but different postcodes spread across the pool
-    // instead of everyone seeing headlines[0] forever.
-    const headlineSeed = `${params.postcode ?? ''}-${journeyKey}`
+    // Deterministic headline variety: same user/postcode/category/profile-shape picks the same
+    // variant (consistent within a day/session) but different postcodes AND different profile
+    // shapes at the same postcode spread across the pool. Previously this seed was postcode-only,
+    // so every visitor to a given postcode saw the literally identical headline forever regardless
+    // of what they'd answered — live-reported as "the same tip and offer all the time." home_type
+    // and tenure are folded in here for that reason; still not full personalisation (the pool
+    // itself is only 5 phrasings), but it's the fastest fix that stops two different profiles at
+    // one postcode from being indistinguishable.
+    const headlineSeed = `${params.postcode ?? ''}-${journeyKey}-${params.profileData?.home_type ?? ''}-${params.profileData?.tenure ?? ''}`
     const headline = deterministicPoolPick(fallback.headlines, headlineSeed)
 
     // Real per-user £ figure instead of the flat per-category constant, when profile data is
@@ -1744,6 +1751,58 @@ function mechanicalCategoryTripletFallback(params: {
       gbp !== fallback.gbp
         ? prose.replace(new RegExp(`£${fallback.gbp}(?=/yr)`, 'g'), `£${gbp}`)
         : prose
+
+    // HOME's default fallback above assumes a house with a loft ("seal draughts and loft
+    // gaps") — wrong for a flat, and wrong for renters/Scotland/NI where the Boiler Upgrade
+    // Scheme quoted in the generic prose doesn't apply. Reuse the same tenure/country scheme
+    // router already wired into the loop-question path (homeHeatingSchemeForUser /
+    // researchLocalGrants.ts) so the MOTHER card — the one every visitor sees first, before
+    // any loop question — carries the same real personalisation instead of generic filler.
+    if (journeyKey === 'home') {
+      const tenure = params.profileData?.tenure ?? null
+      const homeType = (params.profileData?.home_type ?? '').toUpperCase()
+      const country = ukCountryFromPostcode(params.postcode)
+      const isRenter = (tenure ?? '').toUpperCase().includes('RENT')
+      const isFlat = homeType === 'FLAT'
+
+      if (country !== 'england-wales' || isRenter) {
+        const scheme = homeHeatingSchemeForUser({ postcode: params.postcode, tenure })
+        return {
+          saving_amount_gbp: gbp,
+          agent_headline: clampZoneBentoHeadline(
+            scheme.headline.toLowerCase(),
+            journeyKey,
+            JOURNEY_CARD_HEADLINE_BOUNDS
+          ),
+          architect_prose: normalizeArchitectProseThreeParagraphs(scheme.body) ?? proseForDisplay,
+          offer_url: scheme.learnUrl,
+          category: journeyKey,
+        }
+      }
+
+      if (isFlat) {
+        const flatHeadlines = [
+          `draught-strip your windows and doors in ${areaTag} first`,
+          `a smart thermostat pays back fastest in an ${areaTag} flat`,
+          `radiator reflector foil is the cheap ${areaTag} flat win`,
+          `check your TRVs before you touch anything else in ${areaTag}`,
+          `block the letterbox and gaps under doors in ${areaTag} flats`,
+        ]
+        const flatHeadline = deterministicPoolPick(flatHeadlines, headlineSeed)
+        const flatProse = normalizeArchitectProseThreeParagraphs(
+          `Flats in ${areaLabel} don't have a loft to seal, so the biggest cheap win is draughts — windows, doors, letterboxes, and gaps around pipework.\n\nJuly 2026 bills still track the energy price cap (~£${capTypical}/yr typical dual-fuel), so sealing draughts and fitting reflector foil behind radiators on external walls both pay back within a season.\n\nUse the link below for a room-by-room draught-proofing checklist.`
+        )
+        if (flatProse) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(flatHeadline, journeyKey, JOURNEY_CARD_HEADLINE_BOUNDS),
+            architect_prose: flatProse,
+            offer_url: trustedUrlForJourney(journeyKey),
+            category: journeyKey,
+          }
+        }
+      }
+    }
 
     // Locality-aware headline always wins here — we're already inside the branch that has a
     // real area label. ZONE_BENTO_HOOK (fully generic, no locality) is only for when there's none.
