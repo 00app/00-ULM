@@ -15,12 +15,15 @@ import {
 } from '@/lib/profile/goalWeighting'
 import type { AffluenceAuditMode } from '@/lib/zone/affluenceCheck'
 import { readProfileSegmentContext } from '@/lib/profile/profileGoalPreference'
+import { profileFieldsFromStorage } from '@/lib/profile/onboardingComplete'
 
 export type LoopGoalLean = 'money' | 'carbon' | 'neutral'
 
 export type LoopPickContext = {
   goal?: ProfileGoalValue
   toneMode?: AffluenceAuditMode
+  /** Override for the profile home-type gate below — falls back to localStorage when omitted. */
+  homeType?: string | null
 }
 
 export type LoopQuestionOption = {
@@ -36,6 +39,14 @@ export type LoopQuestionBeat = {
   options: LoopQuestionOption[]
   /** Single journey lane — one category only (Director's order). */
   journeyKeys: [JourneyId]
+  /**
+   * Profile gate — same shape/semantics as RockHabit.applicable (lib/rock/types.ts): the beat
+   * only shows to users whose profile matches at least one listed value per dimension. Omitting
+   * a key means no restriction on that dimension; missing profile data never excludes (soft gate).
+   */
+  applicable?: {
+    home_type?: string[]
+  }
 }
 
 /** Canonical loop bank — each questionId is shown at most once per browser profile. Plain English only (no BUS, ECO4, MCS). */
@@ -149,6 +160,9 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
       { label: 'QUOTE', value: 'GET QUOTE', ariaLabel: 'Get a quote' },
       { label: 'NO', value: 'NOT YET', ariaLabel: 'Not yet' },
     ],
+    // Most UK flats have no loft — matches the same gate already used for this identical topic
+    // in the Rock/Today's Tips catalog (habitsCatalog.ts: loft-hatch-seal, loft-top-up).
+    applicable: { home_type: ['HOUSE'] },
   },
   {
     questionId: 'solar_roof_fit',
@@ -275,7 +289,9 @@ export function scoreLoopBeatForProfile(
 
 const LOOP_BANK_INDEX = new Map(LOOP_QUESTION_BANK.map((b, i) => [b.questionId, i]))
 
-export function resolveLoopPickContext(ctx?: LoopPickContext): Required<LoopPickContext> {
+export function resolveLoopPickContext(
+  ctx?: LoopPickContext
+): Required<Pick<LoopPickContext, 'goal' | 'toneMode'>> {
   if (ctx?.goal) {
     return {
       goal: normalizeProfileGoalValue(ctx.goal),
@@ -306,6 +322,21 @@ export function beatsForJourney(journeyId: JourneyId): LoopQuestionBeat[] {
   return LOOP_QUESTION_BANK.filter((b) => b.journeyKeys[0] === journeyId)
 }
 
+/** Resolve the home-type gate value — explicit ctx wins, else localStorage (client only). */
+function resolveHomeTypeForGate(ctx?: LoopPickContext): string | null {
+  if (ctx?.homeType !== undefined) return ctx.homeType
+  if (typeof window === 'undefined') return null
+  return profileFieldsFromStorage().homeType?.trim() || null
+}
+
+/** Return false only when we are confident the beat is irrelevant for this profile — same soft-gate
+ *  semantics as habitMatchesProfile (filterRockHabits.ts): missing profile data never excludes. */
+function beatMatchesHomeType(beat: LoopQuestionBeat, homeType: string | null): boolean {
+  const gate = beat.applicable?.home_type
+  if (!gate || !homeType) return true
+  return gate.includes(homeType)
+}
+
 /** Next unanswered loop beat — ranked by profile goal + tone; still one journey lane. */
 export function pickNextLoopQuestion(
   journeyId: JourneyId,
@@ -314,8 +345,12 @@ export function pickNextLoopQuestion(
   if (hasLoopDoneForJourney(journeyId)) return null
   const answered = readAnsweredLoopQuestionIds()
   const segment = resolveLoopPickContext(ctx)
+  const homeType = resolveHomeTypeForGate(ctx)
   const candidates = LOOP_QUESTION_BANK.filter(
-    (beat) => beat.journeyKeys[0] === journeyId && !answered.has(beat.questionId)
+    (beat) =>
+      beat.journeyKeys[0] === journeyId &&
+      !answered.has(beat.questionId) &&
+      beatMatchesHomeType(beat, homeType)
   )
   if (candidates.length === 0) return null
   if (candidates.length === 1) return candidates[0]!

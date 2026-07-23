@@ -45,7 +45,7 @@ export const JOURNEYS: Record<JourneyId, JourneyDefinition> = {
     questions: [
       {
         id: 'property_type',
-        label: 'Is your property detached or semi-detached?',
+        label: 'What type of property is it?',
         type: 'options',
         options: ['DETACHED', 'SEMI', 'TERRACED', 'FLAT'],
       },

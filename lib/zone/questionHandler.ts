@@ -22,6 +22,7 @@ import {
   profileHomePowerToEnergyType,
   readProfileHomePowerFromStorage,
 } from '@/lib/profile/homePower'
+import { profileFieldsFromStorage } from '@/lib/profile/onboardingComplete'
 
 export { QUESTIONS_PER_JOURNEY, SOLO_FOCUS_QUESTIONS_PER_JOURNEY }
 
@@ -40,18 +41,33 @@ export function mergeProfileSeededAnswers(
   answers: Record<string, string>
 ): Record<string, string> {
   const merged = { ...answers }
+
   const homePower = readProfileHomePowerFromStorage()
-  if (!homePower.trim()) return merged
-  const normalized = homePower.trim().toUpperCase()
-  if (journeyId === 'utilities' && !String(merged.home_power ?? '').trim()) {
-    merged.home_power = normalized
-  }
-  if (journeyId === 'home') {
-    const energy = profileHomePowerToEnergyType(homePower)
-    if (energy && !String(merged.energy_type ?? '').trim()) {
-      merged.energy_type = energy
+  if (homePower.trim()) {
+    const normalized = homePower.trim().toUpperCase()
+    if (journeyId === 'utilities' && !String(merged.home_power ?? '').trim()) {
+      merged.home_power = normalized
+    }
+    if (journeyId === 'home') {
+      const energy = profileHomePowerToEnergyType(homePower)
+      if (energy && !String(merged.energy_type ?? '').trim()) {
+        merged.energy_type = energy
+      }
     }
   }
+
+  // "Is your property detached or semi-detached?" (property_type) duplicated onboarding's
+  // homeType question (FLAT/HOUSE) — a flat-dweller who'd already said FLAT got asked again,
+  // worded as if they hadn't. FLAT fully answers property_type (no house sub-type to refine),
+  // so seed it and skip the re-ask; HOUSE still needs the real detached/semi/terraced distinction
+  // (used by calculateHome — see profileJourneyBaseline.ts), so leave that question live.
+  if (journeyId === 'home' && !String(merged.property_type ?? '').trim()) {
+    const homeType = profileFieldsFromStorage().homeType?.trim().toUpperCase()
+    if (homeType === 'FLAT') {
+      merged.property_type = 'FLAT'
+    }
+  }
+
   return merged
 }
 
