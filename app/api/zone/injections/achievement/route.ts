@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
+import { requireAiRouteAuth } from '@/lib/requestAuth'
 import { captureServerError } from '@/lib/observability/captureError'
 import {
   getJourneyAnswerRowId,
@@ -28,6 +29,9 @@ type Body = {
 
 export async function POST(request: NextRequest) {
   try {
+    const authDenied = await requireAiRouteAuth(request)
+    if (authDenied) return authDenied
+
     const body = (await request.json().catch(() => null)) as Body | null
     const card = validateInjectionCard(body?.card)
     if (!card) {

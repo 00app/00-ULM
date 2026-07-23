@@ -100,6 +100,35 @@ export const zoneInjectionBirthBodySchema = z
     }
   })
 
+const memoryFlushProfileSchema = z.object({
+  name: z.string().trim().max(120).optional(),
+  postcode: z.string().trim().max(12).optional(),
+  household: z.string().trim().max(64).optional(),
+  home_type: z.string().trim().max(64).optional(),
+  transport_baseline: z.string().trim().max(64).optional(),
+  age: z.string().trim().max(32).optional(),
+  goal: z.string().trim().max(64).optional(),
+  employment_status: z.string().trim().max(64).optional(),
+})
+
+const memoryFlushJourneyAnswersSchema = z.record(
+  z.string().max(32),
+  z.record(z.string().max(64), z.string().max(500))
+)
+
+export const memoryFlushPostBodySchema = z
+  .object({
+    profile: memoryFlushProfileSchema.optional(),
+    journeyAnswers: memoryFlushJourneyAnswersSchema.optional(),
+    activeGoals: z.array(z.string().trim().max(200)).max(20).optional(),
+    contextUpdate: z.record(z.string().max(64), z.string().max(500)).optional(),
+  })
+  .superRefine((body, ctx) => {
+    if (JSON.stringify(body).length > 20_000) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'payload too large' })
+    }
+  })
+
 export function invalidBodyResponse(error: z.ZodError): NextResponse {
   return NextResponse.json(
     {
