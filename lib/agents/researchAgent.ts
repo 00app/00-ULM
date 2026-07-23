@@ -89,6 +89,7 @@ import {
   applyEmploymentFinancialPhysics,
   normalizeEmploymentStatus,
 } from '@/lib/brains/calculations'
+import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 
 /** Journey mother-card headline bounds — passed to clampZoneBentoHeadline for all category cards. */
 const JOURNEY_CARD_HEADLINE_BOUNDS = {
@@ -1190,6 +1191,8 @@ export async function repairResearchResultsMissingHeadlines(params: {
     offer_url: string | null
     locality_context: string | null
     agent_headline: string | null
+    elec_unit_rate_gbp_per_kwh: number | null
+    gas_unit_rate_gbp_per_kwh: number | null
   }
   let rows: Row[] = []
   try {
@@ -1208,7 +1211,8 @@ export async function repairResearchResultsMissingHeadlines(params: {
     if (rowId != null) {
       const r = await pool.query<Row>(
         `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
-                offer_url, locality_context, agent_headline
+                offer_url, locality_context, agent_headline,
+                elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh
          FROM research_results
          WHERE id = $1
            AND (${incomplete})`,
@@ -1218,7 +1222,8 @@ export async function repairResearchResultsMissingHeadlines(params: {
     } else if (uid) {
       const r = await pool.query<Row>(
         `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
-                offer_url, locality_context, agent_headline
+                offer_url, locality_context, agent_headline,
+                elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh
          FROM research_results
          WHERE user_id = $1::uuid
            AND (${incomplete})
@@ -1230,7 +1235,8 @@ export async function repairResearchResultsMissingHeadlines(params: {
     } else if (pc.length >= 4) {
       const r = await pool.query<Row>(
         `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
-                offer_url, locality_context, agent_headline
+                offer_url, locality_context, agent_headline,
+                elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh
          FROM research_results
          WHERE REPLACE(COALESCE(postcode, ''), ' ', '') = $1
            AND (${incomplete})
@@ -1242,7 +1248,8 @@ export async function repairResearchResultsMissingHeadlines(params: {
     } else {
       const r = await pool.query<Row>(
         `SELECT id::text, markdown, citations, profile_snapshot, postcode, category,
-                offer_url, locality_context, agent_headline
+                offer_url, locality_context, agent_headline,
+                elec_unit_rate_gbp_per_kwh, gas_unit_rate_gbp_per_kwh
          FROM research_results
          WHERE (${incomplete})
          ORDER BY created_at DESC NULLS LAST
@@ -1274,6 +1281,10 @@ export async function repairResearchResultsMissingHeadlines(params: {
       localityContext: row.locality_context,
       postcode: row.postcode,
       profileData: profileForFallback,
+      liveRates:
+        typeof row.elec_unit_rate_gbp_per_kwh === 'number' && typeof row.gas_unit_rate_gbp_per_kwh === 'number'
+          ? { elecGbpPerKwh: row.elec_unit_rate_gbp_per_kwh, gasGbpPerKwh: row.gas_unit_rate_gbp_per_kwh }
+          : null,
     })
     if (mechanical) {
       try {
@@ -1438,6 +1449,14 @@ function mechanicalCategoryTripletFallback(params: {
    *  figure instead of a flat guess. Optional and defensive — falls back to the old flat
    *  number if absent, so this never breaks a call site that doesn't have profile data handy. */
   profileData?: ResearchProfileData | null
+  /** Live £/kWh (Neon research / pulse-living / Octopus Agile — see resolveLiveUnitRatesForPostcode).
+   *  When present, home/utilities' calculateHome/calculateUtilities use TODAY's rate instead of
+   *  the static default baked into calculations.ts, so the card £ figure matches what the Zone
+   *  dashboard total already uses rather than a second, independently-stale number. */
+  liveRates?: {
+    elecGbpPerKwh: number
+    gasGbpPerKwh: number
+  } | null
 }): {
   saving_amount_gbp: number
   agent_headline: string
@@ -1641,7 +1660,11 @@ function mechanicalCategoryTripletFallback(params: {
         const calculated =
           journeyKey === 'money'
             ? applyEmploymentFinancialPhysics(calculateMoney(answers), employment, 'money')
-            : applyEmploymentFinancialPhysics(calculateUtilities(answers), employment, 'utilities')
+            : applyEmploymentFinancialPhysics(
+                calculateUtilities(answers, params.liveRates ?? undefined),
+                employment,
+                'utilities'
+              )
         calculatedMoneyGbp = calculated.moneyGbp
       } else if (journeyKey === 'home') {
         const answers: Record<string, string> = {
@@ -1651,7 +1674,7 @@ function mechanicalCategoryTripletFallback(params: {
           green_tariff: '',
         }
         calculatedMoneyGbp = applyEmploymentFinancialPhysics(
-          calculateHome(answers),
+          calculateHome(answers, params.liveRates ?? undefined),
           employment,
           'home'
         ).moneyGbp
@@ -2065,6 +2088,10 @@ export async function persistResearchResult(params: {
         localityContext: params.localityContext ?? null,
         postcode: params.postcode ?? null,
         profileData: params.profileData ?? null,
+        liveRates:
+          typeof params.elecUnitRateGbpPerKwh === 'number' && typeof params.gasUnitRateGbpPerKwh === 'number'
+            ? { elecGbpPerKwh: params.elecUnitRateGbpPerKwh, gasGbpPerKwh: params.gasUnitRateGbpPerKwh }
+            : null,
       })
       if (mechanical) {
         if (savingForDb == null || savingForDb <= 0) {
@@ -2245,6 +2272,11 @@ export async function seedMechanicalJourneysForPostcode(
     /* optional geocode */
   }
 
+  // Fetched once for the whole postcode (not per-journey) — resolveLiveUnitRatesForPostcode
+  // already tiers Neon research -> live pulse -> static reference itself, so this always
+  // resolves to something; only home/utilities actually use it (see mechanicalCategoryTripletFallback).
+  const liveRates = await resolveLiveUnitRatesForPostcode(pc).catch(() => null)
+
   const pool = getDbPool()
   const seeded: string[] = []
   const failed: string[] = []
@@ -2256,6 +2288,7 @@ export async function seedMechanicalJourneysForPostcode(
         offerUrl: trustedUrlForJourney(journey),
         localityContext: locality,
         postcode: pc,
+        liveRates,
       })
       if (!mechanical) {
         failed.push(journey)
