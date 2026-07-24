@@ -1430,17 +1430,24 @@ function padRockHeadlineToExpandedBounds(
 ): string {
   const jid = journeyId
   const journeyHook = jid ? EXPANDED_JOURNEY_HOOK[jid] : undefined
-  let result = enforceHeadlineWordLimits(combined, true, jid)
-  let words = splitHeadlineWords(result)
-  if (words.length < 15 && journeyHook) {
-    const padded = trimHeadlineToMaxWords(
-      `${result} ${journeyHook}`,
-      MAX_EXPANDED_VIEW_HEADLINE_WORDS,
-      MIN_EXPANDED_VIEW_HEADLINE_WORDS
-    )
-    result = enforceHeadlineWordLimits(padded, true, jid)
-    words = splitHeadlineWords(result)
-  }
+  /* enforceHeadlineWordLimits substitutes the full journeyHook outright whenever the input is
+     under MIN_EXPANDED_VIEW_HEADLINE_WORDS (its own needsHook check) — so a short rock title/
+     insight must be padded with the hook BEFORE that call, or the pad step below never runs on
+     real content; it always sees the hook already standing in for it. (Live-audited: a rock tip
+     titled "COMBINE CAR TRIPS." with its own insight still surfaced the generic travel hook
+     verbatim, because the old order called enforceHeadlineWordLimits on the 11-word insight
+     first.) */
+  const rawWords = splitHeadlineWords(combined)
+  const prePadded =
+    rawWords.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && journeyHook
+      ? trimHeadlineToMaxWords(
+          `${combined} ${journeyHook}`,
+          MAX_EXPANDED_VIEW_HEADLINE_WORDS,
+          MIN_EXPANDED_VIEW_HEADLINE_WORDS
+        )
+      : combined
+  let result = enforceHeadlineWordLimits(prePadded, true, jid)
+  const words = splitHeadlineWords(result)
   if (words.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && journeyHook) {
     result = enforceHeadlineWordLimits(journeyHook, true, jid)
   }

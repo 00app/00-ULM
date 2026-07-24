@@ -491,7 +491,11 @@ export function SoloFocusOverlay({
           displayRecommendation
   const isZoneMotherChild = !startInQuestionMode
   const overlayFocusJourney = normalizeCategoryToJourneyKey(String(displayJourneyId ?? journeyId ?? 'home'))
-  const recommendationTitle = isRockHabitTip
+  /* Discovery/achievement cards (inject-*) have their own specific title, same as rock-* tips —
+     headlineFromExpandedHook's 20-word floor would otherwise silently swap it for the one
+     hardcoded sentence per category (EXPANDED_JOURNEY_HOOK). */
+  const isHeadlineExemptTip = isRockHabitTip || isDiscoveryInjectCard(cardId)
+  const recommendationTitle = isHeadlineExemptTip
     ? headlineFromRockHabitForSoloFocus(
         String(effectiveTitleRaw),
         (displayInsight ?? insight ?? '').trim() || undefined,

@@ -52,6 +52,7 @@ import { getDiscoveryRecommendation } from '@/lib/brains/recommendations'
 import { estimateDiscoveryCarbonKg, ukAverageSavingForDiscoveryAnswer } from '@/lib/brains/calculations'
 import {
   headlineFromExpandedHook,
+  headlineFromRockHabitForSoloFocus,
   headlineFromTitle,
   formatZoneCategoryLabel,
   formatSoloFocusTopCategoryLabel,
@@ -365,6 +366,9 @@ export function JourneyBentoCard({
     morphDeckCursor > 0 && morphDeck[morphDeckCursor - 1] != null
       ? morphDeck[morphDeckCursor - 1]
       : null
+  /* getNextMorphCard() seeds morphDeck from ROCK_HABITS only (rock-<slug> ids) — never from
+     discovery/injected cards, which live in the separate zone/page.tsx tip-grid flow, not here. */
+  const isRockMorphTip = String(currentMorphData?.id ?? '').startsWith('rock-')
 
   const sentinelMoneyCarbon =
     journeyId === 'home' && homeSentinelRecard && !currentMorphData
@@ -426,7 +430,10 @@ export function JourneyBentoCard({
   const sanitizedCovProse = journeyResearchCov?.architectProse?.trim()
     ? sanitizeArchitectProseForJourney(focusJourneyKey, journeyResearchCov.architectProse)
     : null
+  /* Rock Habit morph has its own specific prose/£/source — category-level research_results
+     must not silently override it, mirroring isCategoryScopedOverrideExempt in zone/page.tsx (888c566). */
   const verifiedAuditMatchesJourney =
+    !isRockMorphTip &&
     verifiedAuditMoneyGbp != null &&
     Number.isFinite(verifiedAuditMoneyGbp) &&
     (verifiedAuditCategory ?? '').trim().toLowerCase() === focusCategoryJourneyId &&
@@ -963,7 +970,17 @@ export function JourneyBentoCard({
             wordCount(tileFallbackTitle) >= MIN_EXPANDED_VIEW_HEADLINE_WORDS
           ? tileFallbackTitle
           : mechanicalFallback
-    const recommendationTitle = headlineFromExpandedHook(expandedHeadlineSource, focusJourney)
+    /* Rock Habit titles are short by design and almost always fail the 20-word floor —
+       headlineFromExpandedHook would silently discard them for the one hardcoded sentence
+       per category (EXPANDED_JOURNEY_HOOK). headlineFromRockHabitForSoloFocus prefers the
+       card's own title/insight instead, matching how SoloFocusOverlay already handles rock-* tips. */
+    const recommendationTitle = isRockMorphTip
+      ? headlineFromRockHabitForSoloFocus(
+          String(effectiveTitleRaw),
+          currentMorphData?.explanation?.[0] ?? undefined,
+          focusJourney
+        )
+      : headlineFromExpandedHook(expandedHeadlineSource, focusJourney)
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =
       auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
@@ -1028,6 +1045,8 @@ export function JourneyBentoCard({
         auditHeaderLocality={state.locationState?.locationName ?? undefined}
         locality={state.locationState?.locationName ?? undefined}
         postcode={profilePostcode ?? state.profile?.postcode ?? undefined}
+        contentMode={isRockMorphTip ? 'rock' : 'journey'}
+        habitTitle={isRockMorphTip ? String(displayTitle || title || '').trim() : undefined}
       />
     ) : null
 
