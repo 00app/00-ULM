@@ -3633,6 +3633,10 @@ export default function ZonePage({
               // even after the tenure-aware scheme routing was added server-side.
               home_ownership:
                 typeof window !== 'undefined' ? profileFieldsFromStorage().homeOwnership ?? null : null,
+              // Same gap as home_ownership above, but for gas/electric/mix — without this, the
+              // gated getNextMorphCard()/Tier 2 morph paths had no signal to exclude gas-only
+              // content (e.g. "annual boiler service") for an ELECTRIC-only household.
+              home_power: state.profile?.homePower ?? null,
             }}
             onAchievementCard={pinLoopSpawnCard}
             onRevealComplete={completeCleanBirth}

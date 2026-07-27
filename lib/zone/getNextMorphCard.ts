@@ -1,12 +1,16 @@
 import type { JourneyId } from '@/lib/journeys'
 import { ROCK_HABITS, habitToTipCard } from '@/lib/rock/habitsCatalog'
+import { filterHabitsByProfile } from '@/lib/zone/filterRockHabits'
 import type { ZoneTipCard } from '@/lib/logic/zone'
 
 type MorphProfile = {
   postcode?: string | null
   homeType?: string | null
   transport?: string | null
+  /** Travel/car fuel type (petrol/diesel/EV) — used only for the transport-content scoring boost below. */
   fuelType?: string | null
+  /** Home heating/power fuel (GAS/ELECTRIC/MIX/OTHER) — gates gas-only content like boiler service. */
+  powerType?: string | null
 }
 
 function scoreHabit(
@@ -37,7 +41,17 @@ function scoreHabit(
 export function getNextMorphCard(journeyId: JourneyId, profile: MorphProfile): ZoneTipCard {
   const journeyHabits = ROCK_HABITS.filter((h) => h.journey_key === journeyId)
   const pool = journeyHabits.length > 0 ? journeyHabits : ROCK_HABITS
-  const ranked = [...pool].sort(
+  // Gate out habits that don't match the user's profile (e.g. gas-boiler-service content for an
+  // ELECTRIC-only household) — same applicable.power_type/home_type gate used by the Today's Tips
+  // rail. Soft gate: if it would empty the pool, fall back to the ungated pool rather than showing
+  // nothing.
+  const gated = filterHabitsByProfile(pool, {
+    home_type: profile.homeType ?? null,
+    transport: profile.transport ?? null,
+    power_type: profile.powerType ?? null,
+  })
+  const scoringPool = gated.length > 0 ? gated : pool
+  const ranked = [...scoringPool].sort(
     (a, b) => scoreHabit(b, journeyId, profile) - scoreHabit(a, journeyId, profile)
   )
   const pick = ranked.find((h) => h.journey_key === journeyId) ?? ranked[0] ?? ROCK_HABITS[0]

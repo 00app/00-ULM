@@ -24,6 +24,12 @@ export type LoopPickContext = {
   toneMode?: AffluenceAuditMode
   /** Override for the profile home-type gate below — falls back to localStorage when omitted. */
   homeType?: string | null
+  /** Override for the profile power-type gate below — falls back to localStorage when omitted. */
+  powerType?: string | null
+  /** Override for the profile transport gate below — falls back to localStorage when omitted. */
+  transport?: string | null
+  /** Override for the profile tenure gate below — falls back to localStorage when omitted. */
+  tenure?: string | null
 }
 
 export type LoopQuestionOption = {
@@ -46,6 +52,12 @@ export type LoopQuestionBeat = {
    */
   applicable?: {
     home_type?: string[]
+    /** Gate by profile power/heating-fuel type (GAS/ELECTRIC/MIX/OTHER) — same soft-gate semantics. */
+    power_type?: string[]
+    /** Gate by profile transport mode (WALK/BIKE/PUBLIC/CAR/MIX) — same soft-gate semantics. */
+    transport?: string[]
+    /** Gate by profile tenure (OWNER/RENTER) — same soft-gate semantics. */
+    tenure?: string[]
   }
 }
 
@@ -70,6 +82,9 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
       { label: 'COMPARE', value: 'COMPARE COSTS', ariaLabel: 'Compare costs' },
       { label: 'NO', value: 'KEEP PETROL', ariaLabel: 'Keep my current car' },
     ],
+    // Only relevant to households that actually drive — a WALK/BIKE/PUBLIC commuter has no
+    // "current car" to swap. Matches the car/fuel gate already used in the Rock catalog.
+    applicable: { transport: ['CAR', 'MIX'] },
   },
   {
     questionId: 'holidays_local_vs_longhaul',
@@ -120,6 +135,8 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
       { label: 'COMPARE', value: 'COMPARE COSTS', ariaLabel: 'Compare costs' },
       { label: 'PETROL', value: 'KEEP PETROL', ariaLabel: 'Keep petrol' },
     ],
+    // Same car-ownership gate as travel_ev_commute — nothing to "swap" for a non-driver.
+    applicable: { transport: ['CAR', 'MIX'] },
   },
   {
     questionId: 'money_smart_tariff',
@@ -150,6 +167,10 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
       { label: 'CHECK', value: 'CHECK ELIGIBILITY', ariaLabel: 'Check if I qualify' },
       { label: 'GAS', value: 'STAY ON GAS', ariaLabel: 'Stay on gas' },
     ],
+    // Only relevant to households that actually have a gas boiler to replace — matches the
+    // identical gate already used for this identical topic in the Rock catalog
+    // (habitsCatalog.ts: boiler-service-annual — applicable.power_type: ['GAS', 'MIX']).
+    applicable: { power_type: ['GAS', 'MIX'] },
   },
   {
     questionId: 'home_loft_insulate',
@@ -173,6 +194,9 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
       { label: 'SURVEY', value: 'FREE SURVEY', ariaLabel: 'Free survey' },
       { label: 'NO', value: 'NOT YET', ariaLabel: 'Not yet' },
     ],
+    // Roof solar assumes a roof you're free to alter — flats rarely have exclusive roof access,
+    // and renters need landlord permission most councils won't fast-track. Gate to house + owner.
+    applicable: { home_type: ['HOUSE'], tenure: ['OWNER'] },
   },
   {
     questionId: 'shopping_repair_first',
@@ -337,6 +361,48 @@ function beatMatchesHomeType(beat: LoopQuestionBeat, homeType: string | null): b
   return gate.includes(homeType)
 }
 
+/** Resolve the power-type gate value — explicit ctx wins, else localStorage (client only). */
+function resolvePowerTypeForGate(ctx?: LoopPickContext): string | null {
+  if (ctx?.powerType !== undefined) return ctx.powerType
+  if (typeof window === 'undefined') return null
+  return profileFieldsFromStorage().powerType?.trim().toUpperCase() || null
+}
+
+/** Same soft-gate semantics as beatMatchesHomeType — missing profile data never excludes. */
+function beatMatchesPowerType(beat: LoopQuestionBeat, powerType: string | null): boolean {
+  const gate = beat.applicable?.power_type
+  if (!gate || !powerType) return true
+  return gate.includes(powerType)
+}
+
+/** Resolve the transport gate value — explicit ctx wins, else localStorage (client only). */
+function resolveTransportForGate(ctx?: LoopPickContext): string | null {
+  if (ctx?.transport !== undefined) return ctx.transport
+  if (typeof window === 'undefined') return null
+  return profileFieldsFromStorage().transport?.trim().toUpperCase() || null
+}
+
+/** Same soft-gate semantics as beatMatchesHomeType — missing profile data never excludes. */
+function beatMatchesTransport(beat: LoopQuestionBeat, transport: string | null): boolean {
+  const gate = beat.applicable?.transport
+  if (!gate || !transport) return true
+  return gate.includes(transport)
+}
+
+/** Resolve the tenure gate value — explicit ctx wins, else localStorage (client only). */
+function resolveTenureForGate(ctx?: LoopPickContext): string | null {
+  if (ctx?.tenure !== undefined) return ctx.tenure
+  if (typeof window === 'undefined') return null
+  return profileFieldsFromStorage().homeOwnership?.trim().toUpperCase() || null
+}
+
+/** Same soft-gate semantics as beatMatchesHomeType — missing profile data never excludes. */
+function beatMatchesTenure(beat: LoopQuestionBeat, tenure: string | null): boolean {
+  const gate = beat.applicable?.tenure
+  if (!gate || !tenure) return true
+  return gate.includes(tenure)
+}
+
 /** Next unanswered loop beat — ranked by profile goal + tone; still one journey lane. */
 export function pickNextLoopQuestion(
   journeyId: JourneyId,
@@ -346,11 +412,17 @@ export function pickNextLoopQuestion(
   const answered = readAnsweredLoopQuestionIds()
   const segment = resolveLoopPickContext(ctx)
   const homeType = resolveHomeTypeForGate(ctx)
+  const powerType = resolvePowerTypeForGate(ctx)
+  const transport = resolveTransportForGate(ctx)
+  const tenure = resolveTenureForGate(ctx)
   const candidates = LOOP_QUESTION_BANK.filter(
     (beat) =>
       beat.journeyKeys[0] === journeyId &&
       !answered.has(beat.questionId) &&
-      beatMatchesHomeType(beat, homeType)
+      beatMatchesHomeType(beat, homeType) &&
+      beatMatchesPowerType(beat, powerType) &&
+      beatMatchesTransport(beat, transport) &&
+      beatMatchesTenure(beat, tenure)
   )
   if (candidates.length === 0) return null
   if (candidates.length === 1) return candidates[0]!

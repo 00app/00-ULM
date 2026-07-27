@@ -600,6 +600,7 @@ export function JourneyBentoCard({
           homeType: state.profile?.homeType ?? null,
           transport: state.profile?.transport ?? null,
           fuelType: state.journeyAnswers?.travel?.fuel_type ?? null,
+          powerType: state.profile?.homePower ?? null,
         })
         const seededForJourney =
           seeded.journey_key === journeyId
@@ -616,6 +617,7 @@ export function JourneyBentoCard({
             homeType: state.profile?.homeType ?? null,
             transport: state.profile?.transport ?? null,
             fuelType: state.journeyAnswers?.travel?.fuel_type ?? null,
+            powerType: state.profile?.homePower ?? null,
           })
           const seededForJourney =
             seeded.journey_key === journeyId
@@ -649,6 +651,7 @@ export function JourneyBentoCard({
     profilePostcode,
     state.profile?.homeType,
     state.profile?.transport,
+    state.profile?.homePower,
     state.journeyAnswers?.travel?.fuel_type,
     discoverySnap,
     isVisited,

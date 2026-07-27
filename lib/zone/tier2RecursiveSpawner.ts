@@ -111,7 +111,12 @@ export function buildTier2MorphCard(
   journeyId: JourneyId,
   coverage: Record<string, ResearchCategoryCoverageRow> | null,
   meta: ParsedResearchMeta | null,
-  profile?: { postcode?: string; homeType?: string | null; transport?: string | null }
+  profile?: {
+    postcode?: string
+    homeType?: string | null
+    transport?: string | null
+    powerType?: string | null
+  }
 ): ZoneTipCard {
   const catKey = journeyId.toLowerCase()
   const row =
@@ -137,6 +142,7 @@ export function buildTier2MorphCard(
     postcode: profile?.postcode,
     homeType: profile?.homeType ?? null,
     transport: profile?.transport ?? null,
+    powerType: profile?.powerType ?? null,
   })
   const cleaned = rawHeadline ? cleanZonePreviewHeadline(rawHeadline) : ''
   const title =
@@ -168,6 +174,9 @@ export async function fetchTier2ScrapeSync(params: {
   userId?: string | null
   /** Force repair pass on research_results (headline / prose / £) after Tier 2 research. */
   repair?: boolean
+  homeType?: string | null
+  transport?: string | null
+  powerType?: string | null
 }): Promise<Tier2ScrapeSyncResult> {
   const pc = params.postcode.replace(/\s+/g, '').trim().toUpperCase()
   const category = String(params.category ?? '').trim().toLowerCase()
@@ -199,7 +208,12 @@ export async function fetchTier2ScrapeSync(params: {
     const coverage = parseCoverageFromApi(data)
     const meta = parseResearchMetaFromApi(data)
     const journeyKey = (researchCategoryToJourneyKey(category) ?? category) as JourneyId
-    const morphCard = buildTier2MorphCard(journeyKey, coverage, meta)
+    const morphCard = buildTier2MorphCard(journeyKey, coverage, meta, {
+      postcode: pc,
+      homeType: params.homeType ?? null,
+      transport: params.transport ?? null,
+      powerType: params.powerType ?? null,
+    })
     const offerUrl =
       morphCard.actions?.actionUrl?.trim().startsWith('http')
         ? morphCard.actions.actionUrl.trim()
@@ -225,6 +239,9 @@ export async function runTier2MotherChildSwap(params: {
   category: string
   answer: string
   questionId: string
+  homeType?: string | null
+  transport?: string | null
+  powerType?: string | null
 }): Promise<Tier2ScrapeSyncResult> {
   persistTier2AnswerLocal({
     journeyId: params.category,
@@ -236,6 +253,9 @@ export async function runTier2MotherChildSwap(params: {
     category: params.category,
     answer: params.answer,
     questionId: params.questionId,
+    homeType: params.homeType ?? null,
+    transport: params.transport ?? null,
+    powerType: params.powerType ?? null,
   })
   if (result.ok) {
     await refreshZoneTotalsAfterTier2(params.postcode)

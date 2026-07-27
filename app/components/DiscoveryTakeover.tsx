@@ -49,6 +49,7 @@ type Props = {
     household?: string | null
     employment_status?: string | null
     home_ownership?: string | null
+    home_power?: string | null
   }
   onRevealComplete: () => void
   onAchievementCard?: (card: ZoneTipCard) => void
@@ -223,6 +224,9 @@ export function DiscoveryTakeover({
                 category: journeyId,
                 answer: answerValue,
                 questionId: beat.questionId,
+                homeType: profileData?.home_type ?? null,
+                transport: profileData?.transport_baseline ?? null,
+                powerType: profileData?.home_power ?? null,
               })
               if (!tier2.ok && !tier2.morphCard?.title?.trim()) return
               const enrichedTitle =
