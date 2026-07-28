@@ -8,16 +8,28 @@ import { JOURNEY_IDS } from '@/lib/journeys'
 export const TRUSTED_JOURNEY_URLS: Record<JourneyId, string> = {
   home: 'https://www.energysavingtrust.org.uk/advice/reducing-home-heat-loss/',
   utilities: 'https://www.moneysavingexpert.com/cheapenergyclub/',
-  solar: 'https://mcscertified.com/find-an-installer/',
+  // Smart Export Guarantee — the actual scheme that pays for exported solar, not a generic
+  // installer directory. Every UK supplier with 150k+ customers must offer an SEG tariff.
+  solar: 'https://www.ofgem.gov.uk/environmental-and-social-schemes/smart-export-guarantee-seg',
   travel: 'https://www.nationalrail.co.uk/tickets-railcards-and-offers/railcards/',
   holidays: 'https://www.eurostar.com/uk-en/deals',
-  food: 'https://www.lovefoodhatewaste.com',
+  // Too Good To Go — real, specific, 6.6M UK users; turns unsold shop/restaurant food into
+  // discounted bags, rather than a generic "plan your meals" advice page.
+  food: 'https://www.toogoodtogo.co.uk',
   shopping: 'https://wrap.org.uk/taking-action/textiles',
-  money: 'https://www.moneysavingexpert.com/banking/',
+  // Triodos — the one major UK provider that fully excludes fossil fuels from its Stocks &
+  // Shares ISA; named Best Ethical Financial Provider at the 2026 British Bank Awards.
+  money: 'https://www.triodos.co.uk/ethical-isas',
   tech: 'https://www.backmarket.co.uk',
-  water: 'https://www.waterwise.org.uk/save-water/',
-  waste: 'https://www.recyclenow.com',
-  carbon: 'https://www.carbontrust.com/resources',
+  // WaterSure — an actual bill-cap scheme (meter + qualifying benefit + large family/medical
+  // need), not generic "fix your drips" advice. Real money for eligible households.
+  water: 'https://www.citizensadvice.org.uk/consumer/water/problems-with-paying-your-water-bill/watersure-scheme-help-with-paying-water-bills/',
+  // TerraCycle — free, brand-funded recycling for the stuff kerbside collection won't take
+  // (crisp packets, toothpaste tubes, batteries), not a generic recycling locator.
+  waste: 'https://www.terracycle.com/en-GB/',
+  // WWF's free 10-minute footprint calculator — a specific tool with a real result, not a
+  // generic "resources" hub page.
+  carbon: 'https://footprint.wwf.org.uk/',
 }
 
 export const DEFAULT_TRUSTED_URL = 'https://www.gov.uk/'
@@ -41,9 +53,20 @@ export const TRUSTED_JOURNEY_URL_ALTERNATES: Partial<Record<JourneyId, readonly 
   // dropped — no stable evergreen successor found, only news/press-release pages.
   travel: [
     'https://www.thetrainline.com/information/cheap-train-tickets',
+    'https://www.railcard.co.uk/about-railcards/',
   ],
   holidays: ['https://www.visitbritain.com/'],
   utilities: ['https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap'],
+  solar: ['https://mcscertified.com/find-an-installer/'],
+  // Olio — free neighbour-to-neighbour food sharing, distinct from Too Good To Go's paid
+  // surplus bags; worth surfacing as the second card on a repeat visit.
+  food: ['https://olioapp.com/en/'],
+  shopping: ['https://therestartproject.org/', 'https://www.vinted.co.uk/'],
+  tech: ['https://therestartproject.org/'],
+  water: ['https://www.waterwise.org.uk/save-water/'],
+  // Freegle — 4M UK members, 450+ local groups; second real option alongside TerraCycle.
+  waste: ['https://www.ilovefreegle.org/'],
+  carbon: ['https://www.carbontrust.com/resources'],
 }
 
 export function normalizeOfferUrlKey(url: string): string {

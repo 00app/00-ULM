@@ -2633,13 +2633,21 @@ export default function ZonePage({
     (id: string) => {
       if (!zoneInteractable) return
       const rockHabit = id.startsWith('rock-') ? ROCK_BY_SLUG.get(id.slice(5)) : undefined
-      markCardVisited(id)
+      // Only mark visited immediately when this open would have been close-only anyway
+      // (discovery inject, or this journey's loop already done) — mirrors shouldCloseMarkPinkOnly's
+      // own semantics. Marking visited unconditionally on open (as before) meant isCardVisited(id)
+      // was already true by the time the user closed the card, so the "first close of an unvisited
+      // card offers a loop question" path in beginCloseWithPatternShift/shouldSkipInjectionOnCardClose
+      // could never fire — the loop-question mechanic was silently dead for every Today's Tips card.
+      if (shouldCloseMarkPinkOnly(id, rockHabit?.journey_key)) {
+        markCardVisited(id)
+        setVisitedCardIds(readVisitedCardIds())
+      }
       void recordCardVisitHandoff({
         cardId: id,
         journeyKey: rockHabit?.journey_key,
         title: rockHabit?.title,
       })
-      setVisitedCardIds(readVisitedCardIds())
       try {
         sessionStorage.removeItem(`zz_sf_view_${id}`)
         sessionStorage.removeItem(`zz_sf_lane_${id}`)

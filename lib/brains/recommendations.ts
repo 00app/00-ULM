@@ -6,6 +6,7 @@
 import type { JourneyId } from '@/lib/journeys'
 import { isLoopQuestionId } from '@/lib/zone/loopQuestions'
 import { homeHeatingSchemeForUser } from '@/lib/zone/homeHeatingScheme'
+import { trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 
 export interface DiscoveryRecommendation {
   /** Short shout (card title / H1 energy) */
@@ -286,22 +287,27 @@ export function getDiscoveryRecommendation(
   }
 
   if (isLoopQuestionId(questionId)) {
+    const url = trustedUrlForJourney(journeyId)
     return {
       headline: 'YOUR WALL NOW REMEMBERS THIS SHIFT',
       body: 'We remember this choice and sharpen grants, tariffs, and lifestyle offers on your Zone wall.',
       gridJourneyKey: journeyId,
-      learnUrl: 'https://energysavingtrust.org.uk/',
+      learnUrl: url,
       ctaLabel: 'See shift',
-      ctaUrl: 'https://energysavingtrust.org.uk/',
+      ctaUrl: url,
     }
   }
 
+  // Category-correct fallback — trustedUrlForJourney(journeyId) resolves to a real, specific
+  // resource per category (Ofgem SEG for solar, WaterSure for water, TerraCycle for waste, etc.)
+  // instead of a single bare gov.uk homepage shown for every journey.
+  const fallbackUrl = trustedUrlForJourney(journeyId)
   return {
     headline: 'KEEP DIGGING FOR UK SAVINGS',
     body: 'Small UK-wide moves — tariffs, grants, and habits — still add up in 2026. Tap Get for trusted sources.',
     gridJourneyKey: journeyId,
-    learnUrl: 'https://www.gov.uk/',
-    ctaLabel: 'GOV.UK hub',
-    ctaUrl: 'https://www.gov.uk/',
+    learnUrl: fallbackUrl,
+    ctaLabel: 'See trusted source',
+    ctaUrl: fallbackUrl,
   }
 }
