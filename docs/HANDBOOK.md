@@ -649,7 +649,7 @@ Index: `.cursor/rules/README.md`
 | Per-category free-scrape seeds | `lib/intelligence/researchProfilePayload.ts` (`JOURNEY_FREE_SEEDS`, `JOURNEY_FIRECRAWL_SEEDS`) — same link-rot risk as `trustedJourneyUrls.ts`, see §1 note below |
 | `research_results` read ordering (postcode vs user_id) | `app/api/scrape-sync/route.ts` (`buildScrapedFromResearchResults`) |
 
-**Security (OWASP-aligned):** `SCRAPER_SECRET` authorizes scrape-sync POST only; `CRON_SECRET` is `/api/cron/*` only. Session restore requires HMAC `restore_proof` (no dev UUID bypass). Rate limits on scrape-sync GET (10/min anonymous), likes POST, restore-session. See `lib/security/productionSecrets.ts`.
+**Security (OWASP-aligned):** `SCRAPER_SECRET` authorizes scrape-sync POST only; `CRON_SECRET` is `/api/cron/*` only. Session restore requires HMAC `restore_proof` (no dev UUID bypass). Rate limits on scrape-sync GET (10/min anonymous), likes POST, restore-session — now Neon-backed distributed, not per-instance in-memory (`lib/rateLimitDistributed.ts`). See `lib/security/productionSecrets.ts` and [SECURITY-AUDIT.md](SECURITY-AUDIT.md).
 
 **Re-auditing offer/learn URL liveness (`trustedJourneyUrls.ts`, `resolveRockHabitLearnUrl.ts`, `lib/brains/calculations.ts`, `lib/brains/recommendations.ts`, `habitsCatalog.ts`, `JOURNEY_FREE_SEEDS`/`JOURNEY_FIRECRAWL_SEEDS` in `researchProfilePayload.ts`):** these are hand-maintained hardcoded fallbacks, so they rot as partner sites restructure — worth a periodic sweep, not a one-off. `curl` is not sufficient: several UK retail/corporate sites (RAC, AA, Tesco, Sony, Royal Mail, Tesla, John Lewis, Levi's) run bot-detection that returns 403/404 to any automated non-browser request, live page or not — confirmed directly (`rac.co.uk/drive/advice/fuel-efficiency/` once returned curl 404 while rendering fine in a real browser). Verify with a real Chromium instance instead, and escalate before writing off a link as dead: try forcing HTTP/1.1 (some blocks are protocol-layer, not IP-based — John Lewis and Levi's help center both opened up this way), and when using `site:` search to find where content moved, scope it to the whole domain family including help/support subdomains, not just the apex domain (Levi's GB denim-care content lives on `levihelp.levi.com`, not `levi.com`). Only treat a result as a confirmed dead link when it renders the site's own branded 404 (e.g. "Page not found - GOV.UK") — a generic Akamai/Cloudflare "Access Denied" page means the check was blocked, not that the link is dead; don't guess a replacement in that case. **This isn't hypothetical**: `tech`'s three `JOURNEY_FREE_SEEDS` entries went dead (one genuine branded GOV.UK 404, two unresponsive) and were never caught until a live production trigger showed zero scraped markdown / empty citations for the category (2026-07) — confirmed via the app's own request/response, not curl, since `energysavingtrust.org.uk` 403s curl uniformly (root domain included) yet serves the app's real scraper fine elsewhere. When a category's fallback rate sits persistently high while others don't, check its seed URLs directly before assuming the LLM/provider layer is at fault.
 
@@ -742,7 +742,7 @@ Detail: [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md)
 | Property intelligence | `user_genome.property_intelligence` | EPC pre-fills, Truth Ledger register |
 | Journey answers | `journey_*_answers` | £/kg calculators, supplemental scrape |
 | Likes / nope | `offer_signals` | Grid weights, scrape avoid hints |
-| Home type / transport / power | `RockHabit.applicable` gate | Today's Tips catalog filter — `lib/zone/filterRockHabits.ts`; soft gate, missing profile fields never exclude a tip |
+| Home type / power type / transport / tenure | `RockHabit.applicable` gate + `LoopQuestionBeat.applicable` gate | Today's Tips catalog filter — `lib/zone/filterRockHabits.ts` (`filterHabitsByProfile`); loop-question bank filter — `lib/zone/loopQuestions.ts` (`beatMatchesHomeType`/`PowerType`/`Transport`/`Tenure`); same soft-gate semantics in both — missing profile data never excludes a tip or question (added 2026-07: power_type, transport, tenure extend the original home_type-only gate — stops EV-switch questions reaching non-drivers, gas-boiler content reaching all-electric homes, and roof-solar/loft-insulation questions reaching flats or renters who can't act on them) |
 
 Detail: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md)
 
@@ -774,6 +774,14 @@ Detail: [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md)
 **Mechanical-only mode is one env var away, and used to be silent (fixed 2026-07):** `shouldPreferMechanicalTripletInBucket()` (`scrapeBoundaries.ts`), gated by `ALLOW_LLM_TRIPLET`, short-circuits `researchAgent.ts` straight to the mechanical template with zero LLM attempt whenever it returns true — not rate-limited, not failed, never tried. It's currently set correctly, but nothing logged when it fired, so a silent removal of that env var would have looked identical to "LLM synthesis stopped working" with no trace pointing at the actual cause. Now warns explicitly (`[researchAgent] mechanical-only mode active...`) when it triggers, distinguished from the separate rate-limited short-circuit it used to share a branch with.
 
 **Stale-postcode rows can outrank current research (fixed 2026-07):** `buildScrapedFromResearchResults`'s coverage query matches `rr.user_id = $1 OR postcode matches` for logged-in users, then dedupes per category by `created_at DESC` — meaning a user's own older row for a *different* postcode (house move, typo fix, re-onboarding) could outrank a correct, current-postcode row simply by being more recent. Fixed with a `CASE WHEN postcode matches THEN 0 ELSE 1 END` tiebreaker ahead of `created_at` in the `ORDER BY`, so a postcode-matching row always wins regardless of age.
+
+**Rock-tip content override — second occurrence, mother-card path (fixed 2026-07):** the tip-card expand path (`app/zone/page.tsx` → `SoloFocusOverlay`) was already hardened against category-level `research_results` prose silently overriding a Rock habit's own prose/£/source (`verifiedArchitectProse={null}`/`verifiedAuditMoneyGbp={null}` passed explicitly when the card is a Rock tip — see [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) §7). The wall category "mother card" expand path (`JourneyBentoCard.tsx`) has its own, separate Rock-habit fallback (`getNextMorphCard`, fires when a category is opened with no fresher morph data) and had no equivalent guard — `verifiedAuditMatchesJourney` was computed purely from props the parent passes in, with no visibility into whether the component had internally substituted a Rock habit for itself. Fixed with a local `isRockMorphTip` check (`currentMorphData.id` starts with `rock-`) folded into `verifiedAuditMatchesJourney`'s own definition, plus `contentMode="rock"` now threaded to `SoloFocusProseStack` so the body prose resolves via the Rock-specific pipeline (`resolveRockHabitDisplayProse`) instead of the generic journey one. Same root cause hit the **headline** independently, via a separate mechanism: `headlineFromExpandedHook`/`EXPANDED_JOURNEY_HOOK` silently replaces any candidate title under 20 words with one hardcoded sentence per category, and `JourneyBentoCard` had zero exemption from it (`SoloFocusOverlay` only exempted `rock-*` card ids, not `inject-*` discovery/achievement cards — both fixed to route through `headlineFromRockHabitForSoloFocus` instead). That function itself turned out to be broken for short titles — `padRockHeadlineToExpandedBounds` tried to pad a thin title/insight with the category hook, but its first call into `enforceHeadlineWordLimits` already substituted the full generic hook before the padding logic ever ran, so the "prefer real content" path never actually preferred anything real. Live-audited: a Rock tip titled "COMBINE CAR TRIPS." surfaced the generic travel hook verbatim, its own insight text never appearing anywhere. Fixed by padding *before* calling `enforceHeadlineWordLimits`, not after — this is shared logic, so the fix applies to `SoloFocusOverlay`'s original Rock-tip path too, not just the new mother-card one. **If you're chasing a report of "this Rock tip / discovery card shows generic category copy instead of its own," check both expand paths independently — they do not share a guard.**
+
+**Two unauthenticated write endpoints closed (fixed 2026-07):** `POST /api/zone/injections/achievement` had no auth check at all gating the handler — only an optional, secondary DB-persist step checked for a session. The in-memory card append (`appendStoredInjections`) ran unconditionally against a single process-wide array shared across every visitor hitting that Vercel instance, so an unauthenticated request could inject an arbitrary card into other real users' Zone dashboards. `POST /api/memory/flush` was similarly open, with a bare `as MemoryFlushPayload` cast (no runtime validation) on a body that gets written into a global variable later pasted directly into the live Gemini prompt for tip generation — an unauthenticated request could both corrupt the shared context between users on a warm instance and shape what the LLM sees. Both now gate entry on `requireAiRouteAuth` (session or server-issued guest cookie, the same pattern already used by the sibling `/api/zone/injections` route); `memory/flush` also replaced the bare cast with a zod schema (`memoryFlushPostBodySchema` in `lib/api/schemas.ts`) capping field lengths and total payload size. See [SECURITY-AUDIT.md](SECURITY-AUDIT.md) M-11/M-12.
+
+**Rate limiting is now Neon-backed and distributed, not per-instance in-memory (2026-07):** `lib/rateLimitDistributed.ts` (via `lib/rateLimitNeon.ts`) replaces the old in-memory map for `checkRateLimitAsync`, so a limit actually holds across serverless instances instead of resetting per cold start / being trivially bypassed by hitting a fresh lambda. No new vendor — reuses the existing Neon connection.
+
+**Personalization coverage extended across 8 categories + live PVGIS/Carbon Intensity (2026-07):** `trustedJourneyUrls.ts` and `researchAgent.ts`'s `mechanicalCategoryTripletFallback` headline/prose pools were rewritten for solar/food/shopping/money/tech/water/waste/carbon to name real UK schemes (SEG, WaterSure, Too Good To Go, Triodos, TerraCycle, WWF footprint calculator, Restart Project, Vinted, Freegle, Olio) instead of generic homepage links and template copy. Solar and carbon now wire live PVGIS (solar yield) and Carbon Intensity API (grid gCO₂/kWh) data into their category content, not just the dashboard total. Water and travel content is now personalized per-answer. Loop-question answers for FOOD/SHOPPING/TECH/WASTE/MONEY now actually feed back into content generation (previously wired for a subset of categories only); HOLIDAYS branches by `flight_frequency`. A broken `calculateMoney` call on this same path was fixed alongside it. Two related copy bugs caught and fixed in the same sweep: `cleanZonePreviewHeadline`'s report-metadata regex had a bare `WINDOW` alternation meant to catch "regulatory window" that was instead deleting the literal word "window" from any real content ("door and window excluders" → "door and excluders"); country/tenure-aware heat-pump-scheme routing (`homeHeatingSchemeForUser`, `ukCountryFromPostcode` — Scotland / Northern Ireland / England & Wales, owner vs renter) replaced a one-size-fits-all Boiler Upgrade Scheme recommendation that assumed England & Wales homeownership for every user.
 
 ---
 
@@ -863,7 +871,7 @@ Two related bugs, both root-caused to the same place: how a liked card's identit
 
 ---
 
-*Last consolidated: Jul 2026 — aligns with `.cursor/rules/` and production gate at `776637f`.*
+*Last consolidated: Jul 2026 — aligns with `.cursor/rules/` and production gate at `7885821`.*
 
 ---
 
@@ -1340,13 +1348,15 @@ Use this table when testing: **if X on screen, data must come from Y**.
 | **solar** | `calculateSolar` | `roof_orientation`, `roof_shading`, `daytime_occupancy` |
 | **travel** | `calculateTravel` | `commute_distance`, `ev_hybrid` |
 | **holidays** | `calculateHolidays` | `annual_flights`, `flight_duration`, `carbon_offsets` |
-| **food** | `calculateFood` | `diet_profile`, `organic_shopping` |
-| **shopping** | `calculateShopping` | `retail_channel`, `repair_mindset`, `online_deliveries` |
-| **money** | `calculateMoney` | `monthly_energy_bill`, `tariff_type`, `green_investments` |
-| **tech** | `calculateTech` | `smart_thermostat`, `smart_home`, `smart_meter` |
+| **food** | `calculateFood` | `diet_profile`, `organic_shopping` — never wired to onboarding UI; real live signal is loop nudge `food_plant_shift` (2026-07) |
+| **shopping** | `calculateShopping` | `retail_channel`, `repair_mindset`, `online_deliveries` — never wired to onboarding UI; real live signal is loop nudge `shopping_repair_first` (2026-07) |
+| **money** | `calculateMoney` | `monthly_energy_bill`, `tariff_type`, `green_investments` — `tariff_type` never wired to onboarding UI; real live signal is loop nudge `money_smart_tariff` (2026-07) |
+| **tech** | `calculateTech` | `smart_thermostat`, `smart_home`, `smart_meter` — never wired to onboarding UI; real live signal is loop nudge `tech_standby_off` (2026-07) |
 | **water** | `calculateWater` | `garden_butt`, `wash_preference`, `rainwater_harvest` |
-| **waste** | `calculateWaste` | `food_waste_collection`, `composting`, `soft_plastics` |
+| **waste** | `calculateWaste` | `food_waste_collection`, `composting`, `soft_plastics` — never wired to onboarding UI; real live signals are loop nudges `waste_compost` + `food_waste_cut` (2026-07; `food_waste_cut`'s `journeyKeys` is `['waste']` despite the name) |
 | **carbon** | `calculateCarbon` | `footprint_awareness`, `carbon_removal`, `tonne_reduction_timeline` |
+
+**Dead calculator fields vs. real loop-nudge signals (2026-07):** several calculators above checked for onboarding-question keys (`diet_profile`, `retail_channel`/`repair_mindset`/`online_deliveries`, `tariff_type`, `smart_thermostat`/`smart_home`/`smart_meter`, `food_waste_collection`/`composting`) that were never actually wired to any onboarding UI field — those calculators always fell to their baseline value regardless of what a user answered. Each now also checks the real, live loop-nudge answer for the same topic (the `journey_*_answers` value written when a user answers the MC-close loop question for that category — see `loopQuestions.ts`) as an additional, softer signal alongside the still-dead legacy key. Before assuming a calculator "isn't personalizing," check whether its documented field actually has a live UI path — this table intentionally still lists the legacy keys since they remain in the function signature and would apply if ever wired up.
 
 **Employment physics:** `applyEmploymentFinancialPhysics` adjusts several journeys by employment status.
 
@@ -1954,13 +1964,14 @@ Separate from 13 journey mother bentos — **not** duplicate wall headlines or j
 | **Card IDs** | `rock-{slug}` (e.g. `rock-radiator-bleed`) | `rockCardId()` |
 | **Grid headline** | Short habit title (**3–10 words**) — **never** `ZONE_BENTO_HOOK` / wall mother hook | `clampRockTipHeadline` |
 | **Rail fill** | Prefer journeys **not** on wall; one habit per `journey_key`; dedupe wall headline keys; **6** visible slots (rotation cap **12**) | `prepareRockHabitsForRail`, `filterRockHabitsAgainstWall` |
+| **Profile gate** | Soft-filter by `home_type` / `power_type` / `transport` / `tenure` — missing profile data never excludes a habit | `filterHabitsByProfile` (`lib/zone/filterRockHabits.ts`); same four-field gate mirrored on `loopQuestions.ts`'s `LOOP_QUESTION_BANK` (`beatMatchesHomeType`/`PowerType`/`Transport`/`Tenure`) so a loop question and its matching Rock habit stay consistent — e.g. EV-switch content needs `transport: ['CAR','MIX']`, gas-boiler content needs `power_type: ['GAS','MIX']`, roof-solar/loft-insulation needs `home_type: ['HOUSE']` + `tenure: ['OWNER']` |
 | **Fallback** | When every journey has a mother tile, still fill six tips from catalog if titles differ from wall hooks | `prepareRockHabitsForRail` second pass (`requireOffWall: false`) |
 | **UI** | **`RockSavingTips`** — heading **Today's Tips** (`aria-label="Today's tips"`) | `app/components/RockSavingTips.tsx` |
 | **Mobile signup** | E.164 → `POST /api/profile/mobile` with `sms_opt_in: true`, `tips`, `tipSlugs`, `recommendations` from Zone → welcome SMS + structured signup SMS | `RockMobileSignupCard`, `lib/messaging/signupZoneSms.ts`, `lib/messaging/welcomeSms.ts` |
 | **Visit** | Pink on close (`visitedClose`) — **no** loop, **no** tip verification scrape | Director's Order in [HANDBOOK.md](HANDBOOK.md) |
 | **Label colour** | Category label uses `--journey-text` at rest and on hover — Rock grid excluded from main Zone `data-zone-surface='tip'` purple-header override | `app/globals.css` |
 
-**Anti-pattern (fixed):** Rock habits share a `journey_key` with wall mothers (e.g. both `home`). Without the Rock-specific Solo Focus path below, expand reused **`EXPANDED_JOURNEY_HOOK[home]`**, Neon **`architect_prose`**, and mother **£/kg** — so “bleed radiators” opened as “seal draughts…” at £180.
+**Anti-pattern (fixed, twice):** Rock habits share a `journey_key` with wall mothers (e.g. both `home`). Without the Rock-specific Solo Focus path below, expand reused **`EXPANDED_JOURNEY_HOOK[home]`**, Neon **`architect_prose`**, and mother **£/kg** — so “bleed radiators” opened as “seal draughts…” at £180. First fixed for the `SoloFocusOverlay` tip-card path (`verifiedArchitectProse={null}`/`verifiedAuditMoneyGbp={null}` passed explicitly for Rock/discovery cards). A **second, structurally separate occurrence** was found later (2026-07) in `JourneyBentoCard.tsx`'s own internal Rock-habit fallback (`getNextMorphCard`, fires when a wall category card is opened with no fresher morph data) — the parent can't null props for a substitution that happens *inside* the child component, so it needed its own local `isRockMorphTip` guard folded into `verifiedAuditMatchesJourney`'s definition, plus `contentMode="rock"` threaded to `SoloFocusProseStack` so the body routes through `resolveRockHabitDisplayProse` instead of the generic paragraph pipeline. **The headline has the identical failure shape via a fully independent mechanism** (`headlineFromExpandedHook`/`EXPANDED_JOURNEY_HOOK` silently replacing any title under 20 words) — see §7 below for the current, corrected function names and the `padRockHeadlineToExpandedBounds` ordering bug that was masking the fix even after the exemption was wired up correctly.
 
 ##### Discovery & injects
 
@@ -1983,15 +1994,15 @@ Ceilings: **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** · **`MAX_ZONE_BENTO_CE
 | Path | Detect | H1 | £ / CO₂e | Lead prose |
 |------|--------|-----|----------|------------|
 | **Journey mother / discovery** | `journey-*`, `inject-*`, … | `headlineFromExpandedHook` → **`EXPANDED_JOURNEY_HOOK`** when title weak | Neon audit row when settled (`verifiedAuditMoneyGbp`) | `architect_prose` via `buildResearchResultsTrueTipBody` |
-| **Today's Tips (Rock)** | `cardId.startsWith('rock-')` | **`headlineFromRockHabit(title, insight)`** — habit title + catalog insight; **never** journey hook | Catalog `money_gbp` / `carbon_kg` from `habitToTipCard` | Habit `insight` only — **no** `researchCategoryCoverage[journey_key]` |
+| **Today's Tips (Rock) / discovery-injected** | `cardId.startsWith('rock-')` **or** `inject-*` (2026-07: exemption widened past Rock-only, see below) | **`headlineFromRockHabitForSoloFocus(title, insight)`** — habit/card title + insight; **never** journey hook | Catalog `money_gbp` / `carbon_kg` from `habitToTipCard` (Rock) or the discovery card's own figures | Habit/card's own text only — **no** `researchCategoryCoverage[journey_key]` |
 
-Rock expand resolves the habit in `app/zone/page.tsx` via `ROCK_BY_SLUG` + `habitToTipCard`; passes `verifiedArchitectProse={null}` and `verifiedAuditMoneyGbp={null}` so journey audit cannot override habit numbers.
+Rock expand resolves the habit in `app/zone/page.tsx` via `ROCK_BY_SLUG` + `habitToTipCard`; passes `verifiedArchitectProse={null}` and `verifiedAuditMoneyGbp={null}` so journey audit cannot override habit numbers. `SoloFocusOverlay`'s headline exemption (`isRockHabitTip`) originally only matched `rock-*` ids — widened (2026-07) to also cover `inject-*` discovery/achievement cards via `isDiscoveryInjectCard(cardId)`, since those have the exact same "own short title gets swapped for the generic hook" exposure. `headlineFromRockHabit` (no `ForSoloFocus` suffix) is `@deprecated` — a stale import still lingers in `SoloFocusOverlay.tsx` but is not called; don't reintroduce it.
 
 ##### Layout (Zai Architect)
 
 | Zone | Content |
 |------|---------|
-| **H1 (Marvin)** | **20–24 word** hook — mother: `headlineFromExpandedHook`; Rock: `headlineFromRockHabit` |
+| **H1 (Marvin)** | **20–24 word** hook — mother: `headlineFromExpandedHook`; Rock/discovery: `headlineFromRockHabitForSoloFocus` |
 | **Lead (Marvin H4)** | Locality audit opener — **≤30 words**; **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), never raw postcode |
 | **Body** | **Not rendered in UI** (May 2026) — `SoloFocusProseStack` is **lead-only**; £/CO₂e live in the metrics row. Neon `architect_prose` still stored for polish / Zai context paths. |
 | **Metrics** | Mother: verified £ + CO₂e from Neon when settled; Rock: catalog habit row (`StampedMoneyGbp` / `StampedCarbonKg`) |
@@ -2033,7 +2044,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | `sanitizeProseParagraphs` | Strip AI-hedge phrases, variable leaks (`£{amount}`, `{postcode}`), fragments &lt;6 words, comma-cut sentences |
 | `stripExpandedCardTitleNoise` | Clean Solo Focus H1 |
 | `clampRockTipHeadline` | Today's Tips **grid** — short catalog title; never wall `ZONE_BENTO_HOOK` |
-| `headlineFromRockHabit` | Rock Solo Focus H1 — title + habit insight; pads with `EXPANDED_JOURNEY_HOOK` when &lt;15 words to reach **20–24** |
+| `headlineFromRockHabitForSoloFocus` → `padRockHeadlineToExpandedBounds` | Rock/discovery Solo Focus H1 — title + insight; pads with `EXPANDED_JOURNEY_HOOK` when under **20** words to reach **20–24** (fixed 2026-07: padding now happens *before* the `enforceHeadlineWordLimits` call, not after — that function has its own &lt;20-word substitution that used to fire first and discard the real title/insight before the pad step ever ran) |
 | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook for **journey mothers**; strips truncated £ ellipsis; falls back when no verb detected |
 | `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp` | Drop duplicate payoff / repeated blocks before render |
 | `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *verify the offer before you…*, *publishes guidance on this habit* |
@@ -2051,7 +2062,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Zone bento | **5–8** | `enforceHeadlineWordLimits(text, false)` |
 | Today's Tips grid | **3–10** (catalog title) | `clampRockTipHeadline` |
 | Solo Focus expanded hook (mother) | **20–24** (~3–4 lines) | `headlineFromExpandedHook` → per-journey `EXPANDED_JOURNEY_HOOK` when title is weak or generic spring filler (`isGenericSpringHeadline`); mechanical proof via `lib/zone/auditorNarrative.ts` (no shared “policy and tariff pressure…” block) |
-| Solo Focus expanded hook (Rock) | **20–24** (~3–4 lines) | `headlineFromRockHabit` — habit title + insight; journey-hook pad when thin |
+| Solo Focus expanded hook (Rock/discovery) | **20–24** (~3–4 lines) | `headlineFromRockHabitForSoloFocus` — habit/card title + insight; journey-hook pad when thin |
 | Solo Focus Marvin lead (H4) | **≤30** words | `resolveSoloFocusDisplayProse` + `buildAuditorDetectionParagraph` when lead lacks town opener |
 | Paragraph | ≤ **40** words each | `MAX_TRUE_TIP_PARAGRAPH_WORDS` |
 
@@ -2137,7 +2148,7 @@ Full boundaries + question registry: **[ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUES
 | Grid headline | `agent_headline` + Architect + cleaners | `soloFocusCopy`, `contentArchitect` |
 | Grid £/kg | `buildUserImpact` + `journeyHasStreamData` | `calculations.ts` |
 | Expanded H1 (mother) | 20–24 word hook, 3–4 lines | `headlineFromExpandedHook`, `stripExpandedCardTitleNoise` |
-| Expanded H1 (Rock) | 20–24 word hook from habit title + insight | `headlineFromRockHabit` |
+| Expanded H1 (Rock/discovery) | 20–24 word hook from habit/card title + insight | `headlineFromRockHabitForSoloFocus` |
 | Today's Tips grid title | Short catalog habit title | `clampRockTipHeadline`, `habitsCatalog` |
 | Expanded lead (H4) | ≤30 words; town from `locationState` | `resolveSoloFocusDisplayProse`, `buildAuditorDetectionParagraph`, `localityCopy.ts` |
 | Expanded lead (H4) | Town from `locationState` | `localityCopy.ts`, `personalizeTrueTipPlaceLead` |
@@ -4357,7 +4368,7 @@ Priorities are **heuristic** (20% of impact totals + answer count), re-sorted by
 | **Guest** | Echo priorities back; no brain refresh |
 | **Signed in** | Full pipeline |
 
-**Body (optional):** `priorities[]`, `system_prompt`, `region`, `run_scrape_sync`.
+**Body (optional):** `priorities[]`, `region`, `run_scrape_sync`.
 
 **Steps:**
 

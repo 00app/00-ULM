@@ -259,13 +259,14 @@ Separate from 13 journey mother bentos — **not** duplicate wall headlines or j
 | **Card IDs** | `rock-{slug}` (e.g. `rock-radiator-bleed`) | `rockCardId()` |
 | **Grid headline** | Short habit title (**3–10 words**) — **never** `ZONE_BENTO_HOOK` / wall mother hook | `clampRockTipHeadline` |
 | **Rail fill** | Prefer journeys **not** on wall; one habit per `journey_key`; dedupe wall headline keys; **6** visible slots (rotation cap **12**) | `prepareRockHabitsForRail`, `filterRockHabitsAgainstWall` |
+| **Profile gate** | Soft-filter by `home_type` / `power_type` / `transport` / `tenure` — missing profile data never excludes a habit | `filterHabitsByProfile` (`lib/zone/filterRockHabits.ts`); same four-field gate mirrored on `loopQuestions.ts`'s `LOOP_QUESTION_BANK` (`beatMatchesHomeType`/`PowerType`/`Transport`/`Tenure`) so a loop question and its matching Rock habit stay consistent — e.g. EV-switch content needs `transport: ['CAR','MIX']`, gas-boiler content needs `power_type: ['GAS','MIX']`, roof-solar/loft-insulation needs `home_type: ['HOUSE']` + `tenure: ['OWNER']` |
 | **Fallback** | When every journey has a mother tile, still fill six tips from catalog if titles differ from wall hooks | `prepareRockHabitsForRail` second pass (`requireOffWall: false`) |
 | **UI** | **`RockSavingTips`** — heading **Today's Tips** (`aria-label="Today's tips"`) | `app/components/RockSavingTips.tsx` |
 | **Mobile signup** | E.164 → `POST /api/profile/mobile` with `sms_opt_in: true`, `tips`, `tipSlugs`, `recommendations` from Zone → welcome SMS + structured signup SMS | `RockMobileSignupCard`, `lib/messaging/signupZoneSms.ts`, `lib/messaging/welcomeSms.ts` |
 | **Visit** | Pink on close (`visitedClose`) — **no** loop, **no** tip verification scrape | Director's Order in [HANDBOOK.md](HANDBOOK.md) |
 | **Label colour** | Category label uses `--journey-text` at rest and on hover — Rock grid excluded from main Zone `data-zone-surface='tip'` purple-header override | `app/globals.css` |
 
-**Anti-pattern (fixed):** Rock habits share a `journey_key` with wall mothers (e.g. both `home`). Without the Rock-specific Solo Focus path below, expand reused **`EXPANDED_JOURNEY_HOOK[home]`**, Neon **`architect_prose`**, and mother **£/kg** — so “bleed radiators” opened as “seal draughts…” at £180.
+**Anti-pattern (fixed, twice):** Rock habits share a `journey_key` with wall mothers (e.g. both `home`). Without the Rock-specific Solo Focus path below, expand reused **`EXPANDED_JOURNEY_HOOK[home]`**, Neon **`architect_prose`**, and mother **£/kg** — so “bleed radiators” opened as “seal draughts…” at £180. First fixed for the `SoloFocusOverlay` tip-card path (`verifiedArchitectProse={null}`/`verifiedAuditMoneyGbp={null}` passed explicitly for Rock/discovery cards). A **second, structurally separate occurrence** was found later (2026-07) in `JourneyBentoCard.tsx`'s own internal Rock-habit fallback (`getNextMorphCard`, fires when a wall category card is opened with no fresher morph data) — the parent can't null props for a substitution that happens *inside* the child component, so it needed its own local `isRockMorphTip` guard folded into `verifiedAuditMatchesJourney`'s definition, plus `contentMode="rock"` threaded to `SoloFocusProseStack` so the body routes through `resolveRockHabitDisplayProse` instead of the generic paragraph pipeline. **The headline has the identical failure shape via a fully independent mechanism** (`headlineFromExpandedHook`/`EXPANDED_JOURNEY_HOOK` silently replacing any title under 20 words) — see §7 below for the current, corrected function names and the `padRockHeadlineToExpandedBounds` ordering bug that was masking the fix even after the exemption was wired up correctly.
 
 ### Discovery & injects
 
@@ -288,15 +289,15 @@ Ceilings: **`MAX_DISCOVERY_INJECTIONS_PER_JOURNEY` = 3** · **`MAX_ZONE_BENTO_CE
 | Path | Detect | H1 | £ / CO₂e | Lead prose |
 |------|--------|-----|----------|------------|
 | **Journey mother / discovery** | `journey-*`, `inject-*`, … | `headlineFromExpandedHook` → **`EXPANDED_JOURNEY_HOOK`** when title weak | Neon audit row when settled (`verifiedAuditMoneyGbp`) | `architect_prose` via `buildResearchResultsTrueTipBody` |
-| **Today's Tips (Rock)** | `cardId.startsWith('rock-')` | **`headlineFromRockHabit(title, insight)`** — habit title + catalog insight; **never** journey hook | Catalog `money_gbp` / `carbon_kg` from `habitToTipCard` | Habit `insight` only — **no** `researchCategoryCoverage[journey_key]` |
+| **Today's Tips (Rock) / discovery-injected** | `cardId.startsWith('rock-')` **or** `inject-*` (2026-07: exemption widened past Rock-only, see below) | **`headlineFromRockHabitForSoloFocus(title, insight)`** — habit/card title + insight; **never** journey hook | Catalog `money_gbp` / `carbon_kg` from `habitToTipCard` (Rock) or the discovery card's own figures | Habit/card's own text only — **no** `researchCategoryCoverage[journey_key]` |
 
-Rock expand resolves the habit in `app/zone/page.tsx` via `ROCK_BY_SLUG` + `habitToTipCard`; passes `verifiedArchitectProse={null}` and `verifiedAuditMoneyGbp={null}` so journey audit cannot override habit numbers.
+Rock expand resolves the habit in `app/zone/page.tsx` via `ROCK_BY_SLUG` + `habitToTipCard`; passes `verifiedArchitectProse={null}` and `verifiedAuditMoneyGbp={null}` so journey audit cannot override habit numbers. `SoloFocusOverlay`'s headline exemption (`isRockHabitTip`) originally only matched `rock-*` ids — widened (2026-07) to also cover `inject-*` discovery/achievement cards via `isDiscoveryInjectCard(cardId)`, since those have the exact same "own short title gets swapped for the generic hook" exposure. `headlineFromRockHabit` (no `ForSoloFocus` suffix) is `@deprecated` — a stale import still lingers in `SoloFocusOverlay.tsx` but is not called; don't reintroduce it.
 
 ### Layout (Zai Architect)
 
 | Zone | Content |
 |------|---------|
-| **H1 (Marvin)** | **20–24 word** hook — mother: `headlineFromExpandedHook`; Rock: `headlineFromRockHabit` |
+| **H1 (Marvin)** | **20–24 word** hook — mother: `headlineFromExpandedHook`; Rock/discovery: `headlineFromRockHabitForSoloFocus` |
 | **Lead (Marvin H4)** | Locality audit opener — **≤30 words**; **town** from `locationState.locationName` (`lib/zone/localityCopy.ts`), never raw postcode |
 | **Body** | **Not rendered in UI** (May 2026) — `SoloFocusProseStack` is **lead-only**; £/CO₂e live in the metrics row. Neon `architect_prose` still stored for polish / Zai context paths. |
 | **Metrics** | Mother: verified £ + CO₂e from Neon when settled; Rock: catalog habit row (`StampedMoneyGbp` / `StampedCarbonKg`) |
@@ -338,7 +339,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | `sanitizeProseParagraphs` | Strip AI-hedge phrases, variable leaks (`£{amount}`, `{postcode}`), fragments &lt;6 words, comma-cut sentences |
 | `stripExpandedCardTitleNoise` | Clean Solo Focus H1 |
 | `clampRockTipHeadline` | Today's Tips **grid** — short catalog title; never wall `ZONE_BENTO_HOOK` |
-| `headlineFromRockHabit` | Rock Solo Focus H1 — title + habit insight; pads with `EXPANDED_JOURNEY_HOOK` when &lt;15 words to reach **20–24** |
+| `headlineFromRockHabitForSoloFocus` → `padRockHeadlineToExpandedBounds` | Rock/discovery Solo Focus H1 — title + insight; pads with `EXPANDED_JOURNEY_HOOK` when under **20** words to reach **20–24** (fixed 2026-07: padding now happens *before* the `enforceHeadlineWordLimits` call, not after — that function has its own &lt;20-word substitution that used to fire first and discard the real title/insight before the pad step ever ran) |
 | `headlineFromExpandedHook` + `EXPANDED_JOURNEY_HOOK` | **20–24 word** Marvin hook for **journey mothers**; strips truncated £ ellipsis; falls back when no verb detected |
 | `dedupeTrueTipParagraphs` / `paragraphRepeatsPayoffStamp` | Drop duplicate payoff / repeated blocks before render |
 | `isMechanicalScaffoldParagraph` / `isBoilerplateProseParagraph` | Strip *Execute the…*, *We treat the ~£…*, *verify the offer before you…*, *publishes guidance on this habit* |
@@ -356,7 +357,7 @@ Embedded in copy only — **never** `# What:` / `**Why:**` in the UI.
 | Zone bento | **5–8** | `enforceHeadlineWordLimits(text, false)` |
 | Today's Tips grid | **3–10** (catalog title) | `clampRockTipHeadline` |
 | Solo Focus expanded hook (mother) | **20–24** (~3–4 lines) | `headlineFromExpandedHook` → per-journey `EXPANDED_JOURNEY_HOOK` when title is weak or generic spring filler (`isGenericSpringHeadline`); mechanical proof via `lib/zone/auditorNarrative.ts` (no shared “policy and tariff pressure…” block) |
-| Solo Focus expanded hook (Rock) | **20–24** (~3–4 lines) | `headlineFromRockHabit` — habit title + insight; journey-hook pad when thin |
+| Solo Focus expanded hook (Rock/discovery) | **20–24** (~3–4 lines) | `headlineFromRockHabitForSoloFocus` — habit/card title + insight; journey-hook pad when thin |
 | Solo Focus Marvin lead (H4) | **≤30** words | `resolveSoloFocusDisplayProse` + `buildAuditorDetectionParagraph` when lead lacks town opener |
 | Paragraph | ≤ **40** words each | `MAX_TRUE_TIP_PARAGRAPH_WORDS` |
 
@@ -442,7 +443,7 @@ Full boundaries + question registry: **[ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUES
 | Grid headline | `agent_headline` + Architect + cleaners | `soloFocusCopy`, `contentArchitect` |
 | Grid £/kg | `buildUserImpact` + `journeyHasStreamData` | `calculations.ts` |
 | Expanded H1 (mother) | 20–24 word hook, 3–4 lines | `headlineFromExpandedHook`, `stripExpandedCardTitleNoise` |
-| Expanded H1 (Rock) | 20–24 word hook from habit title + insight | `headlineFromRockHabit` |
+| Expanded H1 (Rock/discovery) | 20–24 word hook from habit/card title + insight | `headlineFromRockHabitForSoloFocus` |
 | Today's Tips grid title | Short catalog habit title | `clampRockTipHeadline`, `habitsCatalog` |
 | Expanded lead (H4) | ≤30 words; town from `locationState` | `resolveSoloFocusDisplayProse`, `buildAuditorDetectionParagraph`, `localityCopy.ts` |
 | Expanded lead (H4) | Town from `locationState` | `localityCopy.ts`, `personalizeTrueTipPlaceLead` |

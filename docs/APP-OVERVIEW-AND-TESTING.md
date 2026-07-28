@@ -163,13 +163,15 @@ Use this table when testing: **if X on screen, data must come from Y**.
 | **solar** | `calculateSolar` | `roof_orientation`, `roof_shading`, `daytime_occupancy` |
 | **travel** | `calculateTravel` | `commute_distance`, `ev_hybrid` |
 | **holidays** | `calculateHolidays` | `annual_flights`, `flight_duration`, `carbon_offsets` |
-| **food** | `calculateFood` | `diet_profile`, `organic_shopping` |
-| **shopping** | `calculateShopping` | `retail_channel`, `repair_mindset`, `online_deliveries` |
-| **money** | `calculateMoney` | `monthly_energy_bill`, `tariff_type`, `green_investments` |
-| **tech** | `calculateTech` | `smart_thermostat`, `smart_home`, `smart_meter` |
+| **food** | `calculateFood` | `diet_profile`, `organic_shopping` — never wired to onboarding UI; real live signal is loop nudge `food_plant_shift` (2026-07) |
+| **shopping** | `calculateShopping` | `retail_channel`, `repair_mindset`, `online_deliveries` — never wired to onboarding UI; real live signal is loop nudge `shopping_repair_first` (2026-07) |
+| **money** | `calculateMoney` | `monthly_energy_bill`, `tariff_type`, `green_investments` — `tariff_type` never wired to onboarding UI; real live signal is loop nudge `money_smart_tariff` (2026-07) |
+| **tech** | `calculateTech` | `smart_thermostat`, `smart_home`, `smart_meter` — never wired to onboarding UI; real live signal is loop nudge `tech_standby_off` (2026-07) |
 | **water** | `calculateWater` | `garden_butt`, `wash_preference`, `rainwater_harvest` |
-| **waste** | `calculateWaste` | `food_waste_collection`, `composting`, `soft_plastics` |
+| **waste** | `calculateWaste` | `food_waste_collection`, `composting`, `soft_plastics` — never wired to onboarding UI; real live signals are loop nudges `waste_compost` + `food_waste_cut` (2026-07; `food_waste_cut`'s `journeyKeys` is `['waste']` despite the name) |
 | **carbon** | `calculateCarbon` | `footprint_awareness`, `carbon_removal`, `tonne_reduction_timeline` |
+
+**Dead calculator fields vs. real loop-nudge signals (2026-07):** several calculators above checked for onboarding-question keys (`diet_profile`, `retail_channel`/`repair_mindset`/`online_deliveries`, `tariff_type`, `smart_thermostat`/`smart_home`/`smart_meter`, `food_waste_collection`/`composting`) that were never actually wired to any onboarding UI field — those calculators always fell to their baseline value regardless of what a user answered. Each now also checks the real, live loop-nudge answer for the same topic (the `journey_*_answers` value written when a user answers the MC-close loop question for that category — see `loopQuestions.ts`) as an additional, softer signal alongside the still-dead legacy key. Before assuming a calculator "isn't personalizing," check whether its documented field actually has a live UI path — this table intentionally still lists the legacy keys since they remain in the function signature and would apply if ever wired up.
 
 **Employment physics:** `applyEmploymentFinancialPhysics` adjusts several journeys by employment status.
 
