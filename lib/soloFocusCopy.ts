@@ -164,8 +164,14 @@ export function cleanZonePreviewHeadline(raw: string): string {
     /\b(?:energy\s+audit(?:\s+report)?|audit\s+report|regional\s+(?:energy\s+)?profile|grant\s+eligibility)[:\s-]*/gi,
     ''
   )
+  // "WINDOW" intentionally excluded from this standalone-token list — it was meant to catch the
+  // energy-jargon phrase "regulatory window" (already stripped as a full phrase by
+  // EXPANDED_TITLE_TARIFF_NOISE_RE in stripExpandedCardTitleNoise, which always runs first via
+  // prepareZoneHeadlineSource), but as a bare alternation it deleted the word "window" from any
+  // genuine content mentioning one — live-audited: "FIT SIMPLE DOOR AND WINDOW EXCLUDERS" lost
+  // "WINDOW" and read as "FIT SIMPLE DOOR AND EXCLUDERS."
   t = t.replace(
-    /\b(?:AUDIT|RESULT|REPORT|OUTLOOK|ENERGY|ELECTRIC(?:ITY)?|REGULATORY|WINDOW|HOUSEHOLD|POSTCODE|REGIONAL|PROFILE|SOURCE)\b:?/gi,
+    /\b(?:AUDIT|RESULT|REPORT|OUTLOOK|ENERGY|ELECTRIC(?:ITY)?|REGULATORY\s+WINDOW|HOUSEHOLD|POSTCODE|REGIONAL|PROFILE|SOURCE)\b:?/gi,
     ''
   )
   if (t.includes(':')) {
