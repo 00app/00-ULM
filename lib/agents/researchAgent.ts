@@ -92,6 +92,13 @@ import {
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { homeHeatingSchemeForUser } from '@/lib/zone/homeHeatingScheme'
 import { ukCountryFromPostcode } from '@/lib/zone/ukCountryFromPostcode'
+import { fetchPostcodeGeo } from '@/lib/intelligence/postcodeGeoClient'
+import { fetchPvgisSolarEstimate } from '@/lib/intelligence/pvgisClient'
+import {
+  getLiveCarbonIntensity,
+  getGenerationMix,
+  renewablesSharePercent,
+} from '@/lib/data/ukPublicInfrastructureApis'
 
 /** Journey mother-card headline bounds — passed to clampZoneBentoHeadline for all category cards. */
 const JOURNEY_CARD_HEADLINE_BOUNDS = {
@@ -1442,6 +1449,44 @@ function deterministicPoolPick<T>(pool: T[], seed: string): T {
   return pool[idx]
 }
 
+/** EU Commission PVGIS solar yield for a postcode — geocodes via postcodes.io first. Defensive:
+ *  any failure (geocode miss, PVGIS timeout/non-200) returns null and the caller keeps the flat
+ *  £450 solar constant rather than breaking the card. */
+async function resolveLiveSolarYieldForPostcode(
+  postcode: string | null | undefined
+): Promise<{ annualKwhEstimate: number; yieldFactor: number } | null> {
+  const pc = (postcode ?? '').trim()
+  if (!pc) return null
+  try {
+    const geo = await fetchPostcodeGeo(pc)
+    if (!geo.found || geo.lat == null || geo.lon == null) return null
+    const solar = await fetchPvgisSolarEstimate({ postcode: pc, lat: geo.lat, lon: geo.lon })
+    if (!solar.found || !solar.annualKwhEstimate) return null
+    return { annualKwhEstimate: solar.annualKwhEstimate, yieldFactor: solar.yieldFactor }
+  } catch {
+    return null
+  }
+}
+
+/** NESO Carbon Intensity — national, not postcode-specific. Same defensive null-on-failure shape. */
+async function resolveLiveGridSnapshot(): Promise<{
+  intensityGPerKwh: number | null
+  index: string | null
+  renewablesPercent: number | null
+} | null> {
+  try {
+    const [carbon, mix] = await Promise.all([getLiveCarbonIntensity(), getGenerationMix()])
+    if (!carbon && mix.length === 0) return null
+    return {
+      intensityGPerKwh: carbon?.actualGPerKwh ?? carbon?.forecastGPerKwh ?? null,
+      index: carbon?.index ?? null,
+      renewablesPercent: mix.length > 0 ? renewablesSharePercent(mix) : null,
+    }
+  } catch {
+    return null
+  }
+}
+
 function mechanicalCategoryTripletFallback(params: {
   category: string | null
   offerUrl: string | null
@@ -1458,6 +1503,17 @@ function mechanicalCategoryTripletFallback(params: {
   liveRates?: {
     elecGbpPerKwh: number
     gasGbpPerKwh: number
+  } | null
+  /** EU PVGIS annual solar yield for this postcode — see resolveLiveSolarYieldForPostcode.
+   *  When present, solar's flat £450 guess scales by the postcode's real irradiance instead of
+   *  a national average, and the prose cites the actual kWh/yr estimate. */
+  liveSolarYield?: { annualKwhEstimate: number; yieldFactor: number } | null
+  /** NESO Carbon Intensity national snapshot — see resolveLiveGridSnapshot. When present, the
+   *  carbon card cites today's real gCO2/kWh and renewables share instead of static prose only. */
+  liveGrid?: {
+    intensityGPerKwh: number | null
+    index: string | null
+    renewablesPercent: number | null
   } | null
 }): {
   saving_amount_gbp: number
@@ -1804,6 +1860,220 @@ function mechanicalCategoryTripletFallback(params: {
       }
     }
 
+    // WATER's default fallback above assumes a shower-only household. A bath-heavy household's
+    // single biggest lever (a bath is ~80L vs ~35L for a shower) is completely different advice
+    // from a shower-only household's (flow-rate, not habit) — reuse the wash_preference answer
+    // already collected for the £ figure above so the mother card matches what was actually
+    // asked, not a generic "fix your water use" template.
+    if (journeyKey === 'water') {
+      const wash = (params.profileData?.wash_preference ?? '').toUpperCase()
+      if (wash === 'BATH') {
+        const bathHeadlines = [
+          `swap two baths a week for showers in ${areaTag}`,
+          `a bath uses more than double a shower's water in ${areaTag}`,
+          `keep some baths, add showers for the rest of the week in ${areaTag}`,
+          `baths are the biggest lever on a ${areaTag} water bill`,
+          `cut one bath a week before you touch anything else in ${areaTag}`,
+        ]
+        const bathProse = normalizeArchitectProseThreeParagraphs(
+          `A standard bath uses around 80 litres; an ordinary shower uses roughly 35 — so trading even two baths a week for showers is the single biggest lever on a bath-heavy household's water bill in ${areaLabel}.\n\nIf you're on a water meter and receive a qualifying benefit, WaterSure caps your bill regardless of how many baths you run — worth checking before you change any habits at all.\n\nUse the link below to check WaterSure eligibility, or compare low-flow shower heads if the baths are staying.`
+        )
+        if (bathProse) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(bathHeadlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: bathProse,
+            offer_url: trustedUrlForJourney(journeyKey),
+            category: journeyKey,
+          }
+        }
+      }
+      if (wash === 'SHOWER') {
+        const showerHeadlines = [
+          `a flow-limited shower head cuts water without cutting pressure in ${areaTag}`,
+          `showers already beat baths — an aerator trims it further in ${areaTag}`,
+          `check your shower's litres-per-minute before anything else in ${areaTag}`,
+          `a shorter shower habit saves more than switching products in ${areaTag}`,
+          `you're already ahead on baths — the aerator is the next ${areaTag} win`,
+        ]
+        const showerProse = normalizeArchitectProseThreeParagraphs(
+          `Showering already uses roughly half what a bath does, so the next lever for a shower household in ${areaLabel} is flow rate, not habit — a flow-limited aerator head cuts litres per minute without a noticeable pressure drop.\n\nIf you're on a water meter and receive a qualifying benefit, WaterSure caps your bill outright regardless of shower length — worth checking even though you're already using less than a bath-heavy household.\n\nUse the link below for WaterSure eligibility, or to compare low-flow shower heads.`
+        )
+        if (showerProse) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(showerHeadlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: showerProse,
+            offer_url: trustedUrlForJourney(journeyKey),
+            category: journeyKey,
+          }
+        }
+      }
+      if (wash === 'BOTH') {
+        const bothHeadlines = [
+          `mix of baths and showers in ${areaTag}? the aerator still pays off first`,
+          `keep some baths, cut the rest with a flow-limited head in ${areaTag}`,
+          `a household split between baths and showers still has one easy ${areaTag} lever`,
+          `the aerator works whichever way ${areaTag} households wash`,
+          `trim the bath half of the week before anything else in ${areaTag}`,
+        ]
+        const bothProse = normalizeArchitectProseThreeParagraphs(
+          `Splitting the week between baths and showers still leaves one easy lever: a flow-limited shower head cuts litres on shower days, and trading one or two baths a week for a shower does the rest.\n\nIf you're on a water meter and receive a qualifying benefit, WaterSure caps your bill regardless of which you choose most weeks — worth checking either way.\n\nUse the link below for WaterSure eligibility, or to compare low-flow shower heads.`
+        )
+        if (bothProse) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(bothHeadlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: bothProse,
+            offer_url: trustedUrlForJourney(journeyKey),
+            category: journeyKey,
+          }
+        }
+      }
+    }
+
+    // TRAVEL's default fallback above assumes a car commuter — telling someone who already
+    // walks, cycles, or takes the bus/train to "swap to rail" is nonsensical and was the exact
+    // kind of profile-blind advice flagged as broken. CAR and MIX (and unknown) still fall
+    // through to the car-commuter default below, which is the profile it was actually written for.
+    if (journeyKey === 'travel') {
+      const mode = (params.profileData?.transport_baseline ?? '').toUpperCase()
+      if (mode === 'BUS' || mode === 'TRAIN') {
+        const publicHeadlines = [
+          `you're already off the road — a railcard trims the ${areaTag} fare further`,
+          `stack a railcard with off-peak timing on your ${areaTag} route`,
+          `split-ticketing beats a single point-to-point fare from ${areaTag}`,
+          `check which railcard fits your ${areaTag} commute before you renew`,
+          `off-peak and split tickets are the next lever on an already-good ${areaTag} commute`,
+        ]
+        const publicProse = normalizeArchitectProseThreeParagraphs(
+          `You're already commuting by bus or train — the swap most travel advice pushes people toward — so the next lever is squeezing the fare itself. A Railcard (Two Together, 16-25, 26-30, or Senior) knocks a third off many off-peak fares and stacks with most ticket types.\n\nSplit-ticketing — buying separate tickets for legs of the same journey instead of one point-to-point fare — regularly beats the single-ticket price on longer routes without changing trains.\n\nUse the link below to check which railcard applies to your route.`
+        )
+        if (publicProse) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(publicHeadlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: publicProse,
+            offer_url: trustedUrlForJourney(journeyKey),
+            category: journeyKey,
+          }
+        }
+      }
+      if (mode === 'BIKE' || mode === 'WALK') {
+        const activeHeadlines = [
+          `walking or cycling already beats every other ${areaTag} commute option`,
+          `a Cycle to Work scheme covers a new bike tax-free in ${areaTag}`,
+          `keep the bike roadworthy — that's the real ${areaTag} lever now`,
+          `you've already made the best ${areaTag} travel swap there is`,
+          `the only upgrade left on an active ${areaTag} commute is the kit`,
+        ]
+        const activeProse = normalizeArchitectProseThreeParagraphs(
+          `Walking or cycling is already the cheapest and lowest-carbon way to commute — there's no swap to make here, so the "switch to rail" advice that fits every other travel profile doesn't apply to you.\n\nIf you don't already have a bike, the Cycle to Work scheme lets you buy one tax-free through salary sacrifice, cutting the upfront cost by roughly 20-42% depending on your tax band, with no spending cap and e-bikes included.\n\nUse the link below for current Cycle to Work terms, or to compare bikes if you're starting from scratch.`
+        )
+        if (activeProse) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(activeHeadlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: activeProse,
+            offer_url: 'https://www.cyclescheme.co.uk',
+            category: journeyKey,
+          }
+        }
+      }
+    }
+
+    // SOLAR and CARBON previously had no profile/live data feeding them at all (flat national
+    // constant only — see the "honest scoping" note above calculatedMoneyGbp). Both now have a
+    // real free live source: PVGIS gives an actual postcode-level solar yield instead of a
+    // national guess, and NESO Carbon Intensity gives a real today's-grid figure instead of
+    // static prose. Both stay optional and defensive — no live data means the flat constant and
+    // generic prose from the fallbacks table above are used unchanged.
+    if (journeyKey === 'solar' && params.liveSolarYield && params.liveSolarYield.annualKwhEstimate > 0) {
+      const yieldKwh = Math.round(params.liveSolarYield.annualKwhEstimate)
+      const scaledGbp = Math.max(150, Math.round(gbp * params.liveSolarYield.yieldFactor))
+      const solarHeadlines = [
+        `a 4kWp system in ${areaTag} could generate ~${yieldKwh} kWh a year`,
+        `${areaTag} rooftops get a real solar yield, not a national average`,
+        `check what a ${areaTag} roof would actually generate before you quote`,
+        `your ${areaTag} postcode's solar yield beats a generic UK estimate`,
+        `~${yieldKwh} kWh a year is what a typical ${areaTag} system would produce`,
+      ]
+      const solarProse = normalizeArchitectProseThreeParagraphs(
+        `Based on EU Commission solar irradiance data for your postcode, a typical 4kWp system in ${areaLabel} would generate roughly ${yieldKwh} kWh a year — a real figure for your latitude and local cloud cover, not a flat UK-wide average.\n\nEvery UK electricity supplier with over 150,000 customers must offer a Smart Export Guarantee (SEG) tariff paying for what you export, but you need a smart meter and a valid MCS or Flexi-Orb certificate to get paid at all.\n\nUse the link below for Ofgem's current SEG guidance, then compare live rates before you sign an install quote.`
+      )
+      if (solarProse) {
+        return {
+          saving_amount_gbp: scaledGbp,
+          agent_headline: clampZoneBentoHeadline(
+            deterministicPoolPick(solarHeadlines, headlineSeed),
+            journeyKey,
+            JOURNEY_CARD_HEADLINE_BOUNDS
+          ),
+          architect_prose: solarProse,
+          offer_url: trustedUrlForJourney(journeyKey),
+          category: journeyKey,
+        }
+      }
+    }
+
+    if (journeyKey === 'carbon' && params.liveGrid && params.liveGrid.intensityGPerKwh != null) {
+      const intensity = Math.round(params.liveGrid.intensityGPerKwh)
+      const band =
+        (params.liveGrid.index || '').toLowerCase() ||
+        (intensity < 100 ? 'low' : intensity < 200 ? 'moderate' : 'high')
+      const renewables =
+        params.liveGrid.renewablesPercent != null ? Math.round(params.liveGrid.renewablesPercent) : null
+      const carbonHeadlines = [
+        `right now the UK grid is ${band} carbon at ${intensity}g CO2 per kWh`,
+        `today's grid is ${band} — a good time to check your ${areaTag} footprint`,
+        renewables != null
+          ? `${renewables}% renewables on the grid right now in ${areaTag}`
+          : `see where today's grid stands before you check your ${areaTag} footprint`,
+        `grid carbon shifts hour to hour — see today's ${areaTag} number first`,
+        `${intensity}g CO2/kWh right now — WWF's calculator shows your yearly total`,
+      ]
+      const renewablesLine =
+        renewables != null
+          ? ` Renewables currently make up roughly ${renewables}% of generation.`
+          : ''
+      const carbonProse = normalizeArchitectProseThreeParagraphs(
+        `Right now the GB electricity grid is running at approximately ${intensity}g CO2 per kWh — NESO's live Carbon Intensity index rates that as "${band}."${renewablesLine} This number moves hour to hour with wind, sun, and demand, so the same appliance run at 3am can be genuinely cleaner than at 6pm.\n\nWWF's free Footprint Calculator turns that into a full household estimate — home energy, travel, food, and stuff you buy — in about ten minutes, no account needed.\n\nUse the link below to run it, then time flexible electricity use (EV charging, washing, dishwashing) around the greener hours when you can.`
+      )
+      if (carbonProse) {
+        return {
+          saving_amount_gbp: gbp,
+          agent_headline: clampZoneBentoHeadline(
+            deterministicPoolPick(carbonHeadlines, headlineSeed),
+            journeyKey,
+            JOURNEY_CARD_HEADLINE_BOUNDS
+          ),
+          architect_prose: carbonProse,
+          offer_url: trustedUrlForJourney(journeyKey),
+          category: journeyKey,
+        }
+      }
+    }
+
     // Locality-aware headline always wins here — we're already inside the branch that has a
     // real area label. ZONE_BENTO_HOOK (fully generic, no locality) is only for when there's none.
     return {
@@ -2141,6 +2411,18 @@ export async function persistResearchResult(params: {
     let savingIsMechanicalFallback = false
     let headlineIsMechanicalFallback = false
     if ((tripletEmpty || needsMechanicalHeadline) && (mergedOffer || mergedCategory)) {
+      // Only fetch live PVGIS/Carbon Intensity when this row is actually solar or carbon — every
+      // other category ignores them, so skipping the extra network round-trip keeps the other 10
+      // categories' latency unchanged. Both calls are already defensive (null on any failure).
+      const [liveSolarYield, liveGrid] =
+        journeyKeyForHeadline === 'solar' || journeyKeyForHeadline === 'carbon'
+          ? await Promise.all([
+              journeyKeyForHeadline === 'solar'
+                ? resolveLiveSolarYieldForPostcode(params.postcode)
+                : Promise.resolve(null),
+              journeyKeyForHeadline === 'carbon' ? resolveLiveGridSnapshot() : Promise.resolve(null),
+            ])
+          : [null, null]
       const mechanical = mechanicalCategoryTripletFallback({
         category: mergedCategory,
         offerUrl: mergedOffer ?? trustedUrlForJourney(journeyKeyForHeadline),
@@ -2151,6 +2433,8 @@ export async function persistResearchResult(params: {
           typeof params.elecUnitRateGbpPerKwh === 'number' && typeof params.gasUnitRateGbpPerKwh === 'number'
             ? { elecGbpPerKwh: params.elecUnitRateGbpPerKwh, gasGbpPerKwh: params.gasUnitRateGbpPerKwh }
             : null,
+        liveSolarYield,
+        liveGrid,
       })
       if (mechanical) {
         if (savingForDb == null || savingForDb <= 0) {
@@ -2334,7 +2618,14 @@ export async function seedMechanicalJourneysForPostcode(
   // Fetched once for the whole postcode (not per-journey) — resolveLiveUnitRatesForPostcode
   // already tiers Neon research -> live pulse -> static reference itself, so this always
   // resolves to something; only home/utilities actually use it (see mechanicalCategoryTripletFallback).
-  const liveRates = await resolveLiveUnitRatesForPostcode(pc).catch(() => null)
+  // liveSolarYield (PVGIS) and liveGrid (NESO Carbon Intensity) are the same free-tier, no-auth
+  // pattern extended to solar/carbon — fetched once per postcode-seed run, defensive null on
+  // any failure, only solar/carbon actually consume them.
+  const [liveRates, liveSolarYield, liveGrid] = await Promise.all([
+    resolveLiveUnitRatesForPostcode(pc).catch(() => null),
+    resolveLiveSolarYieldForPostcode(pc),
+    resolveLiveGridSnapshot(),
+  ])
 
   const pool = getDbPool()
   const seeded: string[] = []
@@ -2348,6 +2639,8 @@ export async function seedMechanicalJourneysForPostcode(
         localityContext: locality,
         postcode: pc,
         liveRates,
+        liveSolarYield,
+        liveGrid,
       })
       if (!mechanical) {
         failed.push(journey)
