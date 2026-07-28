@@ -286,14 +286,110 @@ export function getDiscoveryRecommendation(
     }
   }
 
+  if (journeyId === 'shopping' && questionId === 'shopping_repair_first') {
+    if (a.includes('YES')) {
+      return {
+        headline: 'REPAIR CAFE NETWORK',
+        body: 'The Restart Project runs 130+ free repair events UK-wide — most electrical failures are one fixable part, not a dead device.',
+        gridJourneyKey: 'shopping',
+        learnUrl: 'https://therestartproject.org/',
+        actionUrl: 'https://therestartproject.org/',
+        ctaLabel: 'Find a repair event',
+        ctaUrl: 'https://therestartproject.org/',
+      }
+    }
+    return {
+      headline: 'SECOND-HAND FIRST',
+      body: 'Buying new? Vinted and Back Market routinely beat new-retail prices on clothes and tech with real buyer protection.',
+      gridJourneyKey: 'shopping',
+      learnUrl: 'https://www.vinted.co.uk/',
+      ctaLabel: 'Compare second-hand',
+      ctaUrl: 'https://www.vinted.co.uk/',
+    }
+  }
+
+  if (journeyId === 'tech' && questionId === 'tech_standby_off') {
+    if (a.includes('YES')) {
+      return {
+        headline: 'AUTOMATE THE STANDBY WIN',
+        body: "A £10-15 smart plug or timer does what you're already doing manually — no habit required to keep the saving.",
+        gridJourneyKey: 'tech',
+        learnUrl: 'https://www.ofgem.gov.uk/getting-smart-meter',
+        actionUrl: 'https://www.ofgem.gov.uk/getting-smart-meter',
+        ctaLabel: 'Smart meter info',
+        ctaUrl: 'https://www.ofgem.gov.uk/getting-smart-meter',
+      }
+    }
+    return {
+      headline: 'STANDBY DRAW ADDS UP',
+      body: 'UK households waste £35-60/yr on devices left on standby overnight — TVs, routers, and consoles are the usual culprits.',
+      gridJourneyKey: 'tech',
+      learnUrl: 'https://www.smartenergygb.org/smart-living/smart-energy-tips/switching-appliances-off-stand-by',
+      ctaLabel: 'See the guide',
+      ctaUrl: 'https://www.smartenergygb.org/smart-living/smart-energy-tips/switching-appliances-off-stand-by',
+    }
+  }
+
+  if (journeyId === 'waste' && (questionId === 'waste_compost' || questionId === 'food_waste_cut')) {
+    if (a.includes('YES')) {
+      return {
+        headline: 'WIDEN THE WASTE WIN',
+        body: "Composting handles the biggest lever — TerraCycle (free, brand-funded) takes what your council bin still won't.",
+        gridJourneyKey: 'waste',
+        learnUrl: 'https://www.terracycle.com/en-GB/',
+        actionUrl: 'https://www.terracycle.com/en-GB/',
+        ctaLabel: 'Find a drop-off point',
+        ctaUrl: 'https://www.terracycle.com/en-GB/',
+      }
+    }
+    return {
+      headline: 'FOOD WASTE IS 8% OF EMISSIONS',
+      body: 'The average UK household bins ~£700 of food a year, most avoidable — composting diverts the methane-heavy wet waste first.',
+      gridJourneyKey: 'waste',
+      learnUrl: 'https://www.lovefoodhatewaste.com/',
+      ctaLabel: 'Cut food waste',
+      ctaUrl: 'https://www.lovefoodhatewaste.com/',
+    }
+  }
+
+  if (journeyId === 'money' && questionId === 'money_smart_tariff') {
+    if (a.includes('YES') || a.includes('COMPARE')) {
+      return {
+        headline: 'TIME THE SWITCH RIGHT',
+        body: "Switching inside a fixed term can carry an exit fee — check your current deal's end date before comparing new tariffs.",
+        gridJourneyKey: 'money',
+        learnUrl: 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap',
+        actionUrl: 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap',
+        ctaLabel: 'Check the price cap',
+        ctaUrl: 'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap',
+      }
+    }
+    return {
+      headline: 'STAYING PUT? CHECK ANYWAY',
+      body: 'Even without switching supplier, moving idle savings to an ethical ISA can beat a stagnant tariff on its own.',
+      gridJourneyKey: 'money',
+      learnUrl: 'https://www.triodos.co.uk/ethical-isas',
+      ctaLabel: 'Compare ISA rates',
+      ctaUrl: 'https://www.triodos.co.uk/ethical-isas',
+    }
+  }
+
+  // isLoopQuestionId(questionId) below covers every loop beat in LOOP_QUESTION_BANK. The specific
+  // cases above (plus food_plant_shift/money_ev_swap earlier in this function) are the ones this
+  // codebase can currently back up — the answer genuinely feeds calculateFood/Shopping/Tech/Waste/
+  // Money (see lib/brains/calculations.ts) and/or a real spawned card here. For the remainder
+  // (travel_ev_commute, holidays_train_not_plane, utilities_supplier_switch, home_loft_insulate,
+  // solar_roof_fit, water_meter_save, carbon_offset_cut) there's no calculator or DB write behind
+  // the answer yet, so the copy says what's actually true — a real category-correct resource,
+  // not a claim that the app "remembers" and will act on the choice.
   if (isLoopQuestionId(questionId)) {
     const url = trustedUrlForJourney(journeyId)
     return {
-      headline: 'YOUR WALL NOW REMEMBERS THIS SHIFT',
-      body: 'We remember this choice and sharpen grants, tariffs, and lifestyle offers on your Zone wall.',
+      headline: "NOTED — HERE'S A TRUSTED NEXT STEP",
+      body: "This category still has real UK sources worth checking, even where we can't yet tailor the number to your answer.",
       gridJourneyKey: journeyId,
       learnUrl: url,
-      ctaLabel: 'See shift',
+      ctaLabel: 'See trusted source',
       ctaUrl: url,
     }
   }

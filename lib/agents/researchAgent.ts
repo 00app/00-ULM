@@ -159,6 +159,19 @@ export interface ResearchProfileData {
   flight_frequency?: string | null
   /** Optional house number / name for EPC address disambiguation at postcode. */
   house_number?: string | null
+  /**
+   * Loop-question answers (YES / TRY IT / NOT YET style, raw option value) — the six categories
+   * below have no dedicated onboarding question, so these post-close loop nudges are the only
+   * real per-user signal available. Read by calculateFood/Shopping/Tech/Waste/Money in
+   * lib/brains/calculations.ts. Currently populated only when the client includes them in the
+   * research trigger payload (not yet a durable server-side profile field — see task tracker).
+   */
+  food_plant_shift?: string | null
+  shopping_repair_first?: string | null
+  tech_standby_off?: string | null
+  waste_compost?: string | null
+  food_waste_cut?: string | null
+  money_smart_tariff?: string | null
   [key: string]: string | null | undefined
 }
 
@@ -1695,40 +1708,57 @@ function mechanicalCategoryTripletFallback(params: {
     // calculated result is 0/invalid, so this never breaks or shows a fake £0 to a user.
     //
     // Honest scoping — not every category can genuinely vary yet:
-    //  - money, utilities, home: branch on home_power (energy_type) — real variation.
+    //  - utilities, home: branch on home_power (energy_type) — real variation.
     //  - travel: branches on transport_baseline (primary_transport) — real variation.
     //  - water: branches on the wash_preference onboarding question (bath/shower/both) — real variation.
     //  - holidays: branches on the flight_frequency onboarding question (none/one_two/three_plus) — real variation.
-    //  - food, shopping, tech, waste: their calculators key on per-journey answers (diet_profile,
-    //    retail_channel, smart_thermostat, composting…) that don't exist until a user answers
-    //    that journey directly — not available here. They still get `applyEmploymentFinancialPhysics`,
-    //    which is a small (4–5%) but genuine adjustment for specific employment/journey combos.
-    //  - solar, carbon: no profile field feeds their calculators at all (solar needs roof data,
+    //  - money, food, shopping, tech, waste: their "formal" calculator fields (green_investments,
+    //    tariff_type, diet_profile, retail_channel, smart_thermostat, composting…) were defined in
+    //    lib/journeys.ts but never wired to any onboarding UI (confirmed — nothing in app/
+    //    references them). The one real per-user signal that does exist is the post-close loop
+    //    nudge for that category (money_smart_tariff, food_plant_shift, shopping_repair_first,
+    //    tech_standby_off, waste_compost/food_waste_cut) — passed through when profileData carries
+    //    it. Still only wired end-to-end for the client-side session stat and the answer-time
+    //    spawn card; NOT yet persisted server-side, so a returning visit on another
+    //    device/session won't reflect an old answer here until that's built.
+    //    They still get `applyEmploymentFinancialPhysics`, a small (4–5%) but genuine adjustment.
+    //  - solar, carbon: no per-user answer feeds their calculators at all (solar needs roof data,
     //    carbon needs footprint-tracking answers) — the flat constant stays untouched here on
     //    purpose rather than faking personalisation. Solar is additionally gated by tenure
     //    elsewhere (renters can't act on it) rather than needing its own onboarding question.
+    //    Both now get live PVGIS/Carbon-Intensity data instead (see liveSolarYield/liveGrid below).
     let gbp = fallback.gbp
     if (params.profileData) {
       const pd = params.profileData
       const employment = normalizeEmploymentStatus(pd.employment_status ?? undefined)
       let calculatedMoneyGbp: number | null = null
 
-      if (journeyKey === 'money' || journeyKey === 'utilities') {
+      if (journeyKey === 'money') {
+        // Previously passed home_power/energy_type/monthly_cost/green_tariff — none of which
+        // calculateMoney reads (it reads green_investments/tariff_type/monthly_energy_bill), so
+        // this branch silently computed the same flat baseline for every user regardless of
+        // profile. money_smart_tariff (the "try a cheaper energy tariff?" loop nudge) is the
+        // real live signal available now — see calculateMoney's tariff_loop handling.
+        const answers: Record<string, string> = {
+          money_smart_tariff: pd.money_smart_tariff ?? '',
+        }
+        calculatedMoneyGbp = applyEmploymentFinancialPhysics(
+          calculateMoney(answers),
+          employment,
+          'money'
+        ).moneyGbp
+      } else if (journeyKey === 'utilities') {
         const answers: Record<string, string> = {
           home_power: pd.home_power ?? '',
           energy_type: pd.home_power ?? '',
           monthly_cost: '',
           green_tariff: '',
         }
-        const calculated =
-          journeyKey === 'money'
-            ? applyEmploymentFinancialPhysics(calculateMoney(answers), employment, 'money')
-            : applyEmploymentFinancialPhysics(
-                calculateUtilities(answers, params.liveRates ?? undefined),
-                employment,
-                'utilities'
-              )
-        calculatedMoneyGbp = calculated.moneyGbp
+        calculatedMoneyGbp = applyEmploymentFinancialPhysics(
+          calculateUtilities(answers, params.liveRates ?? undefined),
+          employment,
+          'utilities'
+        ).moneyGbp
       } else if (journeyKey === 'home') {
         const answers: Record<string, string> = {
           home_power: pd.home_power ?? '',
@@ -1774,14 +1804,21 @@ function mechanicalCategoryTripletFallback(params: {
         journeyKey === 'tech' ||
         journeyKey === 'waste'
       ) {
+        // These four have no dedicated onboarding question (diet_profile/retail_channel/
+        // smart_thermostat/composting were scaffolded in lib/journeys.ts but never wired to any
+        // UI — confirmed nothing in app/ references them). The post-close loop nudge for each
+        // category is the only real per-user signal that exists — pass it through instead of {}.
         const baseResult =
           journeyKey === 'food'
-            ? calculateFood({})
+            ? calculateFood({ food_plant_shift: pd.food_plant_shift ?? '' })
             : journeyKey === 'shopping'
-              ? calculateShopping({})
+              ? calculateShopping({ shopping_repair_first: pd.shopping_repair_first ?? '' })
               : journeyKey === 'tech'
-                ? calculateTech({})
-                : calculateWaste({})
+                ? calculateTech({ tech_standby_off: pd.tech_standby_off ?? '' })
+                : calculateWaste({
+                    waste_compost: pd.waste_compost ?? '',
+                    food_waste_cut: pd.food_waste_cut ?? '',
+                  })
         calculatedMoneyGbp = applyEmploymentFinancialPhysics(baseResult, employment, journeyKey).moneyGbp
       }
 
@@ -2070,6 +2107,214 @@ function mechanicalCategoryTripletFallback(params: {
           architect_prose: carbonProse,
           offer_url: trustedUrlForJourney(journeyKey),
           category: journeyKey,
+        }
+      }
+    }
+
+    // FOOD/SHOPPING/TECH/WASTE/MONEY have no onboarding question of their own (see the "Honest
+    // scoping" note above) — the post-close loop nudge is the only real per-user signal. Each
+    // branch below only fires when that specific answer is present; anyone who hasn't answered
+    // (the vast majority, since this is a nudge shown after closing the card, not an onboarding
+    // step) falls through to the existing generic-but-real pool content unchanged.
+    if (journeyKey === 'food') {
+      const plantShift = (params.profileData?.food_plant_shift ?? '').toUpperCase()
+      if (plantShift.includes('YES')) {
+        const headlines = [
+          `keep the plant swaps going — batch cook to make it stick in ${areaTag}`,
+          `two meals in, now build a rotation in ${areaTag}`,
+          `plant-based twice a week? plan the other five in ${areaTag}`,
+          `you're already swapping — batch cooking locks it in for ${areaTag}`,
+          `next step after the swap: a repeatable ${areaTag} meal list`,
+        ]
+        const prose = normalizeArchitectProseThreeParagraphs(
+          `You've already started swapping in plant-based meals — the habit that actually sticks from here is a short rotation of 4-5 meals you repeat, not a new recipe every week.\n\nBatch cooking one or two of those in bulk and freezing portions cuts both cooking time and the temptation to order in on a tired evening.\n\nUse the link below for Too Good To Go's surplus bags if you want to build the rotation around whatever's discounted that day.`
+        )
+        if (prose) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(headlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: prose,
+            offer_url: trustedUrlForJourney(journeyKey),
+            category: journeyKey,
+          }
+        }
+      }
+    }
+
+    if (journeyKey === 'shopping') {
+      const repairFirst = (params.profileData?.shopping_repair_first ?? '').toUpperCase()
+      if (repairFirst.includes('YES')) {
+        const headlines = [
+          `you said repair first — here's where to actually take it in ${areaTag}`,
+          `repair cafes near ${areaTag} do this for free, no appointment`,
+          `broken doesn't mean bin it — find your nearest ${areaTag} repair event`,
+          `you're already repair-first — the network exists near ${areaTag}`,
+          `most breaks are one part — a ${areaTag} repair cafe checks first`,
+        ]
+        const prose = normalizeArchitectProseThreeParagraphs(
+          `You've said you'd rather repair than replace — the UK's volunteer repair cafe network (over 130 groups, run through The Restart Project) does exactly this for free: bring a broken toaster, lamp, or laptop and a volunteer will look at it before you write it off.\n\nMost electrical failures turn out to be one replaceable part, not the whole device — worth a look even if you're not confident fixing it yourself.\n\nUse the link below to find a repair event near you, or Vinted if what's broken is actually beyond saving.`
+        )
+        if (prose) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(headlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: prose,
+            offer_url: 'https://therestartproject.org/',
+            category: journeyKey,
+          }
+        }
+      }
+    }
+
+    if (journeyKey === 'tech') {
+      const standbyOff = (params.profileData?.tech_standby_off ?? '').toUpperCase()
+      if (standbyOff.includes('YES')) {
+        const headlines = [
+          `standby's handled — a smart plug automates the rest in ${areaTag}`,
+          `you're already switching off — a timer plug does it for you in ${areaTag}`,
+          `next lever after standby: automate it so it's not a habit in ${areaTag}`,
+          `you've got the habit — a smart plug removes the need for it in ${areaTag}`,
+          `standby sorted — check what's still drawing power overnight in ${areaTag}`,
+        ]
+        const prose = normalizeArchitectProseThreeParagraphs(
+          `You're already turning things off at night — a cheap smart plug or timer on the TV, router, or games console does the same job automatically, so it stops depending on remembering.\n\nA free smart meter (ordered through your supplier) shows exactly what's still drawing power overnight once the obvious stuff is handled — often something unexpected like a printer or a second router.\n\nUse the link below to compare refurbished devices if anything's due for replacement anyway.`
+        )
+        if (prose) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(headlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: prose,
+            offer_url: trustedUrlForJourney(journeyKey),
+            category: journeyKey,
+          }
+        }
+      }
+    }
+
+    if (journeyKey === 'waste') {
+      const compost = (params.profileData?.waste_compost ?? '').toUpperCase()
+      if (compost.includes('YES')) {
+        const headlines = [
+          `composting already? check if ${areaTag} council collects garden waste too`,
+          `you're composting — see what else ${areaTag} won't take kerbside`,
+          `next step after composting: TerraCycle for the stuff bins can't take in ${areaTag}`,
+          `composting sorted — batteries and crisp packets need a different ${areaTag} route`,
+          `you've got composting down — widen it to hard-to-recycle items in ${areaTag}`,
+        ]
+        const prose = normalizeArchitectProseThreeParagraphs(
+          `You're already composting food scraps, which handles the biggest single lever — wet organic waste in landfill releases methane at 25 times the warming impact of CO2 over a century.\n\nThe next gap is usually "hard to recycle" packaging your council bin won't take at all — crisp packets, toothpaste tubes, batteries — which TerraCycle collects for free, funded by the brands themselves.\n\nUse the link below to find a TerraCycle drop-off point, or Freegle if something's still usable rather than waste.`
+        )
+        if (prose) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(headlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: prose,
+            offer_url: trustedUrlForJourney(journeyKey),
+            category: journeyKey,
+          }
+        }
+      }
+    }
+
+    if (journeyKey === 'money') {
+      const smartTariff = (params.profileData?.money_smart_tariff ?? '').toUpperCase()
+      if (smartTariff.includes('YES') || smartTariff.includes('COMPARE')) {
+        const headlines = [
+          `you're ready to switch — compare ${areaTag} tariffs before your renewal date`,
+          `switching interest noted — check your ${areaTag} exit fees first`,
+          `before you switch, confirm your current ${areaTag} tariff's end date`,
+          `ready to compare? your ${areaTag} renewal date decides the best timing`,
+          `switching tariff in ${areaTag}? time it against your fixed-term end date`,
+        ]
+        const prose = normalizeArchitectProseThreeParagraphs(
+          `You've said you're open to a cheaper tariff — the main thing that decides whether it's worth doing now is your current deal's end date. Switching mid-fixed-term can carry an exit fee that eats the saving.\n\nOnce you're inside the last few weeks of a fixed term (or already on a variable/default tariff), comparison sites show genuine savings against the July 2026 price cap.\n\nUse the link below for a Triodos savings comparison if the cash you free up needs somewhere to sit in the meantime.`
+        )
+        if (prose) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(headlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: prose,
+            offer_url: trustedUrlForJourney(journeyKey),
+            category: journeyKey,
+          }
+        }
+      }
+    }
+
+    // HOLIDAYS: flight_frequency is a real onboarding answer (unlike the loop-nudge-only
+    // categories above) — someone who said they don't fly gets told to stop flying by the
+    // generic pool above, which is a live example of the exact profile-blind pattern this whole
+    // pass exists to fix. THREE_PLUS gets a different lever too (frequent flyers rarely respond
+    // to "fly less"; booking/class choice is the more useful angle for that group specifically).
+    if (journeyKey === 'holidays') {
+      const flights = (params.profileData?.flight_frequency ?? '').toUpperCase()
+      if (flights === 'NONE') {
+        const headlines = [
+          `you already don't fly — ${areaTag} rail breaks keep it that way`,
+          `no flights this year already puts you ahead — plan the next ${areaTag} trip by train`,
+          `staying off flights? here's where to book the next ${areaTag} rail trip`,
+          `you're already in the lowest-carbon holiday bracket from ${areaTag}`,
+          `no-fly year sorted — Eurostar covers most of Europe from ${areaTag} anyway`,
+        ]
+        const prose = normalizeArchitectProseThreeParagraphs(
+          `You've told us you're not flying this year, which already puts your holiday footprint in the lowest UK bracket — the generic "cut a flight" advice most people get doesn't apply to you.\n\nEurostar and the wider European rail network cover most short-to-medium trips from the UK without ever needing an airport, often for a comparable price when booked 8-12 weeks ahead.\n\nUse the link below for current Eurostar deals if you're planning the next trip.`
+        )
+        if (prose) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(headlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: prose,
+            offer_url: trustedUrlForJourney(journeyKey),
+            category: journeyKey,
+          }
+        }
+      } else if (flights === 'THREE_PLUS') {
+        const headlines = [
+          `flying three or more times a year from ${areaTag}? booking timing matters most`,
+          `frequent flyer from ${areaTag}? economy over business cuts your share ~3x`,
+          `three-plus flights a year — the lever is class and booking, not stopping`,
+          `flying often from ${areaTag}? seat count decides your per-passenger carbon`,
+          `for frequent ${areaTag} flyers, how you book beats whether you fly`,
+        ]
+        const prose = normalizeArchitectProseThreeParagraphs(
+          `Flying three or more times a year puts you in a different bracket to most UK households, so "fly less" is less useful advice than how you book — economy class over business cuts your per-seat carbon share by roughly three times on the same flight, since the total aircraft emissions get split by seat space, not passenger count.\n\nBooking 8-12 weeks ahead and flying direct where possible also trims both cost and the extra emissions from layovers.\n\nUse the link below to compare rail for any of those trips that are actually within reach of Eurostar.`
+        )
+        if (prose) {
+          return {
+            saving_amount_gbp: gbp,
+            agent_headline: clampZoneBentoHeadline(
+              deterministicPoolPick(headlines, headlineSeed),
+              journeyKey,
+              JOURNEY_CARD_HEADLINE_BOUNDS
+            ),
+            architect_prose: prose,
+            offer_url: trustedUrlForJourney(journeyKey),
+            category: journeyKey,
+          }
         }
       }
     }

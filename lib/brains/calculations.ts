@@ -248,7 +248,14 @@ export function calculateTravel(
 }
 
 export function calculateFood(a: Record<string, string>): ImpactResult {
-  const diet = String(a.diet_profile ?? a.diet_type ?? '').toUpperCase()
+  // diet_profile/diet_type were never wired to any onboarding UI (dead question definitions) —
+  // food_plant_shift is the real signal that exists: the "two plant-based meals a week?" loop
+  // nudge shown after closing the FOOD card. Its answer values are engagement-style (YES/TRY IT/
+  // NOT YET), not a diet-type enum, so it's treated as a softer FLEXI-leaning signal rather than
+  // claiming full PLANT_BASED/VEGAN — that would overstate what a "yes" to a nudge actually means.
+  const dietRaw = String(a.diet_profile ?? a.diet_type ?? '').toUpperCase()
+  const plantShift = String(a.food_plant_shift ?? '').toUpperCase()
+  const diet = dietRaw || (plantShift.includes('YES') || plantShift.includes('TRY') ? 'FLEXI' : '')
   const carbon =
     diet === 'PLANT_BASED' || diet === 'VEGAN'
       ? 800
@@ -273,14 +280,17 @@ export function calculateFood(a: Record<string, string>): ImpactResult {
 }
 
 export function calculateShopping(a: Record<string, string>): ImpactResult {
-  // Map profile question keys: retail_channel, repair_mindset, online_deliveries
+  // Map profile question keys: retail_channel, repair_mindset, online_deliveries — none of these
+  // were ever wired to onboarding UI. shopping_repair_first ("repair before you replace?") is the
+  // real live signal — the loop nudge shown after closing the SHOPPING card.
   const channel = String(a.retail_channel ?? a.buy_new ?? '').toUpperCase()
-  const repair = String(a.repair_mindset ?? '').toUpperCase()
+  const repairRaw = String(a.repair_mindset ?? '').toUpperCase()
+  const repairLoop = String(a.shopping_repair_first ?? '').toUpperCase()
   const deliveries = String(a.online_deliveries ?? '').toUpperCase()
 
   const isSecondHand = channel === 'SECOND_HAND'
   const isMixed = channel === 'MIXED'
-  const repairsFirst = repair === 'REPAIR_FIRST'
+  const repairsFirst = repairRaw === 'REPAIR_FIRST' || repairLoop === 'YES'
   const highDeliveries = deliveries === 'DAILY' || deliveries === 'WEEKLY'
 
   // Default £200/month non-food discretionary (UK average — WRAP)
@@ -310,9 +320,12 @@ export function calculateShopping(a: Record<string, string>): ImpactResult {
 }
 
 export function calculateMoney(a: Record<string, string>): ImpactResult {
-  // Map profile question keys: monthly_energy_bill, tariff_type, green_investments
+  // Map profile question keys: monthly_energy_bill, tariff_type, green_investments — none of
+  // these were ever wired to onboarding UI. money_smart_tariff ("try a cheaper energy tariff?")
+  // is the real live signal — the loop nudge shown after closing the MONEY card.
   const greenInvestments = String(a.green_investments ?? '').toUpperCase()
-  const tariff = String(a.tariff_type ?? '').toUpperCase()
+  const tariffRaw = String(a.tariff_type ?? '').toUpperCase()
+  const tariffLoop = String(a.money_smart_tariff ?? '').toUpperCase()
   const monthlyBill = Number(a.monthly_energy_bill ?? 0)
 
   let money = 0
@@ -325,7 +338,10 @@ export function calculateMoney(a: Record<string, string>): ImpactResult {
   else if (greenInvestments === 'SOME') money += 150
   else money += 60
 
-  // Tariff optimisation headroom
+  // Tariff optimisation headroom — a "yes" or "compare" to the smart-tariff loop nudge is a real
+  // engagement signal even without the (unwired) tariff_type answer.
+  const tariff =
+    tariffRaw || (tariffLoop.includes('YES') ? 'VARIABLE' : tariffLoop.includes('COMPARE') ? 'UNKNOWN' : '')
   if (tariff === 'VARIABLE' || tariff === 'UNKNOWN') money += 120
   else if (tariff === 'FIXED') money += 40
 
@@ -430,6 +446,10 @@ export function calculateTech(a: Record<string, string>): ImpactResult {
   const thermo = String(a.smart_thermostat ?? a.upgrade_often ?? '').toUpperCase()
   const smart = String(a.smart_home ?? '').toUpperCase()
   const meter = String(a.smart_meter ?? '').toUpperCase()
+  // tech_standby_off ("turn off standby at night?") is the real live signal — the loop nudge
+  // shown after closing the TECH card. smart_thermostat/smart_home/smart_meter were never wired
+  // to onboarding UI.
+  const standbyLoop = String(a.tech_standby_off ?? '').toUpperCase()
   let moneyGbp = 0
   let carbonKg = 0
   if (thermo === 'YES' || thermo === 'YEARLY') {
@@ -447,6 +467,12 @@ export function calculateTech(a: Record<string, string>): ImpactResult {
     moneyGbp += 40
     carbonKg += 35
   }
+  if (standbyLoop.includes('NOT YET') || standbyLoop.includes('HOW')) {
+    // Hasn't started yet (or wants the how-to) — standby draw is still live, same order of
+    // magnitude as the unwired smart_home saving above.
+    moneyGbp += 45
+    carbonKg += 35
+  }
   return {
     carbonKg,
     moneyGbp,
@@ -460,11 +486,24 @@ export function calculateTech(a: Record<string, string>): ImpactResult {
 }
 
 export function calculateWaste(a: Record<string, string>): ImpactResult {
+  // food_waste_collection/composting/soft_plastics were never wired to onboarding UI. waste_compost
+  // ("compost food scraps at home?") and food_waste_cut ("cut food waste at home?" — despite the
+  // name, this beat's journeyKeys is ['waste'], not 'food' — see loopQuestions.ts) are the real
+  // live signals: the two loop nudges shown after closing the WASTE card.
   const collection = String(a.food_waste_collection ?? a.recycle ?? '').toUpperCase()
-  const compost = String(a.composting ?? a.compost ?? '').toUpperCase()
+  const compostRaw = String(a.composting ?? a.compost ?? '').toUpperCase()
+  const compostLoop = String(a.waste_compost ?? '').toUpperCase()
+  const wasteCutLoop = String(a.food_waste_cut ?? '').toUpperCase()
   const soft = String(a.soft_plastics ?? '').toUpperCase()
   const carbon =
-    collection === 'NO' || collection === 'NEVER' ? 350 : collection === 'PARTIAL' || collection === 'SOMETIMES' ? 175 : 80
+    collection === 'NO' || collection === 'NEVER'
+      ? 350
+      : collection === 'PARTIAL' || collection === 'SOMETIMES'
+        ? 175
+        : wasteCutLoop.includes('NOT YET')
+          ? 200
+          : 80
+  const compost = compostRaw || (compostLoop.includes('YES') ? 'YES' : compostLoop.includes('TRY') ? 'SHARED' : '')
   let moneyGbp = compost === 'NO' ? 100 : compost === 'SHARED' ? 60 : 30
   if (soft === 'NEVER') moneyGbp += 40
   return {
