@@ -594,7 +594,18 @@ export function JourneyBentoCard({
         /* ignore */
       }
       setHomeSentinelRecard(null)
-      if (!snap || !Array.isArray(snap.morphDeck) || snap.morphDeck.length === 0) {
+      /* Wall tile already has its own settled content (title/£/kg from research_results or the
+         mechanical calculator) for the overwhelming majority of cards — getNextMorphCard() is a
+         Rock-habit substitution with no awareness of what the wall already shows, so seeding it
+         unconditionally on every first expand made the expanded card show a different headline
+         and different £/kg than the tile the user just tapped (confirmed live: TECH/MONEY/WASTE
+         all opened to an unrelated Rock habit instead of their own tile content). Only seed the
+         fallback when the wall genuinely has nothing of its own to show yet. */
+      const wallHasOwnContent = Boolean(title?.trim())
+      if (wallHasOwnContent) {
+        setMorphDeck([])
+        setMorphDeckCursor(0)
+      } else if (!snap || !Array.isArray(snap.morphDeck) || snap.morphDeck.length === 0) {
         const seeded = getNextMorphCard(journeyId, {
           postcode: profilePostcode,
           homeType: state.profile?.homeType ?? null,
@@ -649,6 +660,7 @@ export function JourneyBentoCard({
     soloFocusSnapKey,
     soloFocusViewKey,
     profilePostcode,
+    title,
     state.profile?.homeType,
     state.profile?.transport,
     state.profile?.homePower,
