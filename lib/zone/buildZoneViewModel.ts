@@ -47,6 +47,7 @@ import {
 } from '@/lib/soloFocusCopy'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
+import { trustedUrlForJourney, trustedUrlLabelForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import {
   VERIFIED_SOURCE_DATE,
@@ -944,7 +945,7 @@ export function buildZoneViewModel({
     const genomeIncomplete = dynamicJourneyValues[journeyKey].estimatedAudit
     const estimatedAudit = !hasVerifiedNeonMoney || genomeIncomplete
 
-    const sourceLabel = formatSourceLabel(source)
+    let sourceLabel = formatSourceLabel(source)
     if (isGenericHomepageUrl(claimOfferUrl)) claimOfferUrl = undefined
     const locality = council?.trim() || outwardFromPostcode(profile?.postcode)
     const offerTeaserRaw =
@@ -994,6 +995,13 @@ export function buildZoneViewModel({
         carbonKg,
         locality,
       })
+    // offerUrlGuard can silently swap a conflicting/generic offer_url for this journey's trusted
+    // fallback (see offerUrlGuard.ts) — when that happened, the on-card badge must say so instead
+    // of keeping the original static per-category attribution, which would otherwise describe a
+    // completely different publisher than the one the READ/CLAIM button actually opens.
+    if (learnUrl === trustedUrlForJourney(journeyKey)) {
+      sourceLabel = `source. ${trustedUrlLabelForJourney(journeyKey)}`
+    }
     const userPostcodeForAudit = (profile?.postcode ?? '').trim() || locality
     const sourceNameV35 = formatVerifiedSourceNameFromLabel(sourceLabel)
     const partner_link = resolvePartnerLink({

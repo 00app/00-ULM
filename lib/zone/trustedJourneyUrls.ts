@@ -32,6 +32,34 @@ export const TRUSTED_JOURNEY_URLS: Record<JourneyId, string> = {
   carbon: 'https://footprint.wwf.org.uk/',
 }
 
+/**
+ * Human-readable publisher name for each TRUSTED_JOURNEY_URLS fallback — used to keep the on-card
+ * "source" badge honest when offerUrlGuard swaps a conflicting/generic offer_url for this trusted
+ * URL. Without this, the badge kept showing the original static per-category attribution (e.g.
+ * "DEFRA AVIATION FACTORS", "WRAP UK") even when the actual READ/CLAIM button had been silently
+ * redirected to a completely different publisher (Eurostar, TerraCycle) — live-audited: a HOLIDAYS
+ * card badged "DEFRA AVIATION FACTORS" whose button opened eurostar.com, and a WASTE card badged
+ * "WRAP UK" whose button opened terracycle.com. See buildZoneViewModel.ts.
+ */
+export const TRUSTED_JOURNEY_URL_LABELS: Record<JourneyId, string> = {
+  home: 'energy saving trust',
+  utilities: 'mse cheap energy club',
+  solar: 'ofgem smart export guarantee',
+  travel: 'national rail railcards',
+  holidays: 'eurostar',
+  food: 'too good to go',
+  shopping: 'wrap uk — textiles',
+  money: 'triodos ethical isas',
+  tech: 'back market',
+  water: 'citizens advice — watersure',
+  waste: 'terracycle',
+  carbon: 'wwf footprint calculator',
+}
+
+export function trustedUrlLabelForJourney(j: JourneyId): string {
+  return TRUSTED_JOURNEY_URL_LABELS[j] ?? 'trusted source'
+}
+
 export const DEFAULT_TRUSTED_URL = 'https://www.gov.uk/'
 
 export function isHttpsUrl(s: string | undefined | null): boolean {
