@@ -1554,66 +1554,66 @@ function mechanicalCategoryTripletFallback(params: {
       home: {
         gbp: 180,
         headlines: [
-          `seal draughts and loft gaps in ${areaTag} homes first`,
-          `fix the fabric before the boiler in ${areaTag}`,
-          `loft and draught checks pay back fastest in ${areaTag}`,
-          `stop paying to heat the outside in ${areaTag}`,
-          `a weekend of sealing beats a new ${areaTag} boiler quote`,
+          `seal draughts and loft gaps before you chase the boiler`,
+          `fix the fabric before you fix the heating`,
+          `loft and draught checks pay back fastest of any home fix`,
+          `stop paying to heat the outside air`,
+          `a weekend of sealing beats a new boiler quote`,
         ],
         prose: `Older homes in ${areaLabel} leak heat through lofts, draughts, and lagging gaps — sealing those cuts bills before you chase a new boiler.\n\nJuly 2026 bills still track the energy price cap (~£${capTypical}/yr typical dual-fuel) so every wasted kWh hurts until fabric is fixed.\n\nUse the link below to plan loft and draught-proofing work before winter.`,
       },
       utilities: {
         gbp: 120,
         headlines: [
-          `compare your household tariff before you fix a ${areaTag} deal`,
-          `check your meter read before ${areaTag} suppliers renew your tariff`,
-          `a fixed deal below the cap beats drifting on variable in ${areaTag}`,
-          `standing charges add up fast for ${areaTag} homes on the wrong plan`,
-          `switch supplier before your ${areaTag} fixed term quietly expires`,
+          `compare your household tariff before you fix a deal`,
+          `check your meter read before your supplier renews the tariff`,
+          `a fixed deal below the cap beats drifting on variable`,
+          `standing charges add up fast on the wrong plan`,
+          `switch supplier before your fixed term quietly expires`,
         ],
         prose: `${areaLabel} sits under the July 2026 price-cap frame — typical dual-fuel around £${capTypical}/yr with policy shifts worth tracking before you fix a tariff.\n\nStanding charges and direct-debit realignment are the immediate levers before locking a fixed tariff.\n\nUse the link below to check your supplier statement matches cap rates before you switch.`,
       },
       solar: {
         gbp: 450,
         headlines: [
-          `check if your ${areaTag} export tariff pays the full smart export guarantee rate`,
-          `an MCS certificate is what actually unlocks solar payments in ${areaTag}`,
-          `some suppliers pay over 30p per kWh exported — most pay far less in ${areaTag}`,
-          `not every solar tariff in ${areaTag} is open to everyone — check the small print`,
-          `size the panels to your roof and daytime use, not a generic kit, in ${areaTag}`,
+          `check if your export tariff pays the full smart export guarantee rate`,
+          `an MCS certificate is what actually unlocks solar payments`,
+          `some suppliers pay over 30p per kWh exported — most pay far less`,
+          `not every solar tariff is open to everyone — check the small print`,
+          `size the panels to your roof and daytime use, not a generic kit`,
         ],
         prose: `Every UK electricity supplier with over 150,000 customers must offer a Smart Export Guarantee (SEG) tariff, paying you for solar electricity you export to the grid — but rates vary hugely: as of March 2026 there were 50 tariffs across 11 suppliers, and only 21 were open to every household with no conditions attached.\n\nYou need a smart meter and a valid MCS or Flexi-Orb certificate to get paid at all — without that paperwork, exported electricity earns you nothing no matter how much you generate.\n\nUse the link below for Ofgem's current SEG guidance, then compare live rates before you sign an install quote.`,
       },
       travel: {
         gbp: 450,
         headlines: [
-          `swap one weekly car commute for rail in ${areaTag}`,
-          `one fewer car trip a week pays off in ${areaTag}`,
-          `check the season ticket price before you fuel up in ${areaTag}`,
-          `rail beats ad-hoc fuel top-ups from ${areaTag}`,
-          `a single weekly swap trims the ${areaTag} commute bill`,
+          `swap one weekly car commute for rail`,
+          `one fewer car trip a week pays off fast`,
+          `check the season ticket price before you fuel up again`,
+          `rail beats ad-hoc fuel top-ups on the same route`,
+          `a single weekly swap trims the commute bill`,
         ],
         prose: `Around ${areaLabel}, one regular car commute is often the priciest habit on your travel row — a single rail or bus day each week is a gentle first swap.\n\nLocal timetables and season tickets still beat ad-hoc fuel top-ups when you plan the same journey twice.\n\nUse the link below to check rail or bus options for your usual route before you renew insurance or fuel cards.`,
       },
       holidays: {
         gbp: 250,
         headlines: [
-          `cut flights from ${areaTag} with more local rail trips`,
-          `one less return flight a year from ${areaTag}`,
-          `rail over short-haul flights from ${areaTag}`,
-          `compare the train before you book from ${areaTag}`,
-          `fewer flights, same breaks, from ${areaTag}`,
+          `cut flights with more local rail trips`,
+          `one less return flight a year adds up fast`,
+          `rail over short-haul flights on the same break`,
+          `compare the train before you book the flight`,
+          `fewer flights, same breaks, lower bill`,
         ],
         prose: `Holidays from ${areaLabel} carry a heavy footprint — fewer flights and rail over short hops cuts both kg and spend.\n\nOne less return flight a year often saves hundreds before airline surcharges climb again.\n\nUse the link below to compare flight vs rail for your next break before you book.`,
       },
       food: {
         gbp: 180,
         headlines: [
-          `too good to go turns unsold ${areaTag} shop food into £2-4 bags`,
-          `olio lets ${areaTag} neighbours give away food for free before it's binned`,
+          `too good to go turns unsold shop food into £2-4 bags`,
+          `olio lets neighbours give away food for free before it's binned`,
           `6.6 million people already use too good to go across the UK`,
-          `stop binning what a neighbour in ${areaTag} would take for free`,
-          `check what's left near you in ${areaTag} before the shop closes`,
+          `stop binning what a neighbour would take for free`,
+          `check what's left near you before the shop closes`,
         ],
         prose: `Too Good To Go lets shops, cafes and restaurants near ${areaLabel} sell surplus food as a "magic bag" at roughly a third of the shelf price — 6.6 million people in the UK already use it.\n\nOlio works differently: it's a free neighbour-to-neighbour network for giving away food (and other items) that would otherwise be binned, with no payment involved either way.\n\nUse the link below to see what's listed near you today.`,
       },
@@ -1622,9 +1622,9 @@ function mechanicalCategoryTripletFallback(params: {
         headlines: [
           `the restart project runs free repair events for broken electronics`,
           `over 130 volunteer repair cafes now operate across the UK`,
-          `second-hand first on vinted beats fast fashion for ${areaTag} wardrobes`,
+          `second-hand first on vinted beats fast fashion for less`,
           `bring a broken toaster or laptop to a repair cafe before you bin it`,
-          `check for a repair event near ${areaTag} before you order a replacement`,
+          `check for a nearby repair event before you order a replacement`,
         ],
         prose: `The Restart Project and the wider UK community repair network run free, volunteer-led events — over 130 groups nationwide will look at a broken laptop, phone, or small appliance before you throw it out.\n\nFor clothes specifically, second-hand marketplaces like Vinted routinely beat new fast-fashion prices without the churn.\n\nUse the link below to find textile recycling and reuse guidance, or search for your nearest repair cafe.`,
       },
@@ -1632,9 +1632,9 @@ function mechanicalCategoryTripletFallback(params: {
         gbp: 320,
         headlines: [
           `triodos won best ethical financial provider at the 2026 british bank awards`,
-          `some banks still fund fossil fuels with your ${areaTag} savings — some don't`,
+          `some banks still fund fossil fuels with your savings — some don't`,
           `an ethical ISA doesn't have to mean giving up the rate`,
-          `check where your ${areaTag} savings are actually invested`,
+          `check where your savings are actually invested`,
           `triodos excludes fossil fuels entirely from its stocks and shares ISA`,
         ],
         prose: `Triodos Bank was named Best Ethical Financial Provider at the 2026 British Bank Awards, and is the only major UK provider to fully exclude fossil fuels from its Stocks & Shares ISA.\n\nIt's digital-only and doesn't offer mortgages or credit cards like a high-street bank, so it suits savings and ISAs specifically rather than being an all-in-one switch.\n\nUse the link below to compare Triodos's current ISA rates against what you're earning now.`,
@@ -1643,10 +1643,10 @@ function mechanicalCategoryTripletFallback(params: {
         gbp: 140,
         headlines: [
           `restart project volunteers fix electronics free at UK repair events`,
-          `most device failures in ${areaTag} homes are one fixable part, not a dead unit`,
-          `a smart meter ends estimated bills for ${areaTag} homes`,
+          `most device failures are one fixable part, not a dead unit`,
+          `a smart meter ends estimated bills for good`,
           `check your right to spare parts before you replace a device`,
-          `free electronics repair events run near ${areaTag} most months`,
+          `free electronics repair events run most months near you`,
         ],
         prose: `The Restart Project's UK repair network fixes broken laptops, phones, and small electronics for free at community events — most failures turn out to be a single replaceable part, not the whole device.\n\nSeparately, a smart meter (free from your supplier) ends estimated billing and shows real-time usage, which is what actually catches a phantom-draining appliance rather than guessing.\n\nUse the link below to compare refurbished devices, or search for a repair event near you.`,
       },
@@ -1654,28 +1654,28 @@ function mechanicalCategoryTripletFallback(params: {
         gbp: 90,
         headlines: [
           `WaterSure caps your bill if you're on a meter and get certain benefits`,
-          `three or more kids or a medical condition can qualify ${areaTag} homes for WaterSure`,
+          `three or more kids or a medical condition can qualify you for WaterSure`,
           `you can't claim WaterSure without being on a meter first`,
-          `check if ${areaTag} households qualify for a capped water bill`,
-          `a capped bill beats a rising metered one for eligible ${areaTag} homes`,
+          `check if your household qualifies for a capped water bill`,
+          `a capped bill beats a rising metered one if you're eligible`,
         ],
         prose: `WaterSure caps your water bill at your company's average metered bill if you're on a water meter, receive a qualifying benefit (Universal Credit, Pension Credit, Housing Benefit and others), and either have three or more children under 19 or a medical condition that means you use significantly more water.\n\nYou have to already be on a meter, or have applied for one, to qualify — unmetered households can't claim it.\n\nUse the link below for the full eligibility list and how to apply through your water company.`,
       },
       waste: {
         gbp: 70,
         headlines: [
-          `TerraCycle takes what your ${areaTag} council bin won't — crisp packets, batteries`,
+          `TerraCycle takes what your council bin won't — crisp packets, batteries`,
           `Freegle has 4 million UK members giving things away instead of binning them`,
-          `450+ local Freegle groups mean someone near ${areaTag} probably wants your junk`,
+          `450+ local Freegle groups mean someone nearby probably wants your junk`,
           `most TerraCycle recycling programmes are free, funded by the brands themselves`,
-          `check what ${areaTag} can't recycle kerbside before you bin it`,
+          `check what your council can't recycle kerbside before you bin it`,
         ],
         prose: `TerraCycle runs free recycling programmes for things your council collection won't take — crisp packets, toothpaste tubes, batteries, and other "hard to recycle" packaging — funded by the brands themselves, so there's no cost to you.\n\nFreegle is different: a free give-and-get network with 4 million UK members across 450+ local groups, built specifically to keep usable items out of landfill.\n\nUse the link below to find a TerraCycle drop-off point, or list something on Freegle instead of binning it.`,
       },
       carbon: {
         gbp: 100,
         headlines: [
-          `WWF's free footprint calculator shows where your ${areaTag} household stands`,
+          `WWF's free footprint calculator shows where your household stands`,
           `a 10-minute questionnaire beats guessing at your carbon footprint`,
           `see your footprint against the UK average before you buy an offset`,
           `WWF's calculator splits your footprint into four real categories`,
@@ -1875,11 +1875,11 @@ function mechanicalCategoryTripletFallback(params: {
 
       if (isFlat) {
         const flatHeadlines = [
-          `draught-strip your windows and doors in ${areaTag} first`,
-          `a smart thermostat pays back fastest in an ${areaTag} flat`,
-          `radiator reflector foil is the cheap ${areaTag} flat win`,
-          `check your TRVs before you touch anything else in ${areaTag}`,
-          `block the letterbox and gaps under doors in ${areaTag} flats`,
+          `draught-strip your windows and doors first`,
+          `a smart thermostat pays back fastest in a flat`,
+          `radiator reflector foil is the cheap flat-dweller's win`,
+          `check your TRVs before you touch anything else`,
+          `block the letterbox and gaps under doors first`,
         ]
         const flatHeadline = deterministicPoolPick(flatHeadlines, headlineSeed)
         const flatProse = normalizeArchitectProseThreeParagraphs(
@@ -1906,11 +1906,11 @@ function mechanicalCategoryTripletFallback(params: {
       const wash = (params.profileData?.wash_preference ?? '').toUpperCase()
       if (wash === 'BATH') {
         const bathHeadlines = [
-          `swap two baths a week for showers in ${areaTag}`,
-          `a bath uses more than double a shower's water in ${areaTag}`,
-          `keep some baths, add showers for the rest of the week in ${areaTag}`,
-          `baths are the biggest lever on a ${areaTag} water bill`,
-          `cut one bath a week before you touch anything else in ${areaTag}`,
+          `swap two baths a week for showers`,
+          `a bath uses more than double a shower's water`,
+          `keep some baths, add showers for the rest of the week`,
+          `baths are the biggest lever on your water bill`,
+          `cut one bath a week before you touch anything else`,
         ]
         const bathProse = normalizeArchitectProseThreeParagraphs(
           `A standard bath uses around 80 litres; an ordinary shower uses roughly 35 — so trading even two baths a week for showers is the single biggest lever on a bath-heavy household's water bill in ${areaLabel}.\n\nIf you're on a water meter and receive a qualifying benefit, WaterSure caps your bill regardless of how many baths you run — worth checking before you change any habits at all.\n\nUse the link below to check WaterSure eligibility, or compare low-flow shower heads if the baths are staying.`
@@ -1931,11 +1931,11 @@ function mechanicalCategoryTripletFallback(params: {
       }
       if (wash === 'SHOWER') {
         const showerHeadlines = [
-          `a flow-limited shower head cuts water without cutting pressure in ${areaTag}`,
-          `showers already beat baths — an aerator trims it further in ${areaTag}`,
-          `check your shower's litres-per-minute before anything else in ${areaTag}`,
-          `a shorter shower habit saves more than switching products in ${areaTag}`,
-          `you're already ahead on baths — the aerator is the next ${areaTag} win`,
+          `a flow-limited shower head cuts water without cutting pressure`,
+          `showers already beat baths — an aerator trims it further`,
+          `check your shower's litres-per-minute before anything else`,
+          `a shorter shower habit saves more than switching products`,
+          `you're already ahead on baths — the aerator is next`,
         ]
         const showerProse = normalizeArchitectProseThreeParagraphs(
           `Showering already uses roughly half what a bath does, so the next lever for a shower household in ${areaLabel} is flow rate, not habit — a flow-limited aerator head cuts litres per minute without a noticeable pressure drop.\n\nIf you're on a water meter and receive a qualifying benefit, WaterSure caps your bill outright regardless of shower length — worth checking even though you're already using less than a bath-heavy household.\n\nUse the link below for WaterSure eligibility, or to compare low-flow shower heads.`
@@ -1956,11 +1956,11 @@ function mechanicalCategoryTripletFallback(params: {
       }
       if (wash === 'BOTH') {
         const bothHeadlines = [
-          `mix of baths and showers in ${areaTag}? the aerator still pays off first`,
-          `keep some baths, cut the rest with a flow-limited head in ${areaTag}`,
-          `a household split between baths and showers still has one easy ${areaTag} lever`,
-          `the aerator works whichever way ${areaTag} households wash`,
-          `trim the bath half of the week before anything else in ${areaTag}`,
+          `mix of baths and showers? the aerator still pays off first`,
+          `keep some baths, cut the rest with a flow-limited head`,
+          `a household split between baths and showers has one easy lever`,
+          `the aerator works whichever way you wash`,
+          `trim the bath half of the week before anything else`,
         ]
         const bothProse = normalizeArchitectProseThreeParagraphs(
           `Splitting the week between baths and showers still leaves one easy lever: a flow-limited shower head cuts litres on shower days, and trading one or two baths a week for a shower does the rest.\n\nIf you're on a water meter and receive a qualifying benefit, WaterSure caps your bill regardless of which you choose most weeks — worth checking either way.\n\nUse the link below for WaterSure eligibility, or to compare low-flow shower heads.`
@@ -1987,13 +1987,17 @@ function mechanicalCategoryTripletFallback(params: {
     // through to the car-commuter default below, which is the profile it was actually written for.
     if (journeyKey === 'travel') {
       const mode = (params.profileData?.transport_baseline ?? '').toUpperCase()
-      if (mode === 'BUS' || mode === 'TRAIN') {
+      /* Onboarding's transport enum is WALK/BIKE/PUBLIC/CAR/MIX (app/profile/ProfilePageClient.tsx)
+         — there is no 'BUS'/'TRAIN' value anywhere, so this branch was dead: every public-transport
+         user fell through to the car-commuter default, the exact "profile-blind advice" this
+         whole section exists to avoid. */
+      if (mode === 'PUBLIC') {
         const publicHeadlines = [
-          `you're already off the road — a railcard trims the ${areaTag} fare further`,
-          `stack a railcard with off-peak timing on your ${areaTag} route`,
-          `split-ticketing beats a single point-to-point fare from ${areaTag}`,
-          `check which railcard fits your ${areaTag} commute before you renew`,
-          `off-peak and split tickets are the next lever on an already-good ${areaTag} commute`,
+          `you're already off the road — a railcard trims the fare further`,
+          `stack a railcard with off-peak timing on your route`,
+          `split-ticketing beats a single point-to-point fare`,
+          `check which railcard fits your commute before you renew`,
+          `off-peak and split tickets are the next lever on an already-good commute`,
         ]
         const publicProse = normalizeArchitectProseThreeParagraphs(
           `You're already commuting by bus or train — the swap most travel advice pushes people toward — so the next lever is squeezing the fare itself. A Railcard (Two Together, 16-25, 26-30, or Senior) knocks a third off many off-peak fares and stacks with most ticket types.\n\nSplit-ticketing — buying separate tickets for legs of the same journey instead of one point-to-point fare — regularly beats the single-ticket price on longer routes without changing trains.\n\nUse the link below to check which railcard applies to your route.`
@@ -2014,11 +2018,11 @@ function mechanicalCategoryTripletFallback(params: {
       }
       if (mode === 'BIKE' || mode === 'WALK') {
         const activeHeadlines = [
-          `walking or cycling already beats every other ${areaTag} commute option`,
-          `a Cycle to Work scheme covers a new bike tax-free in ${areaTag}`,
-          `keep the bike roadworthy — that's the real ${areaTag} lever now`,
-          `you've already made the best ${areaTag} travel swap there is`,
-          `the only upgrade left on an active ${areaTag} commute is the kit`,
+          `walking or cycling already beats every other commute option`,
+          `a Cycle to Work scheme covers a new bike tax-free`,
+          `keep the bike roadworthy — that's the real lever now`,
+          `you've already made the best travel swap there is`,
+          `the only upgrade left on an active commute is the kit`,
         ]
         const activeProse = normalizeArchitectProseThreeParagraphs(
           `Walking or cycling is already the cheapest and lowest-carbon way to commute — there's no swap to make here, so the "switch to rail" advice that fits every other travel profile doesn't apply to you.\n\nIf you don't already have a bike, the Cycle to Work scheme lets you buy one tax-free through salary sacrifice, cutting the upfront cost by roughly 20-42% depending on your tax band, with no spending cap and e-bikes included.\n\nUse the link below for current Cycle to Work terms, or to compare bikes if you're starting from scratch.`
@@ -2049,11 +2053,11 @@ function mechanicalCategoryTripletFallback(params: {
       const yieldKwh = Math.round(params.liveSolarYield.annualKwhEstimate)
       const scaledGbp = Math.max(150, Math.round(gbp * params.liveSolarYield.yieldFactor))
       const solarHeadlines = [
-        `a 4kWp system in ${areaTag} could generate ~${yieldKwh} kWh a year`,
-        `${areaTag} rooftops get a real solar yield, not a national average`,
-        `check what a ${areaTag} roof would actually generate before you quote`,
-        `your ${areaTag} postcode's solar yield beats a generic UK estimate`,
-        `~${yieldKwh} kWh a year is what a typical ${areaTag} system would produce`,
+        `a 4kWp system on your roof could generate ~${yieldKwh} kWh a year`,
+        `your postcode gets a real solar yield, not a national average`,
+        `check what your roof would actually generate before you quote`,
+        `your postcode's solar yield beats a generic UK estimate`,
+        `~${yieldKwh} kWh a year is what a typical system would produce here`,
       ]
       const solarProse = normalizeArchitectProseThreeParagraphs(
         `Based on EU Commission solar irradiance data for your postcode, a typical 4kWp system in ${areaLabel} would generate roughly ${yieldKwh} kWh a year — a real figure for your latitude and local cloud cover, not a flat UK-wide average.\n\nEvery UK electricity supplier with over 150,000 customers must offer a Smart Export Guarantee (SEG) tariff paying for what you export, but you need a smart meter and a valid MCS or Flexi-Orb certificate to get paid at all.\n\nUse the link below for Ofgem's current SEG guidance, then compare live rates before you sign an install quote.`
@@ -2082,11 +2086,11 @@ function mechanicalCategoryTripletFallback(params: {
         params.liveGrid.renewablesPercent != null ? Math.round(params.liveGrid.renewablesPercent) : null
       const carbonHeadlines = [
         `right now the UK grid is ${band} carbon at ${intensity}g CO2 per kWh`,
-        `today's grid is ${band} — a good time to check your ${areaTag} footprint`,
+        `today's grid is ${band} — a good time to check your footprint`,
         renewables != null
-          ? `${renewables}% renewables on the grid right now in ${areaTag}`
-          : `see where today's grid stands before you check your ${areaTag} footprint`,
-        `grid carbon shifts hour to hour — see today's ${areaTag} number first`,
+          ? `${renewables}% renewables on the grid right now`
+          : `see where today's grid stands before you check your footprint`,
+        `grid carbon shifts hour to hour — see today's number first`,
         `${intensity}g CO2/kWh right now — WWF's calculator shows your yearly total`,
       ]
       const renewablesLine =
@@ -2120,11 +2124,11 @@ function mechanicalCategoryTripletFallback(params: {
       const plantShift = (params.profileData?.food_plant_shift ?? '').toUpperCase()
       if (plantShift.includes('YES')) {
         const headlines = [
-          `keep the plant swaps going — batch cook to make it stick in ${areaTag}`,
-          `two meals in, now build a rotation in ${areaTag}`,
-          `plant-based twice a week? plan the other five in ${areaTag}`,
-          `you're already swapping — batch cooking locks it in for ${areaTag}`,
-          `next step after the swap: a repeatable ${areaTag} meal list`,
+          `keep the plant swaps going — batch cook to make it stick`,
+          `two meals in, now build a rotation you can repeat`,
+          `plant-based twice a week? plan the other five too`,
+          `you're already swapping — batch cooking locks it in`,
+          `next step after the swap: a repeatable meal list`,
         ]
         const prose = normalizeArchitectProseThreeParagraphs(
           `You've already started swapping in plant-based meals — the habit that actually sticks from here is a short rotation of 4-5 meals you repeat, not a new recipe every week.\n\nBatch cooking one or two of those in bulk and freezing portions cuts both cooking time and the temptation to order in on a tired evening.\n\nUse the link below for Too Good To Go's surplus bags if you want to build the rotation around whatever's discounted that day.`
@@ -2149,11 +2153,11 @@ function mechanicalCategoryTripletFallback(params: {
       const repairFirst = (params.profileData?.shopping_repair_first ?? '').toUpperCase()
       if (repairFirst.includes('YES')) {
         const headlines = [
-          `you said repair first — here's where to actually take it in ${areaTag}`,
-          `repair cafes near ${areaTag} do this for free, no appointment`,
-          `broken doesn't mean bin it — find your nearest ${areaTag} repair event`,
-          `you're already repair-first — the network exists near ${areaTag}`,
-          `most breaks are one part — a ${areaTag} repair cafe checks first`,
+          `you said repair first — here's where to actually take it`,
+          `repair cafes do this for free, no appointment needed`,
+          `broken doesn't mean bin it — find your nearest repair event`,
+          `you're already repair-first — the network exists near you`,
+          `most breaks are one part — a repair cafe checks first`,
         ]
         const prose = normalizeArchitectProseThreeParagraphs(
           `You've said you'd rather repair than replace — the UK's volunteer repair cafe network (over 130 groups, run through The Restart Project) does exactly this for free: bring a broken toaster, lamp, or laptop and a volunteer will look at it before you write it off.\n\nMost electrical failures turn out to be one replaceable part, not the whole device — worth a look even if you're not confident fixing it yourself.\n\nUse the link below to find a repair event near you, or Vinted if what's broken is actually beyond saving.`
@@ -2178,11 +2182,11 @@ function mechanicalCategoryTripletFallback(params: {
       const standbyOff = (params.profileData?.tech_standby_off ?? '').toUpperCase()
       if (standbyOff.includes('YES')) {
         const headlines = [
-          `standby's handled — a smart plug automates the rest in ${areaTag}`,
-          `you're already switching off — a timer plug does it for you in ${areaTag}`,
-          `next lever after standby: automate it so it's not a habit in ${areaTag}`,
-          `you've got the habit — a smart plug removes the need for it in ${areaTag}`,
-          `standby sorted — check what's still drawing power overnight in ${areaTag}`,
+          `standby's handled — a smart plug automates the rest`,
+          `you're already switching off — a timer plug does it for you`,
+          `next lever after standby: automate it so it's not a habit`,
+          `you've got the habit — a smart plug removes the need for it`,
+          `standby sorted — check what's still drawing power overnight`,
         ]
         const prose = normalizeArchitectProseThreeParagraphs(
           `You're already turning things off at night — a cheap smart plug or timer on the TV, router, or games console does the same job automatically, so it stops depending on remembering.\n\nA free smart meter (ordered through your supplier) shows exactly what's still drawing power overnight once the obvious stuff is handled — often something unexpected like a printer or a second router.\n\nUse the link below to compare refurbished devices if anything's due for replacement anyway.`
@@ -2207,11 +2211,11 @@ function mechanicalCategoryTripletFallback(params: {
       const compost = (params.profileData?.waste_compost ?? '').toUpperCase()
       if (compost.includes('YES')) {
         const headlines = [
-          `composting already? check if ${areaTag} council collects garden waste too`,
-          `you're composting — see what else ${areaTag} won't take kerbside`,
-          `next step after composting: TerraCycle for the stuff bins can't take in ${areaTag}`,
-          `composting sorted — batteries and crisp packets need a different ${areaTag} route`,
-          `you've got composting down — widen it to hard-to-recycle items in ${areaTag}`,
+          `composting already? check if your council collects garden waste too`,
+          `you're composting — see what else your bin won't take kerbside`,
+          `next step after composting: TerraCycle for the stuff bins can't take`,
+          `composting sorted — batteries and crisp packets need a different route`,
+          `you've got composting down — widen it to hard-to-recycle items`,
         ]
         const prose = normalizeArchitectProseThreeParagraphs(
           `You're already composting food scraps, which handles the biggest single lever — wet organic waste in landfill releases methane at 25 times the warming impact of CO2 over a century.\n\nThe next gap is usually "hard to recycle" packaging your council bin won't take at all — crisp packets, toothpaste tubes, batteries — which TerraCycle collects for free, funded by the brands themselves.\n\nUse the link below to find a TerraCycle drop-off point, or Freegle if something's still usable rather than waste.`
@@ -2236,11 +2240,11 @@ function mechanicalCategoryTripletFallback(params: {
       const smartTariff = (params.profileData?.money_smart_tariff ?? '').toUpperCase()
       if (smartTariff.includes('YES') || smartTariff.includes('COMPARE')) {
         const headlines = [
-          `you're ready to switch — compare ${areaTag} tariffs before your renewal date`,
-          `switching interest noted — check your ${areaTag} exit fees first`,
-          `before you switch, confirm your current ${areaTag} tariff's end date`,
-          `ready to compare? your ${areaTag} renewal date decides the best timing`,
-          `switching tariff in ${areaTag}? time it against your fixed-term end date`,
+          `you're ready to switch — compare tariffs before your renewal date`,
+          `switching interest noted — check your exit fees first`,
+          `before you switch, confirm your current tariff's end date`,
+          `ready to compare? your renewal date decides the best timing`,
+          `switching tariff? time it against your fixed-term end date`,
         ]
         const prose = normalizeArchitectProseThreeParagraphs(
           `You've said you're open to a cheaper tariff — the main thing that decides whether it's worth doing now is your current deal's end date. Switching mid-fixed-term can carry an exit fee that eats the saving.\n\nOnce you're inside the last few weeks of a fixed term (or already on a variable/default tariff), comparison sites show genuine savings against the July 2026 price cap.\n\nUse the link below for a Triodos savings comparison if the cash you free up needs somewhere to sit in the meantime.`
@@ -2270,11 +2274,11 @@ function mechanicalCategoryTripletFallback(params: {
       const flights = (params.profileData?.flight_frequency ?? '').toUpperCase()
       if (flights === 'NONE') {
         const headlines = [
-          `you already don't fly — ${areaTag} rail breaks keep it that way`,
-          `no flights this year already puts you ahead — plan the next ${areaTag} trip by train`,
-          `staying off flights? here's where to book the next ${areaTag} rail trip`,
-          `you're already in the lowest-carbon holiday bracket from ${areaTag}`,
-          `no-fly year sorted — Eurostar covers most of Europe from ${areaTag} anyway`,
+          `you already don't fly — rail breaks keep it that way`,
+          `no flights this year already puts you ahead — plan the next trip by train`,
+          `staying off flights? here's where to book the next rail trip`,
+          `you're already in the lowest-carbon holiday bracket`,
+          `no-fly year sorted — Eurostar covers most of Europe anyway`,
         ]
         const prose = normalizeArchitectProseThreeParagraphs(
           `You've told us you're not flying this year, which already puts your holiday footprint in the lowest UK bracket — the generic "cut a flight" advice most people get doesn't apply to you.\n\nEurostar and the wider European rail network cover most short-to-medium trips from the UK without ever needing an airport, often for a comparable price when booked 8-12 weeks ahead.\n\nUse the link below for current Eurostar deals if you're planning the next trip.`
@@ -2294,11 +2298,11 @@ function mechanicalCategoryTripletFallback(params: {
         }
       } else if (flights === 'THREE_PLUS') {
         const headlines = [
-          `flying three or more times a year from ${areaTag}? booking timing matters most`,
-          `frequent flyer from ${areaTag}? economy over business cuts your share ~3x`,
+          `flying three or more times a year? booking timing matters most`,
+          `frequent flyer? economy over business cuts your share ~3x`,
           `three-plus flights a year — the lever is class and booking, not stopping`,
-          `flying often from ${areaTag}? seat count decides your per-passenger carbon`,
-          `for frequent ${areaTag} flyers, how you book beats whether you fly`,
+          `flying often? seat count decides your per-passenger carbon`,
+          `for frequent flyers, how you book beats whether you fly`,
         ]
         const prose = normalizeArchitectProseThreeParagraphs(
           `Flying three or more times a year puts you in a different bracket to most UK households, so "fly less" is less useful advice than how you book — economy class over business cuts your per-seat carbon share by roughly three times on the same flight, since the total aircraft emissions get split by seat space, not passenger count.\n\nBooking 8-12 weeks ahead and flying direct where possible also trims both cost and the extra emissions from layovers.\n\nUse the link below to compare rail for any of those trips that are actually within reach of Eurostar.`
@@ -2341,10 +2345,10 @@ function mechanicalCategoryTripletFallback(params: {
     const gbp = TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP
     const agent_headline =
       zoneCardHeadlineFromRaw(
-        `compare your household tariff before you fix a ${areaLabel} deal`,
-        `compare your household tariff before you fix a ${areaTag} deal`,
+        `compare your household tariff before you fix a deal`,
+        `compare your household tariff before you fix a deal`,
         MAX_JOURNEY_CARD_HEADLINE_WORDS
-      ) || `compare your household tariff before you fix a ${areaTag} deal`
+      ) || `compare your household tariff before you fix a deal`
     const architect_prose =
       normalizeArchitectProseThreeParagraphs(
         `${areaLabel} sits under the July 2026 price-cap frame — typical dual-fuel around £${TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP}/yr with policy shifts worth tracking before you fix a tariff.\n\nGreen-levy movement and standing-charge maths matter more than generic comparison-site copy — align your direct debit and tariff end date to the cap window.\n\nUse the link below to check your supplier statement matches the cap period before you switch.`

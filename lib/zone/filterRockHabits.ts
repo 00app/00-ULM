@@ -39,6 +39,7 @@ export type HabitProfileFilter = {
   home_type?: string | null
   transport?: string | null
   power_type?: string | null
+  tenure?: string | null
 }
 
 /** Filter a habit list by profile — soft gate: missing profile fields never exclude. */
@@ -62,6 +63,9 @@ function habitMatchesProfile(h: RockHabit, profile: HabitProfileFilter): boolean
   }
   if (applicable.power_type && profile.power_type) {
     if (!applicable.power_type.includes(profile.power_type)) return false
+  }
+  if (applicable.tenure && profile.tenure) {
+    if (!applicable.tenure.includes(profile.tenure)) return false
   }
   return true
 }

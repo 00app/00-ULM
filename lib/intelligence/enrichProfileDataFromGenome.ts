@@ -103,6 +103,37 @@ export function enrichResearchProfileFromSession(
   return { ...base, ...localizedSignalsToResearchProfile(signals) }
 }
 
+/**
+ * Loop-question answer → journey bucket it's stored under, for the six loop-nudge fields
+ * `ResearchProfileData` declares but that were never durably wired server-side (2026-07: the
+ * content-generation branches in researchAgent.ts that read these always saw `undefined`, since
+ * nothing ever populated them — the £/kg calculators read the same answers correctly via a
+ * separate path, journeyAnswers directly, so only this content-copy side was broken).
+ */
+const LOOP_ANSWER_RESEARCH_FIELDS: Record<string, JourneyId> = {
+  food_plant_shift: 'food',
+  shopping_repair_first: 'shopping',
+  tech_standby_off: 'tech',
+  waste_compost: 'waste',
+  food_waste_cut: 'waste',
+  money_smart_tariff: 'money',
+}
+
+/** Pull the six known loop-nudge answers out of a user's full journey-answers record. */
+export function loopAnswerSignalsFromJourneyAnswers(
+  journeyAnswers: Partial<Record<JourneyId, Record<string, string>>> | null | undefined
+): Partial<ResearchProfileData> {
+  if (!journeyAnswers) return {}
+  const out: Partial<ResearchProfileData> = {}
+  for (const [field, journeyKey] of Object.entries(LOOP_ANSWER_RESEARCH_FIELDS)) {
+    const value = journeyAnswers[journeyKey]?.[field]
+    if (typeof value === 'string' && value.trim()) {
+      out[field] = value
+    }
+  }
+  return out
+}
+
 export function mergeFunnelIntoResearchProfile(
   base: ResearchProfileData | LocalizedProfileInput,
   funnel: AnswerFunnelResult

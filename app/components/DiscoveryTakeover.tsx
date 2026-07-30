@@ -227,6 +227,7 @@ export function DiscoveryTakeover({
                 homeType: profileData?.home_type ?? null,
                 transport: profileData?.transport_baseline ?? null,
                 powerType: profileData?.home_power ?? null,
+                tenure: profileData?.home_ownership ?? null,
               })
               if (!tier2.ok && !tier2.morphCard?.title?.trim()) return
               const enrichedTitle =

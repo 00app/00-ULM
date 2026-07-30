@@ -659,6 +659,8 @@ export function buildZoneViewModel({
     imd_decile?: number
     wash_preference?: string
     flight_frequency?: string
+    /** OWNER/RENTER — same field the loft-insulation loop-question gate uses. */
+    home_ownership?: string
   }
   journeyAnswers: Record<JourneyId, Record<string, string>>
   /** S UPDATE: optional scraped data from 001 Scraper (`scraped_summary` / DB). Partial = only some journeys may have data. */
@@ -792,17 +794,35 @@ export function buildZoneViewModel({
     { totalMoney: 0, totalCarbon: 0 }
   )
 
+  /* SOLAR's £ figure assumes a roof the household is free to alter — same premise the
+     loft-insulation loop question is gated on (home_type: ['HOUSE'], tenure: ['OWNER']).
+     Un-gated here, a flat/renter's theoretical solar saving could win "biggest win" and become
+     the hero card even though they structurally can't act on it (live-audited: a flat+renter
+     account was told SOLAR was its top opportunity). The figure itself still displays correctly
+     on the SOLAR card — this only stops it from winning the hero/biggest-win slot. */
+  const homeType = norm(profile?.home_type)
+  const homeOwnership = norm(profile?.home_ownership)
+  const journeyActionableForHero = (key: JourneyId): boolean => {
+    if (key === 'solar') {
+      const knownHomeType = homeType.length > 0
+      const knownOwnership = homeOwnership.length > 0
+      if (knownHomeType && homeType !== 'HOUSE') return false
+      if (knownOwnership && homeOwnership !== 'OWNER') return false
+    }
+    return true
+  }
+
   // HERO CARD — money-first; intent + carbon only break ties (Phase 1 wall)
   const intentWeights = categoryIntentWeights ?? {}
   const heroJourney = JOURNEY_ORDER.reduce((max, key) => {
-    const aMoney = Math.max(0, dynamicJourneyValues[key].moneyGbp)
-    const bMoney = Math.max(0, dynamicJourneyValues[max].moneyGbp)
+    const aMoney = journeyActionableForHero(key) ? Math.max(0, dynamicJourneyValues[key].moneyGbp) : 0
+    const bMoney = journeyActionableForHero(max) ? Math.max(0, dynamicJourneyValues[max].moneyGbp) : 0
     if (aMoney !== bMoney) return aMoney > bMoney ? key : max
-    const aIntent = intentWeights[key] ?? 0
-    const bIntent = intentWeights[max] ?? 0
+    const aIntent = journeyActionableForHero(key) ? (intentWeights[key] ?? 0) : 0
+    const bIntent = journeyActionableForHero(max) ? (intentWeights[max] ?? 0) : 0
     if (aIntent !== bIntent) return aIntent > bIntent ? key : max
-    const aCarbon = Math.max(0, dynamicJourneyValues[key].carbonKg)
-    const bCarbon = Math.max(0, dynamicJourneyValues[max].carbonKg)
+    const aCarbon = journeyActionableForHero(key) ? Math.max(0, dynamicJourneyValues[key].carbonKg) : 0
+    const bCarbon = journeyActionableForHero(max) ? Math.max(0, dynamicJourneyValues[max].carbonKg) : 0
     return aCarbon > bCarbon ? key : max
   }, JOURNEY_ORDER[0])
 
@@ -1433,7 +1453,12 @@ export function buildZoneViewModel({
   }
 
   const primaryMoneyJourneyKeys = computePrimaryMoneyJourneyKeys(journeys)
-  const leadKey = primaryMoneyJourneyKeys[0]
+  /* This second hero-selection pass (leadKey → overrides `hero` below) runs completely
+     independently of the journeyActionableForHero-gated heroJourney reduce above — it re-derives
+     "biggest win" straight from journeys[].moneyGbp with zero gating, which is what was actually
+     winning the hero slot for SOLAR on a flat/renter profile even after gating the earlier reduce.
+     Both hero-selection passes need the same gate, or fixing one silently does nothing. */
+  const leadKey = primaryMoneyJourneyKeys.find((key) => journeyActionableForHero(key)) ?? primaryMoneyJourneyKeys[0]
   if (leadKey) {
     const leadCard = journeys.find((j) => j.journey_key === leadKey)
     const leadMoney = Math.max(0, leadCard?.moneyGbp ?? 0)

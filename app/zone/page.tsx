@@ -1701,6 +1701,7 @@ export default function ZonePage({
         household_income_bracket: profile.household_income_bracket,
         wash_preference: profile.wash_preference,
         flight_frequency: profile.flight_frequency,
+        home_ownership: profile.home_ownership,
       },
       journeyAnswers,
       scraped: scraped ? Object.fromEntries(
@@ -1770,6 +1771,7 @@ export default function ZonePage({
           household_income_bracket: profile.household_income_bracket,
           wash_preference: profile.wash_preference,
           flight_frequency: profile.flight_frequency,
+          home_ownership: profile.home_ownership,
           property_intelligence_confidence:
             typeof window !== 'undefined'
               ? localStorage.getItem('property_intelligence_confidence') ?? undefined
@@ -1919,6 +1921,7 @@ export default function ZonePage({
         household_income_bracket: profile.household_income_bracket,
         wash_preference: profile.wash_preference,
         flight_frequency: profile.flight_frequency,
+        home_ownership: profile.home_ownership,
       },
       journeyAnswers,
       scraped: scraped
@@ -2470,6 +2473,7 @@ export default function ZonePage({
         home_type: state.profile?.homeType ?? null,
         transport: state.profile?.transport ?? null,
         power_type: state.profile?.homePower ?? null,
+        tenure: profileFieldsFromStorage().homeOwnership ?? null,
       }
     )
     if (deduped.length === 0) {
@@ -2477,6 +2481,7 @@ export default function ZonePage({
         home_type: state.profile?.homeType ?? null,
         transport: state.profile?.transport ?? null,
         power_type: state.profile?.homePower ?? null,
+        tenure: profileFieldsFromStorage().homeOwnership ?? null,
       })
       deduped = capRockHabitsPerJourney(profileFiltered, 1).slice(0, MAX_ROCK_SAVING_TIPS_RAIL)
     }

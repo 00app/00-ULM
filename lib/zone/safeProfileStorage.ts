@@ -72,6 +72,7 @@ export function readProfileFieldsFromStorage(): {
   household_income_bracket?: string
   wash_preference?: string
   flight_frequency?: string
+  home_ownership?: string
 } {
   return {
     name: safeGetItem('profile_name') ?? undefined,
@@ -87,5 +88,6 @@ export function readProfileFieldsFromStorage(): {
     household_income_bracket: safeGetItem('profile_household_income_bracket') ?? undefined,
     wash_preference: safeGetItem('profile_wash_preference') ?? undefined,
     flight_frequency: safeGetItem('profile_flight_frequency') ?? undefined,
+    home_ownership: safeGetItem('profile_home_ownership') ?? undefined,
   }
 }

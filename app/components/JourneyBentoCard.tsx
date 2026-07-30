@@ -124,6 +124,7 @@ import {
   type SoloFocusResultSnapshotV1,
 } from '@/lib/soloFocusSessionSnapshot'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
+import { profileFieldsFromStorage } from '@/lib/profile/onboardingComplete'
 type HomeSentinelRecard = {
   headline: string
   description: string
@@ -612,6 +613,7 @@ export function JourneyBentoCard({
           transport: state.profile?.transport ?? null,
           fuelType: state.journeyAnswers?.travel?.fuel_type ?? null,
           powerType: state.profile?.homePower ?? null,
+          tenure: profileFieldsFromStorage().homeOwnership ?? null,
         })
         const seededForJourney =
           seeded.journey_key === journeyId
@@ -629,6 +631,7 @@ export function JourneyBentoCard({
             transport: state.profile?.transport ?? null,
             fuelType: state.journeyAnswers?.travel?.fuel_type ?? null,
             powerType: state.profile?.homePower ?? null,
+            tenure: profileFieldsFromStorage().homeOwnership ?? null,
           })
           const seededForJourney =
             seeded.journey_key === journeyId

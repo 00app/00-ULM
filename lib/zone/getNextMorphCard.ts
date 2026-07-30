@@ -11,6 +11,8 @@ type MorphProfile = {
   fuelType?: string | null
   /** Home heating/power fuel (GAS/ELECTRIC/MIX/OTHER) — gates gas-only content like boiler service. */
   powerType?: string | null
+  /** OWNER/RENTER — gates owner-only content like a mortgage-rate ask. */
+  tenure?: string | null
 }
 
 function scoreHabit(
@@ -49,6 +51,7 @@ export function getNextMorphCard(journeyId: JourneyId, profile: MorphProfile): Z
     home_type: profile.homeType ?? null,
     transport: profile.transport ?? null,
     power_type: profile.powerType ?? null,
+    tenure: profile.tenure ?? null,
   })
   const scoringPool = gated.length > 0 ? gated : pool
   const ranked = [...scoringPool].sort(

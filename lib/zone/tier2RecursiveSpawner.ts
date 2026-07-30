@@ -116,6 +116,7 @@ export function buildTier2MorphCard(
     homeType?: string | null
     transport?: string | null
     powerType?: string | null
+    tenure?: string | null
   }
 ): ZoneTipCard {
   const catKey = journeyId.toLowerCase()
@@ -143,6 +144,7 @@ export function buildTier2MorphCard(
     homeType: profile?.homeType ?? null,
     transport: profile?.transport ?? null,
     powerType: profile?.powerType ?? null,
+    tenure: profile?.tenure ?? null,
   })
   const cleaned = rawHeadline ? cleanZonePreviewHeadline(rawHeadline) : ''
   const title =
@@ -177,6 +179,7 @@ export async function fetchTier2ScrapeSync(params: {
   homeType?: string | null
   transport?: string | null
   powerType?: string | null
+  tenure?: string | null
 }): Promise<Tier2ScrapeSyncResult> {
   const pc = params.postcode.replace(/\s+/g, '').trim().toUpperCase()
   const category = String(params.category ?? '').trim().toLowerCase()
@@ -213,6 +216,7 @@ export async function fetchTier2ScrapeSync(params: {
       homeType: params.homeType ?? null,
       transport: params.transport ?? null,
       powerType: params.powerType ?? null,
+      tenure: params.tenure ?? null,
     })
     const offerUrl =
       morphCard.actions?.actionUrl?.trim().startsWith('http')
@@ -242,6 +246,7 @@ export async function runTier2MotherChildSwap(params: {
   homeType?: string | null
   transport?: string | null
   powerType?: string | null
+  tenure?: string | null
 }): Promise<Tier2ScrapeSyncResult> {
   persistTier2AnswerLocal({
     journeyId: params.category,
@@ -256,6 +261,7 @@ export async function runTier2MotherChildSwap(params: {
     homeType: params.homeType ?? null,
     transport: params.transport ?? null,
     powerType: params.powerType ?? null,
+    tenure: params.tenure ?? null,
   })
   if (result.ok) {
     await refreshZoneTotalsAfterTier2(params.postcode)

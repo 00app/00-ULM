@@ -26,5 +26,7 @@ export interface RockHabit {
     home_type?: string[]
     transport?: string[]
     power_type?: string[]
+    /** OWNER/RENTER — same field the loft-insulation loop-question gate uses. */
+    tenure?: string[]
   }
 }

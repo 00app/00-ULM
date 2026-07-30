@@ -451,6 +451,9 @@ export const ROCK_HABITS: RockHabit[] = [
     provider_name: 'Barclays',
     impact_tag: 'money',
     time_of_day: 'evening',
+    // Only relevant to someone with a mortgage — a renter has no lender to ask (live-audited:
+    // this surfaced for a flat+renter account with no mortgage at all).
+    applicable: { tenure: ['OWNER'] },
   },
   {
     slug: 'meter-reads',

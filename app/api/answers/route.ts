@@ -16,7 +16,10 @@ import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import type { ImpactProfile } from '@/lib/brains/types'
 import { isValidJourneyId, type JourneyId } from '@/lib/journeys'
 import { runLoopSpawnResearch } from '@/lib/zone/loopSpawnResearch'
-import { enrichResearchProfileFromSession } from '@/lib/intelligence/enrichProfileDataFromGenome'
+import {
+  enrichResearchProfileFromSession,
+  loopAnswerSignalsFromJourneyAnswers,
+} from '@/lib/intelligence/enrichProfileDataFromGenome'
 import { persistZoneTipInjectBody } from '@/lib/zone/persistZoneTipInject'
 import { generateDiscoveryWinWithGemini } from '@/lib/agents/discoveryWin'
 import { discoveryCardFromZoneTip } from '@/lib/types/discovery'
@@ -144,6 +147,8 @@ export async function POST(request: NextRequest) {
     ])
     const profileGenome = (profileRow?.user_genome ?? {}) as Record<string, unknown>
     const tenureFromGenome = profileGenome.tenure ?? profileGenome.tenure_type ?? profileGenome.housing_tenure
+    const washPreferenceFromGenome = profileGenome.wash_preference
+    const flightFrequencyFromGenome = profileGenome.flight_frequency
     const hermesMemoryRaw = profileGenome.hermes_memory
     const hermesSkillFile =
       hermesMemoryRaw &&
@@ -184,10 +189,22 @@ export async function POST(request: NextRequest) {
           tenure: typeof tenureFromGenome === 'string' ? tenureFromGenome : null,
           household_size: householdSize != null ? String(householdSize) : null,
           hermes_skill_file: hermesSkillFile,
+          wash_preference: typeof washPreferenceFromGenome === 'string' ? washPreferenceFromGenome : null,
+          flight_frequency: typeof flightFrequencyFromGenome === 'string' ? flightFrequencyFromGenome : null,
         }
       : null
+    /* Loop-nudge answers (food_plant_shift, shopping_repair_first, tech_standby_off,
+       waste_compost, food_waste_cut, money_smart_tariff) — durably wired here from the user's
+       full answer history, not just an optional client-supplied payload field nothing sends.
+       answersBeforeUpsert predates this request's own upsert, so also fold in the answer being
+       submitted right now when it's one of these fields, or a same-request regen would still
+       show the previous (or no) value. */
+    const loopAnswerSignals = {
+      ...loopAnswerSignalsFromJourneyAnswers(answersBeforeUpsert),
+      ...(isValidJourneyId(jKey) ? loopAnswerSignalsFromJourneyAnswers({ [jKey]: { [qKey]: String(value) } }) : {}),
+    }
     const profileData = profileDataBase
-      ? enrichResearchProfileFromSession(profileDataBase, profileRow ?? null)
+      ? { ...enrichResearchProfileFromSession(profileDataBase, profileRow ?? null), ...loopAnswerSignals }
       : null
     const soloFocus =
       solo_focus === true ||
