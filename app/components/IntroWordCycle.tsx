@@ -65,6 +65,18 @@ interface IntroWordCycleProps {
 const DEFAULT_GAP_MS = 90
 const DEFAULT_WORD_EXIT_MS = 150
 
+/** Below this, a location/name is left at full size — matches the point where a single word
+ *  starts running out of room in the summary ticker's fixed-width lane. */
+const LONG_TOKEN_MIN_CHARS = 6
+
+/** Longest individual line's letter-count (spaces/apostrophes/hyphens stripped). A two-word
+ *  locality ("Waltham Forest") already gets split across two lines upstream — what matters for
+ *  sizing is whether EITHER resulting line is still long enough to need shrinking on its own
+ *  (e.g. "Waltham" alone), not the combined length of both lines together. */
+function longestLineLetterCount(text: string): number {
+  return Math.max(0, ...text.split('\n').map((line) => line.replace(/[\s'-]/g, '').length))
+}
+
 /** Summary ticker: Unicode ₂ often falls back to system fonts — stamp CO + subscript 2 in Marvin. */
 function renderTickerWord(text: string): ReactNode {
   const compact = text.replace(/\s/g, '')
@@ -237,15 +249,20 @@ export default function IntroWordCycle({
     !isMultiline &&
     displayText.replace(/\s/g, '').length > 7
 
-  /** Summary locality: long letter-only token (e.g. Littlehampton) — tighter Marvin clamp + extra fit squeeze.
+  /** Summary locality/name: long letter-only token (e.g. Littlehampton, or "Waltham"/"Forest"
+   *  once split across lines) — tighter Marvin clamp + extra fit squeeze. Previously gated to
+   *  single-line text only, so a two-word locality's pre-split line break (formatSummaryLocality
+   *  KineticToken) skipped this shrink entirely — "WALTHAM" then rendered at full unshrunk size,
+   *  didn't fit its line, and the browser's own overflow-wrap broke it again mid-word into
+   *  "WALTHA"/"M" (live-reported, three-line broken render). Checking the longest line instead of
+   *  requiring single-line fixes that without touching the two-line locality layout itself.
    *  Kept independent of Zone bento stagger — `fitToViewportPaddingPx` on `/profile/summary` drives squeeze. */
   const looksLikeLongPlaceToken =
     wrapLongPreservedWords &&
     preserveCase &&
-    !isMultiline &&
     !displayText.startsWith('£') &&
     !/\d/.test(displayText) &&
-    displayText.replace(/[\s'-]/g, '').length > 7
+    longestLineLetterCount(displayText) > LONG_TOKEN_MIN_CHARS
 
   useEffect(() => {
     if (fitToViewportPaddingPx <= 0) {
@@ -267,13 +284,15 @@ export default function IntroWordCycle({
         return
       }
       let next = Math.min(1, available / needed)
-      /** Single long token (>7 chars): extra squeeze so Marvin never kisses the viewport edge */
-      if (!isMultiline && displayText.replace(/\s/g, '').length > 7) {
+      /** Single long token: extra squeeze so Marvin never kisses the viewport edge */
+      if (!isMultiline && displayText.replace(/\s/g, '').length > LONG_TOKEN_MIN_CHARS) {
         next *= looksLikeLongPlaceToken ? 0.86 : 0.94
       }
-      /** Two-line locality: keep both lines inside the 40px + 40px gutter */
+      /** Two-line locality: keep both lines inside the 40px + 40px gutter. Lighter squeeze when
+       *  looksLikeLongPlaceToken already shrank the font-size itself (see the CSS class below) —
+       *  otherwise the two shrink mechanisms stack and the text ends up smaller than intended. */
       if (isMultiline && wrapLongPreservedWords) {
-        next *= 0.92
+        next *= looksLikeLongPlaceToken ? 0.97 : 0.92
       }
       setFitScale(next)
     }
@@ -303,7 +322,9 @@ export default function IntroWordCycle({
           <motion.h1
             ref={wordRef}
             key={currentWord}
-            className={`${motionPreset.className}${tickerGenomeGlow}`}
+            className={`${motionPreset.className}${tickerGenomeGlow}${
+              looksLikeLongPlaceToken ? ' intro-locality-long-token' : ''
+            }`}
             initial={motionPreset.initial}
             animate={motionPreset.animate}
             exit={motionPreset.exit}
@@ -320,15 +341,15 @@ export default function IntroWordCycle({
               wordBreak: useBalancedWrap ? ('break-word' as const) : undefined,
               textTransform: preserveCase ? 'none' : 'uppercase',
               fontFamily: 'var(--font-marvin), var(--font-label), sans-serif',
+              // looksLikeLongPlaceToken's size now lives in the .intro-locality-long-token CSS
+              // class (globals.css) instead of an inline clamp — inline styles can't carry a
+              // @media (min-width: 1024px) override, which is why this previously flatlined at a
+              // low rem cap on desktop instead of using the extra width available there.
               ...(useBalancedWrap
                 ? {
                     fontSize: 'clamp(0.92rem, min(7vw, 8.5vmin), 2.45rem)',
                   }
-                : looksLikeLongPlaceToken
-                  ? {
-                      fontSize: 'clamp(0.58rem, min(3.6vw + 0.9vmin, 4.8vmin), 1.75rem)',
-                    }
-                  : {}),
+                : {}),
               transform: `scale(${fitScale})`,
               transformOrigin: 'center center',
             }}

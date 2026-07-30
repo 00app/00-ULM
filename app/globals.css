@@ -9340,10 +9340,24 @@ body:has(.likes-page) .floating-nav {
   color: var(--color-intro-type);
 }
 .intro-text-large.intro-word-pulse {
-  
+
 }
 @media (min-width: 1024px) {
   .intro-text-large { font-size: var(--zz-h2-desktop); }
+}
+
+/* Summary ticker — long single line/word (locality e.g. "Waltham"/"Forest" once split, or a long
+   first name) shrinks below the standard intro-text-large size so it never wraps mid-word. Was
+   previously an inline clamp in IntroWordCycle.tsx, capped at 1.75rem with no way to grow past
+   that on wide screens — moved here so desktop actually gets more room instead of flatlining at
+   the mobile cap once the vw-driven clamp hits its ceiling (see IntroWordCycle.tsx). */
+.intro-locality-long-token {
+  font-size: clamp(0.58rem, min(3.6vw + 0.9vmin, 4.8vmin), 1.75rem) !important;
+}
+@media (min-width: 1024px) {
+  .intro-locality-long-token {
+    font-size: clamp(1.1rem, min(2.4vw + 1vmin, 5vmin), 3.4rem) !important;
+  }
 }
 
 /* Intro decision — goal question after kinetic words */
