@@ -65,9 +65,14 @@ interface IntroWordCycleProps {
 const DEFAULT_GAP_MS = 90
 const DEFAULT_WORD_EXIT_MS = 150
 
-/** Below this, a location/name is left at full size — matches the point where a single word
- *  starts running out of room in the summary ticker's fixed-width lane. */
-const LONG_TOKEN_MIN_CHARS = 6
+/** Below this, a location/name is left at full size — most single-word UK place names
+ *  (Manchester, Waltham, Nuneaton...) are under this, so they stay at the standard
+ *  intro-text-large hero size instead of getting pre-shrunk. Raised from 6 → 14: the old
+ *  6-char bar caught almost every real place name and capped it at a small fixed clamp
+ *  regardless of how much room the viewport actually had — the fit-to-viewport transform
+ *  below already measures real overflow and corrects for it, so the CSS ceiling only needs
+ *  to protect genuinely long tokens, not the common case. */
+const LONG_TOKEN_MIN_CHARS = 14
 
 /** Longest individual line's letter-count (spaces/apostrophes/hyphens stripped). A two-word
  *  locality ("Waltham Forest") already gets split across two lines upstream — what matters for
@@ -347,8 +352,8 @@ export default function IntroWordCycle({
             ref={wordRef}
             key={currentWord}
             className={`${motionPreset.className}${tickerGenomeGlow}${
-              looksLikeLongPlaceToken ? ' intro-locality-long-token' : ''
-            }`}
+              useBalancedWrap ? ' intro-balanced-wrap-token' : ''
+            }${looksLikeLongPlaceToken ? ' intro-locality-long-token' : ''}`}
             initial={motionPreset.initial}
             animate={motionPreset.animate}
             exit={motionPreset.exit}
@@ -365,15 +370,11 @@ export default function IntroWordCycle({
               wordBreak: useBalancedWrap ? ('break-word' as const) : undefined,
               textTransform: preserveCase ? 'none' : 'uppercase',
               fontFamily: 'var(--font-marvin), var(--font-label), sans-serif',
-              // looksLikeLongPlaceToken's size now lives in the .intro-locality-long-token CSS
-              // class (globals.css) instead of an inline clamp — inline styles can't carry a
-              // @media (min-width: 1024px) override, which is why this previously flatlined at a
-              // low rem cap on desktop instead of using the extra width available there.
-              ...(useBalancedWrap
-                ? {
-                    fontSize: 'clamp(0.92rem, min(7vw, 8.5vmin), 2.45rem)',
-                  }
-                : {}),
+              // Sizing for useBalancedWrap / looksLikeLongPlaceToken now lives entirely in the
+              // .intro-balanced-wrap-token / .intro-locality-long-token CSS classes (globals.css)
+              // instead of an inline clamp — inline styles can't carry a @media (min-width: 1024px)
+              // override, which is why this previously flatlined at a low rem cap on desktop
+              // instead of using the extra width available there.
               transform: `scale(${fitScale})`,
               transformOrigin: 'center center',
             }}

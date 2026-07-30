@@ -9346,17 +9346,34 @@ body:has(.likes-page) .floating-nav {
   .intro-text-large { font-size: var(--zz-h2-desktop); }
 }
 
-/* Summary ticker — long single line/word (locality e.g. "Waltham"/"Forest" once split, or a long
-   first name) shrinks below the standard intro-text-large size so it never wraps mid-word. Was
-   previously an inline clamp in IntroWordCycle.tsx, capped at 1.75rem with no way to grow past
-   that on wide screens — moved here so desktop actually gets more room instead of flatlining at
-   the mobile cap once the vw-driven clamp hits its ceiling (see IntroWordCycle.tsx). */
+/* Summary ticker — moderate single-line word (8-14 letters: most first names, "Manchester",
+   "Sunderland"...). Ceiling matches the standard intro-text-large hero size (var(--zz-h2-mobile)/
+   desktop) so this stays visually "big like the rest" — the vw/vmin-driven preferred value only
+   pulls it down from that ceiling when the viewport is genuinely too narrow, and the
+   fit-to-viewport transform in IntroWordCycle.tsx does the final, per-device correction on top.
+   Was an inline clamp capped at 2.45rem with no way to grow past that — moved to a class so it
+   can carry a desktop @media override (inline styles can't). */
+.intro-balanced-wrap-token {
+  font-size: clamp(2.6rem, min(13vw, 14vmin), var(--zz-h2-mobile)) !important;
+}
+@media (min-width: 1024px) {
+  .intro-balanced-wrap-token {
+    font-size: clamp(3.4rem, min(7vw, 10vmin), var(--zz-h2-desktop)) !important;
+  }
+}
+
+/* Summary ticker — long single line/word (>14 letters: locality e.g. "Waltham"/"Forest" once
+   split, an unusually long first name, or one half of an extreme unbroken token like the
+   58-letter Llanfairpwllgwyngyll... placename after IntroWordCycle.tsx splits it). Same idea as
+   .intro-balanced-wrap-token above — ceiling matches the standard hero size — but with a lower
+   floor/preferred value since this bucket is reserved for genuinely long content. Declared after
+   .intro-balanced-wrap-token so it wins the cascade when both classes apply to the same word. */
 .intro-locality-long-token {
-  font-size: clamp(0.58rem, min(3.6vw + 0.9vmin, 4.8vmin), 1.75rem) !important;
+  font-size: clamp(2rem, min(10vw, 11vmin), var(--zz-h2-mobile)) !important;
 }
 @media (min-width: 1024px) {
   .intro-locality-long-token {
-    font-size: clamp(1.1rem, min(2.4vw + 1vmin, 5vmin), 3.4rem) !important;
+    font-size: clamp(2.6rem, min(5.5vw, 8vmin), var(--zz-h2-desktop)) !important;
   }
 }
 
