@@ -77,6 +77,22 @@ function longestLineLetterCount(text: string): number {
   return Math.max(0, ...text.split('\n').map((line) => line.replace(/[\s'-]/g, '').length))
 }
 
+/** Above this, a single unbroken token (no spaces to split on upstream — e.g. the 58-letter
+ *  Anglesey placename, or an unusually long first name) is too long for shrink-to-fit alone:
+ *  the scale-to-viewport math has no floor, so it just keeps shrinking until it fits width,
+ *  landing well under legible size. formatSummaryLocalityKineticToken already splits 2+-word
+ *  localities into two lines by word count — this mirrors that for the no-whitespace case, by
+ *  character count instead. */
+const EXTREME_SINGLE_TOKEN_MIN_CHARS = 20
+
+/** Break one long unbroken token into two roughly-equal lines at the character midpoint. No
+ *  hyphen inserted — same plain two-line look as the word-count split already uses. */
+function splitOverlongSingleToken(text: string): string {
+  if (text.length <= EXTREME_SINGLE_TOKEN_MIN_CHARS) return text
+  const mid = Math.ceil(text.length / 2)
+  return `${text.slice(0, mid)}\n${text.slice(mid)}`
+}
+
 /** Summary ticker: Unicode ₂ often falls back to system fonts — stamp CO + subscript 2 in Marvin. */
 function renderTickerWord(text: string): ReactNode {
   const compact = text.replace(/\s/g, '')
@@ -119,13 +135,21 @@ export default function IntroWordCycle({
   const currentWord = words[index] ?? ''
   const displayText = (() => {
     const w = currentWord
-    if (!trailingPeriod) return w
-    if (preservePunctuation) {
-      if (w.endsWith('.') || w.endsWith(',')) return w
-      // Summary beats: money + carbon — no trailing full stop
-      if (w.startsWith('£') || /kg$/i.test(w) || /\bco₂e\b/i.test(w) || /\bco2e\b/i.test(w)) return w
+    const base = (() => {
+      if (!trailingPeriod) return w
+      if (preservePunctuation) {
+        if (w.endsWith('.') || w.endsWith(',')) return w
+        // Summary beats: money + carbon — no trailing full stop
+        if (w.startsWith('£') || /kg$/i.test(w) || /\bco₂e\b/i.test(w) || /\bco2e\b/i.test(w)) return w
+      }
+      return w + '.'
+    })()
+    // Summary ticker only (locality/name lane): an extreme unbroken token (no spaces upstream
+    // to split on) gets forced onto two lines instead of shrinking past legible size.
+    if (wrapLongPreservedWords && preserveCase && !base.includes('\n') && !base.startsWith('£') && !/\d/.test(base)) {
+      return splitOverlongSingleToken(base)
     }
-    return w + '.'
+    return base
   })()
 
   const dwellMs =
