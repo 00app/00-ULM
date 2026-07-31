@@ -35,6 +35,7 @@ const COMFORTABLE_OWNER: ActionProfile = {
   tenure: 'OWNER',
   financial: 'DOING_OK',
   household: 'COUPLE',
+  children: 'NO',
   employment: 'EMPLOYED',
   heating: 'GAS',
   transport: 'CAR',
@@ -115,7 +116,8 @@ const ownerPicks = selectActionsForProfile(COMFORTABLE_OWNER, { month: 1 })
 assert('comfortable owner fills 12 slots', ownerPicks.length === 12, `got ${ownerPicks.length}`)
 assert(
   'owner can see owner-only actions',
-  ownerPicks.some((a) => a.gates?.tenure?.includes('OWNER')),
+  ownerPicks.some((a) => a.requires?.tenure?.includes('OWNER')),
+  ownerPicks.map((a) => a.id).join(',')
 )
 
 // A guest has told us nothing, so must never be excluded on unknown grounds, and must never be
@@ -187,6 +189,20 @@ assert(
 const CHILDLESS = { ...BROKE_RENTER, household: 'COUPLE', children: 'NO' }
 const TODDLER = { ...BROKE_RENTER, children: 'UNDER_5' }
 const SCHOOL = { ...BROKE_RENTER, children: 'SCHOOL_AGE' }
+
+// The general principle, not just the child case: an eligibility claim must never be shown to
+// someone we never asked. A soft gate would let it leak to everyone, which is exactly how a
+// personalised wall degrades back into a generic one.
+const UNKNOWN = { financial: 'TIGHT' } as ActionProfile
+const requiresBackedIds = ZONE_ACTIONS.filter((a) => a.requires).map((a) => a.id)
+assert(
+  'eligibility-gated actions never show to an unasked profile',
+  !eligibleActions(UNKNOWN, { month: 1 }).some((a) => requiresBackedIds.includes(a.id)),
+  eligibleActions(UNKNOWN, { month: 1 })
+    .filter((a) => requiresBackedIds.includes(a.id))
+    .map((a) => a.id)
+    .join(',')
+)
 
 const childActions = ['healthy-start-card', 'free-school-meals']
 assert(

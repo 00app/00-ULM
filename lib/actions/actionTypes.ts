@@ -131,7 +131,22 @@ export type ZoneAction = {
   source: string
   /** ISO date the source was last checked. Stale dates are a maintenance signal, not decoration. */
   verifiedOn: string
+  /**
+   * RELEVANCE gates. An unknown profile value PASSES — "we don't know" shouldn't blank the wall
+   * for someone who hasn't told us much. Use for things that make an action more apt, not for
+   * things that decide whether someone qualifies.
+   */
   gates?: ActionGates
+  /**
+   * ELIGIBILITY gates. An unknown profile value FAILS.
+   *
+   * The difference from `gates` is the whole difference between personalised and generic. Free
+   * school meals was gated softly on having children, so anyone we hadn't asked still saw it —
+   * the app confidently telling people to claim something it had no reason to think they
+   * qualified for. If an action is only true for certain people, saying so requires knowing, and
+   * not knowing has to mean not showing. Never guess an entitlement.
+   */
+  requires?: ActionGates
   /**
    * Hard filters. Anything matching is removed outright before scoring — never softened into a
    * ranking penalty, because "unlikely to show" still eventually shows.

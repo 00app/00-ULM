@@ -86,7 +86,7 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     url: 'https://www.gov.uk/apply-for-council-tax-discount',
     source: 'GOV.UK Council Tax discounts — 25% single person discount',
     verifiedOn: '2026-07-31',
-    gates: { household: ['ALONE'] },
+    requires: { household: ['ALONE'] },
     priorityBoost: 25,
   },
   {
@@ -103,10 +103,10 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     url: 'https://www.healthystart.nhs.uk/how-to-apply/',
     source: 'NHS Healthy Start — rates from April 2026 (£483 under 1; £241.80 ages 1-4/pregnancy)',
     verifiedOn: '2026-07-31',
-    // Needs an actual under-5 (or pregnancy, which onboarding doesn't ask). Previously gated on
-    // household === FAMILY, which says nothing about whether children exist or their ages.
-    gates: { children: ['UNDER_5', 'BOTH'], financial: ['TIGHT', 'GETTING_BY'] },
-    excludes: { children: ['NONE', 'SCHOOL_AGE'] },
+    // Needs an actual under-5 (or pregnancy, which onboarding doesn't ask). `requires`, not
+    // `gates`: if we don't know there's a small child, we must not claim they can get this.
+    requires: { children: ['UNDER_5', 'BOTH'] },
+    gates: { financial: ['TIGHT', 'GETTING_BY'] },
   },
   {
     id: 'free-school-meals',
@@ -123,8 +123,8 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     source: 'GOV.UK apply for free school meals',
     verifiedOn: '2026-07-31',
     // Needs a school-age child specifically — an under-5 household gets nothing from this.
-    gates: { children: ['SCHOOL_AGE', 'BOTH'], financial: ['TIGHT', 'GETTING_BY'] },
-    excludes: { children: ['NONE', 'UNDER_5'] },
+    requires: { children: ['SCHOOL_AGE', 'BOTH'] },
+    gates: { financial: ['TIGHT', 'GETTING_BY'] },
   },
   {
     id: 'nhs-low-income-scheme',
@@ -343,7 +343,7 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     url: 'https://www.gov.uk/improve-energy-efficiency',
     source: 'GOV.UK find ways to save energy in your home',
     verifiedOn: '2026-07-31',
-    gates: { tenure: ['OWNER'] },
+    requires: { tenure: ['OWNER'] },
     // A renter cannot act on this at any price. Hard exclusion, never a ranking penalty.
     excludes: { tenure: ['RENTER'] },
   },
@@ -361,7 +361,7 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     url: 'https://www.ofgem.gov.uk/environmental-and-social-schemes/smart-export-guarantee-seg',
     source: 'Ofgem Smart Export Guarantee',
     verifiedOn: '2026-07-31',
-    gates: { tenure: ['OWNER'] },
+    requires: { tenure: ['OWNER'] },
     excludes: { tenure: ['RENTER'] },
   },
   {
@@ -377,7 +377,7 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     url: 'https://www.gov.uk/apply-boiler-upgrade-scheme',
     source: 'GOV.UK Boiler Upgrade Scheme',
     verifiedOn: '2026-07-31',
-    gates: { tenure: ['OWNER'], heating: ['GAS'] },
+    requires: { tenure: ['OWNER'], heating: ['GAS'] },
     excludes: { tenure: ['RENTER'] },
   },
   {

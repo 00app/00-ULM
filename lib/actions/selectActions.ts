@@ -86,6 +86,29 @@ function gatesAllow(gates: ActionGates | undefined, p: ActionProfile): boolean {
   )
 }
 
+/**
+ * Eligibility gates — every declared field must be KNOWN and matching.
+ *
+ * Deliberately the mirror image of `gatesAllow`. An action that only applies to certain people
+ * cannot be shown to someone we haven't asked, because that is precisely how a personalised wall
+ * degrades back into a generic one: claim-type cards leaking to everyone on the strength of a
+ * field nobody filled in.
+ */
+function requiresSatisfied(req: ActionGates | undefined, p: ActionProfile): boolean {
+  if (!req) return true
+  return (
+    matches(req.tenure, p.tenure) &&
+    matches(req.financial, p.financial) &&
+    matches(req.household, p.household) &&
+    matches(req.children, p.children) &&
+    matches(req.employment, p.employment) &&
+    matches(req.heating, p.heating) &&
+    matches(req.transport, p.transport) &&
+    matches(req.wash, p.wash) &&
+    matches(req.countries, p.country)
+  )
+}
+
 function excluded(ex: ActionGates | undefined, p: ActionProfile): boolean {
   if (!ex) return false
   const hit = (allowed: string[] | undefined, value: string | null | undefined) => {
@@ -138,6 +161,9 @@ export function scoreAction(a: ZoneAction, p: ActionProfile): number {
 
   // Reward specificity: an action gated to this person's exact situation is more relevant than
   // one that applies to everybody, so tightly-targeted entries rise above the generic.
+  // A satisfied eligibility requirement is the strongest possible relevance signal — it means
+  // this action is true for this person specifically, not merely plausible.
+  if (a.requires) score += 12
   const g = a.gates
   if (g) {
     if (g.tenure && matches(g.tenure, p.tenure)) score += 6
@@ -174,6 +200,7 @@ export function eligibleActions(p: ActionProfile, opts: SelectOptions = {}): Zon
   return library
     .filter((a) => !excluded(a.excludes, p))
     .filter((a) => gatesAllow(a.gates, p))
+    .filter((a) => requiresSatisfied(a.requires, p))
     .filter((a) => costAllowed(a, p))
     .filter((a) => inWindow(a, month))
     // Done means gone — for as long as that action's recurrence says it should be. A one-off
