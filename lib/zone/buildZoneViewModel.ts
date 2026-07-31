@@ -50,6 +50,7 @@ import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { trustedUrlForJourney, trustedUrlLabelForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { selectActionsForProfile } from '@/lib/actions/selectActions'
 import { actionsToJourneyCards } from '@/lib/actions/actionCards'
+import type { ActionCompletion } from '@/lib/actions/actionTypes'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import {
   VERIFIED_SOURCE_DATE,
@@ -641,6 +642,7 @@ export function buildZoneViewModel({
   journeyAnswers,
   scraped,
   localData,
+  actionCompletions,
   injectedTips,
   marketContext,
   neonJourneyResearch,
@@ -680,6 +682,8 @@ export function buildZoneViewModel({
       source_url?: string
     }
   }
+  /** Actions already completed — drop out of the ranked wall per their recurrence. */
+  actionCompletions?: ActionCompletion[]
   /** Discovery injections — latest card surfaces first in the 3 tip slots. */
   injectedTips?: ZoneTipCard[]
   /** v41.1 postcode-grounded market context for dynamic audit maths */
@@ -1243,7 +1247,8 @@ export function buildZoneViewModel({
           heating: profile.home_power,
           transport: profile.transport_baseline,
           wash: profile.wash_preference,
-        })
+        },
+        { completions: actionCompletions })
       : []
   const journeys: ZoneJourneyCard[] =
     rankedActions.length > 0 ? actionsToJourneyCards(rankedActions) : journeyCards

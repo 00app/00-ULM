@@ -56,6 +56,12 @@ import {
   pickFirstHttpUrl,
 } from '@/lib/zone/verifiedRevenue'
 import { resolveZoneCardOfferUrl } from '@/lib/zone/zoneOfferUrl'
+import type { ActionCompletion } from '@/lib/actions/actionTypes'
+import {
+  fetchServerCompletions,
+  mergeCompletions,
+  readGuestCompletions,
+} from '@/lib/actions/actionCompletion'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { ROUTES } from '@/lib/routes'
@@ -315,6 +321,14 @@ export default function ZonePage({
   const [viewModel, setViewModel] = useState<ZoneViewModel>(getPlaceholderZoneViewModel)
   const [vmSyncStamp, setVmSyncStamp] = useState(0)
   const [completedJourneys, setCompletedJourneys] = useState<JourneyId[]>([])
+  /**
+   * Library actions this person has already done. Seeded synchronously from localStorage so the
+   * first paint already hides completed actions — loading them async would flash the finished
+   * card in before removing it, which reads as a bug.
+   */
+  const [actionCompletions, setActionCompletions] = useState<ActionCompletion[]>(() =>
+    typeof window === 'undefined' ? [] : readGuestCompletions()
+  )
   const [scraped, setScraped] = useState<Record<JourneyId, { scraped_at: string; carbon_value: number; money_value: number; deep_content_tip?: string; high_saving?: boolean }> | null>(null)
   const [localData, setLocalData] = useState<LocalIntelligence | null>(null)
   const [localJustLoaded, setLocalJustLoaded] = useState(false)
@@ -334,6 +348,22 @@ export default function ZonePage({
     const syncIntent = () => setCategoryIntentWeights(readCategoryIntentWeights())
     window.addEventListener(CATEGORY_INTENT_CHANGED_EVENT, syncIntent)
     return () => window.removeEventListener(CATEGORY_INTENT_CHANGED_EVENT, syncIntent)
+  }, [])
+
+  /**
+   * Pull server-side completions once and merge them over the locally-seeded ones. Guests get an
+   * empty list back and keep their localStorage view, so this is a no-op for them rather than a
+   * wipe — merging (newest per action wins) means signing in adds history instead of replacing it.
+   */
+  useEffect(() => {
+    let cancelled = false
+    void fetchServerCompletions().then((server) => {
+      if (cancelled || server.length === 0) return
+      setActionCompletions((local) => mergeCompletions(server, local))
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const offerPrefRefreshPendingRef = useRef(false)
@@ -1704,6 +1734,7 @@ export default function ZonePage({
         home_ownership: profile.home_ownership,
         financial_pressure: profile.financial_pressure,
       },
+      actionCompletions,
       journeyAnswers,
       scraped: scraped ? Object.fromEntries(
         Object.entries(scraped).map(([k, v]) => [
@@ -1790,6 +1821,7 @@ export default function ZonePage({
             }
           })(),
         },
+        actionCompletions,
         journeyAnswers,
         scraped: scraped
           ? Object.fromEntries(
@@ -1926,6 +1958,7 @@ export default function ZonePage({
         home_ownership: profile.home_ownership,
         financial_pressure: profile.financial_pressure,
       },
+      actionCompletions,
       journeyAnswers,
       scraped: scraped
         ? Object.fromEntries(

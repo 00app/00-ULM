@@ -36,6 +36,24 @@ export type FinancialPressure = 'TIGHT' | 'GETTING_BY' | 'DOING_OK'
 export type Tenure = 'OWNER' | 'RENTER'
 
 /**
+ * How long "I've done this" should suppress an action for.
+ *
+ * Without this, completion has two equally bad failure modes: either everything hides forever,
+ * so a habit like collecting surplus food vanishes the first time someone does it, or nothing
+ * hides, so the wall keeps telling someone to apply for a Council Tax Reduction they were
+ * awarded last month. The distinction is a property of the action, not of the user.
+ *
+ * ONCE    — a one-off application or purchase. Never resurfaces.
+ * ANNUAL  — genuinely needs redoing each year. Several are annual by scheme design: WaterSure
+ *           asks you to reconfirm eligibility yearly, NHS HC2 certificates expire, railcards
+ *           run 12 months, and the Warm Home Discount runs in scheme years.
+ * ONGOING — a habit. Doing it is the point, so it never suppresses.
+ */
+export type ActionRecurrence = 'ONCE' | 'ANNUAL' | 'ONGOING'
+
+export const ANNUAL_SUPPRESSION_DAYS = 365
+
+/**
  * Hard ceiling on `cost` per financial answer. TIGHT sees only free actions — not as a
  * judgement about what they can afford, but because a paid recommendation burns one of twelve
  * slots that a claimable entitlement could have used. GETTING_BY allows small spends. DOING_OK
@@ -89,6 +107,8 @@ export type ZoneAction = {
   detail: string
   verb: ActionVerb
   cost: ActionCost
+  /** How long completing this hides it for. See ActionRecurrence. */
+  recurrence: ActionRecurrence
   /** Category bucket — used only for diversity control, never shown as the primary structure. */
   bucket: JourneyId
   /** Annual £ this can realistically return. 0 where the value is real but not monetary. */
@@ -113,6 +133,34 @@ export type ZoneAction = {
    * check is worth surfacing high because it unlocks everything else. Keep sparing.
    */
   priorityBoost?: number
+}
+
+/** A completed action and when it was completed. */
+export type ActionCompletion = {
+  actionId: string
+  /** ISO timestamp. */
+  completedAt: string
+}
+
+/**
+ * True when a completion should still be hiding this action at `now`.
+ *
+ * Unparseable or future dates are treated as "just completed" rather than ignored, so a bad
+ * clock or a corrupt stored value can never resurrect a one-off claim someone already made.
+ */
+export function isSuppressedByCompletion(
+  recurrence: ActionRecurrence,
+  completedAt: string | null | undefined,
+  now: Date = new Date()
+): boolean {
+  if (!completedAt) return false
+  if (recurrence === 'ONGOING') return false
+  if (recurrence === 'ONCE') return true
+  const then = Date.parse(completedAt)
+  if (!Number.isFinite(then)) return true
+  const days = (now.getTime() - then) / 86_400_000
+  if (days < 0) return true
+  return days < ANNUAL_SUPPRESSION_DAYS
 }
 
 /** Profile shape the ranker consumes. All optional — guests have none of it. */

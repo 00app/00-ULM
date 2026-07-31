@@ -15,7 +15,9 @@
 import type { JourneyId } from '@/lib/journeys'
 import {
   COST_CEILING,
+  isSuppressedByCompletion,
   normalizeFinancialPressure,
+  type ActionCompletion,
   type ActionGates,
   type ActionProfile,
   type ZoneAction,
@@ -143,17 +145,29 @@ export type SelectOptions = {
   month?: number
   /** Library override, for tests. */
   library?: ZoneAction[]
+  /** Things this person has already done. Suppression is recurrence-aware. */
+  completions?: ActionCompletion[]
+  /** Injectable clock so completion tests aren't time-dependent. */
+  now?: Date
 }
 
 /** Everything that survives the hard filters, best first. No diversity cap applied. */
 export function eligibleActions(p: ActionProfile, opts: SelectOptions = {}): ZoneAction[] {
   const month = opts.month ?? new Date().getMonth() + 1
   const library = opts.library ?? ZONE_ACTIONS
+  const now = opts.now ?? new Date()
+  const completedAt = new Map<string, string>()
+  for (const c of opts.completions ?? []) {
+    if (c?.actionId) completedAt.set(c.actionId, c.completedAt)
+  }
   return library
     .filter((a) => !excluded(a.excludes, p))
     .filter((a) => gatesAllow(a.gates, p))
     .filter((a) => costAllowed(a, p))
     .filter((a) => inWindow(a, month))
+    // Done means gone — for as long as that action's recurrence says it should be. A one-off
+    // claim never returns; an annual one comes back after a year; a habit never hides.
+    .filter((a) => !isSuppressedByCompletion(a.recurrence, completedAt.get(a.id), now))
     .sort((x, y) => scoreAction(y, p) - scoreAction(x, p) || x.id.localeCompare(y.id))
 }
 

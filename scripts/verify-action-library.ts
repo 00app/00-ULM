@@ -179,6 +179,92 @@ assert(
   cards.every((c) => (c.explanation?.[0]?.length ?? 0) > 20)
 )
 
+// --- Completion suppression -------------------------------------------------------------
+const NOW = new Date('2026-07-31T12:00:00Z')
+const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000).toISOString()
+
+// A one-off claim must never come back. Being told to apply for a Council Tax Reduction you were
+// awarded last month is the clearest possible sign the app isn't listening.
+const afterCouncilTax = eligibleActions(BROKE_RENTER, {
+  month: 1,
+  now: NOW,
+  completions: [{ actionId: 'council-tax-reduction', completedAt: daysAgo(30) }],
+})
+assert(
+  'completed ONCE action does not return',
+  !afterCouncilTax.some((a) => a.id === 'council-tax-reduction')
+)
+
+// An annual one should come back — but only after a year.
+const annualRecent = eligibleActions(BROKE_RENTER, {
+  month: 1,
+  now: NOW,
+  completions: [{ actionId: 'benefits-entitlement-check', completedAt: daysAgo(200) }],
+})
+assert(
+  'ANNUAL action stays hidden inside a year',
+  !annualRecent.some((a) => a.id === 'benefits-entitlement-check')
+)
+const annualStale = eligibleActions(BROKE_RENTER, {
+  month: 1,
+  now: NOW,
+  completions: [{ actionId: 'benefits-entitlement-check', completedAt: daysAgo(400) }],
+})
+assert(
+  'ANNUAL action returns after a year',
+  annualStale.some((a) => a.id === 'benefits-entitlement-check')
+)
+
+// Habits are the point — doing them must not delete them.
+const afterHabit = eligibleActions(BROKE_RENTER, {
+  month: 1,
+  now: NOW,
+  completions: [{ actionId: 'surplus-food-app', completedAt: daysAgo(1) }],
+})
+assert(
+  'ONGOING action is never suppressed',
+  afterHabit.some((a) => a.id === 'surplus-food-app')
+)
+
+// The wall must not develop holes as someone works through it.
+const afterThree = selectActionsForProfile(BROKE_RENTER, {
+  month: 1,
+  now: NOW,
+  completions: [
+    { actionId: 'council-tax-reduction', completedAt: daysAgo(10) },
+    { actionId: 'free-school-meals', completedAt: daysAgo(10) },
+    { actionId: 'healthy-start-card', completedAt: daysAgo(10) },
+  ],
+})
+assert(
+  'wall refills after completions',
+  afterThree.length === 12,
+  `got ${afterThree.length}`
+)
+assert(
+  'completed actions are gone from the refilled wall',
+  !afterThree.some((a) =>
+    ['council-tax-reduction', 'free-school-meals', 'healthy-start-card'].includes(a.id)
+  )
+)
+
+// Corrupt or future timestamps must fail safe (stay hidden), never resurrect a done claim.
+assert(
+  'unparseable completion date fails safe',
+  !eligibleActions(BROKE_RENTER, {
+    month: 1,
+    now: NOW,
+    completions: [{ actionId: 'nhs-low-income-scheme', completedAt: 'not-a-date' }],
+  }).some((a) => a.id === 'nhs-low-income-scheme')
+)
+
+// Every action must declare recurrence, or completion silently does nothing for it.
+assert(
+  'every action declares recurrence',
+  ZONE_ACTIONS.every((a) => ['ONCE', 'ANNUAL', 'ONGOING'].includes(a.recurrence)),
+  ZONE_ACTIONS.filter((a) => !a.recurrence).map((a) => a.id).join(',')
+)
+
 // --- Determinism ------------------------------------------------------------------------
 const runA = selectActionsForProfile(BROKE_RENTER, { month: 1 }).map((a) => a.id).join(',')
 const runB = selectActionsForProfile(BROKE_RENTER, { month: 1 }).map((a) => a.id).join(',')
