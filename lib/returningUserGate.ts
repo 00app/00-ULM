@@ -7,14 +7,27 @@ import {
 } from '@/lib/profile/onboardingComplete'
 import { unsealSessionToken } from '@/lib/sessionCookieSign'
 import { GUEST_SESSION_COOKIE, parseGuestSessionCookie } from '@/lib/zone/guestSession'
+import { ONBOARDING_INTENT_COOKIE } from '@/lib/profile/onboardingIntentCookie'
+
+/**
+ * Deliberate navigation to onboarding, so don't bounce them to /zone.
+ *
+ * Previously carried as `?skip=1` on every profile URL. The query param is still honoured so
+ * old links and bookmarks keep working, but nothing generates it any more — the intent now
+ * rides on a short-lived cookie and the URL stays clean.
+ */
+function hasOnboardingIntent(request: NextRequest): boolean {
+  if (request.cookies.get(ONBOARDING_INTENT_COOKIE)?.value === '1') return true
+  const skip = request.nextUrl.searchParams.get('skip')
+  return skip === '1' || skip === 'message'
+}
 
 /**
  * Signed-in session with complete Neon profile, or guest `zz_sid` with completed guest_sessions profile.
  * Cookie alone is not enough — incomplete onboarding stays on `/` until profile fields are filled.
  */
 export async function shouldRedirectLandingToZone(request: NextRequest): Promise<boolean> {
-  const skip = request.nextUrl.searchParams.get('skip')
-  if (skip === '1' || skip === 'message') return false
+  if (hasOnboardingIntent(request)) return false
   return isRequestSessionOnboardingComplete(request)
 }
 
@@ -24,8 +37,7 @@ export async function shouldRedirectLandingToZone(request: NextRequest): Promise
  * edit deep link, not a fresh onboarding visit, and must not redirect away.
  */
 export async function shouldRedirectProfileToZone(request: NextRequest): Promise<boolean> {
-  const skip = request.nextUrl.searchParams.get('skip')
-  if (skip === '1' || skip === 'message') return false
+  if (hasOnboardingIntent(request)) return false
   if (request.nextUrl.searchParams.get('q')) return false
   if (request.nextUrl.searchParams.get('returnTo')) return false
   return isRequestSessionOnboardingComplete(request)

@@ -85,8 +85,18 @@ export type ActionGates = {
   tenure?: Tenure[]
   /** Omit to mean "any financial state" (still subject to COST_CEILING). */
   financial?: FinancialPressure[]
-  /** Onboarding `household` values, e.g. FAMILY — used for child-linked entitlements. */
+  /** Onboarding `household` values, e.g. ALONE — living arrangement, NOT a proxy for children. */
   household?: string[]
+  /**
+   * NONE | UNDER_5 | SCHOOL_AGE | BOTH.
+   *
+   * Child-linked entitlements were originally gated on household === FAMILY, which was wrong:
+   * "family" describes who you live with, not whether children exist or how old they are. An
+   * adult living with a parent answers FAMILY. Healthy Start needs an under-5 or a pregnancy;
+   * free school meals needs a school-age child. Gating both on FAMILY asserted eligibility the
+   * app had never actually asked about.
+   */
+  children?: string[]
   /** Onboarding `employmentStatus` values. */
   employment?: string[]
   /** Onboarding `powerType` values. */
@@ -168,6 +178,7 @@ export type ActionProfile = {
   tenure?: string | null
   financial?: string | null
   household?: string | null
+  children?: string | null
   employment?: string | null
   heating?: string | null
   transport?: string | null

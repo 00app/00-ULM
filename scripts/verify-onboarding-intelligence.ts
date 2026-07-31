@@ -47,6 +47,7 @@ const BASE_PROFILE = {
   age: 'MID',
   employmentStatus: 'EMPLOYED',
   financialPressure: 'GETTING_BY',
+  children: 'NO',
   goal: 'money',
 }
 
@@ -55,6 +56,10 @@ assert('onboarding rejects missing goal', !isProfileOnboardingCompleteFields({ .
 assert(
   'onboarding rejects missing financial pressure',
   !isProfileOnboardingCompleteFields({ ...BASE_PROFILE, financialPressure: '' })
+)
+assert(
+  'onboarding rejects missing children answer',
+  !isProfileOnboardingCompleteFields({ ...BASE_PROFILE, children: '' })
 )
 assert('postcode validation accepts UK format', isValidUkPostcode('M11AG'))
 

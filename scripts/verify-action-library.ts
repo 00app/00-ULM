@@ -10,6 +10,7 @@
 import { ZONE_ACTIONS, isValidZoneCardSlug } from '@/lib/actions/actionLibrary'
 import { selectActionsForProfile, eligibleActions } from '@/lib/actions/selectActions'
 import { actionsToJourneyCards } from '@/lib/actions/actionCards'
+import { buildGroovyGridItems } from '@/lib/zone/gridOrder'
 import type { ActionProfile } from '@/lib/actions/actionTypes'
 
 type Check = { name: string; pass: boolean; detail?: string }
@@ -22,6 +23,7 @@ const BROKE_RENTER: ActionProfile = {
   tenure: 'RENTER',
   financial: 'TIGHT',
   household: 'FAMILY',
+  children: 'BOTH',
   employment: 'BETWEEN_JOBS',
   heating: 'GAS',
   transport: 'PUBLIC',
@@ -179,6 +181,36 @@ assert(
   cards.every((c) => (c.explanation?.[0]?.length ?? 0) > 20)
 )
 
+// --- Child entitlements must never be asserted without knowing about children -------------
+// household === FAMILY used to gate these, which was wrong: "family" describes who you live
+// with, not whether children exist or their ages. An adult living with a parent answers FAMILY.
+const CHILDLESS = { ...BROKE_RENTER, household: 'COUPLE', children: 'NO' }
+const TODDLER = { ...BROKE_RENTER, children: 'UNDER_5' }
+const SCHOOL = { ...BROKE_RENTER, children: 'SCHOOL_AGE' }
+
+const childActions = ['healthy-start-card', 'free-school-meals']
+assert(
+  'childless household sees no child entitlements',
+  !eligibleActions(CHILDLESS, { month: 1 }).some((a) => childActions.includes(a.id)),
+  eligibleActions(CHILDLESS, { month: 1 }).filter((a) => childActions.includes(a.id)).map((a) => a.id).join(',')
+)
+
+// Healthy Start needs an under-5; free school meals needs school age. Showing either to the
+// wrong age band is a wasted slot and an obviously wrong recommendation.
+const toddlerPicks = eligibleActions(TODDLER, { month: 1 })
+assert('under-5 household sees Healthy Start', toddlerPicks.some((a) => a.id === 'healthy-start-card'))
+assert(
+  'under-5 household does NOT see free school meals',
+  !toddlerPicks.some((a) => a.id === 'free-school-meals')
+)
+
+const schoolPicks = eligibleActions(SCHOOL, { month: 1 })
+assert('school-age household sees free school meals', schoolPicks.some((a) => a.id === 'free-school-meals'))
+assert(
+  'school-age household does NOT see Healthy Start',
+  !schoolPicks.some((a) => a.id === 'healthy-start-card')
+)
+
 // --- Completion suppression -------------------------------------------------------------
 const NOW = new Date('2026-07-31T12:00:00Z')
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000).toISOString()
@@ -263,6 +295,35 @@ assert(
   'every action declares recurrence',
   ZONE_ACTIONS.every((a) => ['ONCE', 'ANNUAL', 'ONGOING'].includes(a.recurrence)),
   ZONE_ACTIONS.filter((a) => !a.recurrence).map((a) => a.id).join(',')
+)
+
+// --- Grid rendering: the ranked wall must survive the bento grid intact -------------------
+// Regression guard for a live bug: the grid keyed a Map on journey_key, which the old wall made
+// unique by construction. A ranked wall can return several cards per category, so same-key cards
+// collapsed to the last one and then rendered once per duplicate — the same MONEY tile printed a
+// dozen times down the wall.
+const gridCells = buildGroovyGridItems({
+  viewModel: {
+    hero: {} as never,
+    journeys: actionsToJourneyCards(brokeRenterTwelve),
+    tips: [],
+    primaryMoneyJourneyKeys: [],
+  },
+  personaForJourney: () => 'default' as never,
+})
+const gridJourneyCells = gridCells.filter((c) => c.type === 'journey')
+const renderedIds = gridJourneyCells.map((c) => (c as { item: { id: string } }).item.id)
+assert(
+  'grid renders no duplicate cards',
+  new Set(renderedIds).size === renderedIds.length,
+  renderedIds.join(',')
+)
+// And the ranker must not select more than the grid will actually show, or the wall silently
+// renders fewer cards than were chosen (was 12 selected, 9 rendered).
+assert(
+  'every ranked card survives the grid',
+  gridJourneyCells.length === brokeRenterTwelve.length,
+  `selected ${brokeRenterTwelve.length}, rendered ${gridJourneyCells.length}`
 )
 
 // --- Determinism ------------------------------------------------------------------------

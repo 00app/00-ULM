@@ -16,6 +16,7 @@ export const PROFILE_STORAGE_KEYS = {
   age: 'profile_age',
   employmentStatus: 'profile_employment_status',
   financialPressure: 'profile_financial_pressure',
+  children: 'profile_children',
 } as const
 
 export type ProfileOnboardingFields = {
@@ -38,6 +39,12 @@ export type ProfileOnboardingFields = {
    * Required in `isProfileOnboardingCompleteFields` for that reason.
    */
   financialPressure?: string
+  /**
+   * NO | UNDER_5 | SCHOOL_AGE | BOTH. Required, because child entitlements are gated on it and a
+   * permissive gate on an unknown value would show free school meals to a childless household —
+   * the exact over-claiming this question exists to stop.
+   */
+  children?: string
   goal?: string
 }
 
@@ -60,6 +67,7 @@ export function isProfileOnboardingCompleteFields(v: ProfileOnboardingFields): b
     Boolean(v.age?.trim()) &&
     Boolean(v.employmentStatus?.trim()) &&
     Boolean(v.financialPressure?.trim()) &&
+    Boolean(v.children?.trim()) &&
     Boolean(resolveProfileGoalFromFields(v))
   )
 }
@@ -87,6 +95,7 @@ export function profileFieldsFromStorage(): ProfileOnboardingFields {
     age: read(PROFILE_STORAGE_KEYS.age),
     employmentStatus: read(PROFILE_STORAGE_KEYS.employmentStatus),
     financialPressure: read(PROFILE_STORAGE_KEYS.financialPressure),
+    children: read(PROFILE_STORAGE_KEYS.children),
     goal: readStoredProfileGoal(),
   }
 }
@@ -145,6 +154,8 @@ export function userRowOnboardingComplete(row: UserOnboardingRow | null | undefi
     (typeof genome.financial_pressure === 'string' && genome.financial_pressure.trim()) ||
     (typeof genome.financialPressure === 'string' && genome.financialPressure.trim()) ||
     ''
+  const children =
+    (typeof genome.children === 'string' && genome.children.trim()) || ''
 
   return isProfileOnboardingCompleteFields({
     name: row.name ?? undefined,
@@ -159,6 +170,7 @@ export function userRowOnboardingComplete(row: UserOnboardingRow | null | undefi
     age: age || undefined,
     employmentStatus: row.employment_status ?? undefined,
     financialPressure: financialPressure || undefined,
+    children: children || undefined,
     goal: goal || undefined,
   })
 }
@@ -179,6 +191,7 @@ export function guestProfileOnboardingComplete(profile: unknown): boolean {
     age: String(p.age ?? p.age_group ?? ''),
     employmentStatus: String(p.employment_status ?? p.employmentStatus ?? ''),
     financialPressure: String(p.financial_pressure ?? p.financialPressure ?? ''),
+    children: String(p.children ?? ''),
     goal: String(p.goal ?? ''),
   })
 }

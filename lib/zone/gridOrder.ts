@@ -91,17 +91,35 @@ export function buildGroovyGridItems(args: {
   })
 
   const journeyCardsOnly = args.viewModel.journeys.filter((j) => j.id.startsWith('journey-'))
-  const byJourney = new Map(journeyCardsOnly.map((j) => [j.journey_key, j]))
-  const moneySortedJourneys = [...journeyCardsOnly]
-    .sort((a, b) => {
-      const aJid = a.journey_key
-      const bJid = b.journey_key
-      const aOffer = journeyOfferPreferenceWeight(aJid, offerPrefs)
-      const bOffer = journeyOfferPreferenceWeight(bJid, offerPrefs)
-      if (aOffer !== bOffer) return bOffer - aOffer
-      return (b.moneyGbp ?? 0) - (a.moneyGbp ?? 0)
-    })
-    .map((j) => j.journey_key)
+
+  /**
+   * Several cards can share a `journey_key`.
+   *
+   * The old wall built exactly one card per category, so keying a Map on `journey_key` was safe
+   * by construction. The ranked action wall deliberately breaks that — three MONEY actions is a
+   * legitimate result — and the old shape failed twice over: the Map collapsed same-key cards to
+   * whichever came last, and the order list repeated that key once per card, so the surviving
+   * card was rendered once per duplicate. Live symptom was the same MONEY tile printed a dozen
+   * times down the wall. Grouping by key and walking each group fixes both halves.
+   */
+  const byJourney = new Map<JourneyId, ZoneJourneyCard[]>()
+  for (const card of journeyCardsOnly) {
+    const bucket = byJourney.get(card.journey_key) ?? []
+    bucket.push(card)
+    byJourney.set(card.journey_key, bucket)
+  }
+
+  const moneySortedJourneys: JourneyId[] = []
+  for (const card of [...journeyCardsOnly].sort((a, b) => {
+    const aOffer = journeyOfferPreferenceWeight(a.journey_key, offerPrefs)
+    const bOffer = journeyOfferPreferenceWeight(b.journey_key, offerPrefs)
+    if (aOffer !== bOffer) return bOffer - aOffer
+    return (b.moneyGbp ?? 0) - (a.moneyGbp ?? 0)
+  })) {
+    // First appearance sets the category's position; the rest of that category's cards are
+    // emitted together when we reach it, so the key must appear exactly once.
+    if (!moneySortedJourneys.includes(card.journey_key)) moneySortedJourneys.push(card.journey_key)
+  }
   const prioritizedJourneyOrder = [
     ...moneySortedJourneys,
     ...JOURNEY_ORDER.filter((jid) => !moneySortedJourneys.includes(jid)),
@@ -151,20 +169,26 @@ export function buildGroovyGridItems(args: {
   }
 
   prioritizedJourneyOrder.forEach((jid, index) => {
-    const item = byJourney.get(jid)
-    if (item) {
+    const cards = byJourney.get(jid) ?? []
+    const seenCardIds = new Set<string>()
+    for (const item of cards) {
+      // Belt and braces: the ranker already dedupes, but a repeated card id here is exactly the
+      // failure this function shipped with, so never render the same card twice regardless.
+      if (seenCardIds.has(item.id)) continue
+      seenCardIds.add(item.id)
       if (isWallCardSuppressed(item, offerPrefs)) {
         /* Skip suppressed journey mother — tips in category may still show if unlike topic. */
-      } else if (incrementCategory(jid)) {
-        items.push({
-          type: 'journey',
-          item,
-          index,
-          persona: args.personaForJourney(jid),
-        })
+        continue
       }
+      if (!incrementCategory(jid)) break
+      items.push({
+        type: 'journey',
+        item,
+        index,
+        persona: args.personaForJourney(jid),
+      })
     }
-    const journeyWallTitle = item?.title ?? null
+    const journeyWallTitle = cards[0]?.title ?? null
     const seenHeadlineKeys = new Set<string>()
     if (journeyWallTitle) {
       const wallKey = normalizeCardHeadlineKey(journeyWallTitle)

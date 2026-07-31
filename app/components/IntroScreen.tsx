@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import IntroWordCycle from './IntroWordCycle'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
+import { markOnboardingIntent } from '@/lib/profile/onboardingIntentCookie'
 import { ROUTES } from '@/lib/routes'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import {
@@ -160,7 +161,8 @@ export default function IntroScreen() {
       // Goal is asked inline in /profile now, not here — always hand off once the
       // value-message animation finishes, regardless of whether goal is already set.
       trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
-      router.push(ROUTES.PROFILE + '?skip=1')
+      markOnboardingIntent()
+      router.push(ROUTES.PROFILE)
     }, safetyMs)
     return () => window.clearTimeout(tid)
   }, [screen, router])
@@ -177,7 +179,8 @@ export default function IntroScreen() {
         syncSessionState()
       }
       trackFunnelEvent('intro_complete', { page: ROUTES.PROFILE })
-      router.push(ROUTES.PROFILE + '?skip=1')
+      markOnboardingIntent()
+      router.push(ROUTES.PROFILE)
     },
     [router]
   )
@@ -215,7 +218,8 @@ export default function IntroScreen() {
           onComplete={() => {
             // Goal is asked inline in /profile now, not here.
             trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.PROFILE })
-            router.push(ROUTES.PROFILE + '?skip=1')
+            markOnboardingIntent()
+      router.push(ROUTES.PROFILE)
           }}
         />
       </div>

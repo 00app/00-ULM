@@ -23,9 +23,17 @@ import {
   type ZoneAction,
 } from '@/lib/actions/actionTypes'
 import { ZONE_ACTIONS } from '@/lib/actions/actionLibrary'
+import { MAX_CARDS_PER_CATEGORY } from '@/lib/zone/perCategoryCardCap'
 
-/** No single category may occupy more than this many of the twelve slots. */
-const MAX_PER_BUCKET = 3
+/**
+ * No single category may occupy more than this many of the twelve slots.
+ *
+ * Deliberately the SAME constant the bento grid enforces. When these two disagreed the ranker
+ * promised twelve cards, the grid silently dropped everything past its own per-category cap, and
+ * the wall rendered nine — a mismatch invisible from either file alone. Importing it means the
+ * ranker can never again select something the wall won't show.
+ */
+const MAX_PER_BUCKET = MAX_CARDS_PER_CATEGORY
 
 function up(v: string | null | undefined): string {
   return String(v ?? '').trim().toUpperCase()
@@ -69,6 +77,7 @@ function gatesAllow(gates: ActionGates | undefined, p: ActionProfile): boolean {
     gateMatches(gates.tenure, p.tenure) &&
     gateMatches(gates.financial, p.financial) &&
     gateMatches(gates.household, p.household) &&
+    gateMatches(gates.children, p.children) &&
     gateMatches(gates.employment, p.employment) &&
     gateMatches(gates.heating, p.heating) &&
     gateMatches(gates.transport, p.transport) &&
@@ -89,6 +98,7 @@ function excluded(ex: ActionGates | undefined, p: ActionProfile): boolean {
     hit(ex.tenure, p.tenure) ||
     hit(ex.financial, p.financial) ||
     hit(ex.household, p.household) ||
+    hit(ex.children, p.children) ||
     hit(ex.employment, p.employment) ||
     hit(ex.heating, p.heating) ||
     hit(ex.transport, p.transport) ||
@@ -132,6 +142,7 @@ export function scoreAction(a: ZoneAction, p: ActionProfile): number {
   if (g) {
     if (g.tenure && matches(g.tenure, p.tenure)) score += 6
     if (g.household && matches(g.household, p.household)) score += 8
+    if (g.children && matches(g.children, p.children)) score += 10
     if (g.heating && matches(g.heating, p.heating)) score += 6
     if (g.transport && matches(g.transport, p.transport)) score += 6
     if (g.wash && matches(g.wash, p.wash)) score += 4

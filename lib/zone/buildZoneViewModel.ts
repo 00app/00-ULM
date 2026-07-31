@@ -668,6 +668,8 @@ export function buildZoneViewModel({
     home_ownership?: string
     /** TIGHT/GETTING_BY/DOING_OK — caps what a recommendation may cost before it's worth a slot. */
     financial_pressure?: string
+    /** NO/UNDER_5/SCHOOL_AGE/BOTH — gates child entitlements; household is NOT a proxy for this. */
+    children?: string
   }
   journeyAnswers: Record<JourneyId, Record<string, string>>
   /** S UPDATE: optional scraped data from 001 Scraper (`scraped_summary` / DB). Partial = only some journeys may have data. */
@@ -1243,6 +1245,7 @@ export function buildZoneViewModel({
           tenure: profile.home_ownership,
           financial: profile.financial_pressure,
           household: profile.household,
+          children: profile.children,
           employment: profile.employment_status,
           heating: profile.home_power,
           transport: profile.transport_baseline,

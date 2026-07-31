@@ -103,7 +103,10 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     url: 'https://www.healthystart.nhs.uk/how-to-apply/',
     source: 'NHS Healthy Start — rates from April 2026 (£483 under 1; £241.80 ages 1-4/pregnancy)',
     verifiedOn: '2026-07-31',
-    gates: { household: ['FAMILY'], financial: ['TIGHT', 'GETTING_BY'] },
+    // Needs an actual under-5 (or pregnancy, which onboarding doesn't ask). Previously gated on
+    // household === FAMILY, which says nothing about whether children exist or their ages.
+    gates: { children: ['UNDER_5', 'BOTH'], financial: ['TIGHT', 'GETTING_BY'] },
+    excludes: { children: ['NONE', 'SCHOOL_AGE'] },
   },
   {
     id: 'free-school-meals',
@@ -119,7 +122,9 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     url: 'https://www.gov.uk/apply-free-school-meals',
     source: 'GOV.UK apply for free school meals',
     verifiedOn: '2026-07-31',
-    gates: { household: ['FAMILY'], financial: ['TIGHT', 'GETTING_BY'] },
+    // Needs a school-age child specifically — an under-5 household gets nothing from this.
+    gates: { children: ['SCHOOL_AGE', 'BOTH'], financial: ['TIGHT', 'GETTING_BY'] },
+    excludes: { children: ['NONE', 'UNDER_5'] },
   },
   {
     id: 'nhs-low-income-scheme',

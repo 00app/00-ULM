@@ -74,6 +74,7 @@ export function readProfileFieldsFromStorage(): {
   flight_frequency?: string
   home_ownership?: string
   financial_pressure?: string
+  children?: string
 } {
   return {
     name: safeGetItem('profile_name') ?? undefined,
@@ -91,5 +92,6 @@ export function readProfileFieldsFromStorage(): {
     flight_frequency: safeGetItem('profile_flight_frequency') ?? undefined,
     home_ownership: safeGetItem('profile_home_ownership') ?? undefined,
     financial_pressure: safeGetItem('profile_financial_pressure') ?? undefined,
+    children: safeGetItem('profile_children') ?? undefined,
   }
 }

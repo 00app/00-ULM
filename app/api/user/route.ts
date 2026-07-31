@@ -105,6 +105,15 @@ export async function POST(request: NextRequest) {
       financialPressureRaw === 'DOING_OK'
         ? financialPressureRaw
         : null
+    const childrenRaw =
+      typeof body?.children === 'string' ? body.children.trim().toUpperCase().slice(0, 16) : ''
+    const children =
+      childrenRaw === 'NO' ||
+      childrenRaw === 'UNDER_5' ||
+      childrenRaw === 'SCHOOL_AGE' ||
+      childrenRaw === 'BOTH'
+        ? childrenRaw
+        : null
 
     const raw = {
       name: typeof body?.name === 'string' ? body.name.trim().slice(0, 200) : '',
@@ -163,6 +172,7 @@ export async function POST(request: NextRequest) {
     if (wash_preference) genomeObj.wash_preference = wash_preference
     if (flight_frequency) genomeObj.flight_frequency = flight_frequency
     if (financial_pressure) genomeObj.financial_pressure = financial_pressure
+    if (children) genomeObj.children = children
     const genome = JSON.stringify(genomeObj)
 
     const insertParams = [

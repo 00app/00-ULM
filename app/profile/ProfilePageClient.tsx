@@ -41,6 +41,7 @@ import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
 import { PROFILE_ENTRY_CHOICE_KEY, PROFILE_STEP_KEY } from '@/lib/dataVersion'
 import { persistSessionRestoreProof } from '@/lib/client/sessionRestoreProofStorage'
 import { persistHomePowerFromProfile } from '@/lib/profile/homePower'
+import { clearOnboardingIntent } from '@/lib/profile/onboardingIntentCookie'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { browserCanTriggerScrapeSync, triggerOnboardingResearchBootstrap, triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
 import { buildResearchProfilePayload } from '@/lib/profile/buildResearchProfilePayload'
@@ -154,6 +155,30 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
   },
   {
     /**
+     * Children, and crucially their age band.
+     *
+     * "Who do you live with? → FAMILY" was previously doing this job and doing it badly: it
+     * describes a living arrangement, not whether children exist. An adult living with a parent
+     * answers FAMILY. The two entitlements that depend on this are worth roughly £483 (Healthy
+     * Start, needs an under-5) and £500 per child (free school meals, needs school age), so
+     * guessing wrong costs real money in both directions — showing them to a childless household
+     * wastes two of twelve slots, and hiding them from a family loses four figures a year.
+     */
+    id: 'children',
+    label: 'any kids at home?',
+    type: 'options' as const,
+    options: [
+      'NO',
+      { label: 'UNDER\n5', value: 'UNDER_5', ariaLabel: 'Children under five' },
+      { label: 'SCHOOL\nAGE', value: 'SCHOOL_AGE', ariaLabel: 'School age children' },
+      { label: 'BOTH', value: 'BOTH', ariaLabel: 'Both under five and school age' },
+    ],
+    getInsight: (v) =>
+      v === 'UNDER_5' ? 'under-fives unlock food and\nmilk support worth £483.' :
+      v === 'SCHOOL_AGE' || v === 'BOTH' ? 'school meals alone are worth\nabout £500 a child.' : null,
+  },
+  {
+    /**
      * Financial headroom — sets the ceiling on what a recommendation is allowed to cost before
      * it's worth showing. Employment status alone misses in-work poverty, which is why EMPLOYED
      * isn't a safe proxy for "can afford to act".
@@ -221,6 +246,7 @@ function syncLocalStorageFromServerUser(user: Record<string, unknown> | undefine
     setIfString(STORAGE_KEYS.washPreference, genome.wash_preference)
     setIfString(STORAGE_KEYS.flightFrequency, genome.flight_frequency)
     setIfString(STORAGE_KEYS.financialPressure, genome.financial_pressure)
+    setIfString(STORAGE_KEYS.children, genome.children)
     const goal = genome.profile_goal ?? genome.goal
     if (typeof goal === 'string' && goal.trim()) {
       try {
@@ -726,6 +752,7 @@ export default function ProfilePageClient() {
             wash_preference: mergedValues.washPreference?.trim() || undefined,
             flight_frequency: mergedValues.flightFrequency?.trim() || undefined,
             financial_pressure: mergedValues.financialPressure?.trim() || undefined,
+            children: mergedValues.children?.trim() || undefined,
           }
           const profileData = buildResearchProfilePayload(mergedValues, { postcode: pc })
 
@@ -798,6 +825,7 @@ export default function ProfilePageClient() {
             }
           }
 
+          clearOnboardingIntent()
           window.location.assign(dest)
         })().finally(() => {
           submittingRef.current = false
@@ -805,6 +833,7 @@ export default function ProfilePageClient() {
         })
         return
       }
+      clearOnboardingIntent()
       router.replace(dest)
 
       const payload = {
