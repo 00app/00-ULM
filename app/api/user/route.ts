@@ -95,6 +95,16 @@ export async function POST(request: NextRequest) {
       flightFrequencyRaw === 'THREE_PLUS'
         ? flightFrequencyRaw
         : null
+    const financialPressureRaw =
+      typeof body?.financial_pressure === 'string'
+        ? body.financial_pressure.trim().toUpperCase().slice(0, 16)
+        : ''
+    const financial_pressure =
+      financialPressureRaw === 'TIGHT' ||
+      financialPressureRaw === 'GETTING_BY' ||
+      financialPressureRaw === 'DOING_OK'
+        ? financialPressureRaw
+        : null
 
     const raw = {
       name: typeof body?.name === 'string' ? body.name.trim().slice(0, 200) : '',
@@ -121,14 +131,26 @@ export async function POST(request: NextRequest) {
       typeof body?.household_income_bracket === 'string'
         ? body.household_income_bracket.trim().slice(0, 50)
         : ''
+    /**
+     * TIGHT is allowed to force the low-income bracket, but DOING_OK is deliberately NOT allowed
+     * to force a high one. The asymmetry is the point: this is self-reported *pressure*, not
+     * income. Someone earning £60k with a large mortgage can honestly answer TIGHT, and the
+     * existing inference (which keys off employment status) misses exactly that in-work poverty
+     * case — so letting TIGHT through only ever ADDS grant/entitlement content, which is safe.
+     * "Doing OK" means unstressed, which is not the same as well paid; treating it as £50k+
+     * would strip means-tested content from someone on a modest income who actually qualifies.
+     * So the two easier answers fall through to the normal inference untouched.
+     */
+    const pressureImpliedBracket = financial_pressure === 'TIGHT' ? '<31k' : null
     const household_income_bracket =
       incomeRaw === '<31k' || incomeRaw === '31k-50k' || incomeRaw === '50k+'
         ? incomeRaw
-        : inferHouseholdIncomeBracket({
+        : (pressureImpliedBracket ??
+          inferHouseholdIncomeBracket({
             employment_status: raw.employment_status,
             age_group: raw.age_group,
             postcode: raw.postcode,
-          })
+          }))
     const primary_goal = profile_goal ? mapProfileGoalToPrimaryGoal(profile_goal) : null
     const genomeObj: Record<string, unknown> = {}
     if (raw.employment_status != null) genomeObj.employment_status = raw.employment_status
@@ -140,6 +162,7 @@ export async function POST(request: NextRequest) {
     if (home_ownership) genomeObj.home_ownership = home_ownership
     if (wash_preference) genomeObj.wash_preference = wash_preference
     if (flight_frequency) genomeObj.flight_frequency = flight_frequency
+    if (financial_pressure) genomeObj.financial_pressure = financial_pressure
     const genome = JSON.stringify(genomeObj)
 
     const insertParams = [

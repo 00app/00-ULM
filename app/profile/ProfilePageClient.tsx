@@ -152,6 +152,37 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
       { label: 'BETWEEN\nJOBS', value: 'BETWEEN_JOBS', ariaLabel: 'Between jobs' },
     ],
   },
+  {
+    /**
+     * Financial headroom — sets the ceiling on what a recommendation is allowed to cost before
+     * it's worth showing. Employment status alone misses in-work poverty, which is why EMPLOYED
+     * isn't a safe proxy for "can afford to act".
+     *
+     * Wording is deliberate: "TIGHT" is how people actually describe the situation, so it reads
+     * as a circumstance rather than an identity — nobody picks a button labelled BROKE, but
+     * plenty will pick this one. "GETTING BY" sits between: coping, but with no slack. Never
+     * reflect the chosen label back at the user anywhere in the UI.
+     */
+    id: 'financialPressure',
+    label: 'how\'s money?',
+    type: 'options' as const,
+    options: [
+      'TIGHT',
+      { label: 'GETTING\nBY', value: 'GETTING_BY', ariaLabel: 'Getting by' },
+      { label: 'DOING\nOK', value: 'DOING_OK', ariaLabel: 'Doing OK' },
+    ],
+    /**
+     * TIGHT lands on someone who has just admitted money is short, so it must point at money
+     * that is available to claim, never at hardship — a statistic about how bad things are for
+     * people without money would be miserable and would read as pity. £3,428 is the average
+     * annual entitlement going unclaimed per affected household (Policy in Practice, "Missing
+     * Out 2025", Sept 2025: £24bn unclaimed across ~7m UK households) — verify before editing.
+     */
+    getInsight: (v) =>
+      v === 'TIGHT' ? 'seven million homes miss out on\n£3,428 a year.' :
+      v === 'GETTING_BY' ? 'most of what we\'ll show you\ncosts nothing to do.' :
+      v === 'DOING_OK' ? 'good. we\'ll aim at waste,\nnot small sacrifices.' : null,
+  },
   { id: 'name', label: 'what should\nwe call you?', type: 'input' as const, placeholder: 'first name' },
 ]
 
@@ -189,6 +220,7 @@ function syncLocalStorageFromServerUser(user: Record<string, unknown> | undefine
     setIfString(STORAGE_KEYS.homeOwnership, genome.home_ownership)
     setIfString(STORAGE_KEYS.washPreference, genome.wash_preference)
     setIfString(STORAGE_KEYS.flightFrequency, genome.flight_frequency)
+    setIfString(STORAGE_KEYS.financialPressure, genome.financial_pressure)
     const goal = genome.profile_goal ?? genome.goal
     if (typeof goal === 'string' && goal.trim()) {
       try {
@@ -693,6 +725,7 @@ export default function ProfilePageClient() {
             home_ownership: mergedValues.homeOwnership?.trim() || undefined,
             wash_preference: mergedValues.washPreference?.trim() || undefined,
             flight_frequency: mergedValues.flightFrequency?.trim() || undefined,
+            financial_pressure: mergedValues.financialPressure?.trim() || undefined,
           }
           const profileData = buildResearchProfilePayload(mergedValues, { postcode: pc })
 

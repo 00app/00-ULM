@@ -15,6 +15,7 @@ export const PROFILE_STORAGE_KEYS = {
   flightFrequency: 'profile_flight_frequency',
   age: 'profile_age',
   employmentStatus: 'profile_employment_status',
+  financialPressure: 'profile_financial_pressure',
 } as const
 
 export type ProfileOnboardingFields = {
@@ -30,6 +31,14 @@ export type ProfileOnboardingFields = {
   flightFrequency?: string
   age?: string
   employmentStatus?: string
+  /**
+   * TIGHT | GETTING_BY | DOING_OK — self-reported financial headroom, used to cap how much a
+   * recommendation is allowed to cost before it's worth showing. Deliberately NOT part of
+   * `isProfileOnboardingCompleteFields`: that predicate gates whether someone has finished
+   * onboarding, so requiring a field no existing user has stored would flip every current
+   * account back to "incomplete" and re-run them through onboarding.
+   */
+  financialPressure?: string
   goal?: string
 }
 
@@ -77,6 +86,7 @@ export function profileFieldsFromStorage(): ProfileOnboardingFields {
     flightFrequency: read(PROFILE_STORAGE_KEYS.flightFrequency),
     age: read(PROFILE_STORAGE_KEYS.age),
     employmentStatus: read(PROFILE_STORAGE_KEYS.employmentStatus),
+    financialPressure: read(PROFILE_STORAGE_KEYS.financialPressure),
     goal: readStoredProfileGoal(),
   }
 }

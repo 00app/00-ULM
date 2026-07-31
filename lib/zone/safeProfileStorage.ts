@@ -73,6 +73,7 @@ export function readProfileFieldsFromStorage(): {
   wash_preference?: string
   flight_frequency?: string
   home_ownership?: string
+  financial_pressure?: string
 } {
   return {
     name: safeGetItem('profile_name') ?? undefined,
@@ -89,5 +90,6 @@ export function readProfileFieldsFromStorage(): {
     wash_preference: safeGetItem('profile_wash_preference') ?? undefined,
     flight_frequency: safeGetItem('profile_flight_frequency') ?? undefined,
     home_ownership: safeGetItem('profile_home_ownership') ?? undefined,
+    financial_pressure: safeGetItem('profile_financial_pressure') ?? undefined,
   }
 }
