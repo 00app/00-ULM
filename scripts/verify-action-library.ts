@@ -342,6 +342,64 @@ assert(
   `selected ${brokeRenterTwelve.length}, rendered ${gridJourneyCells.length}`
 )
 
+// --- Loop answers unlock and retire actions ----------------------------------------------
+// Loop answers are just more profile facts, so they gate identically to onboarding answers.
+// That's what makes the loop DO something: answering widens the pool and the newly-eligible top
+// action becomes the next card — drawn from the vetted library rather than generated on the fly,
+// which is how the old discovery cards ended up generic.
+const LOOPLESS: ActionProfile = { ...BROKE_RENTER }
+const poolBefore = eligibleActions(LOOPLESS, { month: 1 })
+const ANSWERED: ActionProfile = {
+  ...BROKE_RENTER,
+  loopAnswers: {
+    water_meter_save: 'NOT YET',
+    utilities_supplier_switch: 'NOT YET',
+    shopping_repair_first: 'NOT YET',
+  },
+}
+const poolAfter = eligibleActions(ANSWERED, { month: 1 })
+assert(
+  'answering loop questions unlocks new actions',
+  poolAfter.length > poolBefore.length,
+  `${poolBefore.length} -> ${poolAfter.length}`
+)
+// A loop unlock written as a soft gate unlocks nothing, because unanswered already passes — the
+// action was in the pool all along. Caught exactly that way in testing.
+const loopUnlocked = ZONE_ACTIONS.filter((a) => a.requires?.loop).map((a) => a.id)
+assert(
+  'loop-unlocked actions are hidden before the question is answered',
+  !poolBefore.some((a) => loopUnlocked.includes(a.id)),
+  poolBefore.filter((a) => loopUnlocked.includes(a.id)).map((a) => a.id).join(',')
+)
+assert(
+  'loop-unlocked actions appear once answered',
+  loopUnlocked.every((id) => poolAfter.some((a) => a.id === id)),
+  loopUnlocked.filter((id) => !poolAfter.some((a) => a.id === id)).join(',')
+)
+
+// Saying you already do something must retire the nudge for it.
+const COMPOSTS: ActionProfile = { ...BROKE_RENTER, loopAnswers: { waste_compost: 'YES' } }
+assert(
+  'a loop answer can retire an action',
+  !eligibleActions(COMPOSTS, { month: 1 }).some((a) => a.id === 'freegle-local-reuse')
+)
+// But silence must never retire anything — an unanswered question is not a "no".
+assert(
+  'an unanswered loop question never excludes',
+  eligibleActions(LOOPLESS, { month: 1 }).some((a) => a.id === 'freegle-local-reuse')
+)
+
+// --- Pool depth: ranking needs real choice ------------------------------------------------
+// With 15 candidates for 12 slots the wall was 80% forced regardless of who you were, which is
+// why distinct people were getting near-identical walls. Measured, not assumed.
+for (const [label, prof] of [
+  ['broke renter', BROKE_RENTER],
+  ['comfortable owner', COMFORTABLE_OWNER],
+] as Array<[string, ActionProfile]>) {
+  const pool = eligibleActions(prof, { month: 1 }).length
+  assert(`${label} has real choice (pool >= 20 for 12 slots)`, pool >= 20, `pool=${pool}`)
+}
+
 // --- Determinism ------------------------------------------------------------------------
 const runA = selectActionsForProfile(BROKE_RENTER, { month: 1 }).map((a) => a.id).join(',')
 const runB = selectActionsForProfile(BROKE_RENTER, { month: 1 }).map((a) => a.id).join(',')

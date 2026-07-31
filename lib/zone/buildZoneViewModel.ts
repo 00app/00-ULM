@@ -637,6 +637,25 @@ function resolveUserEfficientRate(args: {
   return Math.max(0, args.liveMarketRate * efficientFactor)
 }
 
+/**
+ * Loop answers live per-journey as `journey_<id>_answers`, but a loop questionId is globally
+ * unique, so the ranker consumes one flat map. Flattening here keeps the action library free of
+ * any knowledge of which journey a given nudge happened to be attached to — which matters,
+ * because at least one beat is filed under a different journey than its id suggests
+ * (`food_waste_cut` lives on the waste journey).
+ */
+function flattenLoopAnswers(
+  answers: Record<JourneyId, Record<string, string>>
+): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const perJourney of Object.values(answers ?? {})) {
+    for (const [questionId, value] of Object.entries(perJourney ?? {})) {
+      if (typeof value === 'string' && value.trim()) out[questionId] = value
+    }
+  }
+  return out
+}
+
 export function buildZoneViewModel({
   profile,
   journeyAnswers,
@@ -1247,6 +1266,8 @@ export function buildZoneViewModel({
           household: profile.household,
           children: profile.children,
           employment: profile.employment_status,
+          age: typeof profile.age === 'string' ? profile.age : undefined,
+          loopAnswers: flattenLoopAnswers(journeyAnswers),
           heating: profile.home_power,
           transport: profile.transport_baseline,
           wash: profile.wash_preference,

@@ -97,8 +97,10 @@ export type ActionGates = {
    * app had never actually asked about.
    */
   children?: string[]
-  /** Onboarding `employmentStatus` values. */
+  /** Onboarding `employmentStatus` values: STUDENT | EMPLOYED | BETWEEN_JOBS. */
   employment?: string[]
+  /** Onboarding `age` values: JUNIOR | MID | RETIRED. Unlocks pension-age entitlements. */
+  age?: string[]
   /** Onboarding `powerType` values. */
   heating?: string[]
   /** Onboarding `transport` values. */
@@ -107,6 +109,19 @@ export type ActionGates = {
   wash?: string[]
   /** UK nations this scheme actually operates in. Devolved schemes differ. */
   countries?: Array<'ENGLAND' | 'WALES' | 'SCOTLAND' | 'NORTHERN_IRELAND'>
+  /**
+   * Loop-question answers, keyed by questionId → accepted answer values.
+   *
+   * Loop answers are simply more profile facts, so they gate exactly like onboarding answers
+   * rather than living in a parallel system. That is what makes the loop *do* something: saying
+   * "not yet" to a nudge widens your eligible pool, and the newly-eligible top action becomes the
+   * next card you see. The card is therefore drawn from the vetted library with a real source and
+   * URL, instead of being generated on the spot — which is how the old discovery cards ended up
+   * generic.
+   *
+   * Values match LOOP_QUESTION_BANK option values exactly, e.g. { water_meter_save: ['NOT YET'] }.
+   */
+  loop?: Record<string, string[]>
 }
 
 export type ZoneAction = {
@@ -195,6 +210,9 @@ export type ActionProfile = {
   household?: string | null
   children?: string | null
   employment?: string | null
+  age?: string | null
+  /** questionId → answer value, from `journey_<id>_answers` in storage. */
+  loopAnswers?: Record<string, string> | null
   heating?: string | null
   transport?: string | null
   wash?: string | null

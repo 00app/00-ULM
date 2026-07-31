@@ -71,6 +71,27 @@ function gateMatches(allowed: string[] | undefined, value: string | null | undef
  * recorded should still see broadly-useful actions, but must never be *excluded* on the basis
  * of something we don't actually know about them.
  */
+/**
+ * Loop gate. An unanswered loop question behaves like any other unknown: it passes a relevance
+ * `gates` check and fails a hard `requires` check.
+ */
+function loopMatches(
+  spec: Record<string, string[]> | undefined,
+  answers: Record<string, string> | null | undefined,
+  strict: boolean
+): boolean {
+  if (!spec) return true
+  for (const [questionId, accepted] of Object.entries(spec)) {
+    const given = up(answers?.[questionId])
+    if (!given) {
+      if (strict) return false
+      continue
+    }
+    if (!accepted.some((a) => up(a) === given)) return false
+  }
+  return true
+}
+
 function gatesAllow(gates: ActionGates | undefined, p: ActionProfile): boolean {
   if (!gates) return true
   return (
@@ -79,10 +100,12 @@ function gatesAllow(gates: ActionGates | undefined, p: ActionProfile): boolean {
     gateMatches(gates.household, p.household) &&
     gateMatches(gates.children, p.children) &&
     gateMatches(gates.employment, p.employment) &&
+    gateMatches(gates.age, p.age) &&
     gateMatches(gates.heating, p.heating) &&
     gateMatches(gates.transport, p.transport) &&
     gateMatches(gates.wash, p.wash) &&
-    gateMatches(gates.countries, p.country)
+    gateMatches(gates.countries, p.country) &&
+    loopMatches(gates.loop, p.loopAnswers, false)
   )
 }
 
@@ -102,10 +125,12 @@ function requiresSatisfied(req: ActionGates | undefined, p: ActionProfile): bool
     matches(req.household, p.household) &&
     matches(req.children, p.children) &&
     matches(req.employment, p.employment) &&
+    matches(req.age, p.age) &&
     matches(req.heating, p.heating) &&
     matches(req.transport, p.transport) &&
     matches(req.wash, p.wash) &&
-    matches(req.countries, p.country)
+    matches(req.countries, p.country) &&
+    loopMatches(req.loop, p.loopAnswers, true)
   )
 }
 
@@ -123,10 +148,14 @@ function excluded(ex: ActionGates | undefined, p: ActionProfile): boolean {
     hit(ex.household, p.household) ||
     hit(ex.children, p.children) ||
     hit(ex.employment, p.employment) ||
+    hit(ex.age, p.age) ||
     hit(ex.heating, p.heating) ||
     hit(ex.transport, p.transport) ||
     hit(ex.wash, p.wash) ||
-    hit(ex.countries, p.country)
+    hit(ex.countries, p.country) ||
+    // Excluded when they actually gave the listed answer. Strict, so an unanswered loop question
+    // can never exclude — silence is not a reason to withhold something.
+    (ex.loop ? loopMatches(ex.loop, p.loopAnswers, true) : false)
   )
 }
 
@@ -169,6 +198,8 @@ export function scoreAction(a: ZoneAction, p: ActionProfile): number {
     if (g.tenure && matches(g.tenure, p.tenure)) score += 6
     if (g.household && matches(g.household, p.household)) score += 8
     if (g.children && matches(g.children, p.children)) score += 10
+    if (g.employment && matches(g.employment, p.employment)) score += 8
+    if (g.age && matches(g.age, p.age)) score += 8
     if (g.heating && matches(g.heating, p.heating)) score += 6
     if (g.transport && matches(g.transport, p.transport)) score += 6
     if (g.wash && matches(g.wash, p.wash)) score += 4
