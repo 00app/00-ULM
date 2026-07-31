@@ -32,11 +32,10 @@ export type ProfileOnboardingFields = {
   age?: string
   employmentStatus?: string
   /**
-   * TIGHT | GETTING_BY | DOING_OK — self-reported financial headroom, used to cap how much a
-   * recommendation is allowed to cost before it's worth showing. Deliberately NOT part of
-   * `isProfileOnboardingCompleteFields`: that predicate gates whether someone has finished
-   * onboarding, so requiring a field no existing user has stored would flip every current
-   * account back to "incomplete" and re-run them through onboarding.
+   * TIGHT | GETTING_BY | DOING_OK — self-reported financial headroom. This is the ceiling on
+   * what a recommendation is allowed to cost before it's worth showing at all, so the action
+   * ranker treats it as always present rather than carrying a null path through every score.
+   * Required in `isProfileOnboardingCompleteFields` for that reason.
    */
   financialPressure?: string
   goal?: string
@@ -60,6 +59,7 @@ export function isProfileOnboardingCompleteFields(v: ProfileOnboardingFields): b
     Boolean(v.flightFrequency?.trim()) &&
     Boolean(v.age?.trim()) &&
     Boolean(v.employmentStatus?.trim()) &&
+    Boolean(v.financialPressure?.trim()) &&
     Boolean(resolveProfileGoalFromFields(v))
   )
 }
@@ -141,6 +141,10 @@ export function userRowOnboardingComplete(row: UserOnboardingRow | null | undefi
     (typeof row.age_group === 'string' && row.age_group.trim()) ||
     (typeof genome.age_group === 'string' && genome.age_group.trim()) ||
     ''
+  const financialPressure =
+    (typeof genome.financial_pressure === 'string' && genome.financial_pressure.trim()) ||
+    (typeof genome.financialPressure === 'string' && genome.financialPressure.trim()) ||
+    ''
 
   return isProfileOnboardingCompleteFields({
     name: row.name ?? undefined,
@@ -154,6 +158,7 @@ export function userRowOnboardingComplete(row: UserOnboardingRow | null | undefi
     flightFrequency: flightFrequency || undefined,
     age: age || undefined,
     employmentStatus: row.employment_status ?? undefined,
+    financialPressure: financialPressure || undefined,
     goal: goal || undefined,
   })
 }
@@ -173,6 +178,7 @@ export function guestProfileOnboardingComplete(profile: unknown): boolean {
     flightFrequency: String(p.flight_frequency ?? p.flightFrequency ?? ''),
     age: String(p.age ?? p.age_group ?? ''),
     employmentStatus: String(p.employment_status ?? p.employmentStatus ?? ''),
+    financialPressure: String(p.financial_pressure ?? p.financialPressure ?? ''),
     goal: String(p.goal ?? ''),
   })
 }

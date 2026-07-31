@@ -46,11 +46,16 @@ const BASE_PROFILE = {
   flightFrequency: 'ONE_TWO',
   age: 'MID',
   employmentStatus: 'EMPLOYED',
+  financialPressure: 'GETTING_BY',
   goal: 'money',
 }
 
 assert('onboarding complete requires all fields + goal', isProfileOnboardingCompleteFields(BASE_PROFILE))
 assert('onboarding rejects missing goal', !isProfileOnboardingCompleteFields({ ...BASE_PROFILE, goal: '' }))
+assert(
+  'onboarding rejects missing financial pressure',
+  !isProfileOnboardingCompleteFields({ ...BASE_PROFILE, financialPressure: '' })
+)
 assert('postcode validation accepts UK format', isValidUkPostcode('M11AG'))
 
 for (const goal of ['money', 'carbon', 'balanced'] as const) {
