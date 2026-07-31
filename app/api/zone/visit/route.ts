@@ -17,6 +17,7 @@ import {
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import type { JourneyId } from '@/lib/journeys'
 import { normalizeCategoryToJourneyKey } from '@/lib/zone/trustedJourneyUrls'
+import { ZONE_ACTIONS } from '@/lib/actions/actionLibrary'
 
 export const runtime = 'nodejs'
 
@@ -24,6 +25,11 @@ function journeyFromCardId(cardId: string): JourneyId | null {
   const id = cardId.trim()
   if (id.startsWith('journey-')) {
     const j = id.slice('journey-'.length)
+    // Ranked wall cards are keyed on action id, not category. Without this lookup they fall
+    // through to normalizeCategoryToJourneyKey, which returns 'home' for anything it doesn't
+    // recognise — so every visit on the ranked wall was being recorded against HOME.
+    const action = ZONE_ACTIONS.find((a) => a.id === j)
+    if (action) return action.bucket
     return normalizeCategoryToJourneyKey(j)
   }
   const m = id.match(/^tip-([a-z]+)$/i)
