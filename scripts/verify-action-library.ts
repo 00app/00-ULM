@@ -7,8 +7,9 @@
  * review and only shows up in front of a real user, so they get asserted here instead.
  */
 
-import { ZONE_ACTIONS } from '@/lib/actions/actionLibrary'
+import { ZONE_ACTIONS, isValidZoneCardSlug } from '@/lib/actions/actionLibrary'
 import { selectActionsForProfile, eligibleActions } from '@/lib/actions/selectActions'
+import { actionsToJourneyCards } from '@/lib/actions/actionCards'
 import type { ActionProfile } from '@/lib/actions/actionTypes'
 
 type Check = { name: string; pass: boolean; detail?: string }
@@ -137,6 +138,45 @@ const january = eligibleActions(BROKE_RENTER, { month: 1 })
 assert(
   'seasonal scheme returns in window',
   january.some((a) => a.id === 'warm-home-discount')
+)
+
+// --- Card mapping -----------------------------------------------------------------------
+const cards = actionsToJourneyCards(brokeRenterTwelve)
+assert('every action maps to a card', cards.length === brokeRenterTwelve.length)
+
+const cardIds = cards.map((c) => c.id)
+assert('card ids are unique', new Set(cardIds).size === cardIds.length, cardIds.join(','))
+
+// A ranked wall can hold several cards from one bucket, so every card must be addressable by
+// the /zone/card/[journeyKey] route or deep links and the back button silently 404.
+assert(
+  'every card id resolves as a route slug',
+  brokeRenterTwelve.every((a) => isValidZoneCardSlug(a.id)),
+  brokeRenterTwelve.filter((a) => !isValidZoneCardSlug(a.id)).map((a) => a.id).join(',')
+)
+
+// The exact bug found on the live wall: a card badged "DEFRA AVIATION FACTORS" whose button
+// opened eurostar.com. Deriving the badge from the destination host makes it unrepresentable.
+assert(
+  'source badge always matches the destination host',
+  cards.every((c) => {
+    const host = new URL(c.actions!.learnUrl).hostname.replace(/^www\./i, '').toUpperCase()
+    return c.source_name === host
+  }),
+  cards.map((c) => `${c.source_name}->${c.actions!.learnUrl}`).slice(0, 3).join(' ')
+)
+
+assert(
+  'every card links to its action url',
+  cards.every((c) => c.actions?.learnUrl && c.actions.learnUrl.startsWith('https://'))
+)
+assert(
+  'claim cards carry a claim url',
+  cards.filter((c) => c.isPriorityAlert).every((c) => Boolean(c.claimOfferUrl))
+)
+assert(
+  'every card carries explanation text',
+  cards.every((c) => (c.explanation?.[0]?.length ?? 0) > 20)
 )
 
 // --- Determinism ------------------------------------------------------------------------

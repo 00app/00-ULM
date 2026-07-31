@@ -48,6 +48,8 @@ import {
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { trustedUrlForJourney, trustedUrlLabelForJourney } from '@/lib/zone/trustedJourneyUrls'
+import { selectActionsForProfile } from '@/lib/actions/selectActions'
+import { actionsToJourneyCards } from '@/lib/actions/actionCards'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import {
   VERIFIED_SOURCE_DATE,
@@ -662,6 +664,8 @@ export function buildZoneViewModel({
     flight_frequency?: string
     /** OWNER/RENTER — same field the loft-insulation loop-question gate uses. */
     home_ownership?: string
+    /** TIGHT/GETTING_BY/DOING_OK — caps what a recommendation may cost before it's worth a slot. */
+    financial_pressure?: string
   }
   journeyAnswers: Record<JourneyId, Record<string, string>>
   /** S UPDATE: optional scraped data from 001 Scraper (`scraped_summary` / DB). Partial = only some journeys may have data. */
@@ -1211,8 +1215,38 @@ export function buildZoneViewModel({
   ]
   void generalCards // legacy 9+3 fillers; 13-domain wall uses `journeyCards` only
 
-  /** Act-now wall: 13 journey tiles (`app/zone` filters `journey-*`). */
-  const journeys: ZoneJourneyCard[] = journeyCards
+  /**
+   * Act-now wall.
+   *
+   * Profiled users get the ranked action wall: the twelve highest-scoring library actions that
+   * survive their exclusions and cost ceiling. Guests keep the category wall, because with no
+   * profile there is nothing to rank against and the twelve categories are a reasonable shape
+   * for "here is what this app covers".
+   *
+   * This is the pivot away from one-card-per-category. Filling a fixed slot per category is what
+   * forced the copy generic in the first place — a renter got a SOLAR card and a non-driver got a
+   * TRAVEL card, and the only text that fits every reader is text vague enough to say nothing.
+   *
+   * Gated on the financial answer specifically, not on "a profile object exists". A partially
+   * filled profile (postcode only, say) has told us nothing rankable, and ranking against blanks
+   * produces a wall that ignores tenure and cost — the exact failure this pivot exists to remove.
+   * financial_pressure is the right sentinel because it is required to complete onboarding and it
+   * is the field that sets the cost ceiling, so its absence means we cannot rank responsibly yet.
+   */
+  const rankedActions =
+    profile && profile.financial_pressure?.trim()
+      ? selectActionsForProfile({
+          tenure: profile.home_ownership,
+          financial: profile.financial_pressure,
+          household: profile.household,
+          employment: profile.employment_status,
+          heating: profile.home_power,
+          transport: profile.transport_baseline,
+          wash: profile.wash_preference,
+        })
+      : []
+  const journeys: ZoneJourneyCard[] =
+    rankedActions.length > 0 ? actionsToJourneyCards(rankedActions) : journeyCards
 
   // TIPS - Top 3 journeys by carbon impact
   // Special case: If home provider is not green, add switching tip

@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { isValidJourneyId } from '@/lib/journeys'
+import { isValidZoneCardSlug } from '@/lib/actions/actionLibrary'
 import ZonePage from '@/app/zone/page'
 
 /**
@@ -14,6 +14,8 @@ export default async function ZoneCardFallbackPage({
   params: Promise<{ journeyKey: string }>
 }) {
   const { journeyKey } = await params
-  if (!isValidJourneyId(journeyKey)) notFound()
+  // Accepts a category slug (guest wall) or an action id (ranked wall) — a ranked wall can hold
+  // several cards from one category, so cards are addressed by action.
+  if (!isValidZoneCardSlug(journeyKey)) notFound()
   return <ZonePage initialExpandedCardId={`journey-${journeyKey}`} />
 }

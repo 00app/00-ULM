@@ -1702,6 +1702,7 @@ export default function ZonePage({
         wash_preference: profile.wash_preference,
         flight_frequency: profile.flight_frequency,
         home_ownership: profile.home_ownership,
+        financial_pressure: profile.financial_pressure,
       },
       journeyAnswers,
       scraped: scraped ? Object.fromEntries(
@@ -1772,6 +1773,7 @@ export default function ZonePage({
           wash_preference: profile.wash_preference,
           flight_frequency: profile.flight_frequency,
           home_ownership: profile.home_ownership,
+          financial_pressure: profile.financial_pressure,
           property_intelligence_confidence:
             typeof window !== 'undefined'
               ? localStorage.getItem('property_intelligence_confidence') ?? undefined
@@ -1922,6 +1924,7 @@ export default function ZonePage({
         wash_preference: profile.wash_preference,
         flight_frequency: profile.flight_frequency,
         home_ownership: profile.home_ownership,
+        financial_pressure: profile.financial_pressure,
       },
       journeyAnswers,
       scraped: scraped

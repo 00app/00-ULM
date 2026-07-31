@@ -19,6 +19,19 @@
  */
 
 import type { ZoneAction } from '@/lib/actions/actionTypes'
+import { isValidJourneyId } from '@/lib/journeys'
+
+/**
+ * Card slugs the `/zone/card/[journeyKey]` route must resolve. A ranked wall can return several
+ * cards from the same bucket, so cards are addressed by action id; the legacy per-category slugs
+ * stay valid for the guest wall.
+ */
+export function isValidZoneCardSlug(slug: string): boolean {
+  const s = String(slug ?? '').trim()
+  if (!s) return false
+  if (isValidJourneyId(s)) return true
+  return ZONE_ACTIONS.some((a) => a.id === s)
+}
 
 export const ZONE_ACTIONS: ZoneAction[] = [
   // ---------------------------------------------------------------------------------------

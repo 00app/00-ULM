@@ -136,3 +136,16 @@ export function normalizeTenure(v: string | null | undefined): Tenure | null {
   const s = String(v ?? '').trim().toUpperCase()
   return s === 'OWNER' || s === 'RENTER' ? s : null
 }
+
+/**
+ * Financial pressure → cost ceiling, but only ever DOWNWARD from what the user said.
+ *
+ * Kept here rather than in the ranker so the onboarding answer has exactly one interpretation
+ * across the codebase. See the matching asymmetry note in app/api/user/route.ts: TIGHT is
+ * allowed to restrict, but "doing OK" is never allowed to be read as "can afford anything",
+ * because it reports absence of stress, not disposable income.
+ */
+export function affordableCosts(v: string | null | undefined): ActionCost[] {
+  const fin = normalizeFinancialPressure(v)
+  return fin ? COST_CEILING[fin] : COST_CEILING.GETTING_BY
+}
