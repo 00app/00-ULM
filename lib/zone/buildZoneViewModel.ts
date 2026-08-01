@@ -1277,6 +1277,47 @@ export function buildZoneViewModel({
   const journeys: ZoneJourneyCard[] =
     rankedActions.length > 0 ? actionsToJourneyCards(rankedActions) : journeyCards
 
+  /**
+   * Hero totals must equal the wall the user is actually looking at.
+   *
+   * The hero is assembled ~370 lines above this point, long before the ranked wall exists, from
+   * `dynamicTotals` — a sum across all twelve category calculators. For a ranked user those are
+   * two unrelated systems: measured on a broke-renter profile the hero claimed £4.1k while the
+   * twelve cards below it summed to £8,688. Neither figure could be checked against the other,
+   * and a headline number that doesn't match the list under it is exactly what reads as invented.
+   *
+   * Some of that £4.1k also came from calculators keyed to onboarding fields that are defined in
+   * lib/journeys.ts but never rendered anywhere, so they were returning defaults dressed up as
+   * personalised numbers.
+   *
+   * When the wall is ranked, the headline is now the sum of what's on it, and "biggest win" is
+   * the top card — both arithmetic the user could do themselves.
+   */
+  if (rankedActions.length > 0) {
+    const shownMoney = journeys.reduce((sum, j) => sum + Math.max(0, j.moneyGbp ?? 0), 0)
+    const shownCarbon = journeys.reduce((sum, j) => sum + Math.max(0, j.carbonKg ?? 0), 0)
+    const top = journeys[0]
+    hero = {
+      ...hero,
+      journey_key: top?.journey_key ?? hero.journey_key,
+      category: top?.category ?? hero.category,
+      data: {
+        money: formatZoneCardMoney(shownMoney),
+        carbon: formatCarbon(shownCarbon),
+      },
+      explanation: [
+        ...baseExplanation,
+        ...(top && (top.moneyGbp ?? 0) > 0
+          ? [
+              `Biggest annual win right now: ${formatZoneCardMoney(top.moneyGbp ?? 0)} in ${String(
+                top.journey_key
+              ).toUpperCase()}.`,
+            ]
+          : []),
+      ],
+    }
+  }
+
   // TIPS - Top 3 journeys by carbon impact
   // Special case: If home provider is not green, add switching tip
   const homeAnswers = journeyAnswers.home || {}
