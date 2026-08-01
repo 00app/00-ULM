@@ -462,6 +462,13 @@ export const OPTION_FULL_LABELS: Record<string, string> = {
   LONG_HAUL: 'Long haul',
   ONE_TO_THREE: '1–3 years',
   THIS_YEAR: 'This year',
+  // Financial pressure and children. The generic fallback title-cases each word, which would
+  // render DOING_OK as "Doing Ok", and settings shows these back to the user.
+  TIGHT: 'Tight',
+  GETTING_BY: 'Getting by',
+  DOING_OK: 'Doing OK',
+  UNDER_5: 'Under 5',
+  SCHOOL_AGE: 'School age',
 }
 
 export function getOptionFullLabel(opt: string): string {

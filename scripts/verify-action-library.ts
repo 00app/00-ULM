@@ -11,6 +11,7 @@ import { ZONE_ACTIONS, isValidZoneCardSlug } from '@/lib/actions/actionLibrary'
 import { selectActionsForProfile, eligibleActions } from '@/lib/actions/selectActions'
 import { actionsToJourneyCards } from '@/lib/actions/actionCards'
 import { buildGroovyGridItems } from '@/lib/zone/gridOrder'
+import { applyArchitectEnrichment } from '@/lib/agents/contentArchitect'
 import type { ActionProfile } from '@/lib/actions/actionTypes'
 
 type Check = { name: string; pass: boolean; detail?: string }
@@ -399,6 +400,48 @@ for (const [label, prof] of [
   const pool = eligibleActions(prof, { month: 1 }).length
   assert(`${label} has real choice (pool >= 20 for 12 slots)`, pool >= 20, `pool=${pool}`)
 }
+
+// --- Library cards survive the older enrichment pipeline ----------------------------------
+// Second time a category-keyed rewrite has broken the ranked wall. applyArchitectEnrichment maps
+// by journey_key, so with several cards in a category every one got the SAME payload stamped on
+// it: identical titles on cards showing different £ values, old generated copy over verified
+// library copy, and source_name overwritten independently of the URL it is supposed to describe.
+const enriched = applyArchitectEnrichment(
+  {
+    hero: {} as never,
+    journeys: actionsToJourneyCards(brokeRenterTwelve),
+    tips: [],
+    primaryMoneyJourneyKeys: [],
+  },
+  // A payload for every journey, i.e. the worst case.
+  Object.fromEntries(
+    brokeRenterTwelve.map((a) => [
+      a.bucket,
+      {
+        headline: 'GENERATED HEADLINE THAT MUST NOT APPEAR',
+        insight: 'generated',
+        actionLine: 'generated',
+        suppliedBy: 'WRONG.COM',
+      },
+    ])
+  )
+)
+assert(
+  'enrichment never overwrites library card titles',
+  enriched.journeys.every((j) => !j.title.includes('MUST NOT APPEAR')),
+  enriched.journeys.filter((j) => j.title.includes('MUST NOT APPEAR')).map((j) => j.id).join(',')
+)
+assert(
+  'enrichment never overwrites the library source badge',
+  enriched.journeys.every((j) => j.source_name !== 'WRONG.COM')
+)
+// The real user-visible symptom: same copy on cards with different values.
+const enrichedTitles = enriched.journeys.map((j) => j.title)
+assert(
+  'no two library cards share a title',
+  new Set(enrichedTitles).size === enrichedTitles.length,
+  enrichedTitles.join(' | ')
+)
 
 // --- Determinism ------------------------------------------------------------------------
 const runA = selectActionsForProfile(BROKE_RENTER, { month: 1 }).map((a) => a.id).join(',')

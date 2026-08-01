@@ -29,6 +29,7 @@ import {
 import { TRUSTED_JOURNEY_URLS } from '@/lib/zone/trustedJourneyUrls'
 import { collapseDuplicateProseParagraphs, dedupeTrueTipParagraphs } from '@/lib/soloFocusCopy'
 import { polishWarmAuditorProse } from '@/lib/zone/warmAuditorCopy'
+import { isLibraryActionCardId } from '@/lib/actions/actionLibrary'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import {
   sanitizeArchitectProseForJourney,
@@ -504,6 +505,19 @@ export function applyArchitectEnrichment(
     ...vm,
     journeys: vm.journeys.map((j) => {
       if (!j.id.startsWith('journey-')) return j
+      /**
+       * Library-backed cards are never enriched.
+       *
+       * This map is keyed on journey_key, which was safe when the wall held exactly one card per
+       * category. The ranked wall can hold several, so every card in a category was being stamped
+       * with the SAME architect payload — identical titles on cards with different £ values, and
+       * old generated copy pasted over verified library copy. Live symptom: two MONEY cards both
+       * reading "move idle cash to a better rate" while showing £3,428 and £1,200.
+       *
+       * It also overwrote source_name and the offer URLs independently of each other, which
+       * breaks the guarantee that a card's badge names the host its button actually opens.
+       */
+      if (isLibraryActionCardId(j.id)) return j
       const key = j.journey_key
       if (skip.has(key)) return j
       const arch = byJourney[key]

@@ -42,6 +42,8 @@ const PROFILE_STORAGE_KEYS = {
   age: 'age',
   employmentStatus: 'employmentStatus',
   homePower: 'homePower',
+  children: 'children',
+  financialPressure: 'financialPressure',
 } as const
 
 type ProfileStorageKey = keyof typeof PROFILE_STORAGE_KEYS
@@ -59,6 +61,11 @@ const PROFILE_FIELD_META: Array<{
   { id: 'age', storageKey: 'age', aria: 'Age' },
   { id: 'employmentStatus', storageKey: 'employmentStatus', aria: 'Employment' },
   { id: 'homePower', storageKey: 'homePower', aria: 'Home power' },
+  // Both drive the ranked wall directly — children gates the child entitlements and financial
+  // pressure sets the cost ceiling on everything — so they have to be editable here. Without a
+  // row, a first answer would be permanent and the wall frozen on it forever.
+  { id: 'children', storageKey: 'children', aria: 'Children at home' },
+  { id: 'financialPressure', storageKey: 'financialPressure', aria: 'Money situation' },
 ]
 
 function formatProfilePreviewValue(key: ProfileStorageKey, raw: string): string {
@@ -201,7 +208,13 @@ export default function SettingsPage() {
       const employmentStatus =
         p.employmentStatus?.trim() ||
         (typeof window !== 'undefined' && hasMounted ? localStorage.getItem('profile_employment_status') ?? '' : '')
-      return { ...p, homePower, employmentStatus }
+      const children =
+        (typeof window !== 'undefined' && hasMounted ? localStorage.getItem('profile_children') ?? '' : '')
+      const financialPressure =
+        (typeof window !== 'undefined' && hasMounted
+          ? localStorage.getItem('profile_financial_pressure') ?? ''
+          : '')
+      return { ...p, homePower, employmentStatus, children, financialPressure }
     }
     if (typeof window === 'undefined' || !hasMounted) return null
     const name = localStorage.getItem('profile_name') ?? ''
@@ -213,7 +226,20 @@ export default function SettingsPage() {
     if (!name && !postcode) return null
     const employmentStatus = localStorage.getItem('profile_employment_status') ?? ''
     const homePower = localStorage.getItem('profile_home_power') ?? ''
-    return { name, postcode, livingSituation, homeType, transport, age, employmentStatus, homePower }
+    const children = localStorage.getItem('profile_children') ?? ''
+    const financialPressure = localStorage.getItem('profile_financial_pressure') ?? ''
+    return {
+      name,
+      postcode,
+      livingSituation,
+      homeType,
+      transport,
+      age,
+      employmentStatus,
+      homePower,
+      children,
+      financialPressure,
+    }
   }, [state.profile, hasMounted, refreshKey])
 
   const profileRows = useMemo(() => {
@@ -227,6 +253,8 @@ export default function SettingsPage() {
       age: profileForOverview.age ?? '',
       employmentStatus: profileForOverview.employmentStatus ?? '',
       homePower: profileForOverview.homePower ?? '',
+      children: profileForOverview.children ?? '',
+      financialPressure: profileForOverview.financialPressure ?? '',
     }
     return PROFILE_FIELD_META.flatMap(({ id, storageKey, aria }) => {
       const raw = map[storageKey]?.trim()

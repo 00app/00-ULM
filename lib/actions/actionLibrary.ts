@@ -26,6 +26,20 @@ import { isValidJourneyId } from '@/lib/journeys'
  * cards from the same bucket, so cards are addressed by action id; the legacy per-category slugs
  * stay valid for the guest wall.
  */
+/**
+ * True for a wall card built from the action library (`journey-<actionId>`).
+ *
+ * Used to hold the older enrichment pipelines off these cards. They already carry copy that was
+ * written against a cited source, a £ figure traceable to it, and a badge derived from the link's
+ * own host — so anything that rewrites them by category can only make them wrong.
+ */
+export function isLibraryActionCardId(cardId: string): boolean {
+  const id = String(cardId ?? '').trim()
+  if (!id.startsWith('journey-')) return false
+  const actionId = id.slice('journey-'.length)
+  return ZONE_ACTIONS.some((a) => a.id === actionId)
+}
+
 export function isValidZoneCardSlug(slug: string): boolean {
   const s = String(slug ?? '').trim()
   if (!s) return false
