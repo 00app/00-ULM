@@ -1,6 +1,11 @@
 /**
  * Clear Zone / Solo Focus client caches when profile postcode changes so research
  * from the previous location does not bleed into the new VM.
+ *
+ * The rule for what goes and what stays: does this describe the PLACE or the PERSON? Local
+ * research, council context, locality labels and grid figures are place-scoped and must be
+ * dropped. Loop answers, likes and completions describe the person and follow them to the new
+ * address — dropping those is silent data loss, not cache hygiene.
  */
 import { clearProfileLocalityCache } from '@/lib/geocode/resolvePostcodeLocality'
 import { RESEARCH_USER_ID_STORAGE_KEY } from '@/lib/zone/garyMode'
@@ -57,7 +62,20 @@ export function clearZoneVmLocalCache(opts?: { preservePostcode?: string }): voi
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i)
       if (!k) continue
-      if (k.startsWith('journey_') && k.endsWith('_answers')) drop.push(k)
+      /**
+       * Loop answers survive a house move.
+       *
+       * These keys were being dropped wholesale, which quietly destroyed every loop answer the
+       * moment someone corrected or changed their postcode. That mattered little when loop
+       * answers only fed a badge; they now gate the action library, so wiping them silently
+       * removes cards the user had unlocked and resets progress they can see.
+       *
+       * The distinction is whether an answer is about the PLACE or about the PERSON. Local
+       * research, council context and grid figures are about the place and must go. Whether you
+       * compost, repair before replacing, or have already switched supplier is about you, and is
+       * just as true at the new address.
+       */
+      if (k.startsWith('journey_') && k.endsWith('_answers')) continue
       if (LOCAL_PREFIX_DROP.some((p) => k.startsWith(p))) drop.push(k)
     }
     drop.forEach((k) => localStorage.removeItem(k))
