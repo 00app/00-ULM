@@ -178,6 +178,7 @@ import {
 } from '@/lib/zone/offerPreference'
 import { OFFER_PREFERENCE_CHANGED_EVENT } from '@/lib/zone/offerSignals'
 import { filterHabitsByProfile, prepareRockHabitsForRail } from '@/lib/zone/filterRockHabits'
+import { selectTipHabits } from '@/lib/actions/actionTips'
 import { capRockHabitsPerJourney } from '@/lib/zone/perCategoryCardCap'
 import { buildRemoteBehavioralZoneTips } from '@/lib/zone/remoteBehavioralZoneTips'
 import {
@@ -2500,6 +2501,56 @@ export default function ZonePage({
   }, [researchCategoryCoverage])
 
   const rockHabitsWithOffers = useMemo(() => {
+    /**
+     * Library-first tips.
+     *
+     * The Rock catalog is 68 hand-written habits, only 22 of which carry any profile gate, rotated
+     * on day index and season alone. It cannot see tenure, money or employment, so it would happily
+     * show "greywater plants, SAVE £0" to a renter who told us money is tight — ungated, unsourced,
+     * and worth nothing. Its own header calls its figures "indicative". Running two provenance
+     * standards on one screen is what made the whole wall read as guesswork.
+     *
+     * Tips keep a distinct job — the small timely thing, not the big claim — so they're drawn from
+     * the same gated pool but filtered to what's actually doable at this hour, and exclude anything
+     * already on the wall below so the strip never echoes the grid.
+     *
+     * Falls through to the Rock rail when we can't rank (guest / partial profile), which keeps the
+     * row populated rather than empty.
+     */
+    const canRank = Boolean(profileFieldsFromStorage().financialPressure?.trim())
+    if (canRank) {
+      const stored = profileFieldsFromStorage()
+      const onWall = viewModel.journeys
+        .filter((c) => c.id.startsWith('journey-'))
+        .map((c) => c.id.slice('journey-'.length))
+      const libraryTips = selectTipHabits(
+        {
+          tenure: stored.homeOwnership,
+          financial: stored.financialPressure,
+          household: stored.livingSituation,
+          children: stored.children,
+          employment: stored.employmentStatus,
+          age: stored.age,
+          heating: stored.powerType,
+          transport: stored.transport,
+          wash: stored.washPreference,
+        },
+        {
+          // Computed here rather than reusing the `tipsTimeOfDay` heading variable, which is
+          // declared further down the component. Same source, same 08:00/14:00/18:00 cutoffs.
+          timeOfDay: (hydrated ? getTipsTimeOfDay() : undefined) as
+            | 'morning'
+            | 'afternoon'
+            | 'evening'
+            | undefined,
+          excludeIds: onWall,
+          limit: MAX_ROCK_SAVING_TIPS_RAIL,
+        }
+      )
+      if (libraryTips.length > 0) {
+        return libraryTips.map((h) => mergeRockHabitWithJourneyOffer(h, rockOfferByJourney[h.journey_key]))
+      }
+    }
     let deduped = prepareRockHabitsForRail(
       rockVisibleHabits,
       viewModel,
@@ -2529,6 +2580,9 @@ export default function ZonePage({
     rockVisibleHabits,
     rockOfferByJourney,
     viewModel,
+    // Without this the strip keeps showing morning tips into the evening — the row is chosen by
+    // what's actionable at this hour, so the hour boundary has to be a dependency.
+    hydrated,
     state.profile?.goal,
     state.profile?.homeType,
     state.profile?.transport,

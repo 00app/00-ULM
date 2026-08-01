@@ -12,6 +12,7 @@ import { selectActionsForProfile, eligibleActions } from '@/lib/actions/selectAc
 import { actionsToJourneyCards } from '@/lib/actions/actionCards'
 import { buildGroovyGridItems } from '@/lib/zone/gridOrder'
 import { applyArchitectEnrichment } from '@/lib/agents/contentArchitect'
+import { selectTipActions } from '@/lib/actions/actionTips'
 import type { ActionProfile } from '@/lib/actions/actionTypes'
 
 type Check = { name: string; pass: boolean; detail?: string }
@@ -441,6 +442,48 @@ assert(
   'no two library cards share a title',
   new Set(enrichedTitles).size === enrichedTitles.length,
   enrichedTitles.join(' | ')
+)
+
+// --- Tips row --------------------------------------------------------------------------
+// Replaces the Rock catalog for ranked users: 68 habits, only 22 gated, rotated on day index and
+// season, with figures its own header calls "indicative". That path produced "greywater plants,
+// SAVE £0" for a renter who had said money was tight.
+const tipsAfternoon = selectTipActions(BROKE_RENTER, { timeOfDay: 'afternoon', month: 1 })
+const tipsEvening = selectTipActions(BROKE_RENTER, { timeOfDay: 'evening', month: 1 })
+assert('tips strip fills', tipsAfternoon.length === 3, `got ${tipsAfternoon.length}`)
+
+// "SAVE £0" in a three-slot strip reads as the app having nothing to say. On the wall a £0 card
+// can still earn its place on carbon or protection; here it cannot.
+assert(
+  'tips never show a zero-value action',
+  selectTipActions(BROKE_RENTER, { month: 1, limit: 50 }).every((a) => a.valueGbp > 0)
+)
+
+// A tip telling someone to ring their council at 9pm is worse than no tip.
+assert(
+  'afternoon tips are the ones needing office hours',
+  tipsAfternoon.every((a) => a.verb === 'CLAIM' || a.verb === 'SWITCH'),
+  tipsAfternoon.map((a) => `${a.id}:${a.verb}`).join(',')
+)
+assert(
+  'evening tips differ from afternoon tips',
+  tipsEvening.map((a) => a.id).join(',') !== tipsAfternoon.map((a) => a.id).join(',')
+)
+
+// A tip repeating a card directly below it is noise.
+const wallIds = brokeRenterTwelve.map((a) => a.id)
+assert(
+  'tips never echo the wall',
+  !selectTipActions(BROKE_RENTER, { month: 1, excludeIds: wallIds }).some((a) =>
+    wallIds.includes(a.id)
+  )
+)
+
+// Different people, different tips — the thing the Rock rotation could not do.
+assert(
+  'tips are personalised, not rotated',
+  selectTipActions(BROKE_RENTER, { timeOfDay: 'morning', month: 1 }).map((a) => a.id).join(',') !==
+    selectTipActions(COMFORTABLE_OWNER, { timeOfDay: 'morning', month: 1 }).map((a) => a.id).join(',')
 )
 
 // --- Determinism ------------------------------------------------------------------------
