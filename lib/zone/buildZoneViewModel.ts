@@ -49,6 +49,8 @@ import { dedupeZoneTipCards } from '@/lib/zone/injections'
 import { sanitizeZoneOfferUrl } from '@/lib/zone/offerUrlGuard'
 import { trustedUrlForJourney, trustedUrlLabelForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { selectActionsForProfile } from '@/lib/actions/selectActions'
+import { selectCrisisRoutes, isCrisisGoal } from '@/lib/actions/selectCrisisRoutes'
+import { crisisRoutesToCards } from '@/lib/actions/crisisCards'
 import { actionsToJourneyCards } from '@/lib/actions/actionCards'
 import type { ActionCompletion } from '@/lib/actions/actionTypes'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
@@ -689,6 +691,8 @@ export function buildZoneViewModel({
     financial_pressure?: string
     /** NO/UNDER_5/SCHOOL_AGE/BOTH — gates child entitlements; household is NOT a proxy for this. */
     children?: string
+    /** CUT_BILLS/CLEAR_DEBT/FIND_WORK/KEEP_HOME — anything but the first leads with crisis triage. */
+    help_goal?: string
   }
   journeyAnswers: Record<JourneyId, Record<string, string>>
   /** S UPDATE: optional scraped data from 001 Scraper (`scraped_summary` / DB). Partial = only some journeys may have data. */
@@ -1274,8 +1278,31 @@ export function buildZoneViewModel({
         },
         { completions: actionCompletions })
       : []
-  const journeys: ZoneJourneyCard[] =
-    rankedActions.length > 0 ? actionsToJourneyCards(rankedActions) : journeyCards
+  /**
+   * Crisis triage leads the wall.
+   *
+   * When someone said what would help most and it wasn't "cut bills", they are dealing with debt,
+   * lost income or losing the home. Those come first in a fixed sequence — eat this week, stop
+   * creditors, restore income, keep the roof — and deliberately are NOT ranked against the money
+   * cards, because nobody should be shown a tariff comparison above a homelessness duty on the
+   * grounds that it scored higher.
+   *
+   * The money wall still follows underneath. Someone in trouble is not only in trouble, and the
+   * claimable money below is still worth having.
+   */
+  const crisisCards =
+    profile && isCrisisGoal(profile.help_goal)
+      ? crisisRoutesToCards(
+          selectCrisisRoutes(profile.help_goal, {
+            age: typeof profile.age === 'string' ? profile.age : undefined,
+          })
+        )
+      : []
+
+  const journeys: ZoneJourneyCard[] = [
+    ...crisisCards,
+    ...(rankedActions.length > 0 ? actionsToJourneyCards(rankedActions) : journeyCards),
+  ]
 
   /**
    * Hero totals must equal the wall the user is actually looking at.
@@ -1294,9 +1321,12 @@ export function buildZoneViewModel({
    * the top card — both arithmetic the user could do themselves.
    */
   if (rankedActions.length > 0) {
-    const shownMoney = journeys.reduce((sum, j) => sum + Math.max(0, j.moneyGbp ?? 0), 0)
-    const shownCarbon = journeys.reduce((sum, j) => sum + Math.max(0, j.carbonKg ?? 0), 0)
-    const top = journeys[0]
+    // Crisis cards carry no £ by design, so they must not be summed or picked as "biggest win" —
+    // a £0 card taking the headline would read as the app having found nothing.
+    const moneyCards = journeys.filter((j) => !j.id.startsWith('journey-crisis-'))
+    const shownMoney = moneyCards.reduce((sum, j) => sum + Math.max(0, j.moneyGbp ?? 0), 0)
+    const shownCarbon = moneyCards.reduce((sum, j) => sum + Math.max(0, j.carbonKg ?? 0), 0)
+    const top = moneyCards[0]
     hero = {
       ...hero,
       journey_key: top?.journey_key ?? hero.journey_key,
@@ -1551,10 +1581,19 @@ export function buildZoneViewModel({
     normalizePrimaryGoal(profile?.goal)
   )
 
+  /**
+   * Tile-count check applies to the money wall only.
+   *
+   * It predates both the ranked wall and crisis triage, and asserted one tile per category. Crisis
+   * routes are added on top in fixed triage order and are deliberately uncapped, so counting them
+   * here would warn on every single crisis session — noise that would train us to ignore a check
+   * still worth having for the wall itself.
+   */
+  const moneyWallTiles = journeys.filter((j) => !j.id.startsWith('journey-crisis-'))
   const expectedJourneyTiles = JOURNEY_ORDER.length
-  if (journeys.length !== expectedJourneyTiles) {
+  if (moneyWallTiles.length !== expectedJourneyTiles) {
     console.warn(
-      `[Zone] Expected ${expectedJourneyTiles} journey tiles, got ${journeys.length}`
+      `[Zone] Expected ${expectedJourneyTiles} journey tiles, got ${moneyWallTiles.length}`
     )
   }
   if (tips.length !== 3) {

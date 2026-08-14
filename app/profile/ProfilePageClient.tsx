@@ -208,6 +208,42 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
       v === 'GETTING_BY' ? 'most of what we\'ll show you\ncosts nothing to do.' :
       v === 'DOING_OK' ? 'good. we\'ll aim at waste,\nnot small sacrifices.' : null,
   },
+  {
+    /**
+     * What would help most — a DESTINATION, not a status.
+     *
+     * This is how the app finds out someone is in trouble without ever asking them to say so.
+     * Nobody wants to tick a box that says they are failing, and an app that asks "are you in
+     * crisis?" gets lied to. Asking where they want to get to is a normal thing for an app to
+     * want to know, and it carries exactly the same signal.
+     *
+     * Same principle as TIGHT over BROKE. Everyone answers this one, so nobody is singled out,
+     * and picking KEEP MY HOME is a choice about the future rather than an admission about the
+     * present.
+     *
+     * Anything other than CUT BILLS routes the wall through the crisis triage first — see
+     * selectCrisisRoutes.
+     */
+    id: 'helpGoal',
+    label: 'what would\nhelp most?',
+    type: 'options' as const,
+    options: [
+      { label: 'CUT\nBILLS', value: 'CUT_BILLS', ariaLabel: 'Cut my bills' },
+      { label: 'CLEAR\nDEBT', value: 'CLEAR_DEBT', ariaLabel: 'Clear debt' },
+      { label: 'FIND\nWORK', value: 'FIND_WORK', ariaLabel: 'Find work' },
+      { label: 'KEEP MY\nHOME', value: 'KEEP_HOME', ariaLabel: 'Keep my home' },
+    ],
+    /**
+     * These insights carry more weight than the others, because whoever picks the last three is
+     * likely having a genuinely bad time. They must do one job: say help exists and it is free.
+     * No statistics about how bad things are, no sympathy, nothing that reads as pity — and
+     * crucially, no promise about what they will get, because eligibility is not ours to judge.
+     */
+    getInsight: (v) =>
+      v === 'CLEAR_DEBT' ? 'free debt advice can freeze\nwhat you owe for 60 days.' :
+      v === 'FIND_WORK' ? 'a free adviser can check\nwhat you can claim now.' :
+      v === 'KEEP_HOME' ? 'councils must help 56 days\nbefore you lose a home.' : null,
+  },
   { id: 'name', label: 'what should\nwe call you?', type: 'input' as const, placeholder: 'first name' },
 ]
 
@@ -247,6 +283,7 @@ function syncLocalStorageFromServerUser(user: Record<string, unknown> | undefine
     setIfString(STORAGE_KEYS.flightFrequency, genome.flight_frequency)
     setIfString(STORAGE_KEYS.financialPressure, genome.financial_pressure)
     setIfString(STORAGE_KEYS.children, genome.children)
+    setIfString(STORAGE_KEYS.helpGoal, genome.help_goal)
     const goal = genome.profile_goal ?? genome.goal
     if (typeof goal === 'string' && goal.trim()) {
       try {
@@ -753,6 +790,7 @@ export default function ProfilePageClient() {
             flight_frequency: mergedValues.flightFrequency?.trim() || undefined,
             financial_pressure: mergedValues.financialPressure?.trim() || undefined,
             children: mergedValues.children?.trim() || undefined,
+            help_goal: mergedValues.helpGoal?.trim() || undefined,
           }
           const profileData = buildResearchProfilePayload(mergedValues, { postcode: pc })
 

@@ -17,6 +17,7 @@ export const PROFILE_STORAGE_KEYS = {
   employmentStatus: 'profile_employment_status',
   financialPressure: 'profile_financial_pressure',
   children: 'profile_children',
+  helpGoal: 'profile_help_goal',
 } as const
 
 export type ProfileOnboardingFields = {
@@ -45,6 +46,12 @@ export type ProfileOnboardingFields = {
    * the exact over-claiming this question exists to stop.
    */
   children?: string
+  /**
+   * CUT_BILLS | CLEAR_DEBT | FIND_WORK | KEEP_HOME — where they want to get to, which is how we
+   * learn someone is in trouble without asking them to say so. Required: the wall routes through
+   * crisis triage on this, and defaulting it would silently drop someone back to bill tips.
+   */
+  helpGoal?: string
   goal?: string
 }
 
@@ -68,6 +75,7 @@ export function isProfileOnboardingCompleteFields(v: ProfileOnboardingFields): b
     Boolean(v.employmentStatus?.trim()) &&
     Boolean(v.financialPressure?.trim()) &&
     Boolean(v.children?.trim()) &&
+    Boolean(v.helpGoal?.trim()) &&
     Boolean(resolveProfileGoalFromFields(v))
   )
 }
@@ -96,6 +104,7 @@ export function profileFieldsFromStorage(): ProfileOnboardingFields {
     employmentStatus: read(PROFILE_STORAGE_KEYS.employmentStatus),
     financialPressure: read(PROFILE_STORAGE_KEYS.financialPressure),
     children: read(PROFILE_STORAGE_KEYS.children),
+    helpGoal: read(PROFILE_STORAGE_KEYS.helpGoal),
     goal: readStoredProfileGoal(),
   }
 }
@@ -156,6 +165,8 @@ export function userRowOnboardingComplete(row: UserOnboardingRow | null | undefi
     ''
   const children =
     (typeof genome.children === 'string' && genome.children.trim()) || ''
+  const helpGoal =
+    (typeof genome.help_goal === 'string' && genome.help_goal.trim()) || ''
 
   return isProfileOnboardingCompleteFields({
     name: row.name ?? undefined,
@@ -171,6 +182,7 @@ export function userRowOnboardingComplete(row: UserOnboardingRow | null | undefi
     employmentStatus: row.employment_status ?? undefined,
     financialPressure: financialPressure || undefined,
     children: children || undefined,
+    helpGoal: helpGoal || undefined,
     goal: goal || undefined,
   })
 }
@@ -192,6 +204,7 @@ export function guestProfileOnboardingComplete(profile: unknown): boolean {
     employmentStatus: String(p.employment_status ?? p.employmentStatus ?? ''),
     financialPressure: String(p.financial_pressure ?? p.financialPressure ?? ''),
     children: String(p.children ?? ''),
+    helpGoal: String(p.help_goal ?? p.helpGoal ?? ''),
     goal: String(p.goal ?? ''),
   })
 }

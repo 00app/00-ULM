@@ -115,6 +115,16 @@ export async function POST(request: NextRequest) {
         ? childrenRaw
         : null
 
+    const helpGoalRaw =
+      typeof body?.help_goal === 'string' ? body.help_goal.trim().toUpperCase().slice(0, 16) : ''
+    const help_goal =
+      helpGoalRaw === 'CUT_BILLS' ||
+      helpGoalRaw === 'CLEAR_DEBT' ||
+      helpGoalRaw === 'FIND_WORK' ||
+      helpGoalRaw === 'KEEP_HOME'
+        ? helpGoalRaw
+        : null
+
     const raw = {
       name: typeof body?.name === 'string' ? body.name.trim().slice(0, 200) : '',
       postcode: typeof body?.postcode === 'string' ? body.postcode.replace(/\s+/g, '').trim().slice(0, 20) : '',
@@ -173,6 +183,7 @@ export async function POST(request: NextRequest) {
     if (flight_frequency) genomeObj.flight_frequency = flight_frequency
     if (financial_pressure) genomeObj.financial_pressure = financial_pressure
     if (children) genomeObj.children = children
+    if (help_goal) genomeObj.help_goal = help_goal
     const genome = JSON.stringify(genomeObj)
 
     const insertParams = [

@@ -37,6 +37,8 @@ Cross-links: [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md), [
 | **Age** | junior / mid / retired | `profile_age` | `users.age_group` | `age_group` in `buildResearchProfilePayload` → Gemini persona | `personaBoost` tip sort (JUNIOR→tech, RETIRED→home) |
 | **Employment** | employed / self-employed / not in work | `profile_employment_status` | `user_genome.employment_status` | **`buildEmploymentAwareResearchSeeds`** — grants vs agile tariffs | Grants **title** rewrite; **filters means-tested tips** off Rock rail for employed users |
 | **Goal** | intro: save money / reduce carbon / both | `profile_goal` | `users.primary_goal` | Picks **+2 goal-aligned JIT journeys** (see below) | **`goalSortWeights`** — hero tile order; tip rail ranking |
+| **How's money?** (added 2026-08) | TIGHT / GETTING BY / DOING OK | `profile_financial_pressure` | `users.financial_pressure` | — | **Required** to complete onboarding. Is what *switches* Zone from the 13-tile category wall to the ranked action wall (below); sets the hard cost ceiling on every action shown — TIGHT sees FREE only |
+| **Any kids at home?** (added 2026-08) | NO / UNDER 5 / SCHOOL AGE / BOTH | `profile_children` | `users.children` | — | Hard-gates child-linked entitlements (Healthy Start, free school meals) on the ranked wall only — deliberately separate from **Household**, which is a living arrangement, not a children question |
 
 Payload assembly: `buildResearchProfilePayload()` / `buildResearchProfileFromStorage()` → every Firecrawl + Gemini pass (`postcode`, `house_number`, `home_type`, `home_power`, `transport_baseline`, `household`, `employment_status`, `goal`, `age_group`).
 
@@ -83,6 +85,25 @@ Examples:
 - Balanced + no power yet → `home`, `grants`, `travel`, `food` (utilities skipped until power answered)
 
 Dedupe: `sessionStorage.zz_onboarding_jit_journeys` — profile submit + summary handshake do not double-fire.
+
+---
+
+## Ranked action wall (2026-08) — a second unlock path
+
+Everything in the matrix above still describes the **13-tile category wall**, which is what guests and partially-profiled users see. Once `financial_pressure` is answered, `buildZoneViewModel` switches to a different model entirely: instead of one calculator-driven card per journey, it ranks a 63-entry tagged action library (`lib/actions/actionLibrary.ts`) against the full profile and shows the twelve highest-scoring, eligible actions. No LLM call — deterministic, same profile in, same twelve out.
+
+| Field feeding the ranker | Role |
+| --- | --- |
+| `financial_pressure` | **Trigger** for the switch, and the hard cost ceiling (TIGHT → FREE only) |
+| `home_ownership` (tenure) | Eligibility for owner-only actions (green mortgage, capital works) and exclusion of renter-inapplicable ones |
+| `household` | Relevance gate (soft) |
+| `children` | Hard eligibility for Healthy Start / free school meals |
+| `employment_status` | Unlocks STUDENT (council tax exemption, hardship funds) and BETWEEN_JOBS (debt grants, New Style JSA) actions |
+| `age` | Unlocks RETIRED actions (Pension Credit, Attendance Allowance, free bus pass) |
+| `home_power`, `transport_baseline`, `wash_preference` | Relevance gates (soft) |
+| Loop-question answers (`journey_*_answers`) | Gate identically to onboarding fields — answering a loop nudge widens the eligible pool and the newly-unlocked top action becomes the next card shown, drawn from the vetted library rather than generated on the spot |
+
+Full mechanics (gates vs requires vs excludes, cost ceiling, recurrence-aware completion, the diversity-cap-sharing fix, and the string of follow-up bugs caught after ship): [GUARDRAILS-AND-PIPELINE.md §2c](GUARDRAILS-AND-PIPELINE.md#2c-ranked-action-library-2026-08--replaces-one-card-per-category). Content/copy side: [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) §6.
 
 ---
 

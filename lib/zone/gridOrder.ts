@@ -93,6 +93,17 @@ export function buildGroovyGridItems(args: {
   const journeyCardsOnly = args.viewModel.journeys.filter((j) => j.id.startsWith('journey-'))
 
   /**
+   * Crisis routes bypass the per-category cap and lead the wall in their given order.
+   *
+   * They all carry journey_key 'money' (the grid needs a valid key), so the normal cap of two
+   * cards per category would silently drop six of eight — food, Breathing Space and the
+   * homelessness duty among them. Capping crisis triage the way bill tips are capped would be a
+   * quietly serious failure, so they are separated out before any of that logic runs.
+   */
+  const crisisCards = journeyCardsOnly.filter((j) => j.id.startsWith('journey-crisis-'))
+  const rankedCards = journeyCardsOnly.filter((j) => !j.id.startsWith('journey-crisis-'))
+
+  /**
    * Several cards can share a `journey_key`.
    *
    * The old wall built exactly one card per category, so keying a Map on `journey_key` was safe
@@ -103,14 +114,14 @@ export function buildGroovyGridItems(args: {
    * times down the wall. Grouping by key and walking each group fixes both halves.
    */
   const byJourney = new Map<JourneyId, ZoneJourneyCard[]>()
-  for (const card of journeyCardsOnly) {
+  for (const card of rankedCards) {
     const bucket = byJourney.get(card.journey_key) ?? []
     bucket.push(card)
     byJourney.set(card.journey_key, bucket)
   }
 
   const moneySortedJourneys: JourneyId[] = []
-  for (const card of [...journeyCardsOnly].sort((a, b) => {
+  for (const card of [...rankedCards].sort((a, b) => {
     const aOffer = journeyOfferPreferenceWeight(a.journey_key, offerPrefs)
     const bOffer = journeyOfferPreferenceWeight(b.journey_key, offerPrefs)
     if (aOffer !== bOffer) return bOffer - aOffer
@@ -154,6 +165,11 @@ export function buildGroovyGridItems(args: {
   }
 
   const items: GroovyGridCell[] = [{ type: 'hero', hero: args.viewModel.hero }]
+
+  // Straight after the hero, in triage order, uncapped.
+  crisisCards.forEach((item, index) => {
+    items.push({ type: 'journey', item, index, persona: args.personaForJourney(item.journey_key) })
+  })
 
   /** One distinct BUY URL per journey on the wall (no duplicate National Rail tiles). */
   const seenOfferUrlsByJourney = new Map<JourneyId, Set<string>>()
