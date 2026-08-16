@@ -8,7 +8,10 @@
  */
 
 import { CRISIS_ROUTES } from '@/lib/actions/crisisRoutes'
-import type { CrisisNeed, CrisisRoute } from '@/lib/actions/crisisTypes'
+import { CRISIS_ORDER, type CrisisNeed, type CrisisRoute } from '@/lib/actions/crisisTypes'
+
+/** See the filter in selectCrisisRoutes — stops the danger band swamping the essentials. */
+const MAX_SAFETY_ROUTES = 3
 
 /**
  * What the person said would help most.
@@ -60,7 +63,7 @@ export function selectCrisisRoutes(
   if (!need) return []
   const age = String(opts.age ?? '').trim().toUpperCase()
 
-  return CRISIS_ROUTES.filter((r) => {
+  const picked = CRISIS_ROUTES.filter((r) => {
     if (r.need !== 'ANY' && r.need !== need) return false
     // Age-specific routes only appear for that age; everything else is age-agnostic. An unknown
     // age never hides a general route.
@@ -71,7 +74,29 @@ export function selectCrisisRoutes(
     return true
   })
     .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
-    .slice(0, opts.limit ?? 8)
+    // Cap the safety band before the overall limit.
+    //
+    // Danger routes sit above everything, so without their own ceiling a debt case surfaced six
+    // of them and pushed Breathing Space and Samaritans off the end entirely — the band meant to
+    // protect people was hiding the things most of them actually need. Three is enough to catch
+    // the case; the rest stay reachable on the always-on help route.
+    .filter((r, _i, all) => {
+      if (r.order >= CRISIS_ORDER.IMMEDIATE) return true
+      const safety = all.filter((x) => x.order < CRISIS_ORDER.IMMEDIATE)
+      return safety.indexOf(r) < MAX_SAFETY_ROUTES
+    })
+    .slice(0, opts.limit ?? 10)
+
+  // Someone to talk to must never be trimmed by a limit.
+  //
+  // The support route sits last in triage order, which meant a debt case with a full safety band
+  // pushed Samaritans off the end. Being cut for space is an unacceptable reason to lose the one
+  // route that matters if the rest of the wall is not enough.
+  const support = CRISIS_ROUTES.filter((r) => r.order >= CRISIS_ORDER.SUPPORT)
+  for (const r of support) {
+    if (!picked.some((p) => p.id === r.id)) picked.push(r)
+  }
+  return picked
 }
 
 /**

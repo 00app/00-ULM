@@ -32,7 +32,17 @@
  * number surfaces first.
  */
 export const CRISIS_ORDER = {
-  /** Eat and stay safe this week. Nothing outranks this. */
+  /**
+   * Danger. Above everything, including food.
+   *
+   * Money trouble and being unsafe overlap far more than the rest of this file assumes. Someone
+   * can pick KEEP MY HOME because of a person rather than a landlord, or CLEAR DEBT because the
+   * debt was taken out in their name by that person, or because the lender is not a lender.
+   * In all three the ordinary route is not just unhelpful, it is wrong — "sit tight and talk to
+   * the council in 56 days" is bad advice if the home is where the danger is.
+   */
+  SAFETY: 5,
+  /** Eat and stay safe this week. Nothing else outranks this. */
   IMMEDIATE: 10,
   /** Stop the bleeding — legal protection from creditors while you get advice. */
   PROTECT: 20,

@@ -28,11 +28,15 @@ for (const r of CRISIS_ROUTES) {
   // reads as mockery when someone is facing eviction.
   assert(`${r.id}: relief is not a yearly saving`, !/\/yr|per year|a year$/i.test(r.relief), r.relief)
 
-  // Freephone only. Someone with 20p of credit cannot ring an 084/087 number.
+  // Freephone, so someone with 20p of credit can still ring. One documented exception: Stop Loan
+  // Sharks is 0300 (national rate, usually inside inclusive minutes) and is the only route there
+  // is for illegal lending — so it is allowed, but its card has to say it is not free.
   if (r.phone) {
+    const digits = r.phone.replace(/\s/g, '')
+    const freephone = /^(0800|0808|116)/.test(digits)
     assert(
-      `${r.id}: freephone number`,
-      /^(0800|0808|116)/.test(r.phone.replace(/\s/g, '')),
+      `${r.id}: freephone (or flagged as not)`,
+      freephone || (digits.startsWith('0300') && /not free|national rate/i.test(r.hours ?? '')),
       r.phone
     )
     // Sending someone to a shut line at 11pm is its own small cruelty.
@@ -60,11 +64,19 @@ assert('isCrisisGoal excludes CUT_BILLS', !isCrisisGoal('CUT_BILLS') && isCrisis
 
 for (const [label, list] of [['debt', debt], ['housing', housing], ['income', income]] as const) {
   assert(`${label}: returns routes`, list.length >= 4, `got ${list.length}`)
-  // Nothing outranks eating this week.
+  // Danger outranks everything, then food. If someone is unsafe, every other route on the wall
+  // is the wrong advice for them.
   assert(
-    `${label}: food leads`,
-    list[0]?.id === 'food-bank-referral',
+    `${label}: danger leads`,
+    list[0]?.id === 'domestic-abuse-helpline',
     list[0]?.id
+  )
+  const firstNonSafety = list.find((r) => r.order >= CRISIS_ORDER.IMMEDIATE)
+  assert(`${label}: food leads once past danger`, firstNonSafety?.id === 'food-bank-referral', firstNonSafety?.id)
+  // The danger band must never swamp the essentials.
+  assert(
+    `${label}: safety band capped`,
+    list.filter((r) => r.order < CRISIS_ORDER.IMMEDIATE).length <= 3
   )
   assert(
     `${label}: sorted by triage order`,
@@ -73,7 +85,7 @@ for (const [label, list] of [['debt', debt], ['housing', housing], ['income', in
   // Someone to talk to is always reachable.
   assert(`${label}: includes support`, list.some((r) => r.order === CRISIS_ORDER.SUPPORT))
   // Short by design — twenty options is its own kind of unhelpful when overwhelmed.
-  assert(`${label}: stays short`, list.length <= 8, `got ${list.length}`)
+  assert(`${label}: stays short`, list.length <= 11, `got ${list.length}`)
 }
 
 assert('debt route includes Breathing Space', debt.some((r) => r.id === 'breathing-space'))

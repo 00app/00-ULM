@@ -12,6 +12,103 @@
 import { CRISIS_ORDER, type CrisisRoute } from '@/lib/actions/crisisTypes'
 
 export const CRISIS_ROUTES: CrisisRoute[] = [
+  // --- SAFETY: above everything, including food -------------------------------------------
+  // Financial crisis and danger overlap far more than a money app naturally assumes. These sit
+  // first because for the people they apply to, every other route on this wall is the wrong
+  // advice — and because someone who needs them may not think of their situation as "abuse".
+  {
+    id: 'domestic-abuse-helpline',
+    action: 'If the danger is a person, not a bill',
+    detail:
+      'Free and 24 hours. If someone is hurting you, controlling your money, or the home is not safe, the housing route below is not the right one for you — this is.',
+    relief: 'Any hour, any day',
+    askFor: 'You do not have to name it abuse or be sure. Describe what is happening and let them help you work it out.',
+    phone: '0808 2000 247',
+    hours: '24 hours, every day',
+    url: 'https://www.nationaldahelpline.org.uk/',
+    need: 'ANY',
+    order: CRISIS_ORDER.SAFETY,
+    source: 'National Domestic Abuse Helpline (Refuge) — free, 24/7, 0808 2000 247',
+    verifiedOn: '2026-07-31',
+  },
+  {
+    id: 'coerced-debt',
+    action: 'If the debt was forced on you',
+    detail:
+      'Debt taken out in your name, or run up under pressure by a partner, is called coerced debt. It is recognised as economic abuse and it changes what can be done about it.',
+    relief: 'Changes what you owe',
+    askFor: 'Say the words "coerced debt" — it tells an adviser to treat it as economic abuse, not ordinary borrowing.',
+    phone: '0808 2000 247',
+    hours: '24 hours, every day',
+    url: 'https://survivingeconomicabuse.org/i-need-help/debt/what-is-coerced-debt/',
+    need: 'DEBT',
+    order: CRISIS_ORDER.SAFETY + 1,
+    source: 'Surviving Economic Abuse — coerced debt; National Domestic Abuse Helpline 0808 2000 247',
+    verifiedOn: '2026-07-31',
+  },
+  {
+    id: 'mens-advice-line',
+    action: 'Men experiencing abuse',
+    detail:
+      'A separate confidential line for men. Two thirds of male victims never tell anyone, and money control is one of the most common forms.',
+    relief: 'Confidential line',
+    askFor: 'You can call about controlling behaviour and money, not only violence.',
+    phone: '0808 801 0327',
+    hours: 'Mon–Fri, 10am–8pm',
+    url: 'https://mensadviceline.org.uk/',
+    need: 'ANY',
+    order: CRISIS_ORDER.SAFETY + 3,
+    source: "Respect Men's Advice Line — 0808 801 0327",
+    verifiedOn: '2026-07-31',
+  },
+  {
+    id: 'illegal-money-lending',
+    action: 'If your lender is not a real lender',
+    detail:
+      'Loan sharks are a police matter, not a debt matter. The government team has written off over £91m of illegal debt and you will not be in trouble for having borrowed.',
+    relief: 'The debt is unenforceable',
+    askFor: 'Say you think you borrowed from an illegal lender. You are treated as a victim, not a borrower.',
+    phone: '0300 555 2222',
+    // Not a freephone number — usually inside inclusive mobile minutes, but say so rather than
+    // let someone with no credit find out the hard way. Text reporting is on 07860 022 116.
+    hours: '24 hours · national rate, not free',
+    url: 'https://www.stoploansharks.co.uk/',
+    need: 'DEBT',
+    order: CRISIS_ORDER.SAFETY + 2,
+    source: 'England Illegal Money Lending Team (Stop Loan Sharks) — 0300 555 2222, 24hr; £91.6m illegal debt written off since 2004',
+    verifiedOn: '2026-07-31',
+  },
+  {
+    id: 'mental-health-breathing-space',
+    action: 'Breathing Space if you are in crisis care',
+    detail:
+      'A stronger version of the 60-day pause. It lasts as long as your crisis treatment plus 30 days, and it can be started by a mental health professional without you having to arrange debt advice first.',
+    relief: 'Treatment plus 30 days',
+    askFor: 'Ask your mental health team about Mental Health Crisis Breathing Space — an AMHP has to certify it.',
+    phone: '0808 808 4000',
+    hours: 'Mon–Fri, 9am–8pm; Sat 9.30am–1pm',
+    url: 'https://www.rethink.org/aboutus/what-we-do/mental-health-breathing-space',
+    need: 'DEBT',
+    order: CRISIS_ORDER.PROTECT + 1,
+    source: 'Rethink Mental Health & Money Advice — MHCBS lasts treatment + 30 days, AMHP-certified, no prior debt advice required',
+    verifiedOn: '2026-07-31',
+  },
+  {
+    id: 'bailiff-rights',
+    action: 'Bailiffs mostly cannot force entry',
+    detail:
+      'For council tax, credit cards and parking fines they need you to let them in. Keep the door locked and they usually have no right to enter. Criminal fines and some HMRC debts are the exception.',
+    relief: 'Know it before you open',
+    askFor: 'Ask what the debt is for — it decides whether they can force entry at all.',
+    phone: '0808 808 4000',
+    hours: 'Mon–Fri, 9am–8pm; Sat 9.30am–1pm',
+    url: 'https://www.stepchange.org/debt-info/bailiffs/bailiff-rights-and-powers.aspx',
+    need: 'DEBT',
+    order: CRISIS_ORDER.PROTECT + 5,
+    source: 'StepChange — bailiff rights and powers; peaceful entry required except criminal fines / some HMRC debts',
+    verifiedOn: '2026-07-31',
+  },
+
   // --- IMMEDIATE: eat and stay safe this week ---------------------------------------------
   {
     id: 'food-bank-referral',
