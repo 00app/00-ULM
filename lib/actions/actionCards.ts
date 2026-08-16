@@ -76,6 +76,9 @@ export function actionToJourneyCard(a: ZoneAction): ZoneJourneyCard {
     sourceLabel: `source. ${attribution.toLowerCase()}`,
     source_name: attribution,
     source_date: a.verifiedOn,
+    // Every library action carries its own live, verified URL — never the "no live retailer
+    // link" fallback footer that partner_link's absence would otherwise trigger.
+    partner_link: a.url,
     explanation: [a.detail],
     actions: {
       actionType: actionTypeFor(a),

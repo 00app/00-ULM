@@ -58,6 +58,7 @@ import {
   formatSoloFocusTopCategoryLabel,
   zoneCardHeadlineFromRaw,
   clampZoneBentoHeadline,
+  clampRockTipHeadline,
   MAX_EXPANDED_VIEW_HEADLINE_WORDS,
   MIN_EXPANDED_VIEW_HEADLINE_WORDS,
   MAX_ZONE_CARD_HEADLINE_WORDS,
@@ -69,6 +70,7 @@ import {
   wrapResultSupportingAsterisks,
   isAcceptableZoneJourneyHeadline,
 } from '@/lib/soloFocusCopy'
+import { isLibraryActionCardId } from '@/lib/actions/actionLibrary'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import {
   shouldShowZoneEstimatedInsightStrip,
@@ -331,14 +333,28 @@ export function JourneyBentoCard({
     cardId,
   })
   const surfaceVars = zoneSurfaceStyleProps(surfaceKind)
-  const headline = clampZoneBentoHeadline(
-    zoneCardHeadlineFromRaw(
-      title || String(journeyId ?? ''),
-      formatZoneCategoryLabel(String(journeyId ?? 'home')),
-      MAX_ZONE_CARD_HEADLINE_WORDS
-    ),
-    String(journeyId ?? 'home')
-  )
+  /**
+   * Ranked-wall cards (`journey-<actionId>`) carry their own short, real title — same shape as a
+   * Rock habit title. The generic collapsed-tile path (`clampZoneBentoHeadline`) substitutes the
+   * hardcoded per-category `ZONE_BENTO_HOOK` whenever a title reads as "low quality" (which a
+   * concise 4-6 word library title reliably does), silently replacing it — live-confirmed: every
+   * one of a category's distinct library cards rendered the exact same `ZONE_BENTO_HOOK` string on
+   * the wall tile itself (e.g. two different FOOD actions both showing "plan meals from food you
+   * already have to cut waste"), even though the underlying data was correct all along — verified
+   * via the actual `title` prop on each mounted card. `clampRockTipHeadline` already solves this
+   * for Rock/Tips ("never substitute journey wall hooks"); reused here for the same reason.
+   */
+  const isLibraryWallCard = isLibraryActionCardId(cardId ?? '')
+  const headline = isLibraryWallCard
+    ? clampRockTipHeadline(title || String(journeyId ?? ''))
+    : clampZoneBentoHeadline(
+        zoneCardHeadlineFromRaw(
+          title || String(journeyId ?? ''),
+          formatZoneCategoryLabel(String(journeyId ?? 'home')),
+          MAX_ZONE_CARD_HEADLINE_WORDS
+        ),
+        String(journeyId ?? 'home')
+      )
 
   const [morphDeck, setMorphDeck] = useState<any[]>(
     () => (readHydrationSnap(soloFocusSnapKey, journeyId)?.morphDeck as any[]) ?? []
@@ -431,10 +447,13 @@ export function JourneyBentoCard({
   const sanitizedCovProse = journeyResearchCov?.architectProse?.trim()
     ? sanitizeArchitectProseForJourney(focusJourneyKey, journeyResearchCov.architectProse)
     : null
-  /* Rock Habit morph has its own specific prose/£/source — category-level research_results
-     must not silently override it, mirroring isCategoryScopedOverrideExempt in zone/page.tsx (888c566). */
+  /* Rock Habit morph and ranked-library wall cards both have their own specific prose/£/source —
+     category-level research_results must not silently override either, mirroring
+     isCategoryScopedOverrideExempt in zone/page.tsx (888c566). The props are already nulled at
+     the source for library cards (page.tsx); this is belt-and-braces, same as the Rock-tip guard. */
   const verifiedAuditMatchesJourney =
     !isRockMorphTip &&
+    !isLibraryWallCard &&
     verifiedAuditMoneyGbp != null &&
     Number.isFinite(verifiedAuditMoneyGbp) &&
     (verifiedAuditCategory ?? '').trim().toLowerCase() === focusCategoryJourneyId &&
@@ -998,7 +1017,9 @@ export function JourneyBentoCard({
           currentMorphData?.explanation?.[0] ?? undefined,
           focusJourney
         )
-      : headlineFromExpandedHook(expandedHeadlineSource, focusJourney)
+      : isLibraryWallCard
+        ? headlineFromRockHabitForSoloFocus(String(effectiveTitleRaw), crawlerTip, focusJourney)
+        : headlineFromExpandedHook(expandedHeadlineSource, focusJourney)
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =
       auditState === 'ESTIMATED_AUDIT' || (!auditState && titleLooksEstimated)
@@ -1027,30 +1048,44 @@ export function JourneyBentoCard({
       (typeof window !== 'undefined' ? localStorage.getItem('profile_transport') : null)
     const travelFuel = state.journeyAnswers?.travel?.fuel_type ?? null
     const soloFocusCardId = activeCardId ?? cardId ?? `journey-${journeyId}`
-    const insightDisplay = resolveExpandedTrueTipInsight({
-      architectProse: verifiedArchitectProse,
-      verifiedAuditMatchesJourney,
-      cardId: soloFocusCardId,
-      morphParts: [
-        journeyId === 'home' && homeSentinelRecard && !currentMorphData ? homeSentinelRecard.description : undefined,
-        currentMorphData?.description,
-        geminiRecommendationCopy,
-        discoveryWinLine,
-        insightLabel,
-        crawlerTip,
-        localContextBar,
-        offerOneLine,
-      ],
-      journeyId: focusCategoryJourneyId,
-      headline: recommendationTitle,
-      moneyGbp: motherMoneyTargetGbp,
-      carbonKg: carbonTargetKg,
-      transportBaseline: profileTransport,
-      travelFuelType: travelFuel,
-      userPostcode: profilePostcode ?? undefined,
-      sourceDisplayName: handoffAttribution.sourceDisplayName,
-      auditHeaderLocality: state.locationState?.locationName ?? undefined,
-    })
+    /**
+     * Library wall cards skip the whole insight-resolution pipeline below and use their own
+     * `detail` text (via `crawlerTip`) verbatim. `resolveSoloFocusInsightDisplay` has its own,
+     * independent generic-content fallback (`isGenericNonLocalityLead` +
+     * `buildAuditorNarrativeParagraphs`) that fires whenever the source text reads as a single,
+     * concise sentence — which a library `.detail` line always is by design — discarding it for
+     * the exact category-generic narrative this whole fix exists to stop, before contentMode
+     * ever gets a say. Live-confirmed: "Grants up to £2,000 paid straight to your supplier..."
+     * (real, correct, cited) was replaced with "In Westminster, your gas and electricity bills
+     * currently hide roughly £2,000 of annual waste..." (generic, wrong action) at this exact
+     * step, independent of every other fix above.
+     */
+    const insightDisplay = isLibraryWallCard
+      ? (crawlerTip ?? '')
+      : resolveExpandedTrueTipInsight({
+          architectProse: verifiedArchitectProse,
+          verifiedAuditMatchesJourney,
+          cardId: soloFocusCardId,
+          morphParts: [
+            journeyId === 'home' && homeSentinelRecard && !currentMorphData ? homeSentinelRecard.description : undefined,
+            currentMorphData?.description,
+            geminiRecommendationCopy,
+            discoveryWinLine,
+            insightLabel,
+            crawlerTip,
+            localContextBar,
+            offerOneLine,
+          ],
+          journeyId: focusCategoryJourneyId,
+          headline: recommendationTitle,
+          moneyGbp: motherMoneyTargetGbp,
+          carbonKg: carbonTargetKg,
+          transportBaseline: profileTransport,
+          travelFuelType: travelFuel,
+          userPostcode: profilePostcode ?? undefined,
+          sourceDisplayName: handoffAttribution.sourceDisplayName,
+          auditHeaderLocality: state.locationState?.locationName ?? undefined,
+        })
     const trueTipSectionsEl = !showCardComputing ? (
       <SoloFocusProseStack
         headline={recommendationTitle}
@@ -1063,7 +1098,7 @@ export function JourneyBentoCard({
         auditHeaderLocality={state.locationState?.locationName ?? undefined}
         locality={state.locationState?.locationName ?? undefined}
         postcode={profilePostcode ?? state.profile?.postcode ?? undefined}
-        contentMode={isRockMorphTip ? 'rock' : 'journey'}
+        contentMode={isLibraryWallCard ? 'library' : isRockMorphTip ? 'rock' : 'journey'}
         habitTitle={isRockMorphTip ? String(displayTitle || title || '').trim() : undefined}
       />
     ) : null

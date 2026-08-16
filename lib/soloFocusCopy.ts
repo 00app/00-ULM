@@ -777,10 +777,31 @@ export function resolveSoloFocusDisplayProse(args: {
   auditHeaderLocality?: string | null
   locality?: string | null
   postcode?: string | null
-  /** Rock rail tips — habit copy only; no journey detection banks. */
-  contentMode?: 'rock' | 'journey'
+  /**
+   * Rock rail tips — habit copy only; no journey detection banks.
+   * 'library' — ranked action-library wall cards: the action's own `detail` line, verbatim, no
+   * generic per-category proof sentence and no dedup-against-headline. Library detail text is a
+   * single sentence by design (`ZoneAction.detail`), so the Rock pipeline's dedup step — built for
+   * Rock habits, whose insight text is long enough to survive being partly consumed by headline
+   * padding — was leaving nothing behind but the generic fallback once the headline had already
+   * used the one sentence available. Live-confirmed: "Apply to clear energy debt" (a real,
+   * £2,000 British Gas Energy Trust grant) rendered a body about "gas and electricity bills
+   * hiding waste" — correct-sounding, wrong action, at the exact place a user decides whether to
+   * click through and apply.
+   */
+  contentMode?: 'rock' | 'journey' | 'library'
   habitTitle?: string
 }): { lead: string; body: string | null } {
+  if (args.contentMode === 'library') {
+    const insight = args.insightSource?.trim() ?? ''
+    if (!insight) return { lead: '', body: null }
+    const money = Math.max(0, Math.round(args.moneyGbp))
+    const lead =
+      money > 0 && !proseContainsMoneyStamp(insight)
+        ? `${insight} About £${formatMoneyValue(money)} a year sits on this row from your audit.`
+        : insight
+    return { lead: clampWordsCompleteSentence(lead, MAX_SOLO_FOCUS_LEAD_WORDS), body: null }
+  }
   if (args.contentMode === 'rock') {
     return resolveRockHabitDisplayProse({
       title: (args.habitTitle ?? args.headline).trim(),

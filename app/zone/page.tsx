@@ -62,6 +62,7 @@ import {
   mergeCompletions,
   readGuestCompletions,
 } from '@/lib/actions/actionCompletion'
+import { isLibraryActionCardId } from '@/lib/actions/actionLibrary'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { ROUTES } from '@/lib/routes'
@@ -2886,6 +2887,18 @@ export default function ZonePage({
           const cellKey =
             cell.type === 'hero' ? 'hero' : cell.type === 'tip' ? cell.tip.id : cell.item.id
           const isExpanded = cell.type === 'journey' && expandedCardId === cell.item.id
+          /**
+           * Ranked-wall cards carry their own cited copy (title/detail/£/source, all traceable
+           * to a library entry) — never eligible for the category-level research_results
+           * override below. That override assumes one card per category, same as the two prior,
+           * already-fixed occurrences of this bug (Rock tips, loop-birthed discovery cards): a
+           * category-level row was designed to describe THE card for that category, but the
+           * ranked wall can hold several distinct cards per category, so every one of them was
+           * being stamped with the same stale, generic prose — live-confirmed: three different
+           * MONEY cards (charitable grants, NHS HC2 certificate, council tax band check) all
+           * rendering the identical "watch dormant balances and rolling contracts" text.
+           */
+          const isLibraryWallCard = cell.type === 'journey' && isLibraryActionCardId(cell.item.id)
           const spanClass =
             cell.type === 'hero'
               ? 'bento-hero-span'
@@ -3199,6 +3212,7 @@ export default function ZonePage({
                   verifiedSourceDate={cell.item.source_date}
                   partnerLink={cell.item.partner_link}
                   verifiedAuditMoneyGbp={(() => {
+                    if (isLibraryWallCard) return null
                     const cov = researchCategoryCoverage?.[cell.item.journey_key]
                     const cm =
                       cov?.latestSavingGbp != null && cov.latestSavingGbp > 0
@@ -3216,18 +3230,21 @@ export default function ZonePage({
                       : null
                   })()}
                   verifiedArchitectProse={(() => {
+                    if (isLibraryWallCard) return null
                     const jid = cell.item.journey_key
                     const p = researchCategoryCoverage?.[jid]?.architectProse?.trim()
                     if (!p) return null
                     return sanitizeArchitectProseForJourney(jid, p)
                   })()}
                   verifiedAuditSourceUrl={(() => {
+                    if (isLibraryWallCard) return null
                     const cov = researchCategoryCoverage?.[cell.item.journey_key]
                     const src = cov?.latestSourceUrl?.trim()
                     if (src?.startsWith('http')) return src
                     return researchMeta?.auditSourceUrl ?? null
                   })()}
                   verifiedAuditCategory={(() => {
+                    if (isLibraryWallCard) return null
                     const jid = cell.item.journey_key
                     const cov = researchCategoryCoverage?.[jid]
                     if (!cov?.verified && !cov?.architectProse?.trim()) return null

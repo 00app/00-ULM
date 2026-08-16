@@ -13,7 +13,7 @@ export type SoloFocusProseStackProps = {
   auditHeaderLocality?: string | null
   locality?: string | null
   postcode?: string | null
-  contentMode?: 'rock' | 'journey'
+  contentMode?: 'rock' | 'journey' | 'library'
   habitTitle?: string
 }
 
