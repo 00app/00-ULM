@@ -6251,6 +6251,75 @@ body.zai-composer-dock-active {
   padding-top: 8px;
 }
 
+/* Same opt-in checkbox as the Zone signup card above (.rock-mobile-opt-in-checkbox), for the
+   early mobile-capture step in onboarding. Its own selectors rather than reusing
+   .zone-rock-signup-wrap directly: that wrapper also carries the bento-card layout meant for the
+   Zone wall, which the centred onboarding step doesn't want. */
+.profile-phone-opt-in-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  max-width: min(92vw, 40rem);
+}
+
+.profile-phone-opt-in-checkbox {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-purple);
+  cursor: pointer;
+  position: relative;
+}
+
+.profile-phone-opt-in-checkbox:checked {
+  background: var(--color-yellow);
+}
+
+.profile-phone-opt-in-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-pink);
+  transform: translate(-50%, -50%);
+}
+
+.profile-phone-opt-in-checkbox:focus-visible {
+  outline: 2px solid var(--color-yellow);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .profile-phone-opt-in-row:hover .profile-phone-opt-in-checkbox:not(:checked) {
+    box-shadow: 0 0 0 2px var(--color-yellow);
+  }
+
+  .profile-phone-opt-in-row:hover .profile-phone-opt-in-checkbox:checked {
+    box-shadow: 0 0 0 2px var(--color-purple);
+  }
+
+  .profile-phone-opt-in-checkbox:hover:not(:checked) {
+    background-color: color-mix(in srgb, var(--color-yellow) 28%, var(--color-purple));
+  }
+}
+
+.profile-phone-opt-in-label {
+  color: var(--color-yellow);
+  opacity: 0.95;
+  line-height: 1.35;
+  padding-top: 8px;
+  text-align: left;
+}
+
 .zone-rock-signup-wrap .rock-mobile-row .rock-mobile-zz-input.zz-input {
   flex: 1;
   min-width: 0;

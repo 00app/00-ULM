@@ -193,6 +193,13 @@ import {
 import { ROCK_BY_SLUG, ROCK_HABITS, habitToTipCard, sumRockLikedImpact, rockCardId } from '@/lib/rock/habitsCatalog'
 import { mergeRockHabitWithJourneyOffer, resolveRockHabitLearnUrl } from '@/lib/rock/resolveRockHabitLearnUrl'
 import { normalizeSmsUrl, resolveJourneyCardUrl, type SignupSmsItem } from '@/lib/messaging/signupZoneSmsShared'
+import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
+import { authenticatedPost } from '@/lib/client/authenticatedFetch'
+import {
+  readCapturedOnboardingMobile,
+  onboardingMobileSmsAlreadySent,
+  markOnboardingMobileSmsSent,
+} from '@/lib/profile/onboardingMobileCapture'
 import { replaceRockSlotAfterLike } from '@/lib/rock/rotation'
 import { useRockVisibleHabits } from '@/lib/rock/useRockVisibleHabits'
 import { utcDayIndex } from '@/lib/rock/rotation'
@@ -2623,6 +2630,48 @@ export default function ZonePage({
     return raw.split(/\s+/)[0] ?? undefined
   }, [state.profile?.name])
 
+  /**
+   * Fires the one text for anyone who gave a number on the early onboarding step (before the
+   * goal question, no session existed then so nothing could be sent). Consent was an explicit
+   * checkbox on that step, same shape as this page's own signup card's sms_opt_in, so it's safe
+   * to send true unconditionally here — the box wouldn't have let them past without it. Gated on
+   * zoneInteractable so the wall has actually rendered before we reach for its tips/
+   * recommendations — real content when it's ready, but the endpoint sends the plain welcome text
+   * regardless if the wall is still thin. Fires at most once ever per browser
+   * (markOnboardingMobileSmsSent), on success or failure alike, so a slow/failed send can't retry
+   * into a second text.
+   */
+  const onboardingMobileSendAttemptedRef = useRef(false)
+  useEffect(() => {
+    if (!zoneInteractable) return
+    if (onboardingMobileSendAttemptedRef.current) return
+    if (onboardingMobileSmsAlreadySent()) return
+    const mobile = readCapturedOnboardingMobile()
+    if (!mobile) return
+    onboardingMobileSendAttemptedRef.current = true
+    markOnboardingMobileSmsSent()
+    void (async () => {
+      try {
+        await ensureProfileSession()
+        await authenticatedPost('/api/profile/mobile', {
+          mobile,
+          sms_opt_in: true,
+          ...(signupFirstName?.trim() ? { userName: signupFirstName.trim() } : {}),
+          ...(zoneSignupTips.length ? { tips: [...zoneSignupTips] } : {}),
+          ...(zoneSignupTipSlugs.length ? { tipSlugs: [...zoneSignupTipSlugs] } : {}),
+          ...(zoneSignupRecommendations.length
+            ? { recommendations: [...zoneSignupRecommendations] }
+            : {}),
+        })
+      } catch (e) {
+        console.warn('[zone] onboarding mobile signup failed', e)
+      }
+    })()
+  }, [zoneInteractable, signupFirstName, zoneSignupTips, zoneSignupTipSlugs, zoneSignupRecommendations])
+
+  /** Already have a number from onboarding (sent or about to be) — don't ask again down here. */
+  const [onboardingMobileHandled] = useState(() => readCapturedOnboardingMobile() !== null)
+
   const resolveZoneTipById = useCallback(
     (id: string) => {
       const fromPools =
@@ -3546,14 +3595,16 @@ export default function ZonePage({
 
         {!expandedCardId && !expandedTipId && !loopTakeoverOpen ? (
           <>
-            <div data-testid="zone-section-signup">
-            <RockMobileSignupCard
-              tips={zoneSignupTips}
-              tipSlugs={zoneSignupTipSlugs}
-              recommendations={zoneSignupRecommendations}
-              userName={signupFirstName}
-            />
-            </div>
+            {!onboardingMobileHandled ? (
+              <div data-testid="zone-section-signup">
+              <RockMobileSignupCard
+                tips={zoneSignupTips}
+                tipSlugs={zoneSignupTipSlugs}
+                recommendations={zoneSignupRecommendations}
+                userName={signupFirstName}
+              />
+              </div>
+            ) : null}
             <Footer className="site-footer--zone" />
           </>
         ) : null}

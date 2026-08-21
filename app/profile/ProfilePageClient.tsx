@@ -49,6 +49,8 @@ import { applyPropertyPrefillFromApiResponse } from '@/lib/client/propertyAnswer
 import { mapEpcPropertyTypeToHomeTypeHint } from '@/lib/epc/mapEpcToProfileHints'
 import { flushSync } from 'react-dom'
 import { INTRO_GOAL_QUESTION, PROFILE_GOAL_CHOICES, type ProfileGoalValue } from '@/lib/profile/goalWeighting'
+import { isValidUkMobileInput } from '@/lib/messaging/ukMobile'
+import { ONBOARDING_MOBILE_LS, ONBOARDING_MOBILE_STEP_SEEN_LS } from '@/lib/profile/onboardingMobileCapture'
 
 /** Software-keyboard lift — phones only; tablet (768+) and desktop stay centred. */
 const PROFILE_MOBILE_KEYBOARD_MQ = '(max-width: 767px)'
@@ -372,6 +374,30 @@ export default function ProfilePageClient() {
     } catch {
       // ignore
     }
+  }, [])
+
+  /**
+   * Mobile number, ahead of the goal question. No session exists this early (createUser hasn't
+   * run yet), so this only stores the number locally — Zone picks it up once a session and real
+   * content both exist and sends it there. "Later" and a valid submit both mark the step seen so
+   * it never reappears on a resumed session.
+   */
+  const [phoneStepSeen, setPhoneStepSeen] = useState(
+    () => typeof window !== 'undefined' && localStorage.getItem(ONBOARDING_MOBILE_STEP_SEEN_LS) === '1'
+  )
+  const [phoneValue, setPhoneValue] = useState('')
+  const [phoneOptIn, setPhoneOptIn] = useState(false)
+  const phoneValid = isValidUkMobileInput(phoneValue)
+  const completePhoneStep = useCallback((mobile: string | null) => {
+    if (typeof window !== 'undefined') {
+      try {
+        if (mobile) localStorage.setItem(ONBOARDING_MOBILE_LS, mobile)
+        localStorage.setItem(ONBOARDING_MOBILE_STEP_SEEN_LS, '1')
+      } catch {
+        // ignore
+      }
+    }
+    setPhoneStepSeen(true)
   }, [])
 
   const recenterProfileStep = useCallback(() => {
@@ -1231,6 +1257,96 @@ export default function ProfilePageClient() {
             >
               <span className="profile-answer-btn__text zz-h4">CREATE</span>
             </ProfileAnswerBtn>
+          </motion.div>
+        </AnimatePresence>
+      </main>
+    )
+  }
+
+  // First question, right after CREATE, ahead of the goal question. No session exists yet
+  // (createUser runs only at the very end of this flow), so this can only store the number
+  // locally — Zone sends the actual text once a session and real content both exist. Consent is
+  // the explicit checkbox below, same as the Zone signup card's sms_opt_in — not just the copy on
+  // this step — so Continue requires both a valid number and the box checked. No Turnstile here
+  // deliberately: this is the very first thing asked, before anyone's seen any value, and the
+  // send itself is deferred to an authenticated, rate-limited endpoint at Zone, so the marginal
+  // bot risk of skipping it on this one screen is low. Same deep-link exclusions as the fork/goal
+  // steps for the same reason (IntroScreen's handoff always carries ?skip=1).
+  const showPhoneStep = !qParam && !returnTo && entryChoice === 'create' && !phoneStepSeen
+
+  if (showPhoneStep) {
+    return (
+      <main className={profileShellClass} style={profileShellStyle}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="phone-step"
+            className="profile-step-slam w-full flex flex-col items-center"
+            style={{ gap: 40, maxWidth: 800 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h2
+              className="zz-h2 text-marvin m-0 text-center"
+              style={{ whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
+            >
+              want your results by text?
+            </h2>
+            <p
+              className="zz-h4 m-0 text-center"
+              style={{ opacity: 0.7, maxWidth: 'min(92vw, 40rem)' }}
+            >
+              we&apos;ll text you once, when zone&apos;s ready. no spam, reply stop any time.
+            </p>
+            <div className="profile-step-controls profile-step-controls--input">
+              <InputField
+                value={phoneValue}
+                onChange={setPhoneValue}
+                onAdvance={() => {
+                  if (phoneValid && phoneOptIn) completePhoneStep(phoneValue.trim())
+                }}
+                onFocusLift={liftProfileStepForKeyboard}
+                onBlurViewportReset={recenterProfileStep}
+                placeholder="mobile number"
+                type="tel"
+                name="tel"
+                autoFocus
+              />
+              <label className="profile-phone-opt-in-row">
+                <input
+                  type="checkbox"
+                  className="profile-phone-opt-in-checkbox"
+                  checked={phoneOptIn}
+                  onChange={(e) => setPhoneOptIn(e.target.checked)}
+                  aria-label="Opt in to a text with your results"
+                />
+                <h4 className="profile-phone-opt-in-label zz-h4 m-0">
+                  text me my results
+                </h4>
+              </label>
+              <ProfileAnswerBtn
+                reduceMotion={reduceMotion}
+                optionIndex={0}
+                delaySeconds={familyControlDelaySec(0)}
+                className=""
+                disabled={!phoneValid || !phoneOptIn}
+                onClick={() => completePhoneStep(phoneValue.trim())}
+                aria-label="Continue"
+              >
+                <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
+              </ProfileAnswerBtn>
+              <ProfileAnswerBtn
+                reduceMotion={reduceMotion}
+                optionIndex={1}
+                delaySeconds={familyControlDelaySec(1)}
+                className=""
+                onClick={() => completePhoneStep(null)}
+                aria-label="Later"
+              >
+                <span className="profile-answer-btn__text zz-h4">LATER</span>
+              </ProfileAnswerBtn>
+            </div>
           </motion.div>
         </AnimatePresence>
       </main>
