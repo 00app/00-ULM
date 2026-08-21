@@ -1,0 +1,292 @@
+/**
+ * One-pager styling.
+ *
+ * The nine fact cards and their grid are NOT styled here. They use the real Zone wall classes
+ * directly (`groovy-zone-grid`, `bento-card-groovy`, `card-headline`, `data-value`, `card-top-label`
+ * via `ZoneBentoCardHeader`) straight from app/globals.css, the same rules a live Zone card
+ * renders from. That is deliberate: matching values by hand in a parallel stylesheet drifts the
+ * moment the real card style changes, and app/globals.css defines several of these classes more
+ * than once at increasing specificity, so a hand-copy risks quoting an overridden, stale number.
+ * Importing the classes means this page can only ever look exactly like the product.
+ *
+ * What stays local is what has no equivalent on the real wall: the page shell, the header/doors/
+ * contact sections, and the tap-to-reveal accordion (Zone's own "expand" is the full Solo Focus
+ * overlay, wired to session/research state a static page cannot have — this is its own small
+ * CSS-only interaction instead, not an attempt to fake that). Every value still comes from the
+ * same custom properties as everywhere else: no new colours, no new fonts, no new spacing scale.
+ *
+ * One gap in that shared tone system, patched here rather than in globals.css since it is only
+ * provable from this page's markup: a plain pink "tip" card (data-zone-surface="tip", no
+ * zone-card--discovery) ties in specificity with the unconditional purple fallback rule two
+ * classes wide, and loses on source order, so it renders purple instead of pink. The discovery
+ * (yellow) variant does not have this problem because it already carries a
+ * .groovy-zone-grid-prefixed twin at higher specificity (globals.css around line 1157); the
+ * plain pink rule never got one. This adds that missing twin, same real tokens
+ * (--color-pink/--color-yellow), keyed off .cardReset (this page's own local class, already on
+ * every card) so the extra specificity comes with no risk of touching the live Zone wall, which
+ * never has that class.
+ */
+.cardReset:global(.bento-card-groovy)[data-zone-surface='tip'] {
+  background-color: var(--color-pink) !important;
+  color: var(--color-yellow) !important;
+  --journey-bg: var(--color-pink);
+  --journey-text: var(--color-yellow);
+  --color-ink: var(--color-yellow);
+}
+
+.pager {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: clamp(20px, 5vw, var(--gap-xl, 40px)) clamp(16px, 4vw, var(--gap-xl, 40px)) 80px;
+  /* No background of its own: the site's InteractiveBackground sits behind every route and this
+     page should sit on it like the rest of the app rather than paint over it. */
+}
+
+/* ---------- head ---------- */
+.header {
+  position: relative;
+}
+
+/* Brand mark, top right. Same SVG paths as app/components/Logo.tsx, inlined rather than imported
+   so this folder stays sealed (no cross-import into the rest of the app). */
+.logo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: var(--color-yellow, #ffd700);
+}
+
+.title {
+  font-family: var(--font-marvin), sans-serif;
+  /* House rule: body text colour is yellow, never white (globals.css `body { color:
+     var(--color-yellow) }`). Purple is reserved for text on a yellow surface. */
+  color: var(--color-yellow, #ffd700);
+  /* globals.css locks h1 to a flat --zz-h1-mobile/--zz-h1-desktop via `!important` (its own
+     house rule, meant for short single-line headings). This copy runs three lines of running
+     text, so it needs `!important` here too, else the flat lock wins by importance regardless
+     of specificity and breaks every word onto its own line. Still bounded by the same real
+     token as its ceiling, just fluid beneath it so three lines of prose actually fit. */
+  font-size: clamp(32px, 7.5vw, var(--zz-h1-desktop, 200px)) !important;
+  /* H1-H3 line box is 0.8, unitless, !important in globals.css: matched exactly, not approximated. */
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  margin: 0 20px 20px 0;
+  text-transform: uppercase;
+  /* Marvin is wide enough that a single word ("HOUSEHOLDS") can be wider than a narrow phone
+     viewport even at the size floor, same reason card-headline wraps rather than overflows. */
+  overflow-wrap: break-word;
+}
+
+.titleAccent {
+  color: var(--color-yellow, #ffd700);
+}
+
+.sub {
+  font-family: var(--font-roboto), system-ui, sans-serif;
+  /* Muted the same way the rest of the page mutes text: yellow at reduced opacity, not a
+     separate grey and never white. */
+  color: var(--color-yellow, #ffd700);
+  opacity: 0.72;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 700;
+  max-width: 46ch;
+  margin: 0 0 var(--gap-xl, 40px);
+}
+
+/* ---------- card structure (visual styling is the real bento-card-groovy/card-headline/
+   data-value classes; this is layout-only plumbing) ---------- */
+
+/* Turns bento-card-groovy's div-based click target into a real <button> without adding any
+   colour, font or spacing rule of its own — pure browser-default reset. */
+.cardReset {
+  appearance: none;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+
+.cardReset:focus-visible {
+  outline: 3px solid var(--color-yellow, #ffd700);
+  outline-offset: 3px;
+}
+
+/* Face (headline + stat) disappears outright when open; proof takes over the same space. */
+.face {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 1.8vw, 20px);
+}
+
+.cardReset.isOpen .face {
+  display: none;
+}
+
+/* The stat row: real data-value/data-stamp-metric styling, arranged the same way the impact
+   grid arranges SAVE/CARBON (a labelled stack), just a single figure instead of the pair. */
+.statStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+/* Proof grows the box open rather than swapping in. A 0fr/1fr grid track is the one CSS-only way
+   to animate to an intrinsic (auto) height smoothly, no JS measuring required, so the card scales
+   up and down in place instead of snapping — the closest a plain button can get to "opens left,
+   right, up and down" without Zone's own Solo Focus machinery. */
+.proofOuter {
+  display: grid;
+  grid-template-rows: 0fr;
+  /* --transition-bloom is already a full shorthand ("all 0.6s linear"), not just a duration. */
+  transition: var(--transition-bloom, all 0.6s linear);
+}
+
+.cardReset.isOpen .proofOuter {
+  grid-template-rows: 1fr;
+}
+
+.proofInner {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Body copy only in the open state (house rule), same font/weight as the rest of the page's
+   running text. */
+.back {
+  font-family: var(--font-roboto), system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.source {
+  font-family: var(--font-roboto), system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  opacity: 0.66;
+}
+
+.hint {
+  font-family: var(--font-roboto), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+/* ---------- doors ---------- */
+.doors {
+  margin-top: var(--gap-xl, 40px);
+}
+
+.doorsTitle {
+  font-family: var(--font-marvin), sans-serif;
+  color: var(--color-yellow, #ffd700);
+  font-size: clamp(28px, 5vw, var(--zz-h3-desktop, 56px));
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  margin: 0 0 16px;
+}
+
+.doorsGrid {
+  display: grid;
+  gap: var(--gap-lg, 20px);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .doorsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.door {
+  background: var(--color-purple, #141268);
+  border-radius: var(--radius-groovy, 60px);
+  padding: var(--padding-bento, 30px);
+}
+
+.doorLabel {
+  font-family: var(--font-marvin), sans-serif;
+  color: var(--color-yellow, #ffd700);
+  font-size: var(--zz-h4-desktop, 20px);
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+
+.doorBody {
+  font-family: var(--font-roboto), system-ui, sans-serif;
+  color: var(--color-yellow, #ffd700);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ---------- contact ---------- */
+.contact {
+  margin-top: var(--gap-xl, 40px);
+  background: var(--color-yellow, #ffd700);
+  border-radius: var(--radius-groovy, 60px);
+  padding: var(--padding-bento, 30px);
+}
+
+.contactTitle {
+  font-family: var(--font-marvin), sans-serif;
+  color: var(--color-purple, #141268);
+  font-size: clamp(28px, 5vw, var(--zz-h3-desktop, 56px));
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  margin: 0 0 16px;
+}
+
+.contactRows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  align-items: baseline;
+}
+
+.contactLink,
+.contactSite {
+  font-family: var(--font-marvin), sans-serif;
+  color: var(--color-purple, #141268);
+  font-size: clamp(18px, 2.6vw, 26px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  text-transform: lowercase;
+}
+
+.contactLink:hover {
+  text-decoration: underline;
+}
+
+.contactName {
+  font-family: var(--font-roboto), system-ui, sans-serif;
+  color: var(--color-purple, #141268);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 16px 0 0;
+  opacity: 0.75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proofOuter {
+    transition: none;
+  }
+}
