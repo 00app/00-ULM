@@ -82,14 +82,10 @@ export default function PagerClient() {
         <h1 className={styles.title}>
           UK households are owed
           <br />
-          <span className={styles.titleAccent}>£24 billion a year.</span>
+          £24 billion a year.
           <br />
           Most never claim it.
         </h1>
-        <p className={styles.sub}>
-          Tap any card to see where the number comes from. Every claim on this page has a source,
-          which is the same rule the product runs on.
-        </p>
       </header>
 
       <section className="groovy-zone-grid" aria-label="Zero Zero in nine facts">

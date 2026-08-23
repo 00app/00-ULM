@@ -76,31 +76,18 @@
      of specificity and breaks every word onto its own line. Still bounded by the same real
      token as its ceiling, just fluid beneath it so three lines of prose actually fit. */
   font-size: clamp(32px, 7.5vw, var(--zz-h1-desktop, 200px)) !important;
-  /* H1-H3 line box is 0.8, unitless, !important in globals.css: matched exactly, not approximated. */
+  /* H1-H3 line box is 0.8, unitless, !important in globals.css: matched exactly, not approximated.
+     PagerClient.tsx's three lines must stay plain text/<br>, not wrapped in a <span>: a nested
+     inline element on one of the lines makes Chrome compute that line's box from the font's own
+     strut instead of the inherited 0.8, so it renders at ~1.0 (confirmed by isolated measurement,
+     real `.card-headline` wraps at the correct tight 0.8 with no span involved either). */
   line-height: 0.8;
   letter-spacing: -0.02em;
-  margin: 0 20px 20px 0;
+  margin: 0 20px var(--gap-xl, 40px) 0;
   text-transform: uppercase;
   /* Marvin is wide enough that a single word ("HOUSEHOLDS") can be wider than a narrow phone
      viewport even at the size floor, same reason card-headline wraps rather than overflows. */
   overflow-wrap: break-word;
-}
-
-.titleAccent {
-  color: var(--color-yellow, #ffd700);
-}
-
-.sub {
-  font-family: var(--font-roboto), system-ui, sans-serif;
-  /* Muted the same way the rest of the page mutes text: yellow at reduced opacity, not a
-     separate grey and never white. */
-  color: var(--color-yellow, #ffd700);
-  opacity: 0.72;
-  font-size: 15px;
-  line-height: 1.5;
-  font-weight: 700;
-  max-width: 46ch;
-  margin: 0 0 var(--gap-xl, 40px);
 }
 
 /* ---------- card structure (visual styling is the real bento-card-groovy/card-headline/
