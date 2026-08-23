@@ -9,11 +9,12 @@
  * than once at increasing specificity, so a hand-copy risks quoting an overridden, stale number.
  * Importing the classes means this page can only ever look exactly like the product.
  *
- * What stays local is what has no equivalent on the real wall: the page shell, the header/doors/
- * contact sections, and the tap-to-reveal accordion (Zone's own "expand" is the full Solo Focus
- * overlay, wired to session/research state a static page cannot have — this is its own small
- * CSS-only interaction instead, not an attempt to fake that). Every value still comes from the
- * same custom properties as everywhere else: no new colours, no new fonts, no new spacing scale.
+ * What stays local is what has no equivalent on the real wall: the page shell and the header/
+ * doors/contact sections. The tap-to-expand interaction itself is the real Solo Focus overlay
+ * (`ExpandedCardShell`/`SoloFocusViewportUtilityStrip`/`SoloFocusMotherStack`, imported in
+ * PagerClient.tsx), not a page-local approximation, so this file only needs the tile-level
+ * button reset and stat layout below it. Every value still comes from the same custom properties
+ * as everywhere else: no new colours, no new fonts, no new spacing scale.
  *
  * One gap in that shared tone system, patched here rather than in globals.css since it is only
  * provable from this page's markup: a plain pink "tip" card (data-zone-surface="tip", no
@@ -40,6 +41,14 @@
   padding: clamp(20px, 5vw, var(--gap-xl, 40px)) clamp(16px, 4vw, var(--gap-xl, 40px)) 80px;
   /* No background of its own: the site's InteractiveBackground sits behind every route and this
      page should sit on it like the rest of the app rather than paint over it. */
+}
+
+/* Real Solo Focus hides the live wall behind it via `body.has-solo-focus .zone-grid-container,
+   .zone-hero-section { visibility: hidden }` (globals.css) — this page has no elements with
+   those two classes, so the grid/header would otherwise still show through the transparent
+   `.solo-focus-grow-layer` overlay. Same mechanism, this page's own root class instead. */
+:global(body.has-solo-focus) .pager {
+  visibility: hidden;
 }
 
 /* ---------- head ---------- */
@@ -114,15 +123,12 @@
   outline-offset: 3px;
 }
 
-/* Face (headline + stat) disappears outright when open; proof takes over the same space. */
+/* Face: headline + stat, the tile's whole visible content (there is no in-tile open state any
+   more — tapping opens the real Solo Focus overlay instead). */
 .face {
   display: flex;
   flex-direction: column;
   gap: clamp(12px, 1.8vw, 20px);
-}
-
-.cardReset.isOpen .face {
-  display: none;
 }
 
 /* The stat row: real data-value/data-stamp-metric styling, arranged the same way the impact
@@ -132,47 +138,6 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0;
-}
-
-/* Proof grows the box open rather than swapping in. A 0fr/1fr grid track is the one CSS-only way
-   to animate to an intrinsic (auto) height smoothly, no JS measuring required, so the card scales
-   up and down in place instead of snapping — the closest a plain button can get to "opens left,
-   right, up and down" without Zone's own Solo Focus machinery. */
-.proofOuter {
-  display: grid;
-  grid-template-rows: 0fr;
-  /* --transition-bloom is already a full shorthand ("all 0.6s linear"), not just a duration. */
-  transition: var(--transition-bloom, all 0.6s linear);
-}
-
-.cardReset.isOpen .proofOuter {
-  grid-template-rows: 1fr;
-}
-
-.proofInner {
-  overflow: hidden;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Body copy only in the open state (house rule), same font/weight as the rest of the page's
-   running text. */
-.back {
-  font-family: var(--font-roboto), system-ui, sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.45;
-}
-
-.source {
-  font-family: var(--font-roboto), system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: lowercase;
-  opacity: 0.66;
 }
 
 .hint {
@@ -283,10 +248,4 @@
   font-weight: 700;
   margin: 16px 0 0;
   opacity: 0.75;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .proofOuter {
-    transition: none;
-  }
 }
