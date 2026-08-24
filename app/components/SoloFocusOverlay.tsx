@@ -963,6 +963,7 @@ export function SoloFocusOverlay({
                         sourceFooter={sourceFooter}
                         moneyGbp={animatedMoneyGbp}
                         carbonKg={animatedCarbonKg}
+                        estimated={useEstimated}
                         impactPulse={impactAnswerPulse}
                         ctaUrl={soloHandoff.ctaUrl}
                         ctaJourneyId={journeyId}

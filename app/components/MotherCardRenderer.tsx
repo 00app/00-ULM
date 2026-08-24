@@ -12,6 +12,10 @@ interface MotherCardRendererProps {
   actionLine?: string | null
   moneyGbp: number
   carbonKg: number
+  /** True when this journey has no real answers yet and the figures below are a mid-band guess
+      from the profile baseline, not the user's own answers — must say so, never assert a number
+      silently as if it were verified. */
+  estimated?: boolean
   impactPulse?: boolean
   ctaUrl?: string | null
   ctaJourneyId?: string
@@ -34,6 +38,7 @@ export function MotherCardRenderer({
   actionLine,
   moneyGbp,
   carbonKg,
+  estimated = false,
   impactPulse = false,
   ctaUrl,
   ctaJourneyId,
@@ -79,7 +84,7 @@ export function MotherCardRenderer({
       >
         <div className="solo-focus-data-stack data-stack data-stack--tight">
           <span className="data-label" style={{ color: 'var(--color-ink)' }}>
-            Saving
+            Saving{estimated ? ' (estimated)' : ''}
           </span>
           <span className="data-value solo-focus-data-value data-stamp-metric" style={{ color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums' }}>
             <StampedMoneyGbp gbp={moneyGbp} />
@@ -89,7 +94,7 @@ export function MotherCardRenderer({
           <span className="data-label" style={{ color: 'var(--color-ink)' }}>
             {/* "Offset" implies paying someone else to compensate — this app only ever shows
                 CO2 avoided by the user's own behaviour change, never a purchased offset. */}
-            CO<span className="data-co2-sub">2</span> Saving
+            CO<span className="data-co2-sub">2</span> Saving{estimated ? ' (estimated)' : ''}
           </span>
           <span className="data-value solo-focus-data-value data-stamp-metric" style={{ color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums' }}>
             <StampedCarbonKg kg={carbonKg} omitCo2Suffix />

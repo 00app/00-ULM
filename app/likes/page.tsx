@@ -118,16 +118,14 @@ export default function LikesPage() {
   const hasLikes = likedCards.length > 0 || likedZaiPicks.length > 0
 
   const handleUnlike = (id: string) => {
+    // toggleLike (AppContext) already persists this to /api/likes itself, awaiting a real
+    // session first. A second, unawaited POST here used to race it: this one usually reached the
+    // server first (delete), then toggleLike's session-gated request landed after and re-inserted
+    // the like — so an unliked card could silently reappear on next load.
     toggleLike(id)
     removeLikeCardSnapshot(id)
     if (id.startsWith('zai-like-')) removeZaiLike(id)
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([12, 60, 12])
-    fetch('/api/likes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ card_id: id }),
-    }).catch(() => {})
   }
 
   const handleActioned = async (id: string) => {

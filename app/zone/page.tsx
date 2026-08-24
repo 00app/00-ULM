@@ -2669,8 +2669,19 @@ export default function ZonePage({
     })()
   }, [zoneInteractable, signupFirstName, zoneSignupTips, zoneSignupTipSlugs, zoneSignupRecommendations])
 
-  /** Already have a number from onboarding (sent or about to be) — don't ask again down here. */
-  const [onboardingMobileHandled] = useState(() => readCapturedOnboardingMobile() !== null)
+  /**
+   * Already have a number from onboarding (sent or about to be) — don't ask again down here.
+   * Must start `false` (matching what the server always renders, since there's no localStorage
+   * during SSR) and only flip true in an effect, never in the initializer: a lazy `useState`
+   * initializer runs again on the client's first render too, and `readCapturedOnboardingMobile()`
+   * sees real localStorage there — for a returning user who already captured a number, that made
+   * the client's first render disagree with the server's HTML and threw a hydration error,
+   * forcing this whole section of the tree to be torn down and rebuilt from scratch.
+   */
+  const [onboardingMobileHandled, setOnboardingMobileHandled] = useState(false)
+  useEffect(() => {
+    setOnboardingMobileHandled(readCapturedOnboardingMobile() !== null)
+  }, [])
 
   const resolveZoneTipById = useCallback(
     (id: string) => {

@@ -1210,6 +1210,7 @@ export function JourneyBentoCard({
                     }
                     moneyGbp={animatedMoneyGbp}
                     carbonKg={animatedCarbonKg}
+                    estimated={useEstimated}
                     impactPulse={impactAnswerPulse}
                     ctaUrl={soloHandoff.ctaUrl}
                     ctaJourneyId={displayJourneyId as string}
