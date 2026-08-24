@@ -19,7 +19,8 @@ function upstashConfigured(): boolean {
 /** Returns null when Upstash is not configured — caller should fall back to in-memory. */
 export async function checkRateLimitDistributed(
   key: string,
-  maxPerMinute: number
+  maxPerWindow: number,
+  windowSec: number = WINDOW_SEC
 ): Promise<DistributedResult | null> {
   if (!upstashConfigured()) return null
 
@@ -47,15 +48,15 @@ export async function checkRateLimitDistributed(
     let ttl = Number(pipeJson.result?.[1] ?? -1)
 
     if (ttl < 0) {
-      await fetch(`${base}/expire/${encodeURIComponent(redisKey)}/${WINDOW_SEC}`, {
+      await fetch(`${base}/expire/${encodeURIComponent(redisKey)}/${windowSec}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
       })
-      ttl = WINDOW_SEC
+      ttl = windowSec
     }
 
-    if (count > maxPerMinute) {
+    if (count > maxPerWindow) {
       return { ok: false, retryAfter: Math.max(1, ttl) }
     }
     return { ok: true }

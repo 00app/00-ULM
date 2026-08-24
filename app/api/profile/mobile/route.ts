@@ -25,6 +25,16 @@ export const dynamic = 'force-dynamic'
 /** Per-minute caps (distributed when UPSTASH_REDIS_* is set). */
 const MOBILE_SMS_MAX_PER_IP = 3
 const MOBILE_SMS_MAX_PER_NUMBER = 2
+/**
+ * Becoming "authenticated" here costs nothing (profile-only accounts need no password), so the
+ * per-minute caps above only slow a script down, they don't stop it running for hours. This is a
+ * second, independent cap on the same key across a full day: without it, someone could drip-feed
+ * real Twilio SMS to an arbitrary number indefinitely (harassment, plus unbounded spend), just by
+ * staying under 2 requests/minute forever. 6/day covers a real user changing their mind about
+ * their own number a few times, not a sustained send.
+ */
+const MOBILE_SMS_MAX_PER_NUMBER_PER_DAY = 6
+const DAY_SEC = 24 * 60 * 60
 
 /** Normalise UK/international mobiles to E.164 (+digits). */
 function normalizeMobile(input: string): string | null {
@@ -164,6 +174,22 @@ export async function POST(req: NextRequest) {
       {
         status: 429,
         headers: numLimit.retryAfter ? { 'Retry-After': String(numLimit.retryAfter) } : undefined,
+      }
+    )
+  }
+  const numDailyLimit = await checkRateLimitAsync(
+    `profile-mobile:num:day:${mobile}`,
+    MOBILE_SMS_MAX_PER_NUMBER_PER_DAY,
+    DAY_SEC
+  )
+  if (!numDailyLimit.ok) {
+    return NextResponse.json(
+      { error: 'Too many messages to this number today. Try again tomorrow.' },
+      {
+        status: 429,
+        headers: numDailyLimit.retryAfter
+          ? { 'Retry-After': String(numDailyLimit.retryAfter) }
+          : undefined,
       }
     )
   }

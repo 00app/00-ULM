@@ -59,7 +59,8 @@ const GENERIC_WINDOW_MS = 60 * 1000
 
 export function checkRateLimit(
   key: string,
-  maxPerMinute: number
+  maxPerWindow: number,
+  windowMs: number = GENERIC_WINDOW_MS
 ): { ok: boolean; retryAfter?: number } {
   const now = Date.now()
   const entry = genericLimits.get(key)
@@ -67,13 +68,13 @@ export function checkRateLimit(
     genericLimits.set(key, { count: 1, windowStart: now })
     return { ok: true }
   }
-  if (now - entry.windowStart >= GENERIC_WINDOW_MS) {
+  if (now - entry.windowStart >= windowMs) {
     entry.count = 1
     entry.windowStart = now
     return { ok: true }
   }
-  if (entry.count >= maxPerMinute) {
-    const retryAfter = Math.ceil((entry.windowStart + GENERIC_WINDOW_MS - now) / 1000)
+  if (entry.count >= maxPerWindow) {
+    const retryAfter = Math.ceil((entry.windowStart + windowMs - now) / 1000)
     return { ok: false, retryAfter: Math.max(1, retryAfter) }
   }
   entry.count += 1
@@ -85,13 +86,14 @@ export function checkRateLimit(
  *  required), else in-memory (per-instance, last resort). */
 export async function checkRateLimitAsync(
   key: string,
-  maxPerMinute: number
+  maxPerWindow: number,
+  windowSec = 60
 ): Promise<{ ok: boolean; retryAfter?: number }> {
-  const upstash = await checkRateLimitDistributed(key, maxPerMinute)
+  const upstash = await checkRateLimitDistributed(key, maxPerWindow, windowSec)
   if (upstash) return upstash
-  const neon = await checkRateLimitNeon(key, maxPerMinute)
+  const neon = await checkRateLimitNeon(key, maxPerWindow, windowSec)
   if (neon) return neon
-  return checkRateLimit(key, maxPerMinute)
+  return checkRateLimit(key, maxPerWindow, windowSec * 1000)
 }
 
 /** Returns null if allowed; or an error message if rate limited / locked out. */

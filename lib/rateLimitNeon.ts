@@ -40,9 +40,13 @@ function maybePruneStaleRows(pool: ReturnType<typeof getDbPool>): void {
 /** Returns null when the DB isn't configured or the write fails — caller falls back to in-memory. */
 export async function checkRateLimitNeon(
   key: string,
-  maxPerMinute: number
+  maxPerWindow: number,
+  windowSec: number = WINDOW_SEC
 ): Promise<DistributedResult | null> {
   if (!isDatabaseConfigured()) return null
+  // Integer, never user input — this function's own callers pass a literal, so string
+  // interpolation into the INTERVAL literal below is safe (no parameter placeholder for INTERVAL).
+  const safeWindowSec = Math.max(1, Math.floor(windowSec))
 
   try {
     await ensureTable()
@@ -54,12 +58,12 @@ export async function checkRateLimitNeon(
        VALUES ($1, 1, NOW())
        ON CONFLICT (rl_key) DO UPDATE SET
          count = CASE
-           WHEN rate_limits_window.window_start > NOW() - INTERVAL '${WINDOW_SEC} seconds'
+           WHEN rate_limits_window.window_start > NOW() - INTERVAL '${safeWindowSec} seconds'
            THEN rate_limits_window.count + 1
            ELSE 1
          END,
          window_start = CASE
-           WHEN rate_limits_window.window_start > NOW() - INTERVAL '${WINDOW_SEC} seconds'
+           WHEN rate_limits_window.window_start > NOW() - INTERVAL '${safeWindowSec} seconds'
            THEN rate_limits_window.window_start
            ELSE NOW()
          END
@@ -73,9 +77,9 @@ export async function checkRateLimitNeon(
     const count = Number(row.count)
     const windowStartMs = new Date(row.window_start).getTime()
     const elapsedSec = Math.max(0, (Date.now() - windowStartMs) / 1000)
-    const retryAfter = Math.max(1, Math.ceil(WINDOW_SEC - elapsedSec))
+    const retryAfter = Math.max(1, Math.ceil(safeWindowSec - elapsedSec))
 
-    if (count > maxPerMinute) {
+    if (count > maxPerWindow) {
       return { ok: false, retryAfter }
     }
     return { ok: true }

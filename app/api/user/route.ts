@@ -205,33 +205,53 @@ export async function POST(request: NextRequest) {
         insertParams
       )
 
-    const runUpdate = (existingId: string) =>
+    /**
+     * `requirePasswordless` must be true whenever `existingId` came from the unauthenticated
+     * name+postcode lookup below, and MUST be false for the session-cookie path — a verified
+     * session is already proof of ownership of that exact account, password or not, and a
+     * legitimately logged-in password-protected user has to be able to re-submit onboarding
+     * through their own session. Restricting to password-less rows only matters for the lookup
+     * that has no proof of identity at all.
+     */
+    const runUpdate = (existingId: string, requirePasswordless: boolean) =>
       pool.query(
         `UPDATE users
          SET name = $1, postcode = $2, household = $3, home_type = $4, transport_baseline = $5,
              age_group = $6, employment_status = $7, user_genome = user_genome || $8::jsonb
-         WHERE id = $9
+         WHERE id = $9 ${requirePasswordless ? 'AND password_hash IS NULL' : ''}
          RETURNING id, name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome, created_at`,
         [...insertParams, existingId]
       )
 
     // Reattach repeat onboarding to an existing account instead of forking a new user row each
     // time. Two ways to find "the same person" without a real login system: (1) their browser
-    // already carries a valid session cookie — reuse that user, or (2) no session, but a user with
-    // the same normalized name+postcode already exists — reuse that one. Only fall through to a
-    // fresh INSERT when neither matches.
+    // already carries a valid session cookie — reuse that user, or (2) no session, but a
+    // password-less profile-only user with the same normalized name+postcode already exists —
+    // reuse that one. Only fall through to a fresh INSERT when neither matches.
+    //
+    // The `password_hash IS NULL` guard on the lookup below is load bearing: without it, anyone
+    // who knows a target's name and postcode (public information) could POST here with no
+    // password at all, get matched to that person's real registered account, receive a valid
+    // session cookie for it, and overwrite their profile — a full account takeover with zero
+    // authentication. Restricting the match to password-less rows means this unauthenticated
+    // path can only ever reattach to an account nobody has secured with a password yet.
     const currentSession = await getSessionFromRequest().catch(() => null)
     let existingUserId: string | null = currentSession?.userId ?? null
+    let existingUserNeedsPasswordlessGuard = false
     if (!existingUserId) {
       const match = await pool.query(
-        `SELECT id FROM users WHERE LOWER(name) = LOWER($1) AND postcode = $2 ORDER BY created_at DESC LIMIT 1`,
+        `SELECT id FROM users WHERE LOWER(name) = LOWER($1) AND postcode = $2 AND password_hash IS NULL ORDER BY created_at DESC LIMIT 1`,
         [raw.name, raw.postcode]
       )
       existingUserId = match.rows[0]?.id ? String(match.rows[0].id) : null
+      existingUserNeedsPasswordlessGuard = true
     }
 
     const [result, local, propertyIntelligence] = await Promise.all([
-      (existingUserId ? runUpdate(existingUserId) : runInsert()).catch(async (insertErr: unknown) => {
+      (existingUserId
+        ? runUpdate(existingUserId, existingUserNeedsPasswordlessGuard)
+        : runInsert()
+      ).catch(async (insertErr: unknown) => {
         const msg = insertErr instanceof Error ? insertErr.message : String(insertErr)
         if (!/user_genome|employment_status|age_group|gen_random_uuid/i.test(msg)) throw insertErr
         console.warn('[api/user] INSERT fallback (legacy schema):', msg)
