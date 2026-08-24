@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
+import { CANONICAL_SITE_URL } from '@/lib/site'
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org/reverse'
 const GEOCODE_MAX_PER_MINUTE = 60
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
   try {
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'ZeroZeroApp/1.0 (https://github.com/zero-zero; contact@yourdomain.com)',
+        'User-Agent': `ZeroZeroApp/1.0 (${CANONICAL_SITE_URL}; privacy@00-00.online)`,
       },
     })
     if (!res.ok) {

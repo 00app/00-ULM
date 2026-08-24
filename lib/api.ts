@@ -12,6 +12,12 @@ export async function createUser(profile: {
   goal?: string
   house_number?: string
   home_power?: string
+  home_ownership?: string
+  wash_preference?: string
+  flight_frequency?: string
+  financial_pressure?: string
+  children?: string
+  help_goal?: string
 }) {
   const response = await fetch('/api/user', {
     method: 'POST',

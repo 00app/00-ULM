@@ -277,7 +277,10 @@ export function ZoneIntelligenceStrip({
   const covInsight = covRows.some((c) => c.insightReady)
   const covOffer = covRows.some((c) => c.hasOffer)
   const propsTicks = researchTicksFromPayload(
-    { verifiedSaving, savingAmountGbp, offerUrl: hasOfferUrl ? 'https://local' : undefined },
+    // offerUrl is only ever truthiness-checked by researchTicksFromPayload (Boolean(...trim())),
+    // never rendered as a link — this sentinel just needs to be a non-empty string, not a real
+    // URL, but keeping it URL-shaped risks someone later wiring it into an actual href.
+    { verifiedSaving, savingAmountGbp, offerUrl: hasOfferUrl ? 'has-offer' : undefined },
     categoryCoverage
   )
   const moneyOk =

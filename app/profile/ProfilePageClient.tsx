@@ -99,7 +99,7 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
       'OTHER',
     ],
     getInsight: (v, locality) =>
-      v === 'GAS' ? `${locality || 'your area'} gas homes pay\n£180 more yearly.` :
+      v === 'GAS' ? `${locality || 'your area'} gas homes usually\npay more than efficient alternatives.` :
       v === 'ELECTRIC' ? 'fully electric. you\'re already ahead\nof most households.' :
       v === 'MIX' ? 'mixed. there\'s room to optimise\nboth sides.' : null,
   },
@@ -109,7 +109,7 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
     type: 'options' as const,
     options: ['WALK', 'BIKE', 'PUBLIC', 'CAR', 'MIX'],
     getInsight: (v) =>
-      v === 'CAR' ? 'drivers here spend £2,100\na year on fuel.' :
+      v === 'CAR' ? 'fuel is often a household\'s biggest\nhidden running cost.' :
       v === 'PUBLIC' ? 'public transport keeps your carbon\nlower than most.' :
       v === 'WALK' || v === 'BIKE' ? 'no fuel spend. that\'s a real\nadvantage.' : null,
   },
@@ -897,68 +897,6 @@ export default function ProfilePageClient() {
         })
         return
       }
-      clearOnboardingIntent()
-      router.replace(dest)
-
-      const payload = {
-        name: mergedValues.name ?? '',
-        postcode: mergedValues.postcode ?? '',
-        household: mergedValues.livingSituation ?? '',
-        home_type: mergedValues.homeType ?? '',
-        transport: mergedValues.transport ?? '',
-        age_group: (mergedValues.age as ProfileAge) ?? undefined,
-        employment_status: mergedValues.employmentStatus ?? undefined,
-        goal: mergedValues.goal ?? undefined,
-        house_number: mergedValues.houseNumber?.trim() || undefined,
-        home_power: mergedValues.powerType?.trim() || undefined,
-      }
-
-      void createUser(payload)
-        .then((res) => {
-          syncLocalStorageFromServerUser(res?.user)
-          const userId = res?.user?.id ?? res?.id
-          if (typeof window !== 'undefined' && userId) {
-            persistSessionRestoreProof(
-              typeof res?.restore_proof === 'string' ? res.restore_proof : null
-            )
-          }
-          refreshProfile()
-          const location = res?.location
-          if (location && typeof location.council === 'string') {
-            const local: LocalIntelligence = {
-              council: location.council,
-              region: typeof location.region === 'string' ? location.region : location.council,
-              localCarbonG: typeof location.localCarbonG === 'number' ? location.localCarbonG : undefined,
-              ward: typeof location.ward === 'string' ? location.ward : undefined,
-              locality: typeof location.locality === 'string' ? location.locality : undefined,
-              outcode: typeof location.outcode === 'string' ? location.outcode : undefined,
-              country: typeof location.country === 'string' ? location.country : undefined,
-            }
-            const locationName = formatLocationDisplayName(local, mergedValues.postcode ?? '')
-            if (locationName) {
-              persistProfileLocality(mergedValues.postcode ?? '', locationName)
-              setLocationState({ locationName, local })
-            }
-          }
-          try {
-            persistUnifiedUserProfileMemory()
-          } catch {
-            // ignore
-          }
-          void import('@/lib/sessionStateSync').then((m) => m.syncSessionState())
-        })
-        .catch(() => {
-          refreshProfile()
-          try {
-            persistUnifiedUserProfileMemory()
-          } catch {
-            // ignore
-          }
-        })
-        .finally(() => {
-          submittingRef.current = false
-          setIsSubmitting(false)
-        })
     },
     [refreshProfile, router, returnTo, setLocationState, setStep]
   )
