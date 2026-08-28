@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 import pool from '@/lib/db'
 import { createSession, getSessionFromRequest, setSessionCookieOnResponse } from '@/lib/auth'
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
@@ -43,6 +44,11 @@ export async function GET() {
 const USER_CREATE_MAX_PER_MINUTE = 5
 /** Profile-only (no password) sessions are shorter-lived to reduce abuse impact. */
 const PROFILE_ONLY_SESSION_DAYS = 7
+/** Matches /api/auth/signup and /api/auth/login's default session length once a password exists. */
+const PASSWORD_PROTECTED_SESSION_DAYS = 30
+/** Matches /api/auth/signup's rule exactly. */
+const PASSWORD_MIN_LENGTH = 8
+const PASSWORD_SALT_ROUNDS = 10
 
 export async function POST(request: NextRequest) {
   const id = getClientIdentifier(request)
@@ -125,6 +131,19 @@ export async function POST(request: NextRequest) {
         ? helpGoalRaw
         : null
 
+    // Optional — the onboarding password step has a Skip button, so most requests won't carry
+    // one. Only validate/hash when something was actually typed; an absent or empty password
+    // must never touch password_hash (see runUpdate below, which preserves whatever's already
+    // there via COALESCE rather than overwriting it with null).
+    const passwordRaw = typeof body?.password === 'string' ? body.password : ''
+    if (passwordRaw && passwordRaw.length < PASSWORD_MIN_LENGTH) {
+      return NextResponse.json(
+        { error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters` },
+        { status: 400 }
+      )
+    }
+    const passwordHash = passwordRaw ? await bcrypt.hash(passwordRaw, PASSWORD_SALT_ROUNDS) : null
+
     const raw = {
       name: typeof body?.name === 'string' ? body.name.trim().slice(0, 200) : '',
       postcode: typeof body?.postcode === 'string' ? body.postcode.replace(/\s+/g, '').trim().slice(0, 20) : '',
@@ -195,13 +214,14 @@ export async function POST(request: NextRequest) {
       raw.age_group,
       raw.employment_status,
       genome,
+      passwordHash,
     ]
 
     const runInsert = () =>
       pool.query(
-        `INSERT INTO users (id, name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8::jsonb)
-         RETURNING id, name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome, created_at`,
+        `INSERT INTO users (id, name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome, password_hash)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
+         RETURNING id, name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome, created_at, password_hash`,
         insertParams
       )
 
@@ -217,9 +237,10 @@ export async function POST(request: NextRequest) {
       pool.query(
         `UPDATE users
          SET name = $1, postcode = $2, household = $3, home_type = $4, transport_baseline = $5,
-             age_group = $6, employment_status = $7, user_genome = user_genome || $8::jsonb
-         WHERE id = $9 ${requirePasswordless ? 'AND password_hash IS NULL' : ''}
-         RETURNING id, name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome, created_at`,
+             age_group = $6, employment_status = $7, user_genome = user_genome || $8::jsonb,
+             password_hash = COALESCE($9, password_hash)
+         WHERE id = $10 ${requirePasswordless ? 'AND password_hash IS NULL' : ''}
+         RETURNING id, name, postcode, household, home_type, transport_baseline, age_group, employment_status, user_genome, created_at, password_hash`,
         [...insertParams, existingId]
       )
 
@@ -266,6 +287,9 @@ export async function POST(request: NextRequest) {
       hydratePropertyIntelligence(raw.postcode, { houseNumber: houseNumber || null }).catch(() => null),
     ])
     const user = result.rows[0]
+    // Never sent to the client, hashed or not — only used here to size the session, then dropped.
+    const isPasswordProtected = Boolean(user?.password_hash)
+    if (user) delete user.password_hash
 
     let propertyPrefill: Awaited<ReturnType<typeof persistPropertyPrefillForUser>> | null = null
     if (propertyIntelligence && user?.id) {
@@ -298,7 +322,8 @@ export async function POST(request: NextRequest) {
       primary_goal,
       goal: profile_goal ?? undefined,
     })
-    const token = await createSession(user.id, PROFILE_ONLY_SESSION_DAYS)
+    const sessionDays = isPasswordProtected ? PASSWORD_PROTECTED_SESSION_DAYS : PROFILE_ONLY_SESSION_DAYS
+    const token = await createSession(user.id, sessionDays)
     const res = NextResponse.json(
       withRestoreProof(
         {
@@ -311,7 +336,7 @@ export async function POST(request: NextRequest) {
         String(user.id)
       )
     )
-    setSessionCookieOnResponse(res, token, PROFILE_ONLY_SESSION_DAYS * 24 * 60 * 60)
+    setSessionCookieOnResponse(res, token, sessionDays * 24 * 60 * 60)
     return res
   } catch (error: unknown) {
     console.error('[api/user] POST error:', error)

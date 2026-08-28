@@ -20,6 +20,7 @@ import {
   saveDislikeCardSnapshot,
 } from '@/lib/client/dislikeCardSnapshots'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
+import { syncLocalStorageFromServerUser } from '@/lib/profile/syncLocalStorageFromServerUser'
 
 /** Age persona for tips: Junior | Adult (MID) | Retired */
 export type ProfileAge = 'JUNIOR' | 'MID' | 'RETIRED'
@@ -262,9 +263,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         try {
           const userRes = await authenticatedGet('/api/user')
           if (userRes.ok) {
-            const data = (await userRes.json()) as { user?: { id?: string } }
+            const data = (await userRes.json()) as { user?: Record<string, unknown> & { id?: string } }
             const id = data?.user?.id
             if (typeof id === 'string' && id.trim()) setUserIdState(id.trim())
+            // A session can exist on a device whose localStorage never saw this account's
+            // answers — logging in on a fresh device (see login-mobile), or any other path that
+            // starts a session without going through onboarding's own local writes on this
+            // browser. Without this, state.profile (sourced from localStorage below) stays
+            // empty and the app reads as "Guest" even though the session is real.
+            if (data?.user) {
+              syncLocalStorageFromServerUser(data.user)
+              refreshProfile()
+            }
           }
         } catch {
           /* offline */

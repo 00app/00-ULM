@@ -47,10 +47,20 @@ import { browserCanTriggerScrapeSync, triggerOnboardingResearchBootstrap, trigge
 import { buildResearchProfilePayload } from '@/lib/profile/buildResearchProfilePayload'
 import { applyPropertyPrefillFromApiResponse } from '@/lib/client/propertyAnswerSourcesStorage'
 import { mapEpcPropertyTypeToHomeTypeHint } from '@/lib/epc/mapEpcToProfileHints'
+import { syncLocalStorageFromServerUser } from '@/lib/profile/syncLocalStorageFromServerUser'
 import { flushSync } from 'react-dom'
 import { INTRO_GOAL_QUESTION, PROFILE_GOAL_CHOICES, type ProfileGoalValue } from '@/lib/profile/goalWeighting'
 import { isValidUkMobileInput } from '@/lib/messaging/ukMobile'
 import { ONBOARDING_MOBILE_LS, ONBOARDING_MOBILE_STEP_SEEN_LS } from '@/lib/profile/onboardingMobileCapture'
+
+/**
+ * Password step, right after the mobile step. Only a "seen" marker goes to localStorage — never
+ * the password itself, that stays in a ref for the rest of this component's life and is read
+ * once at final submission (see submitProfile), same reason mobile capture never puts the number
+ * through the generic values/STORAGE_KEYS persistence path.
+ */
+const ONBOARDING_PASSWORD_STEP_SEEN_LS = 'zz_onboarding_password_step_seen'
+const ONBOARDING_PASSWORD_MIN_LENGTH = 8
 
 /** Software-keyboard lift — phones only; tablet (768+) and desktop stay centred. */
 const PROFILE_MOBILE_KEYBOARD_MQ = '(max-width: 767px)'
@@ -80,8 +90,8 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
   },
   { id: 'homeType', label: 'your home?', type: 'options' as const, options: ['FLAT', 'HOUSE'],
     getInsight: (v) =>
-      v === 'HOUSE' ? 'houses have more room to save —\nroof, loft, and garden all help.' :
-      v === 'FLAT' ? 'flats still add up —\nwe\'ll focus on what\'s in your control.' : null },
+      v === 'HOUSE' ? 'houses have more room to save.\nroof, loft, and garden all help.' :
+      v === 'FLAT' ? 'flats still add up.\nwe\'ll focus on what\'s in your control.' : null },
   {
     id: 'homeOwnership',
     label: 'do you own or rent?',
@@ -95,7 +105,7 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
     options: [
       'GAS',
       'ELECTRIC',
-      { label: 'MIXED', value: 'MIX', ariaLabel: 'Mixed — gas and electric' },
+      { label: 'MIXED', value: 'MIX', ariaLabel: 'Mixed, gas and electric' },
       'OTHER',
     ],
     getInsight: (v, locality) =>
@@ -119,7 +129,7 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
     type: 'options' as const,
     options: ['SHOWER', 'BATH', 'BOTH'],
     getInsight: (v) =>
-      v === 'BATH' ? 'baths use more hot water —\nreal room to save.' :
+      v === 'BATH' ? 'baths use more hot water.\nreal room to save.' :
       v === 'SHOWER' ? 'showers already keep your\nwater bill lean.' : null,
   },
   {
@@ -263,40 +273,6 @@ function resolveProfileGoal(v: Record<string, string>): string {
  * reads from it — Zone greeting, Truth Ledger, summary) keeps showing the stale local values
  * forever, diverging from what the server actually persisted.
  */
-function syncLocalStorageFromServerUser(user: Record<string, unknown> | undefined | null): void {
-  if (!user || typeof window === 'undefined') return
-  const setIfString = (key: string, value: unknown) => {
-    if (typeof value === 'string' && value.trim()) localStorage.setItem(key, value)
-  }
-  setIfString(STORAGE_KEYS.name, user.name)
-  setIfString(STORAGE_KEYS.postcode, user.postcode)
-  setIfString(STORAGE_KEYS.livingSituation, user.household)
-  setIfString(STORAGE_KEYS.homeType, user.home_type)
-  setIfString(STORAGE_KEYS.transport, user.transport_baseline)
-  setIfString(STORAGE_KEYS.age, user.age_group)
-  setIfString(STORAGE_KEYS.employmentStatus, user.employment_status)
-  const genome = user.user_genome && typeof user.user_genome === 'object'
-    ? (user.user_genome as Record<string, unknown>)
-    : null
-  if (genome) {
-    setIfString(STORAGE_KEYS.powerType, genome.home_power)
-    setIfString(STORAGE_KEYS.homeOwnership, genome.home_ownership)
-    setIfString(STORAGE_KEYS.washPreference, genome.wash_preference)
-    setIfString(STORAGE_KEYS.flightFrequency, genome.flight_frequency)
-    setIfString(STORAGE_KEYS.financialPressure, genome.financial_pressure)
-    setIfString(STORAGE_KEYS.children, genome.children)
-    setIfString(STORAGE_KEYS.helpGoal, genome.help_goal)
-    const goal = genome.profile_goal ?? genome.goal
-    if (typeof goal === 'string' && goal.trim()) {
-      try {
-        localStorage.setItem(PROFILE_GOAL_STORAGE_KEY, goal)
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-}
-
 function isProfileOnboardingComplete(v: Record<string, string>): boolean {
   return isProfileOnboardingCompleteFields(v as ProfileOnboardingFields)
 }
@@ -364,8 +340,8 @@ export default function ProfilePageClient() {
    * who's already answered a real question is separately protected by hasAnsweredAnything
    * below regardless of this.
    */
-  const [entryChoice, setEntryChoiceState] = useState<'create' | 'guest' | null>(null)
-  const setEntryChoice = useCallback((next: 'create' | 'guest' | null) => {
+  const [entryChoice, setEntryChoiceState] = useState<'create' | 'login' | null>(null)
+  const setEntryChoice = useCallback((next: 'create' | 'login' | null) => {
     setEntryChoiceState(next)
     if (typeof window === 'undefined') return
     try {
@@ -381,10 +357,17 @@ export default function ProfilePageClient() {
    * run yet), so this only stores the number locally — Zone picks it up once a session and real
    * content both exist and sends it there. "Later" and a valid submit both mark the step seen so
    * it never reappears on a resumed session.
+   *
+   * `phoneStepSeen` starts `false` and only flips true in an effect below, never in the
+   * initializer: a lazy `useState` initializer runs again on the client's first render too, and
+   * for a returning user with the flag already in localStorage that disagreed with the server's
+   * forced `false` (no window during SSR) — a hydration mismatch, same bug and same fix as the
+   * one in app/zone/page.tsx's onboardingMobileHandled.
    */
-  const [phoneStepSeen, setPhoneStepSeen] = useState(
-    () => typeof window !== 'undefined' && localStorage.getItem(ONBOARDING_MOBILE_STEP_SEEN_LS) === '1'
-  )
+  const [phoneStepSeen, setPhoneStepSeen] = useState(false)
+  useEffect(() => {
+    if (localStorage.getItem(ONBOARDING_MOBILE_STEP_SEEN_LS) === '1') setPhoneStepSeen(true)
+  }, [])
   const [phoneValue, setPhoneValue] = useState('')
   const [phoneOptIn, setPhoneOptIn] = useState(false)
   const phoneValid = isValidUkMobileInput(phoneValue)
@@ -399,6 +382,68 @@ export default function ProfilePageClient() {
     }
     setPhoneStepSeen(true)
   }, [])
+
+  /**
+   * Password, right after the mobile step. Same reasoning as phoneStepSeen above for starting
+   * `false` and only syncing from localStorage in an effect — never in the initializer. The
+   * password itself never touches localStorage or the generic `values` object (which several
+   * helpers elsewhere in this file persist wholesale to localStorage by STORAGE_KEYS[id] ?? id) —
+   * it lives only in `passwordValueRef` in memory, read once at final submission, then cleared.
+   */
+  const [passwordStepSeen, setPasswordStepSeen] = useState(false)
+  useEffect(() => {
+    if (localStorage.getItem(ONBOARDING_PASSWORD_STEP_SEEN_LS) === '1') setPasswordStepSeen(true)
+  }, [])
+  const [passwordValue, setPasswordValue] = useState('')
+  const passwordValueRef = useRef('')
+  const passwordValid = passwordValue.trim().length >= ONBOARDING_PASSWORD_MIN_LENGTH
+  const completePasswordStep = useCallback((password: string | null) => {
+    passwordValueRef.current = password ?? ''
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(ONBOARDING_PASSWORD_STEP_SEEN_LS, '1')
+      } catch {
+        // ignore
+      }
+    }
+    setPasswordStepSeen(true)
+  }, [])
+
+  /**
+   * Returning-visitor login, for a new/uncookied device or a cleared browser — mobile + password
+   * is the only credential these accounts have (no email is ever collected). On success the
+   * server sets the real session cookie and this hard-navigates to `/`, which the existing
+   * proxy.ts gate (shouldRedirectLandingToZone) already sends straight to /zone for a completed
+   * profile — no need to duplicate that completeness check here.
+   */
+  const [loginMobileValue, setLoginMobileValue] = useState('')
+  const [loginPasswordValue, setLoginPasswordValue] = useState('')
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [loginSubmitting, setLoginSubmitting] = useState(false)
+  const loginValid = isValidUkMobileInput(loginMobileValue) && loginPasswordValue.trim().length > 0
+  const submitLogin = useCallback(async () => {
+    if (!loginValid || loginSubmitting) return
+    setLoginSubmitting(true)
+    setLoginError(null)
+    try {
+      const res = await fetch('/api/auth/login-mobile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ mobile: loginMobileValue.trim(), password: loginPasswordValue }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setLoginError(data?.error || 'wrong mobile number or password')
+        setLoginSubmitting(false)
+        return
+      }
+      window.location.assign('/')
+    } catch {
+      setLoginError('could not log in. check your connection and try again.')
+      setLoginSubmitting(false)
+    }
+  }, [loginValid, loginSubmitting, loginMobileValue, loginPasswordValue])
 
   const recenterProfileStep = useCallback(() => {
     setKeyboardLift(false)
@@ -436,7 +481,7 @@ export default function ProfilePageClient() {
     hydratedRef.current = true
     try {
       const storedEntryChoice = sessionStorage.getItem(PROFILE_ENTRY_CHOICE_KEY)
-      if (storedEntryChoice === 'create' || storedEntryChoice === 'guest') {
+      if (storedEntryChoice === 'create' || storedEntryChoice === 'login') {
         setEntryChoiceState(storedEntryChoice)
       }
     } catch {
@@ -817,7 +862,9 @@ export default function ProfilePageClient() {
             financial_pressure: mergedValues.financialPressure?.trim() || undefined,
             children: mergedValues.children?.trim() || undefined,
             help_goal: mergedValues.helpGoal?.trim() || undefined,
+            password: passwordValueRef.current || undefined,
           }
+          passwordValueRef.current = ''
           const profileData = buildResearchProfilePayload(mergedValues, { postcode: pc })
 
           try {
@@ -1144,7 +1191,7 @@ export default function ProfilePageClient() {
                 optionIndex={0}
                 delaySeconds={familyControlDelaySec(0)}
                 className=""
-                onClick={() => setEntryChoice('guest')}
+                onClick={() => router.push(ROUTES.ZONE)}
                 aria-label="Guest"
               >
                 <span className="profile-answer-btn__text zz-h4">GUEST</span>
@@ -1159,6 +1206,16 @@ export default function ProfilePageClient() {
               >
                 <span className="profile-answer-btn__text zz-h4">CREATE</span>
               </ProfileAnswerBtn>
+              <ProfileAnswerBtn
+                reduceMotion={reduceMotion}
+                optionIndex={2}
+                delaySeconds={familyControlDelaySec(2)}
+                className=""
+                onClick={() => setEntryChoice('login')}
+                aria-label="Log in"
+              >
+                <span className="profile-answer-btn__text zz-h4">LOG IN</span>
+              </ProfileAnswerBtn>
             </div>
           </motion.div>
         </AnimatePresence>
@@ -1166,12 +1223,12 @@ export default function ProfilePageClient() {
     )
   }
 
-  if (entryChoice === 'guest') {
+  if (entryChoice === 'login') {
     return (
       <main className={profileShellClass} style={profileShellStyle}>
         <AnimatePresence mode="wait">
           <motion.div
-            key="guest-coming-soon"
+            key="login-step"
             className="profile-step-slam w-full flex flex-col items-center"
             style={{ gap: 40, maxWidth: 800 }}
             initial={{ opacity: 0, y: 12 }}
@@ -1181,20 +1238,77 @@ export default function ProfilePageClient() {
           >
             <h2
               className="zz-h2 text-marvin m-0 text-center"
-              style={{ color: 'var(--color-yellow)', whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
+              style={{ whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
             >
-              guest is nearly ready.{'\n'}for now, create takes{'\n'}about a minute.
+              welcome back.
             </h2>
-            <ProfileAnswerBtn
-              reduceMotion={reduceMotion}
-              optionIndex={0}
-              delaySeconds={familyControlDelaySec(0)}
-              className=""
-              onClick={() => setEntryChoice('create')}
-              aria-label="Create"
+            <p
+              className="zz-h4 m-0 text-center"
+              style={{ maxWidth: 'min(92vw, 40rem)' }}
             >
-              <span className="profile-answer-btn__text zz-h4">CREATE</span>
-            </ProfileAnswerBtn>
+              log in with your mobile number and password.
+            </p>
+            <div className="profile-step-controls profile-step-controls--input">
+              <InputField
+                value={loginMobileValue}
+                onChange={(v) => {
+                  setLoginMobileValue(v)
+                  setLoginError(null)
+                }}
+                onFocusLift={liftProfileStepForKeyboard}
+                onBlurViewportReset={recenterProfileStep}
+                placeholder="mobile number"
+                type="tel"
+                name="tel"
+                autoFocus
+              />
+              <InputField
+                value={loginPasswordValue}
+                onChange={(v) => {
+                  setLoginPasswordValue(v)
+                  setLoginError(null)
+                }}
+                onAdvance={() => {
+                  if (loginValid) void submitLogin()
+                }}
+                onFocusLift={liftProfileStepForKeyboard}
+                onBlurViewportReset={recenterProfileStep}
+                placeholder="password"
+                type="password"
+                name="current-password"
+                autoComplete="current-password"
+              />
+              {loginError ? (
+                <p className="zz-h4 m-0 text-center" style={{ color: 'var(--color-pink)' }}>
+                  {loginError}
+                </p>
+              ) : null}
+              <div className="profile-step-controls profile-step-controls--options">
+                <ProfileAnswerBtn
+                  reduceMotion={reduceMotion}
+                  optionIndex={0}
+                  delaySeconds={familyControlDelaySec(0)}
+                  className=""
+                  disabled={!loginValid || loginSubmitting}
+                  onClick={() => void submitLogin()}
+                  aria-label="Log in"
+                >
+                  <span className="profile-answer-btn__text zz-h4">
+                    {loginSubmitting ? 'LOGGING IN…' : 'LOG IN'}
+                  </span>
+                </ProfileAnswerBtn>
+                <ProfileAnswerBtn
+                  reduceMotion={reduceMotion}
+                  optionIndex={1}
+                  delaySeconds={familyControlDelaySec(1)}
+                  className=""
+                  onClick={() => setEntryChoice(null)}
+                  aria-label="Back"
+                >
+                  <span className="profile-answer-btn__text zz-h4">BACK</span>
+                </ProfileAnswerBtn>
+              </div>
+            </div>
           </motion.div>
         </AnimatePresence>
       </main>
@@ -1233,7 +1347,7 @@ export default function ProfilePageClient() {
             </h2>
             <p
               className="zz-h4 m-0 text-center"
-              style={{ opacity: 0.7, maxWidth: 'min(92vw, 40rem)' }}
+              style={{ maxWidth: 'min(92vw, 40rem)' }}
             >
               we&apos;ll text you once, when zone&apos;s ready. no spam, reply stop any time.
             </p>
@@ -1263,27 +1377,108 @@ export default function ProfilePageClient() {
                   text me my results
                 </h4>
               </label>
-              <ProfileAnswerBtn
-                reduceMotion={reduceMotion}
-                optionIndex={0}
-                delaySeconds={familyControlDelaySec(0)}
-                className=""
-                disabled={!phoneValid || !phoneOptIn}
-                onClick={() => completePhoneStep(phoneValue.trim())}
-                aria-label="Continue"
-              >
-                <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
-              </ProfileAnswerBtn>
-              <ProfileAnswerBtn
-                reduceMotion={reduceMotion}
-                optionIndex={1}
-                delaySeconds={familyControlDelaySec(1)}
-                className=""
-                onClick={() => completePhoneStep(null)}
-                aria-label="Later"
-              >
-                <span className="profile-answer-btn__text zz-h4">LATER</span>
-              </ProfileAnswerBtn>
+              <div className="profile-step-controls profile-step-controls--options">
+                <ProfileAnswerBtn
+                  reduceMotion={reduceMotion}
+                  optionIndex={0}
+                  delaySeconds={familyControlDelaySec(0)}
+                  className=""
+                  disabled={!phoneValid || !phoneOptIn}
+                  onClick={() => completePhoneStep(phoneValue.trim())}
+                  aria-label="Continue"
+                >
+                  <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
+                </ProfileAnswerBtn>
+                <ProfileAnswerBtn
+                  reduceMotion={reduceMotion}
+                  optionIndex={1}
+                  delaySeconds={familyControlDelaySec(1)}
+                  className=""
+                  onClick={() => completePhoneStep(null)}
+                  aria-label="Later"
+                >
+                  <span className="profile-answer-btn__text zz-h4">LATER</span>
+                </ProfileAnswerBtn>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </main>
+    )
+  }
+
+  // Right after the mobile step. No session exists yet here either (createUser runs at the very
+  // end), so the password can't be sent anywhere yet — it's held in passwordValueRef and only
+  // reaches the server inside the same createUser() payload as everything else, hashed there.
+  // Skip is always available and permanent for this step, same shape as phoneStepSeen: never
+  // ask again once answered either way, matching the postcode/goal "ask once" convention.
+  const showPasswordStep =
+    !qParam && !returnTo && entryChoice === 'create' && phoneStepSeen && !passwordStepSeen
+
+  if (showPasswordStep) {
+    return (
+      <main className={profileShellClass} style={profileShellStyle}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="password-step"
+            className="profile-step-slam w-full flex flex-col items-center"
+            style={{ gap: 40, maxWidth: 800 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h2
+              className="zz-h2 text-marvin m-0 text-center"
+              style={{ whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
+            >
+              protect your account?
+            </h2>
+            <p
+              className="zz-h4 m-0 text-center"
+              style={{ maxWidth: 'min(92vw, 40rem)' }}
+            >
+              set a password so only you can get back into it. {ONBOARDING_PASSWORD_MIN_LENGTH}{' '}
+              characters minimum.
+            </p>
+            <div className="profile-step-controls profile-step-controls--input">
+              <InputField
+                value={passwordValue}
+                onChange={setPasswordValue}
+                onAdvance={() => {
+                  if (passwordValid) completePasswordStep(passwordValue.trim())
+                }}
+                onFocusLift={liftProfileStepForKeyboard}
+                onBlurViewportReset={recenterProfileStep}
+                placeholder="password"
+                type="password"
+                name="new-password"
+                autoComplete="new-password"
+                autoFocus
+              />
+              <div className="profile-step-controls profile-step-controls--options">
+                <ProfileAnswerBtn
+                  reduceMotion={reduceMotion}
+                  optionIndex={0}
+                  delaySeconds={familyControlDelaySec(0)}
+                  className=""
+                  disabled={!passwordValid}
+                  onClick={() => completePasswordStep(passwordValue.trim())}
+                  aria-label="Continue"
+                >
+                  <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
+                </ProfileAnswerBtn>
+                <ProfileAnswerBtn
+                  reduceMotion={reduceMotion}
+                  optionIndex={1}
+                  delaySeconds={familyControlDelaySec(1)}
+                  className=""
+                  onClick={() => completePasswordStep(null)}
+                  aria-label="Skip"
+                >
+                  <span className="profile-answer-btn__text zz-h4">SKIP</span>
+                </ProfileAnswerBtn>
+              </div>
             </div>
           </motion.div>
         </AnimatePresence>

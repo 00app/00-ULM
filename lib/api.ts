@@ -18,6 +18,8 @@ export async function createUser(profile: {
   financial_pressure?: string
   children?: string
   help_goal?: string
+  /** Plain text, sent once over HTTPS and hashed server-side — never stored or logged as-is. */
+  password?: string
 }) {
   const response = await fetch('/api/user', {
     method: 'POST',
