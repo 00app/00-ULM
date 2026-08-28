@@ -12,6 +12,7 @@ import {
   normalizeSmsUrl,
 } from '@/lib/messaging/signupZoneSms'
 import { sendMobileWelcomeSms } from '@/lib/messaging/welcomeSms'
+import { normalizeMobileE164 } from '@/lib/messaging/ukMobile'
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 import {
   BOT_GUARD_REJECT,
@@ -35,25 +36,6 @@ const MOBILE_SMS_MAX_PER_NUMBER = 2
  */
 const MOBILE_SMS_MAX_PER_NUMBER_PER_DAY = 6
 const DAY_SEC = 24 * 60 * 60
-
-/** Normalise UK/international mobiles to E.164 (+digits). */
-function normalizeMobile(input: string): string | null {
-  const trimmed = input.trim()
-  if (!trimmed) return null
-  let digits = trimmed.replace(/\D/g, '')
-  if (!digits) return null
-
-  if (digits.startsWith('0') && digits.length === 11) {
-    digits = `44${digits.slice(1)}`
-  }
-  if (digits.startsWith('44') && digits.length >= 12 && digits.length <= 13) {
-    return `+${digits}`
-  }
-  if (digits.length >= 10 && digits.length <= 15) {
-    return `+${digits}`
-  }
-  return null
-}
 
 function parseStringArray(raw: unknown, max = 6): string[] | undefined {
   if (!Array.isArray(raw)) return undefined
@@ -123,7 +105,7 @@ export async function POST(req: NextRequest) {
     typeof body === 'object' && body !== null && typeof (body as { mobile?: unknown }).mobile === 'string'
       ? (body as { mobile: string }).mobile
       : ''
-  const mobile = normalizeMobile(raw)
+  const mobile = normalizeMobileE164(raw)
   if (!mobile) {
     return NextResponse.json({ error: 'invalid mobile number' }, { status: 400 })
   }
@@ -212,6 +194,25 @@ export async function POST(req: NextRequest) {
 
       const previousMobile = row.rows[0]?.mobile?.trim() ?? ''
       isNewOrChangedMobile = !previousMobile || previousMobile !== mobile
+
+      if (isNewOrChangedMobile) {
+        // Becoming "authenticated" costs nothing (a fresh profile-only session, no password),
+        // so without this check anyone could claim a stranger's real number here, then win the
+        // tie-break in /api/auth/login-mobile's `ORDER BY created_at DESC` and silently lock the
+        // real owner out of mobile login — a cheap denial-of-service/impersonation, not just a
+        // data-quality issue. Reject outright rather than letting a second account hold the same
+        // number, mirroring the uniqueness email already gets (idx_users_email).
+        const claimed = await pool.query(
+          `SELECT 1 FROM users WHERE mobile = $1 AND id != $2::uuid LIMIT 1`,
+          [mobile, session.userId]
+        )
+        if (claimed.rows.length > 0) {
+          return NextResponse.json(
+            { error: 'This number is already saved on another account' },
+            { status: 409 }
+          )
+        }
+      }
 
       await pool.query(
         `UPDATE users SET mobile = $1, mobile_sms_opt_in = $2 WHERE id = $3::uuid`,

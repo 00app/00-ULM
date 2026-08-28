@@ -36,6 +36,11 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS user_genome JSONB DEFAULT '{}'::jsonb
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile_sms_opt_in BOOLEAN NOT NULL DEFAULT false;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
+-- Defense in depth alongside the application-level check in app/api/profile/mobile/route.ts:
+-- without this, two accounts could hold the same mobile number and /api/auth/login-mobile's
+-- ORDER BY created_at DESC tie-break would silently pick one, letting a newer account squat on
+-- a number and lock the real owner out of mobile login.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_mobile ON users(mobile) WHERE mobile IS NOT NULL;
 
 -- =========================
 -- SESSIONS (auth: login/signup and profile-only session cookie)
