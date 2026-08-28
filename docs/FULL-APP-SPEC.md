@@ -264,7 +264,8 @@ flowchart LR
 |-----|--------|------|
 | `/api/user` | POST | Create user + session from profile payload |
 | `/api/user` | GET | Return session user or `null` |
-| `/api/auth/login`, `signup`, `logout` | — | Session auth |
+| `/api/auth/login`, `signup`, `logout` | — | Session auth (email) |
+| `/api/auth/login-mobile` | POST | Session auth for accounts with a password but no email — mobile + password login for returning visitors on a new device (2026-08) |
 | `/api/local-intelligence` | POST | Postcode → council, ward, carbon context, grant hints |
 | `/api/geocode/postcode` | GET | Server Nominatim proxy → locality name |
 

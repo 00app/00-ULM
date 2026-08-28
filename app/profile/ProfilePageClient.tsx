@@ -1174,10 +1174,10 @@ export default function ProfilePageClient() {
             key="entry-fork"
             className="profile-step-slam w-full flex flex-col items-center"
             style={{ gap: 40, maxWidth: 800 }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3 }}
+            initial={stepMotion.initial}
+            animate={stepMotion.animate}
+            exit={stepMotion.exit}
+            transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
               className="zz-h2 text-marvin m-0 text-center"
@@ -1231,10 +1231,10 @@ export default function ProfilePageClient() {
             key="login-step"
             className="profile-step-slam w-full flex flex-col items-center"
             style={{ gap: 40, maxWidth: 800 }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3 }}
+            initial={stepMotion.initial}
+            animate={stepMotion.animate}
+            exit={stepMotion.exit}
+            transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
               className="zz-h2 text-marvin m-0 text-center"
@@ -1334,10 +1334,10 @@ export default function ProfilePageClient() {
             key="phone-step"
             className="profile-step-slam w-full flex flex-col items-center"
             style={{ gap: 40, maxWidth: 800 }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3 }}
+            initial={stepMotion.initial}
+            animate={stepMotion.animate}
+            exit={stepMotion.exit}
+            transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
               className="zz-h2 text-marvin m-0 text-center"
@@ -1423,10 +1423,10 @@ export default function ProfilePageClient() {
             key="password-step"
             className="profile-step-slam w-full flex flex-col items-center"
             style={{ gap: 40, maxWidth: 800 }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3 }}
+            initial={stepMotion.initial}
+            animate={stepMotion.animate}
+            exit={stepMotion.exit}
+            transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
               className="zz-h2 text-marvin m-0 text-center"
@@ -1502,10 +1502,10 @@ export default function ProfilePageClient() {
             key="goal-step"
             className="profile-step-slam w-full flex flex-col items-center"
             style={{ gap: 40, maxWidth: 800 }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3 }}
+            initial={stepMotion.initial}
+            animate={stepMotion.animate}
+            exit={stepMotion.exit}
+            transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
               className="zz-h2 text-marvin m-0 text-center"
@@ -1549,10 +1549,10 @@ export default function ProfilePageClient() {
             key="insight-reveal"
             className="profile-step-slam w-full flex flex-col items-center"
             style={{ gap: 16, maxWidth: 800 }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3 }}
+            initial={stepMotion.initial}
+            animate={stepMotion.animate}
+            exit={stepMotion.exit}
+            transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
               className="zz-h2 text-marvin m-0 text-center"

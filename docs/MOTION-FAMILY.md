@@ -6,12 +6,16 @@ Delivery-only motion vocabulary. **Does not** change profile questions, summary 
 
 ## Tokens (`lib/motion-family.ts`)
 
-| Token | Value | Use |
-|-------|-------|-----|
-| `FAMILY_EASE` | `cubic-bezier(0.22, 1, 0.36, 1)` | All family tweens |
-| `FAMILY_DUR_LONG` | `0.8s` | Chapter changes (profile step, page shell) |
-| `FAMILY_DUR_ATOMIC` | `1.0s` | Crystallize: blur cloud → sharp lock |
-| `FAMILY_DUR_SHORT` | `0.4s` | Likes, hovers, word exit, controls |
+**All durations below are scaled by `FAMILY_MOTION_SCALE` (0.7, ≈30% faster) at module load —
+globally, not just on the Solo Focus zip-shut. The "Value" column is the handbook base number;
+what actually plays is base × 0.7.**
+
+| Token | Handbook base | Actual (× 0.7) | Use |
+|-------|---------------|-----------------|-----|
+| `FAMILY_EASE` | `cubic-bezier(0.22, 1, 0.36, 1)` | unscaled | All family tweens |
+| `FAMILY_DUR_LONG` | `0.8s` | `0.56s` | Chapter changes (profile step, page shell) |
+| `FAMILY_DUR_ATOMIC` | `1.0s` | `0.7s` | Crystallize: blur cloud → sharp lock |
+| `FAMILY_DUR_SHORT` | `0.4s` | `0.28s` | Likes, hovers, word exit, controls |
 | `familyAtomicAssembly` | blur + letter-spacing + scale | Summary ticker, Architectural Pulse, loop question |
 | `familyReveal` | blur → sharp (no letter-spacing) | Profile headline, settings cells |
 | `familyGlide` | 15px **vertical rise** + blur | Profile step swap (legacy name) |
@@ -21,7 +25,7 @@ Delivery-only motion vocabulary. **Does not** change profile questions, summary 
 
 ## Reading-speed contract
 
-- `FAMILY_READ_MS_PER_WORD` = **200ms** minimum sharp dwell per word after assembly.
+- `FAMILY_READ_MS_PER_WORD` = **140ms** minimum sharp dwell per word after assembly (200ms handbook base × 0.7).
 - `atomicWordHoldMs(text)` = **1000ms** assembly + `readingSpeedDwellMs(text)`.
 - Wired on `/profile/summary`, Architectural Pulse, and `IntroWordCycle` + `opacityTicker`.
 

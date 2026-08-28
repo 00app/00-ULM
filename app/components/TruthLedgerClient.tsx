@@ -210,8 +210,8 @@ export default function TruthLedgerClient() {
                     style={{ color: 'var(--color-yellow)', ['--color-ink' as string]: 'var(--color-yellow)' }}
                   >
                     <div className="grid grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-0 items-start settings-overview-impact-grid">
-                      <span className="data-label text-marvin settings-overview-label">Potential</span>
-                      <span className="data-label text-marvin settings-overview-label">Truth</span>
+                      <span className="data-label text-marvin settings-overview-label">Potential cards</span>
+                      <span className="data-label text-marvin settings-overview-label">Truthed cards</span>
                       <span
                         className="data-value text-marvin font-bold settings-data-value data-stamp-metric"
                         style={{ color: 'var(--color-ink)' }}

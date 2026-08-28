@@ -30,7 +30,7 @@
 | **Copy** | Per-journey headlines (`EXPANDED_JOURNEY_HOOK`) on **mother** tiles; Rock grid + Solo Focus use catalog habits (`clampRockTipHeadline`, `headlineFromRockHabit`) — not wall hooks |
 | **Prose** | Max 2 blocks in Solo Focus (Marvin lead ≤30 words + optional body); no duplicate payoff; no generic “policy and tariff pressure…” |
 | **Questions** | 13 journeys × 3 in `lib/journeys.ts`; Solo Focus = 1 Q; loop = `loopQuestions.ts` |
-| **Zone wall order** | welcome → profile hero → today's tips (heading shows morning/afternoon/evening, `getTipsTimeOfDay`, 08:00/14:00/18:00) + Rock → recommendations (daily refresh) + bento → signup (`zone-section-*` testids) |
+| **Zone wall order** | welcome → profile hero → today's tips (heading shows morning/afternoon/evening, `getTipsTimeOfDay`, aliases the hero's own clock — 12:00/17:00, unified 2026-08 so hero and tips heading can't disagree) + Rock → recommendations (daily refresh) + bento → signup (`zone-section-*` testids) |
 | **Grid order** | `buildGroovyGridItems` — mothers by goal-weighted £ then `JOURNEY_ORDER`; injects nest under parent; max 2/category, 24 total |
 | **Discovery birth** | Only `POST /api/answers` → `injectNewDiscoveryCard` (cap 3/journey) |
 | **Zai** | Read-only on chat; scrape only on Deep Dive **Search deeper** |
@@ -2446,6 +2446,9 @@ flowchart TB
 | Step | Code | Persistence |
 |------|------|-------------|
 | Route | `app/profile/page.tsx` → `ProfilePageClient.tsx` | — |
+| Entry fork (2026-08) | CREATE / LOG IN / GUEST. **Guest** routes straight to `ROUTES.ZONE` (no onboarding). **LOG IN** posts mobile + password to `POST /api/auth/login-mobile` (sibling of `/api/auth/login`, keyed on `normalizeMobileE164` instead of email — see [FULL-APP-SPEC.md](FULL-APP-SPEC.md) §6.1); on success, hard-navigates to `/` so `proxy.ts`'s returning-visitor gate (`lib/returningUserGate.ts`) redirects a complete profile straight to `/zone` | `zz_onboarding_password_step_seen`, session cookie |
+| Phone step | Mobile-number entry, opt-in SMS copy | `profile_mobile` (E.164) |
+| Password step (2026-08) | Optional, 8 char minimum, between phone and goal steps — "set a password so only you can get back into it" | `password_hash` (bcrypt, `PASSWORD_SALT_ROUNDS = 10`) on the `users` row via `POST /api/user`; never stored/echoed in plaintext or in any API response |
 | Name step | `InputField` `autocomplete="given-name"`; `firstNameFromAutofill` on change/blur | `profile_name` — **first token only** (browser may autofill full name) |
 | Postcode step | `autocomplete="postal-code"`; **`lib/geocode/ukPostcode.ts`** validates format before submit (`isValidUkPostcode`, `checkUkPostcode`); **h4 locality** under input uses outcode fallback (e.g. `SW12`) until parish resolves; optional **house number** on same step (`autocomplete="address-line2"`, `profile_house_number`) · hydrate from `profile_postcode` (`localStorage`, intro geolocation, `SessionStateRehydrate`) · `POST /api/local-intelligence` with `{ postcode, house_number? }` | Council, ward, `localCarbonG`, grant context; OpenEPC row matched to address when house number set (`addressMatched` on `OpenEpcProfile`) |
 | Profile fields | name, postcode, optional house number, `home_type`, **`power type`** (profile step `powerType` → GAS / ELECTRIC / MIX / OTHER), transport, household, employment, goal, **children** (NONE/UNDER_5/SCHOOL_AGE/BOTH, added 2026-08), **`how's money?`** (`financialPressure`: TIGHT/GETTING_BY/DOING_OK, added 2026-08, **required**) | `users` + `AppContext` + `localStorage` (`profile_home_power`, `profile_house_number`, `profile_children`, `profile_financial_pressure`); seeds journey answers + **unlocks 13th Zone card (UTILITIES)** via `lib/profile/homePower.ts` + `lib/zone/utilitiesZoneUnlock.ts`. `financialPressure` additionally unlocks the ranked action wall — see [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md). Both new fields also editable post-onboarding on `/settings`, since a first answer would otherwise be permanent |
@@ -3629,7 +3632,8 @@ flowchart LR
 |-----|--------|------|
 | `/api/user` | POST | Create user + session from profile payload |
 | `/api/user` | GET | Return session user or `null` |
-| `/api/auth/login`, `signup`, `logout` | — | Session auth |
+| `/api/auth/login`, `signup`, `logout` | — | Session auth (email) |
+| `/api/auth/login-mobile` | POST | Session auth for accounts with a password but no email — mobile + password login for returning visitors on a new device (2026-08) |
 | `/api/local-intelligence` | POST | Postcode → council, ward, carbon context, grant hints |
 | `/api/geocode/postcode` | GET | Server Nominatim proxy → locality name |
 
@@ -4903,12 +4907,16 @@ Delivery-only motion vocabulary. **Does not** change profile questions, summary 
 
 #### Tokens (`lib/motion-family.ts`)
 
-| Token | Value | Use |
-|-------|-------|-----|
-| `FAMILY_EASE` | `cubic-bezier(0.22, 1, 0.36, 1)` | All family tweens |
-| `FAMILY_DUR_LONG` | `0.8s` | Chapter changes (profile step, page shell) |
-| `FAMILY_DUR_ATOMIC` | `1.0s` | Crystallize: blur cloud → sharp lock |
-| `FAMILY_DUR_SHORT` | `0.4s` | Likes, hovers, word exit, controls |
+**All durations below are scaled by `FAMILY_MOTION_SCALE` (0.7, ≈30% faster) at module load —
+globally, not just on the Solo Focus zip-shut. The "Value" column is the handbook base number;
+what actually plays is base × 0.7.**
+
+| Token | Handbook base | Actual (× 0.7) | Use |
+|-------|---------------|-----------------|-----|
+| `FAMILY_EASE` | `cubic-bezier(0.22, 1, 0.36, 1)` | unscaled | All family tweens |
+| `FAMILY_DUR_LONG` | `0.8s` | `0.56s` | Chapter changes (profile step, page shell) |
+| `FAMILY_DUR_ATOMIC` | `1.0s` | `0.7s` | Crystallize: blur cloud → sharp lock |
+| `FAMILY_DUR_SHORT` | `0.4s` | `0.28s` | Likes, hovers, word exit, controls |
 | `familyAtomicAssembly` | blur + letter-spacing + scale | Summary ticker, Architectural Pulse, loop question |
 | `familyReveal` | blur → sharp (no letter-spacing) | Profile headline, settings cells |
 | `familyGlide` | 15px **vertical rise** + blur | Profile step swap (legacy name) |
@@ -4918,7 +4926,7 @@ Delivery-only motion vocabulary. **Does not** change profile questions, summary 
 
 #### Reading-speed contract
 
-- `FAMILY_READ_MS_PER_WORD` = **200ms** minimum sharp dwell per word after assembly.
+- `FAMILY_READ_MS_PER_WORD` = **140ms** minimum sharp dwell per word after assembly (200ms handbook base × 0.7).
 - `atomicWordHoldMs(text)` = **1000ms** assembly + `readingSpeedDwellMs(text)`.
 - Wired on `/profile/summary`, Architectural Pulse, and `IntroWordCycle` + `opacityTicker`.
 

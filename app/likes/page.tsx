@@ -71,10 +71,28 @@ export default function LikesPage() {
   }, [state.profile])
 
   useEffect(() => {
-    fetch('/api/actioned', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { actioned_card_ids: [] }))
-      .then((data) => setActionedIds(new Set(Array.isArray(data?.actioned_card_ids) ? data.actioned_card_ids : [])))
-      .catch(() => setActionedIds(new Set()))
+    let cancelled = false
+    // One retry on a transient blip — a dropped GET here used to silently read as "nothing
+    // actioned," which could bring already-actioned cards back onto the Likes wall.
+    const load = async () => {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const res = await fetch('/api/actioned', { credentials: 'include' })
+          if (!res.ok) throw new Error(`actioned GET failed: ${res.status}`)
+          const data = await res.json()
+          if (!cancelled) {
+            setActionedIds(new Set(Array.isArray(data?.actioned_card_ids) ? data.actioned_card_ids : []))
+          }
+          return
+        } catch (err) {
+          if (attempt === 1) console.error('[likes] loading actioned cards failed:', err)
+        }
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   /**
@@ -128,25 +146,43 @@ export default function LikesPage() {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([12, 60, 12])
   }
 
+  const [failedActionIds, setFailedActionIds] = useState<Set<string>>(new Set())
+
+  const postActioned = (id: string) =>
+    fetch('/api/actioned', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ card_id: id }),
+    })
+
+  /**
+   * A silently-dropped click here reads as "the button did nothing" — nothing else on the card
+   * changes on failure, so the tap looks broken rather than actually broken. One retry rides out
+   * a transient network blip before we tell the user; a real failure now surfaces a clear inline
+   * message instead of vanishing into an empty catch.
+   */
   const handleActioned = async (id: string) => {
+    setFailedActionIds((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
     try {
-      const res = await fetch('/api/actioned', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ card_id: id }),
+      let res = await postActioned(id)
+      if (!res.ok) res = await postActioned(id)
+      if (!res.ok) throw new Error(`actioned POST failed: ${res.status}`)
+      const data = await res.json()
+      setActionedIds((prev) => {
+        const next = new Set(prev)
+        if (data.actioned) next.add(id)
+        else next.delete(id)
+        return next
       })
-      if (res.ok) {
-        const data = await res.json()
-        setActionedIds((prev) => {
-          const next = new Set(prev)
-          if (data.actioned) next.add(id)
-          else next.delete(id)
-          return next
-        })
-      }
-    } catch {
-      //
+    } catch (err) {
+      console.error('[likes] mark actioned failed:', err)
+      setFailedActionIds((prev) => new Set(prev).add(id))
     }
   }
 
@@ -223,6 +259,11 @@ export default function LikesPage() {
                   onUnlike={() => handleUnlike(pick.id)}
                   onActioned={() => void handleActioned(pick.id)}
                 />
+                {failedActionIds.has(pick.id) ? (
+                  <p className="card-top-label m-0" style={{ color: textColor }}>
+                    couldn&apos;t save, tap done to try again
+                  </p>
+                ) : null}
               </div>
               </article>
             )
@@ -291,6 +332,11 @@ export default function LikesPage() {
                   onUnlike={() => handleUnlike(card.id)}
                   onActioned={() => void handleActioned(card.id)}
                 />
+                {failedActionIds.has(card.id) ? (
+                  <p className="card-top-label m-0" style={{ color: textColor }}>
+                    couldn&apos;t save, tap done to try again
+                  </p>
+                ) : null}
               </div>
               </article>
             )
