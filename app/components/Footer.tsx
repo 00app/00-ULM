@@ -34,7 +34,7 @@ export function Footer({ className = '' }: FooterProps) {
         </a>
       </div>
       <h4 className="site-footer__line zz-h4 m-0">
-        © 2026 Zero Zero —{' '}
+        © 2026 Zero Zero,{' '}
         <Link href={ROUTES.PRIVACY} className="site-footer__link">
           Privacy &amp; Data
         </Link>

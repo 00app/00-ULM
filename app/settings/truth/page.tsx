@@ -1,7 +1,7 @@
 import TruthLedgerClient from '@/app/components/TruthLedgerClient'
 
 export const metadata = {
-  title: 'Truth ledger — 00',
+  title: 'Truth ledger',
 }
 
 export default function TruthLedgerPage() {

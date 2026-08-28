@@ -18,6 +18,6 @@ export const ZAI_CHAT_SUGGESTED_PROMPTS = [
 ] as const
 
 export const ZAI_INTRO_LINES = [
-  'I read your zone — money, carbon, and what you actually do at home.',
+  'I read your zone: money, carbon, and what you actually do at home.',
   'Pick a prompt or ask your own. One UK move, this week.',
 ] as const

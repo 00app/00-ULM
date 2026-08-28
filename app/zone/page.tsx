@@ -2935,8 +2935,8 @@ export default function ZonePage({
     [hydrated, state?.profile?.name, welcomeJourneyCount, heroMoney, heroCarbon, state?.locationState?.locationName]
   )
 
-  // Same SSR/client-clock mismatch as zoneWelcome above, for the separate Today's Tips heading
-  // boundary (getTipsTimeOfDay has its own 08:00/14:00/18:00 cutoffs).
+  // Same SSR/client-clock mismatch as zoneWelcome above, for the Today's Tips heading
+  // (getTipsTimeOfDay is the same clock as the hero greeting — see lib/zone/timeOfDay.ts).
   const tipsTimeOfDay = hydrated ? getTipsTimeOfDay() : ''
 
   const renderWallBentoCells = (wallSection: 'hero' | 'categories') =>
