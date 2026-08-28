@@ -2873,8 +2873,31 @@ export default function ZonePage({
   )
   const rockLikedImpact = sumRockLikedImpact(state.likedCards)
   /** Profile hero — journey wall totals + liked Rock habits (welcome + hero card share this). */
-  const heroMoney = heroWasteTotals.totalMoney + rockLikedImpact.money
-  const heroCarbon = heroWasteTotals.totalCarbon + rockLikedImpact.carbon
+  const heroRealMoney = heroWasteTotals.totalMoney + rockLikedImpact.money
+  const heroRealCarbon = heroWasteTotals.totalCarbon + rockLikedImpact.carbon
+  const hasRealHeroTotal = heroRealMoney > 0 || heroRealCarbon > 0
+  /**
+   * Nothing real yet (guest, or a brand-new account before any journey or like) — the hero
+   * otherwise claimed "£0" while the tip rail right below it showed real, sourced numbers for
+   * the same cards. Falling back to those visible tips' own totals keeps the hero honest (every
+   * pound in it is already printed on screen) instead of asserting zero next to visible non-zero
+   * figures.
+   */
+  const heroTipsFallback = useMemo(
+    () =>
+      // Matches RockSavingTips' own `habits.slice(0, 6)` — only the tips actually rendered in
+      // the strip below should count toward a total claimed above them.
+      rockHabitsWithOffers.slice(0, 6).reduce(
+        (acc, h) => ({
+          money: acc.money + Math.max(0, h.money_gbp),
+          carbon: acc.carbon + Math.max(0, h.carbon_kg),
+        }),
+        { money: 0, carbon: 0 }
+      ),
+    [rockHabitsWithOffers]
+  )
+  const heroMoney = hasRealHeroTotal ? heroRealMoney : heroTipsFallback.money
+  const heroCarbon = hasRealHeroTotal ? heroRealCarbon : heroTipsFallback.carbon
   const welcomeJourneyCount = useMemo(() => {
     // Count visible (non-disliked) journey cards with real value
     const visibleJourneys = displayItems.filter((cell) => {
@@ -2885,12 +2908,21 @@ export default function ZonePage({
       const c = Number(j.carbonKg ?? parseCarbonKgFromDisplay(j.data?.carbon ?? '0'))
       return m > 0 || c > 0
     }).length
-    // Add visible tips
-    const visibleTips = rockHabitsWithOffers.length
-    const total = visibleJourneys + visibleTips
+    // Only liked tips feed heroMoney/heroCarbon (see rockLikedImpact below) — counting every
+    // visible-but-unliked tip here claimed a total the £ figure didn't back, which read as a
+    // broken "we've found 10 things, £0" hero next to real-valued tip cards for anyone (most
+    // visibly a guest) who hasn't liked anything yet.
+    const likedTips = state.likedCards.filter(
+      (id) => id.startsWith('rock-') && ROCK_BY_SLUG.has(id.slice(5))
+    ).length
+    const realTotal = visibleJourneys + likedTips
+    if (realTotal > 0) return realTotal
+    // Matches heroTipsFallback above — same visible-six population, so the "we've found N
+    // things" count always agrees with the £ total sitting right next to it.
+    if (rockHabitsWithOffers.length > 0) return Math.min(rockHabitsWithOffers.length, 6)
     // Fall back to storage count if grid hasn't hydrated yet
-    return total > 0 ? total : completedJourneys.length
-  }, [displayItems, rockHabitsWithOffers, completedJourneys.length])
+    return completedJourneys.length
+  }, [displayItems, state.likedCards, rockHabitsWithOffers, completedJourneys.length])
   const primaryJourneyKeySet = useMemo(
     () => new Set(viewModel.primaryMoneyJourneyKeys),
     [viewModel.primaryMoneyJourneyKeys]
