@@ -221,13 +221,13 @@ const DEFAULT_DETECTION_LEADS: readonly string[] = [
   'Your household spend currently hides roughly £{money} on {topic}',
 ]
 
-/** Second beat after em dash — rotated; never "often pays you back". */
+/** Second beat, joined as its own sentence — rotated; never "often pays you back". */
 const DETECTION_CLOSER_BANK: Partial<Record<JourneyId, readonly string[]>> = {
   utilities: [
     'a tariff switch is the cleanest way to reclaim it',
     'moving off the default rate returns cash straight to your meter',
     'one supplier comparison usually surfaces the gap',
-    'the waste sits in the contract — not your usage',
+    'the waste sits in the contract, not your usage',
   ],
   home: [
     'draught tape and loft top-up are the first mechanical fixes',
@@ -264,7 +264,7 @@ const DETECTION_CLOSER_BANK: Partial<Record<JourneyId, readonly string[]>> = {
   tech: [
     'hard-off at the wall beats smart-plug theatre overnight',
     'one power strip on entertainment kit removes phantom load',
-    'standby is silent — the meter still moves',
+    'standby is silent, but the meter still moves',
   ],
   water: [
     'fix the slow drip and check the meter dial once a month',
@@ -282,14 +282,14 @@ const DETECTION_CLOSER_BANK: Partial<Record<JourneyId, readonly string[]>> = {
     'mis-size once and you subsidise the grid for years',
   ],
   carbon: [
-    'trim usage before you buy offsets — the bill proves it',
+    'trim usage before you buy offsets, because the bill proves it',
     'kWh down is the same story as kg CO₂e down here',
     'measure the meter, then chase the supplier',
   ],
 }
 
 const DEFAULT_DETECTION_CLOSERS: readonly string[] = [
-  'the fix is mechanical — small, local, and on your bill',
+  'the fix is mechanical: small, local, and on your bill',
   'capture it with one change you can verify on the next statement',
   'audit the line item before you chase a new product',
   'the number is real once the habit or tariff moves',
@@ -343,5 +343,5 @@ export function buildFriendlyDetectionParagraph(params: {
   const leadTemplate = pickFromPhraseBank(`lead:${params.journey}:${moneyKey}`, leadBank)
   const closer = pickFromPhraseBank(`closer:${params.journey}:${moneyKey}`, closerBank)
   const core = formatDetectionLead(leadTemplate, moneyStr, topic)
-  return `${prefixDetectionWithPlace(core, place, namePlace)} — ${closer}.`
+  return `${prefixDetectionWithPlace(core, place, namePlace)}. ${closer.charAt(0).toUpperCase()}${closer.slice(1)}.`
 }
