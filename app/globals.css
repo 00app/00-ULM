@@ -771,7 +771,7 @@ h6,
 .solo-focus-data-value,
 .question-text,
 .solo-focus-question-label {
-  line-height: 0.8 !important;
+  line-height: 0.9 !important;
   letter-spacing: -0.02em !important;
   text-wrap: balance;
 }
@@ -802,7 +802,7 @@ h4,
 .zz-button-circle {
   font-family: var(--font-display) !important;
   font-size: var(--zz-label-size) !important;
-  line-height: 0.8 !important;
+  line-height: 0.9 !important;
   letter-spacing: var(--zz-track-display) !important;
   text-transform: uppercase !important;
   font-weight: var(--zz-label-weight) !important;
@@ -3665,7 +3665,7 @@ h3.solo-focus-question-label.zz-h3 {
 .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover .circle-btn-label-stack > span,
 .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .circle-btn-label-stack,
 .expanded-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .circle-btn-label-stack > span {
-    color: var(--color-purple) !important;
+    color: var(--color-white) !important;
 }
 }
 
@@ -3680,7 +3680,7 @@ body.has-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover .circl
 body.has-solo-focus .solo-focus-trinity--80 .solo-focus-handoff-btn:hover .circle-btn-label-stack > span,
 body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .circle-btn-label-stack,
 body.has-solo-focus .solo-focus-trinity--80 .solo-focus-action-btn:hover .circle-btn-label-stack > span {
-  color: var(--color-purple) !important;
+  color: var(--color-white) !important;
 }
 
 body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__label.nav-label,

@@ -35,7 +35,7 @@ function NavDestinationLabel({
 }) {
   const isNew = isUnreadCard?.(cardId) ?? false
   return (
-    <h4 className={`solo-focus-journey-nav__label nav-label solo-focus-journey-nav__label--${kind}`}>
+    <h4 className={`solo-focus-journey-nav__label nav-label zz-label solo-focus-journey-nav__label--${kind}`}>
       {label}
       {isNew ? (
         <span className="solo-focus-new-badge" aria-hidden>
@@ -100,7 +100,7 @@ export function SoloFocusJourneyNav({
             isUnreadCard={isUnreadCard}
           />
         ) : (
-          <h4 className={`solo-focus-journey-nav__label nav-label solo-focus-journey-nav__label--${prevLabelKind}`}>
+          <h4 className={`solo-focus-journey-nav__label nav-label zz-label solo-focus-journey-nav__label--${prevLabelKind}`}>
             {prevLabel}
           </h4>
         )}
@@ -126,7 +126,7 @@ export function SoloFocusJourneyNav({
             isUnreadCard={isUnreadCard}
           />
         ) : (
-          <h4 className={`solo-focus-journey-nav__label nav-label solo-focus-journey-nav__label--${nextLabelKind}`}>
+          <h4 className={`solo-focus-journey-nav__label nav-label zz-label solo-focus-journey-nav__label--${nextLabelKind}`}>
             {nextLabel}
           </h4>
         )}
