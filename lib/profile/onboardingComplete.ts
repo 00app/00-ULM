@@ -10,6 +10,8 @@ export const PROFILE_STORAGE_KEYS = {
   homeType: 'profile_home_type',
   homeOwnership: 'profile_home_ownership',
   powerType: 'profile_home_power',
+  energySupplier: 'profile_energy_supplier',
+  energySupplierOther: 'profile_energy_supplier_other',
   transport: 'profile_transport',
   washPreference: 'profile_wash_preference',
   flightFrequency: 'profile_flight_frequency',
@@ -28,6 +30,13 @@ export type ProfileOnboardingFields = {
   homeType?: string
   homeOwnership?: string
   powerType?: string
+  /**
+   * Optional. BRITISH_GAS | OCTOPUS | EDF | EON_NEXT | OVO | SCOTTISH_POWER | OTHER (or the local
+   * SKIP marker). Deliberately absent from `isProfileOnboardingCompleteFields`: see energySupplier.ts.
+   */
+  energySupplier?: string
+  /** Typed supplier name, only meaningful when energySupplier is OTHER. */
+  energySupplierOther?: string
   transport?: string
   washPreference?: string
   flightFrequency?: string
@@ -97,6 +106,8 @@ export function profileFieldsFromStorage(): ProfileOnboardingFields {
     homeType: read(PROFILE_STORAGE_KEYS.homeType),
     homeOwnership: read(PROFILE_STORAGE_KEYS.homeOwnership),
     powerType: read(PROFILE_STORAGE_KEYS.powerType),
+    energySupplier: read(PROFILE_STORAGE_KEYS.energySupplier),
+    energySupplierOther: read(PROFILE_STORAGE_KEYS.energySupplierOther),
     transport: read(PROFILE_STORAGE_KEYS.transport),
     washPreference: read(PROFILE_STORAGE_KEYS.washPreference),
     flightFrequency: read(PROFILE_STORAGE_KEYS.flightFrequency),

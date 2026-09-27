@@ -11,6 +11,7 @@
  * (linear zip) elapses from `onZipShutStart` and a double rAF so the Zone grid receives the birth event. **`POST /api/research/question-card`** is the separate free-form Ask path,
  * not invoked here.
  */
+import { EASE_IN, staggerDelay } from '@/lib/motion'
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { JOURNEYS, FUNKY_QUESTION_LABEL, getOptionFullLabel, type JourneyId, type JourneyQuestion } from '@/lib/journeys'
@@ -81,7 +82,7 @@ function readSoloFocusAnswerCountForSession(key: string): number {
 
 /** Solo-focus dropdown: same style as zz-input, purple/yellow, Marvin H4, full words, open animation */
 const DROPDOWN_STYLE = {
-  fontFamily: 'var(--font-marvin)',
+  fontFamily: 'var(--font-display)',
   fontWeight: 700,
   fontSize: 'var(--zz-h4-mobile)',
   padding: '14px 20px',
@@ -221,7 +222,7 @@ const ANSWER_CIRCLE_STYLE = {
 const ZIP_SHUTTER_SNAP = {
   type: 'tween' as const,
   duration: SOLO_FOCUS_ZIP_SHUT_SEC,
-  ease: 'linear' as const,
+  ease: EASE_IN,
 }
 
 export function EmbeddedJourneyQuestion({
@@ -707,10 +708,10 @@ export function EmbeddedJourneyQuestion({
     })
     .filter(Boolean) as string[]
 
-  const restBg = 'var(--sf-answer-bg, var(--color-yellow))'
+  const restBg = 'var(--sf-answer-bg, var(--color-blue))'
   const restText = 'var(--sf-answer-text, var(--journey-bg, var(--color-purple)))'
   const activeBg = 'var(--sf-answer-hover-bg, var(--journey-bg, var(--color-purple)))'
-  const activeText = 'var(--sf-answer-hover-text, var(--color-yellow))'
+  const activeText = 'var(--sf-answer-hover-text, var(--color-blue))'
   const toChipLabel = (opt: string) =>
     getOptionFullLabel(opt).replace(/\s+/g, '').toUpperCase()
 
@@ -765,12 +766,12 @@ export function EmbeddedJourneyQuestion({
       <>
         <motion.h3
           key={questionLabel}
-          className={`solo-focus-question-label solo-focus-copy-width text-marvin uppercase zz-h3 ${
-            soloFocusZipShut ? 'zz-vault-neon-yellow' : ''
+          className={`solo-focus-question-label solo-focus-copy-width text-display uppercase zz-h3 ${
+            soloFocusZipShut ? 'zz-vault-neon' : ''
           } ${soloFocusZipShut ? '' : 'zz-shimmer-focus'} ${railAlign ? 'text-left' : 'text-center'}`}
           style={{
             margin: 0,
-            fontFamily: 'var(--font-marvin)',
+            fontFamily: 'var(--font-display)',
             fontWeight: 700,
             color: textColor ?? 'var(--color-purple)',
             willChange: soloFocusZipShut ? 'opacity, transform' : 'filter, transform',
@@ -849,7 +850,7 @@ export function EmbeddedJourneyQuestion({
                   }}
                   transition={{
                     ...INDUSTRIAL_OPACITY_SNAP,
-                    delay: reduceMotion ? 0 : (idx + 1) * 0.1,
+                    delay: reduceMotion ? 0 : staggerDelay(idx + 1),
                   }}
                 >
                   {label.replace(/\s+/g, '').toUpperCase()}
@@ -890,14 +891,14 @@ export function EmbeddedJourneyQuestion({
                   width: 80,
                   height: 80,
                   fontSize: 'var(--zz-h4-mobile)',
-                  fontFamily: 'var(--font-marvin)',
+                  fontFamily: 'var(--font-display)',
                   fontWeight: 700,
                   lineHeight: 'var(--zz-lh-heading)',
                 }
               : {
                   ...ANSWER_CIRCLE_STYLE,
                   fontSize: 'var(--zz-h4-mobile)',
-                  fontFamily: 'var(--font-marvin)',
+                  fontFamily: 'var(--font-display)',
                   fontWeight: 700,
                   lineHeight: 'var(--zz-lh-heading)',
                 }
@@ -921,7 +922,7 @@ export function EmbeddedJourneyQuestion({
                 }}
                 transition={{
                   ...INDUSTRIAL_OPACITY_SNAP,
-                  delay: reduceMotion ? 0 : (idx + 1) * 0.1,
+                  delay: reduceMotion ? 0 : staggerDelay(idx + 1),
                 }}
               >
                 {toChipLabel(opt)}

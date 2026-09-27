@@ -25,7 +25,7 @@ export const PROFILE_GOAL_WEIGHTS: Record<
     label: 'SAVE',
     displayLabel: 'save\nmoney',
     ariaLabel: 'Save money',
-    theme: 'var(--color-yellow)',
+    theme: 'var(--color-blue)',
   },
   carbon: {
     money: 0.2,
@@ -33,7 +33,7 @@ export const PROFILE_GOAL_WEIGHTS: Record<
     label: 'REDUCE',
     displayLabel: 'reduce\ncarbon',
     ariaLabel: 'Reduce carbon',
-    theme: 'var(--color-pink)',
+    theme: 'var(--color-blue)',
   },
   balanced: {
     money: 0.5,

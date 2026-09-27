@@ -26,10 +26,10 @@ export default function CircleCTA({
 
   /* Contrasting to page: never same as background. On purple pages use yellow/pink. */
   const base = disabled
-    ? { background: 'var(--color-purple)', color: 'var(--color-yellow)' }
+    ? { background: 'var(--color-purple)', color: 'var(--color-blue)' }
     : primary
-      ? { background: 'var(--color-yellow)', color: 'var(--color-purple)' }
-      : { background: style?.background || 'var(--color-pink)', color: style?.color || 'var(--color-purple)' }
+      ? { background: 'var(--color-blue)', color: 'var(--color-purple)' }
+      : { background: style?.background || 'var(--color-blue)', color: style?.color || 'var(--color-purple)' }
 
   return (
     <button

@@ -33,7 +33,7 @@ export function SoloFocusMotherStack({
   shellClassName = '',
 }: SoloFocusMotherStackProps) {
   const headlineClass =
-    'solo-focus-architect-headline solo-focus-content-text text-marvin zz-h3 text-left md:text-5xl lg:text-6xl'
+    'solo-focus-architect-headline solo-focus-content-text text-display zz-h3 text-left md:text-5xl lg:text-6xl'
   const headlineStyle = { color: 'var(--journey-text)', margin: 0, padding: 0 } as const
 
   const headlineEl = headlineMotion ? (

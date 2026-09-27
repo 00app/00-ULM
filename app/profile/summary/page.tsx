@@ -710,7 +710,7 @@ export default function ProfileSummaryPage() {
         height: '100dvh',
         maxHeight: '100dvh',
         minHeight: 0,
-        color: 'var(--color-yellow)',
+        color: 'var(--color-blue)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

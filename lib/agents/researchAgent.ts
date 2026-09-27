@@ -146,6 +146,8 @@ export interface ResearchProfileData {
   locality_display?: string | null
   home_type?: string | null
   home_power?: string | null
+  /** Current energy supplier, as a name ("Octopus Energy"), never a slug. Absent when unknown. */
+  energy_supplier?: string | null
   household?: string | null
   transport_baseline?: string | null
   heating?: string | null
@@ -2989,6 +2991,7 @@ export function buildWickResearchUserContext(params: {
     if (p.household) lines.push(`household: ${p.household}`)
     if (p.transport_baseline) lines.push(`transport_baseline: ${p.transport_baseline}`)
     if (p.heating) lines.push(`heating: ${p.heating}`)
+    if (p.energy_supplier) lines.push(`energy_supplier: ${p.energy_supplier}`)
     if (p.employment_status) lines.push(`employment_status: ${p.employment_status}`)
     const age = typeof p.age_group === 'string' ? p.age_group : null
     if (age) lines.push(`age_group: ${age}`)
@@ -3036,6 +3039,7 @@ export async function runTriggerResearchForCategory(params: {
     employment_status: params.profileData?.employment_status,
     household_income_bracket: params.profileData?.household_income_bracket,
     home_power: homePower || params.profileData?.home_power,
+    energy_supplier: params.profileData?.energy_supplier,
   })
   const postcodeDna = buildPostcodeDnaBlock({
     postcode: pc,
@@ -3048,6 +3052,7 @@ export async function runTriggerResearchForCategory(params: {
       ? await buildUtilitiesResearchContext({
           postcode: pc,
           homePower: homePower || null,
+          energySupplier: params.profileData?.energy_supplier,
           journeyKey,
         })
       : { promptBlock: '' }

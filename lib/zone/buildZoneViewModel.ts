@@ -52,6 +52,7 @@ import { selectActionsForProfile } from '@/lib/actions/selectActions'
 import { selectCrisisRoutes, isCrisisGoal } from '@/lib/actions/selectCrisisRoutes'
 import { crisisRoutesToCards } from '@/lib/actions/crisisCards'
 import { actionsToJourneyCards } from '@/lib/actions/actionCards'
+import { energySupplierName, normaliseEnergySupplier } from '@/lib/profile/energySupplier'
 import type { ActionCompletion } from '@/lib/actions/actionTypes'
 import { buildAuditorNarrativeParagraphs } from '@/lib/zone/auditorNarrative'
 import {
@@ -106,6 +107,8 @@ export interface ZoneHero {
 export interface ZoneJourneyCard {
   id: string
   variant: 'card-standard'
+  /** 'long' for capital/project work, 'now' for anything actionable today. Set by the ranked wall. */
+  timeframe?: 'now' | 'long'
   title: string
   journey_key: JourneyId
   category: JourneyId
@@ -675,6 +678,10 @@ export function buildZoneViewModel({
     household?: string
     home_type?: string
     home_power?: string
+    /** Optional supplier slug (see lib/profile/energySupplier.ts); unknown when absent. */
+    energy_supplier?: string
+    /** Typed supplier name, only meaningful when energy_supplier is OTHER. */
+    energy_supplier_other?: string
     transport_baseline?: string
     age?: ProfileAge | string
     goal?: string
@@ -728,6 +735,7 @@ export function buildZoneViewModel({
         household: profile.household,
         home_type: profile.home_type,
         home_power: profile.home_power,
+        energy_supplier: profile.energy_supplier,
         transport_baseline: profile.transport_baseline,
         age: (['JUNIOR', 'MID', 'RETIRED'].includes(String(profile.age ?? ''))
           ? profile.age
@@ -1273,6 +1281,7 @@ export function buildZoneViewModel({
           age: typeof profile.age === 'string' ? profile.age : undefined,
           loopAnswers: flattenLoopAnswers(journeyAnswers),
           heating: profile.home_power,
+          supplier: normaliseEnergySupplier(profile.energy_supplier) || undefined,
           transport: profile.transport_baseline,
           wash: profile.wash_preference,
         },
@@ -1301,7 +1310,10 @@ export function buildZoneViewModel({
 
   const journeys: ZoneJourneyCard[] = [
     ...crisisCards,
-    ...(rankedActions.length > 0 ? actionsToJourneyCards(rankedActions) : journeyCards),
+    ...(rankedActions.length > 0 ? actionsToJourneyCards(
+          rankedActions,
+          energySupplierName(profile?.energy_supplier, profile?.energy_supplier_other)
+        ) : journeyCards),
   ]
 
   /**

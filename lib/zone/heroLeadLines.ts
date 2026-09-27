@@ -40,7 +40,7 @@ export function formatRockTipLeadLabel(index: number, headline: string): string 
 
 /** Profile hero — single tip-of-the-day line. */
 export function formatTipOfDayLabel(headline: string): string {
-  return `tip of the day: ${headline}`
+  return `Tip of the day: ${headline}`
 }
 
 export function collectTipHeadlineKeys(rows: readonly HeroLeadRow[]): Set<string> {
@@ -59,13 +59,13 @@ function parseTipMoneyGbp(tip: ZoneTipCard): number {
 
 /** Profile hero — best category + £/yr on one line. */
 export function buildHeroWinLine(category: string, moneyGbp?: number | null): string {
-  const cat = category.trim()
-  if (!cat) return 'biggest win: check your stats'
+  const cat = category.trim().toLowerCase()
+  if (!cat) return 'Biggest win: check your stats'
   if (moneyGbp != null && moneyGbp > 0) {
     const figure = Math.round(moneyGbp).toLocaleString('en-GB')
-    return `biggest win: ${cat} · £${figure}/yr`
+    return `Biggest win: ${cat} · £${figure}/yr`
   }
-  return `biggest win: ${cat}`
+  return `Biggest win: ${cat}`
 }
 
 function journeyCellForTip(
@@ -200,7 +200,7 @@ export function buildHeroLeadRows(args: {
     kind: 'win',
     line: args.primaryJourney
       ? buildHeroWinLine(args.categoryLabel, args.primaryJourney.moneyGbp)
-      : 'biggest win: check your stats',
+      : 'Biggest win: check your stats',
     journey: args.primaryJourney,
   })
 

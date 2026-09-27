@@ -14,6 +14,7 @@
 
 import type { ZoneAction } from '@/lib/actions/actionTypes'
 import type { ZoneJourneyCard } from '@/lib/zone/buildZoneViewModel'
+import { timeframeForAction } from '@/lib/zone/zoneFilter'
 import { formatCarbon, formatZoneCardMoney } from '@/lib/format'
 
 /** Card id for a library-backed action. Mirrors the legacy `journey-<key>` convention. */
@@ -58,11 +59,23 @@ export function attributionForUrl(url: string): string {
   }
 }
 
-export function actionToJourneyCard(a: ZoneAction): ZoneJourneyCard {
+/**
+ * Detail line, naming the user's supplier where the action opted in via `detailWithSupplier`.
+ * An unknown supplier (skipped, or OTHER with no name) always falls back to the generic line.
+ */
+export function detailForSupplier(a: ZoneAction, supplierName?: string | null): string {
+  const name = String(supplierName ?? '').trim()
+  if (!name || !a.detailWithSupplier) return a.detail
+  return a.detailWithSupplier.replace(/\{supplier\}/g, name)
+}
+
+export function actionToJourneyCard(a: ZoneAction, supplierName?: string | null): ZoneJourneyCard {
   const attribution = attributionForUrl(a.url)
+  const detail = detailForSupplier(a, supplierName)
   return {
     id: actionCardId(a.id),
     variant: 'card-standard',
+    timeframe: timeframeForAction(a),
     title: actionTitle(a),
     journey_key: a.bucket,
     category: a.bucket,
@@ -79,7 +92,7 @@ export function actionToJourneyCard(a: ZoneAction): ZoneJourneyCard {
     // Every library action carries its own live, verified URL — never the "no live retailer
     // link" fallback footer that partner_link's absence would otherwise trigger.
     partner_link: a.url,
-    explanation: [a.detail],
+    explanation: [detail],
     actions: {
       actionType: actionTypeFor(a),
       learnUrl: a.url,
@@ -90,11 +103,14 @@ export function actionToJourneyCard(a: ZoneAction): ZoneJourneyCard {
     isPriorityAlert: a.verb === 'CLAIM',
     claimOfferUrl: a.verb === 'CLAIM' ? a.url : undefined,
     architectSuppliedBy: attribution,
-    architectActionLine: a.detail,
+    architectActionLine: detail,
     streamPending: false,
   }
 }
 
-export function actionsToJourneyCards(actions: ZoneAction[]): ZoneJourneyCard[] {
-  return actions.map(actionToJourneyCard)
+export function actionsToJourneyCards(
+  actions: ZoneAction[],
+  supplierName?: string | null
+): ZoneJourneyCard[] {
+  return actions.map((a) => actionToJourneyCard(a, supplierName))
 }

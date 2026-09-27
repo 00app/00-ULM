@@ -27,22 +27,22 @@ export default function GlobalError({
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '100vh',
-          background: '#141268',
+          background: '#FCFCFF',
           padding: 20,
           textAlign: 'center',
-          color: '#FDFD00'
+          color: '#000AFF'
         }}>
           <h2 style={{
-            fontFamily: 'Roboto, sans-serif',
+            fontFamily: "'helvetica-neue-lt-pro', 'Helvetica Neue', Helvetica, Arial, sans-serif",
             fontSize: 80,
             lineHeight: 'var(--zz-lh-heading)',
             letterSpacing: '-2px',
             fontWeight: 900,
-            textTransform: 'lowercase',
-            color: '#FDFD00',
+            textTransform: 'none',
+            color: '#000AFF',
             marginBottom: 40
           }}>
-            something went wrong.
+            Something went wrong.
           </h2>
           <div style={{ marginTop: 40 }}>
             <CircleCTA onClick={() => router.push(ROUTES.ZONE)} variant="text" text="zone" />

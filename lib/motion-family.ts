@@ -1,9 +1,23 @@
 /**
- * 00 Family Liquid + Atomic Assembly — delivery physics (not brains).
- * Liquid: chapter glide/reveal. Atomic: particles crystallizing into sharp 2px strokes.
+ * Framer presets for page, card and step motion — a thin layer over lib/motion.ts (the token
+ * source). Every entrance is opacity + an 8px rise; every exit is opacity + a 4px drop, faster
+ * and on ease-in. No blur, scale or letter-spacing tweens: they cost layout/filter work per
+ * frame and read as decoration. The brand glitch logo is the only decorative animation.
  */
 
 import type { Target, TargetAndTransition, Transition, Variant } from 'framer-motion'
+import {
+  DUR,
+  EASE_OUT,
+  EXIT_PX,
+  REDUCED_CROSSFADE_SEC,
+  RISE_PX,
+  SPRING,
+  STAGGER_SEC,
+  T_ENTER,
+  T_EXIT,
+  T_LIFT,
+} from '@/lib/motion'
 
 export type FamilyMotionTargets = {
   initial: Target
@@ -11,60 +25,38 @@ export type FamilyMotionTargets = {
   exit: Target
 }
 
-export const FAMILY_EASE = [0.22, 1, 0.36, 1] as const
+export const FAMILY_EASE = EASE_OUT
 
-/** Global motion scale (1 = handbook default; 0.7 ≈ 30% faster). */
-export const FAMILY_MOTION_SCALE = 0.7
+/** Chapter changes, page enter, crystallise — all one enter duration now. */
+export const FAMILY_DUR_LONG = DUR.enter
+export const FAMILY_DUR_ATOMIC = DUR.enter
+/** Interactions — like pulse, small reveals. */
+export const FAMILY_DUR_SHORT = DUR.lift
 
-/** Chapter changes — Profile step, page enter. */
-export const FAMILY_DUR_LONG = 0.8 * FAMILY_MOTION_SCALE
-
-/** Crystallize / atomic assembly (intro, summary, zone cells, loop question). */
-export const FAMILY_DUR_ATOMIC = 1.0 * FAMILY_MOTION_SCALE
-
-/** Interactions — like pulse, hover bloom. */
-export const FAMILY_DUR_SHORT = 0.4 * FAMILY_MOTION_SCALE
-
-/** Rise-from-below distance (intro text, cards, screens, zone cells). */
-export const FAMILY_RISE_PX = 15
-/** @deprecated Use `FAMILY_RISE_PX` — kept for imports that still name “glide”. */
+export const FAMILY_RISE_PX = RISE_PX
+/** @deprecated Use `FAMILY_RISE_PX`. */
 export const FAMILY_GLIDE_PX = FAMILY_RISE_PX
 
-export const FAMILY_BLUR_PX = 12
+/** Reading-speed buffer — sharp dwell per word before the next beat (content pacing, not motion). */
+export const FAMILY_READ_MS_PER_WORD = 140
 
-/** Summary ticker — lighter cloud before lock (Director: 2–4px feel; atomic cloud uses 15px). */
-export const FAMILY_BLUR_SUMMARY_PX = 3
+export const FAMILY_WORD_EXIT_MS = Math.round(DUR.exit * 1000)
 
-export const FAMILY_ATOMIC_BLUR_IN_PX = 15
-export const FAMILY_ATOMIC_BLUR_OUT_PX = 10
-/** Keep numeric for Framer interpolation (prevents 'normal' runtime warnings). */
-export const FAMILY_ATOMIC_LETTER_LOCKED = '0em'
-
-/** Reading-speed buffer — sharp dwell before next beat assembles. */
-export const FAMILY_READ_MS_PER_WORD = Math.round(200 * FAMILY_MOTION_SCALE)
-
-export const FAMILY_WORD_EXIT_MS = Math.round(FAMILY_DUR_SHORT * 1000 * 0.65)
-
-export function familyTransition(duration = FAMILY_DUR_LONG): Transition {
-  return { duration, ease: [...FAMILY_EASE] }
+export function familyTransition(duration: number = DUR.enter): Transition {
+  return { duration, ease: EASE_OUT }
 }
 
-export const FAMILY_TRANSITION_LONG = familyTransition(FAMILY_DUR_LONG)
-export const FAMILY_TRANSITION_SHORT = familyTransition(FAMILY_DUR_SHORT)
-export const FAMILY_TRANSITION_ATOMIC = familyTransition(FAMILY_DUR_ATOMIC)
+export const FAMILY_TRANSITION_LONG: Transition = T_ENTER
+export const FAMILY_TRANSITION_SHORT: Transition = T_LIFT
+export const FAMILY_TRANSITION_ATOMIC: Transition = T_ENTER
 
-/** Stagger between zone bento cells during atomic ripple. */
-export const ZONE_GRID_STAGGER_CHILD_DELAY_SEC = 0.12 * FAMILY_MOTION_SCALE
+/** Stagger between zone bento cells; the page caps the sequence at six. */
+export const ZONE_GRID_STAGGER_CHILD_DELAY_SEC = STAGGER_SEC
 
-/** Liquid morph — bento cell ↔ Solo Focus shell (`layoutId`). */
-export const FAMILY_LAYOUT_SPRING = {
-  type: 'spring' as const,
-  stiffness: 380,
-  damping: 34,
-  mass: 0.85,
-}
+/** Card ↔ Solo Focus shell (`layoutId`) — the one spring. */
+export const FAMILY_LAYOUT_SPRING = SPRING
 
-export const FAMILY_ATOMIC_MS = Math.round(FAMILY_DUR_ATOMIC * 1000)
+export const FAMILY_ATOMIC_MS = Math.round(DUR.enter * 1000)
 
 // -----------------------------------------------------------------------------
 // Reading-speed contract
@@ -76,268 +68,99 @@ export function countReadableWords(text: string): number {
   return t.split(/\s+/).filter(Boolean).length
 }
 
-/** Minimum ms word stays sharp after assembly completes (~200ms per word). */
+/** Minimum ms a word stays sharp after it has entered. */
 export function readingSpeedDwellMs(text: string, perWordMs = FAMILY_READ_MS_PER_WORD): number {
   return Math.max(perWordMs, countReadableWords(text) * perWordMs)
 }
 
-/** Full beat: crystallize (1s) + read buffer. */
+/** Full beat: enter + read buffer. */
 export function atomicWordHoldMs(text: string): number {
-  return Math.round(FAMILY_DUR_ATOMIC * 1000) + readingSpeedDwellMs(text)
+  return FAMILY_ATOMIC_MS + readingSpeedDwellMs(text)
 }
 
 // -----------------------------------------------------------------------------
 // Variants
 // -----------------------------------------------------------------------------
 
-/**
- * Intro / summary ticker — blur cloud + rise (no horizontal glide).
- * letter-spacing is held constant (not tweened): it's a layout-triggering property, and
- * interpolating it every frame alongside filter:blur() forces Safari into a full text
- * layout recalc per frame, dropping frames in a way Chrome tolerates better. Locking it
- * removes that cost everywhere this variant is consumed, independent of how each call
- * site wires its own `transition` prop.
- */
-export const familyAtomicAssembly: Record<string, Variant> = {
-  hidden: {
-    opacity: 0,
-    scale: 1.05,
-    y: FAMILY_RISE_PX,
-    filter: `blur(${FAMILY_ATOMIC_BLUR_IN_PX}px)`,
-    letterSpacing: FAMILY_ATOMIC_LETTER_LOCKED,
-  },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    letterSpacing: FAMILY_ATOMIC_LETTER_LOCKED,
-    transition: FAMILY_TRANSITION_ATOMIC,
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.95,
-    y: FAMILY_RISE_PX * 0.5,
-    filter: `blur(${FAMILY_ATOMIC_BLUR_OUT_PX}px)`,
-    letterSpacing: FAMILY_ATOMIC_LETTER_LOCKED,
-    transition: familyTransition(FAMILY_DUR_SHORT * 0.75),
-  },
+const enterVariants: Record<string, Variant> = {
+  hidden: { opacity: 0, y: RISE_PX },
+  visible: { opacity: 1, y: 0, transition: T_ENTER },
+  exit: { opacity: 0, y: EXIT_PX, transition: T_EXIT },
 }
 
-/** Cards, screens, zone cells — same crystallize as intro text, without letter-spacing. */
-export const familyAtomicSurface: Record<string, Variant> = {
-  hidden: {
-    opacity: 0,
-    scale: 1.05,
-    y: FAMILY_RISE_PX,
-    filter: `blur(${FAMILY_ATOMIC_BLUR_IN_PX}px)`,
-  },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: FAMILY_TRANSITION_ATOMIC,
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.95,
-    y: FAMILY_RISE_PX * 0.5,
-    filter: `blur(${FAMILY_ATOMIC_BLUR_OUT_PX}px)`,
-    transition: familyTransition(FAMILY_DUR_SHORT * 0.75),
-  },
-}
+export const familyAtomicAssembly: Record<string, Variant> = enterVariants
+export const familyAtomicSurface: Record<string, Variant> = enterVariants
+export const familyReveal: Record<string, Variant> = enterVariants
+export const familyGlide: Record<string, Variant> = enterVariants
 
 export const FAMILY_ATOMIC_SURFACE_INITIAL = familyAtomicSurface.hidden as Target
 export const FAMILY_ATOMIC_SURFACE_ANIMATE = familyAtomicSurface.visible as Target
 export const FAMILY_ATOMIC_SURFACE_EXIT = familyAtomicSurface.exit as Target
 
-export const familyReveal: Record<string, Variant> = {
-  hidden: { opacity: 0, filter: `blur(${FAMILY_BLUR_PX}px)` },
-  visible: {
-    opacity: 1,
-    filter: 'blur(0px)',
-    transition: FAMILY_TRANSITION_LONG,
-  },
-  exit: {
-    opacity: 0,
-    filter: `blur(${Math.round(FAMILY_BLUR_PX * 0.65)}px)`,
-    transition: familyTransition(FAMILY_DUR_SHORT * 0.75),
-  },
-}
-
-/** Profile step swap — vertical rise (replaces legacy horizontal glide). */
-export const familyGlide: Record<string, Variant> = {
-  hidden: {
-    opacity: 0,
-    y: FAMILY_RISE_PX,
-    scale: 1.03,
-    filter: `blur(${FAMILY_BLUR_PX}px)`,
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    filter: 'blur(0px)',
-    transition: FAMILY_TRANSITION_LONG,
-  },
-  exit: {
-    opacity: 0,
-    y: FAMILY_RISE_PX * 0.5,
-    scale: 0.98,
-    filter: `blur(${Math.round(FAMILY_BLUR_PX * 0.65)}px)`,
-    transition: familyTransition(FAMILY_DUR_SHORT * 0.75),
-  },
-}
-
 export const familyPulse: Record<string, Variant> = {
   idle: { scale: 1 },
-  pulse: {
-    scale: [1, 1.05, 1],
-    transition: FAMILY_TRANSITION_SHORT,
-  },
+  pulse: { scale: [1, 1.05, 1], transition: T_LIFT } as Variant,
 }
 
-/** Zone bento — crystallize from blur cloud into locked card (rise + blur, staggered). */
+/** Zone bento cell — rise in, drop out; staggered by the parent. */
 export const ZONE_ATOMIC_BENTO_VARIANTS: Record<string, Variant> = {
-  hidden: {
-    opacity: 0,
-    scale: 1.05,
-    y: FAMILY_RISE_PX,
-    filter: `blur(${FAMILY_ATOMIC_BLUR_IN_PX}px)`,
-  },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: FAMILY_TRANSITION_ATOMIC,
-  },
-  shrunk: {
-    opacity: 0,
-    scale: 0.95,
-    y: FAMILY_RISE_PX * 0.5,
-    filter: `blur(${FAMILY_ATOMIC_BLUR_OUT_PX}px)`,
-    transition: familyTransition(FAMILY_DUR_SHORT * 0.6),
-  },
-  ping: {
-    opacity: [0, 1],
-    scale: [1.02, 1],
-    y: [FAMILY_RISE_PX * 0.6, 0],
-    filter: ['blur(8px)', 'blur(0px)'],
-    transition: FAMILY_TRANSITION_ATOMIC,
-  },
+  hidden: { opacity: 0, y: RISE_PX },
+  visible: { opacity: 1, y: 0, transition: T_ENTER },
+  shrunk: { opacity: 0, y: EXIT_PX, transition: T_EXIT },
+  ping: { opacity: [0, 1], y: [RISE_PX, 0], transition: T_ENTER } as Variant,
 }
 
-/** Subtle atom jitter on hover (paired with `.zz-atomic-hover` CSS). */
-export const FAMILY_ATOMIC_HOVER: TargetAndTransition = {
-  x: [0, 0.5, -0.5, 0.25, 0],
-  y: [0, -0.5, 0.5, -0.25, 0],
-  transition: { duration: 0.45, ease: [...FAMILY_EASE] },
-}
-
-export function familyPageEnterProps(reduceMotion: boolean): FamilyMotionTargets & { transition: Transition } {
-  const atomic = familyAtomicProps(reduceMotion)
-  return {
-    ...atomic,
-    transition: reduceMotion ? FAMILY_TRANSITION_SHORT : FAMILY_TRANSITION_ATOMIC,
-  }
-}
-
-/** @deprecated Prefer `familyPageEnterProps` — kept for spread in likes/settings. */
-export const FAMILY_PAGE_ENTER = {
-  initial: FAMILY_ATOMIC_SURFACE_INITIAL,
-  animate: FAMILY_ATOMIC_SURFACE_ANIMATE,
-  exit: FAMILY_ATOMIC_SURFACE_EXIT,
-  transition: FAMILY_TRANSITION_ATOMIC,
-} as const
+/** Card hover is CSS-only now (lift + shadow); kept as an empty target so call sites compile. */
+export const FAMILY_ATOMIC_HOVER: TargetAndTransition = {}
 
 // -----------------------------------------------------------------------------
 // Props helpers
 // -----------------------------------------------------------------------------
 
-/** Cards, screens, Zai bubbles, Solo Focus — atomic surface (rise + blur, no letter-spacing). */
+const REDUCED: FamilyMotionTargets = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+}
+
+const FULL: FamilyMotionTargets = {
+  initial: familyAtomicSurface.hidden as Target,
+  animate: familyAtomicSurface.visible as Target,
+  exit: familyAtomicSurface.exit as Target,
+}
+
+export function familyPageEnterProps(
+  reduceMotion: boolean
+): FamilyMotionTargets & { transition: Transition } {
+  return {
+    ...(reduceMotion ? REDUCED : FULL),
+    transition: reduceMotion ? { duration: REDUCED_CROSSFADE_SEC } : T_ENTER,
+  }
+}
+
+/** @deprecated Prefer `familyPageEnterProps`. */
+export const FAMILY_PAGE_ENTER = {
+  ...FULL,
+  transition: T_ENTER,
+} as const
+
+/** Cards, screens, Zai bubbles, Solo Focus. */
 export function familyAtomicProps(reduceMotion: boolean): FamilyMotionTargets {
-  if (reduceMotion) {
-    return {
-      initial: { opacity: 0 },
-      animate: { opacity: 1 },
-      exit: { opacity: 0 },
-    }
-  }
-  return {
-    initial: familyAtomicSurface.hidden as Target,
-    animate: familyAtomicSurface.visible as Target,
-    exit: familyAtomicSurface.exit as Target,
-  }
+  return reduceMotion ? REDUCED : FULL
 }
 
-/** Intro / summary opacity ticker — full assembly including letter-spacing + rise. */
+/** Intro / summary ticker. */
 export function familyAtomicTextProps(reduceMotion: boolean): FamilyMotionTargets {
-  if (reduceMotion) {
-    return {
-      initial: { opacity: 0 },
-      animate: { opacity: 1 },
-      exit: { opacity: 0 },
-    }
-  }
-  return {
-    initial: familyAtomicAssembly.hidden as Target,
-    animate: familyAtomicAssembly.visible as Target,
-    exit: familyAtomicAssembly.exit as Target,
-  }
+  return reduceMotion ? REDUCED : FULL
 }
 
-export function familyRevealProps(
-  reduceMotion: boolean,
-  blurPx: number = FAMILY_BLUR_PX
-): FamilyMotionTargets {
-  const blur = Math.max(0, Math.min(24, blurPx))
-  if (reduceMotion) {
-    return {
-      initial: { opacity: 0 },
-      animate: { opacity: 1 },
-      exit: { opacity: 0 },
-    }
-  }
-  return {
-    initial: { opacity: 0, y: FAMILY_RISE_PX, filter: `blur(${blur}px)` },
-    animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
-    exit: {
-      opacity: 0,
-      y: FAMILY_RISE_PX * 0.5,
-      filter: `blur(${Math.max(2, Math.round(blur * 0.65))}px)`,
-    },
-  }
+export function familyRevealProps(reduceMotion: boolean): FamilyMotionTargets {
+  return reduceMotion ? REDUCED : FULL
 }
 
-/**
- * Profile step shell — blur cross-fade only (no letter-spacing on children).
- * Headlines use `familyAtomicProps` separately so postcode `zz-input` keeps Marvin.
- */
+/** Profile step shell. */
 export function familyProfileStepProps(reduceMotion: boolean): FamilyMotionTargets {
-  if (reduceMotion) {
-    return {
-      initial: { opacity: 0 },
-      animate: { opacity: 1 },
-      exit: { opacity: 0 },
-    }
-  }
-  return {
-    initial: {
-      opacity: 0,
-      scale: 1.03,
-      y: FAMILY_RISE_PX,
-      filter: `blur(${FAMILY_ATOMIC_BLUR_IN_PX}px)`,
-    },
-    animate: { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' },
-    exit: {
-      opacity: 0,
-      scale: 0.98,
-      y: FAMILY_RISE_PX * 0.5,
-      filter: `blur(${FAMILY_ATOMIC_BLUR_OUT_PX}px)`,
-    },
-  }
+  return reduceMotion ? REDUCED : FULL
 }
 
 export function zoneBentoLayoutId(cardId: string | undefined | null): string | undefined {
@@ -345,8 +168,9 @@ export function zoneBentoLayoutId(cardId: string | undefined | null): string | u
   return id ? `zone-bento-${id}` : undefined
 }
 
-export function familyControlDelaySec(optionIndex: number, base = 0.12): number {
-  return base + optionIndex * (FAMILY_DUR_SHORT * 0.25)
+/** Delay for the nth control in a row: 40ms steps, first six only. */
+export function familyControlDelaySec(optionIndex: number, base = 0): number {
+  return base + Math.min(Math.max(optionIndex, 0), 5) * STAGGER_SEC
 }
 
 export const FAMILY_PULSE_TRANSITION = FAMILY_TRANSITION_SHORT

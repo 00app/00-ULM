@@ -369,7 +369,7 @@ export default function IntroWordCycle({
               overflowWrap: useBalancedWrap || wrapLongPreservedWords ? ('anywhere' as const) : undefined,
               wordBreak: useBalancedWrap ? ('break-word' as const) : undefined,
               textTransform: preserveCase ? 'none' : 'uppercase',
-              fontFamily: 'var(--font-marvin), var(--font-label), sans-serif',
+              fontFamily: 'var(--font-display), var(--font-text), sans-serif',
               // Sizing for useBalancedWrap / looksLikeLongPlaceToken now lives entirely in the
               // .intro-balanced-wrap-token / .intro-locality-long-token CSS classes (globals.css)
               // instead of an inline clamp — inline styles can't carry a @media (min-width: 1024px)

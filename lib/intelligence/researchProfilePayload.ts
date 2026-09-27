@@ -11,6 +11,8 @@ export type LocalizedProfileInput = {
   home_type?: string | null
   /** Profile step only — seeds utilities tile + journey answers (GAS / ELECTRIC / MIX / OTHER). */
   home_power?: string | null
+  /** Current supplier name (e.g. "Octopus Energy"); unknown when absent. */
+  energy_supplier?: string | null
   household?: string | null
   transport_baseline?: string | null
   heating?: string | null
@@ -194,6 +196,7 @@ export function buildLocalizedResearchPrefix(params: {
   const p = params.profileData
   if (p?.home_type) lines.push(`home_type: ${p.home_type}`)
   if (p?.home_power) lines.push(`home_power: ${p.home_power}`)
+  if (p?.energy_supplier) lines.push(`energy_supplier: ${p.energy_supplier}`)
   if (p?.house_number) lines.push(`house_number: ${p.house_number}`)
   if (p?.household) lines.push(`household: ${p.household}`)
   if (p?.transport_baseline) lines.push(`transport_baseline: ${p.transport_baseline}`)

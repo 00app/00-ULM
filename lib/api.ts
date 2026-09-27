@@ -12,6 +12,10 @@ export async function createUser(profile: {
   goal?: string
   house_number?: string
   home_power?: string
+  /** BRITISH_GAS | OCTOPUS | EDF | EON_NEXT | OVO | SCOTTISH_POWER | OTHER — see lib/profile/energySupplier.ts. */
+  energy_supplier?: string
+  /** Typed name, only sent with energy_supplier OTHER. */
+  energy_supplier_other?: string
   home_ownership?: string
   wash_preference?: string
   flight_frequency?: string

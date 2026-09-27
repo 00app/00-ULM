@@ -56,8 +56,8 @@ export function LikesCardActionTrinity({
         transition={INDUSTRIAL_OPACITY_SNAP}
         aria-label="Remove from likes"
         style={{
-          backgroundColor: 'var(--color-pink)',
-          color: 'var(--color-yellow)',
+          backgroundColor: 'var(--color-blue)',
+          color: 'var(--color-blue)',
         }}
       >
         <span className="circle-btn-label-stack" aria-hidden="true">
@@ -71,8 +71,8 @@ export function LikesCardActionTrinity({
         transition={INDUSTRIAL_OPACITY_SNAP}
         aria-label={isActioned ? 'Unmark as actioned' : 'Mark as actioned'}
         style={{
-          backgroundColor: isActioned ? 'var(--color-yellow)' : 'var(--color-purple)',
-          color: isActioned ? 'var(--color-purple)' : 'var(--color-yellow)',
+          backgroundColor: isActioned ? 'var(--color-blue)' : 'var(--color-purple)',
+          color: isActioned ? 'var(--color-purple)' : 'var(--color-blue)',
         }}
       >
         <span className="circle-btn-label-stack" aria-hidden="true">

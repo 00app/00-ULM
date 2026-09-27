@@ -129,13 +129,13 @@ export function OfferFeedbackTakeover({
       >
         <span
           className="card-top-label solo-focus-zone-category m-0 text-center w-full block"
-          style={{ color: 'var(--color-yellow)' }}
+          style={{ color: 'var(--color-blue)' }}
         >
           {zoneCategoryLabel}
         </span>
         <div
           id="offer-feedback-question"
-          className="text-marvin profile-question-headline"
+          className="text-display profile-question-headline"
           style={{
             marginBottom: 0,
             marginLeft: 'auto',

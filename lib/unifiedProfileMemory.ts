@@ -3,6 +3,7 @@
  */
 
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
+import { normaliseEnergySupplier } from '@/lib/profile/energySupplier'
 
 export const UNIFIED_PROFILE_MEMORY_KEY = 'zz_user_profile_memory_v1'
 export const USER_PROFILE_KEY = 'user_profile'
@@ -24,6 +25,8 @@ function readProfileKeys(): Record<string, string> {
     ['household', 'profile_household'],
     ['home_type', 'profile_home_type'],
     ['home_power', 'profile_home_power'],
+    ['energy_supplier', 'profile_energy_supplier'],
+    ['energy_supplier_other', 'profile_energy_supplier_other'],
     ['transport', 'profile_transport'],
     ['age', 'profile_age'],
     ['employment_status', 'profile_employment_status'],
@@ -33,6 +36,8 @@ function readProfileKeys(): Record<string, string> {
   for (const [k, storageKey] of keys) {
     out[k] = localStorage.getItem(storageKey) ?? ''
   }
+  // The local SKIP marker means "unknown"; nothing downstream should ever see it as a value.
+  out.energy_supplier = normaliseEnergySupplier(out.energy_supplier)
   return out
 }
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { COUNT_UP_MS } from '@/lib/motion'
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
 import { trackFunnelEvent, trackFunnelEventOnce } from '@/lib/analytics/trackFunnelEvent'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
@@ -223,6 +224,13 @@ import ZoneDesktopNavRail from '@/app/components/ZoneDesktopNavRail'
 import ZoneAskZaiDock from '@/app/components/ZoneAskZaiDock'
 import { RockSavingTips, RockMobileSignupCard } from '@/app/components/RockSavingTips'
 import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
+import { normaliseEnergySupplier } from '@/lib/profile/energySupplier'
+import {
+  ZONE_FILTERS,
+  countByTimeframe,
+  matchesZoneFilter,
+  type ZoneFilter,
+} from '@/lib/zone/zoneFilter'
 import {
   AppFloatingNav,
   ZoneCard,
@@ -1733,6 +1741,8 @@ export default function ZonePage({
         household: profile.household,
         home_type: profile.home_type,
         home_power: profile.home_power,
+        energy_supplier: profile.energy_supplier,
+        energy_supplier_other: profile.energy_supplier_other,
         transport_baseline: profile.transport_baseline,
         age: profile.age,
         employment_status: profile.employment_status,
@@ -1805,6 +1815,8 @@ export default function ZonePage({
           household: profile.household,
           home_type: profile.home_type,
           home_power: profile.home_power,
+          energy_supplier: profile.energy_supplier,
+          energy_supplier_other: profile.energy_supplier_other,
           transport_baseline: profile.transport_baseline,
           age: profile.age,
           employment_status: profile.employment_status,
@@ -1957,6 +1969,8 @@ export default function ZonePage({
         household: profile.household,
         home_type: profile.home_type,
         home_power: profile.home_power,
+        energy_supplier: profile.energy_supplier,
+        energy_supplier_other: profile.energy_supplier_other,
         transport_baseline: profile.transport_baseline,
         age: profile.age,
         employment_status: profile.employment_status,
@@ -2177,6 +2191,7 @@ export default function ZonePage({
 
   const sessionRestoreDone = useRef(false)
 
+  const [zoneFilter, setZoneFilter] = useState<ZoneFilter>('all')
   const groovyItems = useMemo(
     () => {
       void refreshKey
@@ -2540,6 +2555,7 @@ export default function ZonePage({
           employment: stored.employmentStatus,
           age: stored.age,
           heating: stored.powerType,
+          supplier: normaliseEnergySupplier(stored.energySupplier) || undefined,
           transport: stored.transport,
           wash: stored.washPreference,
         },
@@ -2944,8 +2960,8 @@ export default function ZonePage({
       }),
     [groovyItems, primaryHeroJourney, rockHabitsWithOffers]
   )
-  const displayMoney = useCountUp(heroMoney, { duration: 120 })
-  const displayCarbon = useCountUp(heroCarbon, { duration: 120 })
+  const displayMoney = useCountUp(heroMoney, { duration: COUNT_UP_MS })
+  const displayCarbon = useCountUp(heroCarbon, { duration: COUNT_UP_MS })
   const heroDataSource = dbConnected && neonVerifiedMoney ? 'VERIFIED AUDIT' : 'ESTIMATED AUDIT'
 
   // Gated on `hydrated` (client-only, flips true in a useEffect): the real copy depends on the
@@ -2976,6 +2992,7 @@ export default function ZonePage({
           if (i >= zoneRevealCount) return null
           if (wallSection === 'hero' && cell.type !== 'hero') return null
           if (wallSection === 'categories' && cell.type === 'hero') return null
+          if (wallSection === 'categories' && !matchesZoneFilter(cell, zoneFilter)) return null
           const cellKey =
             cell.type === 'hero' ? 'hero' : cell.type === 'tip' ? cell.tip.id : cell.item.id
           const isExpanded = cell.type === 'journey' && expandedCardId === cell.item.id
@@ -3249,7 +3266,7 @@ export default function ZonePage({
                         : cell.item.title
                   }
                   isTall={cell.persona === 'tall'}
-                  textColorOverride="var(--color-yellow)"
+                  textColorOverride="var(--color-blue)"
                   carbonValue={expandedFromTip?.journey_key === cell.item.journey_key && (expandedFromTip.data?.carbon ?? '') ? expandedFromTip.data.carbon : cell.item.data.carbon}
                   moneyValue={expandedFromTip?.journey_key === cell.item.journey_key && (expandedFromTip.data?.money ?? '') ? expandedFromTip.data.money : cell.item.data.money}
                   carbonKg={cell.item.carbonKg}
@@ -3400,7 +3417,7 @@ export default function ZonePage({
       <motion.main
         className="zone zone-main-shell relative min-h-screen overflow-x-hidden"
         style={{
-          color: 'var(--color-yellow)',
+          color: 'var(--color-blue)',
           boxShadow: 'none',
         }}
         {...FADE_IN_UP}
@@ -3436,51 +3453,32 @@ export default function ZonePage({
             aria-live="polite"
           >
             <div className="zone-hero-copy" data-testid="zone-section-welcome">
-              <motion.h3
-                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-time m-0"
-                style={{ color: 'var(--color-yellow)' }}
-                variants={STACCATO_CHILD_VARIANTS}
-                initial="hidden"
-                animate="visible"
-              >
-                {zoneWelcome.timeOfDayLine}
-              </motion.h3>
+              {/* Greeting and name share one line ("Evening, Test."); the three lines below are
+                  short enough never to wrap. A line that is empty (a zero figure) is not rendered. */}
               <motion.h3
                 className="zz-h3 zone-welcome zone-welcome-block zone-welcome-name m-0"
-                style={{ color: 'var(--color-yellow)' }}
+                style={{ color: 'var(--color-blue)' }}
                 variants={STACCATO_CHILD_VARIANTS}
                 initial="hidden"
                 animate="visible"
               >
-                {zoneWelcome.nameLine}
+                {zoneWelcome.timeOfDayLine.replace(/\.$/, ',')} {zoneWelcome.nameLine}
               </motion.h3>
-              <motion.h3
-                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-savings m-0"
-                style={{ color: 'var(--color-yellow)' }}
-                variants={STACCATO_CHILD_VARIANTS}
-                initial="hidden"
-                animate="visible"
-              >
-                {zoneWelcome.foundCountLine}
-              </motion.h3>
-              <motion.h3
-                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-savings m-0"
-                style={{ color: 'var(--color-yellow)' }}
-                variants={STACCATO_CHILD_VARIANTS}
-                initial="hidden"
-                animate="visible"
-              >
-                {zoneWelcome.localityLine}
-              </motion.h3>
-              <motion.h3
-                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-savings m-0"
-                style={{ color: 'var(--color-yellow)' }}
-                variants={STACCATO_CHILD_VARIANTS}
-                initial="hidden"
-                animate="visible"
-              >
-                {zoneWelcome.savingsMoneyLine}
-              </motion.h3>
+              {[zoneWelcome.foundCountLine, zoneWelcome.localityLine, zoneWelcome.savingsMoneyLine].map(
+                (line) =>
+                  line ? (
+                    <motion.h3
+                      key={line}
+                      className="zz-h3 zone-welcome zone-welcome-block zone-welcome-savings m-0"
+                      style={{ color: 'var(--color-blue)' }}
+                      variants={STACCATO_CHILD_VARIANTS}
+                      initial="hidden"
+                      animate="visible"
+                    >
+                      {line}
+                    </motion.h3>
+                  ) : null
+              )}
             </div>
           </motion.div>
           {showInlineLoadingLogo && !zoneHandoffStaging ? (
@@ -3497,7 +3495,7 @@ export default function ZonePage({
               animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
               exit={FAMILY_ATOMIC_SURFACE_EXIT}
               transition={FAMILY_TRANSITION_ATOMIC}
-              style={{ color: 'var(--color-yellow)' }}
+              style={{ color: 'var(--color-blue)' }}
             >
               {sentinelPulseLabel}
             </motion.p>
@@ -3568,12 +3566,10 @@ export default function ZonePage({
               transition={FAMILY_TRANSITION_ATOMIC}
             >
               <h3
-                className="zone-section-heading zone-rock-section-heading zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0"
+                className="zone-section-heading zone-rock-section-heading zz-h3 text-display text-[var(--color-blue)] lowercase m-0"
                 data-testid="zone-section-today-tips"
               >
-                {tipsTimeOfDay}
-                <br />
-                tips.
+                {tipsTimeOfDay} tips.
               </h3>
               <RockSavingTips
                 habits={rockHabitsWithOffers}
@@ -3586,7 +3582,7 @@ export default function ZonePage({
           <div className="zone-category-wall">
           {showCategorySectionHeading ? (
             <h3
-              className="zone-section-heading zone-category-section-heading zz-h3 text-marvin text-[var(--color-yellow)] lowercase m-0"
+              className="zone-section-heading zone-category-section-heading zz-h3 text-display text-[var(--color-blue)] lowercase m-0"
               data-testid="zone-section-recommendations"
             >
               personalised
@@ -3594,6 +3590,27 @@ export default function ZonePage({
               recommendation.
             </h3>
           ) : null}
+          {(() => {
+            const counts = countByTimeframe(displayItems)
+            // Only worth showing when both kinds exist; one bucket alone filters nothing.
+            if (counts.now === 0 || counts.long === 0) return null
+            return (
+              <div className="zone-filters" role="group" aria-label="Filter recommendations">
+                {ZONE_FILTERS.map((f) => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    className={`zone-pill zz-label${zoneFilter === f.value ? ' active' : ''}`}
+                    aria-pressed={zoneFilter === f.value}
+                    onClick={() => setZoneFilter(f.value)}
+                  >
+                    {f.label}
+                    {f.value === 'all' ? '' : ` ${counts[f.value]}`}
+                  </button>
+                ))}
+              </div>
+            )
+          })()}
           <motion.div
             key={`zone-grid-categories-${summaryGridStaggerKey}-${cleanBirthRevealKey}`}
             data-testid="zone-grid-mounted"

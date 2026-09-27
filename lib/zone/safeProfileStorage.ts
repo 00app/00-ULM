@@ -1,3 +1,4 @@
+import { normaliseEnergySupplier } from '@/lib/profile/energySupplier'
 const PROFILE_POSTCODE_KEY = 'profile_postcode'
 
 export function safeGetItem(key: string): string | null {
@@ -65,6 +66,8 @@ export function readProfileFieldsFromStorage(): {
   household?: string
   home_type?: string
   home_power?: string
+  energy_supplier?: string
+  energy_supplier_other?: string
   transport_baseline?: string
   age?: string
   employment_status?: string
@@ -84,6 +87,9 @@ export function readProfileFieldsFromStorage(): {
     household: safeGetItem('profile_household') ?? undefined,
     home_type: safeGetItem('profile_home_type') ?? undefined,
     home_power: safeGetItem('profile_home_power') ?? undefined,
+    // SKIP (the local "asked, declined" marker) reads as unknown.
+    energy_supplier: normaliseEnergySupplier(safeGetItem('profile_energy_supplier')) || undefined,
+    energy_supplier_other: safeGetItem('profile_energy_supplier_other') ?? undefined,
     transport_baseline: safeGetItem('profile_transport') ?? undefined,
     age: safeGetItem('profile_age') ?? undefined,
     employment_status: safeGetItem('profile_employment_status') ?? undefined,

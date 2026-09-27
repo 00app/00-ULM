@@ -1,5 +1,6 @@
 'use client'
 
+import { T_COLOUR, T_EXIT } from '@/lib/motion'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import IntroWordCycle from '@/app/components/IntroWordCycle'
@@ -48,7 +49,7 @@ export function ArchitecturalPulse({
       aria-label="Preparing your savings wall"
       initial={{ opacity: 1 }}
       animate={{ opacity: fadingOut ? 0 : 1 }}
-      transition={{ duration: fadingOut ? 0.35 : 0.12, ease: 'linear' }}
+      transition={fadingOut ? T_EXIT : T_COLOUR}
       style={
         inline
           ? {

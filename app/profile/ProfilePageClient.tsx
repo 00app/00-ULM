@@ -41,6 +41,15 @@ import { clearZoneVmLocalCache } from '@/lib/zone/clearZoneVmCache'
 import { PROFILE_ENTRY_CHOICE_KEY, PROFILE_STEP_KEY } from '@/lib/dataVersion'
 import { persistSessionRestoreProof } from '@/lib/client/sessionRestoreProofStorage'
 import { persistHomePowerFromProfile } from '@/lib/profile/homePower'
+import {
+  ENERGY_SUPPLIER_OPTIONS,
+  ENERGY_SUPPLIER_OTHER,
+  ENERGY_SUPPLIER_SKIP,
+  normaliseEnergySupplier,
+  persistEnergySupplierFromProfile,
+  resolveTypedSupplier,
+  sanitiseSupplierOther,
+} from '@/lib/profile/energySupplier'
 import { clearOnboardingIntent } from '@/lib/profile/onboardingIntentCookie'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { browserCanTriggerScrapeSync, triggerOnboardingResearchBootstrap, triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
@@ -75,6 +84,8 @@ type ProfileQuestion = {
   label: string
   type: 'input' | 'options'
   placeholder?: string
+  /** Optional questions never block completeness and are skipped by resume/first-incomplete. */
+  optional?: boolean
   options?: unknown[]
   getInsight?: (value: string, locality: string) => string | null
 }
@@ -112,6 +123,18 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
       v === 'GAS' ? `${locality || 'your area'} gas homes usually\npay more than efficient alternatives.` :
       v === 'ELECTRIC' ? 'fully electric. you\'re already ahead\nof most households.' :
       v === 'MIX' ? 'mixed. there\'s room to optimise\nboth sides.' : null,
+  },
+  {
+    /**
+     * Who supplies the energy. Optional (skippable, never part of completeness) and rendered by a
+     * dedicated block below: six supplier circles plus OTHER, and choosing OTHER swaps the circles
+     * for a text field. See lib/profile/energySupplier.ts for the value model.
+     */
+    id: 'energySupplier',
+    label: 'who supplies\nyour energy?',
+    type: 'options' as const,
+    optional: true,
+    options: ENERGY_SUPPLIER_OPTIONS,
   },
   {
     id: 'transport',
@@ -261,6 +284,20 @@ const PROFILE_QUESTIONS: ProfileQuestion[] = [
 
 const STORAGE_KEYS: Record<string, string> = { ...PROFILE_STORAGE_KEYS }
 
+/**
+ * Supplier bookkeeping after any write of profile values to storage. The typed "other" name is
+ * only ever written when non-empty by the generic loops, so an empty one (a known supplier was
+ * picked, or SKIP) has to be removed here or a stale name would outlive its supplier. Then the
+ * provider answer the Zone card logic and calculators read is re-derived from the stored value.
+ */
+function syncSupplierStorage(next: Record<string, string>): void {
+  if (typeof window === 'undefined') return
+  if ('energySupplierOther' in next && !next.energySupplierOther?.trim()) {
+    localStorage.removeItem(STORAGE_KEYS.energySupplierOther)
+  }
+  if ('energySupplier' in next) persistEnergySupplierFromProfile()
+}
+
 function resolveProfileGoal(v: Record<string, string>): string {
   return v.goal?.trim() || readStoredProfileGoal()
 }
@@ -280,6 +317,7 @@ function isProfileOnboardingComplete(v: Record<string, string>): boolean {
 function firstIncompleteProfileStepIndex(v: Record<string, string>): number {
   for (let i = 0; i < PROFILE_QUESTIONS.length; i++) {
     const q = PROFILE_QUESTIONS[i]
+    if (q.optional) continue
     const raw = String(v[q.id] ?? '').trim()
     if (q.id === 'postcode') {
       if (!isValidUkPostcode(raw.replace(/\s+/g, ''))) return i
@@ -323,6 +361,9 @@ export default function ProfilePageClient() {
   const [profileHydrated, setProfileHydrated] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
   const [keyboardLift, setKeyboardLift] = useState(false)
+  /** Supplier step only: OTHER swaps the six supplier circles for a text field. */
+  const [supplierOtherOpen, setSupplierOtherOpen] = useState(false)
+  const [supplierOtherValue, setSupplierOtherValue] = useState('')
   const [postcodeLocalityLabel, setPostcodeLocalityLabel] = useState('')
   const [postcodeFormatValid, setPostcodeFormatValid] = useState(false)
   const [insightReveal, setInsightReveal] = useState<string | null>(null)
@@ -465,6 +506,7 @@ export default function ProfilePageClient() {
 
   useEffect(() => {
     advancingRef.current = false
+    setSupplierOtherOpen(false)
   }, [step])
 
   useEffect(() => {
@@ -493,6 +535,8 @@ export default function ProfilePageClient() {
       if (!val) return
       stored[q.id] = q.id === 'name' ? firstNameFromAutofill(val) : val
     })
+    const storedSupplierOther = localStorage.getItem(STORAGE_KEYS.energySupplierOther)
+    if (storedSupplierOther) stored.energySupplierOther = storedSupplierOther
     const storedHouse = localStorage.getItem(STORAGE_KEYS.houseNumber)
     if (storedHouse) stored.houseNumber = storedHouse
     const storedGoal = readStoredProfileGoal()
@@ -648,6 +692,7 @@ export default function ProfilePageClient() {
         localStorage.setItem(key, nextValue)
       }
       if (id === 'powerType') persistHomePowerFromProfile(nextValue)
+      if (id === 'energySupplier') persistEnergySupplierFromProfile()
       try {
         persistUnifiedUserProfileMemory()
       } catch {
@@ -827,6 +872,7 @@ export default function ProfilePageClient() {
           if (val.trim()) localStorage.setItem(key, val.trim())
         })
         if (mergedValues.powerType?.trim()) persistHomePowerFromProfile(mergedValues.powerType)
+        syncSupplierStorage(mergedValues)
         try {
           persistUnifiedUserProfileMemory()
         } catch {
@@ -856,6 +902,12 @@ export default function ProfilePageClient() {
             goal: mergedValues.goal ?? undefined,
             house_number: mergedValues.houseNumber?.trim() || undefined,
             home_power: mergedValues.powerType?.trim() || undefined,
+            // SKIP is a local marker only; normalise drops it so it never reaches the server.
+            energy_supplier: normaliseEnergySupplier(mergedValues.energySupplier) || undefined,
+            energy_supplier_other:
+              normaliseEnergySupplier(mergedValues.energySupplier) === ENERGY_SUPPLIER_OTHER
+                ? sanitiseSupplierOther(mergedValues.energySupplierOther) || undefined
+                : undefined,
             home_ownership: mergedValues.homeOwnership?.trim() || undefined,
             wash_preference: mergedValues.washPreference?.trim() || undefined,
             flight_frequency: mergedValues.flightFrequency?.trim() || undefined,
@@ -962,6 +1014,7 @@ export default function ProfilePageClient() {
           if (val.trim()) localStorage.setItem(key, val.trim())
         })
         if (nextValues.powerType?.trim()) persistHomePowerFromProfile(nextValues.powerType)
+        syncSupplierStorage(nextValues)
       }
     })
   }, [])
@@ -1079,6 +1132,12 @@ export default function ProfilePageClient() {
     const isObj = typeof opt === 'object' && opt !== null
     const optValue = isObj ? String((opt as { value: string }).value) : String(opt)
     const isLastStep = step >= PROFILE_QUESTIONS.length - 1
+    // A supplier chosen from the circles (or SKIP) has no typed name; clearing it here is what
+    // lets syncSupplierStorage remove one left over from an earlier OTHER.
+    const answered: Record<string, string> = {
+      [current.id]: optValue,
+      ...(current.id === 'energySupplier' ? { energySupplierOther: '' } : {}),
+    }
 
     const persistAndAdvance = (nextValues: Record<string, string>) => {
       if (typeof window !== 'undefined') {
@@ -1089,6 +1148,7 @@ export default function ProfilePageClient() {
           if (typeof val === 'string' && val.trim()) localStorage.setItem(k, val.trim())
         })
         if (nextValues.powerType?.trim()) persistHomePowerFromProfile(nextValues.powerType)
+        syncSupplierStorage(nextValues)
         try {
           persistUnifiedUserProfileMemory()
         } catch {
@@ -1105,16 +1165,16 @@ export default function ProfilePageClient() {
 
     if (isLastStep) {
       flushSync(() => {
-        setValues((prev) => ({ ...prev, [current.id]: optValue }))
+        setValues((prev) => ({ ...prev, ...answered }))
       })
-      persistAndAdvance({ ...values, [current.id]: optValue })
+      persistAndAdvance({ ...values, ...answered })
       return
     }
 
     const insight = current.getInsight?.(optValue, postcodeLocalityLabel) ?? null
     setValue(current.id, optValue)
     if (insight) {
-      persistStepValues({ ...values, [current.id]: optValue })
+      persistStepValues({ ...values, ...answered })
       setInsightReveal(insight)
       insightTimerRef.current = setTimeout(() => {
         setInsightReveal(null)
@@ -1122,11 +1182,39 @@ export default function ProfilePageClient() {
         // this timer fires), so the [step]-keyed effect won't clear advancingRef for us here —
         // do it explicitly right before the real advance.
         advancingRef.current = false
-        persistAndAdvance({ ...values, [current.id]: optValue })
+        persistAndAdvance({ ...values, ...answered })
       }, 5000)
       return
     }
-    persistAndAdvance({ ...values, [current.id]: optValue })
+    persistAndAdvance({ ...values, ...answered })
+  }
+
+  const commitSupplierOther = () => {
+    if (submittingRef.current || isSubmitting || advancingRef.current) return
+    // Typing a known supplier's name into the box still means that supplier (resolveTypedSupplier).
+    const { supplier, other } = resolveTypedSupplier(supplierOtherValue)
+    if (!supplier) return
+    advancingRef.current = true
+    recenterProfileStep()
+    const nextValues = { ...values, energySupplier: supplier, energySupplierOther: other }
+    flushSync(() => {
+      setValues((prev) => ({ ...prev, energySupplier: supplier, energySupplierOther: other }))
+    })
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.energySupplier, supplier)
+      if (other) localStorage.setItem(STORAGE_KEYS.energySupplierOther, other)
+      try {
+        persistUnifiedUserProfileMemory()
+      } catch {
+        // ignore
+      }
+    }
+    advanceProfileStep(nextValues)
+  }
+
+  const openSupplierOther = () => {
+    setSupplierOtherValue(values.energySupplierOther ?? '')
+    setSupplierOtherOpen(true)
   }
 
   const questionBlockLabel = profileHydrated && current ? current.label.replace(/\n/g, '\n') : ''
@@ -1180,7 +1268,7 @@ export default function ProfilePageClient() {
             transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
-              className="zz-h2 text-marvin m-0 text-center"
+              className="zz-h2 text-display m-0 text-center"
               style={{ whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
             >
               quick look, or make it yours?
@@ -1237,7 +1325,7 @@ export default function ProfilePageClient() {
             transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
-              className="zz-h2 text-marvin m-0 text-center"
+              className="zz-h2 text-display m-0 text-center"
               style={{ whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
             >
               welcome back.
@@ -1279,7 +1367,7 @@ export default function ProfilePageClient() {
                 autoComplete="current-password"
               />
               {loginError ? (
-                <p className="zz-h4 m-0 text-center" style={{ color: 'var(--color-pink)' }}>
+                <p className="zz-h4 m-0 text-center" style={{ color: 'var(--color-blue)' }}>
                   {loginError}
                 </p>
               ) : null}
@@ -1340,7 +1428,7 @@ export default function ProfilePageClient() {
             transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
-              className="zz-h2 text-marvin m-0 text-center"
+              className="zz-h2 text-display m-0 text-center"
               style={{ whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
             >
               want your results by text?
@@ -1382,22 +1470,22 @@ export default function ProfilePageClient() {
                   reduceMotion={reduceMotion}
                   optionIndex={0}
                   delaySeconds={familyControlDelaySec(0)}
-                  className=""
-                  disabled={!phoneValid || !phoneOptIn}
-                  onClick={() => completePhoneStep(phoneValue.trim())}
-                  aria-label="Continue"
+                  className="profile-answer-btn--skip"
+                  onClick={() => completePhoneStep(null)}
+                  aria-label="Later"
                 >
-                  <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
+                  <span className="profile-answer-btn__text zz-h4">LATER</span>
                 </ProfileAnswerBtn>
                 <ProfileAnswerBtn
                   reduceMotion={reduceMotion}
                   optionIndex={1}
                   delaySeconds={familyControlDelaySec(1)}
                   className=""
-                  onClick={() => completePhoneStep(null)}
-                  aria-label="Later"
+                  disabled={!phoneValid || !phoneOptIn}
+                  onClick={() => completePhoneStep(phoneValue.trim())}
+                  aria-label="Continue"
                 >
-                  <span className="profile-answer-btn__text zz-h4">LATER</span>
+                  <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
                 </ProfileAnswerBtn>
               </div>
             </div>
@@ -1429,7 +1517,7 @@ export default function ProfilePageClient() {
             transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
-              className="zz-h2 text-marvin m-0 text-center"
+              className="zz-h2 text-display m-0 text-center"
               style={{ whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
             >
               protect your account?
@@ -1461,22 +1549,22 @@ export default function ProfilePageClient() {
                   reduceMotion={reduceMotion}
                   optionIndex={0}
                   delaySeconds={familyControlDelaySec(0)}
-                  className=""
-                  disabled={!passwordValid}
-                  onClick={() => completePasswordStep(passwordValue.trim())}
-                  aria-label="Continue"
+                  className="profile-answer-btn--skip"
+                  onClick={() => completePasswordStep(null)}
+                  aria-label="Skip"
                 >
-                  <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
+                  <span className="profile-answer-btn__text zz-h4">SKIP</span>
                 </ProfileAnswerBtn>
                 <ProfileAnswerBtn
                   reduceMotion={reduceMotion}
                   optionIndex={1}
                   delaySeconds={familyControlDelaySec(1)}
                   className=""
-                  onClick={() => completePasswordStep(null)}
-                  aria-label="Skip"
+                  disabled={!passwordValid}
+                  onClick={() => completePasswordStep(passwordValue.trim())}
+                  aria-label="Continue"
                 >
-                  <span className="profile-answer-btn__text zz-h4">SKIP</span>
+                  <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
                 </ProfileAnswerBtn>
               </div>
             </div>
@@ -1508,7 +1596,7 @@ export default function ProfilePageClient() {
             transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
-              className="zz-h2 text-marvin m-0 text-center"
+              className="zz-h2 text-display m-0 text-center"
               style={{ whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
             >
               {INTRO_GOAL_QUESTION}
@@ -1555,8 +1643,8 @@ export default function ProfilePageClient() {
             transition={FAMILY_TRANSITION_ATOMIC}
           >
             <h2
-              className="zz-h2 text-marvin m-0 text-center"
-              style={{ color: 'var(--color-yellow)', whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
+              className="zz-h2 text-display m-0 text-center"
+              style={{ color: 'var(--color-blue)', whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
             >
               {insightReveal}
             </h2>
@@ -1572,7 +1660,7 @@ export default function ProfilePageClient() {
           transition={FAMILY_TRANSITION_ATOMIC}
         >
           <motion.div
-            className="text-marvin profile-question-headline"
+            className="text-display profile-question-headline"
             style={{
               marginBottom: 0,
               marginLeft: 'auto',
@@ -1591,7 +1679,78 @@ export default function ProfilePageClient() {
           >
             <span style={{ whiteSpace: 'pre-line', display: 'block' }}>{questionBlockLabel}</span>
           </motion.div>
-          {current.type === 'input' ? (
+          {current.id === 'energySupplier' ? (
+            supplierOtherOpen ? (
+              <div className="profile-step-controls profile-step-controls--input">
+                <InputField
+                  value={supplierOtherValue}
+                  onChange={setSupplierOtherValue}
+                  onAdvance={commitSupplierOther}
+                  onFocusLift={liftProfileStepForKeyboard}
+                  onBlurViewportReset={recenterProfileStep}
+                  placeholder="supplier name"
+                  name="energy-supplier"
+                  autoComplete="off"
+                  autoFocus
+                />
+                <div className="profile-step-controls profile-step-controls--options">
+                  <ProfileAnswerBtn
+                    reduceMotion={reduceMotion}
+                    optionIndex={0}
+                    delaySeconds={familyControlDelaySec(0)}
+                    className="profile-answer-btn--skip"
+                    onClick={() => setSupplierOtherOpen(false)}
+                    aria-label="Back to suppliers"
+                  >
+                    <span className="profile-answer-btn__text zz-h4">BACK</span>
+                  </ProfileAnswerBtn>
+                  <ProfileAnswerBtn
+                    reduceMotion={reduceMotion}
+                    optionIndex={1}
+                    delaySeconds={familyControlDelaySec(1)}
+                    className=""
+                    disabled={isSubmitting || !resolveTypedSupplier(supplierOtherValue).supplier}
+                    onClick={commitSupplierOther}
+                    aria-label="Continue"
+                  >
+                    <span className="profile-answer-btn__text zz-h4">CONTINUE</span>
+                  </ProfileAnswerBtn>
+                </div>
+              </div>
+            ) : (
+              <div className="profile-step-controls profile-step-controls--options profile-step-controls--suppliers">
+                <ProfileAnswerBtn
+                  reduceMotion={reduceMotion}
+                  optionIndex={0}
+                  delaySeconds={familyControlDelaySec(0)}
+                  className="profile-answer-btn--skip"
+                  disabled={isSubmitting}
+                  onClick={() => handleOptionClick({ label: 'SKIP', value: ENERGY_SUPPLIER_SKIP })}
+                  aria-label="Skip"
+                >
+                  <span className="profile-answer-btn__text zz-h4">SKIP</span>
+                </ProfileAnswerBtn>
+                {[...ENERGY_SUPPLIER_OPTIONS, { label: 'OTHER', value: ENERGY_SUPPLIER_OTHER, ariaLabel: 'Another supplier' }].map(
+                  (opt, i) => (
+                    <ProfileAnswerBtn
+                      key={opt.value}
+                      reduceMotion={reduceMotion}
+                      optionIndex={i + 1}
+                      delaySeconds={familyControlDelaySec(i + 1)}
+                      className={currentVal === opt.value ? 'selected' : ''}
+                      disabled={isSubmitting}
+                      onClick={() =>
+                        opt.value === ENERGY_SUPPLIER_OTHER ? openSupplierOther() : handleOptionClick(opt)
+                      }
+                      aria-label={opt.ariaLabel}
+                    >
+                      <span className="profile-answer-btn__text zz-h4">{opt.label}</span>
+                    </ProfileAnswerBtn>
+                  )
+                )}
+              </div>
+            )
+          ) : current.type === 'input' ? (
             <div className="profile-step-controls profile-step-controls--input">
               {current.id === 'postcode' ? (
                 <div className="profile-postcode-stack">

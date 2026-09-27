@@ -4,6 +4,7 @@
  * RAMS expanded Solo Focus portal shell — open/close timing decoupled from generic zip tokens.
  * Used by {@link JourneyBentoCard} and {@link SoloFocusOverlay} for `.expanded-solo-focus`.
  */
+import { T_COLOUR, T_EXIT } from '@/lib/motion'
 import { forwardRef } from 'react'
 import { motion, type HTMLMotionProps } from 'framer-motion'
 import { EXPANDED_CARD_CLOSE_TRANSITION } from '@/lib/animations'
@@ -37,8 +38,8 @@ export const ExpandedCardShell = forwardRef<HTMLDivElement, ExpandedCardShellPro
         layoutId={layoutId}
         initial={false}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, transition: { duration: 0.1 } }}
-        transition={{ duration: 0.12 }}
+        exit={{ opacity: 0, transition: T_EXIT }}
+        transition={T_COLOUR}
         {...rest}
       >
         {children}

@@ -36,8 +36,8 @@ export default function ProfileError({
     <div
       style={{
         minHeight: '100vh',
-        background: 'var(--color-purple)',
-        color: 'var(--color-yellow)',
+        background: 'var(--white)',
+        color: 'var(--blue)',
         padding: 24,
         display: 'flex',
         flexDirection: 'column',
@@ -45,15 +45,15 @@ export default function ProfileError({
         justifyContent: 'center',
         gap: 16,
         textAlign: 'center',
-        fontFamily: 'var(--font-roboto), Roboto, sans-serif',
+        fontFamily: 'var(--font-text)',
       }}
     >
       <h2
         style={{
           margin: 0,
-          fontFamily: 'var(--font-marvin), sans-serif',
+          fontFamily: 'var(--font-display), sans-serif',
           fontSize: 28,
-          fontWeight: 800,
+          fontWeight: 900,
           lineHeight: 'var(--zz-lh-heading)',
         }}
       >
@@ -77,9 +77,11 @@ export default function ProfileError({
             padding: '12px 24px',
             borderRadius: 9999,
             border: 'none',
-            background: 'var(--color-yellow)',
-            color: 'var(--color-purple)',
-            fontWeight: 800,
+            background: 'var(--white)',
+            color: 'var(--blue)',
+            boxShadow: 'var(--elev-1)',
+            fontFamily: 'var(--font-cta)',
+          fontWeight: 900,
             cursor: 'pointer',
           }}
         >
@@ -90,10 +92,12 @@ export default function ProfileError({
           style={{
             padding: '12px 24px',
             borderRadius: 9999,
-            border: '2px solid var(--color-yellow)',
-            background: 'transparent',
-            color: 'var(--color-yellow)',
-            fontWeight: 800,
+            border: 'none',
+            background: 'var(--white)',
+            color: 'var(--blue)',
+            boxShadow: 'var(--elev-1)',
+            fontFamily: 'var(--font-cta)',
+          fontWeight: 900,
             textDecoration: 'none',
           }}
         >

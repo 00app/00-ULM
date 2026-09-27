@@ -19,6 +19,8 @@ export interface ImpactProfile {
   home_type?: string
   /** GAS | ELECTRIC | MIX — unlocks utilities lane + synthetic estimates. */
   home_power?: string
+  /** BRITISH_GAS | OCTOPUS | EDF | EON_NEXT | OVO | SCOTTISH_POWER | OTHER; optional, unknown when absent. */
+  energy_supplier?: string
   transport_baseline?: string
   /** Persona for tips; optional. MID = Adult. */
   age?: Persona

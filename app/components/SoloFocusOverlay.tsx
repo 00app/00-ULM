@@ -5,6 +5,7 @@
  * Tips use this overlay; journey cards use JourneyBentoCard.
  * v1.8.3: portaled to `document.body`; QUESTION ↔ RESULT (140ms), source footer, insight/RESULT asterisk lock.
  */
+import { COUNT_UP_MS } from '@/lib/motion'
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
@@ -385,8 +386,8 @@ export function SoloFocusOverlay({
     Boolean(journeyId) &&
     (verifiedAuditCategory ?? '').trim().toLowerCase() === String(journeyId).toLowerCase()
   const motherMoneyTargetGbp = verifiedAuditMatchesJourney ? verifiedAuditMoneyGbp : moneyTargetGbp
-  const animatedMoneyGbp = useCountUp(motherMoneyTargetGbp, { duration: 520 })
-  const animatedCarbonKg = useCountUp(carbonTargetKg, { duration: 520 })
+  const animatedMoneyGbp = useCountUp(motherMoneyTargetGbp, { duration: COUNT_UP_MS })
+  const animatedCarbonKg = useCountUp(carbonTargetKg, { duration: COUNT_UP_MS })
 
   const morphLearnUrl =
     currentMorphData?.actions?.learnUrl && typeof currentMorphData.actions.learnUrl === 'string'
@@ -1032,7 +1033,7 @@ export function SoloFocusOverlay({
             width: 40,
             height: 40,
             backgroundColor: 'var(--color-purple)',
-            color: 'var(--color-yellow)',
+            color: 'var(--color-blue)',
           }}
         >
           <BackArrowDownLeft size={20} />

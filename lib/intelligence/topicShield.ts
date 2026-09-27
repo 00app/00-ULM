@@ -52,10 +52,11 @@ export function buildLaneLockPromptBlock(
     employment_status?: string | null
     household_income_bracket?: string | null
     home_power?: string | null
+    energy_supplier?: string | null
   }
 ): string {
   if (journeyKey === 'utilities') {
-    return buildUtilitiesLaneLockBlock(opts?.home_power)
+    return buildUtilitiesLaneLockBlock(opts?.home_power, opts?.energy_supplier)
   }
   const employed = isActiveEmployed(opts?.employment_status)
   const lowIncome = isLowIncomeBracket(opts?.household_income_bracket)

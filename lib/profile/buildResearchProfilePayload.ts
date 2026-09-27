@@ -25,6 +25,8 @@ export function buildResearchProfileFromStorage(opts?: { postcode?: string }): R
       postcode: opts?.postcode ?? stored.postcode,
       homeType: stored.home_type,
       powerType: stored.home_power,
+      energySupplier: stored.energy_supplier,
+      energySupplierOther: stored.energy_supplier_other,
       transport: stored.transport_baseline,
       livingSituation: stored.household,
       employmentStatus: stored.employment_status,

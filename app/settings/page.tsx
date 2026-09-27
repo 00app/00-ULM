@@ -1,5 +1,7 @@
 'use client'
 
+import { COUNT_UP_MS, T_ENTER, T_REDUCED, staggerDelay } from '@/lib/motion'
+import { energySupplierName } from '@/lib/profile/energySupplier'
 import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import ZoneBackToZoneLink from '@/app/components/ZoneBackToZoneLink'
@@ -42,6 +44,7 @@ const PROFILE_STORAGE_KEYS = {
   age: 'age',
   employmentStatus: 'employmentStatus',
   homePower: 'homePower',
+  energySupplier: 'energySupplier',
   children: 'children',
   financialPressure: 'financialPressure',
 } as const
@@ -61,6 +64,8 @@ const PROFILE_FIELD_META: Array<{
   { id: 'age', storageKey: 'age', aria: 'Age' },
   { id: 'employmentStatus', storageKey: 'employmentStatus', aria: 'Employment' },
   { id: 'homePower', storageKey: 'homePower', aria: 'Home power' },
+  // Optional, so it only appears once answered; editing it re-opens the supplier step.
+  { id: 'energySupplier', storageKey: 'energySupplier', aria: 'Energy supplier' },
   // Both drive the ranked wall directly — children gates the child entitlements and financial
   // pressure sets the cost ceiling on everything — so they have to be editable here. Without a
   // row, a first answer would be permanent and the wall frozen on it forever.
@@ -72,6 +77,12 @@ function formatProfilePreviewValue(key: ProfileStorageKey, raw: string): string 
   const v = raw.trim()
   if (!v) return ''
   if (key === 'name' || key === 'postcode') return v
+  if (key === 'energySupplier') {
+    // Typed name for OTHER, proper name for the six, nothing for the local SKIP marker.
+    const other =
+      typeof window !== 'undefined' ? localStorage.getItem('profile_energy_supplier_other') : ''
+    return energySupplierName(v, other)
+  }
   return getOptionFullLabel(v)
 }
 
@@ -119,8 +130,8 @@ function SettingsJourneyCard({
     <div
       className="bento-card-groovy settings-bento-card settings-card-bento settings-journey-card-shell flex flex-col justify-between w-full h-full"
       style={{
-        backgroundColor: visited ? 'var(--color-pink)' : 'var(--color-purple)',
-        color: 'var(--color-yellow)',
+        backgroundColor: visited ? 'var(--color-blue)' : 'var(--color-purple)',
+        color: 'var(--color-blue)',
       }}
       onClick={() => {
         markVisited()
@@ -178,8 +189,8 @@ export default function SettingsPage() {
   const settingsCellMotion = familyAtomicProps(reduceMotion)
   const pageEnter = familyPageEnterProps(reduceMotion)
   const settingsStaggerTransition = reduceMotion
-    ? { duration: 0.12, ease: 'linear' as const }
-    : { duration: FAMILY_DUR_SHORT, ease: FAMILY_EASE }
+    ? T_REDUCED
+    : T_ENTER
   const [hasMounted, setHasMounted] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeJourneyEdit, setActiveJourneyEdit] = useState<{ id: JourneyId; title: string } | null>(null)
@@ -214,7 +225,9 @@ export default function SettingsPage() {
         (typeof window !== 'undefined' && hasMounted
           ? localStorage.getItem('profile_financial_pressure') ?? ''
           : '')
-      return { ...p, homePower, employmentStatus, children, financialPressure }
+      const energySupplier =
+        typeof window !== 'undefined' && hasMounted ? localStorage.getItem('profile_energy_supplier') ?? '' : ''
+      return { ...p, homePower, employmentStatus, children, financialPressure, energySupplier }
     }
     if (typeof window === 'undefined' || !hasMounted) return null
     const name = localStorage.getItem('profile_name') ?? ''
@@ -228,6 +241,7 @@ export default function SettingsPage() {
     const homePower = localStorage.getItem('profile_home_power') ?? ''
     const children = localStorage.getItem('profile_children') ?? ''
     const financialPressure = localStorage.getItem('profile_financial_pressure') ?? ''
+    const energySupplier = localStorage.getItem('profile_energy_supplier') ?? ''
     return {
       name,
       postcode,
@@ -237,6 +251,7 @@ export default function SettingsPage() {
       age,
       employmentStatus,
       homePower,
+      energySupplier,
       children,
       financialPressure,
     }
@@ -253,6 +268,7 @@ export default function SettingsPage() {
       age: profileForOverview.age ?? '',
       employmentStatus: profileForOverview.employmentStatus ?? '',
       homePower: profileForOverview.homePower ?? '',
+      energySupplier: profileForOverview.energySupplier ?? '',
       children: profileForOverview.children ?? '',
       financialPressure: profileForOverview.financialPressure ?? '',
     }
@@ -353,14 +369,14 @@ export default function SettingsPage() {
   const displayMoneyNum = parseMoneyGbpFromDisplay(viewModel?.hero?.data?.money ?? '0')
   const carbonNum = parseCarbonKgFromDisplay(viewModel?.hero?.data?.carbon ?? '0')
 
-  const animatedMoney = useCountUp(displayMoneyNum, { duration: 900 })
-  const animatedCarbon = useCountUp(carbonNum, { duration: 900 })
+  const animatedMoney = useCountUp(displayMoneyNum, { duration: COUNT_UP_MS })
+  const animatedCarbon = useCountUp(carbonNum, { duration: COUNT_UP_MS })
 
   return (
     <motion.div
       className="settings-page"
       style={{
-        color: 'var(--color-yellow)',
+        color: 'var(--color-blue)',
         minHeight: '100vh',
         position: 'relative',
         paddingTop: 20,
@@ -383,24 +399,24 @@ export default function SettingsPage() {
             className="settings-hero-inner"
             initial={settingsCellMotion.initial}
             animate={settingsCellMotion.animate}
-            transition={{ ...settingsStaggerTransition, delay: 0.08 }}
+            transition={{ ...settingsStaggerTransition, delay: staggerDelay(2) }}
           >
-            <SettingsBentoCard label="Overview" headline="YOUR ANNUAL WASTE" isHero>
+            <SettingsBentoCard label="Overview" headline="Your annual waste" isHero>
               <div
                 className="text-left mt-1 settings-overview-data"
-                style={{ color: 'var(--color-yellow)', ['--color-ink' as string]: 'var(--color-yellow)' }}
+                style={{ color: 'var(--color-blue)', ['--color-ink' as string]: 'var(--color-blue)' }}
               >
                 <div className="grid grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-0 items-start settings-overview-impact-grid">
-                  <span className="data-label text-marvin settings-overview-label">{ENGINE_UI_LABELS.profileWasteMoney}</span>
-                  <span className="data-label text-marvin settings-overview-label">{ENGINE_UI_LABELS.profileWasteCarbon}</span>
+                  <span className="data-label text-display settings-overview-label">{ENGINE_UI_LABELS.profileWasteMoney}</span>
+                  <span className="data-label text-display settings-overview-label">{ENGINE_UI_LABELS.profileWasteCarbon}</span>
                   <span
-                    className="data-value text-marvin font-bold settings-data-value data-stamp-metric"
+                    className="data-value text-display font-bold settings-data-value data-stamp-metric"
                     style={{ color: 'var(--color-ink)' }}
                   >
                     <StampedMoneyGbp gbp={animatedMoney} />
                   </span>
                   <span
-                    className="data-value text-marvin font-bold settings-data-value data-stamp-metric"
+                    className="data-value text-display font-bold settings-data-value data-stamp-metric"
                     style={{ color: 'var(--color-ink)' }}
                   >
                     <StampedCarbonKg kg={animatedCarbon} />
@@ -421,7 +437,7 @@ export default function SettingsPage() {
             className="settings-answer-grid"
             initial={settingsCellMotion.initial}
             animate={settingsCellMotion.animate}
-            transition={{ ...settingsStaggerTransition, delay: 0.09 }}
+            transition={{ ...settingsStaggerTransition, delay: staggerDelay(2) }}
           >
             <motion.div className="settings-card-cell settings-card-cell--wide">
               <SettingsProfileGoalRow onChange={() => setRefreshKey((k) => k + 1)} />
@@ -434,15 +450,15 @@ export default function SettingsPage() {
             className="settings-hero-inner"
             initial={settingsCellMotion.initial}
             animate={settingsCellMotion.animate}
-            transition={{ ...settingsStaggerTransition, delay: 0.1 }}
+            transition={{ ...settingsStaggerTransition, delay: staggerDelay(3) }}
           >
             <Link
               href={ROUTES.SETTINGS_TRUTH}
               onClick={markTruthLedgerVisited}
               className="bento-card-groovy settings-bento-card settings-truth-link flex flex-col justify-between w-full no-underline"
               style={{
-                backgroundColor: truthLedgerVisited ? 'var(--color-pink)' : 'var(--color-purple)',
-                color: 'var(--color-yellow)',
+                backgroundColor: truthLedgerVisited ? 'var(--color-blue)' : 'var(--color-purple)',
+                color: 'var(--color-blue)',
               }}
             >
               <span className="card-top-label">Source of truth</span>
@@ -459,7 +475,7 @@ export default function SettingsPage() {
                 className="settings-card-cell"
                 initial={settingsCellMotion.initial}
                 animate={settingsCellMotion.animate}
-                transition={{ ...settingsStaggerTransition, delay: 0.05 + i * 0.08 }}
+                transition={{ ...settingsStaggerTransition, delay: staggerDelay(i) }}
               >
                 <SettingsBentoCard
                   label={row.aria}
@@ -479,7 +495,7 @@ export default function SettingsPage() {
                 animate={settingsCellMotion.animate}
                 transition={{
                   ...settingsStaggerTransition,
-                  delay: 0.05 + (profileRows.length + i) * 0.08,
+                  delay: staggerDelay(profileRows.length + i),
                 }}
               >
                 <SettingsBentoCard
@@ -500,7 +516,7 @@ export default function SettingsPage() {
                 animate={settingsCellMotion.animate}
                 transition={{
                   ...settingsStaggerTransition,
-                  delay: 0.05 + (profileRows.length + loopRows.length + i) * 0.08,
+                  delay: staggerDelay(profileRows.length + loopRows.length + i),
                 }}
               >
                 <SettingsBentoCard label={row.label} headline={row.headline} hideLabel />
@@ -516,7 +532,7 @@ export default function SettingsPage() {
                 whileTap={reduceMotion ? undefined : { scale: 0.985 }}
                 transition={{
                   ...settingsStaggerTransition,
-                  delay: 0.05 + (profileRows.length + loopRows.length + offerFeedbackRows.length + j) * 0.08,
+                  delay: staggerDelay(profileRows.length + loopRows.length + offerFeedbackRows.length + j),
                 }}
               >
                 <SettingsJourneyCard
@@ -547,7 +563,7 @@ export default function SettingsPage() {
       </>
 
       {profileRows.length === 0 && loopRows.length === 0 && journeyCardsData.length === 0 && (
-        <h4 className="zz-h4 text-center max-w-[28rem] w-full mx-auto m-0 mt-2" style={{ color: 'var(--color-yellow)' }}>
+        <h4 className="zz-h4 text-center max-w-[28rem] w-full mx-auto m-0 mt-2" style={{ color: 'var(--color-blue)' }}>
           Complete your profile, answer journey questions, and close Solo Focus loop beats in the Zone to see cards here.
         </h4>
       )}
@@ -557,7 +573,7 @@ export default function SettingsPage() {
         <motion.button
           type="button"
           onClick={() => router.push(ROUTES.ZONE)}
-          className="settings-circle-cta settings-circle-cta--yellow"
+          className="settings-circle-cta settings-circle-cta--primary"
           whileTap={reduceMotion ? undefined : { scale: 0.985 }}
           transition={settingsStaggerTransition}
           aria-label="Save and return to Zone"
@@ -566,7 +582,7 @@ export default function SettingsPage() {
         </motion.button>
         <Link
           href={ROUTES.PROFILE}
-          className="settings-circle-cta settings-circle-cta--yellow"
+          className="settings-circle-cta settings-circle-cta--primary"
           aria-label="Update location in profile"
         >
           <span className="settings-circle-cta__label zz-h4">

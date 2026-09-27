@@ -177,6 +177,8 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     action: 'Line up your Warm Home Discount',
     detail:
       '£150 off your electricity bill. In England and Wales it is automatic on a qualifying benefit — check your supplier takes part before the scheme reopens.',
+    detailWithSupplier:
+      '£150 off your electricity bill. In England and Wales it is automatic on a qualifying benefit — check {supplier} takes part before the scheme reopens.',
     verb: 'CLAIM',
     cost: 'FREE',
     recurrence: 'ANNUAL',
@@ -196,6 +198,8 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     action: 'Join the Priority Services Register',
     detail:
       'Free from every energy supplier. Gets you priority reconnection, free meter moves and advance warning of outages.',
+    detailWithSupplier:
+      'Free from every energy supplier, {supplier} included. Gets you priority reconnection, free meter moves and advance warning of outages.',
     verb: 'CLAIM',
     cost: 'FREE',
     recurrence: 'ONCE',
@@ -658,6 +662,8 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     id: 'smart-meter-install',
     action: 'Book a free smart meter',
     detail: 'Ends estimated billing and is installed free by your supplier. Renters can request one without the landlord.',
+    detailWithSupplier:
+      'Ends estimated billing and is installed free by {supplier}. Renters can request one without the landlord.',
     verb: 'SWITCH',
     cost: 'FREE',
     recurrence: 'ONCE',

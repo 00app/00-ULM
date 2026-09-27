@@ -12,6 +12,7 @@ import {
 } from '@/lib/profile/inferHouseholdIncomeBracket'
 import { normalizeEmploymentStatus } from '@/lib/profile/employmentSegment'
 import { profileHomePowerToEnergyType } from '@/lib/profile/homePower'
+import { energySupplierName } from '@/lib/profile/energySupplier'
 import { isUtilitiesZoneCardUnlocked } from '@/lib/zone/utilitiesZoneUnlock'
 import type { PropertyIntelligence } from '@/lib/intelligence/propertyIntelligenceTypes'
 import { buildPropertyResearchSignals } from '@/lib/intelligence/answerFunnelRouter'
@@ -146,6 +147,11 @@ export function buildOnboardingProfileSignals(
     ...(pc.length >= 4 ? { postcode: pc } : {}),
     home_type: values.homeType ?? values.home_type ?? undefined,
     home_power: power?.trim().toUpperCase() || undefined,
+    energy_supplier:
+      energySupplierName(
+        values.energySupplier ?? values.energy_supplier,
+        values.energySupplierOther ?? values.energy_supplier_other
+      ) || undefined,
     heating: profileHomePowerToEnergyType(power) || undefined,
     transport_baseline: values.transport ?? values.transport_baseline ?? undefined,
     household: values.livingSituation ?? values.household ?? undefined,
@@ -183,6 +189,7 @@ export function buildGuardrailedResearchProfile(
   set('postcode', signals.postcode)
   set('home_type', signals.home_type)
   set('home_power', signals.home_power)
+  set('energy_supplier', signals.energy_supplier)
   set('heating', signals.heating)
   set('transport_baseline', signals.transport_baseline)
   set('household', signals.household)

@@ -191,7 +191,7 @@ export default function LikesPage() {
       className="zz-page likes-page mode-carbon"
       style={{
         background: 'unset',
-        color: 'var(--color-yellow)',
+        color: 'var(--color-blue)',
         minHeight: '100vh',
       }}
       initial={pageEnter.initial}
@@ -213,7 +213,7 @@ export default function LikesPage() {
             transition={FAMILY_TRANSITION_SHORT}
           >
           {likedZaiPicks.map((pick) => {
-            const textColor = 'var(--color-yellow)'
+            const textColor = 'var(--color-blue)'
             const gbp = parseMoneyGbpFromDisplay(pick.money)
             const kg = parseCarbonKgFromDisplay(pick.carbon)
             const isActioned = actionedIds.has(pick.id)
@@ -226,7 +226,7 @@ export default function LikesPage() {
               <div
                 className="bento-card-groovy likes-bento-card zz-family-bloom flex flex-col justify-between w-full h-full"
                 style={{
-                  background: 'var(--color-pink)',
+                  background: 'var(--color-blue)',
                   color: textColor,
                   ['--color-ink' as string]: textColor,
                 }}

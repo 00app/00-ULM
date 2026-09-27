@@ -2,19 +2,13 @@ import { Analytics } from '@vercel/analytics/next'
 import { AppProvider } from '@/app/context/AppContext'
 import { GlobalAppShell } from '@/app/global-layout'
 import InteractiveBackground from '@/app/components/ui/InteractiveBackground'
+import CtaClickBurst from '@/app/components/ui/CtaClickBurst'
+import SentenceCase from '@/app/components/ui/SentenceCase'
 import { buildSiteJsonLd, buildSiteMetadata } from '@/lib/seo/siteMetadata'
 import { getSiteUrl } from '@/lib/site'
 import './globals.css'
 
 import type { Metadata } from 'next'
-import { Roboto } from 'next/font/google'
-
-const roboto = Roboto({
-  weight: ['400', '700', '900'],
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-roboto',
-})
 
 const siteUrl = getSiteUrl()
 
@@ -36,18 +30,13 @@ export default function RootLayout({
   return (
     <html
       lang="en-GB"
-      className={roboto.variable}
-      style={{ backgroundColor: '#0c0a32' }}
+      style={{ backgroundColor: '#FCFCFF' }}
       suppressHydrationWarning
     >
       <head>
-        <link
-          rel="preload"
-          href="/assets/Marvin%20Visions%20Bold.ttf"
-          as="font"
-          type="font/ttf"
-          crossOrigin="anonymous"
-        />
+        <link rel="preconnect" href="https://use.typekit.net" crossOrigin="anonymous" />
+        {/* Helvetica Neue LT Pro — Adobe Fonts / Typekit kit, not a next/font Google font */}
+        <link rel="stylesheet" href="https://use.typekit.net/nfy2mes.css" />
         {jsonLd.map((block, i) => (
           <script
             key={i}
@@ -57,7 +46,6 @@ export default function RootLayout({
         ))}
       </head>
       <body
-        className={roboto.className}
         suppressHydrationWarning
         style={{
           backgroundColor: 'transparent',
@@ -68,6 +56,8 @@ export default function RootLayout({
       >
         {/* Liquid mesh + grain — always mounted (no ClientOnly gate); see .zz-background-env in globals.css */}
         <InteractiveBackground />
+        <CtaClickBurst />
+        <SentenceCase />
         <AppProvider>
           <GlobalAppShell>{children}</GlobalAppShell>
         </AppProvider>

@@ -40,7 +40,7 @@ function PulseCard({
     <div
       className="bento-card-groovy flex flex-col justify-between gap-4 border-0 text-left w-full min-h-[200px]"
       style={{
-        backgroundColor: 'var(--color-yellow)',
+        backgroundColor: 'var(--color-blue)',
         color: 'var(--color-purple)',
         borderRadius: 60,
         boxShadow: 'none',
@@ -103,7 +103,7 @@ export default function AdminPulsePage() {
         <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <h1
             className="card-headline zz-h2 m-0 uppercase tracking-tight"
-            style={{ color: 'var(--color-yellow)', fontFamily: 'var(--font-marvin)', fontWeight: 700 }}
+            style={{ color: 'var(--color-blue)', fontFamily: 'var(--font-display)', fontWeight: 700 }}
           >
             System pulse
           </h1>
@@ -113,21 +113,21 @@ export default function AdminPulsePage() {
               onClick={() => fetchPulse()}
               className="rounded-full px-5 py-2 border-0 cursor-pointer uppercase font-bold text-sm"
               style={{
-                fontFamily: 'var(--font-marvin)',
-                backgroundColor: 'var(--color-yellow)',
+                fontFamily: 'var(--font-display)',
+                backgroundColor: 'var(--color-blue)',
                 color: 'var(--color-purple)',
               }}
             >
               Refresh
             </button>
-            <span className="zz-body m-0 opacity-70" style={{ color: 'var(--color-yellow)' }}>
+            <span className="zz-body m-0 opacity-70" style={{ color: 'var(--color-blue)' }}>
               {data?.timestamp ? `Last beat: ${data.timestamp}` : '—'}
             </span>
           </div>
         </header>
 
         {unauthorized ? (
-          <p className="zz-body-bold m-0" style={{ color: 'var(--color-yellow)' }}>
+          <p className="zz-body-bold m-0" style={{ color: 'var(--color-blue)' }}>
             Admin access requires HTTP Basic auth (your browser will prompt) or a signed-in session cookie.
             API scripts may use <code className="text-xs">Authorization: Bearer</code> with{' '}
             <code className="text-xs">CRON_SECRET</code> / gateway token.
@@ -135,7 +135,7 @@ export default function AdminPulsePage() {
         ) : null}
 
         {data?.error ? (
-          <p className="zz-body-bold m-0" style={{ color: 'var(--color-yellow)' }}>
+          <p className="zz-body-bold m-0" style={{ color: 'var(--color-blue)' }}>
             {data.error}
           </p>
         ) : null}
@@ -149,7 +149,7 @@ export default function AdminPulsePage() {
         <Link
           href={ROUTES.ZONE}
           className="inline-flex items-center gap-2 no-underline uppercase font-bold zz-body-bold"
-          style={{ color: 'var(--color-yellow)' }}
+          style={{ color: 'var(--color-blue)' }}
         >
           ← Back to zone
         </Link>

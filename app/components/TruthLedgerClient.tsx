@@ -1,5 +1,6 @@
 'use client'
 
+import { T_ENTER, T_REDUCED, staggerDelay } from '@/lib/motion'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -127,8 +128,8 @@ export default function TruthLedgerClient() {
   const cellMotion = familyAtomicProps(reduceMotion)
   const pageEnter = familyPageEnterProps(reduceMotion)
   const stagger = reduceMotion
-    ? { duration: 0.12, ease: 'linear' as const }
-    : { duration: FAMILY_DUR_SHORT, ease: FAMILY_EASE }
+    ? T_REDUCED
+    : T_ENTER
 
   const [ledger, setLedger] = useState<IntelligenceLedger | null>(null)
   const [loading, setLoading] = useState(true)
@@ -169,7 +170,7 @@ export default function TruthLedgerClient() {
     <motion.div
       className="settings-page truth-ledger-page"
       style={{
-        color: 'var(--color-yellow)',
+        color: 'var(--color-blue)',
         minHeight: '100vh',
         position: 'relative',
         paddingTop: 20,
@@ -189,7 +190,7 @@ export default function TruthLedgerClient() {
         {error ? (
           <h4
             className="zz-h4 text-left max-w-[28rem] w-full mx-auto m-0 mb-4 px-[clamp(12px,4vw,24px)] box-border"
-            style={{ color: 'var(--color-yellow)' }}
+            style={{ color: 'var(--color-blue)' }}
           >
             {error}
           </h4>
@@ -202,24 +203,24 @@ export default function TruthLedgerClient() {
                 className="settings-hero-inner"
                 initial={cellMotion.initial}
                 animate={cellMotion.animate}
-                transition={{ ...stagger, delay: 0.08 }}
+                transition={{ ...stagger, delay: staggerDelay(2) }}
               >
                 <SettingsBentoCard label="Source of truth" headline={formatAuditState(ledger.auditState)} isHero>
                   <div
                     className="text-left settings-overview-data truth-ledger-hero-metrics"
-                    style={{ color: 'var(--color-yellow)', ['--color-ink' as string]: 'var(--color-yellow)' }}
+                    style={{ color: 'var(--color-blue)', ['--color-ink' as string]: 'var(--color-blue)' }}
                   >
                     <div className="grid grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-0 items-start settings-overview-impact-grid">
-                      <span className="data-label text-marvin settings-overview-label">Potential cards</span>
-                      <span className="data-label text-marvin settings-overview-label">Truthed cards</span>
+                      <span className="data-label text-display settings-overview-label">Potential cards</span>
+                      <span className="data-label text-display settings-overview-label">Truthed cards</span>
                       <span
-                        className="data-value text-marvin font-bold settings-data-value data-stamp-metric"
+                        className="data-value text-display font-bold settings-data-value data-stamp-metric"
                         style={{ color: 'var(--color-ink)' }}
                       >
                         {ledger.counts.potentialSavings}
                       </span>
                       <span
-                        className="data-value text-marvin font-bold settings-data-value data-stamp-metric"
+                        className="data-value text-display font-bold settings-data-value data-stamp-metric"
                         style={{ color: 'var(--color-ink)' }}
                       >
                         {ledger.counts.truthSavings}
@@ -238,7 +239,7 @@ export default function TruthLedgerClient() {
                 className="settings-answer-grid truth-ledger-grid"
                 initial={cellMotion.initial}
                 animate={cellMotion.animate}
-                transition={{ ...stagger, delay: 0.1 }}
+                transition={{ ...stagger, delay: staggerDelay(3) }}
               >
                 <motion.div className="settings-card-cell" transition={stagger}>
                   <SettingsBentoCard
@@ -249,11 +250,11 @@ export default function TruthLedgerClient() {
                   />
                 </motion.div>
 
-                <motion.div className="settings-card-cell" transition={{ ...stagger, delay: 0.06 }}>
+                <motion.div className="settings-card-cell" transition={{ ...stagger, delay: staggerDelay(1) }}>
                   <SettingsBentoCard label="Profile" headline={buildProfileSummary(ledger)} />
                 </motion.div>
 
-                <motion.div className="settings-card-cell" transition={{ ...stagger, delay: 0.12 }}>
+                <motion.div className="settings-card-cell" transition={{ ...stagger, delay: staggerDelay(4) }}>
                   <SettingsBentoCard
                     label="Behaviour"
                     headline={buildBehaviourSummary(ledger)}
@@ -265,7 +266,7 @@ export default function TruthLedgerClient() {
                   <motion.div
                     key={row.journeyId}
                     className="settings-card-cell"
-                    transition={{ ...stagger, delay: 0.05 + (3 + i) * 0.04 }}
+                    transition={{ ...stagger, delay: staggerDelay(3 + i) }}
                   >
                     <SettingsBentoCard
                       label={row.journeyId.toUpperCase()}
@@ -280,7 +281,7 @@ export default function TruthLedgerClient() {
                   <motion.div
                     key={`${sig.signal}-${sig.cardId}-${sig.at}`}
                     className="settings-card-cell"
-                    transition={{ ...stagger, delay: 0.05 + (3 + ledger.journeys.length + i) * 0.04 }}
+                    transition={{ ...stagger, delay: staggerDelay(3 + ledger.journeys.length + i) }}
                   >
                     <SettingsBentoCard
                       label={sig.signal.toUpperCase()}
@@ -295,7 +296,7 @@ export default function TruthLedgerClient() {
       </div>
 
       {!loading && !ledger && !error ? (
-        <h4 className="zz-h4 text-center max-w-[28rem] w-full mx-auto m-0 mt-2" style={{ color: 'var(--color-yellow)' }}>
+        <h4 className="zz-h4 text-center max-w-[28rem] w-full mx-auto m-0 mt-2" style={{ color: 'var(--color-blue)' }}>
           No ledger data yet.
         </h4>
       ) : null}
@@ -305,7 +306,7 @@ export default function TruthLedgerClient() {
             type="button"
             onClick={() => void refresh()}
             disabled={loading}
-            className="settings-circle-cta settings-circle-cta--yellow"
+            className="settings-circle-cta settings-circle-cta--primary"
             whileTap={reduceMotion ? undefined : { scale: 0.985 }}
             transition={stagger}
             aria-label="Refresh truth ledger"
@@ -314,7 +315,7 @@ export default function TruthLedgerClient() {
           </motion.button>
           <Link
             href={ROUTES.SETTINGS}
-            className="settings-circle-cta settings-circle-cta--yellow"
+            className="settings-circle-cta settings-circle-cta--primary"
             aria-label="Back to settings"
           >
             <span className="settings-circle-cta__label zz-h4">

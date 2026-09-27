@@ -6,6 +6,7 @@
  * Framer Motion "Swish" physics baked in; do not redefine.
  */
 
+import { T_COLOUR } from '@/lib/motion'
 import { track } from '@vercel/analytics'
 import { motion } from 'framer-motion'
 import type { JourneyId } from '@/lib/journeys'
@@ -51,18 +52,18 @@ export function FunkyCircleCTA({
         ? `var(--color-j-${journeyColor})`
         : 'var(--color-purple)'
   const color =
-    variant === 'primary' || variant === 'journey' ? 'var(--color-yellow)' : 'var(--color-purple)'
+    variant === 'primary' || variant === 'journey' ? 'var(--color-blue)' : 'var(--color-purple)'
   const fontStyle =
     labelFont === 'roboto-bold'
       ? {
-          fontFamily: 'var(--font-roboto), sans-serif',
+          fontFamily: 'var(--font-text), sans-serif',
           fontWeight: 800,
           fontSize: 'var(--zz-body-size)',
           lineHeight: 'var(--zz-lh-body)',
           textTransform: 'uppercase' as const,
         }
       : {
-          fontFamily: 'var(--font-label)',
+          fontFamily: 'var(--font-text)',
           fontWeight: 'bold',
           textTransform: 'uppercase' as const,
         }
@@ -73,7 +74,7 @@ export function FunkyCircleCTA({
       onClick={onClick}
       disabled={disabled}
       transition={INDUSTRIAL_OPACITY_SNAP}
-      className={`flex items-center justify-center rounded-[9999px] border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${labelFont === 'marvin' ? 'zz-h4' : ''} ${className}`}
+      className={`flex items-center justify-center rounded-[9999px] border-0 cursor-pointer disabled:cursor-not-allowed ${labelFont === 'marvin' ? 'zz-h4' : ''} ${className}`}
       style={{
         width: 80,
         height: 80,
@@ -118,7 +119,7 @@ export function FunkyAnswerCircle({ label, onClick, className = '' }: FunkyAnswe
         minWidth: 100,
         minHeight: 100,
         background: 'var(--color-purple)',
-        color: 'var(--color-yellow)',
+        color: 'var(--color-blue)',
         boxShadow: 'none',
         textShadow: 'none',
       }}
@@ -154,10 +155,10 @@ export function FunkyAnswerPill({
       className={`w-full max-w-[300px] rounded-[9999px] border-0 py-3 px-5 text-left cursor-pointer ${className}`}
       style={{
         background: selected ? journeyColor : 'var(--color-purple)',
-        color: selected ? 'var(--color-yellow)' : 'var(--color-purple)',
+        color: selected ? 'var(--color-blue)' : 'var(--color-purple)',
         boxShadow: 'none',
         textShadow: 'none',
-        fontFamily: 'var(--font-label)',
+        fontFamily: 'var(--font-text)',
         fontSize: 'var(--zz-h4-mobile)',
         lineHeight: 'var(--zz-lh-heading)',
         fontWeight: 'bold',
@@ -236,16 +237,16 @@ export function IndustrialHandoffButton({
       aria-label={accessibleLabel}
       initial={{ opacity: 0, y: 2 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'tween', duration: 0.12, ease: 'linear' }}
+      transition={T_COLOUR}
       data-analytics-tracked="cta"
       className={`circle-btn solo-focus-handoff-btn border-0 cursor-pointer ${className}`.trim()}
       style={{
-        backgroundColor: surface === 'yellow' ? 'var(--color-yellow)' : 'var(--color-pink)',
-        color: surface === 'yellow' ? 'var(--journey-text)' : 'var(--color-yellow)',
+        backgroundColor: surface === 'yellow' ? 'var(--color-blue)' : 'var(--color-blue)',
+        color: surface === 'yellow' ? 'var(--journey-text)' : 'var(--color-blue)',
         borderRadius: 60,
         minWidth: 80,
         minHeight: 80,
-        fontFamily: 'var(--font-roboto), sans-serif',
+        fontFamily: 'var(--font-text), sans-serif',
         fontWeight: 800,
         fontSize: 16,
         lineHeight: 0.8,

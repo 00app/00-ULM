@@ -51,7 +51,7 @@ export function SoloFocusProseStack({
   return (
     <div className="solo-focus-true-tip-sections solo-focus-true-tip-sections--mother flex flex-col gap-0 w-full min-w-0">
       <h4
-        className="solo-focus-architect-prose solo-focus-architect-lead solo-focus-copy-width solo-focus-content-text text-left m-0 text-marvin zz-h4 md:text-lg lg:text-xl"
+        className="solo-focus-architect-prose solo-focus-architect-lead solo-focus-copy-width solo-focus-content-text text-left m-0 text-display zz-h4 md:text-lg lg:text-xl"
         style={{ color: 'var(--journey-text)' }}
       >
         {lead}

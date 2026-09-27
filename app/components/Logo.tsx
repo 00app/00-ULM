@@ -68,7 +68,7 @@ export function AtomicLogo({ width = 126, onComplete, loop = false, className = 
   if (reduceMotion) {
     return (
       <div className={`zz-atomic-logo-wrap ${className}`.trim()} aria-hidden>
-        <Logo width={width} style={{ color: 'var(--color-yellow)' }} />
+        <Logo width={width} style={{ color: 'var(--color-blue)' }} />
       </div>
     )
   }
@@ -84,7 +84,7 @@ export function AtomicLogo({ width = 126, onComplete, loop = false, className = 
       transition={FAMILY_TRANSITION_ATOMIC}
       onAnimationComplete={() => onCompleteRef.current?.()}
     >
-      <Logo width={width} style={{ color: 'var(--color-yellow)' }} />
+      <Logo width={width} style={{ color: 'var(--color-blue)' }} />
     </motion.div>
   )
 }
@@ -113,7 +113,7 @@ export function GlitchLogo({ width = 126, onComplete, loop = false, className = 
   if (reduceMotion) {
     return (
       <div className={`zz-glitch-wrap ${className}`.trim()} aria-hidden>
-        <Logo width={width} style={{ color: 'var(--color-yellow)' }} />
+        <Logo width={width} style={{ color: 'var(--color-blue)' }} />
       </div>
     )
   }
@@ -121,8 +121,8 @@ export function GlitchLogo({ width = 126, onComplete, loop = false, className = 
   return (
     <div className={`zz-glitch-wrap ${className}`.trim()} aria-hidden>
       <div className="zz-glitch" style={{ width, height }} key={tick}>
-        <Logo width={width} className="glitch-layer base" style={{ color: 'var(--color-yellow)', position: 'absolute', inset: 0 }} />
-        <Logo width={width} className="glitch-layer purple" style={{ color: 'var(--color-pink)', position: 'absolute', inset: 0 }} />
+        <Logo width={width} className="glitch-layer base" style={{ color: 'var(--color-blue)', position: 'absolute', inset: 0 }} />
+        <Logo width={width} className="glitch-layer purple" style={{ color: 'var(--color-blue)', position: 'absolute', inset: 0 }} />
       </div>
     </div>
   )

@@ -3,6 +3,7 @@
  * Call after profile save or journey answer submit so returning users get their data back.
  */
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
+import { normaliseEnergySupplier } from '@/lib/profile/energySupplier'
 
 export function syncSessionState(): void {
   if (typeof window === 'undefined') return
@@ -13,6 +14,8 @@ export function syncSessionState(): void {
     household: localStorage.getItem('profile_household') ?? '',
     home_type: localStorage.getItem('profile_home_type') ?? '',
     home_power: localStorage.getItem('profile_home_power') ?? '',
+    energy_supplier: normaliseEnergySupplier(localStorage.getItem('profile_energy_supplier')),
+    energy_supplier_other: localStorage.getItem('profile_energy_supplier_other') ?? '',
     transport: localStorage.getItem('profile_transport') ?? '',
     age: localStorage.getItem('profile_age') ?? '',
     employment_status: localStorage.getItem('profile_employment_status') ?? '',

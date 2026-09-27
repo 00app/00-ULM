@@ -249,14 +249,14 @@ export default function IntroScreen() {
         transition={FAMILY_TRANSITION_ATOMIC}
       >
         <motion.h2
-          className="text-marvin profile-question-headline intro-decision-headline zz-family-atomic"
+          className="text-display profile-question-headline intro-decision-headline zz-family-atomic"
           initial={headlineMotion.initial}
           animate={headlineMotion.animate}
           transition={FAMILY_TRANSITION_ATOMIC}
           style={{
             margin: 0,
             marginBottom: 0,
-            color: 'var(--color-yellow)',
+            color: 'var(--color-blue)',
             maxWidth: 'min(92vw, 28rem)',
           }}
         >

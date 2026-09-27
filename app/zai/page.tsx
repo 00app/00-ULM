@@ -1,5 +1,6 @@
 'use client'
 
+import { pulseLoop } from '@/lib/motion'
 import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import ZoneModalCloseLink from '@/app/components/ZoneModalCloseLink'
@@ -490,10 +491,10 @@ export default function ZaiPage() {
                             marginLeft: 'auto',
                             backgroundColor: state.likedCards.includes(msg.meta.likeId)
                               ? 'var(--brand-select-bg)'
-                              : 'var(--color-pink)',
+                              : 'var(--color-blue)',
                             color: state.likedCards.includes(msg.meta.likeId)
                               ? 'var(--brand-select-fg)'
-                              : 'var(--color-yellow)',
+                              : 'var(--color-blue)',
                           }}
                         >
                           <HeartOutlineIcon size={16} />
@@ -517,13 +518,7 @@ export default function ZaiPage() {
           <motion.p
             className="zz-h4 zai-connecting m-0"
             animate={{ opacity: [0.45, 1, 0.45] }}
-            transition={{
-              type: 'tween',
-              duration: 0.36,
-              repeat: Infinity,
-              repeatType: 'reverse',
-              ease: 'linear',
-            }}
+            transition={pulseLoop()}
           >
             zai is auditing user metrics from neon...
           </motion.p>

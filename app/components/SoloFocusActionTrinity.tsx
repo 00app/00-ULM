@@ -69,8 +69,8 @@ export function SoloFocusActionTrinity({
           transition={INDUSTRIAL_OPACITY_SNAP}
           aria-label="Like"
           style={{
-            backgroundColor: isLiked ? 'var(--brand-select-bg)' : 'var(--color-pink)',
-            color: isLiked ? 'var(--brand-select-fg)' : 'var(--color-yellow)',
+            backgroundColor: isLiked ? 'var(--brand-select-bg)' : 'var(--color-blue)',
+            color: isLiked ? 'var(--brand-select-fg)' : 'var(--color-blue)',
           }}
         >
           <span className="circle-btn-label-stack" aria-hidden="true">
@@ -100,8 +100,8 @@ export function SoloFocusActionTrinity({
           transition={INDUSTRIAL_OPACITY_SNAP}
           aria-label="Dislike"
           style={{
-            backgroundColor: isDisliked ? 'var(--brand-select-bg)' : 'var(--color-pink)',
-            color: isDisliked ? 'var(--brand-select-fg)' : 'var(--color-yellow)',
+            backgroundColor: isDisliked ? 'var(--brand-select-bg)' : 'var(--color-blue)',
+            color: isDisliked ? 'var(--brand-select-fg)' : 'var(--color-blue)',
           }}
         >
           <span className="circle-btn-label-stack" aria-hidden="true">

@@ -4,6 +4,7 @@
  */
 import type { JourneyId } from '@/lib/journeys'
 import type { ImpactProfile } from '@/lib/brains/types'
+import { providerAnswerValue } from '@/lib/profile/energySupplier'
 
 /** Loose profile slice — Zone VM uses a wider runtime shape than `ImpactProfile`. */
 export type ProfileBaselineInput = Pick<
@@ -13,6 +14,7 @@ export type ProfileBaselineInput = Pick<
   | 'household'
   | 'transport_baseline'
   | 'home_power'
+  | 'energy_supplier'
   | 'wash_preference'
   | 'flight_frequency'
 >
@@ -47,6 +49,9 @@ export function syntheticJourneyAnswersFromProfile(
   const transport = normTransport(profile)
   const homeType = profile?.home_type === 'FLAT' ? 'FLAT' : 'DETACHED'
   const monthly = profile?.household === 'FAMILY' ? '150' : '120'
+  // Known supplier only; unknown stays absent so no calculator or card ever reads a guess.
+  const supplier = providerAnswerValue(profile?.energy_supplier)
+  const providerAnswer: Record<string, string> = supplier ? { energy_provider: supplier } : {}
 
   switch (journeyKey) {
     case 'home':
@@ -58,6 +63,7 @@ export function syntheticJourneyAnswersFromProfile(
         green_tariff: 'NO',
         energy_type: homePower,
         tariff_type: 'VARIABLE',
+        ...providerAnswer,
       }
     case 'utilities':
       return {
@@ -67,6 +73,7 @@ export function syntheticJourneyAnswersFromProfile(
         home_power: profile?.home_power ?? 'GAS',
         monthly_cost: monthly,
         green_tariff: 'NO',
+        ...providerAnswer,
       }
     case 'solar':
       return {

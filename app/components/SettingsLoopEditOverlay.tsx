@@ -152,13 +152,13 @@ export function SettingsLoopEditOverlay({ row, onClose }: Props) {
       >
         <span
           className="card-top-label solo-focus-zone-category m-0 text-center w-full block"
-          style={{ color: 'var(--color-yellow)' }}
+          style={{ color: 'var(--color-blue)' }}
         >
           loop answer
         </span>
         <motion.div
           id="settings-loop-edit-question"
-          className="text-marvin profile-question-headline"
+          className="text-display profile-question-headline"
           style={{
             marginBottom: 0,
             marginLeft: 'auto',

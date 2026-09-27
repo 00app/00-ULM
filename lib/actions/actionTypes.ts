@@ -103,6 +103,13 @@ export type ActionGates = {
   age?: string[]
   /** Onboarding `powerType` values. */
   heating?: string[]
+  /**
+   * Energy supplier slug (BRITISH_GAS | OCTOPUS | EDF | EON_NEXT | OVO | SCOTTISH_POWER | OTHER).
+   * Optional in onboarding, so unknown is the common case: as a `gates` entry it passes, as a
+   * `requires` entry it fails, as an `excludes` entry it never triggers. That makes it safe for
+   * "only relevant to X's customers" and "pointless for X's customers" without ever guessing.
+   */
+  supplier?: string[]
   /** Onboarding `transport` values. */
   transport?: string[]
   /** Onboarding `washPreference` values. */
@@ -173,6 +180,13 @@ export type ZoneAction = {
    * check is worth surfacing high because it unlocks everything else. Keep sparing.
    */
   priorityBoost?: number
+  /**
+   * Detail line used instead of `detail` when the profile names an energy supplier; `{supplier}`
+   * is replaced with its name (a known supplier's proper name, or what the user typed for
+   * OTHER). Opt-in per action because most library entries are not about the user's own supplier,
+   * and it must stay true for any supplier: never claim something only the big six do here.
+   */
+  detailWithSupplier?: string
 }
 
 /** A completed action and when it was completed. */
@@ -214,6 +228,8 @@ export type ActionProfile = {
   /** questionId → answer value, from `journey_<id>_answers` in storage. */
   loopAnswers?: Record<string, string> | null
   heating?: string | null
+  /** Energy supplier slug; see ActionGates.supplier. */
+  supplier?: string | null
   transport?: string | null
   wash?: string | null
   country?: string | null

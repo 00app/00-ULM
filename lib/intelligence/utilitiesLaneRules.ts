@@ -18,7 +18,10 @@ UTILITIES LANE (mandatory when current_domain is utilities):
 - Ground £/yr only from scraped markdown or reference cap constants — never fabricate switch savings.
 `.trim()
 
-export function buildUtilitiesLaneLockBlock(homePower?: string | null): string {
+export function buildUtilitiesLaneLockBlock(
+  homePower?: string | null,
+  energySupplier?: string | null
+): string {
   const hp = String(homePower ?? '')
     .trim()
     .toUpperCase()
@@ -37,6 +40,13 @@ export function buildUtilitiesLaneLockBlock(homePower?: string | null): string {
       'Profile power type not set — UTILITIES tile should remain hidden on Zone; if scraping anyway, do not invent home_power.'
     )
   }
+  const supplier = String(energySupplier ?? '').trim()
+  if (supplier) {
+    base.push(
+      `Current energy supplier (from profile): ${supplier}.`,
+      `Never recommend switching to ${supplier}, and frame any switch or tariff lead as moving away from it. Do not quote ${supplier}'s prices unless a source in this run states them.`
+    )
+  }
   return base.join('\n')
 }
 
@@ -44,12 +54,13 @@ export function buildUtilitiesLaneLockBlock(homePower?: string | null): string {
 export async function buildUtilitiesResearchContext(params: {
   postcode: string
   homePower?: string | null
+  energySupplier?: string | null
   journeyKey: JourneyId
 }): Promise<{ publicFeed?: UtilitiesPublicSnapshot; promptBlock: string }> {
   if (params.journeyKey !== 'utilities') {
     return { promptBlock: '' }
   }
-  const lane = buildUtilitiesLaneLockBlock(params.homePower)
+  const lane = buildUtilitiesLaneLockBlock(params.homePower, params.energySupplier)
   const snapshot = await fetchUtilitiesPublicSnapshot({
     postcode: params.postcode,
     homePower: params.homePower,

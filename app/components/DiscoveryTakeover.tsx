@@ -1,5 +1,6 @@
 'use client'
 
+import { pulseLoop } from '@/lib/motion'
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
@@ -361,13 +362,13 @@ export function DiscoveryTakeover({
           >
             <span
               className="card-top-label solo-focus-zone-category m-0 text-center w-full block"
-              style={{ color: 'var(--color-yellow)' }}
+              style={{ color: 'var(--color-blue)' }}
             >
               {zoneCategoryLabel}
             </span>
             <div
               id="discovery-takeover-question"
-              className="text-marvin profile-question-headline"
+              className="text-display profile-question-headline"
               style={{
                 marginBottom: 0,
                 marginLeft: 'auto',
@@ -433,16 +434,11 @@ export function DiscoveryTakeover({
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      background: 'var(--color-yellow)',
+                      background: 'var(--color-blue)',
                       display: 'inline-block',
                     }}
                     animate={{ opacity: [0.25, 1, 0.25] }}
-                    transition={{
-                      duration: 1.1,
-                      repeat: Infinity,
-                      ease: 'easeInOut',
-                      delay: i * 0.18,
-                    }}
+                    transition={pulseLoop(i * 0.18)}
                   />
                 ))}
               </motion.div>

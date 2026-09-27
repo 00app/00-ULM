@@ -1,3 +1,8 @@
+import {
+  normaliseEnergySupplier,
+  resolveTypedSupplier,
+  type EnergySupplierValue,
+} from '@/lib/profile/energySupplier'
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import pool from '@/lib/db'
@@ -77,6 +82,28 @@ export async function POST(request: NextRequest) {
       homePowerRaw === 'OTHER'
         ? homePowerRaw
         : null
+    // Optional. Only the six known slugs or OTHER are accepted; the SKIP marker and anything else
+    // become null, which leaves an existing stored supplier untouched (user_genome is merged on
+    // update, never replaced). A typed name that matches a known supplier is folded into that
+    // supplier so the calculators see Octopus whether it was clicked or typed.
+    const typedSupplier = resolveTypedSupplier(
+      typeof body?.energy_supplier_other === 'string' ? body.energy_supplier_other : ''
+    )
+    const suppliedSupplier = normaliseEnergySupplier(
+      typeof body?.energy_supplier === 'string' ? body.energy_supplier : ''
+    )
+    let energy_supplier: EnergySupplierValue | null = suppliedSupplier || null
+    let energy_supplier_other = ''
+    if (suppliedSupplier === 'OTHER') {
+      if (typedSupplier.supplier && typedSupplier.supplier !== 'OTHER') {
+        energy_supplier = typedSupplier.supplier
+      } else if (typedSupplier.other) {
+        energy_supplier_other = typedSupplier.other
+      } else {
+        // OTHER with no name carries nothing usable.
+        energy_supplier = null
+      }
+    }
     const homeOwnershipRaw =
       typeof body?.home_ownership === 'string'
         ? body.home_ownership.trim().toUpperCase().slice(0, 16)
@@ -197,6 +224,12 @@ export async function POST(request: NextRequest) {
     if (household_income_bracket) genomeObj.household_income_bracket = household_income_bracket
     if (houseNumber) genomeObj.house_number = houseNumber
     if (home_power) genomeObj.home_power = home_power
+    if (energy_supplier) {
+      genomeObj.energy_supplier = energy_supplier
+      // Always written alongside a supplier, even empty: the update path merges, so without this
+      // a switch from OTHER to a named supplier would leave the old typed name behind.
+      genomeObj.energy_supplier_other = energy_supplier_other
+    }
     if (home_ownership) genomeObj.home_ownership = home_ownership
     if (wash_preference) genomeObj.wash_preference = wash_preference
     if (flight_frequency) genomeObj.flight_frequency = flight_frequency
@@ -304,6 +337,7 @@ export async function POST(request: NextRequest) {
           age: raw.age_group ?? undefined,
           employmentStatus: raw.employment_status ?? undefined,
           powerType: home_power ?? undefined,
+          energySupplier: energy_supplier ?? undefined,
           houseNumber: houseNumber || undefined,
           goal: profile_goal ?? undefined,
         },

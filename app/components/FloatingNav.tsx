@@ -66,7 +66,7 @@ export default function FloatingNav({
         style={
           variant === 'zai'
             ? { background: 'transparent' }
-            : { background: isActive ? 'var(--color-pink)' : 'var(--color-yellow)' }
+            : { background: isActive ? 'var(--color-blue)' : 'var(--color-blue)' }
         }
       >
         {variant === 'zai' ? (

@@ -102,6 +102,7 @@ function gatesAllow(gates: ActionGates | undefined, p: ActionProfile): boolean {
     gateMatches(gates.employment, p.employment) &&
     gateMatches(gates.age, p.age) &&
     gateMatches(gates.heating, p.heating) &&
+    gateMatches(gates.supplier, p.supplier) &&
     gateMatches(gates.transport, p.transport) &&
     gateMatches(gates.wash, p.wash) &&
     gateMatches(gates.countries, p.country) &&
@@ -127,6 +128,7 @@ function requiresSatisfied(req: ActionGates | undefined, p: ActionProfile): bool
     matches(req.employment, p.employment) &&
     matches(req.age, p.age) &&
     matches(req.heating, p.heating) &&
+    matches(req.supplier, p.supplier) &&
     matches(req.transport, p.transport) &&
     matches(req.wash, p.wash) &&
     matches(req.countries, p.country) &&
@@ -150,6 +152,7 @@ function excluded(ex: ActionGates | undefined, p: ActionProfile): boolean {
     hit(ex.employment, p.employment) ||
     hit(ex.age, p.age) ||
     hit(ex.heating, p.heating) ||
+    hit(ex.supplier, p.supplier) ||
     hit(ex.transport, p.transport) ||
     hit(ex.wash, p.wash) ||
     hit(ex.countries, p.country) ||
@@ -201,6 +204,7 @@ export function scoreAction(a: ZoneAction, p: ActionProfile): number {
     if (g.employment && matches(g.employment, p.employment)) score += 8
     if (g.age && matches(g.age, p.age)) score += 8
     if (g.heating && matches(g.heating, p.heating)) score += 6
+    if (g.supplier && matches(g.supplier, p.supplier)) score += 6
     if (g.transport && matches(g.transport, p.transport)) score += 6
     if (g.wash && matches(g.wash, p.wash)) score += 4
   }

@@ -11,6 +11,7 @@ import {
   FAMILY_ATOMIC_SURFACE_INITIAL,
   FAMILY_TRANSITION_ATOMIC,
 } from '@/lib/motion-family'
+import { DUR, EASE_OUT, RISE_PX, STAGGER_SEC } from '@/lib/motion'
 
 // =============================================================================
 // INDUSTRIAL SNAP (single timing surface)
@@ -18,24 +19,22 @@ import {
 
 export const INDUSTRIAL_OPACITY_SNAP = {
   type: 'tween' as const,
-  duration: 0.12,
-  ease: 'linear' as const,
-} as const
+  duration: DUR.colour,
+  ease: EASE_OUT,
+}
 
 // =============================================================================
 // VERTICAL STACCATO — industrial: opacity-only stagger (legacy y export = 0)
 // =============================================================================
 
 /** Seconds between sibling reveals (word / row / grid cell). */
-export const STACCATO_STAGGER_SEC = 0.05
-/** Legacy vertical drop — fussy motion y: 2 -> 0 */
-export const STACCATO_DROP_PX = 2
+export const STACCATO_STAGGER_SEC = STAGGER_SEC
+/** Vertical drop (px). */
+export const STACCATO_DROP_PX = RISE_PX
 /** Per-element motion length. */
-export const STACCATO_DURATION_SEC = 0.12
-/** Fussy ease token. */
-export const STACCATO_EASE = 'linear' as const
-/** Cubic fallback. */
-export const STACCATO_EASE_CUBIC = 'linear' as const
+export const STACCATO_DURATION_SEC = DUR.enter
+export const STACCATO_EASE = EASE_OUT
+export const STACCATO_EASE_CUBIC = EASE_OUT
 
 export const STACCATO_TWEEN = INDUSTRIAL_OPACITY_SNAP
 
@@ -177,10 +176,10 @@ export {
 } from '@/lib/motion-family'
 
 /** Solo Focus: zip-shut rail collapse — matches CSS `.solo-focus-loop` + inject gate in `EmbeddedJourneyQuestion`. */
-export const SOLO_FOCUS_ZIP_SHUT_SEC = 0.12
+export const SOLO_FOCUS_ZIP_SHUT_SEC = DUR.exit
 
 /** Delay before content snap after shell motion (layout settle). */
-export const SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC = 0.05
+export const SOLO_FOCUS_CONTENT_SNAP_DELAY_SEC = STAGGER_SEC
 
 /** Solo Focus content handoff — opacity snap only. */
 export const SOLO_FOCUS_CONTENT_SNAP_INITIAL = FAMILY_ATOMIC_SURFACE_INITIAL

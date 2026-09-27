@@ -30,7 +30,7 @@ export function ResetDataCircleButton() {
     <motion.button
       type="button"
       onClick={handleReset}
-      className="settings-circle-cta settings-circle-cta--pink"
+      className="settings-circle-cta settings-circle-cta--secondary"
       whileTap={reduceMotion ? undefined : { scale: 0.985 }}
       transition={{ duration: FAMILY_DUR_SHORT, ease: FAMILY_EASE }}
       aria-label="Reset all data"

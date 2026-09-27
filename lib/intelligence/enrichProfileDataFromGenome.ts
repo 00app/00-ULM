@@ -55,6 +55,7 @@ function localizedSignalsToResearchProfile(
   copy('postcode')
   copy('home_type')
   copy('home_power')
+  copy('energy_supplier')
   copy('household')
   copy('transport_baseline')
   copy('heating')
@@ -87,6 +88,7 @@ export function enrichResearchProfileFromSession(
       postcode: base.postcode,
       home_type: base.home_type,
       home_power: base.home_power,
+      energy_supplier: base.energy_supplier,
       household: base.household,
       transport_baseline: base.transport_baseline,
       heating: base.heating,
@@ -167,6 +169,7 @@ export function buildAnswerFunnelFromResearchProfile(
       postcode: profileData?.postcode,
       home_type: profileData?.home_type,
       home_power: profileData?.home_power,
+      energy_supplier: profileData?.energy_supplier,
       household: profileData?.household,
       transport_baseline: profileData?.transport_baseline,
       heating: profileData?.heating,

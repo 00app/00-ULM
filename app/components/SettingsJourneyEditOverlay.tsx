@@ -155,7 +155,7 @@ export function SettingsJourneyEditOverlay({ journeyId, title, onClose }: Props)
       >
         <span
           className="card-top-label solo-focus-zone-category m-0 text-center w-full block"
-          style={{ color: 'var(--color-yellow)' }}
+          style={{ color: 'var(--color-blue)' }}
         >
           {title}
         </span>
@@ -167,9 +167,9 @@ export function SettingsJourneyEditOverlay({ journeyId, title, onClose }: Props)
                 type="button"
                 className={`zz-h4 settings-journey-edit-step${i === step ? ' settings-journey-edit-step--active' : ''}`}
                 style={{
-                  color: i === step ? 'var(--color-purple)' : 'var(--color-yellow)',
-                  background: i === step ? 'var(--color-yellow)' : 'transparent',
-                  border: '2px solid var(--color-yellow)',
+                  color: i === step ? 'var(--color-purple)' : 'var(--color-blue)',
+                  background: i === step ? 'var(--color-blue)' : 'transparent',
+                  border: '2px solid var(--color-blue)',
                   borderRadius: 9999,
                   padding: '6px 12px',
                   cursor: 'pointer',
@@ -184,7 +184,7 @@ export function SettingsJourneyEditOverlay({ journeyId, title, onClose }: Props)
         ) : null}
         <motion.div
           id="settings-journey-edit-question"
-          className="text-marvin profile-question-headline"
+          className="text-display profile-question-headline"
           style={{
             marginBottom: 0,
             marginLeft: 'auto',

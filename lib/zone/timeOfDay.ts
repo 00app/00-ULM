@@ -10,7 +10,8 @@ export function getTimeOfDay(date: Date = new Date()): TimeOfDay {
 
 /** Zone hero greeting fragment — lowercase with full stop (zoneVoice). */
 export function formatTimeOfDayGreeting(date: Date = new Date()): string {
-  return `${getTimeOfDay(date)}.`
+  const tod = getTimeOfDay(date)
+  return `${tod.charAt(0).toUpperCase()}${tod.slice(1)}.`
 }
 
 /**

@@ -1,4 +1,5 @@
 import { PROFILE_GOAL_STORAGE_KEY, PROFILE_STORAGE_KEYS } from '@/lib/profile/onboardingComplete'
+import { persistEnergySupplierFromProfile } from '@/lib/profile/energySupplier'
 
 /**
  * Write a server `users` row (same shape /api/user returns) into the same localStorage keys
@@ -26,6 +27,8 @@ export function syncLocalStorageFromServerUser(user: Record<string, unknown> | u
     : null
   if (genome) {
     setIfString(PROFILE_STORAGE_KEYS.powerType, genome.home_power)
+    setIfString(PROFILE_STORAGE_KEYS.energySupplier, genome.energy_supplier)
+    setIfString(PROFILE_STORAGE_KEYS.energySupplierOther, genome.energy_supplier_other)
     setIfString(PROFILE_STORAGE_KEYS.homeOwnership, genome.home_ownership)
     setIfString(PROFILE_STORAGE_KEYS.washPreference, genome.wash_preference)
     setIfString(PROFILE_STORAGE_KEYS.flightFrequency, genome.flight_frequency)
@@ -40,5 +43,14 @@ export function syncLocalStorageFromServerUser(user: Record<string, unknown> | u
         /* ignore */
       }
     }
+    try {
+      // A known supplier carries no typed name; drop any stale one left from an earlier OTHER.
+      if (typeof genome.energy_supplier === 'string' && genome.energy_supplier !== 'OTHER') {
+        localStorage.removeItem(PROFILE_STORAGE_KEYS.energySupplierOther)
+      }
+    } catch {
+      /* ignore */
+    }
+    persistEnergySupplierFromProfile()
   }
 }

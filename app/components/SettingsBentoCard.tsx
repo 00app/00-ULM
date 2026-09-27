@@ -5,9 +5,7 @@ import Link from 'next/link'
 import { ArrowNEOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { isCardVisited, markCardVisited } from '@/lib/zone/visitedCards'
 
-const CARD_TEXT = { default: 'var(--color-yellow)', hero: 'var(--color-yellow)' } as const
-
-/** Deep blue until opened, pink once visited — same rollover as Zone bento cards. */
+/** Light-blue until opened, white once visited — same rollover as Zone bento cards (v2). */
 export function useSettingsCardVisited(cardId: string | undefined): [boolean, () => void] {
   const [visited, setVisited] = useState(() => (cardId ? isCardVisited(cardId) : false))
   useEffect(() => {
@@ -56,11 +54,10 @@ export default function SettingsBentoCard({
   /** Deep blue until this card is opened, pink once visited (skip on isHero — Overview stays pink). */
   cardId?: string
 }) {
-  const textColor = isHero ? CARD_TEXT.hero : CARD_TEXT.default
-  const [visited, markVisited] = useSettingsCardVisited(isHero ? undefined : cardId)
-  // No cardId means there's nothing to "open" (e.g. a read-only feedback-log row) — treat like
-  // Overview rather than leaving it permanently blue with no way to ever become pink.
-  const bgColor = isHero || !cardId || visited ? 'var(--color-pink)' : 'var(--color-purple)'
+  const [, markVisited] = useSettingsCardVisited(isHero ? undefined : cardId)
+  // Cool until pressed: every settings card is a white surface with blue ink on the elev-1 glow
+  // and fills blue on press. Colour lives in the V2 settings block in globals.css, not inline, so
+  // there is one place to change it and no inline style can put blue text back on a blue card.
 
   const arrowSlot = () => {
     if (onEditClick) {
@@ -110,11 +107,6 @@ export default function SettingsBentoCard({
   return (
     <div
       className={`bento-card-groovy settings-bento-card settings-card-bento flex flex-col justify-between w-full h-full${isHero ? ' settings-hero-card settings-bento-card--info' : ''}${hideLabel ? ' settings-bento-card--headline-only' : ''}`.trim()}
-      style={{
-        backgroundColor: bgColor,
-        color: textColor,
-        boxShadow: 'none',
-      }}
     >
       {hideLabel ? (
         <div className="settings-headline-only-row flex items-start justify-between gap-2 w-full shrink-0">
@@ -126,12 +118,12 @@ export default function SettingsBentoCard({
       ) : (
         <>
           <div className="flex items-center justify-between w-full shrink-0">
-            <span className="card-top-label" style={{ color: textColor }}>
+            <span className="card-top-label">
               {label}
             </span>
             {arrowSlot()}
           </div>
-          <h3 className="card-headline m-0" style={{ color: textColor }}>
+          <h3 className="card-headline m-0">
             {headline}
           </h3>
         </>
@@ -164,10 +156,9 @@ export function SettingsJourneyCardShell({
   return (
     <div
       className="bento-card-groovy settings-bento-card settings-card-bento settings-journey-card-shell flex flex-col justify-between w-full h-full"
-      style={{ backgroundColor: 'var(--color-pink)', color: 'var(--color-yellow)' }}
     >
       <div className="flex items-center justify-between w-full shrink-0 mb-2">
-        <span className="card-top-label" style={{ color: 'var(--color-yellow)' }}>
+        <span className="card-top-label">
           {label}
         </span>
         {externalHref ? (

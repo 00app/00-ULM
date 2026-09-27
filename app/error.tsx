@@ -33,8 +33,8 @@ export default function Error({
     <div
       style={{
         minHeight: '100vh',
-        background: 'var(--color-purple)',
-        color: 'var(--color-yellow)',
+        background: 'var(--white)',
+        color: 'var(--blue)',
         padding: 24,
         display: 'flex',
         flexDirection: 'column',
@@ -42,12 +42,12 @@ export default function Error({
         justifyContent: 'center',
         gap: 16,
         textAlign: 'center',
-        fontFamily: 'var(--font-roboto), Roboto, sans-serif',
+        fontFamily: 'var(--font-text)',
       }}
     >
       <h1
         style={{
-          fontFamily: 'var(--font-marvin), sans-serif',
+          fontFamily: 'var(--font-display), sans-serif',
           fontSize: 28,
           margin: 0,
           lineHeight: 'var(--zz-lh-heading)',
@@ -74,10 +74,12 @@ export default function Error({
           padding: '14px 28px',
           borderRadius: 9999,
           border: 'none',
-          fontWeight: 800,
+          fontFamily: 'var(--font-cta)',
+          fontWeight: 900,
           cursor: 'pointer',
-          background: 'var(--color-yellow)',
-          color: 'var(--color-purple)',
+          background: 'var(--white)',
+          color: 'var(--blue)',
+          boxShadow: 'var(--elev-1)',
         }}
       >
         Try again

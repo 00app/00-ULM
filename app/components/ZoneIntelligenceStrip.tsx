@@ -1,5 +1,6 @@
 'use client'
 
+import { T_COLOUR } from '@/lib/motion'
 import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -45,9 +46,9 @@ function BulletRow({
     <div className="min-w-0">
       <p
         className="pulse-diagnostic-label m-0 flex items-baseline gap-2"
-        style={{ color: 'var(--color-yellow)' }}
+        style={{ color: 'var(--color-blue)' }}
       >
-        <span aria-hidden style={{ color: ok ? 'var(--color-yellow)' : 'var(--color-pink)' }}>
+        <span aria-hidden style={{ color: ok ? 'var(--color-blue)' : 'var(--color-blue)' }}>
           {ok ? TICK : CROSS}
         </span>
         <span>{title}</span>
@@ -324,7 +325,7 @@ export function ZoneIntelligenceStrip({
   if (!mounted || typeof document === 'undefined') return null
   if (suppressOverlay) return null
 
-  const yellow = 'var(--color-yellow)'
+  const yellow = 'var(--color-blue)'
 
   const panelInner =
     variant === 'likes' ? (
@@ -446,7 +447,7 @@ export function ZoneIntelligenceStrip({
             className="mt-3 pt-2"
             style={{
               borderTop: '1px solid rgba(253, 253, 0, 0.28)',
-              fontFamily: 'var(--font-marvin)',
+              fontFamily: 'var(--font-display)',
               fontSize: 11,
               lineHeight: 1.2,
               color: yellow,
@@ -474,7 +475,7 @@ export function ZoneIntelligenceStrip({
               aria-label="Close intelligence loop"
               onClick={close}
               className="pulse-panel-close-circle"
-              transition={{ duration: 0.12 }}
+              transition={T_COLOUR}
             >
               <BackArrowDownLeft size={22} />
             </motion.button>

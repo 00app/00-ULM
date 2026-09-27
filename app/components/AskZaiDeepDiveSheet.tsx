@@ -375,7 +375,7 @@ export function AskZaiDeepDiveSheet({
             }}
           >
             <header className="ask-zai-deep-dive-header shrink-0">
-              <h2 id="ask-zai-deep-dive-title" className="ask-zai-deep-dive-title zz-h3 m-0 text-marvin">
+              <h2 id="ask-zai-deep-dive-title" className="ask-zai-deep-dive-title zz-h3 m-0 text-display">
                 ask zai
               </h2>
             </header>
@@ -390,7 +390,7 @@ export function AskZaiDeepDiveSheet({
                     type="button"
                     disabled={busy}
                     onClick={() => continueInZai(q)}
-                    className="ask-zai-deep-dive-pill rounded-full border-0 cursor-pointer uppercase text-marvin"
+                    className="ask-zai-deep-dive-pill rounded-full border-0 cursor-pointer uppercase text-display"
                   >
                     {q}
                   </button>
@@ -450,7 +450,7 @@ export function AskZaiDeepDiveSheet({
                 onClick={() => void submit(draft)}
                 onTap={() => void submit(draft)}
                 disabled={!draft.trim() || busy}
-                className="zai-go-btn ask-zai-sheet-go-btn zz-h4 text-marvin"
+                className="zai-go-btn ask-zai-sheet-go-btn zz-h4 text-display"
                 style={{ touchAction: 'manipulation' }}
                 transition={INDUSTRIAL_OPACITY_SNAP}
                 aria-busy={busy}

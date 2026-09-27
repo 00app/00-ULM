@@ -28,6 +28,8 @@ export function applySessionStatePayload(data: Record<string, unknown> | null): 
     setIfNonEmpty(LOCAL_STORAGE_KEYS.PROFILE_EMPLOYMENT_STATUS, profile.employment_status)
     setIfNonEmpty(LOCAL_STORAGE_KEYS.PROFILE_HOME_POWER, profile.home_power)
     setIfNonEmpty('profile_goal', profile.goal)
+    setIfNonEmpty('profile_energy_supplier', profile.energy_supplier)
+    setIfNonEmpty('profile_energy_supplier_other', profile.energy_supplier_other)
   }
 
   if (journeyAnswers && typeof journeyAnswers === 'object') {

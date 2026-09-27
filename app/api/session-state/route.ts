@@ -5,6 +5,7 @@
  * POST: upsert state (profile, journey_answers, completed_journeys).
  */
 
+import { normaliseEnergySupplier, sanitiseSupplierOther } from '@/lib/profile/energySupplier'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDbPool, isDatabaseConfigured } from '@/lib/db'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
@@ -29,6 +30,8 @@ function emptySessionPayload() {
       household: '',
       home_type: '',
       home_power: '',
+      energy_supplier: '',
+      energy_supplier_other: '',
       transport: '',
       age: '',
       employment_status: '',
@@ -117,6 +120,8 @@ export async function GET(request: NextRequest) {
         household: profile.household ?? '',
         home_type: profile.home_type ?? '',
         home_power: profile.home_power ?? '',
+        energy_supplier: normaliseEnergySupplier(profile.energy_supplier),
+        energy_supplier_other: sanitiseSupplierOther(profile.energy_supplier_other),
         transport: profile.transport ?? '',
         age: profile.age ?? '',
         employment_status: profile.employment_status ?? '',
@@ -151,6 +156,12 @@ export async function POST(request: NextRequest) {
     const ipHash = guestIpHashFromRequest(request)
     const body = await request.json().catch(() => ({}))
     const profile = (body.profile as Record<string, string>) ?? {}
+    // Stored wholesale, so the two supplier fields are the only free text in it worth cleaning:
+    // they are echoed straight back into copy.
+    if ('energy_supplier' in profile) profile.energy_supplier = normaliseEnergySupplier(profile.energy_supplier)
+    if ('energy_supplier_other' in profile) {
+      profile.energy_supplier_other = sanitiseSupplierOther(profile.energy_supplier_other)
+    }
     const journeyAnswers = (body.journeyAnswers as Record<string, Record<string, string>>) ?? {}
     const completedJourneys = Array.isArray(body.completedJourneys) ? body.completedJourneys : []
 

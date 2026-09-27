@@ -1,14 +1,15 @@
 /**
- * v1.8.3 — Industrial legibility lock (4 colours only):
- * Purple journey cards → yellow type/icons/arrows; CTAs yellow fill + purple label.
- * Overlays use the same yellow / pink / purple surfaces — no neutral white type.
+ * v2 — Three colours only, exactly as sampled from the Figma file: blue, navy, white.
+ * Navy is never a card fill (ambient/page use only). Unvisited cards = solid blue + white
+ * ink. Visited cards = white + blue ink (see .zone-card--visited in globals.css). CTA fills
+ * = solid blue + white ink.
  */
 
 import type { JourneyId } from '@/lib/journeys'
 
-export const COLOR_YELLOW = '#FFD700'
+export const COLOR_BLUE = '#000AFF'
 export const COLOR_PURPLE = '#141268'
-export const COLOR_PINK = '#FF00FF'
+export const COLOR_WHITE = '#FCFCFF'
 export const COLOR_SOFT_CREAM = '#141268'
 
 export interface JourneyColorEntry {
@@ -20,68 +21,68 @@ export interface JourneyColorEntry {
   usage: string
 }
 
-/** Card background: MVP purple flip */
+/** Card background: blue, unvisited default for every category */
 export const EMOTION_GRID_HEX: Record<JourneyId, string> = {
-  home: COLOR_PURPLE,
-  utilities: COLOR_PURPLE,
-  solar: COLOR_PURPLE,
-  travel: COLOR_PURPLE,
-  holidays: COLOR_PURPLE,
-  food: COLOR_PURPLE,
-  shopping: COLOR_PURPLE,
-  money: COLOR_PURPLE,
-  tech: COLOR_PURPLE,
-  water: COLOR_PURPLE,
-  waste: COLOR_PURPLE,
-  carbon: COLOR_PURPLE,
+  home: COLOR_BLUE,
+  utilities: COLOR_BLUE,
+  solar: COLOR_BLUE,
+  travel: COLOR_BLUE,
+  holidays: COLOR_BLUE,
+  food: COLOR_BLUE,
+  shopping: COLOR_BLUE,
+  money: COLOR_BLUE,
+  tech: COLOR_BLUE,
+  water: COLOR_BLUE,
+  waste: COLOR_BLUE,
+  carbon: COLOR_BLUE,
 }
 
-/** Body copy on card: yellow surface → purple; pink surface → yellow */
+/** Body copy on card: white ink on the blue surface */
 export const EMOTION_TEXT_HEX: Record<JourneyId, string> = {
-  home: COLOR_YELLOW,
-  utilities: COLOR_YELLOW,
-  solar: COLOR_YELLOW,
-  travel: COLOR_YELLOW,
-  holidays: COLOR_YELLOW,
-  food: COLOR_YELLOW,
-  shopping: COLOR_YELLOW,
-  money: COLOR_YELLOW,
-  tech: COLOR_YELLOW,
-  water: COLOR_YELLOW,
-  waste: COLOR_YELLOW,
-  carbon: COLOR_YELLOW,
+  home: COLOR_WHITE,
+  utilities: COLOR_WHITE,
+  solar: COLOR_WHITE,
+  travel: COLOR_WHITE,
+  holidays: COLOR_WHITE,
+  food: COLOR_WHITE,
+  shopping: COLOR_WHITE,
+  money: COLOR_WHITE,
+  tech: COLOR_WHITE,
+  water: COLOR_WHITE,
+  waste: COLOR_WHITE,
+  carbon: COLOR_WHITE,
 }
 
-/** CTA fill (contrasts card surface) */
+/** CTA fill (contrasts card surface) — white pill on the blue card */
 export const EMOTION_CTA_BG_HEX: Record<JourneyId, string> = {
-  home: COLOR_YELLOW,
-  utilities: COLOR_YELLOW,
-  solar: COLOR_YELLOW,
-  travel: COLOR_YELLOW,
-  holidays: COLOR_YELLOW,
-  food: COLOR_YELLOW,
-  shopping: COLOR_YELLOW,
-  money: COLOR_YELLOW,
-  tech: COLOR_YELLOW,
-  water: COLOR_YELLOW,
-  waste: COLOR_YELLOW,
-  carbon: COLOR_YELLOW,
+  home: COLOR_WHITE,
+  utilities: COLOR_WHITE,
+  solar: COLOR_WHITE,
+  travel: COLOR_WHITE,
+  holidays: COLOR_WHITE,
+  food: COLOR_WHITE,
+  shopping: COLOR_WHITE,
+  money: COLOR_WHITE,
+  tech: COLOR_WHITE,
+  water: COLOR_WHITE,
+  waste: COLOR_WHITE,
+  carbon: COLOR_WHITE,
 }
 
-/** CTA label on CTA fill */
+/** CTA label on CTA fill — blue on white (white bg needs blue ink, ~8.4:1) */
 export const EMOTION_CTA_TEXT_HEX: Record<JourneyId, string> = {
-  home: COLOR_PURPLE,
-  utilities: COLOR_PURPLE,
-  solar: COLOR_PURPLE,
-  travel: COLOR_PURPLE,
-  holidays: COLOR_PURPLE,
-  food: COLOR_PURPLE,
-  shopping: COLOR_PURPLE,
-  money: COLOR_PURPLE,
-  tech: COLOR_PURPLE,
-  water: COLOR_PURPLE,
-  waste: COLOR_PURPLE,
-  carbon: COLOR_PURPLE,
+  home: COLOR_BLUE,
+  utilities: COLOR_BLUE,
+  solar: COLOR_BLUE,
+  travel: COLOR_BLUE,
+  holidays: COLOR_BLUE,
+  food: COLOR_BLUE,
+  shopping: COLOR_BLUE,
+  money: COLOR_BLUE,
+  tech: COLOR_BLUE,
+  water: COLOR_BLUE,
+  waste: COLOR_BLUE,
+  carbon: COLOR_BLUE,
 }
 
 /** @deprecated Use EMOTION_CTA_BG_HEX — kept for callers still on “accent” naming */
@@ -100,31 +101,31 @@ export const EMOTION_ACCENT_HEX: Record<JourneyId, string> = {
   carbon: EMOTION_CTA_BG_HEX.carbon,
 }
 
-export const HERO_GRID_HEX = COLOR_PURPLE
-export const HERO_ACCENT_HEX = COLOR_YELLOW
+export const HERO_GRID_HEX = COLOR_BLUE
+export const HERO_ACCENT_HEX = COLOR_WHITE
 export const SOFT_CREAM_HEX = COLOR_SOFT_CREAM
-export const GENERAL_ACCENT_HEX = COLOR_YELLOW
+export const GENERAL_ACCENT_HEX = COLOR_BLUE
 
 export const JOURNEY_COLOR_MAP: Record<JourneyId, JourneyColorEntry> = {
-  home: { journey: 'home', keyword: 'solar-panels', name: 'Home', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
+  home: { journey: 'home', keyword: 'solar-panels', name: 'Home', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
   utilities: {
     journey: 'utilities',
     keyword: 'gas-electric-meter',
     name: 'Utilities',
-    hex: COLOR_PURPLE,
-    textHex: COLOR_YELLOW,
+    hex: COLOR_BLUE,
+    textHex: COLOR_WHITE,
     usage: '',
   },
-  solar: { journey: 'solar', keyword: 'roof-solar', name: 'Solar', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
-  travel: { journey: 'travel', keyword: 'electric-car', name: 'Travel', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
-  holidays: { journey: 'holidays', keyword: 'railway', name: 'Holidays', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
-  food: { journey: 'food', keyword: 'vegetables', name: 'Food', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
-  shopping: { journey: 'shopping', keyword: 'second-hand-clothing', name: 'Shopping', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
-  money: { journey: 'money', keyword: 'savings-account', name: 'Money', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
-  tech: { journey: 'tech', keyword: 'electronics-repair', name: 'Tech', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
-  water: { journey: 'water', keyword: 'rainwater', name: 'Water', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
-  waste: { journey: 'waste', keyword: 'composting', name: 'Waste', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
-  carbon: { journey: 'carbon', keyword: 'forest', name: 'Carbon', hex: COLOR_PURPLE, textHex: COLOR_YELLOW, usage: '' },
+  solar: { journey: 'solar', keyword: 'roof-solar', name: 'Solar', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
+  travel: { journey: 'travel', keyword: 'electric-car', name: 'Travel', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
+  holidays: { journey: 'holidays', keyword: 'railway', name: 'Holidays', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
+  food: { journey: 'food', keyword: 'vegetables', name: 'Food', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
+  shopping: { journey: 'shopping', keyword: 'second-hand-clothing', name: 'Shopping', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
+  money: { journey: 'money', keyword: 'savings-account', name: 'Money', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
+  tech: { journey: 'tech', keyword: 'electronics-repair', name: 'Tech', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
+  water: { journey: 'water', keyword: 'rainwater', name: 'Water', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
+  waste: { journey: 'waste', keyword: 'composting', name: 'Waste', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
+  carbon: { journey: 'carbon', keyword: 'forest', name: 'Carbon', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
 }
 
 export function getExpandedAccentHex(journeyId: JourneyId): string {
@@ -136,32 +137,32 @@ export function getJourneyColorVar(journey: JourneyId): string {
 }
 
 export function getJourneyColorHex(journey: JourneyId): string {
-  return JOURNEY_COLOR_MAP[journey]?.hex ?? COLOR_PURPLE
+  return JOURNEY_COLOR_MAP[journey]?.hex ?? COLOR_BLUE
 }
 
 /** Text on journey card surface */
 export function getJourneyCardTextHex(journeyId: JourneyId): string {
-  return JOURNEY_COLOR_MAP[journeyId]?.textHex ?? COLOR_YELLOW
+  return JOURNEY_COLOR_MAP[journeyId]?.textHex ?? COLOR_WHITE
 }
 
 export function getJourneyCtaBgHex(journeyId: JourneyId): string {
-  return EMOTION_CTA_BG_HEX[journeyId] ?? COLOR_YELLOW
+  return EMOTION_CTA_BG_HEX[journeyId] ?? COLOR_WHITE
 }
 
 export function getJourneyCtaTextHex(journeyId: JourneyId): string {
-  return EMOTION_CTA_TEXT_HEX[journeyId] ?? COLOR_PURPLE
+  return EMOTION_CTA_TEXT_HEX[journeyId] ?? COLOR_BLUE
 }
 
-/** Purple system shell — yellow CTAs, purple label */
+/** System shell — blue CTAs, white label */
 export function getSystemCtaBgHex(): string {
-  return COLOR_YELLOW
+  return COLOR_BLUE
 }
 
 export function getSystemCtaTextHex(): string {
-  return COLOR_PURPLE
+  return COLOR_WHITE
 }
 
-/** Zone wall + Solo Focus: journey categories = purple; tips + settings = pink. */
+/** Zone wall + Solo Focus: journey and tip tiles share the same blue/white surface rule. */
 export type ZoneSurfaceKind = 'journey' | 'tip'
 
 export interface ZoneSurfaceTokens {
@@ -194,18 +195,20 @@ export function resolveZoneSurfaceKind(opts: {
   return 'journey'
 }
 
-export function getZoneSurfaceTokens(kind: ZoneSurfaceKind): ZoneSurfaceTokens {
-  const isPink = kind === 'tip'
+export function getZoneSurfaceTokens(_kind: ZoneSurfaceKind): ZoneSurfaceTokens {
+  // v2: journey and tip both use the blue/white-ink default — no per-kind branch needed, navy
+  // is never a card fill. Visited state (white/blue) is applied separately via
+  // .zone-card--visited in globals.css, not from this function.
   return {
-    bg: isPink ? COLOR_PINK : COLOR_PURPLE,
-    text: COLOR_YELLOW,
-    ink: COLOR_YELLOW,
-    ctaBg: COLOR_YELLOW,
-    ctaText: isPink ? COLOR_PINK : COLOR_PURPLE,
-    answerBg: COLOR_YELLOW,
-    answerText: isPink ? COLOR_PINK : COLOR_PURPLE,
-    answerHoverBg: isPink ? COLOR_PINK : COLOR_PURPLE,
-    answerHoverText: COLOR_YELLOW,
+    bg: COLOR_BLUE,
+    text: COLOR_WHITE,
+    ink: COLOR_WHITE,
+    ctaBg: COLOR_WHITE,
+    ctaText: COLOR_BLUE,
+    answerBg: COLOR_WHITE,
+    answerText: COLOR_BLUE,
+    answerHoverBg: COLOR_WHITE,
+    answerHoverText: COLOR_BLUE,
   }
 }
 
@@ -213,16 +216,16 @@ export function getZoneSurfaceTokens(kind: ZoneSurfaceKind): ZoneSurfaceTokens {
 export function zoneExpandedJourneySurfaceStyleProps(): Record<string, string> {
   return {
     '--journey-bg': 'transparent',
-    '--journey-text': COLOR_YELLOW,
-    '--color-ink': COLOR_YELLOW,
-    '--journey-accent': COLOR_PINK,
-    '--journey-on-accent': COLOR_YELLOW,
-    '--journey-cta-bg': COLOR_PINK,
-    '--journey-cta-text': COLOR_YELLOW,
-    '--sf-answer-bg': COLOR_YELLOW,
-    '--sf-answer-text': COLOR_YELLOW,
-    '--sf-answer-hover-bg': COLOR_PINK,
-    '--sf-answer-hover-text': COLOR_YELLOW,
+    '--journey-text': COLOR_BLUE,
+    '--color-ink': COLOR_BLUE,
+    '--journey-accent': COLOR_BLUE,
+    '--journey-on-accent': COLOR_WHITE,
+    '--journey-cta-bg': COLOR_BLUE,
+    '--journey-cta-text': COLOR_WHITE,
+    '--sf-answer-bg': COLOR_BLUE,
+    '--sf-answer-text': COLOR_WHITE,
+    '--sf-answer-hover-bg': COLOR_WHITE,
+    '--sf-answer-hover-text': COLOR_BLUE,
   }
 }
 
@@ -255,14 +258,14 @@ export const emotionColorMap = {
   tech: { grid: EMOTION_GRID_HEX.tech, accent: EMOTION_ACCENT_HEX.tech },
   waste: { grid: EMOTION_GRID_HEX.waste, accent: EMOTION_ACCENT_HEX.waste },
   holidays: { grid: EMOTION_GRID_HEX.holidays, accent: EMOTION_ACCENT_HEX.holidays },
-  general: { grid: COLOR_PURPLE, accent: GENERAL_ACCENT_HEX },
+  general: { grid: COLOR_BLUE, accent: GENERAL_ACCENT_HEX },
 } as const
 
 export const PROFILE_QUESTION_EMOTION_BG: Record<string, string> = {
-  name: COLOR_PURPLE,
-  postcode: COLOR_PURPLE,
-  livingSituation: COLOR_PURPLE,
-  homeType: COLOR_PURPLE,
-  transport: COLOR_PURPLE,
-  age: COLOR_PURPLE,
+  name: COLOR_WHITE,
+  postcode: COLOR_WHITE,
+  livingSituation: COLOR_WHITE,
+  homeType: COLOR_WHITE,
+  transport: COLOR_WHITE,
+  age: COLOR_WHITE,
 }

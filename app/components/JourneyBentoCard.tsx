@@ -1,5 +1,6 @@
 'use client'
 
+import { COUNT_UP_MS } from '@/lib/motion'
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
@@ -476,8 +477,8 @@ export function JourneyBentoCard({
     !showEstimatedInsightStrip &&
     (insightGenerationPending || researchCategoryCoverage != null)
   const motherMoneyTargetGbp = verifiedAuditMatchesJourney ? verifiedAuditMoneyGbp : moneyTargetGbp
-  const animatedMoneyGbp = useCountUp(motherMoneyTargetGbp, { duration: 520 })
-  const animatedCarbonKg = useCountUp(carbonTargetKg, { duration: 520 })
+  const animatedMoneyGbp = useCountUp(motherMoneyTargetGbp, { duration: COUNT_UP_MS })
+  const animatedCarbonKg = useCountUp(carbonTargetKg, { duration: COUNT_UP_MS })
 
   const morphLearnUrl =
     currentMorphData?.actions?.learnUrl && typeof currentMorphData.actions.learnUrl === 'string'

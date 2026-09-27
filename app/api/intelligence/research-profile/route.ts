@@ -69,6 +69,9 @@ export async function GET() {
         age: row.age_group,
         employmentStatus: row.employment_status,
         powerType: homePower ?? undefined,
+        energySupplier: typeof genome.energy_supplier === 'string' ? genome.energy_supplier : undefined,
+        energySupplierOther:
+          typeof genome.energy_supplier_other === 'string' ? genome.energy_supplier_other : undefined,
         houseNumber: houseNumber ?? undefined,
         goal: goalRaw ?? undefined,
         household_income_bracket: inferredIncome ?? undefined,

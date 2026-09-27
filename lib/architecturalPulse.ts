@@ -2,17 +2,16 @@ import { INTRO_TYPE_MOTION_SCALE } from '@/lib/animations'
 import { formatMoneyValue, compactAuditValue } from '@/lib/format'
 import { formatTimeOfDayGreeting } from '@/lib/zone/timeOfDay'
 
-/** Warm Marvin + Roboto before summary ticker / intro type (avoids sans-serif flash). */
+/** Warm Anton + Questrial before summary ticker / intro type (avoids sans-serif flash). */
 export function preloadAppFonts(): Promise<void> {
   if (typeof document === 'undefined') return Promise.resolve()
-  const marvinFamily = '"Marvin Visions Bold"'
+  const antonFamily = 'var(--font-display)'
   return Promise.all([
-    document.fonts.load('700 16px var(--font-roboto)'),
-    document.fonts.load('800 16px var(--font-roboto)'),
-    document.fonts.load(`700 20px ${marvinFamily}`),
-    document.fonts.load(`900 50px ${marvinFamily}`),
-    document.fonts.load(`900 70px ${marvinFamily}`),
-    document.fonts.load(`900 90px ${marvinFamily}`),
+    document.fonts.load('400 16px var(--font-text)'),
+    document.fonts.load(`400 20px ${antonFamily}`),
+    document.fonts.load(`400 50px ${antonFamily}`),
+    document.fonts.load(`400 70px ${antonFamily}`),
+    document.fonts.load(`400 90px ${antonFamily}`),
     document.fonts.ready,
   ])
     .then(() => undefined)
@@ -79,7 +78,7 @@ export type ZoneWelcomeCopy = {
   localityLine: string
   savingsMoneyLine: string
   savingsCarbonLine: string
-  /** e.g. "we've found 9 things," */
+  /** e.g. "9 things found." */
   foundCountLine: string
 }
 
@@ -120,19 +119,20 @@ export function buildZoneWelcomeCopy(
   const carbonCompact = compactAuditValue(carbon, 'carbon')
   const carbonLabel =
     carbonCompact.suffix === 't'
-      ? `${carbonCompact.figure}t co2`
-      : `${carbonCompact.figure}kg co2`
+      ? `${carbonCompact.figure}t CO₂`
+      : `${carbonCompact.figure}kg CO₂`
   const localityName = locality?.trim().split(',')[0].trim() || null
   const count = Math.max(1, completedCount)
   const thingLabel = count === 1 ? 'thing' : 'things'
 
+  // Short lines, two to four words each, so the hero never wraps: "11 things found." / "£3.6k to
+  // save." / "10t CO₂ to cut." A zero figure gets no line at all rather than a claim of nothing.
   return {
     timeOfDayLine: formatTimeOfDayGreeting(),
     nameLine: `${first}.`,
-    foundCountLine: `we've found ${count} ${thingLabel},`,
-    // Non-breaking space before "and" — stops it orphaning alone on the next line (typographic widow).
-    localityLine: `that could save you ${moneyLabel} and`,
-    savingsMoneyLine: `reduce your co2 by ${carbonLabel}.`,
+    foundCountLine: `${count} ${thingLabel} found.`,
+    localityLine: money > 0 ? `${moneyLabel} to save.` : '',
+    savingsMoneyLine: carbon > 0 ? `${carbonLabel} to cut.` : '',
     savingsCarbonLine: '',
   }
 }

@@ -23,8 +23,8 @@ import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
 import { authenticatedPost } from '@/lib/client/authenticatedFetch'
 
 /** Industrial lock: Tips/settings are pink base with yellow items. */
-const ROCK_CARD_BG = 'var(--color-pink)' as const
-const ROCK_CARD_TEXT = 'var(--color-yellow)' as const
+const ROCK_CARD_BG = 'var(--color-blue)' as const
+const ROCK_CARD_TEXT = 'var(--color-blue)' as const
 
 const PROFILE_SMS_OPT_IN_LS = 'zz_profile_sms_opt_in'
 
@@ -197,7 +197,7 @@ export function RockMobileSignupCard({
           borderRadius: 60,
         }}
       >
-        <h3 className="rock-mobile-signup-title zz-h3 m-0 tracking-wide text-marvin" lang="en" style={{ color: ROCK_CARD_TEXT }}>
+        <h3 className="rock-mobile-signup-title zz-h3 m-0 tracking-wide text-display" lang="en" style={{ color: ROCK_CARD_TEXT }}>
           sign up with your mobile
         </h3>
         <label className="rock-mobile-opt-in-row">
@@ -301,7 +301,7 @@ export function RockMobileSignupCard({
               </button>
               <h3
                 id="rock-sms-success-title"
-                className="rock-mobile-signup-title zz-h3 m-0 tracking-wide text-marvin"
+                className="rock-mobile-signup-title zz-h3 m-0 tracking-wide text-display"
                 style={{ color: ROCK_CARD_TEXT }}
               >
                 {smsSuccess.title}

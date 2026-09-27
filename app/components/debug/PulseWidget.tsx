@@ -145,7 +145,7 @@ export function PulseDiagnosticFab() {
   if (!showPulseWidget()) return null
   if (!cardMeta) return null
 
-  const yellow = 'var(--color-yellow)'
+  const yellow = 'var(--color-blue)'
 
   return (
     <motion.div className="pulse-diagnostic-anchor pulse-diagnostic-anchor--solo-focus pointer-events-none flex flex-col items-end gap-2">

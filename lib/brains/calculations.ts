@@ -106,7 +106,13 @@ export function calculateHome(
   let carbon = carbonElec + carbonGas
   if (a.energy_type === 'ELECTRIC') carbon = Math.max(0, carbon - 600)
   let money = 0
-  if (a.green_tariff === 'NO') money += 120
+  // Already with Octopus: the switching value this line models does not exist. Mirrors the Zone
+  // card's `needsSwitching` (isOctopus in buildZoneViewModel) so the £ figure and the call to
+  // action can never disagree. `energy_provider` comes from the profile supplier step.
+  const onOctopus = [a.energy_provider, a.electricity_provider, a.gas_provider].some(
+    (v) => String(v ?? '').trim().toUpperCase() === 'OCTOPUS'
+  )
+  if (a.green_tariff === 'NO' && !onOctopus) money += 120
   if (
     a.green_tariff === 'NO' &&
     ((a.electricity_provider && a.electricity_provider !== 'OCTOPUS') ||
