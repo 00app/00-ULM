@@ -71,7 +71,7 @@ npm run deploy               # verify → remote build → promote
 | Principle | Meaning | Code |
 |-----------|---------|------|
 | **Postcode-first** | Council, grants, scrape, copy tied to user postcode | `AppContext`, `/api/scrape-sync`, `research_results` |
-| **12k / 1t** | ~12,000 kWh ≈ 1 tonne CO₂e annual baseline for auditor framing | `ULM_KWH_PER_TONNE_CO2E`, `lib/brains/constants.ts` (July 2026 cap **£1,862**) |
+| **12k / 1t** | ~12,000 kWh ≈ 1 tonne CO₂e annual baseline for auditor framing | `ULM_KWH_PER_TONNE_CO2E`, `lib/brains/constants.ts` (October 2026 cap **£1,723**) |
 | **Mechanical truth** | No fake £/kg on wall without Neon stream | `lib/zone/mechanicalTruth.ts`, `buildZoneViewModel` |
 | **Mechanical pulse UI** | Yellow `#FDFD00`, pink `#FF00FF`, purple `#7800ce`; no drop shadows | `app/globals.css`, `lib/journeyColors.ts` |
 | **Use less, more** | Max 2 cards/category on wall; 24 bento cells; 3 discovery injects/journey | `lib/zone/ulmLimits.ts`, `perCategoryCardCap` |
@@ -1427,7 +1427,7 @@ Use this table when testing: **if X on screen, data must come from Y**.
 
 **Grid carbon:** Electricity kg uses NESO regional intensity (`gridCarbonContextForPostcode`) or live pulse when available.
 
-**Constants:** July 2026 price cap typical **£1,862**; ~**12,000 kWh ≈ 1 tonne CO₂e** framing — `lib/brains/constants.ts`.
+**Constants:** October 2026 price cap typical **£1,723**; ~**12,000 kWh ≈ 1 tonne CO₂e** framing — `lib/brains/constants.ts`.
 
 ##### 5.3 Questions that do NOT change calculator £ (scrape + genome only)
 
@@ -5636,7 +5636,7 @@ flowchart TB
    - `ukInfrastructure` — carbon, generation mix, EA water sample, Defra AQI sample
    - `octopusMarket` — product count + Agile half-hourly slots (electric / mixed only)
    - Postcode-local grid via `nesoGridClient`
-   - July 2026 **reference** cap (£1,862 typical dual-fuel) from `lib/brains/constants` (`TRUTH_2026_JULY`); unit p/kWh from same module (not invented from Octopus alone)
+   - October 2026 **reference** cap (£1,723 typical dual-fuel) from `lib/brains/constants` (`TRUTH_2026_JULY`); unit p/kWh from same module (not invented from Octopus alone)
 4. **Gemini / Firecrawl:** `formatUtilitiesPublicFeedBlock()` is prepended in `runTriggerResearchForCategory` via `buildUtilitiesResearchContext` — lane lock forbids re-asking power type.
 
 ##### Other journeys

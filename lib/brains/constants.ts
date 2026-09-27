@@ -1,15 +1,15 @@
 /**
- * **July 2026 hard-lock (v6.5 auditor)** — display and Sentinel truth strings use:
- * Electricity **24.67p/kWh**, gas **5.74p/kWh**, typical cap **£1,862** (`TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP`).
+ * **October 2026 hard-lock (v6.5 auditor)** — display and Sentinel truth strings use:
+ * Electricity **24.67p/kWh**, gas **5.74p/kWh**, typical cap **£1,723** (`TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP`).
  * April 2026 cap **£1,641** remains in `TRUTH_2026_MARCH` for cap-step / policy narratives only.
  * Unit £/kWh for calculators: `MARCH_2026_ECONOMY` (locked to reference rates).
  *
  * Live DB-backed rates: `lib/brains/liveUnitRates.ts` — not imported here (keeps client bundles free of `pg`).
  */
 
-/** Current Ofgem typical dual-fuel cap — July 2026 window. */
+/** Current Ofgem typical dual-fuel cap — October 2026 window (1 Oct–31 Dec 2026). */
 export const TRUTH_2026_JULY = {
-  PRICE_CAP_TYPICAL_GBP: 1862,
+  PRICE_CAP_TYPICAL_GBP: 1723,
 } as const
 
 /**
@@ -72,7 +72,7 @@ export const MARCH_2026_ECONOMY = {
 export const PRICE_CAP_MARCH_2026 = 1758
 /** April 2026 cap — historical reference for policy-step copy. */
 export const PRICE_CAP_APRIL_2026 = TRUTH_2026_MARCH.APRIL_PRICE_CAP_TYPICAL_GBP
-/** July 2026 Ofgem typical dual-fuel cap (£/yr) — current auditor lock. */
+/** October 2026 Ofgem typical dual-fuel cap (£/yr) — current auditor lock. */
 export const PRICE_CAP_JULY_2026 = TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP
 export const TYPICAL_ANNUAL_CAP = PRICE_CAP_JULY_2026
 export const PRICE_CAP_SAVING_APRIL_1 = TRUTH_2026_MARCH.PRICE_CAP_DROP_GBP
@@ -81,12 +81,12 @@ export const PRICE_CAP_SAVING_APRIL_1 = TRUTH_2026_MARCH.PRICE_CAP_DROP_GBP
 export const GREEN_LEVY_SHIFT_APRIL_2026_GBP = TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP
 
 /** Citation for Solo Focus / zone copy tied to Ofgem’s typical household price cap. */
-export const PRICE_CAP_SOURCE_LABEL = 'Ofgem July 2026 Announcement'
+export const PRICE_CAP_SOURCE_LABEL = 'Ofgem October 2026 Announcement'
 export const ELECTRIC_UNIT_RATE = MARCH_2026_ECONOMY.ELEC_UNIT_RATE
 export const GAS_UNIT_RATE = MARCH_2026_ECONOMY.GAS_UNIT_RATE
 export const OCTOPUS_EXPORT_RATE = MARCH_2026_ECONOMY.OCTOPUS_EXPORT_RATE
-/** July 2026 citation label lock. */
-export const PRICE_CAP_SOURCE_LABEL_JULY_2026 = 'Ofgem July 2026 Announcement'
+/** October 2026 citation label lock. */
+export const PRICE_CAP_SOURCE_LABEL_JULY_2026 = 'Ofgem October 2026 Announcement'
 /** April 2026 citation — historical policy-step copy only. */
 export const PRICE_CAP_SOURCE_LABEL_APRIL_2026 = 'Ofgem April 2026 Announcement'
 export const PRICE_CAP_SOURCE_URL =

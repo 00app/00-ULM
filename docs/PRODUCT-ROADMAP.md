@@ -23,7 +23,7 @@ Distilled from the June 2026 product review (`claude/forked-project-review-9naqz
 | Optional house number (EPC) | **Done** — disambiguate register row at postcode | `ProfilePageClient.tsx`, `openEpcClient.ts`, `/api/local-intelligence` |
 | Biggest win card | Surface top journey by `moneyGbp` on primary wall slice | `lib/zone/gridOrder.ts`, ULM 3-card home slice |
 | Faster TTV | Reduce summary dwell; optional skip for returners | `app/profile/summary/page.tsx`, `lib/returningUserGate.ts` |
-| Price constants | **Done** — July 2026 Ofgem cap £1,862 (`TRUTH_2026_JULY`); April £1,641 retained for policy-step copy | `lib/brains/constants.ts` |
+| Price constants | **Done** — October 2026 Ofgem cap £1,723 (`TRUTH_2026_JULY`); April £1,641 retained for policy-step copy | `lib/brains/constants.ts` |
 
 **Exit criteria:** Median time-to-first-Solo-Focus &lt; 3 min; hero shows non-zero £ when profile baseline exists.
 

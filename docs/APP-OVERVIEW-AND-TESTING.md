@@ -177,7 +177,7 @@ Use this table when testing: **if X on screen, data must come from Y**.
 
 **Grid carbon:** Electricity kg uses NESO regional intensity (`gridCarbonContextForPostcode`) or live pulse when available.
 
-**Constants:** July 2026 price cap typical **£1,862**; ~**12,000 kWh ≈ 1 tonne CO₂e** framing — `lib/brains/constants.ts`.
+**Constants:** October 2026 price cap typical **£1,723**; ~**12,000 kWh ≈ 1 tonne CO₂e** framing — `lib/brains/constants.ts`.
 
 ### 5.3 Questions that do NOT change calculator £ (scrape + genome only)
 

@@ -37,8 +37,8 @@ function emptyJourneyAnswers(): Record<JourneyId, Record<string, string>> {
 }
 
 function assertJuly2026CapLock(failures: string[]): void {
-  if (TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP !== 1862) {
-    failures.push(`TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP must be 1862 (got ${TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP})`)
+  if (TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP !== 1723) {
+    failures.push(`TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP must be 1723 (got ${TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP})`)
   }
 }
 

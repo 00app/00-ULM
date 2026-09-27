@@ -60,7 +60,7 @@ flowchart TB
    - `ukInfrastructure` — carbon, generation mix, EA water sample, Defra AQI sample
    - `octopusMarket` — product count + Agile half-hourly slots (electric / mixed only)
    - Postcode-local grid via `nesoGridClient`
-   - July 2026 **reference** cap (£1,862 typical dual-fuel) from `lib/brains/constants` (`TRUTH_2026_JULY`); unit p/kWh from same module (not invented from Octopus alone)
+   - October 2026 **reference** cap (£1,723 typical dual-fuel) from `lib/brains/constants` (`TRUTH_2026_JULY`); unit p/kWh from same module (not invented from Octopus alone)
 4. **Gemini / Firecrawl:** `formatUtilitiesPublicFeedBlock()` is prepended in `runTriggerResearchForCategory` via `buildUtilitiesResearchContext` — lane lock forbids re-asking power type.
 
 ### Other journeys
