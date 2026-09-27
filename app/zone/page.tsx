@@ -3714,7 +3714,15 @@ export default function ZonePage({
           const gasProvider = ja.home?.gas_provider || ja.home?.energy_provider
           const hasGreenTariff = ja.home?.green_tariff === 'YES'
           const isOctopus = electricityProvider === 'OCTOPUS' || gasProvider === 'OCTOPUS'
-          const tipNeedsSwitching = tip.journey_key === 'home' && !isOctopus && !hasGreenTariff
+          // Rock habit tips (`rock-<slug>`, curated from `lib/rock/habitsCatalog.ts`) are static,
+          // topic-specific informational content that only ever carries a `learn_url` — none of
+          // them are a "switch supplier" action, even when their journey_key is 'home' (e.g.
+          // loft-hatch-seal). This flag drives the CTA label/URL toward a supplier-switch handoff,
+          // so it must never fire just because the user's provider/tariff looks switchable; it's
+          // only meaningful for a genuine home-journey switching tip (discovery/achievement/
+          // injected), never for a curated Rock tip. Live-audited: loft-hatch-seal was rendering a
+          // "SWITCH" CTA for any non-Octopus, non-green-tariff household.
+          const tipNeedsSwitching = !isRockTip && tip.journey_key === 'home' && !isOctopus && !hasGreenTariff
           const tipCov = researchCategoryCoverage?.[tip.journey_key]
           // tipCov is the CATEGORY-level cached research row — the same one the main journey
           // card for tip.journey_key renders from. It's the right "verified" override for a

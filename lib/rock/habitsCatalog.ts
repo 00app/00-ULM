@@ -2,8 +2,11 @@
  * The Rock — 68 habits (10 journey categories × balanced mix, money + utilities reinforced)
  * for a 30-day × 2 tips/day trickle.
  *
- * `money_gbp` / `carbon_kg` are indicative annual figures, rounded for UX — anchored to April 2026
- * narrative in `lib/brains/constants.ts` (`MARCH_2026_ECONOMY` unit rates, `TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP`, grid intensity 129 g/kWh).
+ * `money_gbp` / `carbon_kg` are indicative annual figures, rounded for UX, anchored to the current
+ * unit rates and price cap in `lib/brains/constants.ts` (`MARCH_2026_ECONOMY` unit rates,
+ * `TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP`, grid intensity 129 g/kWh). Deliberately no month/year is
+ * named here or in the insight text below, so this note and the tips do not go stale every time the
+ * cap updates; refresh the figures (not this comment) when `lib/brains/constants.ts` moves.
  *
  * `impact_tag` ('money' | 'carbon' | 'both') is the explicit goal-fit tag — prefer it over inferring
  * from money_gbp/carbon_kg being zero/non-zero, which breaks for tips like pension-esg (carbon-only,
@@ -139,7 +142,7 @@ export const ROCK_HABITS: RockHabit[] = [
     slug: 'led-everywhere',
     journey_key: 'carbon',
     title: 'LED everywhere',
-    insight: 'Replace any remaining halogens with LED. Instant payback on April 2026 rates.',
+    insight: 'Replace any remaining halogens with LED. Instant payback on current electricity rates.',
     money_gbp: 40,
     carbon_kg: 25,
     provider_name: 'Philips',
@@ -435,7 +438,7 @@ export const ROCK_HABITS: RockHabit[] = [
     slug: 'ev-off-peak',
     journey_key: 'carbon',
     title: 'EV off-peak charge',
-    insight: 'Charge EV on overnight or off-peak tariffs after April cap shifts.',
+    insight: 'Charge EV on overnight or off-peak tariffs to beat the standard rate whenever the price cap shifts.',
     money_gbp: 220,
     carbon_kg: 100,
     provider_name: 'Octopus',
@@ -469,8 +472,8 @@ export const ROCK_HABITS: RockHabit[] = [
   {
     slug: 'tariff-compare',
     journey_key: 'money',
-    title: 'compare every april',
-    insight: 'Re-compare tariffs when the cap updates. Loyalty rarely wins.',
+    title: 'compare every cap update',
+    insight: 'Re-compare tariffs whenever the price cap updates. Loyalty rarely wins.',
     money_gbp: 180,
     carbon_kg: 40,
     provider_name: 'MoneySavingExpert',
