@@ -568,7 +568,7 @@ export function JourneyBentoCard({
       verifiedAuditMatchesJourney && verifiedAuditSourceUrl?.trim().startsWith('http')
         ? verifiedAuditSourceUrl.trim()
         : covSourceHttp,
-    buildZaiUrl: () => (allowZaiFallback ? buildZaiAuditUrl() : ''),
+    buildZaiUrl: () => (allowZaiFallback && isZaiChatEnabled() ? buildZaiAuditUrl() : ''),
   })
   const resolvedOfferUrl = soloHandoff.ctaUrl
   const ctaActionTypeRaw =

@@ -1014,6 +1014,22 @@ p,
   stroke: var(--color-blue) !important;
 }
 
+.solo-focus-journey-nav__btn {
+  transition: var(--transition-interactive);
+}
+
+@media (hover: hover) {
+  .solo-focus-journey-nav__btn:hover {
+    transform: translateY(var(--lift-1)) scale(var(--hover-scale));
+  }
+}
+
+.solo-focus-journey-nav__btn:active {
+  transform: scale(var(--press-scale));
+  opacity: 0.6;
+  transition-duration: var(--dur-press);
+}
+
 .card-purple { background: var(--color-purple); color: var(--color-blue);
 }
 
@@ -8506,6 +8522,15 @@ h1:not(#v2), h2:not(#v2), h3:not(#v2),
   color: inherit !important;
   -webkit-text-fill-color: currentColor !important;
 }
+
+/* Trinity hierarchy: the handoff CTA (BUY/SWITCH/CLAIM) is the primary action — solid fill.
+   Like/dislike stay the white "secondary" circle-btn default. */
+.solo-focus-trinity-cta:not(#v2) {
+  background: var(--blue) !important;
+  background-color: var(--blue) !important;
+  color: var(--white) !important;
+}
+
 @media (hover: hover) {
 .profile-answer-btn:not(#v2):hover:not(:disabled):not([aria-busy='true']):not(.zz-cta-burst),
 .circle-btn:not(#v2):hover:not(:disabled):not([aria-busy='true']):not(.zz-cta-burst),

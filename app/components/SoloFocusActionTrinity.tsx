@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { IndustrialHandoffButton } from '@/app/components/ui/Buttons'
+import { HeartOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 import {
   FAMILY_ATOMIC_SURFACE_ANIMATE,
@@ -50,17 +51,6 @@ export function SoloFocusActionTrinity({
       animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
       transition={FAMILY_TRANSITION_ATOMIC}
     >
-      {ctaUrl ? (
-        <IndustrialHandoffButton
-          url={ctaUrl}
-          journeyId={journeyId}
-          moneyValue={moneyGbp}
-          ctaLabel={ctaLabel}
-          surface={ctaSurface === 'yellow' ? 'yellow' : 'pink'}
-          className="solo-focus-trinity-cta"
-          onHandoffClick={onCtaClick}
-        />
-      ) : null}
       {showLike && onLike ? (
         <motion.button
           type="button"
@@ -73,10 +63,19 @@ export function SoloFocusActionTrinity({
             color: isLiked ? 'var(--brand-select-fg)' : 'var(--color-blue)',
           }}
         >
-          <span className="circle-btn-label-stack" aria-hidden="true">
-            <span>like</span>
-          </span>
+          <HeartOutlineIcon size={28} style={{ fill: isLiked ? 'currentColor' : 'none' }} />
         </motion.button>
+      ) : null}
+      {ctaUrl ? (
+        <IndustrialHandoffButton
+          url={ctaUrl}
+          journeyId={journeyId}
+          moneyValue={moneyGbp}
+          ctaLabel={ctaLabel}
+          surface={ctaSurface === 'yellow' ? 'yellow' : 'pink'}
+          className="solo-focus-trinity-cta"
+          onHandoffClick={onCtaClick}
+        />
       ) : null}
       {showAskZai && onAskZai ? (
         <motion.button

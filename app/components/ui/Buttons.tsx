@@ -250,7 +250,6 @@ export function IndustrialHandoffButton({
         fontWeight: 800,
         fontSize: 16,
         lineHeight: 0.8,
-        boxShadow: 'none',
       }}
     >
       <span className="circle-btn-label-stack" aria-hidden="true">
