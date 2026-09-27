@@ -1468,7 +1468,7 @@ function padRockHeadlineToExpandedBounds(
   const prePadded =
     rawWords.length < MIN_EXPANDED_VIEW_HEADLINE_WORDS && journeyHook
       ? trimHeadlineToMaxWords(
-          `${combined} ${journeyHook}`,
+          `${stripHeadlineTerminalPunctuation(combined)}. ${journeyHook}`,
           MAX_EXPANDED_VIEW_HEADLINE_WORDS,
           MIN_EXPANDED_VIEW_HEADLINE_WORDS
         )

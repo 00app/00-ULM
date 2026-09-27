@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import { CANONICAL_SITE_URL, getSiteUrl } from '@/lib/site'
 
 const siteName = 'Zero Zero'
-const defaultTitle = 'Zero Zero — save money and cut carbon at home'
+const defaultTitle = 'Zero Zero: save money and cut carbon at home'
 const defaultDescription =
-  'UK postcode-driven energy and lifestyle audit. Practical tips, verified offers, and Solo Focus actions to cut bills and household CO₂ — built for April 2026 tariffs and local grants.'
+  'UK postcode-driven energy and lifestyle audit. Practical tips, verified offers, and Solo Focus actions to cut bills and household CO₂, built for current Ofgem tariffs and local grants.'
 
 const ogImagePath = '/assets/00%20brand%20mark%20yellow.svg'
 
@@ -55,7 +55,7 @@ export function buildSiteMetadata(): Metadata {
       images: [
         {
           url: ogImageUrl,
-          alt: 'Zero Zero — save money and cut carbon',
+          alt: 'Zero Zero: save money and cut carbon',
         },
       ],
     },
