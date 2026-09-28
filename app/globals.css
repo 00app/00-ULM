@@ -1861,6 +1861,34 @@ select,
   cursor: default;
 }
 
+/* Rollover strip: the win row wasn't reading as clickable — invert to a white strip behind
+   blue text on hover/focus so the affordance is obvious, matching the site's hover language. */
+.zone-hero-win-cta:not(:disabled) {
+  padding: 4px 8px;
+  margin: 0 -8px;
+  border-radius: 4px;
+  transition: background-color var(--dur-colour) var(--ease-out), color var(--dur-colour) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .zone-hero-win-cta:not(:disabled):hover {
+    background-color: var(--color-white);
+    color: var(--color-blue);
+  }
+}
+
+.zone-hero-win-cta:not(:disabled):focus-visible {
+  background-color: var(--color-white);
+  color: var(--color-blue);
+}
+
+.zone-hero-win-arrow {
+  display: inline-block;
+  vertical-align: -0.1em;
+  margin-inline-start: 0.15em;
+  flex-shrink: 0;
+}
+
 /* Empty win slot ("it needed more info") — same rhythm as a real win line, dimmed and inert. */
 .zone-hero-profile-lead--empty {
   opacity: 0.6;

@@ -66,6 +66,7 @@ import {
 import { isLibraryActionCardId } from '@/lib/actions/actionLibrary'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
+import { OpenNEOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { ROUTES } from '@/lib/routes'
 import { isZaiChatEnabled } from '@/lib/featureFlags'
 import { useCountUp } from '@/lib/utils/useCountUp'
@@ -3112,6 +3113,7 @@ export default function ZonePage({
                                   lang="en"
                                 >
                                   {slot.line}
+                                  <OpenNEOutlineIcon size={16} className="zone-hero-win-arrow" />
                                 </h3>
                               </button>
                             </React.Fragment>
