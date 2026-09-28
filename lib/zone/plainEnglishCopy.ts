@@ -46,7 +46,19 @@ function sentenceCaseHeadline(text: string): string {
     .join('')
 }
 
-/** Headlines / short stamps (Marvin — often uppercased upstream). */
+/**
+ * Belt-and-suspenders against em/en dashes reaching the page: the house style (see
+ * ULM_LEAD_AUDITOR_SYSTEM) only steers *new* Gemini generations, so a Neon row saved before
+ * that rule existed can still carry one. Splits into two sentences at the dash rather than
+ * just deleting it, capitalizing the continuation when it starts lowercase.
+ */
+function stripEmDash(text: string): string {
+  return text
+    .replace(/\s*[—–]\s+([a-z])/g, (_m, letter: string) => `. ${letter.toUpperCase()}`)
+    .replace(/\s*[—–]\s*/g, '. ')
+}
+
+/** Headlines / short stamps (Marvin, often uppercased upstream). */
 export function humanizeZoneHeadline(text: string, journeyId?: JourneyId | string | null): string {
   let t = text.replace(/\s+/g, ' ').trim()
   if (!t) return t
@@ -92,10 +104,10 @@ export function humanizeZoneHeadline(text: string, journeyId?: JourneyId | strin
     t = sentenceCaseHeadline(t)
   }
 
-  return t
+  return stripEmDash(t)
 }
 
-/** Body / architect prose — sentence case, full scheme names where needed. */
+/** Body / architect prose: sentence case, full scheme names where needed. */
 export function humanizeZoneProse(text: string, journeyId?: JourneyId | string | null): string {
   let t = text.replace(/\s+/g, ' ').trim()
   if (!t) return t
@@ -128,7 +140,7 @@ export function humanizeZoneProse(text: string, journeyId?: JourneyId | string |
     t = t.replace(/\bBUS\b/g, 'bus')
   }
 
-  return t.replace(/\s+/g, ' ').trim()
+  return stripEmDash(t.replace(/\s+/g, ' ').trim())
 }
 
 /** Stable variant index — same seed → same line; different seeds rotate lead vs closer independently. */

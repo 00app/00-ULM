@@ -766,7 +766,20 @@ export function resolveRockHabitDisplayProse(args: {
   }
 }
 
-export function resolveSoloFocusDisplayProse(args: {
+/**
+ * Belt-and-suspenders against em/en dashes reaching the page: the house style bans them (see
+ * ULM_LEAD_AUDITOR_SYSTEM), but that only steers *new* Gemini generations — a Neon row saved
+ * before that rule existed, or any other stale content, can still carry one. Splits into two
+ * sentences at the dash instead of just deleting it, capitalizing the continuation when it
+ * starts lowercase (the common "clause — continuation" shape).
+ */
+function stripEmDashes(text: string): string {
+  return text
+    .replace(/\s*[—–]\s+([a-z])/g, (_m, letter: string) => `. ${letter.toUpperCase()}`)
+    .replace(/\s*[—–]\s*/g, '. ')
+}
+
+function resolveSoloFocusDisplayProseRaw(args: {
   headline: string
   insightSource: string
   journeyId: string
@@ -898,6 +911,16 @@ export function resolveSoloFocusDisplayProse(args: {
     }
   }
   return { lead: finalizeSoloFocusLead(detection, detection), body: null }
+}
+
+export function resolveSoloFocusDisplayProse(
+  args: Parameters<typeof resolveSoloFocusDisplayProseRaw>[0]
+): { lead: string; body: string | null } {
+  const { lead, body } = resolveSoloFocusDisplayProseRaw(args)
+  return {
+    lead: lead ? stripEmDashes(lead) : lead,
+    body: body ? stripEmDashes(body) : body,
+  }
 }
 
 /** Content-architect imperative — not a third prose block when audit copy is complete. */

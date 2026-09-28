@@ -1861,25 +1861,38 @@ select,
   cursor: default;
 }
 
-/* Rollover strip: the win row wasn't reading as clickable — invert to a white strip behind
-   blue text on hover/focus so the affordance is obvious, matching the site's hover language. */
+/* Rollover strip: the win row wasn't reading as clickable, so invert to a white strip behind
+   blue text on hover/focus, matching the site's hover language. */
 .zone-hero-win-cta:not(:disabled) {
-  padding: 4px 8px;
+  padding: 10% 8px;
   margin: 0 -8px;
   border-radius: 4px;
   transition: background-color var(--dur-colour) var(--ease-out), color var(--dur-colour) var(--ease-out);
 }
 
+/* h3.zone-hero-profile-lead has its own `color: var(--journey-text) !important` lock (line
+   ~7794) that otherwise wins over this button's color regardless of the parent's hover state —
+   the :not(#v2) bump matches the same escape-hatch specificity trick used elsewhere in this
+   file so the rollover text actually goes blue instead of staying invisible white-on-white. */
 @media (hover: hover) {
   .zone-hero-win-cta:not(:disabled):hover {
     background-color: var(--color-white);
     color: var(--color-blue);
+  }
+  .zone-hero-win-cta:not(:disabled):hover h3.zone-hero-profile-lead:not(#v2) {
+    color: var(--color-blue) !important;
+    -webkit-text-fill-color: var(--color-blue) !important;
   }
 }
 
 .zone-hero-win-cta:not(:disabled):focus-visible {
   background-color: var(--color-white);
   color: var(--color-blue);
+}
+
+.zone-hero-win-cta:not(:disabled):focus-visible h3.zone-hero-profile-lead:not(#v2) {
+  color: var(--color-blue) !important;
+  -webkit-text-fill-color: var(--color-blue) !important;
 }
 
 .zone-hero-win-arrow {
