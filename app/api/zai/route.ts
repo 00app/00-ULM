@@ -41,6 +41,7 @@ import { buildUserImpact } from '@/lib/brains/buildUserImpact'
 import type { ImpactProfile } from '@/lib/brains/types'
 import { resolveLiveUnitRatesForPostcode } from '@/lib/brains/liveEconomy'
 import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
+import { isZaiChatEnabled } from '@/lib/featureFlags'
 import {
   getZaiDeclineForQuestion,
   lacksGroundedZaiContext,
@@ -366,6 +367,10 @@ export async function POST(req: NextRequest) {
         postcode: pcRow?.postcode?.replace(/\s+/g, '').trim() ?? null,
       })
       return NextResponse.json({ win })
+    }
+
+    if (!isZaiChatEnabled()) {
+      return NextResponse.json({ answer: "chat isn't available right now." }, { status: 404 })
     }
 
     const authDenied = await requireAiRouteAuth(req)
@@ -930,6 +935,9 @@ export async function POST(req: NextRequest) {
 
 /** GET — restore the persisted transcript for this session/user so a reload doesn't lose it. */
 export async function GET(req: NextRequest) {
+  if (!isZaiChatEnabled()) {
+    return NextResponse.json({ messages: [] })
+  }
   try {
     const session = await getSessionFromRequest()
     const chatSessionKey =

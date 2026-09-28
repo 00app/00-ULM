@@ -1,5 +1,5 @@
 /**
- * Utilities category lane — no drift into grants/home onboarding questions.
+ * Utilities category lane — no drift into home onboarding questions.
  */
 
 import type { JourneyId } from '@/lib/journeys'
@@ -13,7 +13,7 @@ import {
 export const UTILITIES_PROFILE_POWER_RULE = `
 UTILITIES LANE (mandatory when current_domain is utilities):
 - **home_power** (GAS / ELECTRIC / MIX / OTHER) is captured on **/profile** only — never re-ask in Solo Focus or architect prose as if unknown.
-- Triplet category must stay **utilities** for tariff, supplier switch, standing charges, and dual-fuel mechanics — not **grants** unless the primary CTA is a discrete scheme application (then use grants).
+- Triplet category must stay **utilities** for tariff, supplier switch, standing charges, and dual-fuel mechanics, not **home** even when the primary CTA is a discrete scheme application (grant-funded home efficiency work is **home**, never its own category).
 - Do not use **home** for supplier switching; do not use **bills** when the lead is explicitly utilities journey (use **bills** only for generic finance-tariff rows outside the utilities tile).
 - Ground £/yr only from scraped markdown or reference cap constants — never fabricate switch savings.
 `.trim()

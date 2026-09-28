@@ -12,6 +12,7 @@ import { ensureGuestSessionRow } from '@/lib/zone/ensureGuestSessionRow'
 import { OFFER_SIGNALS, type OfferSignal } from '@/lib/zone/offerSignals'
 import { updateHermesMemoryAfterOfferSignal } from '@/lib/agents/hermes-memory'
 import { captureServerError } from '@/lib/observability/captureError'
+import { isDislikeEnabled } from '@/lib/featureFlags'
 
 export const runtime = 'nodejs'
 
@@ -160,6 +161,9 @@ export async function POST(request: NextRequest) {
 
     if (!card_id || !signal) {
       return NextResponse.json({ error: 'Invalid card_id or signal' }, { status: 400 })
+    }
+    if (signal === 'dislike' && !isDislikeEnabled()) {
+      return NextResponse.json({ error: 'Dislike is not available right now' }, { status: 404 })
     }
 
     const auth = await resolveAuthenticatedUser(request, bodyObj)

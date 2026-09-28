@@ -31,11 +31,10 @@ Affluence auditor (when profile includes employment_status):
 /** Short block appended to research triplet prompts — not raw data, routing rules only. */
 export const GRANTS_AND_BILLS_CATEGORY_PROTOCOL = `
 Category routing (mandatory):
-- Use **grants** when the lead instrument is an official UK scheme, voucher, or regulated subsidy (e.g. BUS / Boiler Upgrade Scheme, ECO4, Warm Home Discount, council retrofit programmes, government apply pages). Government apply URLs and scheme caps belong here even if the measure is installed in the home.
+- Use **home** for fabric, appliances, heating behaviour, insulation actions, and efficiency where the property is the locus, including official UK schemes, vouchers, or regulated subsidies that fund that work (e.g. BUS / Boiler Upgrade Scheme, ECO4, Warm Home Discount, council retrofit programmes, government apply pages). Government apply URLs and scheme caps belong here even though the measure is installed in the home. There is no separate "grants" category: grant-funded home efficiency work is **home**, not its own bucket.
 - Use **bills** when the lead is tariff, standing charge, price-cap timing, supplier switching, or direct-debit optimisation without a discrete grant application path.
-- Use **utilities** when the lead is tariff type, supplier switch, monthly spend band, or dual-fuel mechanics. **home_power** is profile-only — never classify “what powers your home?” copy as utilities if profile already set it.
+- Use **utilities** when the lead is tariff type, supplier switch, monthly spend band, or dual-fuel mechanics. **home_power** is profile-only, never classify "what powers your home?" copy as utilities if profile already set it.
 - Do **not** re-ask power type in utilities architect prose when home_power is present in household context.
-- Use **home** for fabric, appliances, heating behaviour, insulation actions, and non-grant efficiency where the property is the locus.
 - Use **money** for banking, budgeting, debt, and generic household finance not dominated by energy tariff mechanics.
-- If unsure between grants and home, prefer **grants** when GOV.UK / Ofgem / council scheme eligibility is the primary call to action.
+- If unsure between a grant scheme and general home efficiency, use **home** either way, both are the same category here.
 `.trim()
