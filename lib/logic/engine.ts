@@ -35,7 +35,7 @@ export const ENGINE_PRICE_CAP_TYPICAL_GBP = TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GB
 
 /** Zone hero + settings — profile/journey-answer waste (not “potential”; that’s Zone welcome). */
 export const ENGINE_UI_LABELS = {
-  profileWasteMoney: 'Waste',
+  profileWasteMoney: 'Save',
   profileWasteCarbon: 'Carbon',
   /** Zone tip / discovery cards — per-journey savings (not profile waste totals). */
   potentialSavings: 'Save',

@@ -1,24 +1,9 @@
 import type { ZoneJourneyCard, ZoneTipCard } from '@/lib/logic/zone'
 import type { GroovyGridCell } from '@/lib/zone/gridOrder'
 import type { RockHabit } from '@/lib/rock/types'
+import { getUkSeason } from '@/lib/zone/seasonHint'
 import { clampRockTipHeadline, normalizeCardHeadlineKey, resolveZoneGridTipHeadline } from '@/lib/soloFocusCopy'
 import { journeyKeyFromTip } from '@/lib/zone/perCategoryCardCap'
-
-export type HeroLeadWinRow = {
-  kind: 'win'
-  line: string
-  journey: ZoneJourneyCard | null
-}
-
-export type HeroLeadTipRow = {
-  kind: 'tip'
-  line: string
-  headline: string
-  tip: ZoneTipCard | null
-  journeyCell: ZoneJourneyCard | null
-  /** When set, opens Rock Solo Focus (`rock-{slug}`). */
-  rockSlug?: string
-}
 
 export type RockLeadTipRow = {
   kind: 'rock'
@@ -28,8 +13,6 @@ export type RockLeadTipRow = {
   slug: string
 }
 
-export type HeroLeadRow = HeroLeadWinRow | HeroLeadTipRow
-
 const ROCK_TIP_LEAD_LABELS = ['Biggest tip', 'Next tip'] as const
 
 /** Rock rail — numbered tip labels below the hero. */
@@ -38,34 +21,8 @@ export function formatRockTipLeadLabel(index: number, headline: string): string 
   return `${label}: ${headline}`
 }
 
-/** Profile hero — single tip-of-the-day line. */
-export function formatTipOfDayLabel(headline: string): string {
-  return `Tip of the day: ${headline}`
-}
-
-export function collectTipHeadlineKeys(rows: readonly HeroLeadRow[]): Set<string> {
-  const keys = new Set<string>()
-  for (const row of rows) {
-    if (row.kind !== 'tip') continue
-    const key = normalizeCardHeadlineKey(row.headline)
-    if (key) keys.add(key)
-  }
-  return keys
-}
-
 function parseTipMoneyGbp(tip: ZoneTipCard): number {
   return parseFloat(tip.data?.money?.replace(/[^\d.]/g, '') || '0') || 0
-}
-
-/** Profile hero — best category + £/yr on one line. */
-export function buildHeroWinLine(category: string, moneyGbp?: number | null): string {
-  const cat = category.trim().toLowerCase()
-  if (!cat) return 'Biggest win: check your stats'
-  if (moneyGbp != null && moneyGbp > 0) {
-    const figure = Math.round(moneyGbp).toLocaleString('en-GB')
-    return `Biggest win: ${cat} · £${figure}/yr`
-  }
-  return `Biggest win: ${cat}`
 }
 
 function journeyCellForTip(
@@ -80,25 +37,29 @@ function journeyCellForTip(
   return cell?.item ?? null
 }
 
-/** Best single tip for profile hero — Rock catalog first, then grid discovery; skips wall duplicates. */
-export function pickHeroTipOfDay(args: {
+type HeroWinCandidate = {
+  headline: string
+  money: number
+  tip: ZoneTipCard | null
+  journeyCell: ZoneJourneyCard | null
+  rockSlug?: string
+  /** Rock habits are the small, "trickle" catalog by design — the effort-proxy for "Quick win". */
+  isRockHabit: boolean
+  seasons?: RockHabit['seasons']
+}
+
+/** Same candidate pool the hero used to pick its single tip-of-the-day from — Rock catalog +
+ *  grid discovery tips, deduped by headline, skipping whatever's already the wall's own title. */
+function gatherHeroWinCandidates(args: {
   gridCells: GroovyGridCell[]
   rockHabits?: RockHabit[]
   primaryJourneyWallTitle?: string | null
-}): HeroLeadTipRow | null {
+}): HeroWinCandidate[] {
   const wallKey = args.primaryJourneyWallTitle
     ? normalizeCardHeadlineKey(args.primaryJourneyWallTitle)
     : ''
   const seenHeadlines = new Set<string>()
-
-  type Candidate = {
-    headline: string
-    money: number
-    tip: ZoneTipCard | null
-    journeyCell: ZoneJourneyCard | null
-    rockSlug?: string
-  }
-  const candidates: Candidate[] = []
+  const candidates: HeroWinCandidate[] = []
 
   for (const h of args.rockHabits ?? []) {
     const headline = clampRockTipHeadline(h.title)
@@ -112,6 +73,8 @@ export function pickHeroTipOfDay(args: {
       tip: null,
       journeyCell: null,
       rockSlug: h.slug,
+      isRockHabit: true,
+      seasons: h.seasons,
     })
   }
 
@@ -129,21 +92,86 @@ export function pickHeroTipOfDay(args: {
       money: parseTipMoneyGbp(tip),
       tip,
       journeyCell,
+      isRockHabit: false,
     })
   }
 
-  if (candidates.length === 0) return null
-  candidates.sort((a, b) => b.money - a.money)
-  const best = candidates[0]
-  return {
-    kind: 'tip',
-    line: formatTipOfDayLabel(best.headline),
-    headline: best.headline,
-    tip: best.tip,
-    journeyCell: best.journeyCell,
-    rockSlug: best.rockSlug,
-  }
+  return candidates
 }
+
+export type HeroWinSlotLabel = 'Quick win' | 'Big win' | 'Do now'
+
+export type HeroWinSlot = {
+  kind: 'win-slot'
+  label: HeroWinSlotLabel
+  /** null when there wasn't a distinct candidate left for this slot ("it needed more info"). */
+  line: string | null
+  headline: string | null
+  tip: ZoneTipCard | null
+  journeyCell: ZoneJourneyCard | null
+  rockSlug?: string
+}
+
+const HERO_NEEDS_INFO_LINE = 'It needed more info.'
+
+function formatWinSlotLine(label: HeroWinSlotLabel, headline: string): string {
+  return `${label}: ${headline}`
+}
+
+/** Profile hero — top 3 wins. Quick win favours the small Rock catalog habits (the
+ *  low-effort "trickle" content by design); Big win is the single highest £ candidate;
+ *  Do now prefers whatever's in-season right now, falling back to the next best candidate.
+ *  A slot with no distinct candidate left renders the "needed more info" state instead of
+ *  reusing another slot's pick. */
+export function buildTopThreeWinRows(args: {
+  gridCells: GroovyGridCell[]
+  primaryJourney: ZoneJourneyCard | null
+  rockHabits?: RockHabit[]
+}): HeroWinSlot[] {
+  const wallTitle = args.primaryJourney?.title ?? null
+  const pool = gatherHeroWinCandidates({
+    gridCells: args.gridCells,
+    rockHabits: args.rockHabits,
+    primaryJourneyWallTitle: wallTitle,
+  }).sort((a, b) => b.money - a.money)
+
+  const used = new Set<string>()
+  const take = (predicate?: (c: HeroWinCandidate) => boolean): HeroWinCandidate | null => {
+    const found = pool.find((c) => !used.has(c.headline) && (!predicate || predicate(c)))
+    if (found) used.add(found.headline)
+    return found ?? null
+  }
+
+  const quick = take((c) => c.isRockHabit)
+  const big = take()
+  const season = getUkSeason()
+  const doNow =
+    take((c) => c.isRockHabit && !!c.seasons?.includes(season)) ?? take()
+
+  const toSlot = (label: HeroWinSlotLabel, c: HeroWinCandidate | null): HeroWinSlot =>
+    c
+      ? {
+          kind: 'win-slot',
+          label,
+          line: formatWinSlotLine(label, c.headline),
+          headline: c.headline,
+          tip: c.tip,
+          journeyCell: c.journeyCell,
+          rockSlug: c.rockSlug,
+        }
+      : {
+          kind: 'win-slot',
+          label,
+          line: null,
+          headline: null,
+          tip: null,
+          journeyCell: null,
+        }
+
+  return [toSlot('Quick win', quick), toSlot('Big win', big), toSlot('Do now', doNow)]
+}
+
+export { HERO_NEEDS_INFO_LINE }
 
 /** Today's Tips — same labels + dedupe against hero/grid headlines; opens rock Solo Focus. */
 export function pickRockLeadTips(args: {
@@ -180,29 +208,3 @@ export function pickRockLeadTips(args: {
   })
 }
 
-export function buildHeroLeadRows(args: {
-  gridCells: GroovyGridCell[]
-  primaryJourney: ZoneJourneyCard | null
-  categoryLabel: string
-  rockHabits?: RockHabit[]
-}): HeroLeadRow[] {
-  const wallTitle = args.primaryJourney?.title ?? null
-  const rows: HeroLeadRow[] = []
-
-  const tip = pickHeroTipOfDay({
-    gridCells: args.gridCells,
-    rockHabits: args.rockHabits,
-    primaryJourneyWallTitle: wallTitle,
-  })
-  if (tip) rows.push(tip)
-
-  rows.push({
-    kind: 'win',
-    line: args.primaryJourney
-      ? buildHeroWinLine(args.categoryLabel, args.primaryJourney.moneyGbp)
-      : 'Biggest win: check your stats',
-    journey: args.primaryJourney,
-  })
-
-  return rows
-}

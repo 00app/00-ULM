@@ -1861,6 +1861,27 @@ select,
   cursor: default;
 }
 
+/* Empty win slot ("it needed more info") — same rhythm as a real win line, dimmed and inert. */
+.zone-hero-profile-lead--empty {
+  opacity: 0.6;
+}
+
+/* Hairline divider between the top-3-wins list and the SAVE/CARBON stat grid. */
+.zone-hero-metrics-hairline {
+  display: block;
+  width: 100%;
+  height: 1px;
+  margin: clamp(10px, 2.5cqw, 16px) 0 0;
+  background: currentColor;
+  opacity: 0.25;
+  flex-shrink: 0;
+}
+
+.zone-hero-metrics-label {
+  display: block;
+  margin-top: clamp(6px, 1.5cqw, 10px);
+}
+
 .zone-rock-signup-wrap .rock-tip-liked-disc,
 .rock-saving-tips-section .rock-tip-liked-disc {
   display: inline-flex;

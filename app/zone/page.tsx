@@ -149,7 +149,7 @@ import {
   zoneCardHeadlineFromRaw,
 } from '@/lib/soloFocusCopy'
 import { dedupeZoneTipCards } from '@/lib/zone/injections'
-import { buildHeroLeadRows } from '@/lib/zone/heroLeadLines'
+import { buildTopThreeWinRows, HERO_NEEDS_INFO_LINE } from '@/lib/zone/heroLeadLines'
 import {
   capDiscoveryTipsForGrid,
   capTipsPerJourney,
@@ -2948,14 +2948,11 @@ export default function ZonePage({
     if (!leadKey) return null
     return viewModel.journeys.find((j) => j.journey_key === leadKey) ?? null
   }, [viewModel.journeys, viewModel.hero.journey_key])
-  const heroLeadRows = useMemo(
+  const heroWinSlots = useMemo(
     () =>
-      buildHeroLeadRows({
+      buildTopThreeWinRows({
         gridCells: groovyItems,
         primaryJourney: primaryHeroJourney,
-        categoryLabel: primaryHeroJourney
-          ? formatZoneCategoryLabel(primaryHeroJourney.journey_key)
-          : '',
         rockHabits: rockHabitsWithOffers,
       }),
     [groovyItems, primaryHeroJourney, rockHabitsWithOffers]
@@ -3075,60 +3072,42 @@ export default function ZonePage({
                         >
                           <ZoneBentoCardHeader journeyId="profile" label="YOUR PROFILE" />
                         </Link>
-                        {heroLeadRows.map((row) => {
-                          if (row.kind === 'tip') {
+                        {heroWinSlots.map((slot) => {
+                          if (!slot.line) {
                             return (
-                              <button
-                                key={row.rockSlug ? `rock-${row.rockSlug}` : row.tip?.id ?? 'hero-tip'}
-                                type="button"
-                                className="zone-hero-win-cta"
-                                disabled={!zoneInteractable}
-                                aria-label={`Open tip: ${row.headline}`}
-                                onClick={() => {
-                                  if (row.rockSlug) openRockTip(`rock-${row.rockSlug}`)
-                                  else if (row.tip) openZoneGridTip(row.tip, row.journeyCell)
-                                }}
+                              <h3
+                                key={`hero-win-${slot.label}`}
+                                className="zone-hero-profile-lead zone-hero-profile-lead--empty zz-h3 m-0 min-w-0"
+                                lang="en"
                               >
-                                <h3
-                                  className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
-                                  lang="en"
-                                >
-                                  {row.line}
-                                </h3>
-                              </button>
-                            )
-                          }
-                          if (row.journey) {
-                            const winJourney = row.journey
-                            return (
-                              <button
-                                key="hero-win"
-                                type="button"
-                                className="zone-hero-win-cta"
-                                disabled={!zoneInteractable}
-                                aria-label={`Open ${formatZoneCategoryLabel(winJourney.journey_key)} offer`}
-                                onClick={() => openZoneJourneySoloFocus(winJourney)}
-                              >
-                                <h3
-                                  className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
-                                  lang="en"
-                                >
-                                  {row.line}
-                                </h3>
-                              </button>
+                                {slot.label}: {HERO_NEEDS_INFO_LINE}
+                              </h3>
                             )
                           }
                           return (
-                            <h3
-                              key="hero-win"
-                              className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
-                              lang="en"
+                            <button
+                              key={`hero-win-${slot.label}`}
+                              type="button"
+                              className="zone-hero-win-cta"
+                              disabled={!zoneInteractable}
+                              aria-label={`Open tip: ${slot.headline}`}
+                              onClick={() => {
+                                if (slot.rockSlug) openRockTip(`rock-${slot.rockSlug}`)
+                                else if (slot.tip) openZoneGridTip(slot.tip, slot.journeyCell)
+                              }}
                             >
-                              {row.line}
-                            </h3>
+                              <h3
+                                className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
+                                lang="en"
+                              >
+                                {slot.line}
+                              </h3>
+                            </button>
                           )
                         })}
                       </div>
+                      <span className="zone-hero-metrics-hairline" aria-hidden="true" />
+                      <span className="zone-hero-metrics-label data-label">You could save</span>
                       <div
                         key={`zone-hero-metrics-${Math.round(heroMoney)}-${Math.round(heroCarbon)}`}
                         className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 flex-shrink-0"
