@@ -1,7 +1,7 @@
 /**
- * In-memory rate limit for login attempts.
- * Per-IP and per-email lockout to reduce brute-force risk (OWASP A07).
- * Note: On serverless (e.g. Vercel), each instance has its own map; for strict limits use Redis or similar.
+ * Rate limit for login attempts.
+ * Per-IP (distributed, see checkLoginRateLimit below) and per-email lockout (in-memory) to
+ * reduce brute-force risk (OWASP A07).
  */
 import { checkRateLimitDistributed } from '@/lib/rateLimitDistributed'
 import { checkRateLimitNeon } from '@/lib/rateLimitNeon'
@@ -11,20 +11,7 @@ const MAX_ATTEMPTS_PER_IP = 8
 const MAX_FAILED_PER_EMAIL = 5
 const LOCKOUT_MS = 15 * 60 * 1000 // 15 min lockout after max failed for an email
 
-interface Entry {
-  count: number
-  firstAt: number
-}
-
-const byIp = new Map<string, Entry>()
 const emailFailures = new Map<string, { count: number; lockedUntil: number }>()
-
-function pruneIp(): void {
-  const now = Date.now()
-  for (const [key, entry] of byIp.entries()) {
-    if (now - entry.firstAt > WINDOW_MS) byIp.delete(key)
-  }
-}
 
 function pruneEmail(): void {
   const now = Date.now()
@@ -96,21 +83,27 @@ export async function checkRateLimitAsync(
   return checkRateLimit(key, maxPerWindow, windowSec * 1000)
 }
 
-/** Returns null if allowed; or an error message if rate limited / locked out. */
-export function checkLoginRateLimit(ip: string, email: string): string | null {
-  pruneIp()
+/**
+ * Returns null if allowed; or an error message if rate limited / locked out.
+ * The per-IP volumetric check goes through checkRateLimitAsync (Upstash, then a Neon-backed
+ * table, then in-memory as a last resort) instead of a plain per-instance map. On Vercel,
+ * concurrent requests fan out across many isolated function instances, each with its own empty
+ * map, so an attacker with enough concurrency (or just natural instance churn) never
+ * accumulated the 8 failures against any single instance's map, and the "15-minute lockout"
+ * was largely bypassable. The per-email failed-attempt lockout stays in-memory for now: it's a
+ * different mechanism (a failure counter with its own timeout, not a sliding request window),
+ * and bcrypt's own per-guess cost remains a real brake even when it doesn't accumulate
+ * cross-instance.
+ */
+export async function checkLoginRateLimit(ip: string, email: string): Promise<string | null> {
   pruneEmail()
 
-  const now = Date.now()
-  const ipEntry = byIp.get(ip)
-  if (ipEntry) {
-    if (now - ipEntry.firstAt > WINDOW_MS) {
-      byIp.delete(ip)
-    } else if (ipEntry.count >= MAX_ATTEMPTS_PER_IP) {
-      return 'Too many attempts. Try again in 15 minutes.'
-    }
+  const ipCheck = await checkRateLimitAsync(`login-ip:${ip}`, MAX_ATTEMPTS_PER_IP, WINDOW_MS / 1000)
+  if (!ipCheck.ok) {
+    return 'Too many attempts. Try again in 15 minutes.'
   }
 
+  const now = Date.now()
   const emailEntry = emailFailures.get(email.toLowerCase())
   if (emailEntry) {
     if (now < emailEntry.lockedUntil) {
@@ -127,17 +120,6 @@ export function checkLoginRateLimit(ip: string, email: string): string | null {
 export function recordLoginAttempt(ip: string, email: string, success: boolean): void {
   const now = Date.now()
   const key = email.toLowerCase()
-
-  const ipEntry = byIp.get(ip)
-  if (ipEntry) {
-    if (now - ipEntry.firstAt > WINDOW_MS) {
-      byIp.set(ip, { count: 1, firstAt: now })
-    } else {
-      ipEntry.count += 1
-    }
-  } else {
-    byIp.set(ip, { count: 1, firstAt: now })
-  }
 
   if (success) {
     emailFailures.delete(key)

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const ip = getClientIp(request)
-    const rateLimited = checkLoginRateLimit(ip, emailTrim)
+    const rateLimited = await checkLoginRateLimit(ip, emailTrim)
     if (rateLimited) {
       return NextResponse.json({ error: rateLimited }, { status: 429 })
     }
