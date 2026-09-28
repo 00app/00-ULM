@@ -12,6 +12,7 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { HeartOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { CloseXOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
+import { OpenNEOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { clampRockTipHeadline } from '@/lib/soloFocusCopy'
 import type { SignupSmsItem } from '@/lib/messaging/signupZoneSmsShared'
 import Link from 'next/link'
@@ -364,6 +365,7 @@ export function RockSavingTips({
               <ZoneBentoCardHeader journeyId={jid ?? 'carbon'} />
               <h3 className="card-headline m-0 min-w-0" lang="en">
                 {tipHeadline}
+                <OpenNEOutlineIcon size={16} className="card-headline-arrow" />
               </h3>
               <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
                 <div className="data-stack data-stack--tight">

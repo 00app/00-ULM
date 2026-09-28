@@ -32,6 +32,7 @@ import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
 import { isZaiChatEnabled, isDislikeEnabled } from '@/lib/featureFlags'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
+import { OpenNEOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSoloFocusHandoffAttribution } from '@/lib/soloFocusSuppliedBy'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
@@ -1306,6 +1307,7 @@ export function JourneyBentoCard({
         lang="en"
       >
         {headline}
+        <OpenNEOutlineIcon size={16} className="card-headline-arrow" />
       </motion.h3>
       {showEstimatedInsightStrip ? (
         <p className="zone-estimated-insight-strip m-0 min-w-0" aria-live="polite">

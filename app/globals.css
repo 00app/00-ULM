@@ -1810,6 +1810,62 @@ select,
   outline-offset: 2px;
 }
 
+/* Wall card rollover — inverts relative to whatever the card actually renders, so there's
+   always a visible change. Journey/tip cards (which carry data-zone-surface) go white/blue
+   once visited; everything else, including Rock tiles which never carry that attribute so the
+   visited-white rule never wins specificity against the default blue one, stays solid blue
+   with white ink regardless of the .zone-card--visited class being present. The [data-zone-
+   surface] requirement in these selectors mirrors that same specificity gap so hover always
+   matches the colour the card is actually showing, not just its class name. Both base states
+   lock background/color with !important, so this also needs the same :not(#v2) specificity
+   bump used elsewhere in this file to reliably win. */
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):not(#v2):hover,
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):not(#v2):focus-visible {
+  background: var(--color-white) !important;
+  background-color: var(--color-white) !important;
+  color: var(--color-blue) !important;
+}
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):hover .card-top-label:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):hover .card-headline:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):hover .data-label:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):hover .data-value:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):hover .text-data:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):focus-visible .card-top-label:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):focus-visible .card-headline:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):focus-visible .data-label:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):focus-visible .data-value:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer:not(.zone-hero-card):not([data-zone-surface].zone-card--visited):focus-visible .text-data:not(#v2) {
+  color: var(--color-blue) !important;
+  -webkit-text-fill-color: var(--color-blue) !important;
+}
+
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:not(#v2):hover,
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:not(#v2):focus-visible {
+  background: var(--color-blue) !important;
+  background-color: var(--color-blue) !important;
+  color: var(--color-white) !important;
+}
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:hover .card-top-label:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:hover .card-headline:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:hover .data-label:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:hover .data-value:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:hover .text-data:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:focus-visible .card-top-label:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:focus-visible .card-headline:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:focus-visible .data-label:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:focus-visible .data-value:not(#v2),
+.groovy-zone-grid .bento-card-groovy.cursor-pointer[data-zone-surface].zone-card--visited:focus-visible .text-data:not(#v2) {
+  color: var(--color-white) !important;
+  -webkit-text-fill-color: var(--color-white) !important;
+}
+
+.card-headline-arrow {
+  display: inline-block;
+  vertical-align: -0.1em;
+  margin-inline-start: 0.15em;
+  flex-shrink: 0;
+}
+
 .groovy-zone-grid .bento-card-groovy {
   background: var(--color-blue) !important;
   color: var(--color-white) !important;

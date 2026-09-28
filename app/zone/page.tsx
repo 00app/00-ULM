@@ -3213,6 +3213,7 @@ export default function ZonePage({
                     />
                     <h3 className="card-headline m-0 min-w-0" lang="en">
                       {tipHeadline}
+                      <OpenNEOutlineIcon size={16} className="card-headline-arrow" />
                     </h3>
                     {tipDeepDive ? (
                       <p className="zz-body-bold m-0 mt-2 uppercase">
