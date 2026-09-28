@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth'
-import { requireAiRouteAuth } from '@/lib/requestAuth'
+import { requireAiRouteAuth, resolveMemoryScopeKey } from '@/lib/requestAuth'
 import { captureServerError } from '@/lib/observability/captureError'
 import {
   getJourneyAnswerRowId,
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const questionId = String(body?.question_id ?? '').trim()
     const answerValue = String(body?.answer_value ?? '').trim()
 
-    appendStoredInjections([card])
+    appendStoredInjections(await resolveMemoryScopeKey(request), [card])
 
     const session = await getSessionFromRequest().catch(() => null)
     if (session?.userId && journeyKey && questionId && answerValue) {

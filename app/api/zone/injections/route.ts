@@ -5,11 +5,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { getSessionFromRequest } from '@/lib/auth'
-import { requireAiRouteAuth } from '@/lib/requestAuth'
-import { appendStoredInjections, getStoredInjections } from '@/lib/zone/injectionStore'
+import { requireAiRouteAuth, resolveMemoryScopeKey } from '@/lib/requestAuth'
+import {
+  appendStoredInjections,
+  getStoredInjectionsMerged,
+  GLOBAL_INJECTION_KEY,
+  setStoredInjections,
+} from '@/lib/zone/injectionStore'
 import { POST as refreshZoneTips } from '@/app/api/zone/tips-refresh/route'
 import { fallbackZoneTips } from '@/lib/zone/fallbackZoneTips'
-import { setStoredInjections } from '@/lib/zone/injectionStore'
 import { shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
 import type { ResearchProfileData } from '@/lib/agents/researchAgent'
 import { enforceTrueWinRails, passesBoundaryGuard, validateAndRailCards } from '@/lib/zone/trueWinRails'
@@ -31,15 +35,16 @@ export async function GET(request: NextRequest) {
   const authDenied = await requireAiRouteAuth(request)
   if (authDenied) return authDenied
 
-  let cards = getStoredInjections()
+  const identityKey = await resolveMemoryScopeKey(request)
+  let cards = getStoredInjectionsMerged(identityKey)
   if (cards.length === 0) {
     if (shouldSkipFirecrawlScrape()) {
       const fallback = validateAndRailCards(validateInjectionCards(fallbackZoneTips(null)), null)
-      setStoredInjections(fallback)
+      setStoredInjections(identityKey, fallback)
     } else {
       await refreshZoneTips(request)
     }
-    cards = getStoredInjections()
+    cards = getStoredInjectionsMerged(identityKey)
   }
   return NextResponse.json(cards)
 }
@@ -92,6 +97,7 @@ export async function POST(request: NextRequest) {
       normalizeString(body.postcode ?? body.profileData?.postcode) || null
     const profileData = (body.profileData ?? null) as ResearchProfileData | null
     const session = await getSessionFromRequest().catch(() => null)
+    const identityKey = await resolveMemoryScopeKey(request)
 
     if (session?.userId) {
       const prior = await countDiscoveryInjectionsForUserJourney(session.userId, birthedJourney)
@@ -119,6 +125,7 @@ export async function POST(request: NextRequest) {
       postcode,
       profileData,
       userId: session?.userId ?? null,
+      identityKey,
       currentJourneyForAlternate: currentJourney,
       askedQuestionIds,
       fallbackMode: 'alternate-journey',
@@ -146,8 +153,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 5: Persist + return payload for DISCOVERY_INJECT_EVENT consumer.
-    appendStoredInjections([guarded])
-    persistZoneTipInjectBody({ cards: [guarded] })
+    appendStoredInjections(identityKey, [guarded])
+    persistZoneTipInjectBody({ cards: [guarded] }, identityKey)
     if (session?.userId) {
       void persistDiscoveryInjection(
         session.userId,

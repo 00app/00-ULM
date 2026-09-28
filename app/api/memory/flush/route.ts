@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { buildUserContextMarkdown, type MemoryFlushPayload } from '@/lib/memory/userContext'
 import { setUserContextMarkdown } from '@/lib/memory/store'
 import type { JourneyId } from '@/lib/journeys'
-import { requireAiRouteAuth } from '@/lib/requestAuth'
+import { requireAiRouteAuth, resolveMemoryScopeKey } from '@/lib/requestAuth'
 import { invalidBodyResponse, memoryFlushPostBodySchema } from '@/lib/api/schemas'
 
 export const dynamic = 'force-dynamic'
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       contextUpdate: body.contextUpdate,
     }
     const markdown = buildUserContextMarkdown(payload)
-    setUserContextMarkdown(markdown)
+    setUserContextMarkdown(await resolveMemoryScopeKey(request), markdown)
     return NextResponse.json({ ok: true, length: markdown.length })
   } catch (e) {
     console.error('[memory/flush]', e)

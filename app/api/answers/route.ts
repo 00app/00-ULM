@@ -62,7 +62,7 @@ import { normalizeEmploymentStatus } from '@/lib/brains/calculations'
 import { attachSessionCookieToResponse, resolveAnswersUser } from '@/lib/answers/resolveAnswersUser'
 import { answersPostBodySchema, invalidBodyResponse } from '@/lib/api/schemas'
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
-import { tooManyRequestsResponse } from '@/lib/requestAuth'
+import { tooManyRequestsResponse, userScopeKey } from '@/lib/requestAuth'
 import { captureServerError } from '@/lib/observability/captureError'
 import { processCalculatedLoopSpawn } from '@/lib/zone/engineDataRouter'
 import {
@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
     }
     const user_id = resolved.userId
     const attachSession = resolved.attachSession
+    const identityKey = userScopeKey(user_id)
 
     const {
       journey_id,
@@ -252,6 +253,7 @@ export async function POST(request: NextRequest) {
           postcode: postcodeNorm,
           profileData: profileData as ResearchProfileData | null,
           userId: user_id,
+          identityKey,
           // This route answers the CURRENT journey, so the "give me something rather than
           // nothing" stored-injection fallback should prefer a card for that same journey.
           currentJourneyForAlternate: jKey as JourneyId,
@@ -439,7 +441,7 @@ export async function POST(request: NextRequest) {
       const card = enforceTrueWinRails(cardTweaked)
       if (passesBoundaryGuard(card, postcodeNorm)) {
         discoveryPayloadFinal = { ...discoveryPayloadFinal, new_card_data: card }
-        persistZoneTipInjectBody({ cards: [card] })
+        persistZoneTipInjectBody({ cards: [card] }, identityKey)
         void maybePersistDiscoveryInjection(user_id, card, 'discovery_race', jKey)
 
       } else {
@@ -462,7 +464,7 @@ export async function POST(request: NextRequest) {
       if (!hasSame) {
         morphCards = [bounded, ...morphCards]
         if (passesBoundaryGuard(bounded, postcodeNorm)) {
-          persistZoneTipInjectBody({ cards: [bounded] })
+          persistZoneTipInjectBody({ cards: [bounded] }, identityKey)
           void maybePersistDiscoveryInjection(user_id, bounded, 'hybrid_live_scrape', jKey)
         }
       }
@@ -474,7 +476,7 @@ export async function POST(request: NextRequest) {
       if (nc) {
         const bounded = enforceTrueWinRails(nc)
         if (passesBoundaryGuard(bounded, postcodeNorm)) {
-          persistZoneTipInjectBody({ cards: [bounded] })
+          persistZoneTipInjectBody({ cards: [bounded] }, identityKey)
           grid_pulse_card = bounded
           void maybePersistDiscoveryInjection(user_id, bounded, 'night_charge_grid', jKey)
         }

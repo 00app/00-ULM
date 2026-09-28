@@ -18,7 +18,7 @@ import type { DiscoveryBirthPayload } from '@/lib/agents/discoveryBirthRace'
 import { raceDiscoveryBirth } from '@/lib/agents/discoveryBirthRace'
 import { runDiscoveryStructuredPipeline } from '@/lib/agents/discoveryStructured'
 import { runZeroHunterBirthAfterAnswer } from '@/lib/agents/zeroHunterBirth'
-import { getStoredInjections } from '@/lib/zone/injectionStore'
+import { getStoredInjectionsMerged } from '@/lib/zone/injectionStore'
 import type { ResearchProfileData } from '@/lib/agents/researchAgent'
 
 export type FallbackMode = 'alternate-journey' | 'prefer-target'
@@ -30,6 +30,10 @@ export async function resolveDiscoveryBirthPayload(params: {
   postcode: string | null
   profileData: ResearchProfileData | null
   userId: string | null
+  /** Scope key for the injection-store fallback lookup (see `resolveMemoryScopeKey`/
+   *  `userScopeKey` in `lib/requestAuth.ts`) — keeps the fallback pick to broadcast tips plus
+   *  this specific requester's own cards, never another person's. */
+  identityKey: string
   /** Journey user just answered — exclude matching cards when picking fallback tips. */
   currentJourneyForAlternate: JourneyId
   askedQuestionIds: string[]
@@ -51,6 +55,7 @@ export async function resolveDiscoveryBirthPayload(params: {
     postcode,
     profileData,
     userId,
+    identityKey,
     currentJourneyForAlternate,
     askedQuestionIds,
     fallbackMode = 'alternate-journey',
@@ -92,7 +97,7 @@ export async function resolveDiscoveryBirthPayload(params: {
       return {
         recommendation_copy:
           z.zoneCard.explanation?.[0] ??
-          `${z.discoveryCard.value} — ${z.discoveryCard.title}`.toLowerCase(),
+          `${z.discoveryCard.value}: ${z.discoveryCard.title}`.toLowerCase(),
         source_url: z.discoveryCard.source_url,
         new_card_data: z.zoneCard,
       }
@@ -102,7 +107,7 @@ export async function resolveDiscoveryBirthPayload(params: {
   })
 
   if (!discoveryPayload?.new_card_data) {
-    const cards = getStoredInjections()
+    const cards = getStoredInjectionsMerged(identityKey)
     const matchesRepeat = (card: ZoneTipCard) =>
       !!(card.followUp?.targetField && askedQuestionIds.includes(card.followUp.targetField))
 

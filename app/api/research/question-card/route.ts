@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { getSessionFromRequest } from '@/lib/auth'
+import { userScopeKey } from '@/lib/requestAuth'
 import type { ResearchProfileData } from '@/lib/agents/researchAgent'
 import { POST as refreshZoneTips } from '@/app/api/zone/tips-refresh/route'
 import { enforceTrueWinRails, passesBoundaryGuard } from '@/lib/zone/trueWinRails'
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const identityKey = userScopeKey(userId)
 
     const isAchievement =
       body.is_achievement_card === true ||
@@ -126,6 +128,7 @@ export async function POST(request: NextRequest) {
         postcode,
         profileData,
         userId,
+        identityKey,
         currentJourneyForAlternate: targetJourney,
         askedQuestionIds: [],
         fallbackMode: 'prefer-target',
@@ -146,8 +149,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, birthed: false, reason: 'boundary-guard' }, { status: 400 })
     }
 
-    appendStoredInjections([guarded])
-    persistZoneTipInjectBody({ cards: [guarded] })
+    appendStoredInjections(identityKey, [guarded])
+    persistZoneTipInjectBody({ cards: [guarded] }, identityKey)
     void persistDiscoveryInjection(userId, guarded.id, guarded, 'research_question_card', {
       journey_key: targetJourney,
       question_id: loopQuestionId,

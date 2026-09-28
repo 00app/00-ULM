@@ -7,8 +7,9 @@ import { appendStoredInjections } from '@/lib/zone/injectionStore'
 
 const MAX_CARDS = 6
 
-/** Parse JSON body like `{ cards: [...] }` and append validated tips to the zone injection store. */
-export function persistZoneTipInjectBody(body: unknown): number {
+/** Parse JSON body like `{ cards: [...] }` and append validated tips to the zone injection store,
+ *  under `key` (a specific person's scope key, or `GLOBAL_INJECTION_KEY` for a true broadcast). */
+export function persistZoneTipInjectBody(body: unknown, key: string): number {
   if (!body || typeof body !== 'object') return 0
   const raw = Array.isArray((body as { cards?: unknown }).cards)
     ? (body as { cards: unknown[] }).cards
@@ -17,6 +18,6 @@ export function persistZoneTipInjectBody(body: unknown): number {
       : []
   const cards = validateInjectionCards(raw)
   if (cards.length === 0) return 0
-  appendStoredInjections(cards.slice(0, MAX_CARDS))
+  appendStoredInjections(key, cards.slice(0, MAX_CARDS))
   return Math.min(cards.length, MAX_CARDS)
 }

@@ -12,6 +12,7 @@ import { runZeroHunterForUserProfile } from '@/lib/agents/zeroHunterRun'
 import { validateInjectionCard } from '@/lib/zone/injections'
 import { sanitizeAgentMarkdown } from '@/lib/agents/zeroHunterMarkdown'
 import { persistZoneTipInjectBody } from '@/lib/zone/persistZoneTipInject'
+import { userScopeKey } from '@/lib/requestAuth'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,7 +73,7 @@ async function handlePulse(req: NextRequest) {
       continue
     }
 
-    const injected = persistZoneTipInjectBody({ cards: [card] }) > 0
+    const injected = persistZoneTipInjectBody({ cards: [card] }, userScopeKey(u.id)) > 0
     results.push({ userId: u.id, injected, valueGbp: hit.valueGbp })
   }
 

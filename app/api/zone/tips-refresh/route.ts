@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { z } from 'zod'
-import { requireAiRouteAuth } from '@/lib/requestAuth'
+import { requireAiRouteAuth, resolveMemoryScopeKey } from '@/lib/requestAuth'
 import { getUserContextMarkdown } from '@/lib/memory/store'
 import { triggerSupplementalResearch } from '@/lib/agents/researchAgent'
 import { shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
@@ -99,14 +99,15 @@ export async function POST(request: NextRequest) {
   if (authDenied) return authDenied
 
   const apiKey = process.env.GEMINI_API_KEY?.trim()
-  const userContext = getUserContextMarkdown()
+  const identityKey = await resolveMemoryScopeKey(request)
+  const userContext = getUserContextMarkdown(identityKey)
   const postcodeNorm = postcodeFromContext(userContext)
   const freeTier =
     process.env.GEMINI_FREE_TIER === '1' || process.env.BUCKET_SKIP_GEMINI === '1'
 
   if (freeTier) {
     const fallback = validateAndRailCards(validateInjectionCards(fallbackZoneTips(postcodeNorm)), postcodeNorm)
-    setStoredInjections(fallback)
+    setStoredInjections(identityKey, fallback)
     return NextResponse.json({
       ok: true,
       source: 'fallback',
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
   }
   if (isGeminiQuotaExceeded()) {
     const fallback = validateAndRailCards(validateInjectionCards(fallbackZoneTips(postcodeNorm)), postcodeNorm)
-    setStoredInjections(fallback)
+    setStoredInjections(identityKey, fallback)
     return NextResponse.json(
       {
         ok: true,
@@ -198,11 +199,11 @@ export async function POST(request: NextRequest) {
     const cards = validateAndRailCards(validateInjectionCards(parsed.success ? parsed.data : []), postcodeNorm)
 
     if (cards.length > 0) {
-      setStoredInjections(cards)
+      setStoredInjections(identityKey, cards)
       return NextResponse.json({ ok: true, source: 'gemini', count: cards.length })
     }
     const fallback = validateAndRailCards(validateInjectionCards(fallbackZoneTips(postcodeNorm)), postcodeNorm)
-    setStoredInjections(fallback)
+    setStoredInjections(identityKey, fallback)
     return NextResponse.json({ ok: true, source: 'fallback', count: fallback.length, degraded: true })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -210,7 +211,7 @@ export async function POST(request: NextRequest) {
     const isQuota = status === 429 || status === 529 || /429|529|quota|resource exhausted/i.test(msg)
     if (isQuota) setGeminiQuotaExceeded()
     const fallback = validateAndRailCards(validateInjectionCards(fallbackZoneTips(postcodeNorm)), postcodeNorm)
-    setStoredInjections(fallback)
+    setStoredInjections(identityKey, fallback)
     return NextResponse.json({
       ok: true,
       source: 'fallback',

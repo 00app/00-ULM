@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { gatewayTokenMatches } from '@/lib/gatewayAuth'
 import { persistZoneTipInjectBody } from '@/lib/zone/persistZoneTipInject'
+import { GLOBAL_INJECTION_KEY } from '@/lib/zone/injectionStore'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     const body = await request.json()
-    const injected = persistZoneTipInjectBody(body)
+    const injected = persistZoneTipInjectBody(body, GLOBAL_INJECTION_KEY)
     return NextResponse.json({ ok: true, injected })
   } catch (e) {
     console.error('[zone/tips-inject] error:', e)

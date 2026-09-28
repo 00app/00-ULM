@@ -55,6 +55,26 @@ export async function resolveRequestIdentity(
   return { kind: 'guest', sessionId: guestId }
 }
 
+/** Build the same key `resolveMemoryScopeKey` would for a signed-in user, from a userId you
+ *  already have in hand (e.g. a cron job iterating specific users with no request/session). */
+export function userScopeKey(userId: string): string {
+  return `user:${userId}`
+}
+
+/**
+ * Stable per-requester key for scoping request-lifetime in-memory caches (e.g.
+ * `lib/memory/store.ts`, the per-user side of `lib/zone/injectionStore.ts`) — a warm
+ * serverless instance can interleave requests from different people, so a single shared
+ * module-level variable leaks one person's content into another's response. Always returns
+ * a key (falls back to per-IP) so callers never need a "no identity" branch of their own.
+ */
+export async function resolveMemoryScopeKey(request: NextRequest): Promise<string> {
+  const identity = await resolveRequestIdentity(request)
+  if (identity?.kind === 'user') return userScopeKey(identity.userId)
+  if (identity?.kind === 'guest') return `guest:${identity.sessionId}`
+  return `anon:${getClientIdentifier(request)}`
+}
+
 /** Gate expensive AI / Firecrawl routes. Returns 401/429 response or null when allowed. */
 export async function requireAiRouteAuth(request: NextRequest): Promise<NextResponse | null> {
   if (scrapeSyncBearerMatches(request) || gatewayTokenMatches(request)) return null
