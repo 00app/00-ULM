@@ -1866,6 +1866,16 @@ select,
   opacity: 0.6;
 }
 
+/* Hairline divider between each of the top-3-wins rows (Quick win / Big win / Do now). */
+.zone-hero-win-hairline {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.25;
+  flex-shrink: 0;
+}
+
 /* Hairline divider between the top-3-wins list and the SAVE/CARBON stat grid. */
 .zone-hero-metrics-hairline {
   display: block;

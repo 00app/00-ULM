@@ -3072,37 +3072,49 @@ export default function ZonePage({
                         >
                           <ZoneBentoCardHeader journeyId="profile" label="YOUR PROFILE" />
                         </Link>
-                        {heroWinSlots.map((slot) => {
+                        {heroWinSlots.map((slot, slotIndex) => {
+                          const divider =
+                            slotIndex > 0 ? (
+                              <span
+                                key={`hero-win-divider-${slot.label}`}
+                                className="zone-hero-win-hairline"
+                                aria-hidden="true"
+                              />
+                            ) : null
                           if (!slot.line) {
                             return (
-                              <h3
-                                key={`hero-win-${slot.label}`}
-                                className="zone-hero-profile-lead zone-hero-profile-lead--empty zz-h3 m-0 min-w-0"
-                                lang="en"
-                              >
-                                {slot.label}: {HERO_NEEDS_INFO_LINE}
-                              </h3>
+                              <React.Fragment key={`hero-win-${slot.label}`}>
+                                {divider}
+                                <h3
+                                  className="zone-hero-profile-lead zone-hero-profile-lead--empty zz-h3 m-0 min-w-0"
+                                  lang="en"
+                                >
+                                  {slot.label}: {HERO_NEEDS_INFO_LINE}
+                                </h3>
+                              </React.Fragment>
                             )
                           }
                           return (
-                            <button
-                              key={`hero-win-${slot.label}`}
-                              type="button"
-                              className="zone-hero-win-cta"
-                              disabled={!zoneInteractable}
-                              aria-label={`Open tip: ${slot.headline}`}
-                              onClick={() => {
-                                if (slot.rockSlug) openRockTip(`rock-${slot.rockSlug}`)
-                                else if (slot.tip) openZoneGridTip(slot.tip, slot.journeyCell)
-                              }}
-                            >
-                              <h3
-                                className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
-                                lang="en"
+                            <React.Fragment key={`hero-win-${slot.label}`}>
+                              {divider}
+                              <button
+                                type="button"
+                                className="zone-hero-win-cta"
+                                disabled={!zoneInteractable}
+                                aria-label={`Open tip: ${slot.headline}`}
+                                onClick={() => {
+                                  if (slot.rockSlug) openRockTip(`rock-${slot.rockSlug}`)
+                                  else if (slot.tip) openZoneGridTip(slot.tip, slot.journeyCell)
+                                }}
                               >
-                                {slot.line}
-                              </h3>
-                            </button>
+                                <h3
+                                  className="zone-hero-profile-lead zz-h3 m-0 min-w-0"
+                                  lang="en"
+                                >
+                                  {slot.line}
+                                </h3>
+                              </button>
+                            </React.Fragment>
                           )
                         })}
                       </div>
