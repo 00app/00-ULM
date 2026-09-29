@@ -31,7 +31,7 @@ export function SoloFocusProseStack({
   contentMode = 'journey',
   habitTitle,
 }: SoloFocusProseStackProps) {
-  const { lead } = resolveSoloFocusDisplayProse({
+  const { lead, body } = resolveSoloFocusDisplayProse({
     headline,
     insightSource,
     journeyId,
@@ -56,6 +56,17 @@ export function SoloFocusProseStack({
       >
         {lead}
       </h4>
+      {/* The headline is the what; this lead line above is mostly the payoff. When the source
+          prose had a real second paragraph (the why/how, grounded in the same architect_prose,
+          not invented), surface it instead of dropping it. */}
+      {body ? (
+        <p
+          className="solo-focus-architect-prose solo-focus-copy-width solo-focus-content-text text-left m-0 mt-2 zz-body"
+          style={{ color: 'var(--journey-text)' }}
+        >
+          {body}
+        </p>
+      ) : null}
     </div>
   )
 }

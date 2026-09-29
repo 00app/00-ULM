@@ -1866,6 +1866,20 @@ select,
   flex-shrink: 0;
 }
 
+/* Solo Focus mother headline — one step down from the original scale. Several existing
+   `.expanded-solo-focus .solo-focus-architect-headline { font-size: var(--zz-h3-mobile)
+   !important }` rules elsewhere in this file (multiple near-duplicates) out-specificity a
+   plain `.solo-focus-architect-headline` rule, so this needs the same :not(#v2) escape hatch
+   used elsewhere in this file to reliably win regardless of how many of those there are. */
+.solo-focus-architect-headline:not(#v2) {
+  font-size: 36px !important;
+}
+@media (min-width: 1024px) {
+  .solo-focus-architect-headline:not(#v2) {
+    font-size: 48px !important;
+  }
+}
+
 .groovy-zone-grid .bento-card-groovy {
   background: var(--color-blue) !important;
   color: var(--color-white) !important;

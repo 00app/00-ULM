@@ -857,7 +857,7 @@ function resolveSoloFocusDisplayProseRaw(args: {
     userPostcode: args.userPostcode,
     sourceDisplayName: args.sourceDisplayName,
   })
-  const { subheading } = layoutSoloFocusProseBlocks(args.headline, withLocalityLead, {
+  const { subheading, body: proseBody } = layoutSoloFocusProseBlocks(args.headline, withLocalityLead, {
     journeyId: args.journeyId,
     moneyGbp: args.moneyGbp,
     carbonKg: args.carbonKg,
@@ -876,7 +876,11 @@ function resolveSoloFocusDisplayProseRaw(args: {
             journey: coerceJourneyId(args.journeyId),
           })
         ),
-        body: null,
+        // The real second/third paragraph from architect_prose (why the number is real, or how
+        // to act on it) — same lead, same source, just previously discarded here. Only attached
+        // when the lead itself came from this same prose triple (the branches below swap the
+        // lead for unrelated fallback sources, where this paragraph would no longer topically match).
+        body: proseBody,
       }
     }
   }
@@ -1022,11 +1026,20 @@ export function humanizeTrueTipParagraph(raw: string, journeyId?: JourneyId | st
   return clampWords(plain, MAX_TRUE_TIP_PARAGRAPH_WORDS)
 }
 
+/**
+ * Splits into words, stripping only the LAST word's trailing sentence-ender (the caller
+ * re-applies exactly one at display time). Previously stripped `.!?` from every word, which
+ * silently deleted the period out of any earlier, complete sentence too whenever the words
+ * got rejoined downstream (trimHeadlineToMaxWords, zoneCardHeadlineFromRaw) — turning an
+ * already-correct two-sentence headline like "...the loft hatch. Stops warm air..." back into
+ * a run-on ("...the loft hatch Stops warm air...") after the word-count clamp ran.
+ */
 function splitHeadlineWords(title: string): string[] {
-  return title
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((w) => w.replace(/[.!?]+$/g, '').replace(/\.{2,}|…$/g, ''))
+  const words = title.split(/\s+/).filter(Boolean)
+  return words
+    .map((w, i) =>
+      i === words.length - 1 ? w.replace(/[.!?]+$/g, '').replace(/\.{2,}|…$/g, '') : w
+    )
     .filter(Boolean)
 }
 
