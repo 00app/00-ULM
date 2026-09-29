@@ -1569,29 +1569,29 @@ export function headlineFromRockHabit(
 /** Expanded Solo Focus hook when DB title is thin or off-topic (~20 words each). */
 const EXPANDED_JOURNEY_HOOK: Partial<Record<JourneyId, string>> = {
   travel:
-    'TRY ONE TRAIN OR BUS TRIP A WEEK INSTEAD OF THE CAR COMMUTE AND CUT FUEL BILLS WITHOUT A NEW SEASON TICKET',
+    'Try one train or bus trip a week instead of the car commute and cut fuel bills without a new season ticket',
   holidays:
-    'PICK SHORT TRIPS BY TRAIN INSTEAD OF FLYING WHEN YOU CAN AND KEEP MORE CASH ON HOLIDAY SPEND EACH YEAR',
+    'Pick short trips by train instead of flying when you can and keep more cash on holiday spend each year',
   home:
-    'SEAL DRAUGHTS AND LOFT GAPS AT HOME BEFORE YOU CHASE A NEW BOILER AND PAY FOR WASTED HEAT EACH WINTER',
+    'Seal draughts and loft gaps at home before you chase a new boiler and pay for wasted heat each winter',
   utilities:
-    'LINE UP YOUR ENERGY TARIFF BEFORE YOU LOCK IN A DEAL THAT BEATS WHAT YOU CURRENTLY PAY EACH YEAR',
+    'Line up your energy tariff before you lock in a deal that beats what you currently pay each year',
   solar:
-    'SIZE SOLAR TO YOUR ROOF AND DAYTIME USE NOT A GENERIC KIT THAT EXPORTS POWER YOU NEVER USE AT HOME OR WORK',
+    'Size solar to your roof and daytime use not a generic kit that exports power you never use at home or work',
   food:
-    'PLAN MEALS AROUND WHAT YOU ALREADY HAVE IN THE CUPBOARD AND FRIDGE TO CUT FOOD WASTE AND SHOP SPEND EACH WEEK',
+    'Plan meals around what you already have in the cupboard and fridge to cut food waste and shop spend each week',
   shopping:
-    'REPAIR AND REUSE HOME GEAR BEFORE YOU REPLACE ANOTHER ITEM AND SEND WORKING KIT STRAIGHT TO LANDFILL OR TIP',
+    'Repair and reuse home gear before you replace another item and send working kit straight to landfill or tip',
   money:
-    'MOVE IDLE CASH TO A CLEANER SAVINGS OR CURRENT ACCOUNT WITHOUT LOSING ACCESS OR PAYING HIDDEN FEES EVERY MONTH',
+    'Move idle cash to a cleaner savings or current account without losing access or paying hidden fees every month',
   tech:
-    'CUT STANDBY DRAW ON PLUGS AND CHARGERS YOU LEAVE ON ALL NIGHT AND STOP QUIET ELECTRICITY LEAKS ADDING UP',
+    'Cut standby draw on plugs and chargers you leave on all night and stop quiet electricity leaks adding up',
   water:
-    'FIT AERATORS FIX DRIPS AND SHORT SHOWERS AT HOME BEFORE THE WATER METER TICKS UP AND YOUR BILL CLIMBS AGAIN',
+    'Fit aerators fix drips and short showers at home before the water meter ticks up and your bill climbs again',
   waste:
-    'SORT RECYCLE AND COMPOST AT HOME EACH WEEK TO EASE COUNCIL BIN PRESSURE AND CUT WASTE CHARGES ON EVERY COLLECTION',
+    'Sort recycle and compost at home each week to ease council bin pressure and cut waste charges on every collection',
   carbon:
-    'TRACK ONE BIG ENERGY HABIT AT HOME EACH MONTH AND TRIM WHAT YOU DO NOT NEED BEFORE YOU BUY OFFSETS OR KITS',
+    'Track one big energy habit at home each month and trim what you do not need before you buy offsets or kits',
 }
 
 /** Expanded Solo Focus H1 — 20–24 word complete hook (never a dangling fragment). */

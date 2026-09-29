@@ -1880,6 +1880,32 @@ select,
   }
 }
 
+/* Solo Focus card heading + body copy: sentence case, not the shouting uppercase the shared
+   h1-h6/.text-display "hard lock" rules apply everywhere else. The underlying text is already
+   sentence-cased at the source (humanizeZoneHeadline only shouts when the source itself came
+   back >60% uppercase) — this was purely a visual transform hiding that casing. */
+.solo-focus-architect-headline:not(#v2),
+.solo-focus-architect-prose:not(#v2) {
+  text-transform: none !important;
+}
+
+/* Intro screen goal-choice headline: same sentence-case fix, source text is already properly
+   cased so removing the transform is enough. */
+.intro-decision-headline:not(#v2) {
+  text-transform: none !important;
+}
+
+/* Intro kinetic word cycle: the words themselves are stored upper-case in source (e.g. "GOOD"),
+   so just removing the transform wouldn't reveal sentence case, there's no lowercase source to
+   reveal. Force it in CSS instead: lowercase everything, then re-capitalize only the first
+   letter, so it reads as sentence case regardless of how the source array is cased. */
+.intro-text-large:not(#v2) {
+  text-transform: lowercase !important;
+}
+.intro-text-large:not(#v2)::first-letter {
+  text-transform: uppercase !important;
+}
+
 .groovy-zone-grid .bento-card-groovy {
   background: var(--color-blue) !important;
   color: var(--color-white) !important;

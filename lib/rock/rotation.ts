@@ -1,31 +1,48 @@
 /**
- * The Rock rotation: 60 habits ÷ 2 per day = 30-day full cycle.
- * Six visible slots; each UTC day, replace the two oldest *unliked* slots with fresh picks from the pool.
+ * The Rock rotation: 60 habits ÷ 2 per trickle = 30-trickle full cycle.
+ * Six visible slots; each time the visitor's local clock crosses into a new
+ * morning/afternoon/evening period (see lib/zone/timeOfDay.ts — the same clock the "Morning
+ * tips."/"Afternoon tips." heading already uses), replace the two oldest *unliked* slots with
+ * fresh picks from the pool. Was previously keyed to a UTC calendar day, so the visible tips
+ * only changed once every 24 hours regardless of time of day — the heading would say "Afternoon
+ * tips." or "Evening tips." next to the exact same cards shown that morning.
  */
 import { ROCK_HABITS, ROCK_BY_SLUG, ROCK_HABIT_COUNT } from '@/lib/rock/habitsCatalog'
 import type { RockHabit } from '@/lib/rock/types'
 import { getUkSeason } from '@/lib/zone/seasonHint'
 import { sortRockHabitsBySeasonStable } from '@/lib/zone/seasonRail'
+import { getTimeOfDay } from '@/lib/zone/timeOfDay'
 
-const STORAGE_KEY = 'zz_rock_rotation_v1'
+const STORAGE_KEY = 'zz_rock_rotation_v2'
 
 type Slot = { slug: string; placedAt: number }
 
 export type RockRotationState = {
-  version: 1
+  version: 2
   slots: Slot[]
-  lastTrickleDay: number
+  /** e.g. "2026-09-29-morning" — the local calendar day + time-of-day period last trickled. */
+  lastTricklePeriod: string
 }
 
 export function utcDayIndex(t = Date.now()): number {
   return Math.floor(t / 86_400_000)
 }
 
+/** Local calendar day + time-of-day period key — trickle point, not just a UTC day boundary. */
+export function localTricklePeriodKey(date: Date = new Date()): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}-${getTimeOfDay(date)}`
+}
+
 function parseState(raw: string | null): RockRotationState | null {
   if (!raw) return null
   try {
     const o = JSON.parse(raw) as RockRotationState
-    if (o?.version !== 1 || !Array.isArray(o.slots)) return null
+    if (o?.version !== 2 || !Array.isArray(o.slots) || typeof o.lastTricklePeriod !== 'string') {
+      return null
+    }
     return o
   } catch {
     return null
@@ -109,17 +126,17 @@ function pickReplacementSlug(slotIndex: number, slots: Slot[], liked: Set<string
 function ensureSixSlots(prev: RockRotationState | null, seed: string, likedIds: string[]): RockRotationState {
   const liked = new Set(likedIds)
   const now = Date.now()
-  const day = utcDayIndex(now)
+  const period = localTricklePeriodKey(new Date(now))
 
   if (!prev || prev.slots.length !== 6) {
     const order = seededOrder(seed)
     const slots: Slot[] = order.slice(0, 6).map((slug) => ({ slug, placedAt: now }))
-    return { version: 1, slots, lastTrickleDay: day }
+    return { version: 2, slots, lastTricklePeriod: period }
   }
 
-  let { slots, lastTrickleDay } = prev
+  let { slots, lastTricklePeriod } = prev
 
-  if (day > lastTrickleDay) {
+  if (period !== lastTricklePeriod) {
     const visible = new Set(slots.map((s) => s.slug))
     const unlikedSlots = slots
       .map((s, i) => ({ ...s, i }))
@@ -138,10 +155,10 @@ function ensureSixSlots(prev: RockRotationState | null, seed: string, likedIds: 
       })
       slots = next
     }
-    lastTrickleDay = day
+    lastTricklePeriod = period
   }
 
-  return { version: 1, slots, lastTrickleDay }
+  return { version: 2, slots, lastTricklePeriod }
 }
 
 function stateSlotsSignature(s: RockRotationState): string {
@@ -149,12 +166,12 @@ function stateSlotsSignature(s: RockRotationState): string {
 }
 
 /**
- * Apply daily trickle + init; persist if changed. Returns the six visible habits.
+ * Apply morning/afternoon/evening trickle + init; persist if changed. Returns the six visible habits.
  */
 export function syncRockRotation(likedCardIds: string[], seed: string): RockHabit[] {
   const prev = readRockRotationState()
   const next = ensureSixSlots(prev, seed, likedCardIds)
-  if (!prev || stateSlotsSignature(prev) !== stateSlotsSignature(next) || prev.lastTrickleDay !== next.lastTrickleDay) {
+  if (!prev || stateSlotsSignature(prev) !== stateSlotsSignature(next) || prev.lastTricklePeriod !== next.lastTricklePeriod) {
     writeRockRotationState(next)
   }
   return next.slots
