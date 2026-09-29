@@ -102,7 +102,7 @@ export async function researchLocalGrantsToDiscovery(
       model: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash',
       generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
     })
-    const prompt = `UK March 2026. User postcode (context only): "${postcode}". Topic: "${topic}".
+    const prompt = `UK October 2026. User postcode (context only): "${postcode}". Topic: "${topic}".
 
 Scraped page (may be partial):
 ---

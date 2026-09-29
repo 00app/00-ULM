@@ -49,21 +49,21 @@ function proofSentenceBase(journey: JourneyId, sourceName: string, postcode: str
       if (v === 2) {
         return `${sourceName} still see standby draw as the quiet bill leak — one weekend audit of plugs beats guessing from the statement.`
       }
-      return `${sourceName} reckon standby creep is up about 8% in this April 2026 climate — dull, but very fixable with a few plug changes.`
+      return `${sourceName} reckon standby creep is up about 8% this year — dull, but very fixable with a few plug changes.`
     case 'home':
       if (v === 1) {
         return `${sourceName} rank draughts and loft gaps ahead of shiny kit — fabric fixes usually land before a boiler swap pays back.`
       }
       if (v === 2) {
-        return `${sourceName} keep background heat loss on the watch list — the July 2026 cap near £${cap} means wasted warmth still hurts.`
+        return `${sourceName} keep background heat loss on the watch list — the October 2026 cap near £${cap} means wasted warmth still hurts.`
       }
-      return `${sourceName} still put heating and background draw at the top of the bill pile — the July 2026 cap sits around £${cap}, so fabric and tariff moves still matter.`
+      return `${sourceName} still put heating and background draw at the top of the bill pile — the October 2026 cap sits around £${cap}, so fabric and tariff moves still matter.`
     case 'travel':
       if (london) {
         if (v === 1) {
           return `${sourceName} price ULEZ and rail against fuel for London hops — the cheaper hop is not always the car on paper.`
         }
-        return `${sourceName} flag clean-air charges and fuel duty as keeping London commute costs stubborn through April 2026 — worth planning swaps before you renew anything.`
+        return `${sourceName} flag clean-air charges and fuel duty as keeping London commute costs stubborn this year — worth planning swaps before you renew anything.`
       }
       if (v === 1) {
         return `${sourceName} show season tickets and carnets beating ad-hoc fuel top-ups when your commute is fixed.`
@@ -71,15 +71,15 @@ function proofSentenceBase(journey: JourneyId, sourceName: string, postcode: str
       if (v === 2) {
         return `${sourceName} still see short car hops as the expensive default — one rail day a week often moves both £ and kg.`
       }
-      return `${sourceName} show fuel and fares still running hot in the April 2026 economy — small commute shifts add up faster than another loyalty card.`
+      return `${sourceName} show fuel and fares still running hot this year — small commute shifts add up faster than another loyalty card.`
     case 'utilities':
       if (v === 1) {
-        return `${sourceName} still peg standing charges to the July 2026 cap — the unit rate you pick sets the real ceiling on every bill.`
+        return `${sourceName} still peg standing charges to the October 2026 cap — the unit rate you pick sets the real ceiling on every bill.`
       }
       if (v === 2) {
         return `${sourceName} separate gas standing from electric unit moves — dual-fuel bundles are not always the cheapest lock-in.`
       }
-      return `${sourceName} tie unit rates and standing charges to the July 2026 cap near £${cap} — the tariff you are on still sets the ceiling on every kWh.`
+      return `${sourceName} tie unit rates and standing charges to the October 2026 cap near £${cap} — the tariff you are on still sets the ceiling on every kWh.`
     case 'solar':
       if (v === 1) {
         return `${sourceName} model export payments against your daytime use — oversized arrays bleed payback if you are out all day.`
@@ -141,14 +141,14 @@ function proofSentenceBase(journey: JourneyId, sourceName: string, postcode: str
         return `${sourceName} still favour rail for short hops — domestic flights carry fuel and airport fees you see late.`
       }
       if (v === 2) {
-        return `${sourceName} book off-peak trains early — April 2026 leisure fares punish last-minute car hire too.`
+        return `${sourceName} book off-peak trains early — leisure fares still punish last-minute car hire too.`
       }
-      return `${sourceName} show short-haul rail beating domestic flights on cost and carbon — booking early still matters in the April 2026 market.`
+      return `${sourceName} show short-haul rail beating domestic flights on cost and carbon — booking early still matters this year.`
     default:
       if (v === 1) {
         return `${sourceName} line this row to what you already told us — one small move this week still shifts the bill.`
       }
-      return `${sourceName} tie this to your saved answers and the July 2026 cap near £${cap} — fabric and tariff tweaks still beat guessing from the statement.`
+      return `${sourceName} tie this to your saved answers and the October 2026 cap near £${cap} — fabric and tariff tweaks still beat guessing from the statement.`
   }
 }
 

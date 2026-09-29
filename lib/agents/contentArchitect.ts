@@ -149,7 +149,7 @@ function thresholdRulesBlock(): string {
 - travel: money_gbp > 1000 → headline like "CLAIM EV INSTALL GRANT" (gov.uk chargepoint grant pathway).
 - waste: money_gbp > 50 → headline like "START FOOD COMPOSTING" (WRAP-aligned).
 - home: insulation, draughts, fabric — never heat-pump grant amounts on home cards.
-Use April 2026 context: typical cap saving ~£${PRICE_CAP_SAVING_APRIL_1}/yr when relevant (Ofgem).`
+Use October 2026 context: typical cap saving ~£${PRICE_CAP_SAVING_APRIL_1}/yr when relevant (Ofgem).`
 }
 
 function suppliedByRules(): string {
@@ -160,7 +160,7 @@ function lockedFactsBlock(): string {
   const catalogue = Object.entries(TRUSTED_JOURNEY_URLS)
     .map(([k, u]) => `${k}: ${u}`)
     .join('\n')
-  return `LOCKED UK FACTS (April–June 2026 — use in paragraph 2 for national policy; do NOT invent different caps, unit pence, grant £ amounts, or new URLs):
+  return `LOCKED UK FACTS (October–December 2026 — use in paragraph 2 for national policy; do NOT invent different caps, unit pence, grant £ amounts, or new URLs):
 - Government heat pump grant (England & Wales): up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP} for air-source heat pumps; oil/LPG properties may access up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} from July 2026. Plain English only — say "heat pump grant", not BUS.
 - Typical price-cap headline about £${TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP}/yr; bill composition shift ~£${TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP} (green levy) off dual-fuel statements.
 - Reference unit rates: electricity ~${APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH}p/kWh, gas ~${APRIL_2026_TRUTH_PENCE.GAS_PER_KWH}p/kWh. Ofgem cap hub: ${PRICE_CAP_SOURCE_URL}
@@ -238,7 +238,7 @@ function normaliseInsightEditorialSandwich(raw: string, journeyKey?: JourneyId):
   const deDuped = paddedUniqueParagraphs(paragraphs)
   const padded = [
     deDuped[0] ?? 'Your home setup is still leaking cash and carbon each year.',
-    deDuped[1] ?? 'April 2026 UK schemes can shrink that waste if you match the fix to your setup.',
+    deDuped[1] ?? 'October 2026 UK schemes can shrink that waste if you match the fix to your setup.',
     deDuped[2] ?? 'Take one step this week via the linked source and lock the saving on your row.',
   ]
   const joined = forceThreeSentenceInsight(
@@ -361,7 +361,7 @@ function mechanicalArchitectPayload(c: ContentArchitectCardInput): ArchitectJour
   const insightSeed = [
     c.baseline_insight?.trim() ||
       `${locality} still leaks measurable cash and carbon on this row until you match the fix to your setup.`,
-    'April 2026 UK cap and grant frames define the practical lever — stay conservative and tie claims to the linked source.',
+    'October 2026 UK cap and grant frames define the practical lever — stay conservative and tie claims to the linked source.',
     mechanicalPayoffParagraph(c, url),
   ].join('\n\n')
   return {

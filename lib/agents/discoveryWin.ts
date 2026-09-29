@@ -65,7 +65,7 @@ export async function generateDiscoveryWinWithGemini(params: {
         postcode: params.postcode,
         home: params.journeyAnswers.home ?? {},
       }).slice(0, 800)
-      const prompt = `You write ONE sentence for a UK savings app (March 2026). Lowercase. Witty but clinical.
+      const prompt = `You write ONE sentence for a UK savings app (October 2026). Lowercase. Witty but clinical.
 Must start with "since you have" (heating/answer) OR "since you're in" (postcode) when that data exists in the JSON.
 Mention real 2026 facts only: Boiler Upgrade up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}, April cap typical saving ~£${PRICE_CAP_SAVING_APRIL_1}/yr. No markdown, max 220 chars.
 
@@ -103,7 +103,7 @@ Context JSON: ${ctx}`
       home: params.journeyAnswers.home ?? {},
     }).slice(0, 800)
 
-    const prompt = `You write ONE sentence for a UK savings app (March 2026). Lowercase. Witty but clinical.
+    const prompt = `You write ONE sentence for a UK savings app (October 2026). Lowercase. Witty but clinical.
 Must start with "since you have" (heating/answer) OR "since you're in" (postcode) when that data exists in the JSON.
 Mention real 2026 facts only: Boiler Upgrade up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}, April cap typical saving ~£${PRICE_CAP_SAVING_APRIL_1}/yr. No markdown, max 220 chars.
 

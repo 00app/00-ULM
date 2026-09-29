@@ -21,14 +21,14 @@ async function scrapePriceCapContext(): Promise<string> {
   const fc = await scrapeWithFirecrawlUrl(OFGEM_CAP_URL)
   if (fc?.markdown) return sanitizeAgentMarkdown(fc.markdown, 4000)
   return sanitizeAgentMarkdown(
-    `Ofgem energy price cap. Typical household cap trends and April 2026 updates. Source: ${OFGEM_CAP_URL}`,
+    `Ofgem energy price cap. Typical household cap trends and October 2026 updates. Source: ${OFGEM_CAP_URL}`,
     500
   )
 }
 
 /** Re-export-friendly scrape hook (researchAgent may not export URL scrape — add thin wrapper). */
 async function fallbackMarkdown(): Promise<string> {
-  return `UK March 2026: typical household price cap saving from 1 April ~£${PRICE_CAP_SAVING_APRIL_1}/yr vs prior cap period. ${PRICE_CAP_SOURCE_URL}`
+  return `UK October 2026: typical household price cap saving from 1 April ~£${PRICE_CAP_SAVING_APRIL_1}/yr vs prior cap period. ${PRICE_CAP_SOURCE_URL}`
 }
 
 export async function runZeroHunterForUserProfile(params: {

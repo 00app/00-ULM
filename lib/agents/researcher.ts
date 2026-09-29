@@ -106,7 +106,7 @@ Return **only** valid JSON, no markdown fences: {"electricity_gbp_per_kwh": numb
 Rules:
 - Values must be **GBP per kWh** (e.g. 0.2467). If the text gives **pence per kWh**, divide by 100.
 - If a rate is missing or ambiguous, use null.
-- Prefer **April 2026** or the **current default tariff / price cap** period stated in the text.
+- Prefer **the October 2026 cap** or the **current default tariff / price cap** period stated in the text.
 
 TEXT:
 ${markdown.slice(0, 12_000)}`
@@ -247,7 +247,7 @@ export async function triggerSupplementalResearch(params: {
   }
   if (markdown.length < 200 && !hasFirecrawlApiKey()) {
     const ddg = await fetchDuckDuckGoFallbackMarkdown(
-      `UK energy price cap ${params.postcode ?? ''} Ofgem April 2026`
+      `UK energy price cap ${params.postcode ?? ''} Ofgem October 2026`
     )
     if (ddg && ddg.markdown.length > markdown.length) {
       markdown = ddg.markdown
@@ -269,7 +269,7 @@ export async function triggerSupplementalResearch(params: {
 
   if (isWeakResearchMarkdown(markdown)) {
     const ddg = await fetchDuckDuckGoFallbackMarkdown(
-      `Ofgem electricity p/kWh gas p/kWh April 2026 default tariff UK`
+      `Ofgem electricity p/kWh gas p/kWh October 2026 default tariff UK`
     )
     if (ddg && ddg.markdown.length > markdown.length) {
       markdown = ddg.markdown

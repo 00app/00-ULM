@@ -27,7 +27,7 @@ async function geminiPulseNote(): Promise<string | null> {
       model: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash',
       generationConfig: { temperature: 0.2, maxOutputTokens: 80 },
     })
-    const prompt = `UK household energy app (March 2026). Official baselines in code: Boiler Upgrade Scheme up to £7500, typical price cap saving from April 1 ≈ £${PRICE_CAP_SAVING_APRIL_1}/yr. Reply with ONE short lowercase sentence (max 18 words) acknowledging grants/caps can change when policy updates — or the word "steady" if nothing to add. No JSON, no numbers beyond what you were given.`
+    const prompt = `UK household energy app (October 2026). Official baselines in code: Boiler Upgrade Scheme up to £7500, typical price cap saving from April 1 ≈ £${PRICE_CAP_SAVING_APRIL_1}/yr. Reply with ONE short lowercase sentence (max 18 words) acknowledging grants/caps can change when policy updates — or the word "steady" if nothing to add. No JSON, no numbers beyond what you were given.`
     const t = (await model.generateContent(prompt)).response.text().trim().slice(0, 200)
     return t || null
   } catch {

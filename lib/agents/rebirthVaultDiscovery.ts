@@ -94,7 +94,7 @@ export async function runRebirthVaultDiscovery(params: {
 
   const baselineBlock = `Zero Zero baseline: tie savings to the 12,000 kWh / 1 tonne CO₂e household reference — express carbon as kg CO₂e avoided for the modelled action, and GBP as integer annual saving where evidence supports it.`
 
-  const prompt = `You are Zai Senior Auditor (UK, March 2026). Using ONLY the scraped markdown corpus below plus user context, output ONE JSON object.
+  const prompt = `You are Zai Senior Auditor (UK, October 2026). Using ONLY the scraped markdown corpus below plus user context, output ONE JSON object.
 
 User journey="${params.journeyId}" question="${params.questionId}" answer="${params.answerValue}".
 ${pcHint}

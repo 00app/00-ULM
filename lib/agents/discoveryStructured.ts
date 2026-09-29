@@ -94,7 +94,7 @@ export async function runDiscoveryStructuredPipeline(params: {
     }
   }
 
-  const prompt = `You are Zai, the Zero Zero UK savings engine (production March 2026). Output ONE JSON object only.
+  const prompt = `You are Zai, the Zero Zero UK savings engine (production October 2026). Output ONE JSON object only.
 
 User: journey="${journeyId}", question="${questionId}", answer="${answerValue}", postcode="${postcode ?? 'unknown'}".
 
@@ -120,7 +120,7 @@ Required JSON shape:
   }
 }
 
-Optional followUp: include for gas/heating paths (nested loop — insulation, tariff, parking, etc.). Use journey_key exactly "${journeyId}". Set new_card_data.id exactly to "${stableId}". If live data is ambiguous, fall back to March 2026 rails (£${TRUE_WIN_RAILS.energyCapGbp} cap, ${TRUE_WIN_RAILS.avgTariffPencePerKwh}p/kWh tariff). No markdown, no extra keys beyond followUp inside new_card_data.`
+Optional followUp: include for gas/heating paths (nested loop — insulation, tariff, parking, etc.). Use journey_key exactly "${journeyId}". Set new_card_data.id exactly to "${stableId}". If live data is ambiguous, fall back to October 2026 rails (£${TRUE_WIN_RAILS.energyCapGbp} cap, ${TRUE_WIN_RAILS.avgTariffPencePerKwh}p/kWh tariff). No markdown, no extra keys beyond followUp inside new_card_data.`
 
   try {
     let rawText = ''
