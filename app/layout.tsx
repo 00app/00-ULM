@@ -37,6 +37,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://use.typekit.net" crossOrigin="anonymous" />
         {/* Helvetica Neue LT Pro — Adobe Fonts / Typekit kit, not a next/font Google font */}
         <link rel="stylesheet" href="https://use.typekit.net/nfy2mes.css" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Abril Fatface — numerals only, see 'Abril Fatface Numerals' unicode-range face in globals.css */}
+        <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&display=swap" rel="stylesheet" />
         {jsonLd.map((block, i) => (
           <script
             key={i}

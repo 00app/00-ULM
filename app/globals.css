@@ -74,6 +74,19 @@ html.zz-zone-document body {
   outline: none !important;
 }
 
+/* Abril Fatface — numerals only. Own private family name + unicode-range restricted to digits
+   and adjoining punctuation/currency, so it only ever matches digit characters wherever
+   --font-display/--font-text/--font-cta are used; every other character falls through to
+   Helvetica Neue in the same font stack. Same hosted file the <link> in app/layout.tsx loads. */
+@font-face {
+  font-family: 'Abril Fatface Numerals';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/abrilfatface/v25/zOL64pLDlL1D99S8g8PtiKchq-dmjcDidBc.woff2) format('woff2');
+  unicode-range: U+0030-0039, U+002C, U+002D, U+002E, U+002F, U+0025, U+0024, U+00A3, U+20AC, U+003A;
+}
+
 /* Next.js portal mount: prevent zero-size container from affecting layout/scroll */
 nextjs-portal {
   position: fixed;
@@ -119,10 +132,11 @@ nextjs-portal > * {
   --cta-press-ink: var(--white);
   --fw-heading: 900;
   --heading-heft: 0.025em;
-  --font-display: 'helvetica-neue-lt-pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  --font-text: 'helvetica-neue-lt-pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  /* CTA + label role: condensed Black (real 900 cut in the kit — no synthetic bold). */
-  --font-cta: 'helvetica-neue-lt-pro-cond', 'Helvetica Neue Condensed', 'Arial Narrow', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-display: 'Abril Fatface Numerals', 'helvetica-neue-lt-pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-text: 'Abril Fatface Numerals', 'helvetica-neue-lt-pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  /* CTA + label role: condensed Black (real 900 cut in the kit — no synthetic bold). Numerals face
+     still applies first — unicode-range means it only ever matches digits, never the condensed cut. */
+  --font-cta: 'Abril Fatface Numerals', 'helvetica-neue-lt-pro-cond', 'Helvetica Neue Condensed', 'Arial Narrow', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
   /* ── Colour primitives: the only three colours in the product. ── */
   --blue: #000AFF;
