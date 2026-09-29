@@ -211,6 +211,7 @@ export default function IntroScreen() {
           words={INTRO_KINETIC_WORDS_ARRAY}
           preserveCase
           literalCase
+          condensedFont
           trailingPeriod={false}
           gapMs={INTRO_SHIMMER_WORD_GAP_MS}
           wordExitMs={INTRO_ROUTE_WORD_EXIT_MS}

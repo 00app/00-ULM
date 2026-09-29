@@ -67,6 +67,9 @@ interface IntroWordCycleProps {
    * word capitalized, the rest lowercase) — this only disables the CSS transform fighting it.
    */
   literalCase?: boolean
+  /** Condensed Black cut (--font-cta) instead of the default display font — e.g. to match a
+   *  circle-CTA label's weight/width. */
+  condensedFont?: boolean
 }
 
 const DEFAULT_GAP_MS = 90
@@ -134,6 +137,7 @@ export default function IntroWordCycle({
   pulseGenomeMoney = false,
   holdFinalWord = false,
   literalCase = false,
+  condensedFont = false,
 }: IntroWordCycleProps) {
   const reduceMotion = useHydrationSafeReducedMotion()
   const [index, setIndex] = useState(0)
@@ -379,7 +383,9 @@ export default function IntroWordCycle({
               overflowWrap: useBalancedWrap || wrapLongPreservedWords ? ('anywhere' as const) : undefined,
               wordBreak: useBalancedWrap ? ('break-word' as const) : undefined,
               textTransform: preserveCase ? 'none' : 'uppercase',
-              fontFamily: 'var(--font-display), var(--font-text), sans-serif',
+              fontFamily: condensedFont
+                ? 'var(--font-cta), var(--font-display), var(--font-text), sans-serif'
+                : 'var(--font-display), var(--font-text), sans-serif',
               // Sizing for useBalancedWrap / looksLikeLongPlaceToken now lives entirely in the
               // .intro-balanced-wrap-token / .intro-locality-long-token CSS classes (globals.css)
               // instead of an inline clamp — inline styles can't carry a @media (min-width: 1024px)
