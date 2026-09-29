@@ -39,7 +39,9 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://use.typekit.net/nfy2mes.css" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* Abril Fatface — numerals only, see 'Abril Fatface Numerals' unicode-range face in globals.css */}
+        {/* Abril Fatface — numerals only, see 'Abril Fatface Numerals' unicode-range face in globals.css.
+            Not next/font, matching the Typekit link above — intentional, so disabling the lint rule. */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&display=swap" rel="stylesheet" />
         {jsonLd.map((block, i) => (
           <script
