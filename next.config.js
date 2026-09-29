@@ -13,9 +13,9 @@ const contentSecurityPolicy = [
   "frame-ancestors 'none'",
   "object-src 'none'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://va.vercel-scripts.com",
-  "style-src 'self' 'unsafe-inline' https://use.typekit.net https://fonts.googleapis.com",
+  "style-src 'self' 'unsafe-inline' https://use.typekit.net https://p.typekit.net https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' https://use.typekit.net https://fonts.gstatic.com",
+  "font-src 'self' https://use.typekit.net https://p.typekit.net https://fonts.gstatic.com",
   "connect-src 'self' https: wss:",
   "frame-src https://challenges.cloudflare.com",
 ].join('; ')
