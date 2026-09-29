@@ -4,6 +4,7 @@ import {
   syncFallbackGridIntensityGPerKwh,
 } from '@/lib/brains/liveGridCarbonFactor'
 import { TYPICAL_ANNUAL_CAP } from '@/lib/brains/constants'
+import { resolveOctopusRegionLetter } from '@/lib/data/octopusRegion'
 
 export interface LivePulseSnapshot {
   priceCapGbp: number
@@ -69,8 +70,7 @@ async function fetchOctopusAgilePulse(regionCode: string): Promise<number | null
 }
 
 function regionCodeFromPostcode(postcode: string): string {
-  const first = compactPostcode(postcode).charAt(0)
-  return first && /[A-Z]/.test(first) ? first : 'A'
+  return resolveOctopusRegionLetter(postcode)
 }
 
 /** Degraded pulse when live scrape fails — always safe to return as HTTP 200. */

@@ -3,6 +3,8 @@
  * Server-side only; not a switch recommendation.
  */
 
+import { resolveOctopusRegionLetter } from '@/lib/data/octopusRegion'
+
 const JSON_HEADERS = { Accept: 'application/json' } as const
 const TIMEOUT_MS = 10000
 
@@ -20,11 +22,24 @@ export type OctopusHalfHourlyRate = {
   value_inc_vat: number
 }
 
-/** Known Agile / tracker tariff paths (newest first — 404 falls through). */
-const AGILE_UNIT_RATE_URLS = [
-  'https://api.octopus.energy/v1/products/AGILE-FLEX-22-11-25/electricity-tariffs/E-1R-AGILE-FLEX-22-11-25-C/standard-unit-rates/',
-  'https://api.octopus.energy/v1/products/AGILE-18-02-21/electricity-tariffs/E-1R-AGILE-18-02-21-A/standard-unit-rates/',
-] as const
+/**
+ * Agile tariff product codes to try (newest first — 404 falls through). AGILE-18-02-21 is
+ * closed to new customers but its rate-feed endpoint is still actively updated by Octopus as a
+ * long-standing reference series, so it stays useful here as a live indicative rate even though
+ * it's not a real signup option. AGILE-FLEX-22-11-25 (closed 2023-12-11, feed no longer updated)
+ * was previously listed ahead of it and always 404'd first — removed.
+ * Both product+region URLs are built per-request in getAgileUnitRateUrls(), not hardcoded to a
+ * single region, since the region letter must match the caller's actual postcode.
+ */
+const AGILE_PRODUCT_CODES = ['AGILE-18-02-21'] as const
+
+function getAgileUnitRateUrls(postcode?: string | null): string[] {
+  const region = resolveOctopusRegionLetter(postcode)
+  return AGILE_PRODUCT_CODES.map(
+    (product) =>
+      `https://api.octopus.energy/v1/products/${product}/electricity-tariffs/E-1R-${product}-${region}/standard-unit-rates/`
+  )
+}
 
 async function fetchJson<T>(url: string, pageSize?: number): Promise<T | null> {
   try {
@@ -72,12 +87,14 @@ export async function getActiveEnergyProducts(): Promise<{
   return { count: json?.count ?? results.length, results }
 }
 
-/** Upcoming half-hourly unit rates (p/kWh inc VAT) — tries current Agile product codes. */
+/** Upcoming half-hourly unit rates (p/kWh inc VAT) — tries current Agile product codes for the
+ *  caller's region (falls back to London/C when no postcode is given). */
 export async function getLiveTariffHalfHourlyRates(
-  maxSlots = 12
+  maxSlots = 12,
+  postcode?: string | null
 ): Promise<{ productUrl: string; results: OctopusHalfHourlyRate[] } | null> {
   const cap = Math.min(48, Math.max(1, maxSlots))
-  for (const baseUrl of AGILE_UNIT_RATE_URLS) {
+  for (const baseUrl of getAgileUnitRateUrls(postcode)) {
     const json = await fetchJson<{
       results?: Array<{
         valid_from?: string
@@ -100,9 +117,9 @@ export async function getLiveTariffHalfHourlyRates(
   return null
 }
 
-/** Single indicative p/kWh from the next available half-hour slot. */
-export async function getIndicativeAgilePPerKwh(): Promise<number | null> {
-  const live = await getLiveTariffHalfHourlyRates(1)
+/** Single indicative p/kWh from the next available half-hour slot, for the caller's region. */
+export async function getIndicativeAgilePPerKwh(postcode?: string | null): Promise<number | null> {
+  const live = await getLiveTariffHalfHourlyRates(1, postcode)
   const v = live?.results?.[0]?.value_inc_vat
   return typeof v === 'number' && v > 0 ? v : null
 }
@@ -122,6 +139,7 @@ export type OctopusMarketSnapshot = {
 export async function fetchOctopusMarketSnapshot(opts?: {
   includeAgileSlots?: boolean
   productSample?: number
+  postcode?: string | null
 }): Promise<OctopusMarketSnapshot | null> {
   const sampleN = Math.min(8, Math.max(1, opts?.productSample ?? 5))
   const products = await getActiveEnergyProducts()
@@ -134,7 +152,7 @@ export async function fetchOctopusMarketSnapshot(opts?: {
   }
 
   if (opts?.includeAgileSlots !== false) {
-    const agile = await getLiveTariffHalfHourlyRates(12)
+    const agile = await getLiveTariffHalfHourlyRates(12, opts?.postcode)
     if (agile?.results.length) {
       const vals = agile.results.map((r) => r.value_inc_vat)
       snapshot.agile = {

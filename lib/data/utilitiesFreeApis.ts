@@ -161,7 +161,7 @@ export async function fetchUtilitiesPublicSnapshot(params: {
     fetchNesoGridIntensity(postcode).catch(() => null),
     fetchUkInfrastructureFeed({ postcode }).catch(() => null),
     wantsOctopus
-      ? fetchOctopusMarketSnapshot({ includeAgileSlots: true, productSample: 5 }).catch(
+      ? fetchOctopusMarketSnapshot({ includeAgileSlots: true, productSample: 5, postcode }).catch(
           () => null
         )
       : Promise.resolve(null),
@@ -170,7 +170,7 @@ export async function fetchUtilitiesPublicSnapshot(params: {
 
   let agilePPerKwh: number | null = octopusMarket?.agile?.slots?.[0]?.value_inc_vat ?? null
   if (agilePPerKwh == null && wantsOctopus) {
-    agilePPerKwh = await getIndicativeAgilePPerKwh().catch(() => null)
+    agilePPerKwh = await getIndicativeAgilePPerKwh(postcode).catch(() => null)
   }
 
   return {

@@ -6,8 +6,27 @@ import { SESSION_COOKIE, getSessionCookieAttributes } from '@/lib/auth'
 import { GUEST_SESSION_COOKIE, getGuestSessionCookieOptions, parseGuestSessionCookie } from '@/lib/zone/guestSession'
 import { unsealSessionToken } from '@/lib/sessionCookieSign'
 import { cookies } from 'next/headers'
+import { getSiteUrl } from '@/lib/site'
+
+/** Defense-in-depth alongside SameSite=Lax: reject a cross-origin POST when a browser
+ *  discloses Origin/Referer. Both are absent for some legitimate same-origin requests
+ *  (older browsers, some proxies), so we only block a known-bad mismatch, not silence. */
+function isTrustedOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get('origin') ?? request.headers.get('referer')
+  if (!origin) return true
+  try {
+    const requestHost = new URL(origin).host
+    const siteHost = new URL(getSiteUrl()).host
+    return requestHost === siteHost || requestHost === request.headers.get('host')
+  } catch {
+    return false
+  }
+}
 
 export async function POST(request: NextRequest) {
+  if (!isTrustedOrigin(request)) {
+    return NextResponse.json({ error: 'Invalid origin' }, { status: 403 })
+  }
   try {
     const response = NextResponse.json({ success: true })
 

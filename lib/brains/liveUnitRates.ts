@@ -57,7 +57,7 @@ export async function resolveLiveUnitRatesForPostcode(
       if (tariff === 'TRACKER' || opts?.preferAgileElec) {
         const agile =
           pulse.agilePPerKwh ??
-          (await getIndicativeAgilePPerKwh().catch(() => null))
+          (await getIndicativeAgilePPerKwh(pc).catch(() => null))
         if (typeof agile === 'number' && agile > 0) elecP = agile
       }
       return fromGbp(
