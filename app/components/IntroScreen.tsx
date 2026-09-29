@@ -46,12 +46,12 @@ type IntroScreenState = 'logo' | 'value-message' | 'goal'
  * Post-kinetic → intent question (`would you like to?`) → `/profile`.
  */
 const INTRO_KINETIC_WORDS = [
-  'SAVE',
-  'MONEY',
-  'CUT',
-  'CARBON',
-  'FEEL',
-  'GOOD',
+  'Save',
+  'money',
+  'cut',
+  'carbon',
+  'feel',
+  'good',
   'use',
   'less,',
   'more.',
@@ -210,6 +210,7 @@ export default function IntroScreen() {
         <IntroWordCycle
           words={INTRO_KINETIC_WORDS_ARRAY}
           preserveCase
+          literalCase
           trailingPeriod={false}
           gapMs={INTRO_SHIMMER_WORD_GAP_MS}
           wordExitMs={INTRO_ROUTE_WORD_EXIT_MS}

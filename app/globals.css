@@ -1920,6 +1920,17 @@ select,
   text-transform: uppercase !important;
 }
 
+/* Kinetic word-cycle rendering fragments of ONE sentence (each word its own DOM node): the rule
+   above fires ::first-letter per word, capitalizing every word — reads as Title Case across the
+   sequence, not sentence case. Neutralize it here; the source words array is authored pre-cased
+   (first word capitalized, the rest lowercase) so the literal text is already correct. */
+.intro-text-large.intro-kinetic-literal-case:not(#v2) {
+  text-transform: none !important;
+}
+.intro-text-large.intro-kinetic-literal-case:not(#v2)::first-letter {
+  text-transform: none !important;
+}
+
 .groovy-zone-grid .bento-card-groovy {
   background: var(--color-blue) !important;
   color: var(--color-white) !important;

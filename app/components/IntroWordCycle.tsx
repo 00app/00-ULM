@@ -60,6 +60,13 @@ interface IntroWordCycleProps {
   pulseGenomeMoney?: boolean
   /** On the final word: fire `onComplete` after dwell but keep the word visible (hydration shield). */
   holdFinalWord?: boolean
+  /**
+   * When the word list is fragments of one continuous sentence (e.g. "save" "money" "cut"...)
+   * rather than separate standalone phrases: skip the shared per-word auto-capitalize so it reads
+   * as true sentence case, not every word capitalized. Author the words array pre-cased (first
+   * word capitalized, the rest lowercase) — this only disables the CSS transform fighting it.
+   */
+  literalCase?: boolean
 }
 
 const DEFAULT_GAP_MS = 90
@@ -126,6 +133,7 @@ export default function IntroWordCycle({
   opacityTicker = false,
   pulseGenomeMoney = false,
   holdFinalWord = false,
+  literalCase = false,
 }: IntroWordCycleProps) {
   const reduceMotion = useHydrationSafeReducedMotion()
   const [index, setIndex] = useState(0)
@@ -353,7 +361,9 @@ export default function IntroWordCycle({
             key={currentWord}
             className={`${motionPreset.className}${tickerGenomeGlow}${
               useBalancedWrap ? ' intro-balanced-wrap-token' : ''
-            }${looksLikeLongPlaceToken ? ' intro-locality-long-token' : ''}`}
+            }${looksLikeLongPlaceToken ? ' intro-locality-long-token' : ''}${
+              literalCase ? ' intro-kinetic-literal-case' : ''
+            }`}
             initial={motionPreset.initial}
             animate={motionPreset.animate}
             exit={motionPreset.exit}
