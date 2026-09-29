@@ -46,15 +46,15 @@ type IntroScreenState = 'logo' | 'value-message' | 'goal'
  * Post-kinetic → intent question (`would you like to?`) → `/profile`.
  */
 const INTRO_KINETIC_WORDS = [
-  'Save',
-  'money',
-  'cut',
-  'carbon',
-  'feel',
-  'good',
-  'use',
-  'less,',
-  'more.',
+  'SAVE',
+  'MONEY',
+  'CUT',
+  'CARBON',
+  'FEEL',
+  'GOOD',
+  'USE',
+  'LESS,',
+  'MORE.',
 ] as const
 
 const INTRO_KINETIC_WORDS_ARRAY = [...INTRO_KINETIC_WORDS]
