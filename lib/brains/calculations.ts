@@ -2,7 +2,6 @@
  * ZERO ZERO — Impact calculations (UK annualized).
  *
  * v42.8 — April–June 2026 lock: electricity **24.67p/kWh**, gas **5.74p/kWh** (`MARCH_2026_ECONOMY`),
- * Policy savings (cap step / green levy) are conditional on tariff + energy type — see `policySavingsEligibility.ts`.
  * Re-exported aliases: `BASELINE_2026_CAP_GBP`, `ELEC_UNIT_RATE_PENCE`, `GAS_UNIT_RATE_PENCE`.
  * Scraped/live rates: `buildUserImpact` + `scrapedOverlay`.
  */
@@ -18,11 +17,6 @@ import {
   type GridCarbonContext,
 } from '@/lib/brains/liveGridCarbonFactor'
 import type { UnitRateSource } from '@/lib/brains/liveUnitRates'
-import {
-  evaluateApril2026PolicySavings,
-  sumPolicySavingsGbp,
-  type AppliedPolicySaving,
-} from '@/lib/brains/policySavingsEligibility'
 
 import {
   MARCH_2026_ECONOMY,
@@ -46,15 +40,11 @@ export const GAS_UNIT_RATE_PENCE = APRIL_2026_TRUTH_PENCE.GAS_PER_KWH
 
 export { formatMoneyValue, formatCarbonValue, getMoneyStampParts, getCarbonStampParts } from '@/lib/format'
 
-export type { AppliedPolicySaving }
-
 export interface ImpactResult {
   carbonKg: number
   moneyGbp: number
   source: string
   explanation: string[]
-  /** April 2026 policy lines included in moneyGbp — UI can explain each reduction */
-  policySavings?: AppliedPolicySaving[]
   /** Where elec/gas unit rates came from for this calculation */
   unitRateSource?: UnitRateSource
   /** Verified unit rates used (p/kWh) when live feed supplied */
@@ -125,27 +115,19 @@ export function calculateHome(
     money += Math.round(saved.moneyGbp + savedGas.moneyGbp)
   }
 
-  const policySavings = evaluateApril2026PolicySavings(a)
-  money += sumPolicySavingsGbp(policySavings)
-
   const hasLeakOpportunity = a.energy_type === 'GAS'
   const isSolar = String(a.energy_type ?? '').toUpperCase() === 'SOLAR'
-  const capLead =
-    policySavings.length > 0
-      ? `April 2026 policy savings applied: ${policySavings.map((p) => `${p.label} (~£${p.amountGbp})`).join('; ')}.`
-      : `No automatic April 2026 cap or green-levy savings applied — fixed/unknown tariff or supply type out of policy scope.`
   const unitLead = `Unit rates (${unitRateSource.replace(/_/g, ' ')}): ${elecPence.toFixed(2)}p/kWh electricity, ${gasPence.toFixed(2)}p/kWh gas.`
   const warmHomesLead =
     isSolar || String(a.energy_type ?? '').toUpperCase() === 'ELECTRIC'
       ? `£15bn Warm Homes Plan: low-interest loans for solar/batteries and street-level upgrades — stack with your audit.`
       : `£15bn Warm Homes Plan backs fabric and clean heat — check eligibility alongside tariff moves.`
-  const capLeadHome = [capLead, unitLead, warmHomesLead, ...policySavings.map((p) => p.reason)]
+  const capLeadHome = [unitLead, warmHomesLead]
   return {
     carbonKg: Math.round(Math.max(0, carbon)),
     moneyGbp: Math.round(Math.max(0, money)),
     source: 'energy saving trust uk (2026 factors)',
     explanation: capLeadHome,
-    policySavings: policySavings.length > 0 ? policySavings : undefined,
     unitRateSource,
     unitRatesPence: { elec: elecPence, gas: gasPence },
     claimOfferUrl: hasLeakOpportunity ? 'https://octopus.energy/tracker/' : null,
