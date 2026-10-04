@@ -1,5 +1,8 @@
 # Zero Zero — County-Level Pivot: Implementation Prompt
 
+> ⚠️ **Conflicts flagged 2026-10** (not reconciled). The proposed first screen and the guest Zone shape describe behaviour replaced by [ENTRY-AND-ZONE-RAILS.md](ENTRY-AND-ZONE-RAILS.md#conflicts-with-existing-docs) (items 6). The text below is unchanged.
+
+
 Paste this whole document as the prompt for a Claude Code session to execute. It's written to be self-contained — no prior conversation context required.
 
 ## Context

@@ -1,5 +1,8 @@
 # User Flow And Data Pipeline
 
+> ⚠️ **Conflicts flagged 2026-10** (not reconciled). Step 1 (`/` / `/intro`) describe behaviour replaced by [ENTRY-AND-ZONE-RAILS.md](ENTRY-AND-ZONE-RAILS.md#conflicts-with-existing-docs) (items 3). The text below is unchanged.
+
+
 This document gives a single view of how users move through the app and how data flows through the system.
 
 Related references:

@@ -1,5 +1,8 @@
 # Dev, test, audit, and clean build
 
+> ⚠️ **Conflicts flagged 2026-10** (not reconciled). The E1 “intro goal” step describe behaviour replaced by [ENTRY-AND-ZONE-RAILS.md](ENTRY-AND-ZONE-RAILS.md#conflicts-with-existing-docs) (items 3). The text below is unchanged.
+
+
 Quick runbook for local work on Zero Zero (00-00) after ULM / hybrid pipeline changes.
 
 ---

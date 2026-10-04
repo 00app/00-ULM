@@ -1,5 +1,8 @@
 # Zero Zero (00-00) — Full application specification
 
+> ⚠️ **Conflicts flagged 2026-10** (not reconciled). The Intro row, the Profile row’s goal note, the `/` + `/intro` motion row and the verified-citation notes describe behaviour replaced by [ENTRY-AND-ZONE-RAILS.md](ENTRY-AND-ZONE-RAILS.md#conflicts-with-existing-docs) (items 1, 2, 5, 10). The text below is unchanged.
+
+
 Operational architecture for the UK postcode-driven energy auditor: what talks to what, where data lives, and how Profile, Zone, Solo Focus, and Neon research fit together.
 
 **Related docs:** [GUARDRAILS-AND-PIPELINE.md](GUARDRAILS-AND-PIPELINE.md) · [HANDBOOK.md](HANDBOOK.md) · [ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md) · [SENTINEL.md](SENTINEL.md) · [INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md) · [PROFILE-ANSWERS-ZONE-TECH.md](PROFILE-ANSWERS-ZONE-TECH.md) · [PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md) · [ZAI-AND-QUESTIONS-RULES.md](ZAI-AND-QUESTIONS-RULES.md)

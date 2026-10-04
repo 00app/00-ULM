@@ -1,5 +1,8 @@
 # Guardrails & pipeline — single source of truth
 
+> ⚠️ **Conflicts flagged 2026-10** (not reconciled). The pipeline diagram’s `INTRO[Intro goal]` node and the Zone tile word-count tiers describe behaviour replaced by [ENTRY-AND-ZONE-RAILS.md](ENTRY-AND-ZONE-RAILS.md#conflicts-with-existing-docs) (items 3, 8). The text below is unchanged.
+
+
 **Mission:** Every UK home gets a **postcode-first**, **mechanically true** audit — real £ and kg from profile + answers + Neon research, never demo leakage or fabricated savings.
 
 This document ties together **rules**, **code gates**, **CI**, and **docs** so one workflow stays honest end-to-end.

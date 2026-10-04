@@ -10,6 +10,7 @@ SYNTH_START = "<!-- SYNTHESIZED:START -->"
 SYNTH_END = "<!-- SYNTHESIZED:END -->"
 
 SOURCES = [
+    ("ENTRY-AND-ZONE-RAILS.md", "Entry flow, card anatomy, Zone rails & bank connection (2026-10)", "annex-entry-flow-card-anatomy-zone-rails--bank-connection-2026-10"),
     ("GUARDRAILS-AND-PIPELINE.md", "Guardrails & pipeline (canonical)", "annex-guardrails--pipeline-canonical"),
     ("INTELLIGENCE-PIPELINE-FINAL.md", "Intelligence pipeline (trigger matrix)", "annex-intelligence-pipeline-trigger-matrix"),
     ("PROFILE-FIELDS-GRID-UNLOCKS.md", "Profile fields → grid unlocks", "annex-profile-fields-grid-unlocks"),

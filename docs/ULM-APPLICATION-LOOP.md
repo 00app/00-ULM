@@ -1,5 +1,8 @@
 # Zero Zero (00-00) — ULM application loop
 
+> ⚠️ **Conflicts flagged 2026-10** (not reconciled). The Zone vertical stack (DOM) line describe behaviour replaced by [ENTRY-AND-ZONE-RAILS.md](ENTRY-AND-ZONE-RAILS.md#conflicts-with-existing-docs) (items 7). The text below is unchanged.
+
+
 Production blueprint: **free API intercept → deterministic engine → surgical premium tier**.  
 Zai is the **only** product bot (no secondary chat widget).
 

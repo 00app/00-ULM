@@ -1,5 +1,8 @@
 # Profile, journey questions & Zone data — technical reference
 
+> ⚠️ **Conflicts flagged 2026-10** (not reconciled). The postcode step’s “intro geolocation” and the Intro paragraph describe behaviour replaced by [ENTRY-AND-ZONE-RAILS.md](ENTRY-AND-ZONE-RAILS.md#conflicts-with-existing-docs) (items 4). The text below is unchanged.
+
+
 What ships in **`main`** after the **mechanical truth** pass: the UI only shows £/kg and headlines when Neon or scrape-sync has **stream data**. No UK placeholder back-fill on the Zone wall.
 
 Cross-links: **[GUARDRAILS-AND-PIPELINE.md](GUARDRAILS-AND-PIPELINE.md)**, **[HANDBOOK.md](HANDBOOK.md)**, **[ZONE-CONTENT-AND-DATA.md](ZONE-CONTENT-AND-DATA.md)**, **[INTELLIGENCE-PIPELINE-FINAL.md](INTELLIGENCE-PIPELINE-FINAL.md)**, **[PROFILE-FIELDS-GRID-UNLOCKS.md](PROFILE-FIELDS-GRID-UNLOCKS.md)**, **`lib/journeys.ts`**.

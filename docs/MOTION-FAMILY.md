@@ -1,5 +1,8 @@
 # 00 Family Liquid + Unified Atomic Assembly
 
+> ⚠️ **Conflicts flagged 2026-10** (not reconciled). The `/` + `/intro` motion row and the Director’s order list describe behaviour replaced by [ENTRY-AND-ZONE-RAILS.md](ENTRY-AND-ZONE-RAILS.md#conflicts-with-existing-docs) (items 5, 9). The text below is unchanged.
+
+
 Delivery-only motion vocabulary. **Does not** change profile questions, summary word order, zone loop logic, or `lib/brains`. Sequence is frozen in **`lib/zone/directorsOrder.ts`** + **`docs/HANDBOOK.md`** (Director's Order).
 
 **Unified material (vibe-lock):** every surface uses the same crystallize physics — Intro/loading (`AtomicLogo`), Profile/Settings steps, Summary/Architectural Pulse ticker, Zone grid + Rock, Zai messages, loop takeover, discovery snap-in.
