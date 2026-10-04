@@ -14,10 +14,11 @@ import { sortRecCards, type RecCardModel } from '@/lib/zone/recCard'
 
 export const MIN_CARDS_FOR_CATEGORY_RAIL = 2
 export const MAX_BIGGEST_SAVINGS_CARDS = 12
+export const MAX_HERO_CARDS = 3
 
 export type ZoneRail = {
   id: string
-  kind: 'biggest' | 'today' | 'category'
+  kind: 'hero' | 'biggest' | 'today' | 'category'
   title: string
   ariaLabel: string
   category?: JourneyId
@@ -36,9 +37,22 @@ export function railDomId(railId: string): string {
 export function buildZoneRails(
   recs: readonly RecCardModel[],
   today: readonly RecCardModel[],
-  opts: { pinnedFirst?: RecCardModel | null } = {}
+  opts: { pinnedFirst?: RecCardModel | null; heroCards?: readonly RecCardModel[] } = {}
 ): ZoneRailsLayout {
   const rails: ZoneRail[] = []
+
+  // Hero: the profile's top wins (Quick win / Big win / Do now), featured above everything. Kept in
+  // the caller's order (that order is the meaning), exempt from the >=2 and sort rules.
+  const hero = (opts.heroCards ?? []).slice(0, MAX_HERO_CARDS)
+  if (hero.length > 0) {
+    rails.push({
+      id: 'hero',
+      kind: 'hero',
+      title: 'Your profile',
+      ariaLabel: 'Your top wins',
+      cards: [...hero],
+    })
+  }
   const sortedAll = sortRecCards(recs)
 
   // A pinned card (the bank Connect card) leads the rail, outside the sort and the cap.

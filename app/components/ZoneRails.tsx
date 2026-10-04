@@ -49,13 +49,19 @@ function Rail({ rail, visitedIds, onOpen, onCta }: { rail: ZoneRail } & Omit<Pro
   return (
     <section
       id={railDomId(rail.id)}
-      className="zone-rail"
-      data-testid={`zone-rail-${rail.id}`}
+      className={`zone-rail${rail.kind === 'hero' ? ' zone-rail--hero' : ''}`}
+      data-testid={rail.kind === 'hero' ? 'zone-hero-card' : `zone-rail-${rail.id}`}
       aria-labelledby={headingId}
     >
       <div className="zone-rail-head">
         <h3 id={headingId} className="zone-rail-title m-0">
-          {rail.title}
+          {rail.kind === 'hero' ? (
+            <Link href={ROUTES.SETTINGS} className="zone-rail-title-link">
+              {rail.title}
+            </Link>
+          ) : (
+            rail.title
+          )}
         </h3>
         <div className="zone-rail-arrows" aria-hidden={false}>
           <button
@@ -88,7 +94,13 @@ function Rail({ rail, visitedIds, onOpen, onCta }: { rail: ZoneRail } & Omit<Pro
       >
         {rail.cards.map((card) => (
           <div key={card.id} className={`zone-rail-item zone-rail-item--${card.size}`}>
-            <ZoneRecCard card={card} visited={visitedIds?.has(card.id)} onOpen={onOpen} onCta={onCta} />
+            <ZoneRecCard
+              card={card}
+              visited={visitedIds?.has(card.id)}
+              onOpen={onOpen}
+              onCta={onCta}
+              emphasis={rail.kind === 'hero' ? 'hero' : undefined}
+            />
           </div>
         ))}
       </div>
@@ -120,8 +132,13 @@ export function ZoneRails({ layout, visitedIds, onOpen, onCta }: Props) {
     )
   }
 
+  const heroRails = layout.rails.filter((r) => r.kind === 'hero')
+  const otherRails = layout.rails.filter((r) => r.kind !== 'hero')
   return (
     <div className="zone-rails" data-testid="zone-rails">
+      {heroRails.map((rail) => (
+        <Rail key={rail.id} rail={rail} visitedIds={visitedIds} onOpen={onOpen} onCta={onCta} />
+      ))}
       {layout.pills.length > 0 ? (
         <nav className="zone-rail-pills" aria-label="Jump to a category">
           {layout.pills.map((p) => (
@@ -131,7 +148,7 @@ export function ZoneRails({ layout, visitedIds, onOpen, onCta }: Props) {
           ))}
         </nav>
       ) : null}
-      {layout.rails.map((rail) => (
+      {otherRails.map((rail) => (
         <Rail key={rail.id} rail={rail} visitedIds={visitedIds} onOpen={onOpen} onCta={onCta} />
       ))}
     </div>

@@ -226,7 +226,7 @@ import ZoneAskZaiDock from '@/app/components/ZoneAskZaiDock'
 import { RockMobileSignupCard } from '@/app/components/RockSavingTips'
 import { ZoneRails } from '@/app/components/ZoneRails'
 import { buildZoneRails } from '@/lib/zone/rails'
-import { habitToRecCard, journeyToRecCard, tipToRecCard } from '@/lib/zone/recCardFromZone'
+import { habitToRecCard, heroSlotToRecCard, journeyToRecCard, tipToRecCard } from '@/lib/zone/recCardFromZone'
 import { buildBankConnectCard, withConnectToSeeSaving, type RecCardCta, type RecCardModel } from '@/lib/zone/recCard'
 import { useBankAnalysis, useBankConnection } from '@/lib/hooks/useBankConnection'
 import { useSwitchRecords } from '@/lib/hooks/useSwitchRecords'
@@ -3012,8 +3012,17 @@ export default function ZonePage({
           )
           .filter((c): c is RecCardModel => c !== null)
       : []
+    // Hero: the profile's top wins as featured cards. They are shown once, so the same ids are
+    // kept out of Biggest savings, Today and the category rails.
+    let heroCards = heroWinSlots
+      .map((slot) =>
+        heroSlotToRecCard(slot, ctx, (slug) => rockHabitsWithOffers.find((h) => h.slug === slug)?.journey_key ?? null)
+      )
+      .filter((c): c is RecCardModel => c !== null)
+    if (bank.state.status === 'none') heroCards = heroCards.map(withConnectToSeeSaving)
+    const heroIds = new Set(heroCards.map((c) => c.id))
     const recs: RecCardModel[] = []
-    const seen = new Set<string>()
+    const seen = new Set<string>(heroIds)
     for (const cell of displayItems) {
       if (cell.type === 'hero') continue
       let card = cell.type === 'journey' ? journeyToRecCard(cell.item, ctx) : tipToRecCard(cell.tip, ctx)
@@ -3026,16 +3035,19 @@ export default function ZonePage({
     recs.push(...bankCards)
     const today: RecCardModel[] = []
     for (const h of rockHabitsWithOffers) {
-      const card = habitToRecCard(h, habitToTipCard(h).id, ctx)
+      const tipId = habitToTipCard(h).id
+      if (heroIds.has(tipId)) continue
+      const card = habitToRecCard(h, tipId, ctx)
       if (card) today.push(card)
     }
     // Connect only makes sense next to something to unlock. With no cards at all (no postcode, so
     // no card can say why it's for you) the rails show the postcode prompt instead.
     const hasAnyCard = recs.length > 0 || today.length > 0
     const pinnedFirst = hasAnyCard && shouldShowBankConnectCard(bank.state) ? buildBankConnectCard() : null
-    return buildZoneRails(recs, today, { pinnedFirst })
+    return buildZoneRails(recs, today, { pinnedFirst, heroCards })
   }, [
     hydrated,
+    heroWinSlots,
     displayItems,
     rockHabitsWithOffers,
     researchCategoryCoverage,
@@ -3222,7 +3234,7 @@ export default function ZonePage({
                 >
                   <div className="w-full flex-1 min-h-0 flex flex-col pt-5">
                     <div
-                      data-testid="zone-hero-card"
+                      data-testid="zone-hero-card-legacy"
                       data-source={heroDataSource}
                       className={`zone-hero-card bento-card-groovy flex flex-col flex-1 min-h-0 h-full w-full justify-between text-inherit${sentinelHeroPing ? ' sentinel-hero-ping' : ''}`}
                     >
@@ -3677,7 +3689,7 @@ export default function ZonePage({
           aria-hidden={zoneWallCollapsed}
         >
           <LayoutGroup id="zone-bento-wall">
-          <div className="zone-hero-wall">
+          <div className="zone-hero-wall zone-legacy-wall" aria-hidden="true">
           <motion.div
             key={`zone-grid-hero-${summaryGridStaggerKey}-${cleanBirthRevealKey}`}
             data-testid="zone-grid-hero"

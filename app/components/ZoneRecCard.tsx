@@ -12,6 +12,8 @@ type Props = {
   onOpen: (card: RecCardModel) => void
   /** Any non-`open` CTA (connect bank, switch, confirm). */
   onCta?: (card: RecCardModel, cta: RecCardCta) => void
+  /** Hero: the featured top-wins row. Same anatomy, larger type. */
+  emphasis?: 'hero'
 }
 
 /** Splits "Save £420 a year" so the £ figure alone can take the display face. */
@@ -33,7 +35,7 @@ function renderHeadline(card: RecCardModel) {
  * (`bento-card-groovy` + `data-zone-surface="tip"`), laid out in the fixed slot order:
  * label · headline · whyYou · primaryCta · secondaryCta · badge.
  */
-export function ZoneRecCard({ card, visited = false, onOpen, onCta }: Props) {
+export function ZoneRecCard({ card, visited = false, onOpen, onCta, emphasis }: Props) {
   const fire = (cta: RecCardCta) => {
     if (cta.kind === 'open') onOpen(card)
     else onCta?.(card, cta)
@@ -58,6 +60,7 @@ export function ZoneRecCard({ card, visited = false, onOpen, onCta }: Props) {
       className={[
         'bento-card-groovy rock-bento-tile zone-rec-card',
         `zone-rec-card--${card.size}`,
+        emphasis === 'hero' ? 'zone-rec-card--hero' : '',
         visited ? 'zone-card--visited' : '',
       ]
         .filter(Boolean)

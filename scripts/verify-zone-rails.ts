@@ -83,6 +83,17 @@ check('pinned card is outside the cap', buildZoneRails(many, [], { pinnedFirst: 
 check('pinned card alone still renders the rail', buildZoneRails([], [], { pinnedFirst: pinned }).rails.length === 1)
 check('no pinned card, no change', JSON.stringify(buildZoneRails(recs, today, { pinnedFirst: null })) === JSON.stringify(buildZoneRails(recs, today)))
 
+// hero rail: the profile's top wins, first, in the caller's order, outside the >=2 and sort rules.
+const heroes = [card('h1', 'travel', null), card('h2', 'home', 900), card('h3', 'food', null), card('h4', 'food', null)]
+const withHero = buildZoneRails(recs, today, { heroCards: heroes, pinnedFirst: pinned })
+check('hero rail is first', withHero.rails[0].id === 'hero' && withHero.rails[0].kind === 'hero')
+check('hero keeps the caller order (not sorted by £)', withHero.rails[0].cards.map((c) => c.id).join('') === 'h1h2h3')
+check('hero is capped at 3', withHero.rails[0].cards.length === 3)
+check('hero comes before Biggest savings', withHero.rails[1].id === 'biggest' && withHero.rails[1].cards[0].id === pinned.id)
+check('hero cards never create category pills', withHero.pills.length === pills.length)
+check('no hero cards, no hero rail', !buildZoneRails(recs, today, { heroCards: [] }).rails.some((r) => r.kind === 'hero'))
+check('hero alone still renders', buildZoneRails([], [], { heroCards: heroes }).rails.map((r) => r.id).join() === 'hero')
+
 if (failures.length) {
   console.error('[zone-rails] FAILED')
   for (const f of failures) console.error(`  • ${f}`)

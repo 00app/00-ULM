@@ -9,6 +9,7 @@
  */
 
 import type { ZoneJourneyCard, ZoneTipCard } from '@/lib/logic/zone'
+import type { HeroWinSlot } from '@/lib/zone/heroLeadLines'
 import type { JourneyId } from '@/lib/journeys'
 import type { RockHabit } from '@/lib/rock/types'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
@@ -114,5 +115,37 @@ export function habitToRecCard(h: RockHabit, cardId: string, ctx: RecCardContext
     actionWording: clampRockTipHeadline(h.title),
     whyYou: buildWhyYou(h.journey_key, ctx.facts),
     openRef: { type: 'habit', id: cardId },
+  })
+}
+
+/**
+ * Profile hero slot (Quick win / Big win / Do now) as a card. The slot label is the card label, so
+ * it reads "QUICK WIN" above the action. Empty slots ("needed more info") produce no card, and a
+ * slot whose category can't say why it's for you produces none either.
+ */
+export function heroSlotToRecCard(
+  slot: HeroWinSlot,
+  ctx: RecCardContext,
+  habitJourneyBySlug: (slug: string) => JourneyId | null
+): RecCardModel | null {
+  if (!slot.headline) return null
+  const category: JourneyId | null = slot.rockSlug
+    ? habitJourneyBySlug(slot.rockSlug)
+    : ((slot.tip?.journey_key ?? slot.journeyCell?.journey_key ?? null) as JourneyId | null)
+  if (!category) return null
+  const openRef = slot.rockSlug
+    ? ({ type: 'habit', id: `rock-${slot.rockSlug}` } as const)
+    : slot.tip
+      ? ({ type: 'tip', id: slot.tip.id } as const)
+      : null
+  if (!openRef) return null
+  return resolveRecCard({
+    id: openRef.id,
+    size: 'large',
+    category,
+    label: slot.label.toUpperCase(),
+    actionWording: slot.headline,
+    whyYou: buildWhyYou(category, ctx.facts),
+    openRef,
   })
 }

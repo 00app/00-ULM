@@ -9478,3 +9478,41 @@ input[type="radio"]:not(#v2):active {
 /* Legacy bento wall stays mounted (Solo Focus expansion lives inside its journey cells) but unused. */
 .zone-legacy-wall:not(#v2) { display: none !important; }
 .zone-rec-cta--done:not(#v2) { opacity: 0.85; cursor: default; }
+
+/* Hero row: the profile's top wins as three featured cards. Same card anatomy as the rails, larger
+   headline. Mobile: a scroll-snap rail like the others. Desktop: three equal columns, no scrolling
+   and no arrows (there are never more than three). */
+.zone-rail--hero .zone-rail-title-link:not(#v2) { color: inherit !important; text-decoration: none; }
+.zone-rail--hero .zone-rail-title-link:not(#v2):hover { text-decoration: underline; text-underline-offset: 4px; }
+.zone-rec-card--hero .zone-rec-headline:not(#v2) { font-size: 28px !important; }
+@media (min-width: 768px) {
+  .zone-rail--hero .zone-rail-scroller:not(#v2) {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+    scroll-snap-type: none;
+    padding-bottom: 4px;
+  }
+  .zone-rail--hero .zone-rail-item:not(#v2) { width: auto; min-width: 0; }
+  .zone-rail--hero .zone-rail-arrows:not(#v2) { display: none; }
+  .zone-rec-card--hero:not(#v2) { min-height: 300px; }
+  .zone-rec-card--hero .zone-rec-headline:not(#v2) { font-size: 32px !important; }
+}
+
+/* Rails spacing: a clear gap under the summary, and a gutter below desktop that lines up with the
+   summary text (mobile 32px, tablet 20px). Cards still bleed off the right edge so the next one peeks. */
+.zone-rails:not(#v2) { margin-top: 32px; }
+@media (max-width: 1023px) {
+  .zone-rail-head:not(#v2),
+  .zone-rail-pills:not(#v2),
+  .zone-rails--empty:not(#v2) { padding-inline: 20px; }
+  .zone-rail-scroller:not(#v2) { padding-inline: 20px; scroll-padding-inline: 20px; }
+  .zone-anchor .zone-hero-copy:not(#v2) { padding-inline: 20px; }
+}
+@media (max-width: 767px) {
+  .zone-rail-head:not(#v2),
+  .zone-rail-pills:not(#v2),
+  .zone-rails--empty:not(#v2) { padding-inline: 32px; }
+  .zone-rail-scroller:not(#v2) { padding-inline: 32px; scroll-padding-inline: 32px; }
+  .zone-anchor .zone-hero-copy:not(#v2) { padding-inline: 2px; }
+}
