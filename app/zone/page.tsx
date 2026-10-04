@@ -3441,39 +3441,41 @@ export default function ZonePage({
           initial="hidden"
           animate="visible"
         >
-          <motion.div
-            variants={STACCATO_CHILD_VARIANTS}
-            className="zone-hero-section w-full"
-            aria-live="polite"
-          >
+          <div className="zone-hero-section w-full" aria-live="polite">
             <div className="zone-hero-copy" data-testid="zone-section-welcome">
               {/* Summary: body-weight sentences; the display face is reserved for the single hero £
                   figure. A line that is empty (a zero figure) is not rendered. */}
-              <p className="zone-summary-line m-0">
-                {zoneWelcome.timeOfDayLine.replace(/\.$/, ',')} {zoneWelcome.nameLine}
-              </p>
-              {zoneWelcome.foundCountLine ? (
-                <p className="zone-summary-line m-0">{zoneWelcome.foundCountLine}</p>
-              ) : null}
-              {zoneWelcome.localityLine ? (
-                <p className="zone-summary-line m-0">
-                  {(() => {
-                    const m = zoneWelcome.localityLine.match(/^(£\S+)\s+(.*)$/)
-                    return m ? (
-                      <>
-                        <span className="zone-summary-figure">{m[1]}</span> {m[2]}
-                      </>
-                    ) : (
-                      zoneWelcome.localityLine
-                    )
-                  })()}
-                </p>
-              ) : null}
-              {zoneWelcome.savingsMoneyLine ? (
-                <p className="zone-summary-line m-0">{zoneWelcome.savingsMoneyLine}</p>
-              ) : null}
+              {[
+                <>
+                  {zoneWelcome.timeOfDayLine.replace(/\.$/, ',')} {zoneWelcome.nameLine}
+                </>,
+                zoneWelcome.foundCountLine || null,
+                zoneWelcome.localityLine
+                  ? (() => {
+                      const m = zoneWelcome.localityLine.match(/^(£\S+)\s+(.*)$/)
+                      return m ? (
+                        <>
+                          <span className="zone-summary-figure">{m[1]}</span> {m[2]}
+                        </>
+                      ) : (
+                        zoneWelcome.localityLine
+                      )
+                    })()
+                  : null,
+                zoneWelcome.savingsMoneyLine || null,
+              ]
+                .filter((line) => line !== null)
+                .map((line, i) => (
+                  <p
+                    key={i}
+                    className="zone-summary-line m-0"
+                    style={{ '--zs-i': i } as React.CSSProperties}
+                  >
+                    {line}
+                  </p>
+                ))}
             </div>
-          </motion.div>
+          </div>
           {showInlineLoadingLogo && !zoneHandoffStaging ? (
             <AppBootGlitch
               label="Loading your savings wall"

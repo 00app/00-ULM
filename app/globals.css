@@ -9288,3 +9288,17 @@ input[type="radio"]:not(#v2):active {
   text-align: center;
   margin-inline: auto;
 }
+
+/* Zone summary entrance: soft line-by-line fade. Opacity + transform only (Safari-smooth),
+   300ms ease-out, 60ms stagger. CSS animation on mount = once per load, never on re-render. */
+@keyframes zone-summary-line-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.zone-anchor .zone-summary-line {
+  animation: zone-summary-line-in 300ms ease-out both;
+  animation-delay: calc(var(--zs-i, 0) * 60ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .zone-anchor .zone-summary-line { animation: none; }
+}
