@@ -619,3 +619,22 @@ export async function mergeUserGenomeSoloFocusAudit(
     /* non-blocking */
   }
 }
+
+/** Mirror the bank connection status (and snooze date) onto `users.user_genome.bank_connection`. */
+export async function mergeUserGenomeBankConnection(
+  userId: string,
+  state: { status: 'none' | 'sample' | 'live'; snoozedUntil: string | null }
+): Promise<void> {
+  const pool = getDbPool()
+  const uid = userId?.trim()
+  if (!uid) return
+  const payload = { bank_connection: { status: state.status, snoozedUntil: state.snoozedUntil } }
+  try {
+    await pool.query(
+      `UPDATE users SET user_genome = COALESCE(user_genome, '{}'::jsonb) || $2::jsonb WHERE id = $1::uuid`,
+      [uid, JSON.stringify(payload)]
+    )
+  } catch {
+    /* non-blocking */
+  }
+}

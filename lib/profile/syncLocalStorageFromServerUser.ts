@@ -1,5 +1,6 @@
 import { PROFILE_GOAL_STORAGE_KEY, PROFILE_STORAGE_KEYS } from '@/lib/profile/onboardingComplete'
 import { persistEnergySupplierFromProfile } from '@/lib/profile/energySupplier'
+import { BANK_CONNECTION_STORAGE_KEY, parseBankState } from '@/lib/bank/connectionState'
 
 /**
  * Write a server `users` row (same shape /api/user returns) into the same localStorage keys
@@ -52,5 +53,12 @@ export function syncLocalStorageFromServerUser(user: Record<string, unknown> | u
       /* ignore */
     }
     persistEnergySupplierFromProfile()
+    if (genome.bank_connection) {
+      try {
+        localStorage.setItem(BANK_CONNECTION_STORAGE_KEY, JSON.stringify(parseBankState(genome.bank_connection)))
+      } catch {
+        /* ignore */
+      }
+    }
   }
 }
