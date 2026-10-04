@@ -9346,3 +9346,88 @@ input[type="radio"]:not(#v2):active {
 @media (min-width: 1024px) {
   .entry-result-figure:not(#v2) { font-size: var(--zz-h2-desktop) !important; }
 }
+
+/* Zone recommendation card (ZoneRecCard): blue bento shell like the wall tiles, fixed slot order.
+   Display face only on the £ figure; everything else is body text. */
+.zone-rec-card:not(#v2) {
+  display: flex !important;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+  padding: 24px !important;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+.zone-rec-card--large:not(#v2) { min-height: 320px; }
+.zone-rec-card--small:not(#v2) { min-height: 240px; padding: 20px !important; }
+.zone-rec-card:not(#v2):focus-visible {
+  outline: 2px solid var(--color-white);
+  outline-offset: -6px;
+}
+.zone-rec-card .zone-rec-headline:not(#v2) {
+  font-family: var(--font-text) !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-size: var(--zz-h4-mobile) !important;
+}
+.zone-rec-card--large .zone-rec-headline:not(#v2) { font-size: 28px !important; }
+.zone-rec-card .zone-rec-figure:not(#v2) {
+  font-family: var(--font-display) !important;
+  font-size: 1.5em !important;
+  line-height: 0.95 !important;
+}
+.zone-rec-card .zone-rec-source:not(#v2),
+.zone-rec-card .zone-rec-why:not(#v2) {
+  font-size: 16px !important;
+  line-height: 1.45 !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  color: inherit !important;
+}
+.zone-rec-card .zone-rec-source:not(#v2) { opacity: 0.8; font-size: 14px !important; }
+.zone-rec-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: auto;
+}
+.zone-rec-cta:not(#v2) {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  border-radius: 9999px;
+  padding: 10px 18px;
+  background: var(--color-white) !important;
+  color: var(--color-blue) !important;
+  font-family: var(--font-cta) !important;
+  font-weight: 900 !important;
+  font-size: 16px !important;
+  line-height: 1.2 !important;
+  text-transform: uppercase;
+}
+.zone-rec-cta--secondary:not(#v2) {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 10px 4px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-transform: none;
+  font-family: var(--font-text) !important;
+  font-weight: 400 !important;
+}
+.zone-rec-badge:not(#v2) {
+  align-self: flex-start;
+  border-radius: 9999px;
+  padding: 4px 10px;
+  background: var(--color-white);
+  color: var(--color-blue);
+  font-family: var(--font-cta);
+  font-weight: 900;
+  font-size: 12px;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
