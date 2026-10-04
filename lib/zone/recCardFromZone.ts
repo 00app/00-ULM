@@ -13,7 +13,14 @@ import type { JourneyId } from '@/lib/journeys'
 import type { RockHabit } from '@/lib/rock/types'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 import { isLibraryActionCardId } from '@/lib/actions/actionLibrary'
-import { formatZoneCategoryLabel } from '@/lib/soloFocusCopy'
+import {
+  clampRockTipHeadline,
+  clampZoneBentoHeadline,
+  formatZoneCategoryLabel,
+  MAX_ZONE_CARD_HEADLINE_WORDS,
+  resolveZoneGridTipHeadline,
+  zoneCardHeadlineFromRaw,
+} from '@/lib/soloFocusCopy'
 import {
   buildWhyYou,
   resolveRecCard,
@@ -25,6 +32,8 @@ import {
 export type RecCardContext = {
   facts: WhyYouFacts
   coverage?: Record<string, ResearchCategoryCoverageRow> | null
+  /** Journey title for a category, used to resolve wall-tip headlines the way the grid did. */
+  journeyTitle?: (journeyKey: JourneyId) => string | null
 }
 
 function hostLabel(url: string | null | undefined): string | null {
@@ -60,12 +69,21 @@ export function verifiedSavingForJourney(
 
 export function journeyToRecCard(item: ZoneJourneyCard, ctx: RecCardContext): RecCardModel | null {
   const { gbp, source } = verifiedSavingForJourney(item.journey_key, item.id, ctx.coverage)
+  const label = formatZoneCategoryLabel(item.journey_key)
+  // Same wording rules the wall tile used: library cards keep their own short title; others go
+  // through the zone headline clamp (never a stale per-category hook swapped in for a good title).
+  const actionWording = isLibraryActionCardId(item.id)
+    ? clampRockTipHeadline(item.title || String(item.journey_key))
+    : clampZoneBentoHeadline(
+        zoneCardHeadlineFromRaw(item.title || String(item.journey_key), label, MAX_ZONE_CARD_HEADLINE_WORDS),
+        String(item.journey_key)
+      )
   return resolveRecCard({
     id: item.id,
     size: 'large',
     category: item.journey_key,
-    label: formatZoneCategoryLabel(item.journey_key),
-    actionWording: item.title,
+    label,
+    actionWording,
     savingGbpPerYear: gbp,
     savingSource: source,
     whyYou: buildWhyYou(item.journey_key, ctx.facts),
@@ -80,7 +98,7 @@ export function tipToRecCard(tip: ZoneTipCard, ctx: RecCardContext): RecCardMode
     size: 'large',
     category,
     label: formatZoneCategoryLabel(category),
-    actionWording: tip.title,
+    actionWording: resolveZoneGridTipHeadline(tip, ctx.journeyTitle?.(category) ?? null),
     whyYou: buildWhyYou(category, ctx.facts),
     openRef: { type: 'tip', id: tip.id },
   })
@@ -93,7 +111,7 @@ export function habitToRecCard(h: RockHabit, cardId: string, ctx: RecCardContext
     size: 'small',
     category: h.journey_key,
     label: formatZoneCategoryLabel(h.journey_key),
-    actionWording: h.title,
+    actionWording: clampRockTipHeadline(h.title),
     whyYou: buildWhyYou(h.journey_key, ctx.facts),
     openRef: { type: 'habit', id: cardId },
   })

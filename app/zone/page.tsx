@@ -2996,6 +2996,10 @@ export default function ZonePage({
         household: stored.livingSituation || null,
       },
       coverage: researchCategoryCoverage,
+      journeyTitle: (jk: JourneyId) => {
+        const c = displayItems.find((x) => x.type === 'journey' && x.item.journey_key === jk)
+        return c && c.type === 'journey' ? c.item.title : null
+      },
     }
     // Connected: bills become real "Switch from [supplier]" cards from the bank analysis, and
     // replace the generic Utilities journey card so the same bill is never shown twice.
