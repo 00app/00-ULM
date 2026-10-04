@@ -9477,3 +9477,4 @@ input[type="radio"]:not(#v2):active {
 .zone-rail-item > .zone-rec-card { width: 100%; }
 /* Legacy bento wall stays mounted (Solo Focus expansion lives inside its journey cells) but unused. */
 .zone-legacy-wall:not(#v2) { display: none !important; }
+.zone-rec-cta--done:not(#v2) { opacity: 0.85; cursor: default; }

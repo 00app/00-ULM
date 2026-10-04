@@ -27,8 +27,10 @@ export type SavingSource = {
 export type RecCardCtaKind =
   | 'open' // opens the card (Solo Focus)
   | 'connect_bank' // starts the bank connection
+  | 'snooze' // hides the bank connect card for 7 days
   | 'switch' // opens a partner switch link
   | 'confirm_switch' // user confirms they switched
+  | 'reset_switch' // user hasn't switched after all
   | 'done'
 
 export type RecCardCta = {
@@ -44,6 +46,8 @@ export type RecCardOpenRef =
   | { type: 'journey'; id: string }
   | { type: 'tip'; id: string }
   | { type: 'habit'; id: string }
+  /** The "Connect your bank" card: not a recommendation, opens nothing. */
+  | { type: 'bank'; id: string }
 
 export const SAMPLE_DATA_BADGE = 'Sample data' as const
 
@@ -214,4 +218,47 @@ export function sortRecCards<T extends Pick<RecCardModel, 'savingGbpPerYear'>>(c
   })
   verified.sort((a, b) => (b.c.savingGbpPerYear as number) - (a.c.savingGbpPerYear as number) || a.i - b.i)
   return [...verified.map((v) => v.c), ...rest]
+}
+
+// ── bank connection entry points ─────────────────────────────────────────────────────────────
+
+export const BANK_CONNECT_CARD_ID = 'bank-connect'
+
+/** Categories whose £ can only be personalised from bank data (the household bills). */
+export const BANK_DEPENDENT_CATEGORIES: ReadonlySet<JourneyId> = new Set<JourneyId>(['utilities'])
+
+/**
+ * The one "Connect your bank" card, pinned first in Biggest savings for unconnected users.
+ * "Not now" snoozes it for 7 days. Never shown to sample/live users (caller's gate).
+ */
+export function buildBankConnectCard(): RecCardModel {
+  return {
+    id: BANK_CONNECT_CARD_ID,
+    size: 'large',
+    category: 'money',
+    label: 'BANK',
+    headline: 'Connect your bank',
+    actionWording: 'Connect your bank',
+    savingGbpPerYear: null,
+    savingSource: null,
+    whyYou: 'See your real savings, not estimates.',
+    primaryCta: { kind: 'connect_bank', label: 'Connect' },
+    secondaryCta: { kind: 'snooze', label: 'Not now' },
+    dependsOnBank: false,
+    openRef: { type: 'bank', id: BANK_CONNECT_CARD_ID },
+  }
+}
+
+/**
+ * For an unconnected user, a card whose £ depends on bank data asks for the connection instead
+ * of "See how". The card still opens from its body; the read-more link keeps that discoverable.
+ */
+export function withConnectToSeeSaving(card: RecCardModel): RecCardModel {
+  if (!BANK_DEPENDENT_CATEGORIES.has(card.category)) return card
+  return {
+    ...card,
+    dependsOnBank: true,
+    primaryCta: { kind: 'connect_bank', label: 'Connect to see your saving' },
+    secondaryCta: { kind: 'open', label: 'Read more' },
+  }
 }

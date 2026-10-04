@@ -16,6 +16,10 @@ export const FUNNEL_EVENT_NAMES = [
   'answer_committed',
   'discovery_injected',
   'cta_click',
+  /** User opened a partner switch link from a bank-derived card. */
+  'affiliate_click',
+  /** User confirmed "I've switched" on a bank-derived card. */
+  'switch_confirmed',
 ] as const
 
 export type FunnelEventName = (typeof FUNNEL_EVENT_NAMES)[number]

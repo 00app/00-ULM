@@ -3,7 +3,7 @@
  * Run: npm run test:zone-rails
  */
 import { buildZoneRails, MAX_BIGGEST_SAVINGS_CARDS } from '../lib/zone/rails'
-import { resolveRecCard, type RecCardModel } from '../lib/zone/recCard'
+import { buildBankConnectCard, resolveRecCard, type RecCardModel } from '../lib/zone/recCard'
 import type { JourneyId } from '../lib/journeys'
 
 const failures: string[] = []
@@ -72,6 +72,16 @@ check('biggest cap keeps the largest £', buildZoneRails(many, []).rails[0].card
 
 // Pills are jump links: they carry a rail id, never a filter value.
 check('pills point at rails', pills.every((p) => p.railId.startsWith('category-')))
+
+// pinned Connect card.
+const pinned = buildBankConnectCard()
+const withPin = buildZoneRails(recs, today, { pinnedFirst: pinned })
+check('pinned card leads Biggest savings', withPin.rails[0].cards[0].id === pinned.id)
+check('pinned card does not disturb the sort after it', withPin.rails[0].cards.slice(1).map((c) => c.id).join('') === 'cbeadf')
+check('pinned card never makes a category rail or pill', !withPin.rails.some((r) => r.kind === 'category' && r.cards.some((c) => c.id === pinned.id)) && withPin.pills.length === pills.length)
+check('pinned card is outside the cap', buildZoneRails(many, [], { pinnedFirst: pinned }).rails[0].cards.length === MAX_BIGGEST_SAVINGS_CARDS + 1)
+check('pinned card alone still renders the rail', buildZoneRails([], [], { pinnedFirst: pinned }).rails.length === 1)
+check('no pinned card, no change', JSON.stringify(buildZoneRails(recs, today, { pinnedFirst: null })) === JSON.stringify(buildZoneRails(recs, today)))
 
 if (failures.length) {
   console.error('[zone-rails] FAILED')

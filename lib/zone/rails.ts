@@ -33,17 +33,23 @@ export function railDomId(railId: string): string {
 }
 
 /** `recs` = large recommendation cards (any order). `today` = small Today cards, already ranked. */
-export function buildZoneRails(recs: readonly RecCardModel[], today: readonly RecCardModel[]): ZoneRailsLayout {
+export function buildZoneRails(
+  recs: readonly RecCardModel[],
+  today: readonly RecCardModel[],
+  opts: { pinnedFirst?: RecCardModel | null } = {}
+): ZoneRailsLayout {
   const rails: ZoneRail[] = []
   const sortedAll = sortRecCards(recs)
 
-  if (sortedAll.length > 0) {
+  // A pinned card (the bank Connect card) leads the rail, outside the sort and the cap.
+  const pinned = opts.pinnedFirst ?? null
+  if (sortedAll.length > 0 || pinned) {
     rails.push({
       id: 'biggest',
       kind: 'biggest',
       title: 'Biggest savings',
       ariaLabel: 'Biggest savings, across all categories',
-      cards: sortedAll.slice(0, MAX_BIGGEST_SAVINGS_CARDS),
+      cards: [...(pinned ? [pinned] : []), ...sortedAll.slice(0, MAX_BIGGEST_SAVINGS_CARDS)],
     })
   }
 

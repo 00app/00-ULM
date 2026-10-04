@@ -13,6 +13,22 @@ import {
 } from '../lib/bank/analysis'
 import type { BankTransaction } from '../lib/bank/types'
 import {
+  bankCardId,
+  bankWhyYou,
+  opportunityToRecCard,
+  switchCtas,
+  switchUrlFor,
+} from '../lib/bank/cards'
+import {
+  opportunityKey,
+  parseSwitchRecords,
+  savingsTotals,
+  withClicked,
+  withReset,
+  withSwitched,
+  type SwitchRecords,
+} from '../lib/bank/switchTracker'
+import {
   isBankCardSnoozed,
   parseBankState,
   shouldShowBankConnectCard,
@@ -153,6 +169,37 @@ async function main() {
   check('fresh user sees the Connect card', shouldShowBankConnectCard({ status: 'none', snoozedUntil: null }, t0))
   check('sample users never see the Connect card', !shouldShowBankConnectCard({ status: 'sample', snoozedUntil: null }, t0))
   check('live users never see the Connect card', !shouldShowBankConnectCard({ status: 'live', snoozedUntil: null }, t0))
+
+  // ── bank-derived cards + CTA state machine ──────────────────────────────────────────────────
+  const key = opportunityKey(energy.category, energy.supplierName)
+  const cardOf = (records: SwitchRecords) => opportunityToRecCard(energy, { openJourneyId: 'journey-utilities', records, postcode: 'M1 1AE' })
+  const c0 = cardOf({})!
+  check('why: real spend, supplier and price rise', bankWhyYou(energy) === 'You pay £148/mo to British Gas, up 25% since April.')
+  check('card carries the sample £ with the Sample data badge', c0.savingGbpPerYear === 186 && c0.badge === 'Sample data' && c0.savingSource?.kind === 'sample')
+  check('connected CTA: Switch from [supplier], save £X/yr', c0.primaryCta.kind === 'switch' && c0.primaryCta.label === 'Switch from British Gas, save £186/yr')
+  check('switch CTA carries the partner link', c0.primaryCta.href === 'https://octopus.energy/')
+  check('card id is stable', c0.id === bankCardId(energy))
+  let recs: SwitchRecords = withClicked({}, { key, fromSupplier: 'British Gas', toProvider: 'Octopus Energy', savingGbpPerYear: 186, source: 'sample' })
+  const c1 = cardOf(recs)!
+  check('after the link opens: I\'ve switched + Not yet', c1.primaryCta.kind === 'confirm_switch' && c1.primaryCta.label === "I've switched" && c1.secondaryCta?.kind === 'reset_switch')
+  check('clicked is not counted in the tracker', savingsTotals(recs).sampleGbp === 0 && savingsTotals(recs).realGbp === 0)
+  recs = withSwitched(recs, key)
+  const c2 = cardOf(recs)!
+  check('after confirming: Switched', c2.primaryCta.kind === 'done' && c2.primaryCta.label === 'Switched' && c2.secondaryCta === undefined)
+  check('confirmed sample saving goes to the sample total only', savingsTotals(recs).sampleGbp === 186 && savingsTotals(recs).realGbp === 0 && savingsTotals(recs).realCount === 0)
+  check('re-clicking the link never un-switches', withClicked(recs, { key, fromSupplier: 'x', toProvider: 'y', savingGbpPerYear: 1, source: 'sample' }) === recs)
+  const empty: SwitchRecords = {}
+  check('cannot confirm a switch that was never started', withSwitched(empty, key) === empty)
+  check('reset removes a started switch', Object.keys(withReset(withClicked({}, { key, fromSupplier: 'a', toProvider: 'b', savingGbpPerYear: 5, source: 'sample' }), key)).length === 0)
+  check('reset cannot undo a confirmed switch', withReset(recs, key) === recs)
+  const mixed = withSwitched(withClicked(recs, { key: 'mobile:EE', fromSupplier: 'EE', toProvider: 'giffgaff', savingGbpPerYear: 108, source: 'live' }), 'mobile:EE')
+  check('real and sample totals stay separate', savingsTotals(mixed).realGbp === 108 && savingsTotals(mixed).sampleGbp === 186)
+  check('junk in storage is dropped', Object.keys(parseSwitchRecords({ a: 1, b: { state: 'switched', source: 'sample', savingGbpPerYear: -5 }, c: { state: 'wat', source: 'sample', savingGbpPerYear: 5 } })).length === 0)
+  check('no saving -> no card', opportunityToRecCard({ ...energy, savingGbpPerYear: null, savingBasis: null }, { openJourneyId: 'j', records: {} }) === null)
+  check('no journey to open -> no card', opportunityToRecCard(energy, { openJourneyId: null, records: {} }) === null)
+  check('no safe partner link -> no card', opportunityToRecCard({ ...energy, offer: { ...energy.offer!, url: 'http://insecure.example' } }, { openJourneyId: 'j', records: {} }) === null)
+  check('only https partner links', switchUrlFor('http://x.example', {}) === null && switchUrlFor('javascript:alert(1)', {}) === null && switchUrlFor(null, {}) === null)
+  check('switchCtas done has no link', switchCtas(energy, recs, {}).primary.kind === 'done')
 
   if (failures.length) {
     console.error('[bank] FAILED')

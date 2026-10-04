@@ -80,7 +80,12 @@ export function ZoneRecCard({ card, visited = false, onOpen, onCta }: Props) {
       ) : null}
       <p className="zone-rec-why m-0">{card.whyYou}</p>
       <div className="zone-rec-actions">
-        <button type="button" className="zone-rec-cta" onClick={() => fire(card.primaryCta)}>
+        <button
+          type="button"
+          className={`zone-rec-cta${card.primaryCta.kind === 'done' ? ' zone-rec-cta--done' : ''}`}
+          disabled={card.primaryCta.kind === 'done'}
+          onClick={() => fire(card.primaryCta)}
+        >
           {card.primaryCta.label}
         </button>
         {card.secondaryCta ? (

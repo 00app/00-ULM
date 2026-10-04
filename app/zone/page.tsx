@@ -227,7 +227,13 @@ import { RockMobileSignupCard } from '@/app/components/RockSavingTips'
 import { ZoneRails } from '@/app/components/ZoneRails'
 import { buildZoneRails } from '@/lib/zone/rails'
 import { habitToRecCard, journeyToRecCard, tipToRecCard } from '@/lib/zone/recCardFromZone'
-import type { RecCardModel } from '@/lib/zone/recCard'
+import { buildBankConnectCard, withConnectToSeeSaving, type RecCardCta, type RecCardModel } from '@/lib/zone/recCard'
+import { useBankAnalysis, useBankConnection } from '@/lib/hooks/useBankConnection'
+import { useSwitchRecords } from '@/lib/hooks/useSwitchRecords'
+import { shouldShowBankConnectCard } from '@/lib/bank/connectionState'
+import { bankCardId, opportunityToRecCard } from '@/lib/bank/cards'
+import { opportunityKey, recordClick, recordReset, recordSwitched } from '@/lib/bank/switchTracker'
+import { wrapWithAwinAffiliateLink } from '@/lib/monetization/awinAffiliateLink'
 import { formatPostcodeOutcodeFallback } from '@/lib/geocode/ukPostcode'
 import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
 import { energySupplierName, normaliseEnergySupplier } from '@/lib/profile/energySupplier'
@@ -2972,6 +2978,10 @@ export default function ZonePage({
    * recommendation-card anatomy: no whyYou → no card, no source → no £. The legacy bento wall
    * stays mounted (hidden) because Solo Focus expansion for journey cards lives inside its cells.
    */
+  const bank = useBankConnection()
+  const bankAnalysis = useBankAnalysis(bank.state.status)
+  const switchRecords = useSwitchRecords()
+
   const railLayout = useMemo(() => {
     if (!hydrated) return { rails: [], pills: [] }
     const stored = profileFieldsFromStorage()
@@ -2987,27 +2997,52 @@ export default function ZonePage({
       },
       coverage: researchCategoryCoverage,
     }
+    // Connected: bills become real "Switch from [supplier]" cards from the bank analysis, and
+    // replace the generic Utilities journey card so the same bill is never shown twice.
+    const utilitiesCell = displayItems.find((c) => c.type === 'journey' && c.item.journey_key === 'utilities')
+    const utilitiesJourneyId = utilitiesCell && utilitiesCell.type === 'journey' ? utilitiesCell.item.id : null
+    const bankCards: RecCardModel[] = bankAnalysis
+      ? bankAnalysis.opportunities
+          .map((o) =>
+            opportunityToRecCard(o, { openJourneyId: utilitiesJourneyId, records: switchRecords, postcode: scrapePostcode })
+          )
+          .filter((c): c is RecCardModel => c !== null)
+      : []
     const recs: RecCardModel[] = []
     const seen = new Set<string>()
     for (const cell of displayItems) {
       if (cell.type === 'hero') continue
-      const card = cell.type === 'journey' ? journeyToRecCard(cell.item, ctx) : tipToRecCard(cell.tip, ctx)
-      if (card && !seen.has(card.id)) {
-        seen.add(card.id)
-        recs.push(card)
-      }
+      let card = cell.type === 'journey' ? journeyToRecCard(cell.item, ctx) : tipToRecCard(cell.tip, ctx)
+      if (!card || seen.has(card.id)) continue
+      if (bankCards.length > 0 && card.openRef.type === 'journey' && card.openRef.id === utilitiesJourneyId) continue
+      if (bank.state.status === 'none') card = withConnectToSeeSaving(card)
+      seen.add(card.id)
+      recs.push(card)
     }
+    recs.push(...bankCards)
     const today: RecCardModel[] = []
     for (const h of rockHabitsWithOffers) {
       const card = habitToRecCard(h, habitToTipCard(h).id, ctx)
       if (card) today.push(card)
     }
-    return buildZoneRails(recs, today)
-  }, [hydrated, displayItems, rockHabitsWithOffers, researchCategoryCoverage, displayLocationName, scrapePostcode])
+    const pinnedFirst = shouldShowBankConnectCard(bank.state) ? buildBankConnectCard() : null
+    return buildZoneRails(recs, today, { pinnedFirst })
+  }, [
+    hydrated,
+    displayItems,
+    rockHabitsWithOffers,
+    researchCategoryCoverage,
+    displayLocationName,
+    scrapePostcode,
+    bank.state,
+    bankAnalysis,
+    switchRecords,
+  ])
 
   const openRecCard = useCallback(
     (card: RecCardModel) => {
       const ref = card.openRef
+      if (ref.type === 'bank') return
       if (ref.type === 'habit') {
         openRockTip(ref.id)
         return
@@ -3026,6 +3061,63 @@ export default function ZonePage({
       openZoneGridTip(cell.tip, journeyCell?.item ?? null)
     },
     [displayItems, openRockTip, openZoneJourneySoloFocus, openZoneGridTip]
+  )
+
+  const onRecCta = useCallback(
+    (card: RecCardModel, cta: RecCardCta) => {
+      const opp = bankAnalysis?.opportunities.find((o) => bankCardId(o) === card.id) ?? null
+      const key = opp ? opportunityKey(opp.category, opp.supplierName) : null
+      switch (cta.kind) {
+        case 'connect_bank':
+          trackFunnelEvent('cta_click', { card_id: card.id, cta_label: 'connect_bank', page: ROUTES.ZONE })
+          void bank.connect()
+          break
+        case 'snooze':
+          trackFunnelEvent('cta_click', { card_id: card.id, cta_label: 'bank_not_now', page: ROUTES.ZONE })
+          bank.snooze()
+          break
+        case 'switch': {
+          if (!opp || !key || !cta.href || !opp.savingGbpPerYear) break
+          recordClick({
+            key,
+            fromSupplier: opp.supplierName,
+            toProvider: opp.offer?.providerName ?? '',
+            savingGbpPerYear: opp.savingGbpPerYear,
+            source: opp.source,
+          })
+          trackFunnelEvent('affiliate_click', {
+            card_id: card.id,
+            journey_id: 'utilities',
+            target_url: cta.href,
+            money_value: opp.savingGbpPerYear,
+            cta_label: 'switch',
+            link_kind: 'external',
+          })
+          try {
+            window.open(wrapWithAwinAffiliateLink(cta.href, card.id, 'utilities'), '_blank', 'noopener,noreferrer')
+          } catch {
+            /* popup blocked: the card now offers "I've switched" regardless */
+          }
+          break
+        }
+        case 'confirm_switch':
+          if (!key) break
+          recordSwitched(key)
+          trackFunnelEvent('switch_confirmed', {
+            card_id: card.id,
+            journey_id: 'utilities',
+            money_value: opp?.savingGbpPerYear ?? undefined,
+            cta_label: 'switched',
+          })
+          break
+        case 'reset_switch':
+          if (key) recordReset(key)
+          break
+        default:
+          break
+      }
+    },
+    [bank, bankAnalysis]
   )
 
   // Gated on `hydrated` (client-only, flips true in a useEffect): the real copy depends on the
@@ -3619,7 +3711,7 @@ export default function ZonePage({
           </motion.div>
           </div>
           {wallSectionsReady ? (
-            <ZoneRails layout={railLayout} visitedIds={visitedCardIds} onOpen={openRecCard} />
+            <ZoneRails layout={railLayout} visitedIds={visitedCardIds} onOpen={openRecCard} onCta={onRecCta} />
           ) : null}
           <div className="zone-category-wall zone-legacy-wall" aria-hidden="true">
           {showCategorySectionHeading ? (

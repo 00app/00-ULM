@@ -3,6 +3,9 @@
  * Run: npm run test:rec-cards
  */
 import {
+  BANK_CONNECT_CARD_ID,
+  buildBankConnectCard,
+  withConnectToSeeSaving,
   buildWhyYou,
   resolveRecCard,
   sortRecCards,
@@ -94,6 +97,18 @@ check(
   'sort puts verified £ desc then unverified in existing order',
   sortRecCards(items).map((i) => i.id).join('') === 'dbeac'
 )
+
+// bank connect entry points.
+const connect = buildBankConnectCard()
+check('connect card copy', connect.whyYou === 'See your real savings, not estimates.')
+check('connect card CTAs: Connect + Not now', connect.primaryCta.kind === 'connect_bank' && connect.primaryCta.label === 'Connect' && connect.secondaryCta?.kind === 'snooze' && connect.secondaryCta.label === 'Not now')
+check('connect card is not a recommendation (opens nothing)', connect.openRef.type === 'bank' && connect.id === BANK_CONNECT_CARD_ID && connect.savingGbpPerYear === null)
+const util = resolveRecCard({ ...base, category: 'utilities', id: 'u1', openRef: { type: 'journey', id: 'u1' } })!
+const utilGated = withConnectToSeeSaving(util)
+check('utilities card asks to connect', utilGated.primaryCta.kind === 'connect_bank' && utilGated.primaryCta.label === 'Connect to see your saving' && utilGated.dependsOnBank)
+check('utilities card stays openable', utilGated.secondaryCta?.kind === 'open')
+const homeCard = resolveRecCard(base)!
+check('non-bank cards are untouched', withConnectToSeeSaving(homeCard) === homeCard)
 
 if (failures.length) {
   console.error('[rec-cards] FAILED')
