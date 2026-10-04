@@ -14,6 +14,8 @@ import type { JourneyId } from '@/lib/journeys'
 import type { RockHabit } from '@/lib/rock/types'
 import type { ResearchCategoryCoverageRow } from '@/lib/researchSyncClient'
 import { isLibraryActionCardId } from '@/lib/actions/actionLibrary'
+import { parseCarbonKgFromDisplay, parseMoneyGbpFromDisplay } from '@/lib/format'
+import { journeyTimeframe } from '@/lib/zone/zoneFilter'
 import {
   clampRockTipHeadline,
   clampZoneBentoHeadline,
@@ -68,6 +70,15 @@ export function verifiedSavingForJourney(
   return { gbp, source: { kind: 'verified', name, url } }
 }
 
+function tipImpact(tip: ZoneTipCard): { money: boolean; carbon: boolean } {
+  const money = parseMoneyGbpFromDisplay(String(tip.data?.money ?? '0')) > 0
+  const carbon = parseCarbonKgFromDisplay(String(tip.data?.carbon ?? '0')) > 0
+  return {
+    money: money || tip.dominant_win === 'money',
+    carbon: carbon || tip.dominant_win === 'carbon',
+  }
+}
+
 export function journeyToRecCard(item: ZoneJourneyCard, ctx: RecCardContext): RecCardModel | null {
   const { gbp, source } = verifiedSavingForJourney(item.journey_key, item.id, ctx.coverage)
   const label = formatZoneCategoryLabel(item.journey_key)
@@ -88,6 +99,11 @@ export function journeyToRecCard(item: ZoneJourneyCard, ctx: RecCardContext): Re
     savingGbpPerYear: gbp,
     savingSource: source,
     whyYou: buildWhyYou(item.journey_key, ctx.facts),
+    impact: {
+      money: (item.moneyGbp ?? parseMoneyGbpFromDisplay(String(item.data?.money ?? '0'))) > 0,
+      carbon: (item.carbonKg ?? parseCarbonKgFromDisplay(String(item.data?.carbon ?? '0'))) > 0,
+    },
+    pace: journeyTimeframe(item),
     openRef: { type: 'journey', id: item.id },
   })
 }
@@ -101,6 +117,8 @@ export function tipToRecCard(tip: ZoneTipCard, ctx: RecCardContext): RecCardMode
     label: formatZoneCategoryLabel(category),
     actionWording: resolveZoneGridTipHeadline(tip, ctx.journeyTitle?.(category) ?? null),
     whyYou: buildWhyYou(category, ctx.facts),
+    impact: tipImpact(tip),
+    pace: 'now',
     openRef: { type: 'tip', id: tip.id },
   })
 }
@@ -114,6 +132,8 @@ export function habitToRecCard(h: RockHabit, cardId: string, ctx: RecCardContext
     label: formatZoneCategoryLabel(h.journey_key),
     actionWording: clampRockTipHeadline(h.title),
     whyYou: buildWhyYou(h.journey_key, ctx.facts),
+    impact: { money: h.money_gbp > 0 || h.impact_tag === 'money' || h.impact_tag === 'both', carbon: h.carbon_kg > 0 || h.impact_tag === 'carbon' || h.impact_tag === 'both' },
+    pace: 'now',
     openRef: { type: 'habit', id: cardId },
   })
 }
@@ -126,7 +146,8 @@ export function habitToRecCard(h: RockHabit, cardId: string, ctx: RecCardContext
 export function heroSlotToRecCard(
   slot: HeroWinSlot,
   ctx: RecCardContext,
-  habitJourneyBySlug: (slug: string) => JourneyId | null
+  habitJourneyBySlug: (slug: string) => JourneyId | null,
+  habitLookup?: (slug: string) => RockHabit | null
 ): RecCardModel | null {
   if (!slot.headline) return null
   const category: JourneyId | null = slot.rockSlug
@@ -146,6 +167,13 @@ export function heroSlotToRecCard(
     label: slot.label.toUpperCase(),
     actionWording: slot.headline,
     whyYou: buildWhyYou(category, ctx.facts),
+    impact: slot.tip
+      ? tipImpact(slot.tip)
+      : (() => {
+          const h = slot.rockSlug ? habitLookup?.(slot.rockSlug) : null
+          return { money: !!h && (h.money_gbp > 0 || h.impact_tag === 'money' || h.impact_tag === 'both'), carbon: !!h && (h.carbon_kg > 0 || h.impact_tag === 'carbon' || h.impact_tag === 'both') }
+        })(),
+    pace: 'now',
     openRef,
   })
 }

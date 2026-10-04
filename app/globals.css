@@ -9516,3 +9516,149 @@ input[type="radio"]:not(#v2):active {
   .zone-rail-scroller:not(#v2) { padding-inline: 32px; scroll-padding-inline: 32px; }
   .zone-anchor .zone-hero-copy:not(#v2) { padding-inline: 2px; }
 }
+
+
+/* ── Zone filter bar ────────────────────────────────────────────────────────────────────────────
+   Sticky under the "Start here" picks. Full-bleed white backing (no hard right edge), content kept
+   clear of the fixed Likes / Profile buttons, category chips fade out at the right instead of
+   being cut. Below 1024px: [Filters] + one scrolling chip row, goal/effort in a bottom sheet. */
+.zone-filterbar:not(#v2) {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: 10px var(--zone-gutter, 0px);
+  background: color-mix(in srgb, var(--color-white) 94%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.zone-filterbar-inner:not(#v2) { display: flex; align-items: center; gap: 10px; min-width: 0; padding-right: 0; transition: padding-right 160ms ease-out; }
+.zone-filterbar[data-stuck='true'] .zone-filterbar-inner:not(#v2) { padding-right: 72px; }
+.zone-chip-scroller:not(#v2) {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1 1 auto; min-width: 0;
+  overflow-x: auto; scrollbar-width: none;
+  padding: 3px 28px 6px 2px; margin: -3px 0 -6px;
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 36px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 36px), transparent 100%);
+}
+.zone-chip-scroller::-webkit-scrollbar { display: none; }
+.zone-chip:not(#v2) {
+  appearance: none; border: 0; flex: 0 0 auto; scroll-snap-align: start;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 40px; padding: 0 16px; border-radius: 9999px; cursor: pointer;
+  background: var(--color-white) !important; color: var(--color-blue) !important;
+  box-shadow: var(--elev-1);
+  font-family: var(--font-cta) !important; font-weight: 900 !important; font-size: 14px !important;
+  line-height: 1 !important; text-transform: uppercase; white-space: nowrap;
+  transition: background-color 160ms ease-out, color 160ms ease-out;
+}
+.zone-chip--active:not(#v2) { background: var(--color-blue) !important; color: var(--color-white) !important; }
+.zone-chip:not(#v2):disabled { opacity: 0.38; cursor: default; box-shadow: none; }
+.zone-chip:not(#v2):focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
+.zone-chip-count:not(#v2) { font-family: var(--font-text); font-weight: 400; font-size: 12px; opacity: 0.7; }
+.zone-chip-x:not(#v2) { font-family: var(--font-text); font-size: 11px; opacity: 0.85; }
+.zone-filters-trigger:not(#v2) {
+  appearance: none; flex: 0 0 auto; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px;
+  border-radius: 9999px; border: 2px solid var(--color-blue);
+  background: var(--color-white) !important; color: var(--color-blue) !important;
+  font-family: var(--font-cta) !important; font-weight: 900 !important; font-size: 14px !important;
+  text-transform: uppercase; line-height: 1 !important;
+}
+.zone-filters-trigger--on:not(#v2) { background: var(--color-blue) !important; color: var(--color-white) !important; }
+.zone-filters-trigger:not(#v2):focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
+.zone-filters-badge:not(#v2) {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 9999px;
+  background: var(--color-white); color: var(--color-blue); font-family: var(--font-text); font-size: 12px; font-weight: 700;
+}
+.zone-filterbar-inline:not(#v2) { display: none; }
+.zone-seg:not(#v2) { display: inline-flex; gap: 4px; padding: 3px; border-radius: 9999px; background: color-mix(in srgb, var(--color-blue) 8%, var(--color-white)); }
+.zone-seg .zone-chip:not(#v2) { box-shadow: none; height: 34px; }
+.zone-filterbar-clear:not(#v2) {
+  appearance: none; background: none !important; border: 0; cursor: pointer; padding: 8px;
+  font-family: var(--font-text) !important; font-size: 14px !important; font-weight: 400 !important;
+  color: var(--color-blue) !important; text-decoration: underline; text-underline-offset: 4px;
+}
+.zone-filterbar-clear:not(#v2):disabled { opacity: 0.4; cursor: default; }
+@media (min-width: 1024px) {
+  .zone-filters-trigger:not(#v2) { display: none; }
+  .zone-filterbar[data-stuck='true'] .zone-filterbar-inner:not(#v2) { padding-right: 76px; }
+  .zone-chip:not(#v2) { height: 34px; }
+  .zone-chip--removable:not(#v2) { display: none; }
+  .zone-results-grid:not(#v2) { padding-inline: 2px; }
+  .zone-filterbar-inline:not(#v2) { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 8px; }
+  .zone-chip-scroller:not(#v2) { padding-right: 0; -webkit-mask-image: none; mask-image: none; flex-wrap: wrap; overflow: visible; }
+}
+
+/* Bottom sheet (goal + effort) */
+.zone-sheet-backdrop:not(#v2) {
+  position: fixed; inset: 0; z-index: 500; display: flex; align-items: flex-end; justify-content: center;
+  background: color-mix(in srgb, var(--color-navy) 45%, transparent);
+  animation: zone-sheet-fade 180ms ease-out both;
+}
+.zone-sheet:not(#v2) {
+  width: min(100%, 520px); box-sizing: border-box; max-height: 85dvh; overflow: auto;
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 12px 20px max(24px, env(safe-area-inset-bottom, 0px));
+  border-radius: 28px 28px 0 0; background: var(--color-white); color: var(--color-blue);
+  box-shadow: 0 -12px 40px rgba(20, 18, 104, 0.25);
+  animation: zone-sheet-up 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.zone-sheet:focus { outline: none; }
+.zone-sheet-grab:not(#v2) { align-self: center; width: 40px; height: 4px; border-radius: 9999px; background: color-mix(in srgb, var(--color-blue) 25%, transparent); }
+.zone-sheet-head:not(#v2) { display: flex; align-items: center; justify-content: space-between; }
+.zone-sheet-head h3:not(#v2) { font-family: var(--font-text) !important; font-size: 20px !important; font-weight: 700 !important; text-transform: none !important; line-height: 1.2 !important; color: var(--color-blue) !important; }
+.zone-seg--sheet:not(#v2) { display: grid; grid-template-columns: 1fr 1fr; border-radius: 9999px; }
+.zone-seg--sheet .zone-chip:not(#v2) { height: 44px; justify-content: center; }
+.zone-sheet-done:not(#v2) {
+  appearance: none; border: 0; cursor: pointer; height: 48px; border-radius: 9999px;
+  background: var(--color-blue) !important; color: var(--color-white) !important;
+  font-family: var(--font-cta) !important; font-weight: 900 !important; font-size: 16px !important; text-transform: uppercase;
+}
+@keyframes zone-sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes zone-sheet-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .zone-sheet:not(#v2), .zone-sheet-backdrop:not(#v2) { animation: none; } }
+@media (min-width: 1024px) { .zone-sheet-backdrop:not(#v2) { display: none; } }
+
+/* Results (while filtering): heading synced to the filters, count beside it, grid below. */
+.zone-results-head:not(#v2) { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 2px; }
+.zone-results-count:not(#v2) { font-size: 14px; color: var(--color-blue); opacity: 0.75; }
+.zone-rail--hero .zone-rail-profile-link:not(#v2) { font-size: 14px; color: var(--color-blue) !important; text-decoration: underline; text-underline-offset: 4px; }
+
+/* Filtered results: one list, a grid that fills the width (no sideways scrolling). */
+.zone-results:not(#v2) { display: flex; flex-direction: column; gap: 12px; padding-inline: var(--zone-gutter, 0px); }
+.zone-results-grid:not(#v2) { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 768px) { .zone-results-grid:not(#v2) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .zone-results-grid:not(#v2) { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.zone-results-item:not(#v2) { display: flex; min-width: 0; }
+.zone-results-item > .zone-rec-card { width: 100%; }
+.zone-results-empty:not(#v2) { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 24px 0; font-size: 16px; line-height: 1.45; }
+
+/* One gutter for the whole Zone column below desktop; the sticky filter bar bleeds through it. */
+.zone-rails:not(#v2) { --zone-gutter: 0px; }
+@media (max-width: 1023px) { .zone-rails:not(#v2) { --zone-gutter: 20px; } }
+@media (max-width: 767px) { .zone-rails:not(#v2) { --zone-gutter: 32px; } }
+
+/* Welcome line: the serif display face (Abril Fatface, one very heavy weight), larger than the
+   body sentences under it. Falls back to a bold Georgia if the font hasn't loaded. */
+.zone-anchor .zone-summary-greeting:not(#v2) {
+  font-family: 'Abril Fatface', Georgia, 'Times New Roman', serif !important;
+  font-weight: 400 !important;
+  font-size: 34px !important;
+  line-height: 1.08 !important;
+  letter-spacing: 0 !important;
+  margin-bottom: 6px !important;
+}
+@media (min-width: 1024px) { .zone-anchor .zone-summary-greeting:not(#v2) { font-size: 44px !important; } }
+
+/* Zone: let the viewport be the only scroller. `overflow-x: hidden` on body (plus the inline
+   overflow-y: auto the Zone route sets) turns body into a scroll container that never scrolls,
+   which silently disables `position: sticky` for everything inside it (the filter bar).
+   `clip` hides the same horizontal overflow without creating a scroll container. */
+html.zz-zone-document body {
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
+
+/* Keep the welcome line clear of the fixed Likes / Profile buttons on narrow screens. */
+@media (max-width: 767px) { .zone-anchor .zone-summary-line:not(#v2) { max-width: calc(100% - 76px); } }

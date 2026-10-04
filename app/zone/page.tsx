@@ -225,7 +225,10 @@ import ZoneDesktopNavRail from '@/app/components/ZoneDesktopNavRail'
 import ZoneAskZaiDock from '@/app/components/ZoneAskZaiDock'
 import { RockMobileSignupCard } from '@/app/components/RockSavingTips'
 import { ZoneRails } from '@/app/components/ZoneRails'
-import { buildZoneRails } from '@/lib/zone/rails'
+import { ZoneFilterBar } from '@/app/components/ZoneFilterBar'
+import { useZoneFilters } from '@/lib/hooks/useZoneFilters'
+import { applyFilters, dedupeCards, describeFilters, facetCounts, isFiltering } from '@/lib/zone/filters'
+import { buildResultsLayout, buildZoneRails } from '@/lib/zone/rails'
 import { habitToRecCard, heroSlotToRecCard, journeyToRecCard, tipToRecCard } from '@/lib/zone/recCardFromZone'
 import { buildBankConnectCard, withConnectToSeeSaving, type RecCardCta, type RecCardModel } from '@/lib/zone/recCard'
 import { useBankAnalysis, useBankConnection } from '@/lib/hooks/useBankConnection'
@@ -2982,8 +2985,8 @@ export default function ZonePage({
   const bankAnalysis = useBankAnalysis(bank.state.status)
   const switchRecords = useSwitchRecords()
 
-  const railLayout = useMemo(() => {
-    if (!hydrated) return { rails: [], pills: [] }
+  const railModel = useMemo(() => {
+    if (!hydrated) return { layout: { rails: [], pills: [] } as ReturnType<typeof buildZoneRails>, all: [] as RecCardModel[] }
     const stored = profileFieldsFromStorage()
     const ctx = {
       facts: {
@@ -3044,7 +3047,11 @@ export default function ZonePage({
     // no card can say why it's for you) the rails show the postcode prompt instead.
     const hasAnyCard = recs.length > 0 || today.length > 0
     const pinnedFirst = hasAnyCard && shouldShowBankConnectCard(bank.state) ? buildBankConnectCard() : null
-    return buildZoneRails(recs, today, { pinnedFirst, heroCards })
+    return {
+      layout: buildZoneRails(recs, today, { pinnedFirst, heroCards }),
+      // What filters act on: browsable ideas only. The hero picks stay put above the bar.
+      all: [...recs, ...today],
+    }
   }, [
     hydrated,
     heroWinSlots,
@@ -3057,6 +3064,30 @@ export default function ZonePage({
     bankAnalysis,
     switchRecords,
   ])
+
+  const zoneFilters = useZoneFilters()
+  const filtersOn = isFiltering(zoneFilters.state) && railModel.all.length > 0
+  const filterCounts = useMemo(() => facetCounts(railModel.all, zoneFilters.state), [railModel.all, zoneFilters.state])
+  const railLayout = useMemo(() => {
+    if (!filtersOn) return railModel.layout
+    const results = applyFilters(railModel.all, zoneFilters.state)
+    return buildResultsLayout(results, {
+      title: describeFilters(zoneFilters.state, formatZoneCategoryLabel),
+      keep: railModel.layout.rails.filter((r) => r.kind === 'hero'),
+    })
+  }, [filtersOn, railModel, zoneFilters.state])
+  const filterBarRef = useRef<HTMLDivElement | null>(null)
+  const onFiltersChange = useCallback(
+    (next: Parameters<typeof zoneFilters.update>[0]) => {
+      zoneFilters.update(next)
+      // Results replace the rails: bring the top of the list into view so the change is visible.
+      window.requestAnimationFrame(() => {
+        const bar = filterBarRef.current
+        if (bar && bar.getBoundingClientRect().top < 0) bar.scrollIntoView({ block: 'start' })
+      })
+    },
+    [zoneFilters]
+  )
 
   const openRecCard = useCallback(
     (card: RecCardModel) => {
@@ -3645,7 +3676,7 @@ export default function ZonePage({
                 .map((line, i) => (
                   <p
                     key={i}
-                    className="zone-summary-line m-0"
+                    className={`zone-summary-line m-0${i === 0 ? ' zone-summary-greeting' : ''}`}
                     style={{ '--zs-i': i } as React.CSSProperties}
                   >
                     {line}
@@ -3732,7 +3763,25 @@ export default function ZonePage({
           {/* Mounted during the arrival pulse too (the container hides it, like the old grid) so the
               rails are in the DOM the moment the pulse ends. Unmounted while a card is open. */}
           {hydrated && !expandedCardId && !expandedTipId ? (
-            <ZoneRails layout={railLayout} visitedIds={visitedCardIds} onOpen={openRecCard} onCta={onRecCta} />
+            <ZoneRails
+              layout={railLayout}
+              visitedIds={visitedCardIds}
+              onOpen={openRecCard}
+              onCta={onRecCta}
+              onClearFilters={zoneFilters.clear}
+              filterBar={
+                railModel.all.length > 0 ? (
+                  <ZoneFilterBar
+                    ref={filterBarRef}
+                    state={zoneFilters.state}
+                    counts={filterCounts}
+                    totalAll={dedupeCards(railModel.all).length}
+                    onChange={onFiltersChange}
+                    onClear={zoneFilters.clear}
+                  />
+                ) : null
+              }
+            />
           ) : null}
           <div className="zone-category-wall zone-legacy-wall" aria-hidden="true">
           {showCategorySectionHeading ? (

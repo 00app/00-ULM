@@ -74,6 +74,10 @@ export type RecCardModel = {
   badge?: typeof SAMPLE_DATA_BADGE
   /** True when the £ on this card can only be computed from the user's bank data. */
   dependsOnBank: boolean
+  /** What kind of win this is, for filtering only (never shown as a figure). */
+  impact: { money: boolean; carbon: boolean }
+  /** Effort, for filtering: 'now' = act today without a project, 'long' = capital / project work. */
+  pace: 'now' | 'long'
   openRef: RecCardOpenRef
 }
 
@@ -90,6 +94,8 @@ export type RecCardInput = {
   primaryCta?: RecCardCta
   secondaryCta?: RecCardCta
   dependsOnBank?: boolean
+  impact?: { money?: boolean; carbon?: boolean }
+  pace?: 'now' | 'long'
   openRef: RecCardOpenRef
 }
 
@@ -137,6 +143,9 @@ export function resolveRecCard(input: RecCardInput): RecCardModel | null {
     secondaryCta: input.secondaryCta,
     badge: gbp != null && source?.kind === 'sample' ? SAMPLE_DATA_BADGE : undefined,
     dependsOnBank: Boolean(input.dependsOnBank),
+    // A card that shows a verified £ obviously saves money, whatever else was passed.
+    impact: { money: Boolean(input.impact?.money) || gbp != null, carbon: Boolean(input.impact?.carbon) },
+    pace: input.pace === 'long' ? 'long' : 'now',
     openRef: input.openRef,
   }
 }
@@ -245,6 +254,8 @@ export function buildBankConnectCard(): RecCardModel {
     primaryCta: { kind: 'connect_bank', label: 'Connect' },
     secondaryCta: { kind: 'snooze', label: 'Not now' },
     dependsOnBank: false,
+    impact: { money: true, carbon: false },
+    pace: 'now',
     openRef: { type: 'bank', id: BANK_CONNECT_CARD_ID },
   }
 }

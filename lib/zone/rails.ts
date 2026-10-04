@@ -18,7 +18,7 @@ export const MAX_HERO_CARDS = 3
 
 export type ZoneRail = {
   id: string
-  kind: 'hero' | 'biggest' | 'today' | 'category'
+  kind: 'hero' | 'biggest' | 'today' | 'category' | 'results'
   title: string
   ariaLabel: string
   category?: JourneyId
@@ -48,8 +48,8 @@ export function buildZoneRails(
     rails.push({
       id: 'hero',
       kind: 'hero',
-      title: 'Your profile',
-      ariaLabel: 'Your top wins',
+      title: 'Start here',
+      ariaLabel: 'Your top three picks',
       cards: [...hero],
     })
   }
@@ -107,4 +107,28 @@ export function buildZoneRails(
   }
 
   return { rails, pills }
+}
+
+/**
+ * While a filter is active the page is ONE result list (not rails): rails mean "browse", filters
+ * mean "show me exactly these". `cards` must already be filtered and sorted.
+ */
+export function buildResultsLayout(
+  cards: readonly RecCardModel[],
+  opts: { title?: string; keep?: readonly ZoneRail[] } = {}
+): ZoneRailsLayout {
+  return {
+    rails: [
+      // Rails that stay put while filtering (the hero picks): they are personal, not browse content.
+      ...(opts.keep ?? []),
+      {
+        id: 'results',
+        kind: 'results',
+        title: opts.title ?? (cards.length === 1 ? '1 result' : `${cards.length} results`),
+        ariaLabel: 'Filtered recommendations',
+        cards: [...cards],
+      },
+    ],
+    pills: [],
+  }
 }

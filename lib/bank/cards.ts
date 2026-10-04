@@ -125,6 +125,8 @@ export function opportunityToRecCard(
     primaryCta: ctas.primary,
     secondaryCta: ctas.secondary,
     dependsOnBank: true,
+    impact: { money: true },
+    pace: 'now',
     openRef: { type: 'journey', id: opts.openJourneyId },
   })
   return card

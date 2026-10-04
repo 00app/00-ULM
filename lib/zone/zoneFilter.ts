@@ -9,6 +9,7 @@
 
 import type { GroovyGridCell } from '@/lib/zone/gridOrder'
 import type { ZoneAction } from '@/lib/actions/actionTypes'
+import type { ZoneJourneyCard } from '@/lib/logic/zone'
 
 export type ZoneFilter = 'all' | 'now' | 'long'
 export type ZoneTimeframe = 'now' | 'long'
@@ -27,11 +28,16 @@ export function timeframeForAction(a: Pick<ZoneAction, 'cost' | 'verb'>): ZoneTi
 /** Category-level cards (no library action behind them, e.g. a guest wall): only solar is capital work. */
 const LONG_TERM_JOURNEYS = new Set(['solar'])
 
+/** Timeframe of a journey card: its own (library cost) if set, else solar-only category fallback. */
+export function journeyTimeframe(item: Pick<ZoneJourneyCard, 'timeframe' | 'journey_key'>): ZoneTimeframe {
+  return item.timeframe ?? (LONG_TERM_JOURNEYS.has(item.journey_key) ? 'long' : 'now')
+}
+
 export function cellTimeframe(cell: GroovyGridCell): ZoneTimeframe | null {
   if (cell.type === 'hero') return null
   // Tips are the small timely thing by definition.
   if (cell.type === 'tip') return 'now'
-  return cell.item.timeframe ?? (LONG_TERM_JOURNEYS.has(cell.item.journey_key) ? 'long' : 'now')
+  return journeyTimeframe(cell.item)
 }
 
 export function matchesZoneFilter(cell: GroovyGridCell, filter: ZoneFilter): boolean {

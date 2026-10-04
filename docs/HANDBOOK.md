@@ -29,12 +29,13 @@
 | **Entry flow** | Splash → Postcode (`/start`) → First result (`/start/result`) → Create / Log in / Skip → Zone. The intro word sequence, goal screen and in-page Guest/Create/Log in fork are gone. | [ENTRY-AND-ZONE-RAILS.md §1](ENTRY-AND-ZONE-RAILS.md#1-entry-flow) |
 | **First result** | One real figure from postcode-only data (EPC band, else regional unit rate), source printed; none → action with no figure. | §1 |
 | **Card anatomy** | One `ZoneRecCard`: label · headline · whyYou · primaryCta · secondaryCta · badge. No `whyYou` → no card. No source → no £. | §2 |
-| **Zone layout** | Rails (Model A): Biggest savings → Today → one rail per category (≥2 cards); category pills are jump links. Legacy bento wall mounted but hidden. | §3 |
+| **Zone layout** | Start here (3 picks) → sticky filter bar → Biggest savings → Today → one rail per category (≥2 cards). Legacy bento wall mounted but hidden. | §3 |
+| **Filters** | Faceted category / goal / effort; results replace the rails with a synced heading; mobile = Filters button + bottom sheet + one chip row. Session-scoped. | §3 → Filters |
 | **Bank data** | `BankDataProvider` adapter; sample provider + real analysis; live provider is a stub. Status `none \| sample \| live` + `snoozedUntil`. | §4 |
 | **Connect points** | Biggest-savings card (Not now = 7-day snooze), bills-card CTA, Settings row. No modals. | §5 |
 | **CTA states & tracker** | Connect → Switch from X, save £Y/yr → I've switched → Switched; tracker counts confirmed switches only, sample kept separate. | §6 |
 
-> ⚠️ **Open conflicts (13) are listed, unresolved, in [ENTRY-AND-ZONE-RAILS.md → Conflicts with existing docs](ENTRY-AND-ZONE-RAILS.md#conflicts-with-existing-docs).** The most important: the **Director's Order (Zone — frozen product sequence)** section below still says Today's tips come last and the bento grid ripples; the rails put Today second. `lib/zone/directorsOrder.ts` was not edited — that needs an explicit decision.
+> ⚠️ **Open conflicts (16) are listed, unresolved, in [ENTRY-AND-ZONE-RAILS.md → Conflicts with existing docs](ENTRY-AND-ZONE-RAILS.md#conflicts-with-existing-docs).** The most important: the **Director's Order (Zone — frozen product sequence)** section below still says Today's tips come last and the bento grid ripples; the rails put Today second. `lib/zone/directorsOrder.ts` was not edited — that needs an explicit decision.
 
 ---
 
@@ -58,7 +59,7 @@
 | **Coherence** | Every Solo Focus paragraph passes `isCoherentParagraph` before render |
 | **Entry flow** | `/` splash → `/start` → `/start/result` → `/profile?entry=create\|login` or `/zone` (guest, postcode kept). Bare `/profile` with nothing stored → `/start`. `e2e/entry-flow.spec.ts` |
 | **Bank** | No live provider calls (`LiveBankProvider` is a stub). Connect card hidden for `sample`/`live`; *Not now* = 7 days; only confirmed switches count in the tracker; sample savings never added to the real total. `npm run test:bank` |
-| **Cards & rails tests** | `npm run test:rec-cards` · `npm run test:zone-rails` · `npm run test:bank` (all in `npm run verify`) |
+| **Cards, rails & filters tests** | `npm run test:rec-cards` · `npm run test:zone-rails` · `npm run test:zone-filters` · `npm run test:bank` (all in `npm run verify`) |
 
 ---
 
@@ -691,23 +692,31 @@ Sizes: `large` (recommendations) and `small` (Today tips).
 
 `app/components/ZoneRails.tsx`, layout rules in `lib/zone/rails.ts`.
 
-Order:
+Order, top to bottom:
 
-1. **Biggest savings** — cross-category, large cards, verified £/yr descending; cards without a verified £ follow, in their existing order. Capped at 12 (`MAX_BIGGEST_SAVINGS_CARDS`). A pinned card (the bank Connect card) leads the rail, outside the sort and the cap.
-2. **Today** — small cards from the season-ranked Rock/library habits. Order is the caller's; `getUkSeason` re-ranking is untouched.
-3. **One rail per category**, same sort rule — only for categories with **at least 2 cards** (`MIN_CARDS_FOR_CATEGORY_RAIL`).
+0. **Start here** — the profile's three top picks (Quick win / Big win / Do now) as featured cards: three columns on desktop, a scroll-snap rail on mobile. A small "Your profile" link goes to Settings. These are personal, so **filters never hide them**, and their ids are kept out of every other rail.
+1. **Filter bar** (sticky, section below) — directly under the picks.
+2. **Biggest savings** — cross-category, large cards, verified £/yr descending; cards without a verified £ follow, in their existing order. Capped at 12. A pinned card (the bank Connect card) leads it, outside the sort and the cap.
+3. **Today** — small cards from the season-ranked Rock/library habits. Order is the caller's; `getUkSeason` re-ranking is untouched.
+4. **One rail per category**, same sort rule — only for categories with **at least 2 cards**.
 
-Category **pills** sit above the rails as jump links (scroll to the rail and focus its scroller). They do not filter.
+Rail behaviour: horizontal scroll with `scroll-snap`; next card peeks on mobile (78vw / 62vw card widths); left/right arrows on pointer devices ≥768px; **no auto-advance**; the scroller is keyboard-focusable (`tabIndex=0`, native arrow-key scroll) with an `aria-label` per rail. One gutter for the whole column (`--zone-gutter`: 0 desktop, 20px tablet, 32px mobile) so the greeting, headings, filter bar and cards share a left edge.
 
-Rail behaviour: horizontal scroll with `scroll-snap`; next card peeks on mobile (78vw / 62vw card widths); left/right arrows on pointer devices ≥768px; **no auto-advance**; the scroller is keyboard-focusable (`tabIndex=0`, native arrow-key scroll) with an `aria-label` per rail.
+##### Filters (`lib/zone/filters.ts`, `ZoneFilterBar`)
 
-**Legacy wall.** The groovy bento grid (`groovy-zone-grid`, `JourneyBentoCard`) is still mounted but hidden (`.zone-legacy-wall`, `display:none`, `aria-hidden`). It is deliberately kept: Solo Focus expansion for journey cards lives inside the grid cells' `ZoneCard`, so the rails call the same `openZoneJourneySoloFocus` / `openZoneGridTip` / `openRockTip` handlers and the hidden cells render the overlay. Removing it needs that expansion lifted out first.
+Three optional facets, combined with AND: **category**, **goal** (Saves money / Cuts carbon — a card can be both) and **effort** (Do now / Long term — the library action's own cost decides, `zoneFilter.ts`). They act on browsable ideas only (everything except the Start-here picks and the bank Connect prompt).
 
-The rails mount during the arrival pulse (the container's own CSS hides them, as it hid the grid) and unmount while a card is open.
+- **Faceted counts.** The number on a chip is how many cards you'd get if you picked it with the other facets already applied. A chip that would give 0 is disabled, so no chip leads to an empty page.
+- **Results replace the rails** while any filter is on: one grid (1 / 2 / 3 columns), verified £ first. The heading is built from the filters by `describeFilters` ("Home", "Saves money", "Home · Saves money · Do now") with a live "N results" beside it, so heading and bar cannot disagree. Nothing matching shows "Nothing matches those filters" with Clear.
+- **Mobile / tablet (<1024px):** one compact sticky row — a **Filters** button (goal + effort in a bottom sheet, badge = how many are on) beside a single scrolling row of category chips. Active goal/effort filters also appear as removable chips at the start of that row. The sheet is a dialog (focus moves in, Esc closes and returns focus to the button, body scroll locked), controls are 44px, changes apply live and the primary button shows the live total.
+- **Desktop:** the same chips with the goal and effort groups inline under them; Clear appears when anything is on.
+- **Sticky + the fixed buttons:** pinned at the top the bar keeps 72–76px clear of the fixed Likes / Profile buttons; at rest it uses the full width. Chips fade out at the right edge (a scroll cue) instead of being cut.
+- **State** lives in `sessionStorage` (`zz_zone_filters_v1`): kept while you open a card and come back, but a new visit starts clean.
+- **Why sticky needed a fix:** `body { overflow-x: hidden }` plus the Zone route's inline `overflow-y: auto` made `body` a scroll container that never scrolls, which silently disables `position: sticky` inside it. On the Zone route only, `html.zz-zone-document body` now uses `overflow-x: clip` / `overflow-y: visible`.
 
 ##### Zone summary (hero)
 
-The four former H3 display lines are body-weight sentences (H4 size, weight 400, line-height 1.45, sentence case). Only the single £ figure keeps the display face. Entrance is a line-by-line fade: opacity + `translateY(6px→0)`, 300ms ease-out, 60ms stagger, CSS animation on mount (once per load), none under `prefers-reduced-motion`. Digits elsewhere are still Abril Fatface because of the earlier site-wide numerals rule.
+The four former H3 display lines are body-weight sentences (H4 size, weight 400, line-height 1.45, sentence case). The **welcome line** ("Afternoon, Guest.") is set in the serif display face (Abril Fatface, 34px mobile / 44px desktop, falling back to Georgia) and the single £ figure keeps the display face too. Entrance is a line-by-line fade: opacity + `translateY(6px→0)`, 300ms ease-out, 60ms stagger, CSS animation on mount (once per load), none under `prefers-reduced-motion`. Digits elsewhere are still Abril Fatface because of the earlier site-wide numerals rule.
 
 ---
 
@@ -768,12 +777,14 @@ confirmed     ── "Switched"
 | Check | Command | Covers |
 |-------|---------|--------|
 | Card rules | `npm run test:rec-cards` | no-why-no-card, no-source-no-£, sample badge, `buildWhyYou`, sort, Connect card, bills CTA |
-| Rails | `npm run test:zone-rails` | order, ≥2 rule, pills, cap, pinned card |
+| Rails | `npm run test:zone-rails` | order, ≥2 rule, cap, pinned card, hero rail |
+| Filters | `npm run test:zone-filters` | parsing, matching, faceted counts, toggles, synced heading, results layout, hero kept |
 | Bank | `npm run test:bank` | provider, recurring + price-rise detection, saving rule, connection/snooze, switch state machine, tracker totals |
 | Entry flow | `e2e/entry-flow.spec.ts` | splash, postcode validation, result (sourced figure or none), back nav, deep links |
 | Zone | `e2e/zone-funky-stress.spec.ts` | rails visible, open / close Solo Focus from a rail card |
+| Filters | `e2e/zone-filters.spec.ts` | bar under the picks, synced heading, sticky, mobile sheet (Esc, badge, removable chip), tap targets, no overflow |
 
-All three `test:*` scripts are in `npm run verify`.
+All `test:*` scripts above are in `npm run verify`.
 
 Main files: `app/components/{IntroScreen,EntryShell,ZoneRecCard,ZoneRails,SettingsBankSection}.tsx` · `app/start/**` · `app/api/{first-result,profile/bank}/route.ts` · `lib/entry/firstResult.ts` · `lib/zone/{recCard,recCardFromZone,rails}.ts` · `lib/bank/**` · `lib/hooks/{useBankConnection,useSwitchRecords}.ts`.
 
@@ -798,6 +809,9 @@ Main files: `app/components/{IntroScreen,EntryShell,ZoneRecCard,ZoneRails,Settin
 | 11 | `e2e/zone-funky-stress.spec.ts` | Assertions such as "Check out your stats" and `Source: … April 2026` | These strings are not in the app any more (stale **before** this change). Left untouched; they will fail if run. |
 | 12 | Code comment, `app/globals.css` colour primitives ("the only three colours in the product") | Three colours | A deliberate 4th ink, `--ink-body-copy: #04031C`, is used for body copy and Focus-card text (instruction 2026-09-30). The role-token system and surfaces are unchanged. |
 | 13 | `ZONE-CONTENT-AND-DATA.md` (Zone hero) / any doc describing the hero as H3 display lines | Hero lines are H3 display | Hero lines are body-weight sentences with a display-face £ figure (section 3). |
+| 14 | This doc's own earlier wording and the original brief for Zone rails | Category **pills are jump links, not filters** | Superseded by real filters (section 3 → Filters). The jump pills are gone; `buildZoneRails` still returns a `pills` array that nothing renders. |
+| 15 | `ZONE-CONTENT-AND-DATA.md` / handbook wording for the Zone hero | The top block is "Your profile" with a "You could save" metrics row | It is "Start here" (three picks); "Your profile" is now a small link to Settings; the metrics row was dropped (the summary above shows the same £ and CO₂). |
+| 16 | Typography notes for the Zone summary | Only the £ figure uses the display face | The welcome line is also serif display (explicit instruction). |
 
 ---
 
