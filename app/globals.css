@@ -9258,3 +9258,33 @@ input[type="radio"]:not(#v2):active {
   justify-content: flex-start;
   margin: 0 0 var(--zz-grid-unit);
 }
+
+/* Zone summary: soft body-weight sentences (was four H3 display lines — testers found it shouty).
+   Display face only on the one hero £ figure; sentence case; one step down the scale (H3 50/56px
+   → H4 20px); line-height 1.45. Colour, spacing tokens and layout are unchanged. */
+.zone-anchor .zone-summary-line:not(#v2) {
+  font-family: var(--font-text) !important;
+  font-size: var(--zz-h4-mobile) !important;
+  font-weight: 400 !important;
+  line-height: 1.45 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  text-align: left;
+  color: var(--color-blue);
+  max-width: min(92vw, 28rem);
+}
+.zone-anchor .zone-summary-figure:not(#v2) {
+  font-family: var(--font-display) !important;
+  font-size: var(--zz-h3-mobile) !important;
+  font-weight: bold !important;
+  letter-spacing: -0.02em !important;
+  line-height: 0.9 !important;
+}
+@media (min-width: 1024px) {
+  .zone-anchor .zone-summary-line:not(#v2) { font-size: var(--zz-h4-desktop) !important; }
+  .zone-anchor .zone-summary-figure:not(#v2) { font-size: var(--zz-h3-desktop) !important; }
+}
+.zone-anchor.zone-anchor--wall-loading .zone-summary-line {
+  text-align: center;
+  margin-inline: auto;
+}

@@ -3447,32 +3447,31 @@ export default function ZonePage({
             aria-live="polite"
           >
             <div className="zone-hero-copy" data-testid="zone-section-welcome">
-              {/* Greeting and name share one line ("Evening, Test."); the three lines below are
-                  short enough never to wrap. A line that is empty (a zero figure) is not rendered. */}
-              <motion.h3
-                className="zz-h3 zone-welcome zone-welcome-block zone-welcome-name m-0"
-                style={{ color: 'var(--color-blue)' }}
-                variants={STACCATO_CHILD_VARIANTS}
-                initial="hidden"
-                animate="visible"
-              >
+              {/* Summary: body-weight sentences; the display face is reserved for the single hero £
+                  figure. A line that is empty (a zero figure) is not rendered. */}
+              <p className="zone-summary-line m-0">
                 {zoneWelcome.timeOfDayLine.replace(/\.$/, ',')} {zoneWelcome.nameLine}
-              </motion.h3>
-              {[zoneWelcome.foundCountLine, zoneWelcome.localityLine, zoneWelcome.savingsMoneyLine].map(
-                (line) =>
-                  line ? (
-                    <motion.h3
-                      key={line}
-                      className="zz-h3 zone-welcome zone-welcome-block zone-welcome-savings m-0"
-                      style={{ color: 'var(--color-blue)' }}
-                      variants={STACCATO_CHILD_VARIANTS}
-                      initial="hidden"
-                      animate="visible"
-                    >
-                      {line}
-                    </motion.h3>
-                  ) : null
-              )}
+              </p>
+              {zoneWelcome.foundCountLine ? (
+                <p className="zone-summary-line m-0">{zoneWelcome.foundCountLine}</p>
+              ) : null}
+              {zoneWelcome.localityLine ? (
+                <p className="zone-summary-line m-0">
+                  {(() => {
+                    const m = zoneWelcome.localityLine.match(/^(£\S+)\s+(.*)$/)
+                    return m ? (
+                      <>
+                        <span className="zone-summary-figure">{m[1]}</span> {m[2]}
+                      </>
+                    ) : (
+                      zoneWelcome.localityLine
+                    )
+                  })()}
+                </p>
+              ) : null}
+              {zoneWelcome.savingsMoneyLine ? (
+                <p className="zone-summary-line m-0">{zoneWelcome.savingsMoneyLine}</p>
+              ) : null}
             </div>
           </motion.div>
           {showInlineLoadingLogo && !zoneHandoffStaging ? (
