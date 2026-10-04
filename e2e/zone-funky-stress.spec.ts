@@ -115,6 +115,9 @@ test.describe('Zone — Groovy Grid + Solo Focus', () => {
       overlayVisible = await page.locator('.expanded-solo-focus').first().isVisible().catch(() => false)
     }
     expect(overlayVisible).toBeTruthy()
+    // Let the open transition settle (every other test waits 900ms here): a Close that lands
+    // mid-open is ignored by the expand guards.
+    await page.waitForTimeout(900)
     await page.getByRole('button', { name: 'Close' }).click()
     await page.waitForTimeout(900)
     await expect(page.locator('.expanded-solo-focus')).toHaveCount(0)
