@@ -2969,25 +2969,23 @@ body.has-solo-focus .expanded-solo-focus[data-zone-surface='tip'] {
   background: transparent !important;
 }
 
+/* Focus card content (heading, body, labels, data): deliberate 4th colour (--ink-body-copy), not
+   blue. Buttons (CTAs, journey nav, + badges) are not listed here and keep their own colours. */
+body.has-solo-focus .solo-focus-shell .solo-focus-architect-headline,
+body.has-solo-focus .solo-focus-shell .solo-focus-architect-prose,
+body.has-solo-focus .solo-focus-shell .solo-focus-content-text,
 body.has-solo-focus .solo-focus-shell .card-top-label,
 body.has-solo-focus .solo-focus-shell .data-label,
 body.has-solo-focus .solo-focus-shell .data-value,
+body.has-solo-focus .solo-focus-shell .data-symbol-unit,
+body.has-solo-focus .solo-focus-shell .data-stamp-figures,
+body.has-solo-focus .solo-focus-shell .data-co2-sub,
 body.has-solo-focus .solo-focus-shell .solo-focus-data-stack span,
 body.has-solo-focus .solo-focus-shell .solo-focus-question-label,
 body.has-solo-focus .solo-focus-shell .question-text,
 body.has-solo-focus .solo-focus-shell .solo-focus-description,
 body.has-solo-focus .solo-focus-shell .solo-focus-insight,
 body.has-solo-focus .solo-focus-shell .solo-focus-category {
-  color: var(--color-blue) !important;
-  fill: var(--color-blue) !important;
-}
-
-/* Focus card heading + body copy: deliberate 4th colour (--ink-body-copy), not blue — every
-   element carries .solo-focus-content-text (headline, prose, action line), so that one class is
-   the single hook for both. */
-body.has-solo-focus .solo-focus-shell .solo-focus-architect-headline,
-body.has-solo-focus .solo-focus-shell .solo-focus-architect-prose,
-body.has-solo-focus .solo-focus-shell .solo-focus-content-text {
   color: var(--ink-body-copy) !important;
   fill: var(--ink-body-copy) !important;
 }
