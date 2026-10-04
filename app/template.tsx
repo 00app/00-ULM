@@ -21,6 +21,8 @@ function isFixedViewportIntroPath(path: string): boolean {
   return (
     path === ROUTES.HOME ||
     path === ROUTES.INTRO ||
+    path === ROUTES.START ||
+    path === ROUTES.START_RESULT ||
     path === ROUTES.PROFILE ||
     path === ROUTES.PROFILE_SUMMARY
   )

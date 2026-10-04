@@ -335,6 +335,8 @@ export default function ProfilePageClient() {
   const qParam = searchParams?.get('q')
   const returnTo = searchParams?.get('returnTo')
   const skipParam = searchParams?.get('skip')
+  /** `?entry=create|login` — set by the entry flow (/ and /start/result); replaces the old in-page fork. */
+  const entryParam = searchParams?.get('entry')
   const { refreshProfile, setLocationState } = useApp()
 
   const [step, setStepState] = useState(0)
@@ -522,9 +524,14 @@ export default function ProfilePageClient() {
     if (hydratedRef.current || typeof window === 'undefined') return
     hydratedRef.current = true
     try {
-      const storedEntryChoice = sessionStorage.getItem(PROFILE_ENTRY_CHOICE_KEY)
-      if (storedEntryChoice === 'create' || storedEntryChoice === 'login') {
-        setEntryChoiceState(storedEntryChoice)
+      if (entryParam === 'create' || entryParam === 'login') {
+        setEntryChoiceState(entryParam)
+        sessionStorage.setItem(PROFILE_ENTRY_CHOICE_KEY, entryParam)
+      } else {
+        const storedEntryChoice = sessionStorage.getItem(PROFILE_ENTRY_CHOICE_KEY)
+        if (storedEntryChoice === 'create' || storedEntryChoice === 'login') {
+          setEntryChoiceState(storedEntryChoice)
+        }
       }
     } catch {
       // ignore
@@ -573,7 +580,7 @@ export default function ProfilePageClient() {
     }
     setStep(nextStep)
     setProfileHydrated(true)
-  }, [qParam, setStep])
+  }, [qParam, entryParam, setStep])
 
   /**
    * Returning-user fallback — localStorage alone is not durable (cleared cache, new device,
@@ -613,6 +620,16 @@ export default function ProfilePageClient() {
       cancelled = true
     }
   }, [profileHydrated, qParam, returnTo, skipParam, values, router])
+
+  const needsEntry =
+    profileHydrated &&
+    !qParam &&
+    !returnTo &&
+    entryChoice === null &&
+    !PROFILE_QUESTIONS.some((q) => (values[q.id] ?? '').trim())
+  useEffect(() => {
+    if (needsEntry) router.replace(ROUTES.START)
+  }, [needsEntry, router])
 
   /**
    * Goal ("save money" / "reduce carbon" / "or both") used to live on a separate /intro?step=goal
@@ -848,10 +865,6 @@ export default function ProfilePageClient() {
       if (!dest.startsWith('http') && !dest.startsWith('/')) dest = `/${dest.replace(/^\/+/, '')}`
       if (!isProfileOnboardingComplete(mergedValues)) {
         advancingRef.current = false
-        if (!resolveProfileGoal(mergedValues)) {
-          router.replace(`${ROUTES.INTRO}?step=goal`)
-          return
-        }
         const idx = firstIncompleteProfileStepIndex(mergedValues)
         if (idx >= 0) setStep(idx)
         return
@@ -997,7 +1010,7 @@ export default function ProfilePageClient() {
         return
       }
     },
-    [refreshProfile, router, returnTo, setLocationState, setStep]
+    [refreshProfile, returnTo, setLocationState, setStep]
   )
 
   const persistStepValues = useCallback((nextValues: Record<string, string>) => {
@@ -1245,69 +1258,12 @@ export default function ProfilePageClient() {
     )
   }
 
-  // Only a fresh visit sees the fork — deep links (Settings edits via ?q=/?returnTo=) and anyone
-  // who's already answered a question skip straight past it, so it never interrupts a resumed
-  // flow. Deliberately NOT gated on skipParam: IntroScreen always appends ?skip=1 when handing
-  // off from the intro/goal screen on `/` to `/profile` (see app/components/IntroScreen.tsx) —
-  // that's every normal first-time visitor, so treating it as "skip the fork too" made the fork
-  // unreachable in practice. skip=1 means "skip re-showing the intro screen," not "skip this."
-  const hasAnsweredAnything = PROFILE_QUESTIONS.some((q) => (values[q.id] ?? '').trim())
-  const showEntryFork = !qParam && !returnTo && entryChoice === null && !hasAnsweredAnything
-
-  if (showEntryFork) {
+  // A fresh visit with no entry choice, no deep link and no answers never lands here directly any
+  // more: the entry flow (/ → /start → /start/result) decides create vs log in and arrives with
+  // ?entry=. Anyone who opens bare /profile with nothing is sent to the start of that flow.
+  if (needsEntry) {
     return (
-      <main className={profileShellClass} style={profileShellStyle}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key="entry-fork"
-            className="profile-step-slam w-full flex flex-col items-center"
-            style={{ gap: 40, maxWidth: 800 }}
-            initial={stepMotion.initial}
-            animate={stepMotion.animate}
-            exit={stepMotion.exit}
-            transition={FAMILY_TRANSITION_ATOMIC}
-          >
-            <h2
-              className="zz-h2 text-display m-0 text-center"
-              style={{ whiteSpace: 'pre-line', maxWidth: 'min(92vw, 48rem)' }}
-            >
-              quick look, or make it yours?
-            </h2>
-            <div className="profile-step-controls profile-step-controls--options">
-              <ProfileAnswerBtn
-                reduceMotion={reduceMotion}
-                optionIndex={0}
-                delaySeconds={familyControlDelaySec(0)}
-                className=""
-                onClick={() => router.push(ROUTES.ZONE)}
-                aria-label="Guest"
-              >
-                <span className="profile-answer-btn__text zz-h4">GUEST</span>
-              </ProfileAnswerBtn>
-              <ProfileAnswerBtn
-                reduceMotion={reduceMotion}
-                optionIndex={1}
-                delaySeconds={familyControlDelaySec(1)}
-                className=""
-                onClick={() => setEntryChoice('create')}
-                aria-label="Create"
-              >
-                <span className="profile-answer-btn__text zz-h4">CREATE</span>
-              </ProfileAnswerBtn>
-              <ProfileAnswerBtn
-                reduceMotion={reduceMotion}
-                optionIndex={2}
-                delaySeconds={familyControlDelaySec(2)}
-                className=""
-                onClick={() => setEntryChoice('login')}
-                aria-label="Log in"
-              >
-                <span className="profile-answer-btn__text zz-h4">LOG IN</span>
-              </ProfileAnswerBtn>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-      </main>
+      <main className={profileShellClass} style={profileShellStyle} aria-busy="true" aria-label="Loading" />
     )
   }
 

@@ -29,6 +29,8 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
     () =>
       path === ROUTES.HOME ||
       path === ROUTES.INTRO ||
+      path === ROUTES.START ||
+      path === ROUTES.START_RESULT ||
       path === ROUTES.PROFILE ||
       path === ROUTES.PROFILE_SUMMARY,
     [path]
@@ -117,6 +119,8 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
 export const APP_PAGES_REGISTRY = [
   { path: ROUTES.HOME, sourceFile: 'app/page.tsx', name: 'Home' },
   { path: ROUTES.INTRO, sourceFile: 'app/intro/page.tsx', name: 'Intro' },
+  { path: ROUTES.START, sourceFile: 'app/start/page.tsx', name: 'Start (postcode)' },
+  { path: ROUTES.START_RESULT, sourceFile: 'app/start/result/page.tsx', name: 'Start (first result)' },
   { path: ROUTES.PROFILE, sourceFile: 'app/profile/page.tsx', name: 'Profile' },
   { path: ROUTES.PROFILE_SUMMARY, sourceFile: 'app/profile/summary/page.tsx', name: 'Summary' },
   { path: ROUTES.ZONE, sourceFile: 'app/zone/page.tsx', name: 'Zone' },

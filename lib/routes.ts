@@ -4,6 +4,9 @@
 export const ROUTES = {
   HOME: '/',
   INTRO: '/intro',
+  /** Entry flow: postcode, then one real result, then create / log in / skip. */
+  START: '/start',
+  START_RESULT: '/start/result',
   PROFILE: '/profile',
   PROFILE_SUMMARY: '/profile/summary',
   ZONE: '/zone',
