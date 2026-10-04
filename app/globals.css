@@ -9431,3 +9431,49 @@ input[type="radio"]:not(#v2):active {
   text-transform: uppercase;
   line-height: 1.2;
 }
+
+/* Zone rails: horizontal scroll-snap rows of ZoneRecCard. Next card peeks on mobile; arrows only
+   where a pointer exists. No auto-advance, no animation beyond the user's own scroll. */
+.zone-rails:not(#v2) { display: flex; flex-direction: column; gap: 32px; width: 100%; }
+.zone-rails--empty:not(#v2) { align-items: flex-start; gap: 8px; padding: 0 2px; }
+.zone-rail-pills:not(#v2) { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 2px; }
+.zone-rail-head:not(#v2) { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 2px 8px; }
+.zone-rail-title:not(#v2) {
+  font-family: var(--font-text) !important;
+  font-size: var(--zz-h4-mobile) !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  color: var(--color-blue) !important;
+}
+.zone-rail-arrows:not(#v2) { display: none; gap: 8px; }
+@media (hover: hover) and (pointer: fine) and (min-width: 768px) {
+  .zone-rail-arrows:not(#v2) { display: flex; }
+}
+.zone-rail-arrow:not(#v2) {
+  appearance: none; border: 0; cursor: pointer;
+  width: 40px; height: 40px; border-radius: 9999px;
+  background: var(--color-white); color: var(--color-blue);
+  box-shadow: var(--elev-1);
+  font-size: 18px; line-height: 1;
+}
+.zone-rail-arrow:not(#v2):disabled { opacity: 0.35; cursor: default; box-shadow: none; }
+.zone-rail-arrow:not(#v2):focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
+.zone-rail-scroller:not(#v2) {
+  display: flex; gap: 16px;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 2px;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 2px 16px;
+  scrollbar-width: thin;
+}
+.zone-rail-scroller:not(#v2):focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; border-radius: 12px; }
+.zone-rail-item:not(#v2) { scroll-snap-align: start; flex: 0 0 auto; display: flex; }
+.zone-rail-item--large:not(#v2) { width: min(78vw, 360px); }
+.zone-rail-item--small:not(#v2) { width: min(62vw, 260px); }
+.zone-rail-item > .zone-rec-card { width: 100%; }
+/* Legacy bento wall stays mounted (Solo Focus expansion lives inside its journey cells) but unused. */
+.zone-legacy-wall:not(#v2) { display: none !important; }

@@ -223,9 +223,14 @@ import {
 import { researchCategoryToJourneyKey } from '@/lib/zone/neonResearchMerge'
 import ZoneDesktopNavRail from '@/app/components/ZoneDesktopNavRail'
 import ZoneAskZaiDock from '@/app/components/ZoneAskZaiDock'
-import { RockSavingTips, RockMobileSignupCard } from '@/app/components/RockSavingTips'
+import { RockMobileSignupCard } from '@/app/components/RockSavingTips'
+import { ZoneRails } from '@/app/components/ZoneRails'
+import { buildZoneRails } from '@/lib/zone/rails'
+import { habitToRecCard, journeyToRecCard, tipToRecCard } from '@/lib/zone/recCardFromZone'
+import type { RecCardModel } from '@/lib/zone/recCard'
+import { formatPostcodeOutcodeFallback } from '@/lib/geocode/ukPostcode'
 import { ArchitecturalPulse } from '@/app/components/ArchitecturalPulse'
-import { normaliseEnergySupplier } from '@/lib/profile/energySupplier'
+import { energySupplierName, normaliseEnergySupplier } from '@/lib/profile/energySupplier'
 import {
   ZONE_FILTERS,
   countByTimeframe,
@@ -2962,6 +2967,67 @@ export default function ZonePage({
   const displayCarbon = useCountUp(heroCarbon, { duration: COUNT_UP_MS })
   const heroDataSource = dbConnected && neonVerifiedMoney ? 'VERIFIED AUDIT' : 'ESTIMATED AUDIT'
 
+  /**
+   * Rails (Model A). Cards are built from the same data the legacy wall used, through the one
+   * recommendation-card anatomy: no whyYou → no card, no source → no £. The legacy bento wall
+   * stays mounted (hidden) because Solo Focus expansion for journey cards lives inside its cells.
+   */
+  const railLayout = useMemo(() => {
+    if (!hydrated) return { rails: [], pills: [] }
+    const stored = profileFieldsFromStorage()
+    const ctx = {
+      facts: {
+        place: displayLocationName.trim() || formatPostcodeOutcodeFallback(scrapePostcode) || null,
+        supplierName: energySupplierName(stored.energySupplier, stored.energySupplierOther) || null,
+        homeType: stored.homeType || null,
+        powerType: stored.powerType || null,
+        tenure: stored.homeOwnership || null,
+        transport: stored.transport || null,
+        household: stored.livingSituation || null,
+      },
+      coverage: researchCategoryCoverage,
+    }
+    const recs: RecCardModel[] = []
+    const seen = new Set<string>()
+    for (const cell of displayItems) {
+      if (cell.type === 'hero') continue
+      const card = cell.type === 'journey' ? journeyToRecCard(cell.item, ctx) : tipToRecCard(cell.tip, ctx)
+      if (card && !seen.has(card.id)) {
+        seen.add(card.id)
+        recs.push(card)
+      }
+    }
+    const today: RecCardModel[] = []
+    for (const h of rockHabitsWithOffers) {
+      const card = habitToRecCard(h, habitToTipCard(h).id, ctx)
+      if (card) today.push(card)
+    }
+    return buildZoneRails(recs, today)
+  }, [hydrated, displayItems, rockHabitsWithOffers, researchCategoryCoverage, displayLocationName, scrapePostcode])
+
+  const openRecCard = useCallback(
+    (card: RecCardModel) => {
+      const ref = card.openRef
+      if (ref.type === 'habit') {
+        openRockTip(ref.id)
+        return
+      }
+      if (ref.type === 'journey') {
+        const cell = displayItems.find((c) => c.type === 'journey' && c.item.id === ref.id)
+        if (cell && cell.type === 'journey') openZoneJourneySoloFocus(cell.item)
+        return
+      }
+      const cell = displayItems.find((c) => c.type === 'tip' && c.tip.id === ref.id)
+      if (!cell || cell.type !== 'tip') return
+      const journeyCell = displayItems.find(
+        (c): c is GroovyItem & { type: 'journey' } =>
+          c.type === 'journey' && c.item.journey_key === cell.tip.journey_key
+      )
+      openZoneGridTip(cell.tip, journeyCell?.item ?? null)
+    },
+    [displayItems, openRockTip, openZoneJourneySoloFocus, openZoneGridTip]
+  )
+
   // Gated on `hydrated` (client-only, flips true in a useEffect): the real copy depends on the
   // visitor's local clock and localStorage name, neither available server-side. Computing it
   // unconditionally made SSR and the client's first paint disagree whenever the server's
@@ -3552,29 +3618,10 @@ export default function ZonePage({
             {renderWallBentoCells('hero')}
           </motion.div>
           </div>
-          {showTodaysTipsSection ? (
-            <motion.div
-              key="zone-rock-strip"
-              className="zone-rock-strip w-full"
-              initial={FAMILY_ATOMIC_SURFACE_INITIAL}
-              animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
-              transition={FAMILY_TRANSITION_ATOMIC}
-            >
-              <h3
-                className="zone-section-heading zone-rock-section-heading zz-h3 text-display text-[var(--color-blue)] lowercase m-0"
-                data-testid="zone-section-today-tips"
-              >
-                {tipsTimeOfDay} tips.
-              </h3>
-              <RockSavingTips
-                habits={rockHabitsWithOffers}
-                likedCardIds={state.likedCards}
-                visitedTipIds={visitedCardIds}
-                onOpenTip={openRockTip}
-              />
-            </motion.div>
+          {wallSectionsReady ? (
+            <ZoneRails layout={railLayout} visitedIds={visitedCardIds} onOpen={openRecCard} />
           ) : null}
-          <div className="zone-category-wall">
+          <div className="zone-category-wall zone-legacy-wall" aria-hidden="true">
           {showCategorySectionHeading ? (
             <h3
               className="zone-section-heading zone-category-section-heading zz-h3 text-display text-[var(--color-blue)] lowercase m-0"
