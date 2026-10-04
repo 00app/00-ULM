@@ -3025,7 +3025,10 @@ export default function ZonePage({
       const card = habitToRecCard(h, habitToTipCard(h).id, ctx)
       if (card) today.push(card)
     }
-    const pinnedFirst = shouldShowBankConnectCard(bank.state) ? buildBankConnectCard() : null
+    // Connect only makes sense next to something to unlock. With no cards at all (no postcode, so
+    // no card can say why it's for you) the rails show the postcode prompt instead.
+    const hasAnyCard = recs.length > 0 || today.length > 0
+    const pinnedFirst = hasAnyCard && shouldShowBankConnectCard(bank.state) ? buildBankConnectCard() : null
     return buildZoneRails(recs, today, { pinnedFirst })
   }, [
     hydrated,
@@ -3710,7 +3713,9 @@ export default function ZonePage({
             {renderWallBentoCells('hero')}
           </motion.div>
           </div>
-          {wallSectionsReady ? (
+          {/* Mounted during the arrival pulse too (the container hides it, like the old grid) so the
+              rails are in the DOM the moment the pulse ends. Unmounted while a card is open. */}
+          {hydrated && !expandedCardId && !expandedTipId ? (
             <ZoneRails layout={railLayout} visitedIds={visitedCardIds} onOpen={openRecCard} onCta={onRecCta} />
           ) : null}
           <div className="zone-category-wall zone-legacy-wall" aria-hidden="true">
