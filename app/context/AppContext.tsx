@@ -237,7 +237,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (
             key.startsWith('profile_') ||
             key.startsWith('journey_') ||
-            key.startsWith('zz_') ||
+            // Not the data-version key: SessionStateRehydrate (a child, so its effect runs first)
+            // has just written it. Deleting it here made the NEXT full page load see "no version"
+            // and wipe the whole local profile, postcode included, for every brand-new visitor.
+            (key.startsWith('zz_') && key !== 'zz_data_version') ||
             key === HERO_TOTALS_KEY ||
             key === 'userId' ||
             key === 'user_id'

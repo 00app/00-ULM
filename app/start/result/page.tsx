@@ -9,6 +9,7 @@ import { familyControlDelaySec } from '@/lib/motion-family'
 import { isValidUkPostcode } from '@/lib/geocode/ukPostcode'
 import { PROFILE_STORAGE_KEYS } from '@/lib/profile/onboardingComplete'
 import { markOnboardingIntent } from '@/lib/profile/onboardingIntentCookie'
+import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { ROUTES } from '@/lib/routes'
 import type { FirstResult } from '@/lib/entry/firstResult'
@@ -42,6 +43,16 @@ function StartResult() {
       return
     }
     setPostcode(pc)
+    // The URL is the source of truth for this screen. If storage lost the postcode (a reset, a
+    // second tab, a cleared cache), put it back so Skip / Create carry it forward.
+    try {
+      if (!localStorage.getItem(PROFILE_STORAGE_KEYS.postcode)?.trim()) {
+        localStorage.setItem(PROFILE_STORAGE_KEYS.postcode, pc)
+        persistUnifiedUserProfileMemory()
+      }
+    } catch {
+      /* storage blocked */
+    }
     const ctrl = new AbortController()
     void fetch(`/api/first-result?postcode=${encodeURIComponent(pc)}`, { signal: ctrl.signal })
       .then(async (res) => {
