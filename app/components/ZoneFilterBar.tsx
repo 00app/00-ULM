@@ -121,9 +121,11 @@ function FilterSheet({
         <span className="zone-sheet-grab" aria-hidden="true" />
         <div className="zone-sheet-head">
           <h3 className="m-0">Filters</h3>
-          <button type="button" className="zone-filterbar-clear" onClick={onClear} disabled={!isFiltering(state)}>
-            Clear all
-          </button>
+          {isFiltering(state) ? (
+            <button type="button" className="zone-filterbar-clear" onClick={onClear}>
+              Clear all
+            </button>
+          ) : null}
         </div>
         <FacetGroups state={state} counts={counts} onChange={onChange} size="sheet" />
         <button type="button" className="zone-sheet-done" onClick={onClose}>

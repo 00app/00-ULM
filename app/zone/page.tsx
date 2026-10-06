@@ -225,7 +225,7 @@ import ZoneDesktopNavRail from '@/app/components/ZoneDesktopNavRail'
 import ZoneAskZaiDock from '@/app/components/ZoneAskZaiDock'
 import { RockMobileSignupCard } from '@/app/components/RockSavingTips'
 import { ZoneRails } from '@/app/components/ZoneRails'
-import { ZoneSummaryText } from '@/app/components/ZoneSummaryText'
+import { ZoneSummary } from '@/app/components/ZoneSummaryText'
 import { ZoneFilterBar } from '@/app/components/ZoneFilterBar'
 import { useZoneFilters } from '@/lib/hooks/useZoneFilters'
 import { applyFilters, dedupeCards, describeFilters, facetCounts, isFiltering } from '@/lib/zone/filters'
@@ -2928,6 +2928,16 @@ export default function ZonePage({
       ),
     [rockHabitsWithOffers]
   )
+  // Until the real total lands the head would print the tips-based estimate and then jump to the
+  // real figure. Hold the figure lines for it, but never longer than 4s (guests with no real total
+  // still get the estimate, as before).
+  const [figuresWaited, setFiguresWaited] = useState(false)
+  useEffect(() => {
+    if (!hydrated) return
+    const t = window.setTimeout(() => setFiguresWaited(true), 4000)
+    return () => window.clearTimeout(t)
+  }, [hydrated])
+  const figuresReady = hasRealHeroTotal || figuresWaited
   const heroMoney = hasRealHeroTotal ? heroRealMoney : heroTipsFallback.money
   const heroCarbon = hasRealHeroTotal ? heroRealCarbon : heroTipsFallback.carbon
   const welcomeJourneyCount = useMemo(() => {
@@ -3652,40 +3662,8 @@ export default function ZonePage({
         >
           <div className="zone-hero-section w-full" aria-live="polite">
             <div className="zone-hero-copy" data-testid="zone-section-welcome">
-              {/* Summary: body-weight sentences; the display face is reserved for the single hero £
-                  figure. A line that is empty (a zero figure) is not rendered. */}
-              {[
-                <ZoneSummaryText key="greeting">
-                  {`${zoneWelcome.timeOfDayLine.replace(/\.$/, ',')} ${zoneWelcome.nameLine}`}
-                </ZoneSummaryText>,
-                zoneWelcome.foundCountLine ? <ZoneSummaryText key="found">{zoneWelcome.foundCountLine}</ZoneSummaryText> : null,
-                zoneWelcome.localityLine
-                  ? (() => {
-                      const m = zoneWelcome.localityLine.match(/^(£\S+)\s+(.*)$/)
-                      return m ? (
-                        <>
-                          <span className="zone-summary-figure">
-                            <ZoneSummaryText>{m[1]}</ZoneSummaryText>
-                          </span>{' '}
-                          {m[2]}
-                        </>
-                      ) : (
-                        <ZoneSummaryText key="money">{zoneWelcome.localityLine}</ZoneSummaryText>
-                      )
-                    })()
-                  : null,
-                zoneWelcome.savingsMoneyLine ? <ZoneSummaryText key="carbon">{zoneWelcome.savingsMoneyLine}</ZoneSummaryText> : null,
-              ]
-                .filter((line) => line !== null)
-                .map((line, i) => (
-                  <p
-                    key={i}
-                    className={`zone-summary-line m-0${i === 0 ? ' zone-summary-greeting' : ''}`}
-                    style={{ '--zs-i': i } as React.CSSProperties}
-                  >
-                    {line}
-                  </p>
-                ))}
+              {/* The head: four lines, one size and weight, animated word by word. */}
+              <ZoneSummary welcome={zoneWelcome} figuresReady={figuresReady} />
             </div>
           </div>
           {showInlineLoadingLogo && !zoneHandoffStaging ? (
