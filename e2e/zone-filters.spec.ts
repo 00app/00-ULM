@@ -32,12 +32,34 @@ test.describe('Zone filters — desktop', () => {
     // Personal picks do not disappear while browsing is filtered.
     await expect(page.locator('.zone-rail--hero [data-rec-card]')).toHaveCount(3)
 
-    await page.locator('.zone-chip-scroller .zone-chip:not([disabled])').filter({ hasText: /^HOME/ }).first().click()
+    // Every category lives in one dropdown, not a row of chips.
+    await expect(page.locator('.zone-chip-scroller')).toHaveCount(0)
+    await page.getByTestId('zone-category-menu').click()
+    await expect(page.getByRole('listbox')).toBeVisible()
+    expect(await page.getByRole('option').count()).toBeGreaterThanOrEqual(5)
+    await page.getByRole('option', { name: /^HOME/ }).click()
+    await expect(page.getByRole('listbox')).toHaveCount(0)
     await expect(page.locator('[data-testid="zone-results"] .zone-rail-title')).toHaveText('Home · Saves money')
 
     await page.getByRole('button', { name: /^Clear/ }).first().click()
     await expect(page.locator('#zone-rail-biggest')).toHaveCount(1)
     await expect(page.getByTestId('zone-results')).toHaveCount(0)
+  })
+
+  test('the category dropdown is keyboard operable: arrows move, Enter selects, Esc closes', async ({ page }) => {
+    await enterZoneAsGuest(page)
+    const menu = page.getByTestId('zone-category-menu')
+    await menu.focus()
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByRole('listbox')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('listbox')).toHaveCount(0)
+    await expect(menu).toBeFocused()
+    await menu.click()
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('listbox')).toHaveCount(0)
+    await expect(menu).not.toHaveText(/all categories/i)
   })
 
   test('the bar pins to the top while scrolling', async ({ page }) => {
@@ -75,7 +97,7 @@ test.describe('Zone filters — mobile', () => {
   test('nothing overflows sideways and tap targets are at least 40px', async ({ page }) => {
     await enterZoneAsGuest(page)
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
-    const h = await page.locator('.zone-chip-scroller .zone-chip').first().evaluate((e) => e.getBoundingClientRect().height)
+    const h = await page.getByTestId('zone-category-menu').evaluate((e) => e.getBoundingClientRect().height)
     expect(h).toBeGreaterThanOrEqual(40)
   })
 })

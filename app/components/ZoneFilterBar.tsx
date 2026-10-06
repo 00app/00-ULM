@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, useCallback, useEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   activeFilterCount,
@@ -135,6 +135,154 @@ function FilterSheet({
   )
 }
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 160ms ease-out' }}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  )
+}
+
+/**
+ * Category dropdown (replaces the row of 12 chips). A button that opens a listbox: arrow keys move,
+ * Enter selects, Esc / outside click / Tab closes. Options carry faceted counts and are disabled
+ * when they would give nothing.
+ */
+function CategoryMenu({
+  state,
+  counts,
+  totalAll,
+  onChange,
+}: Pick<Props, 'state' | 'counts' | 'totalAll' | 'onChange'>) {
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const listRef = useRef<HTMLUListElement | null>(null)
+  const listId = useId()
+
+  const options: { value: ZoneFilterState['category']; label: string; count: number; disabled: boolean }[] = [
+    { value: null, label: 'All categories', count: state.goal || state.pace ? counts.total : totalAll, disabled: false },
+    ...counts.categories.map(({ category, count }) => ({
+      value: category as ZoneFilterState['category'],
+      label: formatZoneCategoryLabel(category),
+      count,
+      disabled: count === 0 && state.category !== category,
+    })),
+  ]
+  const selectedIndex = Math.max(0, options.findIndex((o) => o.value === state.category))
+  const current = options[selectedIndex]
+
+  const close = useCallback((refocus: boolean) => {
+    setOpen(false)
+    if (refocus) buttonRef.current?.focus()
+  }, [])
+
+  const choose = useCallback(
+    (i: number) => {
+      const o = options[i]
+      if (!o || o.disabled) return
+      onChange({ ...state, category: o.value })
+      close(true)
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [options.length, state, onChange, close]
+  )
+
+  useEffect(() => {
+    if (!open) return
+    setActive(selectedIndex)
+    listRef.current?.focus()
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) close(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('touchstart', onDown, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('touchstart', onDown)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  // Keep the highlighted option in view while arrowing through a long list.
+  useEffect(() => {
+    if (!open) return
+    listRef.current?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [open, active])
+
+  const step = (dir: 1 | -1) => {
+    let i = active
+    for (let n = 0; n < options.length; n++) {
+      i = (i + dir + options.length) % options.length
+      if (!options[i].disabled) break
+    }
+    setActive(i)
+  }
+
+  const onListKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); step(1) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); step(-1) }
+    else if (e.key === 'Home') { e.preventDefault(); setActive(0) }
+    else if (e.key === 'End') { e.preventDefault(); setActive(options.length - 1) }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(active) }
+    else if (e.key === 'Escape') { e.preventDefault(); close(true) }
+    else if (e.key === 'Tab') close(false)
+  }
+
+  return (
+    <div ref={rootRef} className="zone-menu">
+      <button
+        ref={buttonRef}
+        type="button"
+        className={`zone-menu-button${state.category ? ' zone-menu-button--on' : ''}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-label={`Category: ${current.label.toLowerCase()}`}
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); setOpen(true) }
+        }}
+        data-testid="zone-category-menu"
+      >
+        <span>{current.label}</span>
+        <ChevronIcon open={open} />
+      </button>
+      {open ? (
+        <ul
+          id={listId}
+          ref={listRef}
+          className="zone-menu-list"
+          role="listbox"
+          aria-label="Category"
+          tabIndex={-1}
+          aria-activedescendant={`${listId}-${active}`}
+          onKeyDown={onListKey}
+          data-testid="zone-category-list"
+        >
+          {options.map((o, i) => (
+            <li
+              key={o.label}
+              id={`${listId}-${i}`}
+              data-index={i}
+              role="option"
+              aria-selected={i === selectedIndex}
+              aria-disabled={o.disabled || undefined}
+              className={`zone-menu-option${i === active ? ' zone-menu-option--active' : ''}${i === selectedIndex ? ' zone-menu-option--selected' : ''}${o.disabled ? ' zone-menu-option--off' : ''}`}
+              onMouseEnter={() => !o.disabled && setActive(i)}
+              onClick={() => choose(i)}
+            >
+              <span>{o.label}</span>
+              <span className="zone-chip-count">{o.count}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
 function SlidersIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
@@ -147,10 +295,11 @@ function SlidersIcon() {
 
 /**
  * Sticky, app-style filter bar.
- *  - Below desktop: one compact row — a Filters button (goal + effort in a bottom sheet, with a badge
- *    for how many are on) beside a single scrolling row of category chips. Active goal/effort
- *    filters also appear as removable chips so nothing is hidden behind the sheet.
- *  - Desktop: the same chips plus the goal and effort groups inline.
+ *  - Every category lives in ONE dropdown (a listbox), so the bar never grows with the number of
+ *    categories.
+ *  - Below desktop: [Filters] (goal + effort in a bottom sheet, badge = how many are on) + the
+ *    Category dropdown; active goal/effort filters also show as removable chips.
+ *  - Desktop: the Category dropdown with the goal and effort groups inline beside it.
  * Counts are faceted, so a chip never promises results it can't deliver; empty ones are disabled.
  */
 export const ZoneFilterBar = forwardRef<HTMLDivElement, Props>(function ZoneFilterBar(
@@ -222,33 +371,23 @@ export const ZoneFilterBar = forwardRef<HTMLDivElement, Props>(function ZoneFilt
           <span>Filters</span>
           {secondary > 0 ? <span className="zone-filters-badge">{secondary}</span> : null}
         </button>
-        <div ref={scrollerRef} className="zone-chip-scroller" role="group" aria-label="Category">
+        <CategoryMenu state={state} counts={counts} totalAll={totalAll} onChange={onChange} />
+        <div ref={scrollerRef} className="zone-active-chips" role="group" aria-label="Active filters">
           {state.goal ? (
             <Chip label={state.goal === 'money' ? 'Saves money' : 'Cuts carbon'} active removable onClick={() => onChange(toggleGoal(state, state.goal as 'money' | 'carbon'))} />
           ) : null}
           {state.pace ? (
             <Chip label={state.pace === 'now' ? 'Do now' : 'Long term'} active removable onClick={() => onChange(togglePace(state, state.pace as 'now' | 'long'))} />
           ) : null}
-          <Chip label="All" count={state.goal || state.pace ? counts.total : totalAll} active={!state.category} onClick={() => onChange({ ...state, category: null })} />
-          {counts.categories.map(({ category, count }) => (
-            <Chip
-              key={category}
-              label={formatZoneCategoryLabel(category)}
-              count={count}
-              active={state.category === category}
-              disabled={count === 0 && state.category !== category}
-              onClick={() => onChange(toggleCategory(state, category))}
-            />
-          ))}
         </div>
-      </div>
-      <div className="zone-filterbar-inline">
-        <FacetGroups state={state} counts={counts} onChange={onChange} size="inline" />
-        {filtering ? (
-          <button type="button" className="zone-filterbar-clear" onClick={onClear}>
-            Clear{activeFilterCount(state) > 1 ? ` all (${activeFilterCount(state)})` : ''}
-          </button>
-        ) : null}
+        <div className="zone-filterbar-inline">
+          <FacetGroups state={state} counts={counts} onChange={onChange} size="inline" />
+          {filtering ? (
+            <button type="button" className="zone-filterbar-clear" onClick={onClear}>
+              Clear{activeFilterCount(state) > 1 ? ` all (${activeFilterCount(state)})` : ''}
+            </button>
+          ) : null}
+        </div>
       </div>
       <FilterSheet open={sheetOpen} onClose={closeSheet} state={state} counts={counts} onChange={onChange} onClear={onClear} />
     </div>

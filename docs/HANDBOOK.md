@@ -708,9 +708,10 @@ Three optional facets, combined with AND: **category**, **goal** (Saves money / 
 
 - **Faceted counts.** The number on a chip is how many cards you'd get if you picked it with the other facets already applied. A chip that would give 0 is disabled, so no chip leads to an empty page.
 - **Results replace the rails** while any filter is on: one grid (1 / 2 / 3 columns), verified £ first. The heading is built from the filters by `describeFilters` ("Home", "Saves money", "Home · Saves money · Do now") with a live "N results" beside it, so heading and bar cannot disagree. Nothing matching shows "Nothing matches those filters" with Clear.
-- **Mobile / tablet (<1024px):** one compact sticky row — a **Filters** button (goal + effort in a bottom sheet, badge = how many are on) beside a single scrolling row of category chips. Active goal/effort filters also appear as removable chips at the start of that row. The sheet is a dialog (focus moves in, Esc closes and returns focus to the button, body scroll locked), controls are 44px, changes apply live and the primary button shows the live total.
-- **Desktop:** the same chips with the goal and effort groups inline under them; Clear appears when anything is on.
-- **Sticky + the fixed buttons:** pinned at the top the bar keeps 72–76px clear of the fixed Likes / Profile buttons; at rest it uses the full width. Chips fade out at the right edge (a scroll cue) instead of being cut.
+- **Category is a dropdown**, not a row of chips (12 categories made the bar grow and wrap): one button, "All categories ▾", opens a listbox with a faceted count per option; arrows move, Enter selects, Esc / outside click closes, disabled when an option would give nothing.
+- **Mobile / tablet (<1024px):** one compact sticky band — a **Filters** button (goal + effort in a bottom sheet, badge = how many are on) beside the Category dropdown. Active goal/effort filters also appear as removable chips beside them. The sheet is a dialog (focus moves in, Esc closes and returns focus to the button, body scroll locked), controls are 44px, changes apply live and the primary button shows the live total.
+- **Desktop:** the Category dropdown with the goal and effort groups inline beside it on one row; Clear appears when anything is on.
+- **Sticky + the fixed buttons:** pinned at the top the bar keeps 72–76px clear of the fixed Likes / Profile buttons; at rest it uses the full width. The dropdown panel is anchored to the bar (not the button) below desktop so it never runs under those buttons.
 - **State** lives in `sessionStorage` (`zz_zone_filters_v1`): kept while you open a card and come back, but a new visit starts clean.
 - **Why sticky needed a fix:** `body { overflow-x: hidden }` plus the Zone route's inline `overflow-y: auto` made `body` a scroll container that never scrolls, which silently disables `position: sticky` inside it. On the Zone route only, `html.zz-zone-document body` now uses `overflow-x: clip` / `overflow-y: visible`.
 
@@ -811,7 +812,7 @@ Main files: `app/components/{IntroScreen,EntryShell,ZoneRecCard,ZoneRails,Settin
 | 13 | `ZONE-CONTENT-AND-DATA.md` (Zone hero) / any doc describing the hero as H3 display lines | Hero lines are H3 display | Hero lines are body-weight sentences with a display-face £ figure (section 3). |
 | 14 | This doc's own earlier wording and the original brief for Zone rails | Category **pills are jump links, not filters** | Superseded by real filters (section 3 → Filters). The jump pills are gone; `buildZoneRails` still returns a `pills` array that nothing renders. |
 | 15 | `ZONE-CONTENT-AND-DATA.md` / handbook wording for the Zone hero | The top block is "Your profile" with a "You could save" metrics row | It is "Start here" (three picks); "Your profile" is now a small link to Settings; the metrics row was dropped (the summary above shows the same £ and CO₂). |
-| 16 | Typography notes for the Zone summary | Only the £ figure uses the display face | The welcome line is also serif display (explicit instruction). |
+| 16 | Typography notes for the Zone summary | Only the £ figure uses the display face; sentence-case body weight 400 | Every line of the head is heading-weight Helvetica; digits only are in the numerals face (explicit instruction; supersedes an interim serif greeting). |
 
 ---
 

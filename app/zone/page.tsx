@@ -225,6 +225,7 @@ import ZoneDesktopNavRail from '@/app/components/ZoneDesktopNavRail'
 import ZoneAskZaiDock from '@/app/components/ZoneAskZaiDock'
 import { RockMobileSignupCard } from '@/app/components/RockSavingTips'
 import { ZoneRails } from '@/app/components/ZoneRails'
+import { ZoneSummaryText } from '@/app/components/ZoneSummaryText'
 import { ZoneFilterBar } from '@/app/components/ZoneFilterBar'
 import { useZoneFilters } from '@/lib/hooks/useZoneFilters'
 import { applyFilters, dedupeCards, describeFilters, facetCounts, isFiltering } from '@/lib/zone/filters'
@@ -3654,23 +3655,26 @@ export default function ZonePage({
               {/* Summary: body-weight sentences; the display face is reserved for the single hero £
                   figure. A line that is empty (a zero figure) is not rendered. */}
               {[
-                <>
-                  {zoneWelcome.timeOfDayLine.replace(/\.$/, ',')} {zoneWelcome.nameLine}
-                </>,
-                zoneWelcome.foundCountLine || null,
+                <ZoneSummaryText key="greeting">
+                  {`${zoneWelcome.timeOfDayLine.replace(/\.$/, ',')} ${zoneWelcome.nameLine}`}
+                </ZoneSummaryText>,
+                zoneWelcome.foundCountLine ? <ZoneSummaryText key="found">{zoneWelcome.foundCountLine}</ZoneSummaryText> : null,
                 zoneWelcome.localityLine
                   ? (() => {
                       const m = zoneWelcome.localityLine.match(/^(£\S+)\s+(.*)$/)
                       return m ? (
                         <>
-                          <span className="zone-summary-figure">{m[1]}</span> {m[2]}
+                          <span className="zone-summary-figure">
+                            <ZoneSummaryText>{m[1]}</ZoneSummaryText>
+                          </span>{' '}
+                          {m[2]}
                         </>
                       ) : (
-                        zoneWelcome.localityLine
+                        <ZoneSummaryText key="money">{zoneWelcome.localityLine}</ZoneSummaryText>
                       )
                     })()
                   : null,
-                zoneWelcome.savingsMoneyLine || null,
+                zoneWelcome.savingsMoneyLine ? <ZoneSummaryText key="carbon">{zoneWelcome.savingsMoneyLine}</ZoneSummaryText> : null,
               ]
                 .filter((line) => line !== null)
                 .map((line, i) => (

@@ -9263,11 +9263,13 @@ input[type="radio"]:not(#v2):active {
    Display face only on the one hero £ figure; sentence case; one step down the scale (H3 50/56px
    → H4 20px); line-height 1.45. Colour, spacing tokens and layout are unchanged. */
 .zone-anchor .zone-summary-line:not(#v2) {
-  font-family: var(--font-text) !important;
+  font-family: var(--font-display) !important;
   font-size: var(--zz-h4-mobile) !important;
-  font-weight: 400 !important;
-  line-height: 1.45 !important;
-  letter-spacing: normal !important;
+  font-weight: var(--fw-heading) !important;
+  -webkit-text-stroke: var(--heading-heft) currentColor;
+  paint-order: stroke fill;
+  line-height: 1.25 !important;
+  letter-spacing: -0.02em !important;
   text-transform: none !important;
   text-align: left;
   color: var(--color-blue);
@@ -9276,9 +9278,11 @@ input[type="radio"]:not(#v2):active {
 .zone-anchor .zone-summary-figure:not(#v2) {
   font-family: var(--font-display) !important;
   font-size: var(--zz-h3-mobile) !important;
-  font-weight: bold !important;
-  letter-spacing: -0.02em !important;
-  line-height: 0.9 !important;
+  font-weight: var(--fw-heading) !important;
+  -webkit-text-stroke: var(--heading-heft) currentColor;
+  paint-order: stroke fill;
+  letter-spacing: -0.03em !important;
+  line-height: 0.95 !important;
 }
 @media (min-width: 1024px) {
   .zone-anchor .zone-summary-line:not(#v2) { font-size: var(--zz-h4-desktop) !important; }
@@ -9639,14 +9643,15 @@ input[type="radio"]:not(#v2):active {
 @media (max-width: 1023px) { .zone-rails:not(#v2) { --zone-gutter: 20px; } }
 @media (max-width: 767px) { .zone-rails:not(#v2) { --zone-gutter: 32px; } }
 
-/* Welcome line: the serif display face (Abril Fatface, one very heavy weight), larger than the
-   body sentences under it. Falls back to a bold Georgia if the font hasn't loaded. */
+/* Welcome line: the same heading treatment as Settings and every other heading — Helvetica at the
+   heading weight with the heft stroke; only digits come from the numerals face. Larger than the
+   sentences under it. */
 .zone-anchor .zone-summary-greeting:not(#v2) {
-  font-family: 'Abril Fatface', Georgia, 'Times New Roman', serif !important;
-  font-weight: 400 !important;
+  font-family: var(--font-display) !important;
+  font-weight: var(--fw-heading) !important;
   font-size: 34px !important;
-  line-height: 1.08 !important;
-  letter-spacing: 0 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.03em !important;
   margin-bottom: 6px !important;
 }
 @media (min-width: 1024px) { .zone-anchor .zone-summary-greeting:not(#v2) { font-size: 44px !important; } }
@@ -9662,3 +9667,73 @@ html.zz-zone-document body {
 
 /* Keep the welcome line clear of the fixed Likes / Profile buttons on narrow screens. */
 @media (max-width: 767px) { .zone-anchor .zone-summary-line:not(#v2) { max-width: calc(100% - 76px); } }
+
+/* The head is ONE weight: the greeting's. Every line gets the heading treatment (weight + heft
+   stroke); numbers are set apart in the numerals face at its single natural weight, with no stroke
+   and no synthetic bold, so they sit at the same optical weight as the letters instead of
+   looking fatter. */
+.zone-anchor .zone-summary-line:not(#v2),
+.zone-anchor .zone-summary-figure:not(#v2),
+.zone-anchor .zone-summary-greeting:not(#v2) {
+  font-family: var(--font-display) !important;
+  font-weight: var(--fw-heading) !important;
+  -webkit-text-stroke: var(--heading-heft) currentColor;
+  paint-order: stroke fill;
+  font-synthesis: none;
+}
+.zone-anchor .zs-num:not(#v2) {
+  font-family: 'Abril Fatface Numerals', var(--font-display) !important;
+  font-weight: 400 !important;
+  -webkit-text-stroke: 0 !important;
+  font-synthesis: none;
+  letter-spacing: -0.01em;
+}
+
+/* ── Category dropdown (replaces the chip row) ─────────────────────────────────────────────── */
+.zone-filterbar-inner:not(#v2) { flex-wrap: wrap; row-gap: 8px; }
+.zone-menu:not(#v2) { position: relative; flex: 0 1 auto; min-width: 0; }
+.zone-menu-button:not(#v2) {
+  appearance: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: space-between; gap: 10px;
+  height: 40px; padding: 0 14px 0 16px; border-radius: 9999px; border: 2px solid var(--color-blue);
+  background: var(--color-white) !important; color: var(--color-blue) !important;
+  font-family: var(--font-cta) !important; font-weight: 900 !important; font-size: 14px !important;
+  text-transform: uppercase; line-height: 1 !important; max-width: 100%; white-space: nowrap;
+}
+.zone-menu-button--on:not(#v2) { background: var(--color-blue) !important; color: var(--color-white) !important; }
+.zone-menu-button:not(#v2):focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
+.zone-menu-list:not(#v2) {
+  position: absolute; z-index: 60; top: calc(100% + 8px); left: 0;
+  width: max-content; min-width: 240px; max-width: min(360px, calc(100vw - 2 * var(--zone-gutter, 20px)));
+  max-height: min(60dvh, 420px); overflow-y: auto; overscroll-behavior: contain;
+  margin: 0; padding: 6px; list-style: none; border-radius: 20px;
+  background: var(--color-white); color: var(--color-blue);
+  box-shadow: 0 12px 40px rgba(20, 18, 104, 0.22), 0 0 0 1px color-mix(in srgb, var(--color-blue) 12%, transparent);
+  animation: zone-menu-in 140ms ease-out both;
+}
+.zone-menu-list:focus { outline: none; }
+.zone-menu-option:not(#v2) {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; padding: 0 14px; border-radius: 14px; cursor: pointer;
+  font-family: var(--font-cta); font-weight: 900; font-size: 14px; text-transform: uppercase;
+}
+.zone-menu-option--active:not(#v2) { background: color-mix(in srgb, var(--color-blue) 10%, var(--color-white)); }
+.zone-menu-option--selected:not(#v2) { background: var(--color-blue); color: var(--color-white); }
+.zone-menu-option--off:not(#v2) { opacity: 0.38; cursor: default; }
+@keyframes zone-menu-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .zone-menu-list:not(#v2) { animation: none; } }
+
+.zone-active-chips:not(#v2) { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.zone-active-chips:empty { display: none; }
+@media (min-width: 1024px) {
+  .zone-active-chips:not(#v2) { display: none; }
+  .zone-filterbar-inline:not(#v2) { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 0; margin-left: 4px; }
+  .zone-menu-button:not(#v2) { height: 36px; }
+}
+
+/* Greeting fits one line on a normal phone; the menu panel is anchored to the bar (not the button)
+   below desktop so it never runs under the fixed Likes / Profile buttons. */
+@media (max-width: 1023px) {
+  .zone-anchor .zone-summary-greeting:not(#v2) { font-size: 30px !important; }
+  .zone-filterbar-inner:not(#v2) { position: relative; }
+  .zone-menu:not(#v2) { position: static; }
+  .zone-menu-list:not(#v2) { left: 0; width: min(360px, calc(100% - 80px)); min-width: 0; max-width: none; }
+}
