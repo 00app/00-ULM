@@ -17,19 +17,19 @@ const PUBLIC_GET_API_PREFIXES = [
 
 /**
  * Next.js 16+: `proxy` replaces root `middleware` for network-boundary logic.
- * Landing `/` → `/zone` when `session` is valid or `zz_sid` maps to a completed guest profile (see `lib/returningUserGate.ts`).
+ * Landing `/` → `/zai` when `session` is valid or `zz_sid` maps to a completed guest profile (see `lib/returningUserGate.ts`).
  */
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
   if (request.method === 'GET' && path === ROUTES.HOME) {
     if (await shouldRedirectLandingToZone(request)) {
-      return NextResponse.redirect(new URL(ROUTES.ZONE, request.url))
+      return NextResponse.redirect(new URL(ROUTES.ZAI, request.url))
     }
   }
 
   if (request.method === 'GET' && path === ROUTES.PROFILE) {
     if (await shouldRedirectProfileToZone(request)) {
-      return NextResponse.redirect(new URL(ROUTES.ZONE, request.url))
+      return NextResponse.redirect(new URL(ROUTES.ZAI, request.url))
     }
   }
 

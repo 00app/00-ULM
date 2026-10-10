@@ -84,7 +84,7 @@ function StartResult() {
   }
   const goGuest = () => {
     trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.ZONE })
-    router.push(ROUTES.ZONE)
+    router.push(ROUTES.ZAI)
   }
 
   if (phase === 'not_found') {

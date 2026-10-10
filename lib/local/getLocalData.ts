@@ -3,6 +3,7 @@
  * Translates postcode into council, region, ward and regional gCO₂/kWh
  * for ZeroResearch / Zai and the Zone dashboard.
  */
+import { formatPostcodeOutcodeFallback } from '@/lib/geocode/ukPostcode'
 
 /**
  * Strip the Postcodes.io "unparished area" admin suffix from any locality-derived string.
@@ -120,7 +121,7 @@ async function getLocalDataFromOpenStreetMap(cleanPostcode: string): Promise<Loc
     const countryRaw = address.country || 'United Kingdom'
     const localityRaw = address.suburb || address.neighbourhood || address.village || address.town || address.city || ''
 
-    const outcode = cleanPostcode.slice(0, Math.max(2, Math.min(4, cleanPostcode.length)))
+    const outcode = formatPostcodeOutcodeFallback(cleanPostcode)
     return {
       council: titleCaseWords(councilRaw || 'Unknown'),
       region: titleCaseWords(regionRaw || councilRaw || 'United Kingdom'),
@@ -160,7 +161,7 @@ function getRegionFromOutcode(outcode: string): string {
 }
 
 export function getEmergencyPostcodeFallback(cleanPostcode: string): LocalIntelligence {
-  const outcode = cleanPostcode.slice(0, Math.max(2, Math.min(4, cleanPostcode.length)))
+  const outcode = formatPostcodeOutcodeFallback(cleanPostcode)
   const region = getRegionFromOutcode(outcode)
   const inferredLocality = region === 'London' ? 'London' : outcode
   const inferredCouncil = `${region} Council`

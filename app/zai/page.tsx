@@ -37,6 +37,7 @@ import { polishZaiBodyCopy } from '@/lib/zai/polishBodyCopy'
 import Link from 'next/link'
 import { isZaiChatEnabled } from '@/lib/featureFlags'
 import { ROUTES } from '@/lib/routes'
+import { readCachedProfileLocality } from '@/lib/geocode/resolvePostcodeLocality'
 
 const ZAI_FALLBACK = ZAI_FALLBACK_CONNECTING
 
@@ -203,7 +204,12 @@ export default function ZaiPage() {
     if (messages.length > 0) return
     coldStartDone.current = true
     const totals = resolveHeroTotals(state.heroTotals)
-    const locality = state.locationState?.locationName || state.profile?.postcode || postcode
+    // Place name only — a raw postcode is not a place ("nags you in M11AE"). No name → "your patch".
+    const pc = state.profile?.postcode || postcode || ''
+    const locality =
+      [pc ? readCachedProfileLocality(pc) : null, state.locationState?.locationName].find(
+        (name) => name?.trim() && !/\d/.test(name)
+      ) ?? null
     setMessages([{ role: 'zai', text: buildColdStartHook(totals, locality) }])
   }, [historyChecked, messages.length, postcode, state.heroTotals, state.locationState, state.profile?.postcode])
 

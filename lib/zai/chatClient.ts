@@ -36,6 +36,13 @@ export async function readZaiStream(
   res: Response,
   onChunk: (chunk: string) => void
 ): Promise<string> {
+  // A JSON body means the route answered `{ answer }` instead of streaming — show the sentence, not the JSON.
+  if (res.headers.get('content-type')?.includes('application/json')) {
+    const data = (await res.json().catch(() => null)) as { answer?: unknown } | null
+    const answer = typeof data?.answer === 'string' ? data.answer : ''
+    if (answer) onChunk(answer)
+    return answer
+  }
   if (!res.body) return ''
   const reader = res.body.getReader()
   const decoder = new TextDecoder()

@@ -4365,12 +4365,7 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
   pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    color-mix(in srgb, var(--color-purple) 72%, transparent) 42%,
-    var(--color-purple) 100%
-  );
+  background: none;
 }
 .zai-composer-dock--fixed .zai-input-row,
 .zai-composer-dock--fixed .zai-connecting {
@@ -4447,12 +4442,12 @@ body.zai-composer-dock-active {
   overflow-wrap: anywhere;
 }
 .zai-interface .zai-bubble-chat--zai {
-  background: var(--zai-field-bg) !important;
-  color: var(--zai-deep-blue) !important;
+  background: var(--surface-card) !important;
+  color: var(--ink-on-card) !important;
 }
 .zai-interface .zai-bubble-chat--user {
-  background: var(--zai-deep-blue) !important;
-  color: var(--color-blue) !important;
+  background: var(--surface-ambient) !important;
+  color: var(--ink-on-ambient) !important;
 }
 .zai-interface .zai-msg-footer a,
 .zai-interface .zai-msg-footer .zz-body {
@@ -4494,14 +4489,14 @@ body.zai-composer-dock-active {
   letter-spacing: normal;
   text-transform: none;
   background: var(--zai-pill-bg);
-  color: var(--zai-pill-text);
+  color: var(--ink-on-ambient);
   transition: opacity var(--dur-colour) var(--ease-out), transform var(--dur-lift) var(--ease-out), background-color var(--dur-colour) var(--ease-out), color var(--dur-colour) var(--ease-out);
 }
 @media (hover: hover) {
   .zai-interface .zai-suggest-pill:hover:not(:disabled),
 .zai-interface .zai-suggest-pill:focus-visible {
     background: var(--zai-field-bg);
-    color: var(--zai-deep-blue);
+    color: var(--zai-ink);
 }
 }
 
@@ -4526,7 +4521,7 @@ body.zai-composer-dock-active {
   margin: 0;
 }
 
-/* Composer input — profile name field parity (blue/navy rest → blue/blue active) */
+/* Composer input — blue field, white ink in every state */
 .zz-zai-composer-input,
 .zai-interface .zz-zai-composer-input,
 .zai-composer-dock .zz-zai-composer-input,
@@ -4539,8 +4534,8 @@ body.zai-composer-dock-active {
   height: auto;
   background: var(--color-blue) !important;
   color: var(--color-white) !important;
-  -webkit-text-fill-color: var(--color-purple);
-  caret-color: var(--color-purple);
+  -webkit-text-fill-color: currentColor;
+  caret-color: currentColor;
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
@@ -4581,7 +4576,7 @@ body.zai-composer-dock-active {
   z-index: 1;
 }
 .zz-zai-composer-input::placeholder {
-  color: var(--color-purple) !important;
+  color: var(--color-white) !important;
   opacity: 1;
 }
 .zai-interface .zz-zai-composer-input:focus,
@@ -4594,8 +4589,8 @@ body.zai-composer-dock-active {
 .zone-ask-zai-dock > .zz-zai-composer-input:focus-visible {
   background: var(--color-blue) !important;
   color: var(--color-white) !important;
-  -webkit-text-fill-color: var(--color-blue);
-  caret-color: var(--color-blue);
+  -webkit-text-fill-color: currentColor;
+  caret-color: currentColor;
 }
 .zai-interface .zz-zai-composer-input:focus::placeholder,
 .zai-interface .zz-zai-composer-input:focus-visible::placeholder,
@@ -4603,7 +4598,7 @@ body.zai-composer-dock-active {
 .zai-composer-dock .zz-zai-composer-input:focus-visible::placeholder,
 .zai-composer-dock--ask-sheet .zz-zai-composer-input:focus::placeholder,
 .zone-ask-zai-dock > .zz-zai-composer-input:focus::placeholder {
-  color: var(--color-blue) !important;
+  color: var(--color-white) !important;
 }
 @media (hover: hover) {
   .zai-interface .zz-zai-composer-input:hover:not(:disabled),
@@ -4612,14 +4607,14 @@ body.zai-composer-dock-active {
 .zone-ask-zai-dock > .zz-zai-composer-input:hover:not(:disabled) {
     background: var(--color-blue) !important;
     color: var(--color-white) !important;
-    -webkit-text-fill-color: var(--color-blue);
-    caret-color: var(--color-blue);
+    -webkit-text-fill-color: currentColor;
+    caret-color: currentColor;
 }
   .zai-interface .zz-zai-composer-input:hover:not(:disabled)::placeholder,
 .zai-composer-dock .zz-zai-composer-input:hover:not(:disabled)::placeholder,
 .zai-composer-dock--ask-sheet .zz-zai-composer-input:hover:not(:disabled)::placeholder,
 .zone-ask-zai-dock > .zz-zai-composer-input:hover:not(:disabled)::placeholder {
-    color: var(--color-blue) !important;
+    color: var(--color-white) !important;
 }
 }
 @media (min-width: 1024px) {
@@ -4628,7 +4623,7 @@ body.zai-composer-dock-active {
 }
 }
 
-/* Go button: blue default, blue text; hover blue bg, navy text; bounce (match other CTAs) */
+/* Go button: blue fill, white ink; hover swaps to navy; disabled dims */
 .zai-interface .zai-go-btn {
   flex-shrink: 0;
   width: 56px;
@@ -4646,19 +4641,20 @@ body.zai-composer-dock-active {
   justify-content: center;
 }
 .zai-interface .zai-go-btn:not(:disabled) {
-  background-color: var(--zai-pill-bg);
-  color: var(--zai-pill-text);
+  background-color: var(--surface-card);
+  color: var(--ink-on-card);
 }
 @media (hover: hover) {
   .zai-interface .zai-go-btn:not(:disabled):hover {
-    background-color: var(--zai-field-bg);
-    color: var(--zai-deep-blue);
+    background-color: var(--surface-ambient);
+    color: var(--ink-on-ambient);
 }
 
 }
 .zai-interface .zai-go-btn:disabled {
-  background-color: transparent;
-  color: var(--color-blue);
+  background-color: var(--surface-card);
+  color: var(--ink-on-card);
+  opacity: .32;
   cursor: default;
 }
 .zai-composer-dock .zai-go-btn {
@@ -4677,19 +4673,20 @@ body.zai-composer-dock-active {
   justify-content: center;
 }
 .zai-composer-dock .zai-go-btn:not(:disabled) {
-  background-color: var(--zai-pill-bg);
-  color: var(--zai-pill-text);
+  background-color: var(--surface-card);
+  color: var(--ink-on-card);
 }
 @media (hover: hover) {
   .zai-composer-dock .zai-go-btn:not(:disabled):hover {
-    background-color: var(--zai-field-bg);
-    color: var(--zai-deep-blue);
+    background-color: var(--surface-ambient);
+    color: var(--ink-on-ambient);
 }
 
 }
 .zai-composer-dock .zai-go-btn:disabled {
-  background-color: transparent;
-  color: var(--color-blue);
+  background-color: var(--surface-card);
+  color: var(--ink-on-card);
+  opacity: .32;
   cursor: default;
 }
 .zai-interface .action-circle-80 { background-color: var(--color-purple); color: var(--color-blue);
@@ -6086,19 +6083,20 @@ body.ask-zai-deep-dive-active {
 }
 }
 .zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn:not(:disabled) {
-  background-color: var(--zai-deep-blue);
-  color: var(--color-blue);
+  background-color: var(--surface-ambient);
+  color: var(--ink-on-ambient);
 }
 @media (hover: hover) {
   .zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn:not(:disabled):hover,
 .zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn:not(:disabled):focus-visible {
-    background-color: var(--color-blue);
-    color: var(--zai-deep-blue);
+    background-color: var(--surface-page);
+    color: var(--ink-page);
 }
 }
 .zai-composer-dock--ask-sheet .ask-zai-sheet-go-btn:disabled {
-  background-color: color-mix(in srgb, var(--zai-deep-blue) 28%, var(--zai-field-bg));
-  color: color-mix(in srgb, var(--zai-deep-blue) 45%, transparent);
+  background-color: var(--surface-ambient);
+  color: var(--ink-on-ambient);
+  opacity: .32;
   cursor: default;
 }
 .expanded-solo-focus .solo-focus-trinity--80 {

@@ -29,6 +29,7 @@ import {
   CHAT_GATEWAY_MODEL_CHAIN,
   GEMINI_DIRECT_CHAT,
 } from "@/lib/intelligence/aiGateway";
+import { isZaiAgentConfigured, runZaiAgent, type ZaiAgentHistoryTurn } from "@/lib/zai/agent";
 import { routeQuestion } from "@/lib/brains/zai/router";
 import {
   ZAI_EDITORIAL_AUDITOR_DNA,
@@ -286,7 +287,9 @@ async function polishZaiReplyAndLearn(args: {
     !text.startsWith(opener) &&
     !textAlreadyHasLocality(text, args.localityName, args.effectivePostcode)
   ) {
-    text = polishZaiServerBodyCopy(`${opener} ${text}`)
+    // Opener ends in a comma, so the reply continues the sentence — drop its leading capital.
+    const continued = /^[A-Z][a-z]/.test(text) ? text.charAt(0).toLowerCase() + text.slice(1) : text
+    text = polishZaiServerBodyCopy(`${opener} ${continued}`)
   }
   if (args.sessionUserId) {
     try {
@@ -308,6 +311,17 @@ async function polishZaiReplyAndLearn(args: {
   return text
 }
 
+/** Fallback sentence in the shape the client asked for: plain text when streaming, JSON otherwise. */
+function zaiFallbackResponse(streamRequested: boolean, status = 200): Response {
+  if (!streamRequested) {
+    return NextResponse.json({ answer: ZAI_FALLBACK }, { status })
+  }
+  return new Response(textEncoder.encode(ZAI_FALLBACK), {
+    status,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  })
+}
+
 export async function POST(req: NextRequest) {
   // Read at request time so Vercel runtime env is available (not build-cached)
   const runtimeKey = process.env.GEMINI_API_KEY?.trim()
@@ -319,6 +333,8 @@ export async function POST(req: NextRequest) {
     )
   }
   const genAI = runtimeKey ? new GoogleGenerativeAI(runtimeKey) : null
+  // Hoisted so the catch blocks can answer in the shape the client asked for.
+  let streamRequested = true
   try {
     // App Router: body is parsed via req.json() (ReadableStream).
     // Fallback to JSON.parse(req.body text) so `journey_answers` is never lost on malformed clients.
@@ -335,6 +351,7 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+    streamRequested = body.stream !== false
 
     if (body.mode === 'discovery_win') {
       const session = await getSessionFromRequest()
@@ -678,14 +695,13 @@ export async function POST(req: NextRequest) {
       : ' if journey answers include home heating or postcode, mention them naturally in the first sentence — warm tone, not technical. never duplicate locality phrases.'
 
     const auditorBlock = ` ${ZAI_FORENSIC_CHAT_MATRIX} do not repeat the solo focus card headline or its three-beat editorial prose — explain why and how only.`
-    const totalsLine = ` household savings so far: about £${totalMoney}/yr and ${totalCarbon}kg carbon — use these when discussing money or carbon; do not invent zeros.`
+    const totalsLine = ` potential savings identified in this household's audit (not yet achieved — never say they are already saving this): about £${totalMoney}/yr and ${totalCarbon}kg carbon — use these when discussing money or carbon; do not invent zeros.`
     const systemInstruction = isExpandedContext
       ? `you are zai. the user is in deep dive on [${categoryLabel}]. personal spend signal: ${personalSpend}; regional avg signal: ${regionalAvg}.${scrapedSourceLine}${journeyFormQuestionLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${totalsLine}${energyOpenerRule}${optimizationPrompt} answer strictly about this shift and how to close the saving gap.${userContextNote}${editorialBlock}${auditorBlock}${activeShiftBlock}${roleGuard}${userContextBlock}${genomePrompt}`
       : `you are zai on the zero zero chat surface.${totalsLine}${locationLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${energyOpenerRule}${optimizationPrompt}
       open with a lifestyle hook when the user has not asked a narrow question yet.
       uk context: defra, wrap uk, energy saving trust; april 2026 domestic cap £1,641/yr (ofgem).${userContextNote}${editorialBlock}${auditorBlock}${roleGuard}${userContextBlock}${genomePrompt}`
 
-    const streamRequested = body.stream !== false
     const journeyAnswerKeyCount = Object.values(journeyAnswersForContext).reduce(
       (n, row) => n + Object.keys(row ?? {}).length,
       0
@@ -711,6 +727,50 @@ export async function POST(req: NextRequest) {
 
     const zaiTopic = routeQuestion(question)
     const gatewayPrompt = `${systemInstruction}\n\nUser question:\n${question}${formatBucketChatHistory(history)}`
+
+    // Zai agent: tool-calling + grounding check over the AI Gateway. Any failure falls through
+    // to the legacy single-prompt paths below.
+    if (isZaiAgentConfigured()) {
+      try {
+        const agentHistory: ZaiAgentHistoryTurn[] = history.map((h) => ({
+          role: h.role === 'model' ? 'assistant' : 'user',
+          text: h.parts[0]?.text ?? '',
+        }))
+        while (agentHistory[0]?.role === 'assistant') agentHistory.shift()
+        const lastTurn = agentHistory[agentHistory.length - 1]
+        if (lastTurn?.role === 'user' && lastTurn.text.trim() === question) agentHistory.pop()
+        const agent = await runZaiAgent({
+          system: systemInstruction,
+          question,
+          history: agentHistory.filter((h) => h.text.trim()),
+          postcode: effectivePostcode,
+          userId: session?.userId ?? null,
+        })
+        console.log(
+          `[zai] model=${agent.modelId} path=agent tools=${agent.toolCalls.join('+') || 'none'} repaired=${agent.repaired} removed=${agent.removed.length}`
+        )
+        const answer = await polishZaiReplyAndLearn({
+          text: agent.text,
+          sessionUserId: session?.userId,
+          chatSessionKey,
+          question,
+          journeyAnswersForContext,
+          impactProfile: impactProfile ?? undefined,
+          effectivePostcode,
+          localityName,
+        })
+        if (!streamRequested) return NextResponse.json({ answer })
+        return new Response(textEncoder.encode(answer), {
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache, no-transform',
+          },
+        })
+      } catch (agentError: unknown) {
+        const msg = agentError instanceof Error ? agentError.message : String(agentError)
+        console.log(`[zai] model=none path=agent_error fallback=legacy error=${msg.slice(0, 160)}`)
+      }
+    }
 
     let text: string
     try {
@@ -784,7 +844,7 @@ export async function POST(req: NextRequest) {
 
       if (!genAI) {
         console.log('[zai] model=none path=no_provider_configured fallback=true')
-        return NextResponse.json({ answer: ZAI_FALLBACK }, { status: 503 })
+        return zaiFallbackResponse(streamRequested, 503)
       }
 
       const model = genAI.getGenerativeModel({
@@ -924,12 +984,12 @@ export async function POST(req: NextRequest) {
       const isQuota = status === 429 || status === 529 || /429|529|quota|resource exhausted/i.test(msg)
       if (isQuota) setGeminiQuotaExceeded()
       console.log(`[zai] model=none path=error fallback=true quota=${isQuota} error=${msg.slice(0, 160)}`)
-      return NextResponse.json({ answer: ZAI_FALLBACK }, { status: 200 })
+      return zaiFallbackResponse(streamRequested)
     }
   } catch (outerError: unknown) {
     const msg = outerError instanceof Error ? outerError.message : String(outerError)
     console.log(`[zai] model=none path=outer_error fallback=true error=${msg.slice(0, 160)}`)
-    return NextResponse.json({ answer: ZAI_FALLBACK }, { status: 200 })
+    return zaiFallbackResponse(streamRequested)
   }
 }
 

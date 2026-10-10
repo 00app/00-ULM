@@ -7,7 +7,7 @@
 
 /** Zai chat (deep-dive assistant) — /zai route + nav icon. Paused: too much complexity for now. */
 export function isZaiChatEnabled(): boolean {
-  return false
+  return true
 }
 
 /** Dislike button on Solo Focus / bento cards. Paused alongside Zai chat. */
