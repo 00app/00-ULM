@@ -13,6 +13,7 @@ import { readLoopAnswersForSettings } from '@/lib/zone/loopQuestions'
 import { readOfferFeedbackForSettings } from '@/lib/zone/offerFeedbackLoop'
 import { ROUTES } from '@/lib/routes'
 import { ENGINE_UI_LABELS } from '@/lib/logic/engine'
+import { isRealLocalityLabel } from '@/lib/brains/summaryLogic'
 import {
   FAMILY_DUR_SHORT,
   FAMILY_EASE,
@@ -423,7 +424,7 @@ export default function SettingsPage() {
                     <StampedCarbonKg kg={animatedCarbon} />
                   </span>
                 </div>
-                {localData?.council && (
+                {localData?.council && isRealLocalityLabel(localData.council) && (
                   <h4 className="settings-council-blurb">
                     {localData.council} initiatives could save you more this year.
                   </h4>

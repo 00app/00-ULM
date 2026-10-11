@@ -164,9 +164,14 @@ export function getEmergencyPostcodeFallback(cleanPostcode: string): LocalIntell
   const outcode = formatPostcodeOutcodeFallback(cleanPostcode)
   const region = getRegionFromOutcode(outcode)
   const inferredLocality = region === 'London' ? 'London' : outcode
-  const inferredCouncil = `${region} Council`
+  // Both Postcodes.io and OpenStreetMap failed — we only have a coarse ~8-bucket region
+  // guessed from the postcode's first letters, not a real local authority. "<region> Council"
+  // reads like a real council name but isn't one (no such body exists), so this used to fabricate
+  // it. 'Unknown' matches the convention getLocalData() already uses when Postcodes.io itself
+  // omits admin_district, and callers (formatLocationDisplayName, isRealLocalityLabel) already
+  // know to skip an 'unknown' council and fall back to locality/outcode instead.
   return attachHeatPumpGrantContext(cleanPostcode, {
-    council: inferredCouncil,
+    council: 'Unknown',
     region,
     locality: inferredLocality,
     outcode,
