@@ -364,6 +364,9 @@ export default function ZonePage({
   )
   const [scraped, setScraped] = useState<Record<JourneyId, { scraped_at: string; carbon_value: number; money_value: number; deep_content_tip?: string; high_saving?: boolean }> | null>(null)
   const [localData, setLocalData] = useState<LocalIntelligence | null>(null)
+  // 'Unknown' is the lookup's "no real local authority" sentinel — it must not light up local tags.
+  const realCouncil =
+    localData?.council && localData.council.trim().toLowerCase() !== 'unknown' ? localData.council : null
   const [localJustLoaded, setLocalJustLoaded] = useState(false)
   /** In-grid reflow: expanded card gets grid-column 1 / -1 and pushes siblings (no overlay) */
   const [expandedCardId, setExpandedCardId] = useState<string | null>(initialExpandedCardId ?? null)
@@ -3507,12 +3510,12 @@ export default function ZonePage({
                   architectActionLine={cell.item.architectActionLine}
                   insightAlert={cell.item.insightAlert}
                   fromScraper={cell.item.fromScraper}
-                  showLocalTag={!!localData?.council && (cell.item.journey_key === 'home' || cell.item.journey_key === 'travel')}
+                  showLocalTag={!!realCouncil && (cell.item.journey_key === 'home' || cell.item.journey_key === 'travel')}
                   localCarbonG={cell.item.journey_key === 'carbon' ? localData?.localCarbonG : undefined}
-                  hasLocalGrant={cell.item.journey_key === 'home' && !!localData?.council}
+                  hasLocalGrant={cell.item.journey_key === 'home' && !!realCouncil}
                   localContextBar={cell.item.localContextBar ?? (() => {
-                    const place = displayLocationName.trim() || localData?.council
-                    return place && localData?.council && typeof localData.localCarbonG === 'number'
+                    const place = displayLocationName.trim() || realCouncil
+                    return place && realCouncil && localData && typeof localData.localCarbonG === 'number'
                       ? `In ${place}, your live local support context is grounded to your postcode. Your local grid is running at ${Math.round(localData.localCarbonG)}g CO₂e/kWh.`
                       : undefined
                   })()}
@@ -4018,7 +4021,7 @@ export default function ZonePage({
                 verifiedSourceName={tip.source_name}
                 verifiedSourceDate={tip.source_date}
                 tipNeedsSwitching={tipNeedsSwitching}
-                isPriorityHome={tip.journey_key === 'home' && !!localData?.council}
+                isPriorityHome={tip.journey_key === 'home' && !!realCouncil}
                 verifiedAuditMoneyGbp={tipAuditMoney}
                 verifiedArchitectProse={isCategoryScopedOverrideExempt ? null : tipSanitizedProse}
                 verifiedAuditSourceUrl={

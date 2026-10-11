@@ -134,7 +134,11 @@ export async function runBrain(options: RunBrainOptions): Promise<BrainPayload> 
   }
 
   const location_label = local
-    ? `LOCALIZED TO: ${local.council.toUpperCase()}, ${local.region.toUpperCase()}`
+    ? // 'Unknown' is the lookup's "no real local authority" sentinel — name the region only.
+      `LOCALIZED TO: ${[local.council, local.region]
+        .filter((part) => part && part.trim().toLowerCase() !== 'unknown')
+        .map((part) => part.toUpperCase())
+        .join(', ')}`
     : (() => {
         if (typeof console !== 'undefined' && console.warn) {
           console.warn('[Brain] location API failed for postcode:', clean)
