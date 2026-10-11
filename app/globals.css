@@ -7777,17 +7777,7 @@ main.zone.zone-main-shell {
   filter: none !important;
   isolation: isolate;
 }
-/* Flat navy bar — blocks Zone wall (e.g. Rock SAVE labels) bleeding through pill corners. */
-.zone-ask-zai-dock::before {
-  content: '';
-  position: absolute;
-  inset-inline: 0;
-  bottom: calc(-20px - env(safe-area-inset-bottom, 0px));
-  height: calc(96px + env(safe-area-inset-bottom, 0px));
-  background: var(--color-purple);
-  pointer-events: none;
-  z-index: 0;
-}
+/* No bar behind the pill — it floats over the Zone wall. */
 body.zone-ask-zai-dock-active {
   --zone-ask-zai-dock-clearance: 120px;
 }
@@ -8832,6 +8822,12 @@ h1:not(#v2), h2:not(#v2), h3:not(#v2),
     transform: scale(1.06) !important;
     box-shadow: var(--elev-2) !important;
   }
+}
+/* Zai nav disc follows the same rule as its neighbours: the circle carries the fill, the spark
+   takes the glyph colour. */
+.nav-item-circle .kinetic-zai-disc:not(#v2) {
+  background: transparent !important;
+  color: inherit;
 }
 .zz-back-btn:not(#v2):active:not(:disabled),
 .card-top-arrow--action:not(#v2):active:not(:disabled),

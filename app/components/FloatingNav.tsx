@@ -71,7 +71,7 @@ export default function FloatingNav({
       >
         {variant === 'zai' ? (
           <span className="kinetic-zai-disc" aria-hidden>
-            <ZaiSparkIcon size={ICON_SIZE} style={{ color: 'var(--color-purple)' }} />
+            <ZaiSparkIcon size={ICON_SIZE} />
           </span>
         ) : (
           <span className="nav-item-circle-icon">{children}</span>
