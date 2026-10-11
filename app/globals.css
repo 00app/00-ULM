@@ -4365,7 +4365,8 @@ body.has-solo-focus .solo-focus-journey-nav--inset .solo-focus-journey-nav__btn:
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
   pointer-events: none;
-  background: none;
+  /* Flat page colour (no gradient) so scrolled chat text never shows behind the composer. */
+  background: var(--surface-page);
 }
 .zai-composer-dock--fixed .zai-input-row,
 .zai-composer-dock--fixed .zai-connecting {

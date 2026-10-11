@@ -30,6 +30,7 @@ import {
   GEMINI_DIRECT_CHAT,
 } from "@/lib/intelligence/aiGateway";
 import { isZaiAgentConfigured, runZaiAgent, type ZaiAgentHistoryTurn } from "@/lib/zai/agent";
+import type { ActionProfile } from "@/lib/actions/actionTypes";
 import { routeQuestion } from "@/lib/brains/zai/router";
 import {
   ZAI_EDITORIAL_AUDITOR_DNA,
@@ -267,6 +268,8 @@ function mandatoryOpenerPrefix(
 
 async function polishZaiReplyAndLearn(args: {
   text: string
+  /** Agent replies carry their own voice — skip the legacy editorial pass and place-name opener. */
+  agentVoice?: boolean
   sessionUserId?: string
   chatSessionKey?: string | null
   question: string
@@ -275,9 +278,9 @@ async function polishZaiReplyAndLearn(args: {
   effectivePostcode: string | null
   localityName: string | null
 }): Promise<string> {
-  let text = polishZaiServerBodyCopy(args.text)
+  let text = args.agentVoice ? args.text.trim() : polishZaiServerBodyCopy(args.text)
   if (!text) return ZAI_FALLBACK
-  const opener = mandatoryOpenerPrefix(
+  const opener = args.agentVoice ? '' : mandatoryOpenerPrefix(
     args.journeyAnswersForContext,
     args.effectivePostcode,
     args.localityName
@@ -309,6 +312,30 @@ async function polishZaiReplyAndLearn(args: {
     { role: 'zai', content: text },
   ])
   return text
+}
+
+/** Onboarding answers → action-eligibility profile. Short tokens only; anything else is dropped. */
+function actionProfileFromBody(
+  raw: unknown,
+  stored?: { household?: string; transport_baseline?: string; age?: string; employment_status?: string }
+): ActionProfile {
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const token = (v: unknown): string | undefined => {
+    const s = typeof v === 'string' ? v.trim() : ''
+    return /^[A-Za-z0-9_ +-]{1,40}$/.test(s) ? s : undefined
+  }
+  return {
+    tenure: token(src.homeOwnership),
+    financial: token(src.financialPressure),
+    household: token(src.livingSituation) ?? token(stored?.household),
+    children: token(src.children),
+    employment: token(src.employmentStatus) ?? token(stored?.employment_status),
+    age: token(src.age) ?? token(stored?.age),
+    heating: token(src.powerType),
+    supplier: token(src.energySupplier),
+    transport: token(src.transport) ?? token(stored?.transport_baseline),
+    wash: token(src.washPreference),
+  }
 }
 
 /** Fallback sentence in the shape the client asked for: plain text when streaming, JSON otherwise. */
@@ -706,7 +733,10 @@ export async function POST(req: NextRequest) {
       (n, row) => n + Object.keys(row ?? {}).length,
       0
     )
+    // The agent can still help from the checked action list with no profile, so only the legacy
+    // single-prompt paths need this gate.
     if (
+      !isZaiAgentConfigured() &&
       !isExpandedContext &&
       lacksGroundedZaiContext({
         postcode: effectivePostcode,
@@ -739,8 +769,30 @@ export async function POST(req: NextRequest) {
         while (agentHistory[0]?.role === 'assistant') agentHistory.shift()
         const lastTurn = agentHistory[agentHistory.length - 1]
         if (lastTurn?.role === 'user' && lastTurn.text.trim() === question) agentHistory.pop()
+        const agentFacts = [
+          totalMoney > 0 || totalCarbon > 0
+            ? ` the app estimates this household could save up to about £${totalMoney} a year and ${totalCarbon}kg of carbon across everything it has found — an estimate of what is possible, not something they are saving yet.`
+            : '',
+          council ? ` area: ${council}.` : '',
+          postcodeLine,
+          heatingPromptLine,
+          transportPromptLine,
+          sentinelGrantContextLine,
+          isExpandedContext
+            ? ` they are looking at the [${categoryLabel}] card right now.${scrapedSourceLine}${journeyFormQuestionLine}`
+            : '',
+          ' reference: april 2026 domestic energy price cap £1,641/yr (ofgem).',
+          activeShiftBlock,
+          userContextBlock,
+          genomePrompt,
+        ].join('')
+        const agentProfile = actionProfileFromBody(body.profile, profileForContext)
+        const told = Object.entries(agentProfile)
+          .filter(([, v]) => typeof v === 'string' && v)
+          .map(([k, v]) => `${k}: ${String(v).toLowerCase().replace(/_/g, ' ')}`)
         const agent = await runZaiAgent({
-          system: systemInstruction,
+          facts: `${agentFacts}${told.length ? `\nwhat they told us when they signed up — ${told.join('; ')}.` : ''}`,
+          profile: agentProfile,
           question,
           history: agentHistory.filter((h) => h.text.trim()),
           postcode: effectivePostcode,
@@ -750,6 +802,7 @@ export async function POST(req: NextRequest) {
           `[zai] model=${agent.modelId} path=agent tools=${agent.toolCalls.join('+') || 'none'} repaired=${agent.repaired} removed=${agent.removed.length}`
         )
         const answer = await polishZaiReplyAndLearn({
+          agentVoice: true,
           text: agent.text,
           sessionUserId: session?.userId,
           chatSessionKey,

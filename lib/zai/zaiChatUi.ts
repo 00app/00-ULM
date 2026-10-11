@@ -81,7 +81,8 @@ export function findProfileAnswerLink(
     const entries = Object.entries(row).filter(([, v]) => String(v).trim().length > 0)
     if (entries.length === 0) continue
     const [qid, val] = entries[entries.length - 1]!
-    const label = String(val).trim().slice(0, 40)
+    // Stored answers are tokens (EON_NEXT) — show them as words.
+    const label = String(val).trim().slice(0, 40).replace(/_/g, ' ').toLowerCase()
     return {
       href: profileAnswerHref({ journeyKey: jid, questionId: qid }),
       label: formatProfileAnswerLinkLabel(`update your ${jid} answer (${label})`),

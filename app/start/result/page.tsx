@@ -121,6 +121,29 @@ function StartResult() {
               <p className="zz-body m-0" style={{ opacity: 0.7 }}>
                 Source: {result.source}
               </p>
+              {result.extras.length > 0 ? (
+                <div
+                  className="flex flex-wrap items-center justify-center"
+                  style={{ gap: 20, marginTop: 4 }}
+                  data-testid="first-result-extras"
+                >
+                  {result.extras.map((extra) => (
+                    <div key={extra.label} className="flex flex-col items-center" style={{ gap: 2 }}>
+                      <p className="data-label m-0" style={{ fontSize: 'var(--zz-body-size-desktop)' }}>
+                        {extra.label}
+                      </p>
+                      <p className="zz-h4 m-0" style={{ color: 'var(--color-blue)' }}>
+                        {extra.value}
+                        {extra.unit ? (
+                          <span className="entry-result-unit" style={{ marginLeft: 2 }}>
+                            {extra.unit}
+                          </span>
+                        ) : null}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : (
             <h1

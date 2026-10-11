@@ -38,6 +38,7 @@ import Link from 'next/link'
 import { isZaiChatEnabled } from '@/lib/featureFlags'
 import { ROUTES } from '@/lib/routes'
 import { readCachedProfileLocality } from '@/lib/geocode/resolvePostcodeLocality'
+import { profileFieldsFromStorage } from '@/lib/profile/onboardingComplete'
 
 const ZAI_FALLBACK = ZAI_FALLBACK_CONNECTING
 
@@ -235,6 +236,7 @@ export default function ZaiPage() {
       stream: true,
       journey_answers: journeyAnswers,
       postcode: postcodeVal ?? undefined,
+      profile: profileFieldsFromStorage(),
       expandedContext: {
         category: ctx.category,
         personalSpend: ctx.personalSpend,
@@ -318,6 +320,7 @@ export default function ZaiPage() {
         messages: transcript.slice(0, -1),
         journey_answers: journeyAnswers,
         postcode: postcode || undefined,
+        profile: profileFieldsFromStorage(),
         contextData: {
           totals,
           postcode: postcode || undefined,

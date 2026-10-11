@@ -30,6 +30,8 @@ export type PostZaiChatParams = {
   contextData?: ZaiContextData
   journey_answers?: Record<string, Record<string, string>>
   postcode?: string
+  /** Onboarding answers — lets Zai only suggest things this person can actually use. */
+  profile?: Record<string, string | undefined>
 }
 
 export async function readZaiStream(
@@ -74,6 +76,7 @@ export async function postZaiChat(params: PostZaiChatParams): Promise<Response> 
       journey_answers: journeyAnswers,
       journeyAnswersFromClient: journeyAnswers,
       postcode: params.postcode,
+      profile: params.profile,
     }),
   })
 }

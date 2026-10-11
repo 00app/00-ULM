@@ -19,6 +19,14 @@ export type RequestIdentity =
 const GUEST_AI_MAX_PER_MINUTE =
   process.env.NODE_ENV === 'development' ? 120 : 6
 
+/** Signed-in users on the same AI / Firecrawl paths — looser than guests (per-account, not
+ *  per-IP) since a shared office IP shouldn't throttle every signed-in user on it, but still
+ *  capped: before this, a signed-in user had no limit at all on `requireAiRouteAuth` routes
+ *  (Zai chat among them), so one account looping the chat endpoint had no ceiling on Gateway
+ *  spend. */
+const USER_AI_MAX_PER_MINUTE =
+  process.env.NODE_ENV === 'development' ? 120 : 20
+
 /** Server-issued guest cookie (`zz_sid`) — not localStorage. */
 export function readGuestSessionId(request: NextRequest): string | null {
   const value = request.cookies.get(GUEST_SESSION_COOKIE)?.value
@@ -84,6 +92,12 @@ export async function requireAiRouteAuth(request: NextRequest): Promise<NextResp
   if (identity.kind === 'guest') {
     const id = getClientIdentifier(request)
     const { ok, retryAfter } = await checkRateLimitAsync(`guest-ai:${id}`, GUEST_AI_MAX_PER_MINUTE)
+    if (!ok) return tooManyRequestsResponse(retryAfter)
+  } else {
+    const { ok, retryAfter } = await checkRateLimitAsync(
+      `user-ai:${identity.userId}`,
+      USER_AI_MAX_PER_MINUTE
+    )
     if (!ok) return tooManyRequestsResponse(retryAfter)
   }
 
