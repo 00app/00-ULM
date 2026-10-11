@@ -491,6 +491,8 @@ export async function POST(req: NextRequest) {
     if (typeof contextData?.council === 'string' && contextData.council.length <= 80) {
       council = contextData.council
     }
+    // 'Unknown' is the lookup's "no real local authority" sentinel — never hand it to the model as a place.
+    if (council && council.trim().toLowerCase() === 'unknown') council = null
 
     // User context: from Neon (logged-in) or from client-sent journey_answers (guest) so Zai knows e.g. "User has GAS heating"
     let userContextBlock = ''
