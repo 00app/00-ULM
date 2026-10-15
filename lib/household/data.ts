@@ -216,6 +216,28 @@ export async function endHouseholdAccount(
   }
 }
 
+/** The most recently started move for a user, or null if there isn't one. */
+export async function getLatestHouseholdMove(
+  userId: string | null | undefined
+): Promise<HouseholdMove | null> {
+  const uid = userId?.trim()
+  if (!uid) return null
+  try {
+    const pool = getDbPool()
+    const res = await pool.query(
+      `SELECT ${MOVE_COLUMNS} FROM household_moves
+       WHERE user_id = $1::uuid
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [uid]
+    )
+    return (res.rows[0] as HouseholdMove | undefined) ?? null
+  } catch (err) {
+    logFailure('get latest move', err)
+    return null
+  }
+}
+
 export async function createHouseholdMove(
   userId: string | null | undefined,
   input: { to_postcode: string; from_postcode?: string | null; move_date?: string | null }
@@ -234,6 +256,27 @@ export async function createHouseholdMove(
     return (res.rows[0] as HouseholdMove | undefined) ?? null
   } catch (err) {
     logFailure('create move', err)
+    return null
+  }
+}
+
+/** One move by id, scoped to the signed-in owner. */
+export async function getHouseholdMoveById(
+  userId: string | null | undefined,
+  moveId: string | null | undefined
+): Promise<HouseholdMove | null> {
+  const uid = userId?.trim()
+  const id = moveId?.trim()
+  if (!uid || !id) return null
+  try {
+    const pool = getDbPool()
+    const res = await pool.query(
+      `SELECT ${MOVE_COLUMNS} FROM household_moves WHERE id = $1::uuid AND user_id = $2::uuid`,
+      [id, uid]
+    )
+    return (res.rows[0] as HouseholdMove | undefined) ?? null
+  } catch (err) {
+    logFailure('get move by id', err)
     return null
   }
 }

@@ -73,3 +73,24 @@ export function isHouseholdGroup(value: unknown): value is HouseholdGroup {
 export function householdGroupFor(category: HouseholdCategory): HouseholdGroup {
   return HOUSEHOLD_GROUP_ORDER.find((g) => HOUSEHOLD_CATEGORIES[g].includes(category)) ?? 'subscriptions'
 }
+
+/** One moving-house checklist entry's status, per household category. */
+export type MoveChecklistStatus = 'pending' | 'transferred' | 'cancel' | 'set_up_new'
+
+export const MOVE_CHECKLIST_STATUS_LABELS: Record<MoveChecklistStatus, string> = {
+  pending: 'Not actioned yet',
+  transferred: 'Transferred to new address',
+  cancel: 'Cancelling, not moving',
+  set_up_new: 'Setting up new at new address',
+}
+
+export const MOVE_CHECKLIST_STATUSES: readonly MoveChecklistStatus[] = [
+  'pending',
+  'transferred',
+  'cancel',
+  'set_up_new',
+]
+
+export function isMoveChecklistStatus(value: unknown): value is MoveChecklistStatus {
+  return typeof value === 'string' && (MOVE_CHECKLIST_STATUSES as readonly string[]).includes(value)
+}
