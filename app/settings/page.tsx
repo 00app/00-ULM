@@ -33,6 +33,7 @@ import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric
 import { UNIFIED_PROFILE_MEMORY_EVENT } from '@/lib/unifiedProfileMemory'
 import { ResetDataCircleButton } from '@/app/components/ResetDataCircleButton'
 import { SettingsBankSection } from '@/app/components/SettingsBankSection'
+import { SettingsLivingSection } from '@/app/components/SettingsLivingSection'
 import SettingsBentoCard, { SettingsJourneyFactRow, useSettingsCardVisited } from '@/app/components/SettingsBentoCard'
 import SettingsProfileGoalRow from '@/app/components/SettingsProfileGoalRow'
 import { readEffectiveProfileGoal } from '@/lib/profile/profileGoalPreference'
@@ -448,6 +449,8 @@ export default function SettingsPage() {
         </section>
 
         <SettingsBankSection />
+
+        <SettingsLivingSection />
 
         <section className="settings-hero-section settings-truth-section" aria-label="Truth ledger">
           <motion.div

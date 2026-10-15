@@ -33,6 +33,8 @@ const TABLE_META: Record<string, { status: TableStatus; note: string }> = {
   user_answers: { status: 'legacy-unused', note: 'Superseded by journey_answers_jsonb — drop when empty' },
   user_likes: { status: 'legacy-unused', note: 'Superseded by likes — drop when empty' },
   offer_signals: { status: 'hot', note: 'app/api/offer-signals — dislike/avoid feedback loop' },
+  household_accounts: { status: 'hot', note: 'Bills + contracts per signed-in user — lib/household/data.ts; Settings → Living counts' },
+  household_moves: { status: 'hot', note: 'House moves + change-of-address checklist — lib/household/data.ts' },
 }
 
 function safeIdentifier(name: string): string {
