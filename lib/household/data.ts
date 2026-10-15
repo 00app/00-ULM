@@ -6,9 +6,11 @@
  */
 import { getDbPool } from '@/lib/db'
 import {
+  HOUSEHOLD_CATEGORIES,
   HOUSEHOLD_GROUP_ORDER,
   householdGroupFor,
   isHouseholdCategory,
+  isHouseholdGroup,
   type HouseholdCategory,
   type HouseholdGroup,
 } from '@/lib/household/categories'
@@ -121,6 +123,28 @@ export async function countHouseholdAccountsByGroup(
   } catch (err) {
     logFailure('count accounts', err)
     return counts
+  }
+}
+
+/** Active accounts for a whole Settings → Living group (all of that group's categories). */
+export async function listHouseholdAccountsByGroup(
+  userId: string | null | undefined,
+  group: HouseholdGroup
+): Promise<HouseholdAccount[]> {
+  const uid = userId?.trim()
+  if (!uid || !isHouseholdGroup(group)) return []
+  try {
+    const pool = getDbPool()
+    const res = await pool.query(
+      `SELECT ${ACCOUNT_COLUMNS} FROM household_accounts
+       WHERE user_id = $1::uuid AND category = ANY($2::text[]) AND status = 'active'
+       ORDER BY created_at ASC`,
+      [uid, HOUSEHOLD_CATEGORIES[group]]
+    )
+    return res.rows as HouseholdAccount[]
+  } catch (err) {
+    logFailure('list accounts by group', err)
+    return []
   }
 }
 
