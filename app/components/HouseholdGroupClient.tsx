@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import ZoneBackToZoneLink from '@/app/components/ZoneBackToZoneLink'
+import SettingsBentoCard from '@/app/components/SettingsBentoCard'
 import {
   HOUSEHOLD_CATEGORIES,
   HOUSEHOLD_CATEGORY_LABELS,
@@ -9,6 +10,7 @@ import {
   type HouseholdCategory,
   type HouseholdGroup,
 } from '@/lib/household/categories'
+import { getHouseholdCategoryTip } from '@/lib/household/livingTips'
 
 type HouseholdAccount = {
   id: string
@@ -108,27 +110,30 @@ export function HouseholdGroupClient({ group }: { group: HouseholdGroup }) {
         </p>
       ) : null}
 
-      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}>
+      <div className="settings-answer-grid" style={{ padding: '0 16px' }}>
         {accounts.map((a) => (
-          <div
-            key={a.id}
-            className="bento-card-groovy settings-bento-card"
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}
-          >
-            <div>
-              <h4 className="zz-h4" style={{ margin: 0 }}>
-                {HOUSEHOLD_CATEGORY_LABELS[a.category]}
-                {a.nickname ? ` — ${a.nickname}` : ''}
-              </h4>
-              <p className="data-label" style={{ margin: 0 }}>
+          <div key={a.id} className="settings-card-cell">
+            <SettingsBentoCard
+              label={HOUSEHOLD_CATEGORY_LABELS[a.category]}
+              headline={a.nickname || a.provider_name || HOUSEHOLD_CATEGORY_LABELS[a.category]}
+            >
+              <p className="data-label" style={{ margin: '4px 0 0' }}>
                 {[a.provider_name, gbp(a.monthly_amount_pence) ? `${gbp(a.monthly_amount_pence)}/mo` : null]
                   .filter(Boolean)
                   .join(' · ') || 'No details yet'}
               </p>
-            </div>
-            <button type="button" className="zone-rec-cta" onClick={() => handleEnd(a.id)}>
-              Remove
-            </button>
+              <p className="data-label" style={{ margin: '8px 0 0', opacity: 0.8, fontStyle: 'italic' }}>
+                {getHouseholdCategoryTip(a.category)}
+              </p>
+              <button
+                type="button"
+                className="zone-rec-cta"
+                style={{ marginTop: 12 }}
+                onClick={() => handleEnd(a.id)}
+              >
+                Remove
+              </button>
+            </SettingsBentoCard>
           </div>
         ))}
         {!loading && accounts.length === 0 ? (
