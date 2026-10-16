@@ -12,7 +12,9 @@ async function enterZoneAsGuest(page: Page) {
     await postcode.press('Enter')
     await expect(page).toHaveURL(/\/start\/result/, { timeout: 4000 })
   }).toPass({ timeout: 60000 })
-  await page.getByRole('button', { name: /skip for now/i }).click({ timeout: 60000 })
+  // The result screen has a single START (create account) action; guests go straight to Zone.
+  await page.getByTestId('first-result').or(page.getByTestId('first-result-none')).waitFor({ timeout: 60000 })
+  await page.goto('/zone', { waitUntil: 'domcontentloaded' })
   await page.getByTestId('zone-filterbar').waitFor({ state: 'visible', timeout: 90000 })
 }
 

@@ -12,6 +12,7 @@ import { PROFILE_STORAGE_KEYS } from '@/lib/profile/onboardingComplete'
 import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { ROUTES } from '@/lib/routes'
+import { SecondaryCircleCta } from '@/app/components/ui/SecondaryCircleCta'
 
 /** Entry step 2: one postcode field, UK format validated, nothing else asked. */
 export default function StartPostcodePage() {
@@ -83,9 +84,9 @@ export default function StartPostcodePage() {
           </ProfileAnswerBtn>
         </div>
       </div>
-      <button type="button" className="entry-text-link" onClick={() => router.back()}>
-        Back
-      </button>
+      <SecondaryCircleCta ariaLabel="Back" onClick={() => router.back()}>
+        BACK
+      </SecondaryCircleCta>
     </EntryShell>
   )
 }

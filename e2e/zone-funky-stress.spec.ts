@@ -24,7 +24,7 @@ test.describe('Zone — Groovy Grid + Solo Focus', () => {
   test.describe.configure({ mode: 'serial', timeout: 150000 })
   test.beforeEach(async ({ page }) => {
     // Cards only render when they can say why they're for you, so enter Zone the way a guest
-    // does: postcode in the entry flow, then "Skip for now".
+    // does: postcode in the entry flow, then straight to Zone.
     await page.goto('/start', { waitUntil: 'domcontentloaded' })
     const postcode = page.getByPlaceholder(/postcode/i)
     await expect(async () => {
@@ -32,7 +32,9 @@ test.describe('Zone — Groovy Grid + Solo Focus', () => {
       await postcode.press('Enter')
       await expect(page).toHaveURL(/\/start\/result/, { timeout: 4000 })
     }).toPass({ timeout: 60000 })
-    await page.getByRole('button', { name: /skip for now/i }).click({ timeout: 60000 })
+    // The result screen has a single START (create account) action; guests go straight to Zone.
+    await page.getByTestId('first-result').or(page.getByTestId('first-result-none')).waitFor({ timeout: 60000 })
+    await page.goto('/zone', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/zone/, { timeout: 30000 })
     // Rails render once the wall is ready; the legacy grid stays attached (hidden) underneath.
     await page.getByTestId('zone-rails').waitFor({ state: 'visible', timeout: 45000 })

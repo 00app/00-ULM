@@ -45,6 +45,8 @@ type GlitchLogoProps = {
   onComplete?: () => void
   loop?: boolean
   className?: string
+  /** Glitch off instead of on — the mark jitters and ends hidden. */
+  exit?: boolean
 }
 
 /** Power-on — logo crystallizes from golden particle cloud (1.0s). */
@@ -90,7 +92,7 @@ export function AtomicLogo({ width = 126, onComplete, loop = false, className = 
 }
 
 /** Style A glitch — legacy; prefer `AtomicLogo` for unified material. */
-export function GlitchLogo({ width = 126, onComplete, loop = false, className = '' }: GlitchLogoProps) {
+export function GlitchLogo({ width = 126, onComplete, loop = false, className = '', exit = false }: GlitchLogoProps) {
   const reduceMotion = useHydrationSafeReducedMotion()
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
@@ -120,7 +122,7 @@ export function GlitchLogo({ width = 126, onComplete, loop = false, className = 
 
   return (
     <div className={`zz-glitch-wrap ${className}`.trim()} aria-hidden>
-      <div className="zz-glitch" style={{ width, height }} key={tick}>
+      <div className={exit ? 'zz-glitch zz-glitch--out' : 'zz-glitch'} style={{ width, height }} key={tick}>
         <Logo width={width} className="glitch-layer base" style={{ color: 'var(--color-blue)', position: 'absolute', inset: 0 }} />
         <Logo width={width} className="glitch-layer purple" style={{ color: 'var(--color-blue)', position: 'absolute', inset: 0 }} />
       </div>

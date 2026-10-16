@@ -6,6 +6,7 @@ import { ZoneRecCard } from '@/app/components/ZoneRecCard'
 import { railDomId, type ZoneRail, type ZoneRailsLayout } from '@/lib/zone/rails'
 import type { RecCardCta, RecCardModel } from '@/lib/zone/recCard'
 import { ROUTES } from '@/lib/routes'
+import { SecondaryCircleCta } from '@/app/components/ui/SecondaryCircleCta'
 
 type Props = {
   layout: ZoneRailsLayout
@@ -65,9 +66,11 @@ function Rail({ rail, visitedIds, onOpen, onCta, onClearFilters }: { rail: ZoneR
           <div className="zone-results-empty" data-testid="zone-results-empty">
             <p className="m-0">Nothing matches those filters.</p>
             {onClearFilters ? (
-              <button type="button" className="entry-text-link" onClick={onClearFilters}>
-                Clear filters
-              </button>
+              <SecondaryCircleCta ariaLabel="Clear filters" onClick={onClearFilters}>
+                CLEAR
+                <br />
+                FILTERS
+              </SecondaryCircleCta>
             ) : null}
           </div>
         ) : (
@@ -154,9 +157,11 @@ export function ZoneRails({ layout, filterBar, onClearFilters, visitedIds, onOpe
     return (
       <div className="zone-rails zone-rails--empty" data-testid="zone-rails-empty">
         <p className="m-0">Tell us your postcode and we&apos;ll show what applies to your home.</p>
-        <Link href={ROUTES.START} className="entry-text-link">
-          Add your postcode
-        </Link>
+        <SecondaryCircleCta ariaLabel="Add your postcode" href={ROUTES.START}>
+          ADD
+          <br />
+          POSTCODE
+        </SecondaryCircleCta>
       </div>
     )
   }

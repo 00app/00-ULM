@@ -5817,11 +5817,11 @@ body.zai-composer-dock-active {
 
 /* Intro kinetic screen: skip button, same circle-cta language, fixed to the viewport corner so
    it stays put regardless of EntryShell's centered flex flow. */
+/* Intro SKIP — sits in the column directly under the kinetic words. */
 .intro-skip-circle {
-  position: fixed !important;
-  top: max(var(--padding-md), env(safe-area-inset-top, 0px));
-  right: var(--padding-md);
-  z-index: 130;
+  position: relative;
+  align-self: center;
+  margin-top: var(--padding-md);
 }
 
 /* Mechanical Truth diagnostics sheet — Solo Focus / Zai blue field */
@@ -7490,6 +7490,26 @@ select,
   0%   { opacity: 0; }
   20%  { opacity: 1; }
   100% { opacity: 1; }
+}
+/* Glitch off (`GlitchLogo exit`) — same jitter, mark ends hidden. */
+.zz-glitch--out .glitch-layer.base {
+  animation-name: glitchBaseOut;
+}
+.zz-glitch--out .glitch-layer.purple {
+  animation-name: glitchPurpleOut;
+}
+@keyframes glitchBaseOut {
+  0%   { opacity: 1; transform: translate(0,0); }
+  30%  { opacity: 1; transform: translate(3px,-2px); }
+  50%  { opacity: 0.4; transform: translate(-2px,2px); }
+  70%  { opacity: 1; transform: translate(0,0); }
+  100% { opacity: 0; }
+}
+@keyframes glitchPurpleOut {
+  0%   { opacity: 0; transform: translate(0,0); }
+  25%  { opacity: 1; transform: translate(-4px,4px); }
+  55%  { opacity: 0.85; transform: translate(3px,-3px); }
+  100% { opacity: 0; transform: translate(0,0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -9351,6 +9371,63 @@ input[type="radio"]:not(#v2):active {
 }
 @media (min-width: 1024px) {
   .entry-result-figure:not(#v2) { font-size: var(--zz-h2-desktop) !important; }
+}
+
+/* First result — four postcode insights as figure-left / sentence-right rows with hairline
+   dividers. Display face on the figure only; everything else is body text. */
+.entry-insights:not(#v2) {
+  display: flex;
+  flex-direction: column;
+  width: min(92vw, 36rem);
+  margin: 0 auto;
+  text-align: left;
+  color: var(--color-blue);
+}
+.entry-insights__heading:not(#v2) {
+  padding-bottom: 8px;
+}
+.entry-insight:not(#v2) {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: center;
+  column-gap: 16px;
+  padding: 18px 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-blue) 22%, transparent);
+}
+.entry-insight:not(#v2):last-child {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-blue) 22%, transparent);
+}
+.entry-insight__value:not(#v2) {
+  margin: 0 !important;
+  font-family: var(--font-display) !important;
+  font-weight: bold !important;
+  font-size: clamp(40px, 12vw, 76px) !important;
+  line-height: 0.95 !important;
+  letter-spacing: -0.02em;
+  color: var(--color-blue) !important;
+  white-space: nowrap;
+}
+.entry-insight__body:not(#v2) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.entry-insight__text:not(#v2) {
+  margin: 0 !important;
+  font-family: var(--font-text) !important;
+  font-size: var(--zz-body-size) !important;
+  font-weight: 400 !important;
+  line-height: 1.35 !important;
+  color: var(--color-blue) !important;
+}
+.entry-insight__source:not(#v2) {
+  margin: 0 !important;
+  font-family: var(--font-text) !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 1.3 !important;
+  opacity: 0.65;
 }
 
 /* Zone recommendation card (ZoneRecCard): blue bento shell like the wall tiles, fixed slot order.

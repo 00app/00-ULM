@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
 import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import EntryShell from '@/app/components/EntryShell'
-import { AtomicLogo } from '@/app/components/Logo'
+import { GlitchLogo } from '@/app/components/Logo'
 import { CookieEssentialNotice } from '@/app/components/CookieEssentialNotice'
 import IntroWordCycle from '@/app/components/IntroWordCycle'
 import { markOnboardingIntent } from '@/lib/profile/onboardingIntentCookie'
 import { ROUTES } from '@/lib/routes'
 import { preloadAppFonts } from '@/lib/architecturalPulse'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
+import { SecondaryCircleCta } from '@/app/components/ui/SecondaryCircleCta'
 import { atomicWordHoldMs, familyControlDelaySec } from '@/lib/motion-family'
 import {
   INTRO_ROUTE_SAFETY_TAIL_MS,
@@ -25,26 +26,30 @@ import {
   readStoredProfileGoal,
 } from '@/lib/profile/onboardingComplete'
 
-type IntroScreenState = 'logo' | 'kinetic' | 'splash'
+type IntroScreenState = 'logo' | 'logoOut' | 'kinetic' | 'splash'
 
 /**
- * Entry order: boot logo -> kinetic word intro (SAVE MONEY CUT CARBON FEEL GOOD USE LESS MORE)
- * -> splash (logo stays, headline + Get started / Log in). Full entry order after this is
+ * Entry order: logo glitches on, holds, glitches off -> kinetic word intro in sentence case
+ * (Save money / Cut carbon / Feel good / Use less, more.) -> splash (headline + Get started /
+ * Log in, both circles). Full entry order after this is
  * Splash -> Postcode -> First result -> Create account / Log in -> Zone.
- * Skip (circle, top-right, same circle-cta language as Settings) jumps straight from the
- * kinetic intro to the splash.
+ * The words only start once the logo has glitched off. Skip (circle, under the words, same
+ * circle-cta language as Settings) jumps straight from the kinetic intro to the splash.
  */
 const INTRO_KINETIC_WORDS = [
-  'SAVE',
-  'MONEY',
-  'CUT',
-  'CARBON',
-  'FEEL',
-  'GOOD',
-  'USE',
-  'LESS,',
-  'MORE.',
+  'Save',
+  'money',
+  'Cut',
+  'carbon',
+  'Feel',
+  'good',
+  'Use',
+  'less,',
+  'more.',
 ] as const
+
+/** How long the logo sits still between glitching on and glitching off. */
+const INTRO_LOGO_HOLD_MS = 600
 
 const INTRO_KINETIC_WORDS_ARRAY = [...INTRO_KINETIC_WORDS]
 
@@ -79,12 +84,16 @@ export default function IntroScreen() {
     router.prefetch(ROUTES.START)
   }, [router])
 
-  // Safety: never leave the boot logo stuck if its onComplete callback is missed.
+  // Safety: never leave the boot logo stuck if a glitch onComplete callback is missed.
   useEffect(() => {
-    if (screen !== 'logo') return
-    const t = window.setTimeout(() => setScreen('kinetic'), 1800)
+    if (screen !== 'logo' && screen !== 'logoOut') return
+    const t = window.setTimeout(() => setScreen('kinetic'), screen === 'logo' ? 2400 : 1200)
     return () => window.clearTimeout(t)
   }, [screen])
+
+  const logoGlitchedOn = () => {
+    window.setTimeout(() => setScreen((s) => (s === 'logo' ? 'logoOut' : s)), INTRO_LOGO_HOLD_MS)
+  }
 
   // Safety: never get stuck on the kinetic words if IntroWordCycle's onComplete is missed.
   useEffect(() => {
@@ -106,7 +115,15 @@ export default function IntroScreen() {
   return (
     <EntryShell>
       <CookieEssentialNotice />
-      <AtomicLogo width={100} onComplete={() => setScreen((s) => (s === 'logo' ? 'kinetic' : s))} />
+      {screen === 'logo' ? <GlitchLogo key="logo-on" width={100} onComplete={logoGlitchedOn} /> : null}
+      {screen === 'logoOut' ? (
+        <GlitchLogo
+          key="logo-off"
+          width={100}
+          exit
+          onComplete={() => setScreen((s) => (s === 'logoOut' ? 'kinetic' : s))}
+        />
+      ) : null}
       {screen === 'kinetic' ? (
         <>
           <div style={{ position: 'relative', width: '100%', minHeight: 120 }}>
@@ -121,14 +138,9 @@ export default function IntroScreen() {
               onComplete={() => setScreen('splash')}
             />
           </div>
-          <button
-            type="button"
-            onClick={skipIntro}
-            className="settings-circle-cta settings-circle-cta--secondary intro-skip-circle"
-            aria-label="Skip intro"
-          >
-            <span className="settings-circle-cta__label zz-h4">SKIP</span>
-          </button>
+          <SecondaryCircleCta ariaLabel="Skip intro" onClick={skipIntro} className="intro-skip-circle">
+            SKIP
+          </SecondaryCircleCta>
         </>
       ) : null}
       {screen === 'splash' ? (
@@ -158,17 +170,18 @@ export default function IntroScreen() {
               </span>
             </ProfileAnswerBtn>
           </div>
-          <button
-            type="button"
-            className="entry-text-link"
+          <SecondaryCircleCta
+            ariaLabel="Log in"
             onClick={() => {
               trackFunnelEvent('cta_click', { page: ROUTES.HOME, cta_label: 'log_in' })
               markOnboardingIntent()
               router.push(`${ROUTES.PROFILE}?entry=login`)
             }}
           >
-            Log in
-          </button>
+            LOG
+            <br />
+            IN
+          </SecondaryCircleCta>
         </>
       ) : null}
     </EntryShell>
