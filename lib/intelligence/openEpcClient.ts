@@ -84,8 +84,8 @@ function epcBearerToken(): string | null {
 function pickLatestRow(rows: Record<string, unknown>[]): Record<string, unknown> | null {
   if (!rows.length) return null
   const sorted = [...rows].sort((a, b) => {
-    const da = String(a['lodgement-date'] ?? a.lodgement_date ?? '')
-    const db = String(b['lodgement-date'] ?? b.lodgement_date ?? '')
+    const da = String(a['lodgement-date'] ?? a.lodgement_date ?? a.registrationDate ?? '')
+    const db = String(b['lodgement-date'] ?? b.lodgement_date ?? b.registrationDate ?? '')
     return db.localeCompare(da)
   })
   return sorted[0] ?? null
@@ -149,7 +149,7 @@ function rowToOpenEpcProfile(
   const floor = rowString(row, 'floor-description', 'floor_description')
   const windows = rowString(row, 'windows-description', 'windows_description')
   const address = rowString(row, 'address', 'address1')
-  const lodgement = rowString(row, 'lodgement-date', 'lodgement_date')
+  const lodgement = rowString(row, 'lodgement-date', 'lodgement_date', 'registrationDate', 'registration-date')
   const builtForm = rowString(row, 'built-form', 'built_form')
   const constructionAgeBand = rowString(row, 'construction-age-band', 'construction_age_band')
   const tenure = rowString(row, 'tenure')
@@ -245,7 +245,10 @@ export async function fetchOpendataEpcProfile(
   }
 
   const pageSize = houseToken ? 25 : 5
-  const url = `${EPC_SEARCH_BASE}?postcode=${encodeURIComponent(compact)}&page_size=${pageSize}`
+  // The register matches the formatted postcode ("NG7 2AB"); the compact form matches nothing
+  // and comes back as 404 ("no certificates exist that match"), which silently hid every EPC.
+  const spaced = `${compact.slice(0, -3)} ${compact.slice(-3)}`
+  const url = `${EPC_SEARCH_BASE}?postcode=${encodeURIComponent(spaced)}&page_size=${pageSize}`
 
   try {
     const res = await fetch(url, {
@@ -254,7 +257,8 @@ export async function fetchOpendataEpcProfile(
     })
     if (!res.ok) {
       // Status only — never the token. A 401/403 here means the key is missing, wrong or expired.
-      console.warn(`[epc] search failed: HTTP ${res.status} for ${compact.slice(0, -3)}`)
+      // 404 is the register's "no certificates for this postcode", not an error.
+      if (res.status !== 404) console.warn(`[epc] search failed: HTTP ${res.status} for ${compact.slice(0, -3)}`)
       return empty
     }
     const json = (await res.json()) as { data?: Record<string, unknown>[]; rows?: Record<string, unknown>[] }
