@@ -172,8 +172,8 @@ survives being lifted out of the app.
 `fixedViewportStage` or `showSiteFooter` exclusion lists, so the page scrolls normally and the
 site `Footer` renders beneath it. Both are correct and intended.
 
-**Ignore the database.** Production has no `DATABASE_URL` set in Vercel, which is a real and known
-problem for the rest of the app. It is irrelevant here: this page is entirely static, reads no
+**Ignore the database.** (Update 2026-10-16: production `DATABASE_URL` is now set and the app is
+connected; the original note said it was missing.) It is irrelevant here either way: this page is entirely static, reads no
 profile, calls no API and touches no storage. Do not get pulled into fixing it as part of this
 task.
 

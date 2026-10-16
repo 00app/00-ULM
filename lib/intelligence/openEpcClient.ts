@@ -239,7 +239,10 @@ export async function fetchOpendataEpcProfile(
   if (compact.length < 4) return empty
 
   const token = epcBearerToken()
-  if (!token) return empty
+  if (!token) {
+    warnEpcOnce('no EPC token configured (OPENEPC_BEARER_TOKEN / OPENEPC_API_KEY / EPC_API_KEY)')
+    return empty
+  }
 
   const pageSize = houseToken ? 25 : 5
   const url = `${EPC_SEARCH_BASE}?postcode=${encodeURIComponent(compact)}&page_size=${pageSize}`
@@ -249,7 +252,11 @@ export async function fetchOpendataEpcProfile(
       signal: AbortSignal.timeout(10_000),
       headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
     })
-    if (!res.ok) return empty
+    if (!res.ok) {
+      // Status only — never the token. A 401/403 here means the key is missing, wrong or expired.
+      console.warn(`[epc] search failed: HTTP ${res.status} for ${compact.slice(0, -3)}`)
+      return empty
+    }
     const json = (await res.json()) as { data?: Record<string, unknown>[]; rows?: Record<string, unknown>[] }
     // New API returns `data[]`; handle legacy `rows[]` just in case
     const allRows = Array.isArray(json?.data) ? json.data : Array.isArray(json?.rows) ? json.rows : []
@@ -267,7 +274,15 @@ export async function fetchOpendataEpcProfile(
       compact,
       houseToken ? true : undefined
     )
-  } catch {
+  } catch (err) {
+    console.warn('[epc] search error:', err instanceof Error ? err.message : err)
     return empty
   }
+}
+
+let epcWarned = false
+function warnEpcOnce(message: string) {
+  if (epcWarned) return
+  epcWarned = true
+  console.warn(`[epc] ${message}`)
 }
