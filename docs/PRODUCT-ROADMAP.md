@@ -44,8 +44,9 @@ Distilled from the June 2026 product review (`claude/forked-project-review-9naqz
 | Item | Goal | Touchpoints |
 |------|------|-------------|
 | `projects` model | Persist active saves (switch, grant, install) with status | Neon schema, new API routes |
-| Zai persistence | Thread context across sessions | `app/zai/`, chat history table |
-| Bill ingestion | OCR / manual bill → utilities journey seed | Upload API, Gemini extract |
+| Zai persistence | **Done** — transcript saved and restored per user / guest session; `zai_messages` recreated on production 2026-10-15 | `app/api/zai/route.ts`, `lib/zai/chatHistory.ts`, migration `20260704` |
+| Household living | **Done (manual)** — signed-in users record bills and contracts by group (home, utilities, vehicle, subscriptions), soft-end them, see a static switching tip per category, and run a moving-house checklist. Signed-in only; no guest path by design (financial data). Live on production 2026-10-16 | `household_accounts`, `household_moves` (migration `20261015`), `lib/household/*`, `app/api/household/**`, `/settings/living/[group]`, `/settings/living/move` |
+| Bill ingestion | OCR / manual bill → utilities journey seed. Manual entry now exists via Household living; OCR not started | Upload API, Gemini extract |
 | Grants as first project type | Grant application tracker | `grants` journey, Solo Focus handoff |
 
 ## Phase 3 — Scale & trust
@@ -53,6 +54,20 @@ Distilled from the June 2026 product review (`claude/forked-project-review-9naqz
 - Multi-region postcode (non-GB formats via explicit country resolution)
 - Public API for partner embeds
 - `ignoreBuildErrors` removal once type surface is clean (`next.config.js` — mitigated today by `vercel-build-gate`)
+
+## Strategy check 2026-10-16
+
+Checked against the north star (**£ realised across active projects**) after the October entry-flow, first-result and Household living work. `npm run verify` green (768 checks).
+
+| # | Area | Finding | Status |
+|---|------|---------|--------|
+| 1 | First result | Four live, sourced insights (energy, carbon, solar, home) replace the single figure. Supports Phase 1 money-first: the user sees real local numbers before any ask. Mechanical truth held: missing sources are omitted, never estimated. | Aligned |
+| 2 | First result → guest path | Screen now has **one** action, START (create account). "Skip for now" (guest → Zone) and "Log in" were removed. This trades guest reach and Phase 1 "Faster TTV" for account conversion: a visitor can no longer see Zone without creating an account, and a returning user who lands here must go back to the splash to log in. | **Decided 2026-10-16 (Gary): keep START only, no guest path, no Log in on this screen.** Returning users log in from the splash. |
+| 3 | Verified £ on Zone | A £ is verified only by a Neon `research_results` row with a source URL (ENTRY-AND-ZONE-RAILS §2). The daily `/api/cron/zone-research` has no-opped since late August because `LIVE_LLM_CONTENT_ENABLED` is off (cost control). Verified £ figures are therefore ageing and will not grow. Directly limits the money-first wall. Note: the flag is a **master switch** for all live LLM content (`aiGateway`, `zeroAgent`, the cron), not only the cron. | **Decided 2026-10-16 (Gary): turn on for the daily cron only.** New `ZONE_RESEARCH_CRON_LLM_ENABLED=1` enables live LLM content inside `/api/cron/zone-research` alone (AsyncLocalStorage scope in `scrapeBoundaries.ts`); `LIVE_LLM_CONTENT_ENABLED` stays off, so sign-up, Solo Focus and Zai keep template content. Spend bounded by the cron `limit=3`. |
+| 4 | Household living | Manual accounts + moving checklist are the first persisted "active project"-like objects. Not yet the `projects` model: no switch/grant/install status, no £ realised. `RecurringCategory` (bank) and `HouseholdCategory` (manual) are separate taxonomies and must be reconciled before bank-matched and manual accounts show together. | Partly aligned |
+| 5 | Savings tracker | Only confirmed switches count; sample savings never added. This is the north-star metric in miniature. | Aligned |
+| 6 | Environments | Local `.env.local` points at a different Neon database (`ep-quiet-boat`) from production (`ep-floral-recipe`). Preview deployments have no `DATABASE_URL`. Local testing does not reflect production data or schema. | Risk |
+| 7 | Docs | `HANDOFF-01-PAGER.md` still says production has no `DATABASE_URL` (fixed 2026-10-15). `FULL-APP-SPEC.md` intro row is flagged in ENTRY-AND-ZONE-RAILS conflicts #1 and #5. | Stale, flagged |
 
 ## Mechanical truth invariants (non-negotiable)
 

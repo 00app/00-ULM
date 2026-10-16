@@ -3,7 +3,7 @@ import { getDbPool, shutdownDbPool } from '@/lib/db'
 import { repairResearchResultsMissingHeadlines, runZeroResearchWithProfile } from '@/lib/agents/researchAgent'
 import { profileGoalFromGenome } from '@/lib/agents/auditor'
 import { normalizePrimaryGoal } from '@/lib/zone/affluenceCheck'
-import { isBucketFailoverMode, isLiveLlmContentEnabled } from '@/lib/intelligence/scrapeBoundaries'
+import { isBucketFailoverMode, isLiveLlmContentEnabled, runWithCronLlmScope } from '@/lib/intelligence/scrapeBoundaries'
 import { normalizeSecret } from '@/lib/intelligence/normalizeSecret'
 
 export const runtime = 'nodejs'
@@ -46,7 +46,7 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
   }
   if (!isLiveLlmContentEnabled()) {
     // Hermes disconnected, not deleted — see isLiveLlmContentEnabled in scrapeBoundaries.ts.
-    // Set LIVE_LLM_CONTENT_ENABLED=1 to reconnect.
+    // Set ZONE_RESEARCH_CRON_LLM_ENABLED=1 (this cron only) or LIVE_LLM_CONTENT_ENABLED=1 (everything).
     return NextResponse.json({ ok: true, skipped: true, reason: 'live_llm_content_disabled' })
   }
 
@@ -164,10 +164,12 @@ async function runZoneResearchCron(request: NextRequest): Promise<Response> {
   }
 }
 
+// Both handlers run inside the cron-only LLM scope, so ZONE_RESEARCH_CRON_LLM_ENABLED=1 turns
+// this sweep on without enabling live LLM content anywhere else (see scrapeBoundaries.ts).
 export async function GET(request: NextRequest) {
-  return runZoneResearchCron(request)
+  return runWithCronLlmScope(() => runZoneResearchCron(request))
 }
 
 export async function POST(request: NextRequest) {
-  return runZoneResearchCron(request)
+  return runWithCronLlmScope(() => runZoneResearchCron(request))
 }

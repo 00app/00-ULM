@@ -9,34 +9,44 @@
 ## 1. Entry flow
 
 ```
-Splash → Postcode → First result → Create account / Log in / Skip → Zone
+Intro (logo glitch on/off → kinetic words) → Splash → Postcode → First result → START (create account) → Zone
 ```
 
 | Step | Route | What it does |
 |------|-------|--------------|
-| Splash | `/` and `/intro` (same component, `IntroScreen`) | Logo, one line **"Pay less for your home."**, primary **Get started**, text link **Log in**. Returning users with a complete stored profile are sent straight to `/zone`; a partial profile with a goal goes to `/profile`. The kinetic word sequence and the three-option goal screen are gone. |
+| Intro | `/` and `/intro` (same component, `IntroScreen`) | `GlitchLogo` glitches **on**, holds 600ms (`INTRO_LOGO_HOLD_MS`), glitches **off** (`exit`), then the kinetic words play in sentence case: *Save money / Cut carbon / Feel good / Use less, more.* A **SKIP** circle sits directly under the words and jumps to the splash. The words never start before the logo has gone. |
+| Splash | same component | Headline **"Save, use less, more."**, primary circle **Get started**, secondary circle **Log in**. No logo. Returning users with a complete stored profile skip intro and splash; a partial profile with a goal goes to `/profile`. The three-option goal screen is gone. |
 | Postcode | `/start` | One field. UK format validated with `checkUkPostcode` (`lib/geocode/ukPostcode.ts`). Stores `profile_postcode` and calls `persistUnifiedUserProfileMemory()`. |
-| First result | `/start/result?postcode=` | **One** real figure from postcode-only data (below), then the ask. Invalid or missing postcode bounces back to `/start`. A postcode that does not exist shows "We can't find that postcode." |
+| First result | `/start/result?postcode=` | Up to **four** real insights from postcode-only data (below), then **one** action: the **START** circle, which leads to create. No text above it, no Skip, no Log in. Invalid or missing postcode bounces back to `/start`. A postcode that does not exist shows "We can't find that postcode." with a **Try another** circle. |
 | Create | `/profile?entry=create` | Existing create logic: mobile step → password step → goal question → remaining profile questions → summary → Zone. |
 | Log in | `/profile?entry=login` | Existing mobile + password login form. On success `window.location.assign('/')`, which the proxy sends to Zone for a complete account. |
-| Skip for now | `/zone` | Guest with the postcode retained (`profile_postcode`). |
+| ~~Skip for now~~ | removed 2026-10-16 | The first-result screen no longer offers a guest path (see [Strategy check](PRODUCT-ROADMAP.md#strategy-check-2026-10-16)). |
 
 `/profile` no longer shows the in-page "quick look, or make it yours?" fork. A bare `/profile` with no entry choice, no deep link (`?q=` / `?returnTo=`) and no stored answers redirects to `/start`.
 
-**Account creation timing.** `createUser` (`POST /api/user`) still runs at the end of the profile questions, with the whole profile, because that is when a session is issued. "Save this, create your account" therefore leads through the existing create steps rather than creating a row immediately after the postcode. Creating an account straight after the first result would need `POST /api/user` to accept a postcode-only profile; that was not changed.
+**Secondary actions are circles.** Every secondary action in the entry flow and on Zone (Log in, Back, Try another, Skip, Clear filters, Add postcode) uses `SecondaryCircleCta` (`app/components/ui/SecondaryCircleCta.tsx`): the same 100px `settings-circle-cta--secondary` circle as SKIP, so secondary actions match the primary circles beside them. No underlined text-link buttons. Card-level CTAs (`zone-rec-cta`) are unchanged because their primaries are not circles.
+
+**Account creation timing.** `createUser` (`POST /api/user`) still runs at the end of the profile questions, with the whole profile, because that is when a session is issued. **START** therefore leads through the existing create steps rather than creating a row immediately after the postcode. Creating an account straight after the first result would need `POST /api/user` to accept a postcode-only profile; that was not changed.
 
 **No bank step in onboarding.** There never was one in `PROFILE_QUESTIONS`; the connection lives on Zone and in Settings (section 5).
 
 ### First result — `GET /api/first-result?postcode=`
 
-`lib/entry/firstResult.ts`, public, rate-limited (20/min), `runtime = nodejs`.
+`lib/entry/firstResult.ts`, public, rate-limited (20/min), `runtime = nodejs`. Returns `{ result: { insights: FirstResultInsight[] } | null }`.
 
 1. Format check (`isValidUkPostcode`) → 400. Then existence check against `api.postcodes.io/.../validate` → **404** if the postcode is real-format but not real (so `ZZ99 9ZZ` can never receive a region's figure as "yours"). If the lookup service is unreachable the request continues (the region mapping is the same prefix lookup used app-wide).
-2. **EPC band** — `fetchOpendataEpcProfile(postcode)`; shown only if a band A–G came back. Worded as "the most recent EPC on your postcode", not "your home".
-3. Otherwise **regional electricity unit rate** — Octopus public API, first active `VAR-*` import product, standard unit rate for the postcode's region letter (`resolveOctopusRegionLetter`), p/kWh inc VAT.
-4. Otherwise `result: null` and the screen shows the action with **no figure**.
+2. Four insights, one per major category, fetched in parallel, each capped at ~12s, shown in this order:
 
-Every figure on screen prints its source ("Source: EPC register" / "Octopus Energy public tariff API"). Nothing in this path estimates or defaults a number.
+| # | Category | Figure | Source |
+|---|----------|--------|--------|
+| 1 | Energy | Regional electricity unit rate, p/kWh inc VAT (gas rate in the sentence when available). Octopus public API, first active `VAR-*` import product, region letter from `resolveOctopusRegionLetter`. | Octopus Energy tariff API |
+| 2 | Carbon | Live gCO₂/kWh for the postcode's grid region plus the wind + solar + hydro share (`api.carbonintensity.org.uk/regional/postcode/{outcode}`). **0g is a real reading** and is shown. | Carbon Intensity API (NESO) |
+| 3 | Solar | kWh a year per kW of panels at the optimal angle (`PVcalc`, `peakpower=1`, `loss=14`, `optimalangles=1`, lat/lon from postcodes.io). | EU PVGIS |
+| 4 | Home | Latest EPC band A–G on the postcode ("not necessarily your own home"); **otherwise** the latest recorded sale price and property type. | EPC register / HM Land Registry |
+
+3. An insight whose source fails or returns nothing is **left out**, never estimated, so a postcode can show fewer than four rows. If none come back, `result: null` and the screen shows START with **no figures**.
+
+Layout: figure-left / sentence-right rows with hairline dividers (`.entry-insight*` in `globals.css`), a small "{postcode} right now" label on top. Every row prints its source. Nothing in this path estimates or defaults a number.
 
 ---
 
@@ -160,7 +170,7 @@ confirmed     ── "Switched"
 | Rails | `npm run test:zone-rails` | order, ≥2 rule, cap, pinned card, hero rail |
 | Filters | `npm run test:zone-filters` | parsing, matching, faceted counts, toggles, synced heading, results layout, hero kept |
 | Bank | `npm run test:bank` | provider, recurring + price-rise detection, saving rule, connection/snooze, switch state machine, tracker totals |
-| Entry flow | `e2e/entry-flow.spec.ts` | splash, postcode validation, result (sourced figure or none), back nav, deep links |
+| Entry flow | `e2e/entry-flow.spec.ts` | splash, postcode validation, result (sourced insights or none), single START action, back nav, deep links |
 | Zone | `e2e/zone-funky-stress.spec.ts` | rails visible, open / close Solo Focus from a rail card |
 | Filters | `e2e/zone-filters.spec.ts` | bar under the picks, synced heading, sticky, mobile sheet (Esc, badge, removable chip), tap targets, no overflow |
 
@@ -180,7 +190,7 @@ Main files: `app/components/{IntroScreen,EntryShell,ZoneRecCard,ZoneRails,Settin
 | 2 | `FULL-APP-SPEC.md:137`, `PROFILE-FIELDS-GRID-UNLOCKS.md:22,39` | Goal is chosen on the intro (`profile_goal`) | Goal is asked inside `/profile` after account creation (the intro goal screen was already unreachable; it is now deleted). |
 | 3 | `APP-OVERVIEW-AND-TESTING.md:31`, `USER-FLOW-AND-DATA-PIPELINE.md:17`, `DEV-TEST-AUDIT.md:42`, `GUARDRAILS-AND-PIPELINE.md:77` (mermaid `INTRO[Intro goal]`) | Intro = goal choice + optional geolocation postcode, then profile | As item 1. |
 | 4 | `PROFILE-ANSWERS-ZONE-TECH.md:129,148` | Postcode step hydrates from "intro geolocation"; intro lockup is **CREATE only (no SKIP)** | The intro no longer geolocates. "Skip for now" exists on the first-result screen and leads to Zone as a guest. |
-| 5 | `FULL-APP-SPEC.md:711`, `MOTION-FAMILY.md:36` | `/` + `/intro` = Style A glitch + decision lockup / atomic `IntroWordCycle` | Splash uses `AtomicLogo` only; `IntroWordCycle` is now used by the summary and architectural pulse only. |
+| 5 | `FULL-APP-SPEC.md:711`, `MOTION-FAMILY.md:36` | `/` + `/intro` = Style A glitch + decision lockup / atomic `IntroWordCycle` | **Partly true again (2026-10-16):** the intro uses the Style A `GlitchLogo` (on, hold, off) followed by `IntroWordCycle` kinetic words in sentence case. There is still no decision lockup; the splash follows. |
 | 6 | `COUNTY-PIVOT-PROMPT.md:15,41,48` | Proposed first screen: "Set up a profile" / "Continue as guest"; guest Zone is UK-wide generic content | Superseded by the entry flow. Also: a guest with no postcode now gets **no cards** (no `whyYou`), not generic UK-wide ones. Treat that prompt as a historical proposal. |
 | 7 | `APP-OVERVIEW-AND-TESTING.md:34,323`, `ZONE-CONTENT-AND-DATA.md:179-206`, `ULM-APPLICATION-LOOP.md:48`, HANDBOOK master checklist "Zone wall order" (row updated, see below) | Fixed DOM order: welcome → profile hero → **Today's Tips heading + Rock grid** → **recommendations heading + category bento** → signup; testids `zone-section-today-tips`, `zone-section-recommendations`; `RockSavingTips` is the Today UI | Welcome → profile hero → rails (Biggest savings, Today, categories) → signup. `zone-section-today-tips` no longer renders; the recommendations heading and bento live inside the hidden legacy wall. New testids: `zone-rails`, `zone-rail-<id>`, `zone-rails-empty`. `RockSavingTips` is no longer rendered on Zone (`RockMobileSignupCard` still is). |
 | 8 | `ZONE-CONTENT-AND-DATA.md:222-268`, `GUARDRAILS-AND-PIPELINE.md:130` | Tips/journeys are shown as bento tiles with SAVE / CARBON stamps; headline word-count tiers (8–10 / 9–12 words) apply to the tiles | Rail cards show the action wording or a verified £ headline, plus `whyYou`. The word-count clamps still govern the Solo Focus / legacy tiles but no longer the visible Zone cards. |
