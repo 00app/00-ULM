@@ -259,11 +259,15 @@ export async function fetchOpendataEpcProfile(
       // Status only — never the token. A 401/403 here means the key is missing, wrong or expired.
       // 404 is the register's "no certificates for this postcode", not an error.
       if (res.status !== 404) console.warn(`[epc] search failed: HTTP ${res.status} for ${compact.slice(0, -3)}`)
+      else warnEpcShapeOnce(`404 no certificates for ${compact.slice(0, -3)}`)
       return empty
     }
     const json = (await res.json()) as { data?: Record<string, unknown>[]; rows?: Record<string, unknown>[] }
     // New API returns `data[]`; handle legacy `rows[]` just in case
     const allRows = Array.isArray(json?.data) ? json.data : Array.isArray(json?.rows) ? json.rows : []
+    warnEpcShapeOnce(
+      `200 shape: top=[${Object.keys(json ?? {}).join(',')}] data=${Array.isArray(json?.data) ? 'array' : typeof json?.data} rows=${allRows.length} rowKeys=[${Object.keys(allRows[0] ?? {}).join(',')}]`
+    )
     const rows = houseToken ? filterEpcRowsByHouseNumber(allRows, houseToken) : allRows
     if (houseToken && rows.length === 0) return empty
     const summaryRow = pickLatestRow(rows)
@@ -282,6 +286,15 @@ export async function fetchOpendataEpcProfile(
     console.warn('[epc] search error:', err instanceof Error ? err.message : err)
     return empty
   }
+}
+
+// Temporary (2026-10-16): one line per instance describing the search response shape, to
+// confirm the register's field names in production. Keys and counts only, no addresses.
+let epcShapeLogged = false
+function warnEpcShapeOnce(message: string) {
+  if (epcShapeLogged) return
+  epcShapeLogged = true
+  console.warn(`[epc] ${message}`)
 }
 
 let epcWarned = false
