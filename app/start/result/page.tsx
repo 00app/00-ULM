@@ -13,13 +13,15 @@ import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { ROUTES } from '@/lib/routes'
 import type { FirstResult } from '@/lib/entry/firstResult'
+import { SecondaryCircleCta } from '@/app/components/ui/SecondaryCircleCta'
 
 type Phase = 'loading' | 'ready' | 'not_found'
 
 /**
- * Entry step 3: ONE real figure for this postcode, then the ask.
- * Mechanical truth: if no verified source returns a value, the figure block is omitted and the
- * action is still shown. Nothing here estimates or defaults a number.
+ * Entry step 3: up to four real insights for this postcode (energy, carbon, solar, home), laid
+ * out as figure-left / sentence-right rows, then a single START circle (creates the account).
+ * Mechanical truth: an insight whose source returns nothing is omitted; if none return, the
+ * figures are omitted and the action is still shown. Nothing here estimates or defaults a number.
  */
 function StartResult() {
   const router = useRouter()
@@ -77,15 +79,6 @@ function StartResult() {
     markOnboardingIntent()
     router.push(`${ROUTES.PROFILE}?entry=create`)
   }
-  const goLogin = () => {
-    trackFunnelEvent('cta_click', { page: ROUTES.START_RESULT, cta_label: 'log_in' })
-    markOnboardingIntent()
-    router.push(`${ROUTES.PROFILE}?entry=login`)
-  }
-  const goGuest = () => {
-    trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.ZONE })
-    router.push(ROUTES.ZAI)
-  }
 
   if (phase === 'not_found') {
     return (
@@ -93,9 +86,11 @@ function StartResult() {
         <h1 className="zz-h2 text-display m-0 text-center" style={{ color: 'var(--color-blue)' }}>
           We can&apos;t find that postcode.
         </h1>
-        <button type="button" className="entry-text-link" onClick={() => router.replace(ROUTES.START)}>
-          Try another
-        </button>
+        <SecondaryCircleCta ariaLabel="Try another postcode" onClick={() => router.replace(ROUTES.START)}>
+          TRY
+          <br />
+          ANOTHER
+        </SecondaryCircleCta>
       </EntryShell>
     )
   }
@@ -109,42 +104,19 @@ function StartResult() {
       ) : (
         <>
           {result ? (
-            <div className="flex flex-col items-center" style={{ gap: 12 }} data-testid="first-result">
-              <p className="data-label m-0">{result.label}</p>
-              <p className="entry-result-figure">
-                {result.value}
-                {result.unit ? <span className="entry-result-unit">{result.unit}</span> : null}
-              </p>
-              <p className="zz-body m-0" style={{ maxWidth: 'min(92vw, 28rem)', lineHeight: 1.45 }}>
-                {result.detail}
-              </p>
-              <p className="zz-body m-0" style={{ opacity: 0.7 }}>
-                Source: {result.source}
-              </p>
-              {result.extras.length > 0 ? (
-                <div
-                  className="flex flex-wrap items-center justify-center"
-                  style={{ gap: 20, marginTop: 4 }}
-                  data-testid="first-result-extras"
-                >
-                  {result.extras.map((extra) => (
-                    <div key={extra.label} className="flex flex-col items-center" style={{ gap: 2 }}>
-                      <p className="data-label m-0" style={{ fontSize: 'var(--zz-body-size-desktop)' }}>
-                        {extra.label}
-                      </p>
-                      <p className="zz-h4 m-0" style={{ color: 'var(--color-blue)' }}>
-                        {extra.value}
-                        {extra.unit ? (
-                          <span className="entry-result-unit" style={{ marginLeft: 2 }}>
-                            {extra.unit}
-                          </span>
-                        ) : null}
-                      </p>
-                    </div>
-                  ))}
+            <section className="entry-insights" data-testid="first-result" aria-label={`What we found for ${postcode}`}>
+              <p className="data-label m-0 entry-insights__heading">{postcode} right now</p>
+              {result.insights.map((insight) => (
+                <div key={insight.category} className="entry-insight" data-testid={`first-result-${insight.category}`}>
+                  <p className="entry-insight__value">{insight.value}</p>
+                  <div className="entry-insight__body">
+                    <p className="data-label m-0">{insight.label}</p>
+                    <p className="entry-insight__text">{insight.text}</p>
+                    <p className="entry-insight__source">Source: {insight.source}</p>
+                  </div>
                 </div>
-              ) : null}
-            </div>
+              ))}
+            </section>
           ) : (
             <h1
               className="zz-h3 text-display m-0 text-center"
@@ -161,23 +133,10 @@ function StartResult() {
               delaySeconds={familyControlDelaySec(0)}
               className=""
               onClick={goCreate}
-              aria-label="Save this, create your account"
+              aria-label="Start"
             >
-              <span className="profile-answer-btn__text zz-h4">
-                SAVE
-                <br />
-                THIS
-              </span>
+              <span className="profile-answer-btn__text zz-h4">START</span>
             </ProfileAnswerBtn>
-          </div>
-          <p className="zz-body m-0">Save this, create your account.</p>
-          <div className="flex flex-col items-center" style={{ gap: 4 }}>
-            <button type="button" className="entry-text-link" onClick={goGuest}>
-              Skip for now
-            </button>
-            <button type="button" className="entry-text-link" onClick={goLogin}>
-              Log in
-            </button>
           </div>
         </>
       )}

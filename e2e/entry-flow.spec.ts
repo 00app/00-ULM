@@ -53,9 +53,9 @@ test.describe('Entry flow', () => {
       // Any figure on screen must name its source.
       await expect(figure).toContainText(/Source:/)
     }
-    await expect(page.getByRole('button', { name: /skip for now/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /^log in$/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /save this, create your account/i })).toBeVisible()
+    // One action only: START (creates the account). No skip / log in on this screen.
+    await expect(page.getByRole('button', { name: /^start$/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /skip for now/i })).toHaveCount(0)
     // Back navigation returns to the postcode step.
     await page.goBack()
     await expect(page).toHaveURL(/\/start$/)

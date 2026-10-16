@@ -25,7 +25,7 @@ async function postcodeExists(compact: string): Promise<boolean | null> {
   }
 }
 
-/** Public read: postcode in, ONE verified figure out (or `result: null` — never an invented one). */
+/** Public read: postcode in, up to four verified insights out (or `result: null` — never an invented one). */
 export async function GET(request: NextRequest) {
   const id = getClientIdentifier(request)
   const { ok, retryAfter } = await checkRateLimitAsync(`first-result:${id}`, FIRST_RESULT_MAX_PER_MINUTE)
