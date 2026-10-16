@@ -104,7 +104,7 @@ export function HouseholdMoveClient() {
 
       {!loading && signedIn && !move ? (
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}>
-          <p className="data-label">New postcode, and the one you're leaving if you want it noted.</p>
+          <p className="data-label">New postcode, and the one you&apos;re leaving if you want it noted.</p>
           <input
             type="text"
             placeholder="Moving to postcode"
