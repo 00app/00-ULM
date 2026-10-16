@@ -5815,6 +5815,15 @@ body.zai-composer-dock-active {
   letter-spacing: var(--zz-track-circle) !important;
 }
 
+/* Intro kinetic screen: skip button, same circle-cta language, fixed to the viewport corner so
+   it stays put regardless of EntryShell's centered flex flow. */
+.intro-skip-circle {
+  position: fixed !important;
+  top: max(var(--padding-md), env(safe-area-inset-top, 0px));
+  right: var(--padding-md);
+  z-index: 130;
+}
+
 /* Mechanical Truth diagnostics sheet — Solo Focus / Zai blue field */
 .mechanical-diagnostics-scrim {
   position: fixed;
