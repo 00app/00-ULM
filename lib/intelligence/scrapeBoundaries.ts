@@ -3,7 +3,6 @@
  * Active when MODEL_STRATEGY=bucket_failover (use less, more).
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks'
 import type { JourneyId } from '@/lib/journeys'
 import { resolveSurgicalJourneyKey } from '@/lib/intelligence/topicShield'
 import { resolveFirecrawlApiKey } from '@/lib/sentinel/api-config'
@@ -24,15 +23,13 @@ export function isBucketFailoverMode(): boolean {
 export function isLiveLlmContentEnabled(): boolean {
   if (envFlagOn(process.env.LIVE_LLM_CONTENT_ENABLED)) return true
   // Scoped exception: inside the daily zone-research cron only, when its own flag is on.
-  return cronLlmScope.getStore() === true && isZoneResearchCronLlmEnabled()
+  return inCronLlmScope() && isZoneResearchCronLlmEnabled()
 }
 
 function envFlagOn(raw: string | undefined): boolean {
   const v = raw?.trim().toLowerCase() ?? ''
   return v === '1' || v === 'true' || v === 'yes'
 }
-
-const cronLlmScope = new AsyncLocalStorage<true>()
 
 /**
  * ZONE_RESEARCH_CRON_LLM_ENABLED=1 lets live LLM content run for the daily
@@ -43,9 +40,13 @@ export function isZoneResearchCronLlmEnabled(): boolean {
   return envFlagOn(process.env.ZONE_RESEARCH_CRON_LLM_ENABLED)
 }
 
-/** Run `fn` with the cron-only LLM exception in scope (see isZoneResearchCronLlmEnabled). */
-export function runWithCronLlmScope<T>(fn: () => Promise<T>): Promise<T> {
-  return cronLlmScope.run(true, fn)
+/** Key the server-only scope (cronLlmScope.ts) registers its reader under. This module also
+ *  ends up in client bundles, so it must not import node:async_hooks itself. */
+export const CRON_LLM_SCOPE_GLOBAL_KEY = '__zzCronLlmScopeActive'
+
+function inCronLlmScope(): boolean {
+  const read = (globalThis as Record<string, unknown>)[CRON_LLM_SCOPE_GLOBAL_KEY]
+  return typeof read === 'function' && read() === true
 }
 
 /** Skip paid Gemini in the provider chain — use Groq / Mistral / OpenRouter only. */
