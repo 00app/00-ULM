@@ -50,12 +50,12 @@ test.describe('Entry flow', () => {
     const none = page.getByTestId('first-result-none')
     await expect(figure.or(none)).toBeVisible({ timeout: 30000 })
     if (await figure.count()) {
-      // Any figure on screen must name its source.
-      await expect(figure).toContainText(/Source:/)
+      // The place line comes first; every figure line after it must name its source.
+      await expect(figure).toContainText(/Source:/, { timeout: 10000 })
     }
-    // One action only: START (creates the account). No skip / log in on this screen.
-    await expect(page.getByRole('button', { name: /^start$/i })).toBeVisible()
+    // One sentence at a time, no buttons; the sequence hands on to the first onboarding question.
     await expect(page.getByRole('button', { name: /skip for now/i })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^start$/i })).toHaveCount(0)
     // Back navigation returns to the postcode step.
     await page.goBack()
     await expect(page).toHaveURL(/\/start$/)

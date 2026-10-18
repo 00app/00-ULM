@@ -1,6 +1,7 @@
 /**
- * First result for the entry flow: up to four real insights from postcode-only data, one per
- * major category (energy, carbon, solar, home).
+ * First result for the entry flow: the place played back, then up to four real insights from
+ * postcode-only data, one per major category (energy, carbon, solar, home), each as one short
+ * sentence the screen shows one at a time.
  * Mechanical truth: every value here comes from a live source call (Octopus public tariff API,
  * Carbon Intensity API, EU PVGIS, EPC register, HM Land Registry). An insight whose source
  * fails is left out, never estimated; if none come back we return null and the UI shows the
@@ -9,7 +10,7 @@
 
 import { fetchOpendataEpcProfile } from '@/lib/intelligence/openEpcClient'
 import { fetchLandRegistryByPostcode } from '@/lib/intelligence/landRegistryClient'
-import { fetchPostcodeGeo } from '@/lib/intelligence/postcodeGeoClient'
+import { fetchPostcodeGeo, type PostcodeGeoSnapshot } from '@/lib/intelligence/postcodeGeoClient'
 import { getActiveEnergyProducts } from '@/lib/data/octopusPublicApis'
 import { resolveOctopusRegionLetter } from '@/lib/data/octopusRegion'
 
@@ -17,17 +18,15 @@ export type FirstResultCategory = 'energy' | 'carbon' | 'solar' | 'home'
 
 export type FirstResultInsight = {
   category: FirstResultCategory
-  /** Short caption, e.g. "Energy". */
-  label: string
-  /** The figure as shown, kept short, e.g. "26.9p", "105g", "D". */
-  value: string
-  /** One plain sentence saying exactly what the figure is. */
-  text: string
-  /** Where the figure came from (shown on screen). */
+  /** One short sentence (shown at H2 size, one at a time) carrying the live figure. */
+  sentence: string
+  /** Where the figure came from (shown under the sentence). */
   source: string
 }
 
 export type FirstResult = {
+  /** Town or district for the postcode, played back to the user ("Manchester"). */
+  place: string | null
   /** In display order; only categories whose live source returned data. */
   insights: FirstResultInsight[]
 }
@@ -90,13 +89,11 @@ async function energyInsight(postcode: string): Promise<FirstResultInsight | nul
     fetchOctopusRate(`${base}/gas-tariffs/G-1R-${product.code}-${region}/standard-unit-rates/?page_size=1`),
   ])
   if (elecP == null) return null
-  const gas = gasP != null ? ` Gas is ${formatPence(gasP)}.` : ''
+  const gas = gasP != null ? `, gas ${formatPence(gasP)}` : ''
   return {
     category: 'energy',
-    label: 'Energy',
-    value: formatPence(elecP),
-    text: `Per kWh for electricity in your region right now, standard variable tariff.${gas}`,
-    source: 'Octopus Energy tariff API',
+    sentence: `Electricity here costs ${formatPence(elecP)} a unit${gas}.`,
+    source: 'Octopus Energy tariff API, standard variable, inc VAT',
   }
 }
 
@@ -122,26 +119,21 @@ async function carbonInsight(postcode: string): Promise<FirstResultInsight | nul
   const g = slot?.intensity?.forecast
   // 0 is a real reading (e.g. South Scotland on a windy day), so only reject missing/negative.
   if (typeof g !== 'number' || !Number.isFinite(g) || g < 0) return null
-  const mix = slot?.generationmix ?? []
-  const renewable = mix
-    .filter((m) => /^(wind|solar|hydro)$/i.test(m.fuel))
-    .reduce((sum, m) => sum + (Number.isFinite(m.perc) ? m.perc : 0), 0)
-  const area = region?.shortname ? ` on the ${region.shortname} grid` : ' on your local grid'
-  const share = mix.length > 0 ? `, ${Math.round(renewable)}% from wind, solar and hydro` : ''
+  const grams = Math.round(g)
   return {
     category: 'carbon',
-    label: 'Carbon',
-    value: `${Math.round(g)}g`,
-    text: `CO₂ per kWh${area} right now${share}.`,
-    source: 'Carbon Intensity API (NESO)',
+    sentence:
+      grams === 0
+        ? 'Your grid is running carbon free right now.'
+        : `Every unit you use right now puts out ${grams}g of CO₂.`,
+    source: `Carbon Intensity API (NESO)${region?.shortname ? `, ${region.shortname}` : ''}`,
   }
 }
 
 // ── Solar: PVGIS yield per kW of panels at the best angle for this spot ───────────────────
 
-async function solarInsight(postcode: string): Promise<FirstResultInsight | null> {
-  const geo = await fetchPostcodeGeo(postcode)
-  if (!geo.found || geo.lat == null || geo.lon == null) return null
+async function solarInsight(geo: PostcodeGeoSnapshot | null): Promise<FirstResultInsight | null> {
+  if (!geo?.found || geo.lat == null || geo.lon == null) return null
   const url = `https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat=${geo.lat}&lon=${geo.lon}&peakpower=1&loss=14&optimalangles=1&outputformat=json`
   const res = await fetch(url, { signal: AbortSignal.timeout(SOURCE_CAP_MS) })
   if (!res.ok) return null
@@ -150,10 +142,8 @@ async function solarInsight(postcode: string): Promise<FirstResultInsight | null
   if (typeof kwh !== 'number' || !Number.isFinite(kwh) || kwh <= 0) return null
   return {
     category: 'solar',
-    label: 'Solar',
-    value: `${Math.round(kwh).toLocaleString('en-GB')}`,
-    text: 'kWh a year per kW of solar panels here, at the best angle.',
-    source: 'EU PVGIS',
+    sentence: `A kW of solar panels here makes ${Math.round(kwh).toLocaleString('en-GB')} units a year.`,
+    source: 'EU PVGIS, best angle, typical losses',
   }
 }
 
@@ -167,12 +157,11 @@ async function homeInsight(postcode: string): Promise<FirstResultInsight | null>
   const band = epc?.found ? epc.currentEnergyRating?.trim().toUpperCase() : undefined
   if (band && /^[A-G]$/.test(band)) {
     const when = formatMonthYear(epc?.lodgementDate)
+    const leaky = band >= 'D' ? ', so heat and money leak out' : ''
     return {
       category: 'home',
-      label: 'Home',
-      value: band,
-      text: `Energy rating on the latest certificate for your postcode${when ? ` (${when})` : ''}. Not necessarily your own home.`,
-      source: 'EPC register',
+      sentence: `The last home rated on your street scored ${band}${leaky}.`,
+      source: `EPC register${when ? `, ${when}` : ''}, latest certificate on the postcode`,
     }
   }
   if (sale?.found && typeof sale.lastSalePrice === 'number' && sale.lastSalePrice > 0) {
@@ -189,22 +178,30 @@ async function homeInsight(postcode: string): Promise<FirstResultInsight | null>
               : 'a home'
     return {
       category: 'home',
-      label: 'Home',
-      value: formatGbpShort(sale.lastSalePrice),
-      text: `Latest recorded sale on your postcode: ${type}${when ? `, ${when}` : ''}.`,
-      source: 'HM Land Registry',
+      sentence: `The last home sold on your street went for ${formatGbpShort(sale.lastSalePrice)}.`,
+      source: `HM Land Registry, ${type}${when ? `, ${when}` : ''}`,
     }
   }
   return null
 }
 
+function placeName(geo: PostcodeGeoSnapshot | null): string | null {
+  const name = (geo?.parish?.trim() || geo?.adminDistrict?.trim() || '')
+    .replace(/^(City|County|Royal Borough|London Borough) of /i, '')
+    .replace(/, City of$/i, '')
+    .trim()
+  return name || null
+}
+
 export async function resolveFirstResult(postcode: string): Promise<FirstResult | null> {
-  const insights = await Promise.all([
+  const geoPromise = withCap(fetchPostcodeGeo(postcode))
+  const [geo, ...insights] = await Promise.all([
+    geoPromise,
     withCap(energyInsight(postcode)),
     withCap(carbonInsight(postcode)),
-    withCap(solarInsight(postcode)),
+    withCap(geoPromise.then((g) => solarInsight(g))),
     withCap(homeInsight(postcode), SOURCE_CAP_MS + 1_000),
   ])
   const found = insights.filter((i): i is FirstResultInsight => i != null)
-  return found.length > 0 ? { insights: found } : null
+  return found.length > 0 ? { place: placeName(geo), insights: found } : null
 }

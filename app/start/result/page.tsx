@@ -1,11 +1,10 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
 import EntryShell from '@/app/components/EntryShell'
-import ProfileAnswerBtn from '@/app/components/ui/ProfileAnswerBtn'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
-import { familyControlDelaySec } from '@/lib/motion-family'
 import { isValidUkPostcode } from '@/lib/geocode/ukPostcode'
 import { PROFILE_STORAGE_KEYS } from '@/lib/profile/onboardingComplete'
 import { markOnboardingIntent } from '@/lib/profile/onboardingIntentCookie'
@@ -18,10 +17,11 @@ import { SecondaryCircleCta } from '@/app/components/ui/SecondaryCircleCta'
 type Phase = 'loading' | 'ready' | 'not_found'
 
 /**
- * Entry step 3: up to four real insights for this postcode (energy, carbon, solar, home), laid
- * out as figure-left / sentence-right rows, then a single START circle (creates the account).
- * Mechanical truth: an insight whose source returns nothing is omitted; if none return, the
- * figures are omitted and the action is still shown. Nothing here estimates or defaults a number.
+ * Entry step 3: the place played back, then up to four real insights for this postcode
+ * (energy, carbon, solar, home), one H2 sentence at a time, then straight on to the first
+ * onboarding question (create). No buttons.
+ * Mechanical truth: an insight whose source returns nothing is omitted; if none return, only
+ * the place line shows. Nothing here estimates or defaults a number.
  */
 function StartResult() {
   const router = useRouter()
@@ -102,45 +102,100 @@ function StartResult() {
           Checking {postcode}…
         </p>
       ) : (
-        <>
-          {result ? (
-            <section className="entry-insights" data-testid="first-result" aria-label={`What we found for ${postcode}`}>
-              <p className="data-label m-0 entry-insights__heading">{postcode} right now</p>
-              {result.insights.map((insight) => (
-                <div key={insight.category} className="entry-insight" data-testid={`first-result-${insight.category}`}>
-                  <p className="entry-insight__value">{insight.value}</p>
-                  <div className="entry-insight__body">
-                    <p className="data-label m-0">{insight.label}</p>
-                    <p className="entry-insight__text">{insight.text}</p>
-                    <p className="entry-insight__source">Source: {insight.source}</p>
-                  </div>
-                </div>
-              ))}
-            </section>
-          ) : (
-            <h1
-              className="zz-h3 text-display m-0 text-center"
-              style={{ maxWidth: 'min(92vw, 28rem)', color: 'var(--color-blue)' }}
-              data-testid="first-result-none"
-            >
-              Your savings for {postcode} are ready to find.
-            </h1>
-          )}
-          <div className="profile-step-controls profile-step-controls--options">
-            <ProfileAnswerBtn
-              reduceMotion={reduceMotion}
-              optionIndex={0}
-              delaySeconds={familyControlDelaySec(0)}
-              className=""
-              onClick={goCreate}
-              aria-label="Start"
-            >
-              <span className="profile-answer-btn__text zz-h4">START</span>
-            </ProfileAnswerBtn>
-          </div>
-        </>
+        <FirstResultSequence
+          lines={buildSequence(result, postcode)}
+          testId={result ? 'first-result' : 'first-result-none'}
+          reduceMotion={reduceMotion}
+          onDone={goCreate}
+        />
       )}
     </EntryShell>
+  )
+}
+
+type SequenceLine = { key: string; sentence: string; source?: string }
+
+/** Place played back first, then one sentence per live insight. */
+function buildSequence(result: FirstResult | null, postcode: string): SequenceLine[] {
+  const place = result?.place?.trim() || postcode
+  if (!result) {
+    return [{ key: 'place', sentence: `Let's find what you could save in ${place}.` }]
+  }
+  return [
+    { key: 'place', sentence: `Here's what living in ${place} costs right now.` },
+    ...result.insights.map((i) => ({ key: i.category, sentence: i.sentence, source: i.source })),
+  ]
+}
+
+/** Reading time for one H2 line: a base beat plus ~300ms a word, clamped. */
+function holdMsFor(sentence: string): number {
+  const words = sentence.trim().split(/\s+/).length
+  return Math.min(4800, Math.max(2400, 900 + words * 300))
+}
+
+/**
+ * One sentence at a time at H2 size: fade/rise in, hold for reading time, fade out, next.
+ * After the last line it hands straight on to the first onboarding question (`onDone`).
+ * Tapping the line skips to the next one. Reduced motion keeps the timing, drops the movement.
+ */
+function FirstResultSequence({
+  lines,
+  testId,
+  reduceMotion,
+  onDone,
+}: {
+  lines: SequenceLine[]
+  testId: string
+  reduceMotion: boolean
+  onDone: () => void
+}) {
+  const [index, setIndex] = useState(0)
+  const onDoneRef = useRef(onDone)
+  onDoneRef.current = onDone
+  const finishedRef = useRef(false)
+
+  const advance = useCallback(() => {
+    setIndex((i) => {
+      if (i + 1 < lines.length) return i + 1
+      if (!finishedRef.current) {
+        finishedRef.current = true
+        onDoneRef.current()
+      }
+      return i
+    })
+  }, [lines.length])
+
+  const line = lines[index]
+  useEffect(() => {
+    if (!line) return
+    const t = window.setTimeout(advance, holdMsFor(line.sentence))
+    return () => window.clearTimeout(t)
+  }, [line, advance])
+
+  if (!line) return null
+  const motionProps = reduceMotion
+    ? { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+    : { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -10 } }
+
+  return (
+    <section
+      className="entry-sequence"
+      data-testid={testId}
+      aria-live="polite"
+      onClick={advance}
+    >
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={line.key}
+          className="entry-sequence__line"
+          {...motionProps}
+          transition={{ duration: reduceMotion ? 0.15 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <h2 className="zz-h2 text-display m-0 text-center entry-sequence__sentence">{line.sentence}</h2>
+          {line.source ? <p className="entry-sequence__source">Source: {line.source}</p> : null}
+        </motion.div>
+      </AnimatePresence>
+    </section>
   )
 }
 

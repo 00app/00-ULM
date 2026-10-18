@@ -9,7 +9,7 @@
 ## 1. Entry flow
 
 ```
-Intro (logo glitch on/off → kinetic words) → Splash → Postcode → First result → START (create account) → Zone
+Intro (logo glitch on/off → kinetic words) → Splash → Postcode → First result (sentence sequence) → Create account → Zone
 ```
 
 | Step | Route | What it does |
@@ -17,7 +17,7 @@ Intro (logo glitch on/off → kinetic words) → Splash → Postcode → First r
 | Intro | `/` and `/intro` (same component, `IntroScreen`) | `GlitchLogo` glitches **on**, holds 600ms (`INTRO_LOGO_HOLD_MS`), glitches **off** (`exit`), then the kinetic words play in sentence case: *Save money / Cut carbon / Feel good / Use less, more.* A **SKIP** circle sits directly under the words and jumps to the splash. The words never start before the logo has gone. |
 | Splash | same component | Headline **"Save, use less, more."**, primary circle **Get started**, secondary circle **Log in**. No logo. Returning users with a complete stored profile skip intro and splash; a partial profile with a goal goes to `/profile`. The three-option goal screen is gone. |
 | Postcode | `/start` | One field. UK format validated with `checkUkPostcode` (`lib/geocode/ukPostcode.ts`). Stores `profile_postcode` and calls `persistUnifiedUserProfileMemory()`. |
-| First result | `/start/result?postcode=` | Up to **four** real insights from postcode-only data (below), then **one** action: the **START** circle, which leads to create. No text above it, no Skip, no Log in. Invalid or missing postcode bounces back to `/start`. A postcode that does not exist shows "We can't find that postcode." with a **Try another** circle. |
+| First result | `/start/result?postcode=` | The place played back ("Here's what living in Manchester costs right now."), then up to **four** live insights (below), **one H2 sentence at a time**, each fading in, holding for reading time (2.4 to 4.8s) and fading out, with its source in small type underneath. After the last line it goes straight to the first onboarding question (`/profile?entry=create`). No buttons; tapping a line skips to the next. Invalid or missing postcode bounces back to `/start`. A postcode that does not exist shows "We can't find that postcode." with a **Try another** circle. |
 | Create | `/profile?entry=create` | Existing create logic: mobile step → password step → goal question → remaining profile questions → summary → Zone. |
 | Log in | `/profile?entry=login` | Existing mobile + password login form. On success `window.location.assign('/')`, which the proxy sends to Zone for a complete account. |
 | ~~Skip for now~~ | removed 2026-10-16 | The first-result screen no longer offers a guest path (see [Strategy check](PRODUCT-ROADMAP.md#strategy-check-2026-10-16)). |
@@ -32,7 +32,7 @@ Intro (logo glitch on/off → kinetic words) → Splash → Postcode → First r
 
 ### First result — `GET /api/first-result?postcode=`
 
-`lib/entry/firstResult.ts`, public, rate-limited (20/min), `runtime = nodejs`. Returns `{ result: { insights: FirstResultInsight[] } | null }`.
+`lib/entry/firstResult.ts`, public, rate-limited (20/min), `runtime = nodejs`. Returns `{ result: { place, insights: { category, sentence, source }[] } | null }`. `place` is the postcodes.io parish (town) or else the district, with "City of" style prefixes removed.
 
 1. Format check (`isValidUkPostcode`) → 400. Then existence check against `api.postcodes.io/.../validate` → **404** if the postcode is real-format but not real (so `ZZ99 9ZZ` can never receive a region's figure as "yours"). If the lookup service is unreachable the request continues (the region mapping is the same prefix lookup used app-wide).
 2. Four insights, one per major category, fetched in parallel, each capped at ~12s, shown in this order:
@@ -46,7 +46,7 @@ Intro (logo glitch on/off → kinetic words) → Splash → Postcode → First r
 
 3. An insight whose source fails or returns nothing is **left out**, never estimated, so a postcode can show fewer than four rows. If none come back, `result: null` and the screen shows START with **no figures**.
 
-Layout: figure-left / sentence-right rows with hairline dividers (`.entry-insight*` in `globals.css`), a small "{postcode} right now" label on top. Every row prints its source. Nothing in this path estimates or defaults a number.
+Each insight is one short sentence carrying the live figure, for example "Electricity here costs 26.5p a unit, gas 7.9p.", "Every unit you use right now puts out 10g of CO₂.", "A kW of solar panels here makes 888 units a year.", "The last home rated on your street scored D, so heat and money leak out." (D to G only) or "The last home sold on your street went for £300k." Styles: `.entry-sequence*` in `globals.css`. Every figure line prints its source. Nothing in this path estimates or defaults a number.
 
 ---
 
@@ -170,7 +170,7 @@ confirmed     ── "Switched"
 | Rails | `npm run test:zone-rails` | order, ≥2 rule, cap, pinned card, hero rail |
 | Filters | `npm run test:zone-filters` | parsing, matching, faceted counts, toggles, synced heading, results layout, hero kept |
 | Bank | `npm run test:bank` | provider, recurring + price-rise detection, saving rule, connection/snooze, switch state machine, tracker totals |
-| Entry flow | `e2e/entry-flow.spec.ts` | splash, postcode validation, result (sourced insights or none), single START action, back nav, deep links |
+| Entry flow | `e2e/entry-flow.spec.ts` | splash, postcode validation, result sequence (sourced lines or none), no buttons, back nav, deep links |
 | Zone | `e2e/zone-funky-stress.spec.ts` | rails visible, open / close Solo Focus from a rail card |
 | Filters | `e2e/zone-filters.spec.ts` | bar under the picks, synced heading, sticky, mobile sheet (Esc, badge, removable chip), tap targets, no overflow |
 

@@ -9373,61 +9373,35 @@ input[type="radio"]:not(#v2):active {
   .entry-result-figure:not(#v2) { font-size: var(--zz-h2-desktop) !important; }
 }
 
-/* First result — four postcode insights as figure-left / sentence-right rows with hairline
-   dividers. Display face on the figure only; everything else is body text. */
-.entry-insights:not(#v2) {
-  display: flex;
-  flex-direction: column;
-  width: min(92vw, 36rem);
+/* First result sequence — one H2 sentence at a time, small source line underneath. */
+.entry-sequence:not(#v2) {
+  width: min(92vw, 40rem);
+  min-height: 46vh;
   margin: 0 auto;
-  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   color: var(--color-blue);
 }
-.entry-insights__heading:not(#v2) {
-  padding-bottom: 8px;
-}
-.entry-insight:not(#v2) {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  align-items: center;
-  column-gap: 16px;
-  padding: 18px 0;
-  border-top: 1px solid color-mix(in srgb, var(--color-blue) 22%, transparent);
-}
-.entry-insight:not(#v2):last-child {
-  border-bottom: 1px solid color-mix(in srgb, var(--color-blue) 22%, transparent);
-}
-.entry-insight__value:not(#v2) {
-  margin: 0 !important;
-  font-family: var(--font-display) !important;
-  font-weight: bold !important;
-  font-size: clamp(40px, 12vw, 76px) !important;
-  line-height: 0.95 !important;
-  letter-spacing: -0.02em;
-  color: var(--color-blue) !important;
-  white-space: nowrap;
-}
-.entry-insight__body:not(#v2) {
+.entry-sequence__line:not(#v2) {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  align-items: center;
+  gap: 16px;
 }
-.entry-insight__text:not(#v2) {
-  margin: 0 !important;
-  font-family: var(--font-text) !important;
-  font-size: var(--zz-body-size) !important;
-  font-weight: 400 !important;
-  line-height: 1.35 !important;
+.entry-sequence__sentence:not(#v2) {
   color: var(--color-blue) !important;
+  text-wrap: balance;
 }
-.entry-insight__source:not(#v2) {
+.entry-sequence__source:not(#v2) {
   margin: 0 !important;
   font-family: var(--font-text) !important;
   font-size: 12px !important;
   font-weight: 400 !important;
   line-height: 1.3 !important;
   opacity: 0.65;
+  text-align: center;
 }
 
 /* Zone recommendation card (ZoneRecCard): blue bento shell like the wall tiles, fixed slot order.
