@@ -15,10 +15,12 @@ import {
   formatTypicalSaving,
 } from '../lib/zone/recCard'
 import {
+  habitToRecCard,
   insightForLibraryCard,
   libraryCarbonTraceable,
   typicalSavingForLibraryCard,
 } from '../lib/zone/recCardFromZone'
+import { ROCK_HABITS } from '../lib/rock/habitsCatalog'
 import { ZONE_ACTIONS } from '../lib/actions/actionLibrary'
 
 const failures: string[] = []
@@ -150,6 +152,15 @@ check('insight keeps £12.50 whole', /£12\.50/.test(insightForLibraryCard('jour
 
 // Carbon follows the same rule: library kg estimates are not shown.
 check('bleed radiators carbon estimate is not traceable', !libraryCarbonTraceable(ZONE_ACTIONS.find((a) => a.id === 'bleed-radiators')!))
+
+// Habits outside the library carry their catalog insight, never their £ estimate.
+const speedCap = ROCK_HABITS.find((h) => h.slug === 'speed-cap-60')
+const speedCard = speedCap ? habitToRecCard(speedCap, 'rock-speed-cap-60', { facts: { transport: 'CAR' } }) : null
+check('non-library habit card shows its catalog insight', speedCard?.insight === speedCap?.insight && (speedCard?.insight ?? '').length > 10)
+check('non-library habit card shows no figure', speedCard?.typicalSaving === null && speedCard?.savingGbpPerYear === null)
+
+// Place names read naturally in the why-you line.
+check('why-you cleans "Bristol, City of"', buildWhyYou('solar', { place: 'Bristol, City of' }) === 'Based on where you live, Bristol.')
 
 // Library utilities cards keep their own action; the bank prompt is for bill offers.
 const libUtil = resolveRecCard({ ...base, category: 'utilities', fromLibrary: true, typicalSaving: whd })!

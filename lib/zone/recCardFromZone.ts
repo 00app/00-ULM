@@ -147,6 +147,12 @@ export function libraryMoneyLabel(t: TypicalSaving | null): string | undefined {
   return t.perYear ? 'Typical saving a year' : 'Typical saving'
 }
 
+/** A Rock habit's catalog insight as a card line, or null. */
+function habitInsight(h: RockHabit | null | undefined): string | null {
+  const t = h?.insight?.trim()
+  return t ? t : null
+}
+
 export function journeyToRecCard(item: ZoneJourneyCard, ctx: RecCardContext): RecCardModel | null {
   const { gbp, source } = verifiedSavingForJourney(item.journey_key, item.id, ctx.coverage)
   const label = formatZoneCategoryLabel(item.journey_key)
@@ -203,7 +209,8 @@ export function habitToRecCard(h: RockHabit, cardId: string, ctx: RecCardContext
     label: formatZoneCategoryLabel(h.journey_key),
     actionWording: clampRockTipHeadline(h.title),
     typicalSaving: typicalSavingForLibraryCard(cardId),
-    insight: insightForLibraryCard(cardId),
+    // Library detail first; otherwise the habit's own catalog insight (never its £ estimate).
+    insight: insightForLibraryCard(cardId) ?? habitInsight(h),
     fromLibrary: libraryActionForAnyCardId(cardId) != null,
     whyYou: buildWhyYou(h.journey_key, ctx.facts),
     impact: { money: h.money_gbp > 0 || h.impact_tag === 'money' || h.impact_tag === 'both', carbon: h.carbon_kg > 0 || h.impact_tag === 'carbon' || h.impact_tag === 'both' },
@@ -241,7 +248,9 @@ export function heroSlotToRecCard(
     label: slot.label.toUpperCase(),
     actionWording: slot.headline,
     typicalSaving: typicalSavingForLibraryCard(openRef.id),
-    insight: insightForLibraryCard(openRef.id),
+    insight:
+      insightForLibraryCard(openRef.id) ??
+      habitInsight(slot.rockSlug ? habitLookup?.(slot.rockSlug) ?? null : null),
     fromLibrary: libraryActionForAnyCardId(openRef.id) != null,
     whyYou: buildWhyYou(category, ctx.facts),
     impact: slot.tip

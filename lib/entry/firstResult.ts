@@ -13,6 +13,7 @@ import { fetchLandRegistryByPostcode } from '@/lib/intelligence/landRegistryClie
 import { fetchPostcodeGeo, type PostcodeGeoSnapshot } from '@/lib/intelligence/postcodeGeoClient'
 import { getActiveEnergyProducts } from '@/lib/data/octopusPublicApis'
 import { resolveOctopusRegionLetter } from '@/lib/data/octopusRegion'
+import { cleanAreaName } from '@/lib/geocode/areaName'
 
 export type FirstResultCategory = 'energy' | 'carbon' | 'solar' | 'home'
 
@@ -185,15 +186,7 @@ async function homeInsight(postcode: string): Promise<FirstResultInsight | null>
   return null
 }
 
-/** postcodes.io area names in plain form: "Bristol, City of" / "City of Edinburgh" → the place. */
-export function cleanAreaName(raw: string | null | undefined): string | null {
-  const name = String(raw ?? '')
-    .trim()
-    .replace(/^(City|County|Royal Borough|London Borough) of /i, '')
-    .replace(/, (City|County) of$/i, '')
-    .trim()
-  return name || null
-}
+export { cleanAreaName }
 
 function placeName(geo: PostcodeGeoSnapshot | null): string | null {
   return cleanAreaName(geo?.parish?.trim() || geo?.adminDistrict?.trim())

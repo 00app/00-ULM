@@ -12,6 +12,7 @@
  */
 
 import type { JourneyId } from '@/lib/journeys'
+import { cleanAreaName } from '@/lib/geocode/areaName'
 
 export type RecCardSize = 'large' | 'small'
 
@@ -265,7 +266,8 @@ export function buildWhyYou(category: JourneyId, f: WhyYouFacts): string | null 
     if (t) return `You get around ${t}.`
   }
   if (hh && !ENERGY_JOURNEYS.has(category) && !TRAVEL_JOURNEYS.has(category)) return `${hh}.`
-  if (f.place && f.place.trim()) return `Based on where you live, ${f.place.trim()}.`
+  const place = cleanAreaName(f.place)
+  if (place) return `Based on where you live, ${place}.`
   return null
 }
 
