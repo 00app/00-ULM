@@ -4,7 +4,7 @@ import { unauthorizedResponse, tooManyRequestsResponse } from '@/lib/requestAuth
 import { checkRateLimitAsync, getClientIdentifier } from '@/lib/rateLimit'
 import { compactUkPostcode, isValidUkPostcode } from '@/lib/geocode/ukPostcode'
 import { fetchPostcodeGeo } from '@/lib/intelligence/postcodeGeoClient'
-import { resolveFirstResult } from '@/lib/entry/firstResult'
+import { cleanAreaName, resolveFirstResult } from '@/lib/entry/firstResult'
 import { MOVING_TASKS, nationFromCountry } from '@/lib/zoneAgents/moving/knowledge'
 import {
   createHouseholdMove,
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     postcode,
     place: live?.place ?? null,
-    council: geo?.adminDistrict?.trim() || null,
+    council: cleanAreaName(geo?.adminDistrict),
     nation: nationFromCountry(geo?.country),
     insights: live?.insights ?? [],
     signedIn: Boolean(session),

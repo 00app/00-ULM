@@ -16,6 +16,7 @@ import {
 import { isWithinJustMovedWindow, JUST_MOVED_WINDOW_DAYS } from '@/lib/zoneAgents/moving/movedState'
 import { eligibleAgents, ZONE_AGENTS } from '@/lib/zoneAgents/registry'
 import { ENERGY_SUPPLIER_JUST_MOVED, normaliseEnergySupplier } from '@/lib/profile/energySupplier'
+import { cleanAreaName } from '@/lib/entry/firstResult'
 
 type Check = { name: string; pass: boolean; detail?: string }
 const checks: Check[] = []
@@ -59,6 +60,11 @@ assert('Scotland gets the Scottish Assessors tip', tipsFor(MOVING_TASKS.find((t)
 const ct = MOVING_TASKS.find((t) => t.id === 'council-tax')!
 assert('council name fills the title', resolveTaskTitle(ct, 'Arun') === 'Set up council tax with Arun')
 assert('missing council reads naturally', resolveTaskTitle(ct, null) === 'Set up council tax with your new council')
+
+assert('council name is cleaned: Bristol, City of', cleanAreaName('Bristol, City of') === 'Bristol')
+assert('council name is cleaned: City of Edinburgh', cleanAreaName('City of Edinburgh') === 'Edinburgh')
+assert('council name is cleaned: Herefordshire, County of', cleanAreaName('Herefordshire, County of') === 'Herefordshire')
+assert('plain council name unchanged', cleanAreaName('Worthing') === 'Worthing')
 
 // --- Just-moved window -------------------------------------------------------------------
 const now = new Date('2026-10-18T12:00:00Z')

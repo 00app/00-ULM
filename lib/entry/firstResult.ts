@@ -185,12 +185,18 @@ async function homeInsight(postcode: string): Promise<FirstResultInsight | null>
   return null
 }
 
-function placeName(geo: PostcodeGeoSnapshot | null): string | null {
-  const name = (geo?.parish?.trim() || geo?.adminDistrict?.trim() || '')
+/** postcodes.io area names in plain form: "Bristol, City of" / "City of Edinburgh" → the place. */
+export function cleanAreaName(raw: string | null | undefined): string | null {
+  const name = String(raw ?? '')
+    .trim()
     .replace(/^(City|County|Royal Borough|London Borough) of /i, '')
-    .replace(/, City of$/i, '')
+    .replace(/, (City|County) of$/i, '')
     .trim()
   return name || null
+}
+
+function placeName(geo: PostcodeGeoSnapshot | null): string | null {
+  return cleanAreaName(geo?.parish?.trim() || geo?.adminDistrict?.trim())
 }
 
 export async function resolveFirstResult(postcode: string): Promise<FirstResult | null> {
