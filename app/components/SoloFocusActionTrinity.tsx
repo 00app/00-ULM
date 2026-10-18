@@ -27,6 +27,7 @@ type Props = {
   onCtaClick?: () => void
 }
 
+/** Order: like · Ask Zai (secondary circle) · the CTA (claim / switch / buy) · dislike. */
 export function SoloFocusActionTrinity({
   ctaUrl,
   ctaLabel = 'BUY',
@@ -66,17 +67,6 @@ export function SoloFocusActionTrinity({
           <HeartOutlineIcon size={28} style={{ fill: isLiked ? 'currentColor' : 'none' }} />
         </motion.button>
       ) : null}
-      {ctaUrl ? (
-        <IndustrialHandoffButton
-          url={ctaUrl}
-          journeyId={journeyId}
-          moneyValue={moneyGbp}
-          ctaLabel={ctaLabel}
-          surface={ctaSurface === 'yellow' ? 'yellow' : 'pink'}
-          className="solo-focus-trinity-cta"
-          onHandoffClick={onCtaClick}
-        />
-      ) : null}
       {showAskZai && onAskZai ? (
         <motion.button
           type="button"
@@ -90,6 +80,17 @@ export function SoloFocusActionTrinity({
             <span>zai</span>
           </span>
         </motion.button>
+      ) : null}
+      {ctaUrl ? (
+        <IndustrialHandoffButton
+          url={ctaUrl}
+          journeyId={journeyId}
+          moneyValue={moneyGbp}
+          ctaLabel={ctaLabel}
+          surface={ctaSurface === 'yellow' ? 'yellow' : 'pink'}
+          className="solo-focus-trinity-cta"
+          onHandoffClick={onCtaClick}
+        />
       ) : null}
       {showDislike && onDislike ? (
         <motion.button

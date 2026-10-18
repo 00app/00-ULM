@@ -2969,8 +2969,9 @@ body.has-solo-focus .expanded-solo-focus[data-zone-surface='tip'] {
   background: transparent !important;
 }
 
-/* Focus card content (heading, body, labels, data): deliberate 4th colour (--ink-body-copy), not
-   blue. Buttons (CTAs, journey nav, + badges) are not listed here and keep their own colours. */
+/* Focus card content (heading, body, labels, data, source line): one dark blue (--navy), per
+   instruction 2026-10-18 (was the near-black --ink-body-copy, with the source line in bright
+   blue). Buttons (CTAs, journey nav, + badges) are not listed here and keep their own colours. */
 body.has-solo-focus .solo-focus-shell .solo-focus-architect-headline,
 body.has-solo-focus .solo-focus-shell .solo-focus-architect-prose,
 body.has-solo-focus .solo-focus-shell .solo-focus-content-text,
@@ -2985,9 +2986,12 @@ body.has-solo-focus .solo-focus-shell .solo-focus-question-label,
 body.has-solo-focus .solo-focus-shell .question-text,
 body.has-solo-focus .solo-focus-shell .solo-focus-description,
 body.has-solo-focus .solo-focus-shell .solo-focus-insight,
-body.has-solo-focus .solo-focus-shell .solo-focus-category {
-  color: var(--ink-body-copy) !important;
-  fill: var(--ink-body-copy) !important;
+body.has-solo-focus .solo-focus-shell .solo-focus-category,
+body.has-solo-focus .solo-focus-shell .solo-focus-supplied-by,
+body.has-solo-focus .solo-focus-shell .solo-focus-action-line,
+body.has-solo-focus .solo-focus-shell .solo-focus-zone-category {
+  color: var(--navy) !important;
+  fill: var(--navy) !important;
 }
 
 body.has-solo-focus .solo-focus-nav-container {
@@ -3560,8 +3564,8 @@ h3.solo-focus-question-label.zz-h3 {
   color: var(--color-blue);
 }
 .expanded-solo-focus .solo-focus-ask-zai-btn {
+  /* A secondary circle like the heart (same elevation), sitting before the CTA. */
   border: none !important;
-  box-shadow: none !important;
   outline: none;
 }
 .expanded-solo-focus .solo-focus-ask-zai-btn:focus-visible {
