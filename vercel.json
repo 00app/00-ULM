@@ -11,7 +11,7 @@
   },
   "crons": [
     {
-      "path": "/api/cron/zone-research?limit=3",
+      "path": "/api/cron/zone-research?limit=3&full=1",
       "schedule": "0 5 * * *"
     },
     {

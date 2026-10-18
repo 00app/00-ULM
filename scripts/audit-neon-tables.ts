@@ -33,6 +33,8 @@ const TABLE_META: Record<string, { status: TableStatus; note: string }> = {
   user_answers: { status: 'legacy-unused', note: 'Superseded by journey_answers_jsonb — drop when empty' },
   user_likes: { status: 'legacy-unused', note: 'Superseded by likes — drop when empty' },
   offer_signals: { status: 'hot', note: 'app/api/offer-signals — dislike/avoid feedback loop' },
+  analytics_events: { status: 'hot', note: 'Funnel telemetry — /api/analytics writes, /api/admin/funnel reads (migration 20261018)' },
+  activity_status: { status: 'optional', note: 'SSO activity visibility (migration 013) — app/api/sso/activity' },
   household_accounts: { status: 'hot', note: 'Bills + contracts per signed-in user — lib/household/data.ts; Settings → Living counts' },
   household_moves: { status: 'hot', note: 'House moves + change-of-address checklist — lib/household/data.ts' },
 }
