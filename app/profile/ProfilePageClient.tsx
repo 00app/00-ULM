@@ -43,6 +43,7 @@ import { persistSessionRestoreProof } from '@/lib/client/sessionRestoreProofStor
 import { persistHomePowerFromProfile } from '@/lib/profile/homePower'
 import {
   ENERGY_SUPPLIER_OPTIONS,
+  ENERGY_SUPPLIER_JUST_MOVED,
   ENERGY_SUPPLIER_OTHER,
   ENERGY_SUPPLIER_SKIP,
   normaliseEnergySupplier,
@@ -50,6 +51,7 @@ import {
   resolveTypedSupplier,
   sanitiseSupplierOther,
 } from '@/lib/profile/energySupplier'
+import { markJustMoved } from '@/lib/zoneAgents/moving/movedState'
 import { clearOnboardingIntent } from '@/lib/profile/onboardingIntentCookie'
 import { syncSessionState } from '@/lib/sessionStateSync'
 import { browserCanTriggerScrapeSync, triggerOnboardingResearchBootstrap, triggerScrapeSyncForCategory } from '@/lib/researchSyncClient'
@@ -1686,13 +1688,32 @@ export default function ProfilePageClient() {
                 >
                   <span className="profile-answer-btn__text zz-h4">SKIP</span>
                 </ProfileAnswerBtn>
+                <ProfileAnswerBtn
+                  reduceMotion={reduceMotion}
+                  optionIndex={1}
+                  delaySeconds={familyControlDelaySec(1)}
+                  className={currentVal === ENERGY_SUPPLIER_JUST_MOVED ? 'selected' : ''}
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    // A new home: supplier unknown for now, and it switches on the Moving agent.
+                    markJustMoved()
+                    handleOptionClick({ label: 'JUST MOVED IN', value: ENERGY_SUPPLIER_JUST_MOVED })
+                  }}
+                  aria-label="Just moved in"
+                >
+                  <span className="profile-answer-btn__text zz-h4">
+                    JUST
+                    <br />
+                    MOVED IN
+                  </span>
+                </ProfileAnswerBtn>
                 {[...ENERGY_SUPPLIER_OPTIONS, { label: 'OTHER', value: ENERGY_SUPPLIER_OTHER, ariaLabel: 'Another supplier' }].map(
                   (opt, i) => (
                     <ProfileAnswerBtn
                       key={opt.value}
                       reduceMotion={reduceMotion}
-                      optionIndex={i + 1}
-                      delaySeconds={familyControlDelaySec(i + 1)}
+                      optionIndex={i + 2}
+                      delaySeconds={familyControlDelaySec(i + 2)}
                       className={currentVal === opt.value ? 'selected' : ''}
                       disabled={isSubmitting}
                       onClick={() =>

@@ -80,6 +80,7 @@ function formatProfilePreviewValue(key: ProfileStorageKey, raw: string): string 
   const v = raw.trim()
   if (!v) return ''
   if (key === 'name' || key === 'postcode') return v
+  if (key === 'energySupplier' && v === 'JUST_MOVED') return 'Just moved in'
   if (key === 'energySupplier') {
     // Typed name for OTHER, proper name for the six, nothing for the local SKIP marker.
     const other =

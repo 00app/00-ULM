@@ -16,6 +16,8 @@ export const ROUTES = {
   SETTINGS_TRUTH: '/settings/truth',
   /** Household living: /settings/living/[group] and /settings/living/move. */
   SETTINGS_LIVING: '/settings/living',
+  /** Zone agents: results pages, one per agent (lib/zoneAgents/registry.ts). */
+  AGENT_MOVING: '/agents/moving',
   PRIVACY: '/privacy',
   /** Ops: dependency heartbeat (session or gateway bearer). */
   ADMIN_PULSE: '/admin/pulse',

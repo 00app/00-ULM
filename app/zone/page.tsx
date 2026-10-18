@@ -225,6 +225,7 @@ import ZoneDesktopNavRail from '@/app/components/ZoneDesktopNavRail'
 import ZoneAskZaiDock from '@/app/components/ZoneAskZaiDock'
 import { RockMobileSignupCard } from '@/app/components/RockSavingTips'
 import { ZoneRails } from '@/app/components/ZoneRails'
+import { ZoneAgentsRail } from '@/app/components/ZoneAgentsRail'
 import { ZoneSummary } from '@/app/components/ZoneSummaryText'
 import { ZoneFilterBar } from '@/app/components/ZoneFilterBar'
 import { useZoneFilters } from '@/lib/hooks/useZoneFilters'
@@ -3750,6 +3751,7 @@ export default function ZonePage({
           {hydrated && !expandedCardId && !expandedTipId ? (
             <ZoneRails
               layout={railLayout}
+              agents={<ZoneAgentsRail />}
               visitedIds={visitedCardIds}
               onOpen={openRecCard}
               onCta={onRecCta}

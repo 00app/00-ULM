@@ -10,6 +10,8 @@ import { SecondaryCircleCta } from '@/app/components/ui/SecondaryCircleCta'
 
 type Props = {
   layout: ZoneRailsLayout
+  /** Agent cards (ZoneAgentsRail), rendered above everything; renders nothing when none apply. */
+  agents?: ReactNode
   /** Sticky filter bar, rendered first. */
   filterBar?: ReactNode
   /** Shown instead of results when a filter matches nothing. */
@@ -23,7 +25,7 @@ function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-function Rail({ rail, visitedIds, onOpen, onCta, onClearFilters }: { rail: ZoneRail } & Omit<Props, 'layout' | 'filterBar'>) {
+function Rail({ rail, visitedIds, onOpen, onCta, onClearFilters }: { rail: ZoneRail } & Omit<Props, 'layout' | 'filterBar' | 'agents'>) {
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const [canPrev, setCanPrev] = useState(false)
   const [canNext, setCanNext] = useState(false)
@@ -151,11 +153,12 @@ function Rail({ rail, visitedIds, onOpen, onCta, onClearFilters }: { rail: ZoneR
  * peeking next card on mobile, arrow buttons on desktop, no auto-advance. Category pills jump to
  * their rail; they do not filter.
  */
-export function ZoneRails({ layout, filterBar, onClearFilters, visitedIds, onOpen, onCta }: Props) {
+export function ZoneRails({ layout, agents, filterBar, onClearFilters, visitedIds, onOpen, onCta }: Props) {
   const hasContent = layout.rails.length > 0
   if (!hasContent) {
     return (
       <div className="zone-rails zone-rails--empty" data-testid="zone-rails-empty">
+        {agents}
         <p className="m-0">Tell us your postcode and we&apos;ll show what applies to your home.</p>
         <SecondaryCircleCta ariaLabel="Add your postcode" href={ROUTES.START}>
           ADD
@@ -170,6 +173,7 @@ export function ZoneRails({ layout, filterBar, onClearFilters, visitedIds, onOpe
   const otherRails = layout.rails.filter((r) => r.kind !== 'hero')
   return (
     <div className="zone-rails" data-testid="zone-rails">
+      {agents}
       {heroRails.map((rail) => (
         <Rail key={rail.id} rail={rail} visitedIds={visitedIds} onOpen={onOpen} onCta={onCta} />
       ))}

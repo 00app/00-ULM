@@ -13,6 +13,8 @@ export type PostcodeGeoSnapshot = {
   adminDistrict?: string
   /** Civil parish / town (e.g. "Littlehampton"); absent for unparished areas. */
   parish?: string
+  /** "England" | "Wales" | "Scotland" | "Northern Ireland". */
+  country?: string
 }
 
 export async function fetchPostcodeGeo(postcode: string): Promise<PostcodeGeoSnapshot> {
@@ -36,6 +38,7 @@ export async function fetchPostcodeGeo(postcode: string): Promise<PostcodeGeoSna
         parliamentary_constituency?: string
         admin_district?: string
         parish?: string
+        country?: string
       }
     }
     const r = json?.result
@@ -50,6 +53,7 @@ export async function fetchPostcodeGeo(postcode: string): Promise<PostcodeGeoSna
       parliamentaryConstituency: r.parliamentary_constituency,
       adminDistrict: r.admin_district ?? r.codes?.admin_district,
       parish: r.parish && !/unparished/i.test(r.parish) ? r.parish : undefined,
+      country: r.country,
     }
   } catch {
     return empty

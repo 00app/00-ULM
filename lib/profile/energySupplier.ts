@@ -23,6 +23,12 @@ export const ENERGY_SUPPLIER_OTHER_STORAGE_KEY = 'profile_energy_supplier_other'
 export const ENERGY_SUPPLIER_SKIP = 'SKIP'
 
 export const ENERGY_SUPPLIER_OTHER = 'OTHER'
+/**
+ * "Just moved in": the supplier is not known yet (a new home starts on the current supplier's
+ * deemed contract). Treated as unknown by every calculation (normaliseEnergySupplier → ''), and
+ * choosing it switches on the Moving Home agent (lib/zoneAgents/moving/movedState.ts).
+ */
+export const ENERGY_SUPPLIER_JUST_MOVED = 'JUST_MOVED'
 export const ENERGY_SUPPLIER_OTHER_MAX_LENGTH = 60
 
 export type KnownEnergySupplier =

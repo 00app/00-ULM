@@ -46,6 +46,7 @@ Distilled from the June 2026 product review (`claude/forked-project-review-9naqz
 | `projects` model | Persist active saves (switch, grant, install) with status | Neon schema, new API routes |
 | Zai persistence | **Done** — transcript saved and restored per user / guest session; `zai_messages` recreated on production 2026-10-15 | `app/api/zai/route.ts`, `lib/zai/chatHistory.ts`, migration `20260704` |
 | Household living | **Done (manual)** — signed-in users record bills and contracts by group (home, utilities, vehicle, subscriptions), soft-end them, see a static switching tip per category, and run a moving-house checklist. Signed-in only; no guest path by design (financial data). Live on production 2026-10-16 | `household_accounts`, `household_moves` (migration `20261015`), `lib/household/*`, `app/api/household/**`, `/settings/living/[group]`, `/settings/living/move` |
+| Zone agents | **Started** — Zone launches agents switched on by the user's own data. First: **Moving Home** ("Just moved in" on the supplier question, 16 sourced tasks from council tax to insurance, live postcode figures, progress in `household_moves`). See [ZONE-AGENTS.md](ZONE-AGENTS.md) | `lib/zoneAgents/**`, `app/agents/**`, `app/api/agents/moving`, `ZoneAgentsRail` |
 | Bill ingestion | OCR / manual bill → utilities journey seed. Manual entry now exists via Household living; OCR not started | Upload API, Gemini extract |
 | Grants as first project type | Grant application tracker | `grants` journey, Solo Focus handoff |
 
