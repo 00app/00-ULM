@@ -1,7 +1,8 @@
 /**
  * Zone recommendation card — one anatomy for every card on the Zone rails.
  *
- * Slots, in order: label · headline · whyYou · primaryCta · secondaryCta · badge.
+ * Slots, in order: label · headline · typical saving (library cards) · whyYou · primaryCta ·
+ * secondaryCta · badge.
  *
  * Mechanical truth lives HERE, not in the view:
  *  - A £ figure only survives if it carries a `savingSource`. No source → the figure is dropped
@@ -14,14 +15,38 @@ import type { JourneyId } from '@/lib/journeys'
 
 export type RecCardSize = 'large' | 'small'
 
-/** Where a £ figure came from. `sample` figures are always badged "Sample data". */
+/**
+ * Where a £ figure came from. `sample` figures are always badged "Sample data". `typical` is a
+ * vetted action-library reference figure (what the action typically returns, cited and dated) —
+ * shown as "Typically worth £N a year", never as the user's own "Save £N a year".
+ */
 export type SavingSource = {
-  kind: 'verified' | 'sample'
+  kind: 'verified' | 'sample' | 'typical'
   /** Short human name shown/cited, e.g. "Ofgem" or "Octopus Energy". */
   name: string
   url?: string | null
   /** ISO date or display date of the source, when known. */
   date?: string | null
+}
+
+/**
+ * A library action's reference value. `phrase` follows the source's own wording: "Worth up to",
+ * "Typically worth" or "Worth … on average"; `perYear` adds "a year" where the figure is annual.
+ */
+export type TypicalSaving = {
+  gbp: number
+  phrase: 'up_to' | 'typical' | 'average'
+  perYear: boolean
+  source: SavingSource
+}
+
+/** "Worth up to £2,000" / "Typically worth £150 a year" / "Worth £3,428 a year on average". */
+export function formatTypicalSaving(t: TypicalSaving): { before: string; figure: string; after: string } {
+  const figure = `£${Math.round(t.gbp).toLocaleString('en-GB')}`
+  const year = t.perYear ? ' a year' : ''
+  if (t.phrase === 'up_to') return { before: 'Worth up to ', figure, after: year }
+  if (t.phrase === 'average') return { before: 'Worth ', figure, after: `${year} on average` }
+  return { before: 'Typically worth ', figure, after: year }
 }
 
 export type RecCardCtaKind =
@@ -64,6 +89,15 @@ export type RecCardModel = {
   /** Verified £/yr saving, or null. Never set without `savingSource`. */
   savingGbpPerYear: number | null
   savingSource: SavingSource | null
+  /**
+   * Library cards only: the action's typical annual value with its citation. Kept apart from
+   * `savingGbpPerYear` so it never becomes the headline or the "verified £" sort key.
+   */
+  typicalSaving: TypicalSaving | null
+  /** Library cards only: the action's key fact, one sentence from its cited detail. */
+  insight: string | null
+  /** Built from the vetted action library (fixed schemes, checks, how-tos), not a bill offer. */
+  fromLibrary: boolean
   /** Slot 3 — one sentence tied to the user's data. */
   whyYou: string
   /** Slot 4. */
@@ -90,6 +124,9 @@ export type RecCardInput = {
   actionWording: string
   savingGbpPerYear?: number | null
   savingSource?: SavingSource | null
+  typicalSaving?: TypicalSaving | null
+  insight?: string | null
+  fromLibrary?: boolean
   whyYou: string | null | undefined
   primaryCta?: RecCardCta
   secondaryCta?: RecCardCta
@@ -128,6 +165,13 @@ export function resolveRecCard(input: RecCardInput): RecCardModel | null {
   const source = input.savingSource && input.savingSource.name.trim() ? input.savingSource : null
   const keepFigure = wantsFigure && source != null
   const gbp = keepFigure ? Math.round(input.savingGbpPerYear as number) : null
+  // Same source rule for the typical figure, and a verified figure always wins over it.
+  const t = input.typicalSaving
+  const typicalSaving =
+    gbp == null && t && Number.isFinite(t.gbp) && t.gbp > 0 && t.source?.name?.trim()
+      ? { ...t, gbp: Math.round(t.gbp) }
+      : null
+  const insight = input.insight?.trim() || null
 
   return {
     id: input.id,
@@ -138,13 +182,19 @@ export function resolveRecCard(input: RecCardInput): RecCardModel | null {
     actionWording: action,
     savingGbpPerYear: gbp,
     savingSource: gbp != null ? source : null,
+    typicalSaving,
+    insight,
+    fromLibrary: Boolean(input.fromLibrary),
     whyYou,
     primaryCta: input.primaryCta ?? { kind: 'open', label: 'See how' },
     secondaryCta: input.secondaryCta,
     badge: gbp != null && source?.kind === 'sample' ? SAMPLE_DATA_BADGE : undefined,
     dependsOnBank: Boolean(input.dependsOnBank),
     // A card that shows a verified £ obviously saves money, whatever else was passed.
-    impact: { money: Boolean(input.impact?.money) || gbp != null, carbon: Boolean(input.impact?.carbon) },
+    impact: {
+      money: Boolean(input.impact?.money) || gbp != null || typicalSaving != null,
+      carbon: Boolean(input.impact?.carbon),
+    },
     pace: input.pace === 'long' ? 'long' : 'now',
     openRef: input.openRef,
   }
@@ -192,21 +242,28 @@ const TRAVEL_JOURNEYS = new Set<JourneyId>(['travel', 'holidays'])
 
 /** One sentence from the user's real data, or null. Never filler. */
 export function buildWhyYou(category: JourneyId, f: WhyYouFacts): string | null {
-  if (ENERGY_JOURNEYS.has(category)) {
+  const home = f.homeType ? HOME_WORD[f.homeType.toUpperCase()] : undefined
+  const power = f.powerType ? POWER_WORD[f.powerType.toUpperCase()] : undefined
+  const hh = f.household ? HOUSEHOLD_WORD[f.household.toUpperCase()] : undefined
+  // Pick the fact that is actually about this kind of card. The supplier is only relevant to
+  // energy bills; how you heat is what matters for home and solar; water use follows the size of
+  // the household. Live-found: water and radiator cards all said "You're with Octopus Energy."
+  if (category === 'utilities') {
     if (f.bankSupplierName && f.monthlyEnergySpendGbp && f.monthlyEnergySpendGbp > 0) {
       return `You pay £${Math.round(f.monthlyEnergySpendGbp)}/mo to ${f.bankSupplierName}.`
     }
     if (f.supplierName) return `You're with ${f.supplierName}.`
-    const home = f.homeType ? HOME_WORD[f.homeType.toUpperCase()] : undefined
-    const power = f.powerType ? POWER_WORD[f.powerType.toUpperCase()] : undefined
+  }
+  if (category === 'water' && hh) return `${hh}.`
+  if (ENERGY_JOURNEYS.has(category)) {
     if (home && power) return `You heat a ${home} with ${power}.`
+    if (f.supplierName) return `You're with ${f.supplierName}.`
     if (home) return `You live in a ${home}.`
   }
   if (TRAVEL_JOURNEYS.has(category)) {
     const t = f.transport ? TRANSPORT_WORD[f.transport.toUpperCase()] : undefined
     if (t) return `You get around ${t}.`
   }
-  const hh = f.household ? HOUSEHOLD_WORD[f.household.toUpperCase()] : undefined
   if (hh && !ENERGY_JOURNEYS.has(category) && !TRAVEL_JOURNEYS.has(category)) return `${hh}.`
   if (f.place && f.place.trim()) return `Based on where you live, ${f.place.trim()}.`
   return null
@@ -250,6 +307,9 @@ export function buildBankConnectCard(): RecCardModel {
     actionWording: 'Connect your bank',
     savingGbpPerYear: null,
     savingSource: null,
+    typicalSaving: null,
+    insight: null,
+    fromLibrary: false,
     whyYou: 'See your real savings, not estimates.',
     primaryCta: { kind: 'connect_bank', label: 'Connect' },
     secondaryCta: { kind: 'snooze', label: 'Not now' },
@@ -266,6 +326,9 @@ export function buildBankConnectCard(): RecCardModel {
  */
 export function withConnectToSeeSaving(card: RecCardModel): RecCardModel {
   if (!BANK_DEPENDENT_CATEGORIES.has(card.category)) return card
+  // Library actions (Warm Home Discount, debt grants, meter readings…) are not priced from your
+  // bills, so "Connect to see your saving" would promise something the bank data can't give.
+  if (card.fromLibrary) return card
   return {
     ...card,
     dependsOnBank: true,

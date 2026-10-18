@@ -9445,6 +9445,23 @@ input[type="radio"]:not(#v2):active {
   color: inherit !important;
 }
 .zone-rec-card .zone-rec-source:not(#v2) { opacity: 0.8; font-size: 14px !important; }
+/* Library cards: the action's key fact, then the reason it is for this user (smaller). */
+.zone-rec-card .zone-rec-insight:not(#v2) {
+  font-size: 16px !important;
+  line-height: 1.45 !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  color: inherit !important;
+}
+.zone-rec-card .zone-rec-insight:not(#v2) + .zone-rec-why { opacity: 0.8; font-size: 14px !important; }
+/* Library cards: the action's typical annual value ("Typically worth £150 a year"). */
+.zone-rec-card .zone-rec-typical:not(#v2) {
+  font-family: var(--font-text) !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: inherit !important;
+}
 .zone-rec-actions {
   display: flex;
   flex-wrap: wrap;

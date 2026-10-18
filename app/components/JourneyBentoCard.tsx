@@ -72,7 +72,13 @@ import {
   wrapResultSupportingAsterisks,
   isAcceptableZoneJourneyHeadline,
 } from '@/lib/soloFocusCopy'
-import { isLibraryActionCardId } from '@/lib/actions/actionLibrary'
+import { isLibraryActionCardId, libraryActionForCardId } from '@/lib/actions/actionLibrary'
+import {
+  libraryCarbonTraceable,
+  libraryMoneyLabel,
+  librarySourceLine,
+  typicalSavingForLibraryCard,
+} from '@/lib/zone/recCardFromZone'
 import { sanitizeArchitectProseForJourney } from '@/lib/zone/contentProseSanitize'
 import {
   shouldShowZoneEstimatedInsightStrip,
@@ -233,6 +239,7 @@ export interface JourneyBentoCardProps {
   deepDiveInProgress?: boolean
 }
 
+
 export function JourneyBentoCard({
   journeyId,
   title,
@@ -347,6 +354,10 @@ export function JourneyBentoCard({
    * for Rock/Tips ("never substitute journey wall hooks"); reused here for the same reason.
    */
   const isLibraryWallCard = isLibraryActionCardId(cardId ?? '')
+  const libraryAction = isLibraryWallCard ? libraryActionForCardId(cardId ?? '') : null
+  // Same traceability rule as the Zone tile: a library £ is shown only when its source states it.
+  const libraryTypical = libraryAction ? typicalSavingForLibraryCard(cardId ?? '') : null
+  const libraryMoneyLabelText = libraryMoneyLabel(libraryTypical)
   const headline = isLibraryWallCard
     ? clampRockTipHeadline(title || String(journeyId ?? ''))
     : clampZoneBentoHeadline(
@@ -1020,7 +1031,10 @@ export function JourneyBentoCard({
           focusJourney
         )
       : isLibraryWallCard
-        ? headlineFromRockHabitForSoloFocus(String(effectiveTitleRaw), crawlerTip, focusJourney)
+        ? // The action itself is the heading ("Line up your Warm Home Discount"); its detail is
+          // the insight underneath. Deriving the heading from the detail (as before) printed the
+          // same sentence twice and never named the scheme.
+          headline
         : headlineFromExpandedHook(expandedHeadlineSource, focusJourney)
     const titleLooksEstimated = /^\s*ESTIMATED AUDIT\b/i.test(String(displayTitle ?? title ?? ''))
     const useEstimated =
@@ -1093,8 +1107,9 @@ export function JourneyBentoCard({
         headline={recommendationTitle}
         insightSource={insightDisplay}
         journeyId={focusCategoryJourneyId}
-        moneyGbp={motherMoneyTargetGbp}
-        carbonKg={carbonTargetKg}
+        // Library prose is the vetted detail only; the figure lives in the metrics, if traceable.
+        moneyGbp={libraryAction ? 0 : motherMoneyTargetGbp}
+        carbonKg={libraryAction ? 0 : carbonTargetKg}
         userPostcode={profilePostcode ?? state.profile?.postcode}
         sourceDisplayName={handoffAttribution.sourceDisplayName}
         auditHeaderLocality={state.locationState?.locationName ?? undefined}
@@ -1105,8 +1120,9 @@ export function JourneyBentoCard({
       />
     ) : null
 
-    const sourceFooter =
-      partnerHttp
+    const sourceFooter = libraryAction
+      ? librarySourceLine(libraryAction)
+      : partnerHttp
         ? ''
         : 'No live retailer link this week — figures still come from your saved audit row.'
     const discovery =
@@ -1212,6 +1228,9 @@ export function JourneyBentoCard({
                     }
                     moneyGbp={animatedMoneyGbp}
                     carbonKg={animatedCarbonKg}
+                    moneyLabel={libraryMoneyLabelText}
+                    hideMoney={Boolean(libraryAction) && !libraryTypical}
+                    hideCarbon={Boolean(libraryAction) && !libraryCarbonTraceable(libraryAction!)}
                     estimated={useEstimated}
                     impactPulse={impactAnswerPulse}
                     ctaUrl={soloHandoff.ctaUrl}

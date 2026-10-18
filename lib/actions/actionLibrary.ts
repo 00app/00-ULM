@@ -34,10 +34,25 @@ import { isValidJourneyId } from '@/lib/journeys'
  * own host — so anything that rewrites them by category can only make them wrong.
  */
 export function isLibraryActionCardId(cardId: string): boolean {
+  return libraryActionForCardId(cardId) != null
+}
+
+/**
+ * The library action behind any card built from it: `journey-<actionId>` (Zone cards) or
+ * `rock-<actionId>` (Today / Start-here habits drawn from the same library). Null otherwise.
+ */
+export function libraryActionForAnyCardId(cardId: string): ZoneAction | null {
   const id = String(cardId ?? '').trim()
-  if (!id.startsWith('journey-')) return false
+  if (id.startsWith('rock-')) return ZONE_ACTIONS.find((a) => a.id === id.slice('rock-'.length)) ?? null
+  return libraryActionForCardId(id)
+}
+
+/** The library action behind a `journey-<actionId>` card id, or null for any other card. */
+export function libraryActionForCardId(cardId: string): ZoneAction | null {
+  const id = String(cardId ?? '').trim()
+  if (!id.startsWith('journey-')) return null
   const actionId = id.slice('journey-'.length)
-  return ZONE_ACTIONS.some((a) => a.id === actionId)
+  return ZONE_ACTIONS.find((a) => a.id === actionId) ?? null
 }
 
 export function isValidZoneCardSlug(slug: string): boolean {
@@ -197,18 +212,18 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     id: 'priority-services-register',
     action: 'Join the Priority Services Register',
     detail:
-      'Free from every energy supplier. Gets you priority reconnection, free meter moves and advance warning of outages.',
+      'Every energy supplier keeps one. It gets you priority support in an emergency, advance notice of planned power cuts and help moving a prepayment meter you cannot safely reach.',
     detailWithSupplier:
-      'Free from every energy supplier, {supplier} included. Gets you priority reconnection, free meter moves and advance warning of outages.',
+      'Every energy supplier keeps one, {supplier} included. It gets you priority support in an emergency, advance notice of planned power cuts and help moving a prepayment meter you cannot safely reach.',
     verb: 'CLAIM',
     cost: 'FREE',
     recurrence: 'ONCE',
     bucket: 'utilities',
     valueGbp: 0,
     valueKg: 0,
-    url: 'https://www.ofgem.gov.uk/information-consumers/energy-advice-households/getting-extra-help-priority-services-register',
-    source: 'Ofgem Priority Services Register — free scheme run by suppliers',
-    verifiedOn: '2026-07-31',
+    url: 'https://www.ofgem.gov.uk/your-energy-supply/how-manage-your-energy-supply/join-your-suppliers-priority-services-register',
+    source: 'Ofgem — join your supplier’s Priority Services Register',
+    verifiedOn: '2026-10-18',
     gates: { financial: ['TIGHT', 'GETTING_BY'] },
   },
 
@@ -281,9 +296,9 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     bucket: 'utilities',
     valueGbp: 60,
     valueKg: 0,
-    url: 'https://www.citizensadvice.org.uk/consumer/energy/energy-supply/problems-with-your-energy-supply/problems-with-your-energy-bill/',
-    source: 'Citizens Advice — energy billing and meter readings',
-    verifiedOn: '2026-07-31',
+    url: 'https://www.citizensadvice.org.uk/consumer/energy/energy-supply/your-energy-meter/how-to-read-your-energy-meter/',
+    source: 'Citizens Advice — how to read your gas or electricity meter',
+    verifiedOn: '2026-10-18',
   },
   {
     id: 'heating-controls-timing',
@@ -572,9 +587,9 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     bucket: 'home',
     valueGbp: 100,
     valueKg: 300,
-    url: 'https://www.moneysavingexpert.com/utilities/reduce-boiler-flow-temperature/',
-    source: 'MSE boiler flow temperature guide — combi boilers only',
-    verifiedOn: '2026-07-31',
+    url: 'https://moneysavingboilerchallenge.com/',
+    source: 'Money Saving Boiler Challenge (Nesta) — combi flow temperature 60°C or below',
+    verifiedOn: '2026-10-18',
     requires: { heating: ['GAS', 'MIX'] },
     priorityBoost: 15,
   },
@@ -681,16 +696,16 @@ export const ZONE_ACTIONS: ZoneAction[] = [
   {
     id: 'car-tyre-pressure',
     action: 'Check your tyre pressures',
-    detail: 'Under-inflated tyres burn measurably more fuel and wear out sooner. Free at most forecourts.',
+    detail: 'Under-inflated tyres use more fuel and wear out sooner. Check them against the pressures in your handbook.',
     verb: 'DO',
     cost: 'FREE',
     recurrence: 'ONGOING',
     bucket: 'travel',
     valueGbp: 70,
     valueKg: 120,
-    url: 'https://www.gov.uk/government/publications/tyre-safety-and-maintenance',
-    source: 'GOV.UK tyre safety and maintenance',
-    verifiedOn: '2026-07-31',
+    url: 'https://www.tyresafe.org/the-checks/check-your-pressures/',
+    source: 'TyreSafe — how to check tyre pressure',
+    verifiedOn: '2026-10-18',
     requires: { transport: ['CAR', 'MIX'] },
   },
   {
@@ -751,9 +766,9 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     bucket: 'travel',
     valueGbp: 120,
     valueKg: 0,
-    url: 'https://www.gov.uk/government/publications/get-around-for-2-with-the-bus-fare-cap',
-    source: 'GOV.UK bus fare cap — England outside London',
-    verifiedOn: '2026-07-31',
+    url: 'https://www.gov.uk/guidance/3-national-bus-fare-cap',
+    source: 'GOV.UK £3 national bus fare cap — routes included, England',
+    verifiedOn: '2026-10-18',
     gates: { transport: ['PUBLIC', 'MIX'] },
   },
 
@@ -833,9 +848,9 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     bucket: 'tech',
     valueGbp: 180,
     valueKg: 0,
-    url: 'https://www.ofcom.org.uk/phones-and-broadband/saving-money/broadband-and-phone-contracts',
-    source: 'Ofcom end-of-contract notifications',
-    verifiedOn: '2026-07-31',
+    url: 'https://www.ofcom.org.uk/phones-and-broadband/saving-money/in-or-out',
+    source: 'Ofcom — are you in or out of contract?',
+    verifiedOn: '2026-10-18',
   },
   {
     id: 'prescription-prepayment',
@@ -892,9 +907,9 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     bucket: 'utilities',
     valueGbp: 120,
     valueKg: 0,
-    url: 'https://www.citizensadvice.org.uk/consumer/energy/energy-supply/your-energy-meter/who-is-responsible-for-paying-the-energy-bill/',
-    source: 'Citizens Advice — responsibility for energy bills in shared housing',
-    verifiedOn: '2026-07-31',
+    url: 'https://www.citizensadvice.org.uk/consumer/energy/energy-supply/problems-with-your-energy-bill/check-if-youre-responsible-for-paying-an-energy-bill/',
+    source: 'Citizens Advice — check if you’re responsible for paying an energy bill',
+    verifiedOn: '2026-10-18',
     requires: { household: ['SHARED'] },
   },
   {
@@ -937,9 +952,9 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     bucket: 'money',
     valueGbp: 200,
     valueKg: 0,
-    url: 'https://www.moneyhelper.org.uk/en/everyday-money/budgeting/how-to-cancel-a-subscription',
-    source: 'MoneyHelper (MaPS) — cancelling subscriptions and continuous payment authorities',
-    verifiedOn: '2026-07-31',
+    url: 'https://www.moneyhelper.org.uk/en/everyday-money/banking/direct-debits-and-standing-orders',
+    source: 'MoneyHelper (MaPS) — Direct Debits, standing orders and recurring card payments, and how to cancel them',
+    verifiedOn: '2026-10-18',
   },
   {
     id: 'community-food-club',
@@ -951,9 +966,9 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     bucket: 'food',
     valueGbp: 400,
     valueKg: 200,
-    url: 'https://www.familyaction.org.uk/food-clubs/',
-    source: 'Family Action food clubs — membership-based community pantries',
-    verifiedOn: '2026-07-31',
+    url: 'https://family-action.org.uk/get-support/food-clubs/',
+    source: 'Family Action FOOD Clubs — low-cost good-quality food, England and Wales',
+    verifiedOn: '2026-10-18',
     gates: { financial: ['TIGHT'] },
     priorityBoost: 15,
   },
@@ -981,9 +996,9 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     bucket: 'utilities',
     valueGbp: 40,
     valueKg: 90,
-    url: 'https://energysavingtrust.org.uk/advice/reducing-your-energy-use-at-home/',
-    source: 'Energy Saving Trust — appliance energy use',
-    verifiedOn: '2026-07-31',
+    url: 'https://energysavingtrust.org.uk/top-five-energy-consuming-home-appliances/',
+    source: 'Energy Saving Trust — appliances that heat water use more electricity',
+    verifiedOn: '2026-10-18',
   },
 
   // ---------------------------------------------------------------------------------------

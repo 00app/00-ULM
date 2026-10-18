@@ -102,6 +102,14 @@ import type { ZoneAuditState } from '@/lib/zone/zoneAuditUi'
 import { isDiscoveryInjectCard, shouldCloseMarkPinkOnly } from '@/lib/zone/directorsOrder'
 import { clearSoloFocusMemory } from '@/lib/zone/sessionMemory'
 import type { PatternShiftCloseHandler } from '@/lib/zone/patternShiftClose'
+import { libraryActionForAnyCardId } from '@/lib/actions/actionLibrary'
+import {
+  libraryCarbonTraceable,
+  libraryMoneyLabel,
+  librarySourceLine,
+  typicalSavingForLibraryCard,
+} from '@/lib/zone/recCardFromZone'
+import { clampRockTipHeadline } from '@/lib/soloFocusCopy'
 import {
   persistSoloFocusCardContext,
   normalizeSoloFocusJourneyId,
@@ -496,7 +504,13 @@ export function SoloFocusOverlay({
      headlineFromExpandedHook's 20-word floor would otherwise silently swap it for the one
      hardcoded sentence per category (EXPANDED_JOURNEY_HOOK). */
   const isHeadlineExemptTip = isRockHabitTip || isDiscoveryInjectCard(cardId)
-  const recommendationTitle = isHeadlineExemptTip
+  // Habits drawn from the vetted action library (rock-<actionId>): the habit's own title is the
+  // heading, the library detail is the insight, and a £ shows only when its source states it.
+  const libraryAction = libraryActionForAnyCardId(String(cardId ?? ''))
+  const libraryTypical = libraryAction ? typicalSavingForLibraryCard(String(cardId ?? '')) : null
+  const recommendationTitle = libraryAction
+    ? clampRockTipHeadline(String(effectiveTitleRaw || libraryAction.action))
+    : isHeadlineExemptTip
     ? headlineFromRockHabitForSoloFocus(
         String(effectiveTitleRaw),
         (displayInsight ?? insight ?? '').trim() || undefined,
@@ -578,27 +592,30 @@ export function SoloFocusOverlay({
           auditHeaderLocality: state.locationState?.locationName ?? undefined,
         })
   const soloFocusCardId = cardId ?? activeCardId ?? (journeyId ? `journey-${journeyId}` : '')
+  // Library habits never wait on category research: their copy and figures are already vetted.
   const showMotherComputing =
-    !overlayResearchSettled && researchCategoryCoverage != null
+    !libraryAction && !overlayResearchSettled && researchCategoryCoverage != null
   const isDiscoveryMotherCard = isDiscoveryInjectCard(cardId)
   const trueTipSectionsEl = !showMotherComputing ? (
     <SoloFocusProseStack
       headline={recommendationTitle}
       insightSource={insightParaSource}
       journeyId={String(displayJourneyId ?? journeyId ?? 'home')}
-      moneyGbp={motherMoneyTargetGbp}
-      carbonKg={carbonTargetKg}
+      // Library prose is the vetted detail only; the figure lives in the metrics, if traceable.
+      moneyGbp={libraryAction ? 0 : motherMoneyTargetGbp}
+      carbonKg={libraryAction ? 0 : carbonTargetKg}
       userPostcode={profilePostcode ?? state.profile?.postcode}
       sourceDisplayName={handoffAttribution.sourceDisplayName}
       auditHeaderLocality={state.locationState?.locationName ?? undefined}
       locality={state.locationState?.locationName ?? undefined}
       postcode={profilePostcode ?? state.profile?.postcode ?? undefined}
-      contentMode={isRockHabitTip ? 'rock' : 'journey'}
+      contentMode={libraryAction ? 'library' : isRockHabitTip ? 'rock' : 'journey'}
       habitTitle={isRockHabitTip ? String(title || displayTitle || recommendation).trim() : undefined}
     />
   ) : null
-  const sourceFooter =
-    isDiscoveryMotherCard || partnerHttp
+  const sourceFooter = libraryAction
+    ? librarySourceLine(libraryAction)
+    : isDiscoveryMotherCard || partnerHttp
       ? ''
       : 'No live retailer link this week — figures still come from your saved audit row.'
   const effectiveHandoffLabel = resolveSoloFocusCtaLabel({
@@ -964,6 +981,9 @@ export function SoloFocusOverlay({
                         sourceFooter={sourceFooter}
                         moneyGbp={animatedMoneyGbp}
                         carbonKg={animatedCarbonKg}
+                        moneyLabel={libraryMoneyLabel(libraryTypical)}
+                        hideMoney={Boolean(libraryAction) && !libraryTypical}
+                        hideCarbon={Boolean(libraryAction) && !libraryCarbonTraceable(libraryAction!)}
                         estimated={useEstimated}
                         impactPulse={impactAnswerPulse}
                         ctaUrl={soloHandoff.ctaUrl}

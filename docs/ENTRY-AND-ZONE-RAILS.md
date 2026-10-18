@@ -63,6 +63,13 @@ One component, one model: `app/components/ZoneRecCard.tsx` + `lib/zone/recCard.t
 | 5 | `secondaryCta` | Optional, low emphasis |
 | 6 | `badge` | Optional — only ever **"Sample data"** |
 
+**Library cards (2026-10-18).** Cards built from the vetted action library (`journey-<id>` and the `rock-<id>` habits drawn from it) add two slots after the headline: a **typical saving** ("Typically worth £150 a year", "Worth up to £2,000", "Worth £3,428 a year on average", with "Source: gov.uk, checked Jul 2026") and an **insight**, the action's key fact from its cited detail. The action stays the headline; a typical figure is never "Save £N a year" and never the verified-£ sort key. `whyYou` follows below in smaller type.
+
+- **Traceability rule:** a library £ is shown only when that exact amount appears in the action's own detail or source text, worded as the text words it ("up to", "average"). 7 of 63 actions pass; the other library values are internal estimates and show no figure. Carbon follows the same rule (no library kg figure is stated in a source, so none show). `typicalSavingForLibraryCard` / `libraryCarbonTraceable` in `lib/zone/recCardFromZone.ts`.
+- **whyYou picks the relevant fact:** the supplier only on utilities cards, how you heat on home and solar, household size on water.
+- **Library utilities cards keep their own action:** "Connect to see your saving" is only for bill offers, never Warm Home Discount or a debt grant (`fromLibrary`).
+- **Solo Focus for library cards** (both `JourneyBentoCard` and `SoloFocusOverlay`): heading = the action, lead = the detail once, a source line with the full citation and month checked, the £ box only for a traceable figure (labelled "Typical saving a year" / "Worth up to" / "Average a year"), no "0 kg" box, never "Computing…", and the prose builder adds no figure sentence of its own.
+
 Sizes: `large` (recommendations) and `small` (Today tips).
 
 ### Rules enforced in `resolveRecCard`, not in the view
@@ -73,7 +80,7 @@ Sizes: `large` (recommendations) and `small` (Today tips).
 
 ### What counts as a *verified* £ on Zone
 
-`lib/zone/recCardFromZone.ts`. `source_name` / `source_date` on view-model cards are stamped on every card (`VERIFIED_SOURCE_DATE = 'April 2026'`), so they prove a citation exists, **not** that the figure is verified. The only verification signal used is the Neon research row for the category: `latestSavingGbp` or `latestVerifiedGbp` **with** a `latestSourceUrl`. The source name shown is that URL's host. Library action cards, wall tips and Today habits never show a £ (indicative figures).
+`lib/zone/recCardFromZone.ts`. `source_name` / `source_date` on view-model cards are stamped on every card (`VERIFIED_SOURCE_DATE = 'April 2026'`), so they prove a citation exists, **not** that the figure is verified. The only verification signal used is the Neon research row for the category: `latestSavingGbp` or `latestVerifiedGbp` **with** a `latestSourceUrl`. The source name shown is that URL's host. Wall tips and Today habits never show a £ (indicative figures); library cards show only a traceable typical figure, labelled as typical (above).
 
 ---
 

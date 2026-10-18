@@ -12,6 +12,12 @@ interface MotherCardRendererProps {
   actionLine?: string | null
   moneyGbp: number
   carbonKg: number
+  /** Label over the £ figure; defaults to "Saving". Library cards say "Typical saving a year". */
+  moneyLabel?: string
+  /** Drop the CO2 column: purely financial actions, or a kg figure no source states. */
+  hideCarbon?: boolean
+  /** Drop the £ column when the figure cannot be traced to a source (library estimates). */
+  hideMoney?: boolean
   /** True when this journey has no real answers yet and the figures below are a mid-band guess
       from the profile baseline, not the user's own answers — must say so, never assert a number
       silently as if it were verified. */
@@ -38,6 +44,9 @@ export function MotherCardRenderer({
   actionLine,
   moneyGbp,
   carbonKg,
+  moneyLabel = 'Saving',
+  hideCarbon = false,
+  hideMoney = false,
   estimated = false,
   impactPulse = false,
   ctaUrl,
@@ -79,17 +88,21 @@ export function MotherCardRenderer({
           {actionLine.trim()}
         </p>
       ) : null}
+      {hideMoney && hideCarbon ? null : (
       <div
-        className={`solo-focus-impact-hero insight-to-impact card-impact-grid solo-focus-impact-grid grid grid-cols-2 gap-x-10 gap-y-0 w-full min-w-0${impactPulse ? ' solo-focus-impact-answer-pulse' : ''}`}
+        className={`solo-focus-impact-hero insight-to-impact card-impact-grid solo-focus-impact-grid grid ${hideCarbon || hideMoney ? 'grid-cols-1' : 'grid-cols-2'} gap-x-10 gap-y-0 w-full min-w-0${impactPulse ? ' solo-focus-impact-answer-pulse' : ''}`}
       >
+        {hideMoney ? null : (
         <div className="solo-focus-data-stack data-stack data-stack--tight">
           <span className="data-label" style={{ color: 'var(--color-ink)' }}>
-            Saving{estimated ? ' (estimated)' : ''}
+            {moneyLabel}{estimated ? ' (estimated)' : ''}
           </span>
           <span className="data-value solo-focus-data-value data-stamp-metric" style={{ color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums' }}>
             <StampedMoneyGbp gbp={moneyGbp} />
           </span>
         </div>
+        )}
+        {hideCarbon ? null : (
         <div className="solo-focus-data-stack data-stack data-stack--tight data-stack--secondary solo-focus-carbon-stack">
           <span className="data-label" style={{ color: 'var(--color-ink)' }}>
             {/* "Offset" implies paying someone else to compensate — this app only ever shows
@@ -100,7 +113,9 @@ export function MotherCardRenderer({
             <StampedCarbonKg kg={carbonKg} omitCo2Suffix />
           </span>
         </div>
+        )}
       </div>
+      )}
       {(ctaUrl || onLike || onAskZai) ? (
         <SoloFocusActionTrinity
           ctaUrl={ctaUrl}
