@@ -953,7 +953,7 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     valueGbp: 200,
     valueKg: 0,
     url: 'https://www.moneyhelper.org.uk/en/everyday-money/banking/direct-debits-and-standing-orders',
-    source: 'MoneyHelper (MaPS) — Direct Debits, standing orders and recurring card payments, and how to cancel them',
+    source: 'MoneyHelper (MaPS): Direct Debits, standing orders and recurring card payments, and how to cancel them',
     verifiedOn: '2026-10-18',
   },
   {

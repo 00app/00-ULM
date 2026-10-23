@@ -41,7 +41,7 @@
     "test:property-intelligence": "tsx scripts/verify-property-intelligence.ts",
     "test:truth-ledger": "tsx scripts/verify-truth-ledger.ts",
     "funnel:report": "tsx scripts/funnel-report.ts",
-    "verify": "node scripts/vercel-ensure-native-checks-disabled.mjs && npm run typecheck:ci && npm run lint:ci && npm run test:mechanical-truth && npm run test:rec-cards && npm run test:zone-rails && npm run test:zone-filters && npm run test:bank && npm run test:onboarding-intelligence && npm run test:action-library && npm run test:energy-supplier && npm run test:crisis-routes && npm run test:moving-agent",
+    "verify": "node scripts/vercel-ensure-native-checks-disabled.mjs && npm run typecheck:ci && npm run lint:ci && npm run test:mechanical-truth && npm run test:rec-cards && npm run test:zone-rails && npm run test:zone-filters && npm run test:bank && npm run test:onboarding-intelligence && npm run test:action-library && npm run test:energy-supplier && npm run test:crisis-routes && npm run test:moving-agent && npm run test:subscription-audit",
     "fix:vercel-checks": "node scripts/vercel-ensure-native-checks-disabled.mjs",
     "diagnose:vercel-checks": "node scripts/vercel-diagnose-checks.mjs",
     "audit": "npm audit",
@@ -100,7 +100,8 @@
     "db:repair-mechanical": "tsx scripts/repair-mechanical-12k-truth.ts",
     "db:audit": "tsx scripts/audit-neon-tables.ts",
     "zone:audit-gates": "tsx scripts/audit-zone-research-gates.ts",
-    "db:verify-discovery": "tsx scripts/verify-discovery-schema.ts"
+    "db:verify-discovery": "tsx scripts/verify-discovery-schema.ts",
+    "test:subscription-audit": "tsx scripts/verify-subscription-audit.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

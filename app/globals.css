@@ -10010,3 +10010,160 @@ html.zz-zone-document body {
 .zone-agents:not(#v2) { padding-inline: var(--zone-gutter, 0px); }
 .zone-agents-list:not(#v2) { display: flex; flex-direction: column; gap: 12px; }
 .zone-agent-card:not(#v2) { text-decoration: none; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+
+/* Ask-first subscriptions card (Solo Focus). Chips: white with blue ink and a 2px blue ring;
+   selected chips flip to blue with white ink (8.2:1 both ways). 44px targets throughout. */
+.sub-audit {
+  width: 100%;
+  max-width: 42rem;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 8px 0 32px;
+  color: var(--ink-body-copy);
+}
+.sub-audit__q,
+.sub-audit__headline {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.15;
+  color: var(--ink-body-copy);
+}
+.sub-audit__headline {
+  color: var(--blue);
+  font-size: 26px;
+}
+.sub-audit__hint,
+.sub-audit__source {
+  margin: 0;
+  font-family: var(--font-text), sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink-body-copy);
+}
+.sub-audit__source {
+  color: var(--blue);
+}
+.sub-audit__line {
+  margin: 0;
+  font-family: var(--font-text), sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+}
+.sub-audit__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sub-audit__chip:not(#v2) {
+  appearance: none;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 9999px;
+  border: 0;
+  box-shadow: inset 0 0 0 2px var(--blue);
+  background: var(--white) !important;
+  color: var(--blue) !important;
+  font-family: var(--font-text), sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.2;
+  text-transform: none;
+  cursor: pointer;
+}
+.sub-audit__chip.is-on:not(#v2) {
+  background: var(--blue) !important;
+  color: var(--white) !important;
+}
+.sub-audit__chips--small .sub-audit__chip:not(#v2) {
+  font-size: 14px;
+  padding: 8px 14px;
+}
+.sub-audit__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sub-audit__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 24px;
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+.sub-audit__name {
+  margin: 0;
+  font-family: var(--font-text), sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+}
+.sub-audit__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-text), sans-serif;
+  font-size: 14px;
+}
+.sub-audit__field input {
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  border: 2px solid var(--blue);
+  background: var(--white);
+  color: var(--ink-body-copy);
+  font-size: 16px;
+}
+.sub-audit__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.sub-audit__primary:not(#v2) {
+  appearance: none;
+  border: 0;
+  min-height: 48px;
+  padding: 12px 24px;
+  border-radius: 9999px;
+  background: var(--blue) !important;
+  color: var(--white) !important;
+  font-family: var(--font-cta);
+  font-weight: 900;
+  font-size: 16px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.sub-audit__primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.sub-audit__secondary:not(#v2),
+.sub-audit__link {
+  appearance: none;
+  border: 0;
+  background: transparent !important;
+  color: var(--blue) !important;
+  min-height: 44px;
+  padding: 10px 4px;
+  font-family: var(--font-text), sans-serif;
+  font-size: 15px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+.sub-audit__chip:focus-visible,
+.sub-audit__primary:focus-visible,
+.sub-audit__secondary:focus-visible,
+.sub-audit__link:focus-visible,
+.sub-audit__field input:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
