@@ -59,10 +59,15 @@ import {
 import { resolveZoneCardOfferUrl } from '@/lib/zone/zoneOfferUrl'
 import type { ActionCompletion } from '@/lib/actions/actionTypes'
 import {
+  actionIdFromCardId,
+  clearGuestCompletion,
   fetchServerCompletions,
+  markGuestCompleted,
   mergeCompletions,
+  postActionedCard,
   readGuestCompletions,
 } from '@/lib/actions/actionCompletion'
+import { ZoneDoneGroup } from '@/app/components/ZoneDoneGroup'
 import { isLibraryActionCardId } from '@/lib/actions/actionLibrary'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
@@ -401,6 +406,26 @@ export default function ZonePage({
     return () => {
       cancelled = true
     }
+  }, [])
+
+  /**
+   * "Done it" on a library card. Local first so the card leaves the rails at once; the server
+   * toggle is fire-and-forget (signed-out users get a no-op). The card reappears in the collapsed
+   * Done group, where Undo reverses both.
+   */
+  const handleMarkActionDone = useCallback((actionId: string) => {
+    if (!actionId) return
+    setActionCompletions((prev) => mergeCompletions(prev, markGuestCompleted(actionId)))
+    void postActionedCard(actionId)
+    trackFunnelEvent('cta_click', { card_id: `journey-${actionId}`, cta_label: 'mark_done', page: ROUTES.ZONE })
+  }, [])
+
+  const handleUndoActionDone = useCallback((actionId: string) => {
+    if (!actionId) return
+    clearGuestCompletion(actionId)
+    setActionCompletions((prev) => prev.filter((r) => r.actionId !== actionId))
+    void postActionedCard(actionId)
+    trackFunnelEvent('cta_click', { card_id: `journey-${actionId}`, cta_label: 'undo_done', page: ROUTES.ZONE })
   }, [])
 
   const offerPrefRefreshPendingRef = useRef(false)
@@ -3047,6 +3072,10 @@ export default function ZonePage({
       if (!card || seen.has(card.id)) continue
       if (bankCards.length > 0 && card.openRef.type === 'journey' && card.openRef.id === utilitiesJourneyId) continue
       if (bank.state.status === 'none') card = withConnectToSeeSaving(card)
+      // Library actions get a one-tap "Done it" so finished items move to the Done group.
+      if (card.openRef.type === 'journey' && isLibraryActionCardId(card.openRef.id) && !card.secondaryCta) {
+        card = { ...card, secondaryCta: { kind: 'mark_done', label: 'Done it' } }
+      }
       seen.add(card.id)
       recs.push(card)
     }
@@ -3178,11 +3207,16 @@ export default function ZonePage({
         case 'reset_switch':
           if (key) recordReset(key)
           break
+        case 'mark_done': {
+          const actionId = card.openRef.type === 'journey' ? actionIdFromCardId(card.openRef.id) : null
+          if (actionId) handleMarkActionDone(actionId)
+          break
+        }
         default:
           break
       }
     },
-    [bank, bankAnalysis]
+    [bank, bankAnalysis, handleMarkActionDone]
   )
 
   // Gated on `hydrated` (client-only, flips true in a useEffect): the real copy depends on the
@@ -3756,6 +3790,7 @@ export default function ZonePage({
               onOpen={openRecCard}
               onCta={onRecCta}
               onClearFilters={zoneFilters.clear}
+              doneGroup={<ZoneDoneGroup completions={actionCompletions} onUndo={handleUndoActionDone} />}
               filterBar={
                 railModel.all.length > 0 ? (
                   <ZoneFilterBar

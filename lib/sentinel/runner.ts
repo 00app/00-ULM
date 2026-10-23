@@ -1,6 +1,6 @@
 import { PRICE_CAP_SOURCE_URL, REG_GB_BASE_G_PER_KWH } from '@/lib/brains/constants'
 import {
-  APRIL_2026_TRUTH_PENCE,
+  CURRENT_CAP_UNIT_PENCE,
   buildAuditBaselineMotherCopy,
   deriveGridTier,
   ENGINE_PRICE_CAP_TYPICAL_GBP,
@@ -334,8 +334,8 @@ async function buildHomeMotherChildState(params: {
   }
   const grantCarbonKg = Math.max(1, Math.round(grounded.carbon_kg))
 
-  const elec = APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH
-  const gas = APRIL_2026_TRUTH_PENCE.GAS_PER_KWH
+  const elec = CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH
+  const gas = CURRENT_CAP_UNIT_PENCE.GAS_PER_KWH
   const baselineCopy = buildAuditBaselineMotherCopy({
     locality,
     postcode: params.postcode,

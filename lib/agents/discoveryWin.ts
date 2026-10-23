@@ -4,7 +4,7 @@
  */
 
 import type { JourneyId } from '@/lib/journeys'
-import { MARCH_2026_ECONOMY, PRICE_CAP_SAVING_APRIL_1 } from '@/lib/brains/constants'
+import { MARCH_2026_ECONOMY, TYPICAL_ANNUAL_CAP } from '@/lib/brains/constants'
 import { isBucketFailoverMode, shouldSkipGeminiInBucket } from '@/lib/intelligence/scrapeBoundaries'
 import { generateGatewayText, hasAnyBucketLlmProvider, isBucketFailoverEnabled } from '@/lib/intelligence/aiGateway'
 
@@ -30,21 +30,21 @@ export function deterministicDiscoveryWin(params: {
       (journeyId === 'utilities' && questionId === 'home_power')) &&
     raw === 'gas'
   ) {
-    return `since you have gas, you're eligible for up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString()} toward a heat pump via the boiler upgrade scheme — and the april price cap shift saves a typical home ~£${PRICE_CAP_SAVING_APRIL_1}/yr.`
+    return `since you have gas, you're eligible for up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString()} toward a heat pump via the boiler upgrade scheme, and a fixed tariff priced under the current cap (£${TYPICAL_ANNUAL_CAP.toLocaleString('en-GB')} typical a year to 31 december) is the quickest bill win.`
   }
   if (journeyId === 'home' && heat === 'gas') {
-    return `since you have gas heating, you're in the sweet spot for the £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString()} heat pump grant and the ~£${PRICE_CAP_SAVING_APRIL_1}/yr typical saving when the cap drops 1 april.`
+    return `since you have gas heating, you're in the sweet spot for the £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP.toLocaleString()} heat pump grant, and worth checking your tariff against the current cap (£${TYPICAL_ANNUAL_CAP.toLocaleString('en-GB')} typical a year to 31 december).`
   }
   if (pc && heat) {
-    return `since you have ${heat} and you're in ${pc}, you should stack local grants with the april cap move (~£${PRICE_CAP_SAVING_APRIL_1}/yr typical) before you lock in a tariff.`
+    return `since you have ${heat} and you're in ${pc}, you should stack local grants and compare fixed tariffs against the current cap (£${TYPICAL_ANNUAL_CAP.toLocaleString('en-GB')} typical a year to 31 december) before you lock in.`
   }
   if (heat) {
-    return `since you have ${heat}, you should line up 2026 grants and the april cap dip (~£${PRICE_CAP_SAVING_APRIL_1}/yr typical) before big kit purchases.`
+    return `since you have ${heat}, you should line up 2026 grants and check your tariff against the current cap (£${TYPICAL_ANNUAL_CAP.toLocaleString('en-GB')} typical a year to 31 december) before big kit purchases.`
   }
   if (pc) {
-    return `since you're in ${pc}, you should check council warm homes and the april cap saving (~£${PRICE_CAP_SAVING_APRIL_1}/yr typical) on typical use.`
+    return `since you're in ${pc}, you should check council warm homes grants and compare your tariff against the current cap (£${TYPICAL_ANNUAL_CAP.toLocaleString('en-GB')} typical a year to 31 december).`
   }
-  return `you're lined up for 2026 uk savings — start with the april cap dip (~£${PRICE_CAP_SAVING_APRIL_1}/yr typical) then layer grants that match your profile.`
+  return `you're lined up for 2026 uk savings: start by checking your tariff against the current cap (£${TYPICAL_ANNUAL_CAP.toLocaleString('en-GB')} typical a year to 31 december), then layer grants that match your profile.`
 }
 
 export async function generateDiscoveryWinWithGemini(params: {
@@ -67,7 +67,7 @@ export async function generateDiscoveryWinWithGemini(params: {
       }).slice(0, 800)
       const prompt = `You write ONE sentence for a UK savings app (October 2026). Lowercase. Witty but clinical.
 Must start with "since you have" (heating/answer) OR "since you're in" (postcode) when that data exists in the JSON.
-Mention real 2026 facts only: Boiler Upgrade up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}, April cap typical saving ~£${PRICE_CAP_SAVING_APRIL_1}/yr. No markdown, max 220 chars.
+Mention real 2026 facts only: Boiler Upgrade up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}, current Ofgem cap £${TYPICAL_ANNUAL_CAP} typical a year (1 Oct to 31 Dec 2026). Never claim the cap is falling. No markdown, max 220 chars.
 
 Context JSON: ${ctx}`
       const { text } = await generateGatewayText({
@@ -105,7 +105,7 @@ Context JSON: ${ctx}`
 
     const prompt = `You write ONE sentence for a UK savings app (October 2026). Lowercase. Witty but clinical.
 Must start with "since you have" (heating/answer) OR "since you're in" (postcode) when that data exists in the JSON.
-Mention real 2026 facts only: Boiler Upgrade up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}, April cap typical saving ~£${PRICE_CAP_SAVING_APRIL_1}/yr. No markdown, max 220 chars.
+Mention real 2026 facts only: Boiler Upgrade up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP}, current Ofgem cap £${TYPICAL_ANNUAL_CAP} typical a year (1 Oct to 31 Dec 2026). Never claim the cap is falling. No markdown, max 220 chars.
 
 Context JSON: ${ctx}`
 

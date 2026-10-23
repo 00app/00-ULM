@@ -5,7 +5,7 @@
 
 import { FIRECRAWL_API_KEY } from '@/lib/sentinel/api-config'
 import { sanitizeAgentMarkdown } from '@/lib/agents/zeroHunterMarkdown'
-import { PRICE_CAP_SAVING_APRIL_1, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
+import { PRICE_CAP_SOURCE_URL, TYPICAL_ANNUAL_CAP } from '@/lib/brains/constants'
 import { scrapeWithFirecrawlUrl } from '@/lib/agents/researchAgent'
 
 export interface ZeroHunterGrantHit {
@@ -28,7 +28,7 @@ async function scrapePriceCapContext(): Promise<string> {
 
 /** Re-export-friendly scrape hook (researchAgent may not export URL scrape — add thin wrapper). */
 async function fallbackMarkdown(): Promise<string> {
-  return `UK October 2026: typical household price cap saving from 1 April ~£${PRICE_CAP_SAVING_APRIL_1}/yr vs prior cap period. ${PRICE_CAP_SOURCE_URL}`
+  return `UK Ofgem price cap, 1 October to 31 December 2026: £${TYPICAL_ANNUAL_CAP} typical dual-fuel direct debit a year. The cap rose from the previous period, so there is no cap-drop saving. ${PRICE_CAP_SOURCE_URL}`
 }
 
 export async function runZeroHunterForUserProfile(params: {
@@ -41,17 +41,8 @@ export async function runZeroHunterForUserProfile(params: {
     : (await fallbackMarkdown())
 
   const key = process.env.GEMINI_API_KEY?.trim()
-  if (!key) {
-    return {
-      title: 'APRIL CAP SAVING',
-      valueGbp: PRICE_CAP_SAVING_APRIL_1,
-      source_url: OFGEM_CAP_URL,
-      description: sanitizeAgentMarkdown(
-        `Typical dual-fuel household: about £${PRICE_CAP_SAVING_APRIL_1}/yr less from 1 April when the cap drops — check Ofgem for your meter type.`,
-        500
-      ),
-    }
-  }
+  // No model, no grounded figure: return nothing rather than a generic cap-drop saving.
+  if (!key) return null
 
   try {
     const { GoogleGenerativeAI } = await import('@google/generative-ai')
@@ -68,14 +59,15 @@ ${md.slice(0, 3500)}
 ---
 
 Return ONE JSON object only:
-{ "title": "short uppercase-style headline max 5 words", "value_gbp": number (estimated annual £ saving for this user, integer, use ${PRICE_CAP_SAVING_APRIL_1} if only cap drop applies), "source_url": "https...", "description": "one sentence lowercase" }
+{ "title": "short uppercase-style headline max 5 words", "value_gbp": number (estimated annual £ saving for this user, integer, 0 if no saving is supported by the context), "source_url": "https...", "description": "one sentence lowercase" }
 
 value_gbp must be >= 0. Prefer gov.uk URLs.`
 
     const raw = (await model.generateContent(prompt)).response.text()
     const o = JSON.parse(raw.trim()) as Record<string, unknown>
     const title = typeof o.title === 'string' ? o.title.trim().slice(0, 80) : 'CAP SAVING'
-    const valueGbp = Math.round(Number(o.value_gbp) || PRICE_CAP_SAVING_APRIL_1)
+    const valueGbp = Math.round(Number(o.value_gbp) || 0)
+    if (!(valueGbp > 0)) return null
     const source_url =
       typeof o.source_url === 'string' && o.source_url.startsWith('https://')
         ? o.source_url.slice(0, 500)
@@ -83,14 +75,6 @@ value_gbp must be >= 0. Prefer gov.uk URLs.`
     const description = sanitizeAgentMarkdown(typeof o.description === 'string' ? o.description : '', 400)
     return { title, valueGbp, source_url, description }
   } catch {
-    return {
-      title: 'APRIL CAP SAVING',
-      valueGbp: PRICE_CAP_SAVING_APRIL_1,
-      source_url: OFGEM_CAP_URL,
-      description: sanitizeAgentMarkdown(
-        `about £${PRICE_CAP_SAVING_APRIL_1}/yr off typical use when the cap drops — see ofgem.`,
-        400
-      ),
-    }
+    return null
   }
 }

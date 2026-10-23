@@ -49,7 +49,7 @@ import { forensicMateBannedPromptLine, ZONE_WARM_AUDITOR_THREE_BEAT } from '@/li
 import { polishWarmAuditorProse } from '@/lib/zone/warmAuditorCopy'
 import { firecrawlZoneResearchV2JsonSchema } from '@/lib/schemas/firecrawlZoneResearchV2'
 import {
-  APRIL_2026_TRUTH_PENCE,
+  CURRENT_CAP_UNIT_PENCE,
   MARCH_2026_ECONOMY,
   PRICE_CAP_SOURCE_URL,
   TRUTH_2026_MARCH,
@@ -3171,8 +3171,8 @@ export async function runTriggerResearchForCategory(params: {
     category: cat,
     localityContext,
     elecUnitRateGbpPerKwh:
-      parsed.electricityGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH / 100,
-    gasUnitRateGbpPerKwh: parsed.gasGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.GAS_PER_KWH / 100,
+      parsed.electricityGbpPerKwh ?? CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH / 100,
+    gasUnitRateGbpPerKwh: parsed.gasGbpPerKwh ?? CURRENT_CAP_UNIT_PENCE.GAS_PER_KWH / 100,
     sourceUrl: primaryCitation?.url?.trim().startsWith('http')
       ? primaryCitation.url.trim()
       : PRICE_CAP_SOURCE_URL,
@@ -3258,8 +3258,8 @@ export async function runZeroResearchWithProfile(params: {
       citations: result.citations,
       category: params.category ?? null,
       elecUnitRateGbpPerKwh:
-        parsed.electricityGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH / 100,
-      gasUnitRateGbpPerKwh: parsed.gasGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.GAS_PER_KWH / 100,
+        parsed.electricityGbpPerKwh ?? CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH / 100,
+      gasUnitRateGbpPerKwh: parsed.gasGbpPerKwh ?? CURRENT_CAP_UNIT_PENCE.GAS_PER_KWH / 100,
       sourceUrl: PRICE_CAP_SOURCE_URL,
       providerName: degraded ? 'Ofgem (degraded fallback)' : undefined,
       invokePayload: {

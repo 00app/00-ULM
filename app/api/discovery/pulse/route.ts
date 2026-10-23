@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getEconomyFingerprint } from '@/lib/brains/economyFingerprint'
-import { PRICE_CAP_SAVING_APRIL_1 } from '@/lib/brains/constants'
+import { TYPICAL_ANNUAL_CAP } from '@/lib/brains/constants'
 import { requireAiRouteAuth } from '@/lib/requestAuth'
 import { parseDiscoveryInjectionId } from '@/lib/zone/discoveryCard'
 import { isValidJourneyQuestion } from '@/lib/journeys'
@@ -27,7 +27,7 @@ async function geminiPulseNote(): Promise<string | null> {
       model: process.env.GEMINI_ZONE_MODEL?.trim() || 'gemini-1.5-flash',
       generationConfig: { temperature: 0.2, maxOutputTokens: 80 },
     })
-    const prompt = `UK household energy app (October 2026). Official baselines in code: Boiler Upgrade Scheme up to £7500, typical price cap saving from April 1 ≈ £${PRICE_CAP_SAVING_APRIL_1}/yr. Reply with ONE short lowercase sentence (max 18 words) acknowledging grants/caps can change when policy updates — or the word "steady" if nothing to add. No JSON, no numbers beyond what you were given.`
+    const prompt = `UK household energy app (October 2026). Official baselines in code: Boiler Upgrade Scheme up to £7500, current Ofgem price cap £${TYPICAL_ANNUAL_CAP}/yr typical (1 Oct to 31 Dec 2026, up 4% on the previous period). Reply with ONE short lowercase sentence (max 18 words) acknowledging grants and caps can change when policy updates, or the word "steady" if nothing to add. No JSON, no numbers beyond what you were given.`
     const t = (await model.generateContent(prompt)).response.text().trim().slice(0, 200)
     return t || null
   } catch {

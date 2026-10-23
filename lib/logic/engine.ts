@@ -10,7 +10,7 @@ import { fetchLivingPulseSnapshot } from '@/lib/logic/pulse'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { compactAuditValue } from '@/lib/format'
 import {
-  APRIL_2026_TRUTH_PENCE,
+  CURRENT_CAP_UNIT_PENCE,
   REG_GB_BASE_G_PER_KWH,
   REG_HI_RURAL_G_PER_KWH,
   REG_URBAN_LEZ_G_PER_KWH,
@@ -19,7 +19,7 @@ import {
 } from '@/lib/brains/constants'
 
 export {
-  APRIL_2026_TRUTH_PENCE,
+  CURRENT_CAP_UNIT_PENCE,
   REG_GB_BASE_G_PER_KWH,
   REG_HI_RURAL_G_PER_KWH,
   REG_URBAN_LEZ_G_PER_KWH,

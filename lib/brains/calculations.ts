@@ -1,7 +1,7 @@
 /**
  * ZERO ZERO — Impact calculations (UK annualized).
  *
- * v42.8 — April–June 2026 lock: electricity **24.67p/kWh**, gas **5.74p/kWh** (`MARCH_2026_ECONOMY`),
+ * Unit rates follow the current Ofgem cap (`CURRENT_CAP_UNIT_PENCE` via `MARCH_2026_ECONOMY`),
  * Re-exported aliases: `BASELINE_2026_CAP_GBP`, `ELEC_UNIT_RATE_PENCE`, `GAS_UNIT_RATE_PENCE`.
  * Scraped/live rates: `buildUserImpact` + `scrapedOverlay`.
  */
@@ -23,7 +23,7 @@ import {
   PRICE_CAP_APRIL_2026,
   TRUTH_2026_MARCH,
   TRUTH_2026_JULY,
-  APRIL_2026_TRUTH_PENCE,
+  CURRENT_CAP_UNIT_PENCE,
   PRICE_CAP_SAVING_APRIL_1,
   TYPICAL_ANNUAL_CAP,
 } from '@/lib/brains/constants'
@@ -35,8 +35,8 @@ export { normalizeEmploymentStatus } from '@/lib/profile/employmentSegment'
 
 /** July 2026 typical household cap (£/yr) — single import for summary + calculators. */
 export const BASELINE_2026_CAP_GBP = TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP
-export const ELEC_UNIT_RATE_PENCE = APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH
-export const GAS_UNIT_RATE_PENCE = APRIL_2026_TRUTH_PENCE.GAS_PER_KWH
+export const ELEC_UNIT_RATE_PENCE = CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH
+export const GAS_UNIT_RATE_PENCE = CURRENT_CAP_UNIT_PENCE.GAS_PER_KWH
 
 export { formatMoneyValue, formatCarbonValue, getMoneyStampParts, getCarbonStampParts } from '@/lib/format'
 
@@ -352,7 +352,7 @@ export function calculateMoney(a: Record<string, string>): ImpactResult {
     source: 'ofgem + gov.uk + make my money matter',
     explanation: [
       `green levies moved off dual-fuel bills from april 2026 — £${TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP} off the typical household cap before any switching or green investment move.`,
-      'a variable or unknown tariff is the highest-risk position heading into the next ofgem window — locking into a fixed below the april £1,641 cap sets your cost floor.',
+      'a variable or unknown tariff is the highest-risk position heading into the next ofgem window: locking into a fixed deal below the current cap sets your cost floor.',
       'ethical current accounts, isas, and pension switches earn market-rate returns without funding fossil extraction — no income penalty for moving your cash.',
       'moving a pension or current account away from fossil-fuel-linked funds is a genuine carbon lever — make my money matter and similar campaigns argue it can be one of the highest-leverage individual actions available, though the exact size varies a lot by provider and is kept conservative here rather than overclaiming a specific multiple.',
     ],

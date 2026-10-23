@@ -1,8 +1,9 @@
 import { z } from 'zod'
+import { CURRENT_CAP_UNIT_PENCE } from '@/lib/brains/constants'
 
-/** Ofgem Q2 2026 (Direct Debit) lock — pence / kWh. */
-export const OFGEM_Q2_2026_ELECTRIC_PENCE_PER_KWH = 24.67
-export const OFGEM_Q2_2026_GAS_PENCE_PER_KWH = 5.74
+/** Current Ofgem cap (Direct Debit), pence per kWh. Names kept for existing callers; values follow `CURRENT_CAP_UNIT_PENCE`. */
+export const OFGEM_Q2_2026_ELECTRIC_PENCE_PER_KWH = CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH
+export const OFGEM_Q2_2026_GAS_PENCE_PER_KWH = CURRENT_CAP_UNIT_PENCE.GAS_PER_KWH
 
 const GRID_INTENSITY_API_URL = 'https://api.carbonintensity.org.uk/intensity'
 const GRID_REGIONAL_API_URL = 'https://api.carbonintensity.org.uk/regional'

@@ -20,10 +20,10 @@ import {
 } from '@/lib/intelligence/aiGateway'
 import {
   MARCH_2026_ECONOMY,
-  PRICE_CAP_SAVING_APRIL_1,
+  TYPICAL_ANNUAL_CAP,
   TRUTH_2026_MARCH,
   TRUTH_2026_JULY,
-  APRIL_2026_TRUTH_PENCE,
+  CURRENT_CAP_UNIT_PENCE,
   PRICE_CAP_SOURCE_URL,
 } from '@/lib/brains/constants'
 import { TRUSTED_JOURNEY_URLS } from '@/lib/zone/trustedJourneyUrls'
@@ -140,7 +140,7 @@ function marketSeedsBlock(): string {
 - travel / money: petrol or diesel price pressure, duty changes, or fare caps when the card implies car use or commuting.
 - home / carbon / tech: Ofgem price-cap direction (up or down), April timing, typical dual-fuel £/yr when bills or heating are in play.
 - food / shopping: only when tied to the mechanism (seasonal wholesale, retail basket), not generic slogans.
-Example shapes (must match inputs; do not invent statistics): "PETROL PRICES UP 2%", "ENERGY CAP DROPS IN APRIL", "CAP TYPICAL SAVE £${PRICE_CAP_SAVING_APRIL_1}".`
+Example shapes (must match inputs; do not invent statistics): "PETROL PRICES UP 2%", "ENERGY CAP UP 4%", "CAP NOW £${TYPICAL_ANNUAL_CAP}".`
 }
 
 function thresholdRulesBlock(): string {
@@ -149,7 +149,7 @@ function thresholdRulesBlock(): string {
 - travel: money_gbp > 1000 → headline like "CLAIM EV INSTALL GRANT" (gov.uk chargepoint grant pathway).
 - waste: money_gbp > 50 → headline like "START FOOD COMPOSTING" (WRAP-aligned).
 - home: insulation, draughts, fabric — never heat-pump grant amounts on home cards.
-Use October 2026 context: typical cap saving ~£${PRICE_CAP_SAVING_APRIL_1}/yr when relevant (Ofgem).`
+Use October 2026 context: the Ofgem cap is £${TYPICAL_ANNUAL_CAP}/yr typical (1 Oct to 31 Dec 2026). It rose; never describe a cap drop as a saving.`
 }
 
 function suppliedByRules(): string {
@@ -163,7 +163,7 @@ function lockedFactsBlock(): string {
   return `LOCKED UK FACTS (October–December 2026 — use in paragraph 2 for national policy; do NOT invent different caps, unit pence, grant £ amounts, or new URLs):
 - Government heat pump grant (England & Wales): up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP} for air-source heat pumps; oil/LPG properties may access up to £${MARCH_2026_ECONOMY.BUS_GRANT_HEAT_PUMP_OIL_LPG_FROM_JULY_2026} from July 2026. Plain English only — say "heat pump grant", not BUS.
 - Typical price-cap headline about £${TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP}/yr; bill composition shift ~£${TRUTH_2026_MARCH.GREEN_LEVY_SAVING_GBP} (green levy) off dual-fuel statements.
-- Reference unit rates: electricity ~${APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH}p/kWh, gas ~${APRIL_2026_TRUTH_PENCE.GAS_PER_KWH}p/kWh. Ofgem cap hub: ${PRICE_CAP_SOURCE_URL}
+- Reference unit rates: electricity ~${CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH}p/kWh, gas ~${CURRENT_CAP_UNIT_PENCE.GAS_PER_KWH}p/kWh. Ofgem cap hub: ${PRICE_CAP_SOURCE_URL}
 - OZEV flats/renters chargepoint support £${TRUTH_2026_MARCH.EV_GRANT_NEW_GBP} per eligible socket (April 2026 framing).
 - When live_elec_gbp_per_kwh/live_gas_gbp_per_kwh are present on a home card, treat them as the user's grounded bill maths and mention rates_citation_url if provided.
 - Paragraph 3 MUST tell the user to use the HTTPS source_url (or deep_link_url) supplied for THAT card in the JSON input — never fabricate government links.

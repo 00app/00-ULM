@@ -1,6 +1,6 @@
 import { getFirecrawlClient, getGeminiClient } from '@/lib/sentinel/api-config'
 import type { LocalIntelligence } from '@/lib/local/getLocalData'
-import { TYPICAL_ANNUAL_CAP } from '@/lib/brains/constants'
+import { TYPICAL_ANNUAL_CAP, CURRENT_CAP_UNIT_PENCE } from '@/lib/brains/constants'
 
 type GroundingGenome = Record<string, unknown>
 type GroundingTenure = 'rent' | 'own'
@@ -47,8 +47,8 @@ function fallbackGrounding(
     real_locality: locality,
     real_grant_amount: grant,
     energy_cap_gbp: TYPICAL_ANNUAL_CAP,
-    electricity_p_per_kwh: 24.67,
-    gas_p_per_kwh: 5.74,
+    electricity_p_per_kwh: CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH,
+    gas_p_per_kwh: CURRENT_CAP_UNIT_PENCE.GAS_PER_KWH,
     save_gbp: grant,
     carbon_kg: Math.max(1, Math.round(grant / 120)),
     source,
@@ -78,7 +78,7 @@ function buildGroundingPrompt(params: {
     `Local context: ${JSON.stringify(params.local ?? {})}`,
     `Genome: ${JSON.stringify(params.genome ?? {})}`,
     'Extract real 2026 energy prices and official support pathways for [Postcode]. Calculate the specific efficiency gap for this user. Avoid all generic filler.',
-    `Use these locked July 2026 anchors if scraped data omits them: £${TYPICAL_ANNUAL_CAP.toLocaleString('en-GB')} cap, 24.67p/kWh electricity, 5.74p/kWh gas.`,
+    `Use these current Ofgem cap anchors (1 Oct to 31 Dec 2026) if scraped data omits them: £${TYPICAL_ANNUAL_CAP.toLocaleString('en-GB')} cap, ${CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH}p/kWh electricity, ${CURRENT_CAP_UNIT_PENCE.GAS_PER_KWH}p/kWh gas.`,
     'For KW postcodes with owner tenure, prioritise £9,000 HES rural uplift where rules allow.',
     'Return JSON only with keys:',
     '{"real_locality":"string","real_grant_amount":number,"energy_cap_gbp":number,"electricity_p_per_kwh":number,"gas_p_per_kwh":number,"save_gbp":number,"carbon_kg":number,"source":"string","source_url":"string","offer_name":"string","narrative":"string"}',
@@ -149,7 +149,7 @@ export async function runLiveGrounding(params: {
         typeof parsed.real_grant_amount === 'number' ? parsed.real_grant_amount : fallback.real_grant_amount,
       energy_cap_gbp: typeof parsed.energy_cap_gbp === 'number' ? parsed.energy_cap_gbp : TYPICAL_ANNUAL_CAP,
       electricity_p_per_kwh:
-        typeof parsed.electricity_p_per_kwh === 'number' ? parsed.electricity_p_per_kwh : 24.67,
+        typeof parsed.electricity_p_per_kwh === 'number' ? parsed.electricity_p_per_kwh : CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH,
       gas_p_per_kwh: typeof parsed.gas_p_per_kwh === 'number' ? parsed.gas_p_per_kwh : 5.74,
       save_gbp: typeof parsed.save_gbp === 'number' ? parsed.save_gbp : fallback.save_gbp,
       carbon_kg: typeof parsed.carbon_kg === 'number' ? parsed.carbon_kg : fallback.carbon_kg,

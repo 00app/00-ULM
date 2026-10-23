@@ -11,7 +11,7 @@ import {
   hasFirecrawlApiKey,
   OFGEM_LIVE_PRICE_CAP_URL,
 } from '@/lib/agents/scraper'
-import { APRIL_2026_TRUTH_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
+import { CURRENT_CAP_UNIT_PENCE, PRICE_CAP_SOURCE_URL } from '@/lib/brains/constants'
 import { shouldSkipFirecrawlScrape } from '@/lib/intelligence/scrapeBoundaries'
 import { getLocalData } from '@/lib/local/getLocalData'
 import { NINE_DOMAIN_GRID_SEED_URLS } from '@/lib/agents/nineDomainResearchSeeds'
@@ -327,8 +327,8 @@ export async function triggerSupplementalResearch(params: {
     }
     const degraded =
       parsed.electricityGbpPerKwh == null || parsed.gasGbpPerKwh == null || isWeakResearchMarkdown(markdown)
-    const persistedElec = parsed.electricityGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.ELECTRICITY_PER_KWH / 100
-    const persistedGas = parsed.gasGbpPerKwh ?? APRIL_2026_TRUTH_PENCE.GAS_PER_KWH / 100
+    const persistedElec = parsed.electricityGbpPerKwh ?? CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH / 100
+    const persistedGas = parsed.gasGbpPerKwh ?? CURRENT_CAP_UNIT_PENCE.GAS_PER_KWH / 100
     const { persistResearchResult } = await import('@/lib/agents/researchAgent')
     await persistResearchResult({
       userId: params.userId,

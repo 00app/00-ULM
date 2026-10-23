@@ -16,6 +16,8 @@ type Props = {
   filterBar?: ReactNode
   /** Shown instead of results when a filter matches nothing. */
   onClearFilters?: () => void
+  /** Collapsed list of done actions, rendered after every open rail. */
+  doneGroup?: ReactNode
   visitedIds?: ReadonlySet<string>
   onOpen: (card: RecCardModel) => void
   onCta?: (card: RecCardModel, cta: RecCardCta) => void
@@ -153,14 +155,15 @@ function Rail({ rail, visitedIds, onOpen, onCta, onClearFilters }: { rail: ZoneR
  * peeking next card on mobile, arrow buttons on desktop, no auto-advance. Category pills jump to
  * their rail; they do not filter.
  */
-export function ZoneRails({ layout, agents, filterBar, onClearFilters, visitedIds, onOpen, onCta }: Props) {
+export function ZoneRails({ layout, agents, filterBar, onClearFilters, doneGroup, visitedIds, onOpen, onCta }: Props) {
   const hasContent = layout.rails.length > 0
   if (!hasContent) {
     return (
       <div className="zone-rails zone-rails--empty" data-testid="zone-rails-empty">
         {agents}
+        {doneGroup}
         <p className="m-0">Tell us your postcode and we&apos;ll show what applies to your home.</p>
-        <SecondaryCircleCta ariaLabel="Add your postcode" href={ROUTES.START}>
+        <SecondaryCircleCta ariaLabel="Add postcode" href={ROUTES.START}>
           ADD
           <br />
           POSTCODE
@@ -181,6 +184,7 @@ export function ZoneRails({ layout, agents, filterBar, onClearFilters, visitedId
       {otherRails.map((rail) => (
         <Rail key={rail.id} rail={rail} visitedIds={visitedIds} onOpen={onOpen} onCta={onCta} onClearFilters={onClearFilters} />
       ))}
+      {doneGroup}
     </div>
   )
 }
