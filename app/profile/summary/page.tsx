@@ -200,7 +200,9 @@ export default function ProfileSummaryPage() {
       //
     }
     trackFunnelEvent('summary_enter_zone')
-    router.push(ROUTES.ZAI)
+    // Summary hands off to the Zone (its arrival pulse reads SESSION_SUMMARY_TO_ZONE), not to
+    // Zai chat: the person should land on their wall first.
+    router.push(ROUTES.ZONE)
   }, [router, setHeroTotals])
 
   useLayoutEffect(() => setMounted(true), [])
