@@ -397,7 +397,7 @@ export default function ZaiPage() {
   if (!isZaiChatEnabled()) return null
 
   return (
-    <motion.div
+    <motion.main
       className="zz-page zai-interface zai-page"
       style={{ background: 'transparent' }}
       initial={pageEnter.initial}
@@ -426,7 +426,7 @@ export default function ZaiPage() {
             <ZaiSuggestPills disabled={loading} onPick={(p) => void sendQuestion(p)} />
           ) : null}
 
-          <div className="zai-chat-thread">
+          <div className="zai-chat-thread" aria-live="polite">
             {messages.map((msg, i) => (
               <Fragment key={`${msg.role}-${i}-${msg.text.slice(0, 24)}`}>
                 <motion.div
@@ -539,6 +539,7 @@ export default function ZaiPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="ask about a specific shift..."
+            aria-label="Ask Zai about a specific shift"
             className="zz-zai-composer-input"
           />
           <motion.button
@@ -552,6 +553,6 @@ export default function ZaiPage() {
           </motion.button>
         </motion.div>
       </ZaiComposerDock>
-    </motion.div>
+    </motion.main>
   )
 }

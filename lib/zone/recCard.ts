@@ -56,6 +56,7 @@ export type RecCardCtaKind =
   | 'switch' // opens a partner switch link
   | 'confirm_switch' // user confirms they switched
   | 'reset_switch' // user hasn't switched after all
+  | 'mark_done' // user has done a library action; it moves to the Done group
   | 'done'
 
 export type RecCardCta = {

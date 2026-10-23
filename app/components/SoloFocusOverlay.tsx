@@ -56,8 +56,8 @@ import {
   PRICE_CAP_APRIL_2026,
   PRICE_CAP_MARCH_2026,
   PRICE_CAP_SAVING_APRIL_1,
-  APRIL_2026_TRUTH_PENCE,
-  APRIL_2026_STANDING_PENCE,
+  CURRENT_CAP_UNIT_PENCE,
+  CURRENT_CAP_STANDING_PENCE,
 } from '@/lib/brains/constants'
 import { normalizeCategoryToJourneyKey, trustedUrlForJourney } from '@/lib/zone/trustedJourneyUrls'
 import { useVisitedCardIds } from '@/lib/hooks/useVisitedCardIds'

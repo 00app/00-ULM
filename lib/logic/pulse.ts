@@ -3,7 +3,7 @@ import {
   resolveUnifiedGridIntensityGPerKwh,
   syncFallbackGridIntensityGPerKwh,
 } from '@/lib/brains/liveGridCarbonFactor'
-import { TYPICAL_ANNUAL_CAP } from '@/lib/brains/constants'
+import { TYPICAL_ANNUAL_CAP, CURRENT_CAP_UNIT_PENCE } from '@/lib/brains/constants'
 import { resolveOctopusRegionLetter } from '@/lib/data/octopusRegion'
 
 export interface LivePulseSnapshot {
@@ -17,8 +17,8 @@ export interface LivePulseSnapshot {
 
 const SAFE_SENTINEL = {
   priceCapGbp: TYPICAL_ANNUAL_CAP,
-  electricityPPerKwh: 24.67,
-  gasPPerKwh: 5.74,
+  electricityPPerKwh: CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH,
+  gasPPerKwh: CURRENT_CAP_UNIT_PENCE.GAS_PER_KWH,
 } as const
 
 function compactPostcode(postcode: string): string {

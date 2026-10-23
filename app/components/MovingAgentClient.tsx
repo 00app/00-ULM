@@ -126,7 +126,7 @@ export function MovingAgentClient() {
         <ZoneBackToZoneLink />
         <h3 className="zz-page-title">Moving in</h3>
         <p className="agent-intro">Add your new postcode and we&apos;ll build your moving-in list.</p>
-        <SecondaryCircleCta ariaLabel="Add your postcode" href={ROUTES.START}>
+        <SecondaryCircleCta ariaLabel="Add postcode" href={ROUTES.START}>
           ADD
           <br />
           POSTCODE

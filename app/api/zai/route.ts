@@ -729,7 +729,7 @@ export async function POST(req: NextRequest) {
       ? `you are zai. the user is in deep dive on [${categoryLabel}]. personal spend signal: ${personalSpend}; regional avg signal: ${regionalAvg}.${scrapedSourceLine}${journeyFormQuestionLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${totalsLine}${energyOpenerRule}${optimizationPrompt} answer strictly about this shift and how to close the saving gap.${userContextNote}${editorialBlock}${auditorBlock}${activeShiftBlock}${roleGuard}${userContextBlock}${genomePrompt}`
       : `you are zai on the zero zero chat surface.${totalsLine}${locationLine}${postcodeLine}${heatingPromptLine}${transportPromptLine}${sentinelGrantContextLine}${energyOpenerRule}${optimizationPrompt}
       open with a lifestyle hook when the user has not asked a narrow question yet.
-      uk context: defra, wrap uk, energy saving trust; april 2026 domestic cap £1,641/yr (ofgem).${userContextNote}${editorialBlock}${auditorBlock}${roleGuard}${userContextBlock}${genomePrompt}`
+      uk context: defra, wrap uk, energy saving trust; current ofgem cap £1,723/yr typical (1 oct to 31 dec 2026).${userContextNote}${editorialBlock}${auditorBlock}${roleGuard}${userContextBlock}${genomePrompt}`
 
     const journeyAnswerKeyCount = Object.values(journeyAnswersForContext).reduce(
       (n, row) => n + Object.keys(row ?? {}).length,
@@ -783,7 +783,7 @@ export async function POST(req: NextRequest) {
           isExpandedContext
             ? ` they are looking at the [${categoryLabel}] card right now.${scrapedSourceLine}${journeyFormQuestionLine}`
             : '',
-          ' reference: april 2026 domestic energy price cap £1,641/yr (ofgem).',
+          ' reference: current ofgem domestic energy price cap £1,723/yr typical (1 oct to 31 dec 2026).',
           activeShiftBlock,
           userContextBlock,
           genomePrompt,

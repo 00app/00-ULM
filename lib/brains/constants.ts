@@ -1,10 +1,15 @@
 /**
- * **October 2026 hard-lock (v6.5 auditor)** — display and Sentinel truth strings use:
- * Electricity **24.67p/kWh**, gas **5.74p/kWh**, typical cap **£1,723** (`TRUTH_2026_JULY.PRICE_CAP_TYPICAL_GBP`).
- * April 2026 cap **£1,641** remains in `TRUTH_2026_MARCH` for cap-step / policy narratives only.
- * Unit £/kWh for calculators: `MARCH_2026_ECONOMY` (locked to reference rates).
+ * **Current cap lock: Ofgem 1 Oct to 31 Dec 2026** (verified 23 Oct 2026 against Ofgem's unit
+ * rates page). Typical dual-fuel direct debit cap **£1,723**; average direct debit unit rates
+ * electricity **26.32p/kWh**, gas **7.97p/kWh**; standing charges electricity **54.83p/day**,
+ * gas **29.68p/day**. Electricity carries no VAT from 1 Oct 2026 to 31 Mar 2027; gas includes
+ * 5% VAT. Next cap period (1 Jan to 31 Mar 2027) is announced 25 Nov 2026: update
+ * `CURRENT_CAP_UNIT_PENCE` and `CURRENT_CAP_STANDING_PENCE` then, nothing else.
  *
- * Live DB-backed rates: `lib/brains/liveUnitRates.ts` — not imported here (keeps client bundles free of `pg`).
+ * April 2026 figures stay below for historical policy-step copy only; never use them as the
+ * current price.
+ *
+ * Live DB-backed rates: `lib/brains/liveUnitRates.ts`, not imported here (keeps client bundles free of `pg`).
  */
 
 /** Current Ofgem typical dual-fuel cap — October 2026 window (1 Oct–31 Dec 2026). */
@@ -21,6 +26,43 @@ export const TRUTH_2026_MARCH = {
   GREEN_LEVY_SAVING_GBP: 150,
   EV_GRANT_NEW_GBP: 500,
 } as const
+
+/** Ofgem cap period these current rates belong to. */
+export const CURRENT_CAP_PERIOD = {
+  label: 'Ofgem price cap, 1 October to 31 December 2026',
+  start: '2026-10-01',
+  end: '2026-12-31',
+  sourceUrl:
+    'https://www.ofgem.gov.uk/information-consumers/energy-advice-households/energy-price-cap-unit-rates-and-standing-charges',
+} as const
+
+/** Current average direct debit unit rates (pence per kWh), see `CURRENT_CAP_PERIOD`. */
+export const CURRENT_CAP_UNIT_PENCE = {
+  ELECTRICITY_PER_KWH: 26.32,
+  GAS_PER_KWH: 7.97,
+} as const
+
+/** Current average direct debit standing charges (pence per day), see `CURRENT_CAP_PERIOD`. */
+export const CURRENT_CAP_STANDING_PENCE = {
+  ELECTRICITY_PER_DAY: 54.83,
+  GAS_PER_DAY: 29.68,
+} as const
+
+/**
+ * VAT on domestic energy by date. Electricity is zero rated 1 Oct 2026 to 31 Mar 2027 (Ofgem);
+ * gas stays at the 5% domestic rate. Cap unit rates above already reflect this.
+ */
+export const DOMESTIC_ENERGY_VAT_RULES = [
+  { fuel: 'electricity', rate: 0, start: '2026-10-01', end: '2027-03-31', sourceUrl: CURRENT_CAP_PERIOD.sourceUrl },
+] as const
+
+export function domesticEnergyVatRate(fuel: 'electricity' | 'gas', on: Date = new Date()): number {
+  const day = on.toISOString().slice(0, 10)
+  for (const r of DOMESTIC_ENERGY_VAT_RULES) {
+    if (r.fuel === fuel && day >= r.start && day <= r.end) return r.rate
+  }
+  return 0.05
+}
 
 /** April 2026 UK English display lock — matches `MARCH_2026_ECONOMY` unit rates. */
 export const APRIL_2026_TRUTH_PENCE = {
@@ -44,17 +86,17 @@ export const UK_AVERAGE_GRID_INTENSITY_G_PER_KWH = REG_GB_BASE_G_PER_KWH
 export const NORTH_SCOTLAND_KW_GRID_G_PER_KWH = REG_HI_RURAL_G_PER_KWH
 
 export const MARCH_2026_ECONOMY = {
-  /** Unit rates — April 2026: Electricity £0.2467/kWh, Gas £0.0574/kWh */
-  ELEC_UNIT_RATE: 0.2467,
-  ELECTRIC_UNIT_RATE: 0.2467,
-  GAS_UNIT_RATE: 0.0574,
+  /** Unit rates (£/kWh): current cap, see `CURRENT_CAP_PERIOD`. Name kept for existing callers. */
+  ELEC_UNIT_RATE: CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH / 100,
+  ELECTRIC_UNIT_RATE: CURRENT_CAP_UNIT_PENCE.ELECTRICITY_PER_KWH / 100,
+  GAS_UNIT_RATE: CURRENT_CAP_UNIT_PENCE.GAS_PER_KWH / 100,
   
   /** Octopus Export Rate */
   OCTOPUS_EXPORT_RATE: 0.12,
 
-  /** Standing charges (£/day) — April 2026 lock */
-  ELEC_STANDING_CHARGE: APRIL_2026_STANDING_PENCE.ELECTRICITY_PER_DAY / 100,
-  GAS_STANDING_CHARGE: APRIL_2026_STANDING_PENCE.GAS_PER_DAY / 100,
+  /** Standing charges (£/day): current cap, see `CURRENT_CAP_PERIOD`. */
+  ELEC_STANDING_CHARGE: CURRENT_CAP_STANDING_PENCE.ELECTRICITY_PER_DAY / 100,
+  GAS_STANDING_CHARGE: CURRENT_CAP_STANDING_PENCE.GAS_PER_DAY / 100,
 
   /** Gas kg CO₂e per kWh — grid electricity uses `liveGridCarbonFactor.ts` */
   CARBON_FACTOR_GAS: 0.183,
@@ -89,8 +131,7 @@ export const OCTOPUS_EXPORT_RATE = MARCH_2026_ECONOMY.OCTOPUS_EXPORT_RATE
 export const PRICE_CAP_SOURCE_LABEL_JULY_2026 = 'Ofgem October 2026 Announcement'
 /** April 2026 citation — historical policy-step copy only. */
 export const PRICE_CAP_SOURCE_LABEL_APRIL_2026 = 'Ofgem April 2026 Announcement'
-export const PRICE_CAP_SOURCE_URL =
-  'https://www.ofgem.gov.uk/energy-advice-households/energy-price-cap'
+export const PRICE_CAP_SOURCE_URL = CURRENT_CAP_PERIOD.sourceUrl
 
 /** Electricity pence per kWh (for legacy calculator that uses pence) */
 export const ELEC_PENCE_PER_KWH = MARCH_2026_ECONOMY.ELEC_UNIT_RATE * 100

@@ -239,7 +239,7 @@ export function RockMobileSignupCard({
               className="rock-mobile-send-btn"
               disabled={!smsOptIn || signupBusy || (humanCheckRequired && !humanToken)}
               onClick={() => void submitMobile()}
-              aria-label="Send mobile number"
+              aria-label="Send"
               aria-busy={signupBusy}
             >
               <span className="zz-h4 rock-mobile-send-label">send</span>
@@ -249,7 +249,7 @@ export function RockMobileSignupCard({
               type="button"
               className="rock-mobile-send-btn"
               disabled
-              aria-label="Enter a valid UK mobile number"
+              aria-label="Send, after you enter a valid UK mobile number"
             >
               <span className="zz-h4 rock-mobile-send-label">send</span>
             </button>
