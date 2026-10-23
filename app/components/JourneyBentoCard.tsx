@@ -135,6 +135,7 @@ import {
 } from '@/lib/soloFocusSessionSnapshot'
 import { getNextMorphCard } from '@/lib/zone/getNextMorphCard'
 import { profileFieldsFromStorage } from '@/lib/profile/onboardingComplete'
+import { SubscriptionAuditCard } from '@/app/components/cards/SubscriptionAuditCard'
 type HomeSentinelRecard = {
   headline: string
   description: string
@@ -355,6 +356,9 @@ export function JourneyBentoCard({
    */
   const isLibraryWallCard = isLibraryActionCardId(cardId ?? '')
   const libraryAction = isLibraryWallCard ? libraryActionForCardId(cardId ?? '') : null
+  /** Ask-first cards: once answered, the personal answer replaces the generic library figure. */
+  const askFirstSubscriptions = libraryAction?.id === 'cancel-unused-subscriptions'
+  const [askFirstAnswered, setAskFirstAnswered] = useState(false)
   // Same traceability rule as the Zone tile: a library £ is shown only when its source states it.
   const libraryTypical = libraryAction ? typicalSavingForLibraryCard(cardId ?? '') : null
   const libraryMoneyLabelText = libraryMoneyLabel(libraryTypical)
@@ -1216,6 +1220,7 @@ export function JourneyBentoCard({
               prose={trueTipSectionsEl}
               metrics={
                 <>
+                  {askFirstSubscriptions ? <SubscriptionAuditCard onAnswered={setAskFirstAnswered} /> : null}
                   <MotherCardRenderer
                     categoryLabel=""
                     headline={null}
@@ -1229,7 +1234,7 @@ export function JourneyBentoCard({
                     moneyGbp={animatedMoneyGbp}
                     carbonKg={animatedCarbonKg}
                     moneyLabel={libraryMoneyLabelText}
-                    hideMoney={Boolean(libraryAction) && !libraryTypical}
+                    hideMoney={(Boolean(libraryAction) && !libraryTypical) || (askFirstSubscriptions && askFirstAnswered)}
                     hideCarbon={Boolean(libraryAction) && !libraryCarbonTraceable(libraryAction!)}
                     estimated={useEstimated}
                     impactPulse={impactAnswerPulse}
