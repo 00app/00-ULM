@@ -1,0 +1,89 @@
+/* ==========================================================================
+   Zero Zero brand language: shared tokens (docs/BRAND-LANGUAGE.md)
+   Source: the front door. Imported once in app/layout.tsx.
+   Tokens are global; the type-lock lift only applies inside .zz-brand, so
+   existing screens are untouched until they opt in.
+   ========================================================================== */
+
+:root {
+  /* Colour */
+  --zzb-blue: #000aff;
+  --zzb-navy: #141268;
+  --zzb-ink: #04031c;
+  --zzb-muted: #4b4a6b;
+  --zzb-muted-light: #c9c8e6;
+  --zzb-line: #e3e3ef;
+  --zzb-line-dark: #2c2a7c;
+  --zzb-tint: #f4f4fb;
+  --zzb-white: #fcfcff;
+
+  /* Type */
+  --zzb-font: 'helvetica-neue-lt-pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --zzb-size-display: clamp(52px, 8.6vw, 136px);
+  --zzb-size-h2: clamp(40px, 5.6vw, 88px);
+  --zzb-size-statement: clamp(34px, 4.8vw, 72px);
+  --zzb-size-stat: clamp(56px, 5.4vw, 84px);
+  --zzb-size-h3: clamp(26px, 2.4vw, 34px);
+  --zzb-size-h4: 22px;
+  --zzb-size-lede: clamp(18px, 1.5vw, 21px);
+  --zzb-size-body: 16px;
+  --zzb-size-eyebrow: 13px;
+  --zzb-size-meta: 13px;
+
+  /* Space and shape */
+  --zzb-container: 1360px;
+  --zzb-gutter: clamp(16px, 4vw, 48px);
+  --zzb-section: clamp(96px, 13vw, 176px);
+  --zzb-radius-card: 24px;
+  --zzb-radius-inner: 18px;
+  --zzb-radius-pill: 999px;
+  --zzb-card-padding: 32px;
+  --zzb-touch: 44px;
+
+  /* Motion */
+  --zzb-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --zzb-dur-fast: 0.3s;
+  --zzb-dur: 0.4s;
+}
+
+/* Opt-in scope: one face, one weight, sentence case, own scale.
+   `:not(#zz-brand)` lifts these above the shell's ID-level type lock (see app/globals.css). */
+.zz-brand:not(#zz-brand),
+.zz-brand :not(#zz-brand) {
+  font-family: var(--zzb-font) !important;
+  font-weight: 400 !important;
+  -webkit-text-stroke: 0 !important;
+}
+.zz-brand :is(h1, h2, h3, h4):not(#zz-brand) {
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  line-height: 1 !important;
+  margin: 0;
+}
+.zz-brand {
+  color: var(--zzb-ink);
+  font-feature-settings: 'tnum' 1, 'kern' 1;
+  -webkit-font-smoothing: antialiased;
+}
+.zz-brand span {
+  line-height: inherit !important;
+}
+
+/* Focus ring: the app removes outlines globally; restore one inside the scope. */
+.zz-brand a:focus-visible,
+.zz-brand button:focus-visible,
+.zz-brand input:focus-visible {
+  box-shadow: 0 0 0 3px var(--zzb-white), 0 0 0 5px var(--zzb-blue) !important;
+}
+
+/* Masked line reveal used by lib/motion/brand.tsx */
+.zz-brand-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+.zz-brand-mask__inner {
+  display: block;
+  will-change: transform;
+}

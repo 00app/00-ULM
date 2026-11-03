@@ -3,6 +3,8 @@
  */
 export const ROUTES = {
   HOME: '/',
+  /** Public marketing front door (PRD v3). Moves to `/` once the app moves to `/00-workspace`. */
+  FRONT_DOOR: '/front-door',
   INTRO: '/intro',
   /** Entry flow: postcode, then one real result, then create / log in / skip. */
   START: '/start',

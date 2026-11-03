@@ -16,10 +16,11 @@ function normalizeAppPath(p: string | null): string {
   return raw.replace(/\/+$/, '') || '/'
 }
 
-/** Intro stack runs its own atomic sequence — skip route enter (opacity 0) or the shell stays blank. */
+/** Intro stack runs its own atomic sequence — skip route enter (opacity 0) or the shell stays blank.
+ *  HOME is the front door (long scrollable page) since PRD v3, so it takes the normal page-enter
+ *  wrapper like any other route; INTRO keeps this fixed-viewport treatment. */
 function isFixedViewportIntroPath(path: string): boolean {
   return (
-    path === ROUTES.HOME ||
     path === ROUTES.INTRO ||
     path === ROUTES.START ||
     path === ROUTES.START_RESULT ||

@@ -7,6 +7,8 @@ import SentenceCase from '@/app/components/ui/SentenceCase'
 import { buildSiteJsonLd, buildSiteMetadata } from '@/lib/seo/siteMetadata'
 import { getSiteUrl } from '@/lib/site'
 import './globals.css'
+/* Brand language tokens (docs/BRAND-LANGUAGE.md); type-lock lift only inside .zz-brand */
+import './styles/brand.css'
 
 import type { Metadata } from 'next'
 

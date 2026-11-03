@@ -108,7 +108,7 @@ export default function IntroScreen() {
   }, [screen])
 
   const skipIntro = () => {
-    trackFunnelEvent('cta_click', { page: ROUTES.HOME, cta_label: 'skip_intro' })
+    trackFunnelEvent('cta_click', { page: ROUTES.INTRO, cta_label: 'skip_intro' })
     setScreen('splash')
   }
 
@@ -158,7 +158,7 @@ export default function IntroScreen() {
               delaySeconds={familyControlDelaySec(0)}
               className=""
               onClick={() => {
-                trackFunnelEvent('cta_click', { page: ROUTES.HOME, cta_label: 'get_started' })
+                trackFunnelEvent('cta_click', { page: ROUTES.INTRO, cta_label: 'get_started' })
                 router.push(ROUTES.START)
               }}
               aria-label="Get started"
@@ -173,7 +173,7 @@ export default function IntroScreen() {
           <SecondaryCircleCta
             ariaLabel="Log in"
             onClick={() => {
-              trackFunnelEvent('cta_click', { page: ROUTES.HOME, cta_label: 'log_in' })
+              trackFunnelEvent('cta_click', { page: ROUTES.INTRO, cta_label: 'log_in' })
               markOnboardingIntent()
               router.push(`${ROUTES.PROFILE}?entry=login`)
             }}

@@ -27,7 +27,8 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
   /** Intro, onboarding, summary — single viewport, no page scroll (same shell lock as intro). */
   const fixedViewportStage = useMemo(
     () =>
-      path === ROUTES.HOME ||
+      // HOME is the front door (long scrollable page) since PRD v3 — INTRO keeps the old
+      // fixed-viewport kinetic sequence for existing bookmarks/links.
       path === ROUTES.INTRO ||
       path === ROUTES.START ||
       path === ROUTES.START_RESULT ||
@@ -39,6 +40,8 @@ export function GlobalAppShell({ children }: { children: React.ReactNode }) {
   const showSiteFooter = useMemo(() => {
     if (
       fixedViewportStage ||
+      path === ROUTES.HOME || // front door renders its own footer, same as FRONT_DOOR
+      path === ROUTES.FRONT_DOOR ||
       path === ROUTES.ZONE ||
       path.startsWith(`${ROUTES.ZONE}/`) ||
       path === ROUTES.PRIVACY ||
@@ -128,6 +131,7 @@ export const APP_PAGES_REGISTRY = [
   { path: ROUTES.LIKES, sourceFile: 'app/likes/page.tsx', name: 'Likes' },
   { path: ROUTES.SETTINGS, sourceFile: 'app/settings/page.tsx', name: 'Settings' },
   { path: ROUTES.PRIVACY, sourceFile: 'app/privacy/page.tsx', name: 'Privacy' },
+  { path: ROUTES.FRONT_DOOR, sourceFile: 'app/front-door/page.tsx', name: 'Front door' },
 ] as const
 
 export type AppPageRegistryEntry = (typeof APP_PAGES_REGISTRY)[number]
