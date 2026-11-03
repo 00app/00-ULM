@@ -1,5 +1,6 @@
 import { neon, neonConfig, Pool as NeonPool } from '@neondatabase/serverless'
 import { Pool as PgPool } from 'pg'
+import { MANIFEST_NEON_POOLER_HOST } from '@/lib/intelligence/manifest'
 
 /** Node scripts (tsx) — Neon Pool uses WebSockets; HTTP `neon()` works without this. */
 if (typeof window === 'undefined') {
@@ -121,6 +122,13 @@ export type DatabaseConnectionInfo = {
   sslmode: string | null
   isNeonServerless: boolean
   maskedConnectionString: string | null
+  /**
+   * Compares the connected host against MANIFEST_NEON_POOLER_HOST (the Neon pooler host the
+   * manifest says production should be on). null when there is no host to compare (DB not
+   * configured). false here in production means this deploy is pointed at a different Neon
+   * database than the manifest expects — update one or the other, do not ignore it.
+   */
+  hostMatchesManifest: boolean | null
 }
 
 export function getDatabaseConnectionInfo(): DatabaseConnectionInfo {
@@ -137,6 +145,7 @@ export function getDatabaseConnectionInfo(): DatabaseConnectionInfo {
     sslmode: parsed.sslmode,
     isNeonServerless: shouldUseNeonServerless(resolved),
     maskedConnectionString: maskDatabasePassword(resolved),
+    hostMatchesManifest: parsed.host ? parsed.host === MANIFEST_NEON_POOLER_HOST : null,
   }
 }
 

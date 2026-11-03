@@ -11,11 +11,15 @@ import path from 'node:path'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const vercelCheck = path.join(root, 'scripts', 'vercel-check.mjs')
 const buildScript = path.join(root, 'scripts', 'build-with-manifest-fix.js')
+const dbHostCheck = path.join(root, 'scripts', 'check-db-host-manifest.mjs')
 
 function run(cmd, args, env = process.env) {
   const code = spawnSync(cmd, args, { stdio: 'inherit', cwd: root, env }).status ?? 1
   if (code !== 0) process.exit(code)
 }
+
+console.log('→ vercel-build-gate: db host vs manifest')
+run(process.execPath, [dbHostCheck])
 
 console.log('→ vercel-build-gate: typecheck')
 run(process.execPath, [vercelCheck, 'typecheck'])
