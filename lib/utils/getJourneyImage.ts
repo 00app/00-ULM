@@ -21,6 +21,7 @@ const JOURNEY_KEYWORDS: Record<JourneyId, string> = {
   water: 'rainwater,garden',
   waste: 'recycling,compost',
   carbon: 'pine-forest',
+  lifestyle: 'swimming-pool,community-garden',
 }
 
 const GENERAL_KEYWORD = 'minimalist-lifestyle,eco-friendly'

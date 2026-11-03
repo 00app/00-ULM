@@ -1117,4 +1117,72 @@ export const ZONE_ACTIONS: ZoneAction[] = [
     // that the app has not listened.
     excludes: { financial: ['TIGHT'] },
   },
+
+  // ── Lifestyle (PRD v4, Z5) ──────────────────────────────────────────────────────────────────
+  // Value per use only. No figures: none of these sources states a £ that would hold for the
+  // household, so valueGbp stays 0 rather than inventing one. Never health or body wording.
+  {
+    id: 'membership-pause-or-downgrade',
+    action: 'Pause or downgrade a rarely used membership',
+    detail:
+      'Ask to freeze it, move to off-peak or drop to a cheaper plan. Check your contract first: most have a notice period, and cancelling early can mean paying the rest of the term.',
+    verb: 'DO',
+    cost: 'FREE',
+    recurrence: 'ANNUAL',
+    bucket: 'lifestyle',
+    valueGbp: 0,
+    valueKg: 0,
+    url: 'https://www.citizensadvice.org.uk/consumer/changed-your-mind/cancelling-a-gym-membership/',
+    source: 'Citizens Advice — cancelling a gym membership: notice periods, early exit fees and unfair terms',
+    verifiedOn: '2026-10-25',
+    requires: { loop: { lifestyle_visits: ['NONE OR ONCE'] } },
+  },
+  {
+    id: 'takeaway-subscription-check',
+    action: 'Check a takeaway subscription pays its way',
+    detail:
+      'A delivery subscription only saves money if you order often enough to use it. Ordering direct from the restaurant can work out cheaper.',
+    verb: 'DO',
+    cost: 'FREE',
+    recurrence: 'ANNUAL',
+    bucket: 'lifestyle',
+    valueGbp: 0,
+    valueKg: 0,
+    url: 'https://www.moneyhelper.org.uk/en/everyday-money/banking/direct-debits-and-standing-orders',
+    source: 'MoneySavingExpert — is the Uber One subscription worth it (Sept 2025); MoneyHelper — cancelling recurring payments',
+    verifiedOn: '2026-10-25',
+    requires: { loop: { takeaway_subscription: ['YES', 'NOT_SURE'] } },
+  },
+  {
+    id: 'pet-insurance-renewal-check',
+    action: 'Compare quotes before your pet insurance renews',
+    detail:
+      'Premiums tend to rise as pets get older. A new insurer usually will not cover conditions your pet already has, so check that before you switch.',
+    verb: 'DO',
+    cost: 'FREE',
+    recurrence: 'ANNUAL',
+    bucket: 'lifestyle',
+    valueGbp: 0,
+    valueKg: 0,
+    url: 'https://www.moneyhelper.org.uk/en/everyday-money/insurance/do-you-need-pet-insurance',
+    source: 'MoneyHelper (MaPS) — pet insurance: what affects the price and how to buy or cancel',
+    verifiedOn: '2026-10-25',
+    requires: { loop: { pet_owner: ['DOG', 'CAT', 'OTHER_PET'] } },
+  },
+  {
+    id: 'leisure-concession',
+    action: 'Ask your council for leisure discounts',
+    detail:
+      'Many councils run cheaper leisure centre passes for people on low incomes, students and people over 60. Find your council, then search its site for leisure concessions.',
+    verb: 'CLAIM',
+    cost: 'FREE',
+    recurrence: 'ANNUAL',
+    bucket: 'lifestyle',
+    valueGbp: 0,
+    valueKg: 0,
+    url: 'https://www.gov.uk/find-local-council',
+    source: 'GOV.UK council finder; schemes such as Somerset Passport to Leisure and Eastleigh Passport to Leisure',
+    verifiedOn: '2026-10-25',
+    gates: { financial: ['TIGHT', 'GETTING_BY'] },
+  },
 ]

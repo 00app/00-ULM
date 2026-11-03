@@ -130,6 +130,15 @@ function pathsFor(kind: ZoneCategoryIconKind): ReactNode {
           <path d="M7 8l1 11h8l1-11" />
         </>
       )
+    case 'lifestyle':
+      // Membership card with a ticket notch: memberships, passes, subscriptions.
+      return (
+        <>
+          <rect x="4" y="7" width="16" height="10" rx="2" />
+          <path d="M9 7v10" />
+          <path d="M12.5 11h4M12.5 13.5h2.5" />
+        </>
+      )
     case 'carbon':
     default:
       return (

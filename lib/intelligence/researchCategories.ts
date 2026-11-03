@@ -36,5 +36,6 @@ Category routing (mandatory):
 - Use **utilities** when the lead is tariff type, supplier switch, monthly spend band, or dual-fuel mechanics. **home_power** is profile-only, never classify "what powers your home?" copy as utilities if profile already set it.
 - Do **not** re-ask power type in utilities architect prose when home_power is present in household context.
 - Use **money** for banking, budgeting, debt, and generic household finance not dominated by energy tariff mechanics.
+- Use **lifestyle** for gym, club and class memberships, eating out and takeaway apps, hobby subscriptions and pet insurance. Streaming and phone stay **tech**, groceries **food**, trips **holidays**. Price as value per use; never health or body claims.
 - If unsure between a grant scheme and general home efficiency, use **home** either way, both are the same category here.
 `.trim()

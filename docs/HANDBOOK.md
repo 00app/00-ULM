@@ -34,6 +34,10 @@
 | **Bank data** | `BankDataProvider` adapter; sample provider + real analysis; live provider is a stub. Status `none \| sample \| live` + `snoozedUntil`. | §4 |
 | **Connect points** | Biggest-savings card (Not now = 7-day snooze), bills-card CTA, Settings row. No modals. | §5 |
 | **CTA states & tracker** | Connect → Switch from X, save £Y/yr → I've switched → Switched; tracker counts confirmed switches only, sample kept separate. | §6 |
+| **Household data service (Z3)** | One read path for everything known about a household: `lib/household/` (import from `@/lib/household`; `service.ts` is server-only). Every fact has source, as-of, confidence and tier (1 public, 2 told us, 3 bills or bank); unknown is `null`, never 0. Queries: `getHousehold`, `getCategoryFacts`, `getContracts`, `getSubscriptions`, `getEligibility`, `getPeerComparison` (nothing under 5 peers), `getGaps`. 1,000 synthetic households (ZZ99 postcodes, dev and tests only, `HOUSEHOLD_SYNTHETIC=1` to force on). `household_facts` is read only once `db/migrations/20261025_intelligence_layer.sql` is applied. No card reads it yet. | [INTELLIGENCE-LOGIC.md §2, §9](INTELLIGENCE-LOGIC.md) · `npm run test:household` |
+| **InsightCard contract (Z4)** | `lib/zone/insightCard.ts`: one zod contract for Zone cards and Solo Focus, extending the rec card. Every figure needs a named source **and an as-of date**; `realised` needs evidence, `estimated` a method, `sample` is always demo and low confidence. `resolveInsightCard` turns anything that fails into a **Coming soon** card and returns the reasons. `insightFromRecCard` lifts today's rec cards (drops a £ whose source has no date). Not rendered yet (Z9). | `npm run test:insight-cards` (snapshots: `scripts/fixtures/insight-cards.snap.json`, refresh with `--update`) |
+| **Lifestyle journey (Z5)** | 13th `JourneyId`: memberships, eating out and takeaway apps, hobby subscriptions, pet cover (streaming and phone stay in tech, groceries in food). 3 onboarding questions (`pet_owner`, `takeaway_subscription`, `memberships_checked`), 3 loop questions (`lifestyle_memberships`, `lifestyle_visits`, `lifestyle_eat_out`), 4 library actions with no £ (no source states one). In every journey list, so research, `repair-mechanical` and Zai now include it; its mother tile stays COMPUTING (no formula in `lib/brains`, £0 baseline). Copy: value per use, no health or body words. | `npm run test:lifestyle` |
+| **Category specs (Z6)** | `lib/intelligence/categories/<id>.ts` × 13 (registry, `evaluate.ts`): facts, 3–4 metrics, rules and options from INTELLIGENCE-LOGIC §9, as pure functions over the household service. `buildCategoryInsights(household)` returns InsightCards: headline from the rule, metrics and why drivers from facts, options and £ from the action library (cited). Library hard filters apply; a fired rule stands in for a loop unlock. Rules on unbuilt (§10 NEW) actions show as information with no link. No finding → one Coming soon card. Not rendered yet (Z9). | `npm run test:category-specs` |
 
 > ⚠️ **Open conflicts (16) are listed, unresolved, in [ENTRY-AND-ZONE-RAILS.md → Conflicts with existing docs](ENTRY-AND-ZONE-RAILS.md#conflicts-with-existing-docs).** The most important: the **Director's Order (Zone — frozen product sequence)** section below still says Today's tips come last and the bento grid ripples; the rails put Today second. `lib/zone/directorsOrder.ts` was not edited — that needs an explicit decision.
 
@@ -59,7 +63,7 @@
 | **Coherence** | Every Solo Focus paragraph passes `isCoherentParagraph` before render |
 | **Entry flow** | `/` splash → `/start` → `/start/result` → `/profile?entry=create\|login` or `/zone` (guest, postcode kept). Bare `/profile` with nothing stored → `/start`. `e2e/entry-flow.spec.ts` |
 | **Bank** | No live provider calls (`LiveBankProvider` is a stub). Connect card hidden for `sample`/`live`; *Not now* = 7 days; only confirmed switches count in the tracker; sample savings never added to the real total. `npm run test:bank` |
-| **Cards, rails & filters tests** | `npm run test:rec-cards` · `npm run test:zone-rails` · `npm run test:zone-filters` · `npm run test:bank` (all in `npm run verify`) |
+| **Cards, rails & filters tests** | `npm run test:rec-cards` · `npm run test:zone-rails` · `npm run test:zone-filters` · `npm run test:bank` · `npm run test:household` · `npm run test:insight-cards` · `npm run test:lifestyle` · `npm run test:category-specs` (all in `npm run verify`) |
 
 ---
 
@@ -99,7 +103,7 @@ npm run deploy               # verify → remote build → promote
 
 ### Journey order (13 domains)
 
-`home` → `utilities` → `grants` → `solar` → `travel` → `holidays` → `food` → `shopping` → `money` → `tech` → `water` → `waste` → `carbon`
+`home` → `utilities` → `solar` → `travel` → `holidays` → `food` → `shopping` → `money` → `tech` → `water` → `waste` → `carbon` → `lifestyle` (13th, added in Z5; `grants` was folded into `home` earlier — see `lib/journeys.ts`)
 
 **Utilities tile:** always on the Zone wall (13th key). Shows **`COMPUTING`** until profile **power type** is set; full tariff stream unlocks after `profile_home_power` (`lib/zone/utilitiesZoneUnlock.ts`).
 

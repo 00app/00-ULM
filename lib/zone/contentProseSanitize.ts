@@ -71,6 +71,8 @@ const JOURNEY_PROSE_BANNED: Partial<Record<JourneyId, RegExp>> = {
   home: /\b(?:e-bike\s+scheme|cycle\s+to\s+work\s+loan|bus\s+grant\s+only)\b/i,
   utilities: /\b(?:e-bike|food\s+compost|wrap\s+uk)\b/i,
   carbon: /\b(?:e-bike\s+scheme|meal\s+planner)\b/i,
+  // Value per use only: no energy fixes, and never body or health claims (PRD v4 copy rules).
+  lifestyle: /\b(?:boiler\s+upgrade|heat\s*pump|ofgem\s+price\s*cap|solar\s+panel|loft\s+insulation|weight\s+loss|lose\s+weight|get\s+fit|unhealthy|calories)\b/i,
 }
 
 export function proseViolatesJourneyCategory(journey: JourneyId, prose: string): boolean {

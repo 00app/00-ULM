@@ -97,6 +97,7 @@ const JOURNEY_FIRECRAWL_SEEDS: Partial<Record<JourneyId, string[]>> = {
   water: ['https://www.waterwise.org.uk/'],
   solar: ['https://www.gov.uk/government/publications/solar-energy-uk'],
   carbon: ['https://www.ofgem.gov.uk/'],
+  lifestyle: ['https://www.moneyhelper.org.uk/en/everyday-money/budgeting'],
 }
 
 /**
@@ -177,6 +178,12 @@ export const JOURNEY_FREE_SEEDS: Partial<Record<JourneyId, string[]>> = {
     'https://www.gov.uk/government/statistics/uks-carbon-footprint/carbon-footprint-for-the-uk-and-england-to-2023',
     'https://energysavingtrust.org.uk/top-tips-to-reduce-your-carbon-emissions/',
     'https://www.carbontrust.com/our-work-and-impact/guides-reports-and-videos',
+  ],
+  // Lifestyle (Z5): memberships, takeaway subscriptions and pet cover, each checked 2026-10-25.
+  lifestyle: [
+    'https://www.citizensadvice.org.uk/consumer/changed-your-mind/cancelling-a-gym-membership/',
+    'https://www.moneyhelper.org.uk/en/everyday-money/insurance/do-you-need-pet-insurance',
+    'https://www.moneyhelper.org.uk/en/everyday-money/budgeting/budget-planner',
   ],
 }
 

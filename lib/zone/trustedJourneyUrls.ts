@@ -30,6 +30,8 @@ export const TRUSTED_JOURNEY_URLS: Record<JourneyId, string> = {
   // WWF's free 10-minute footprint calculator — a specific tool with a real result, not a
   // generic "resources" hub page.
   carbon: 'https://footprint.wwf.org.uk/',
+  // MoneyHelper (government-backed): a working budget planner, not a generic advice hub.
+  lifestyle: 'https://www.moneyhelper.org.uk/en/everyday-money/budgeting/budget-planner',
 }
 
 /**
@@ -54,6 +56,7 @@ export const TRUSTED_JOURNEY_URL_LABELS: Record<JourneyId, string> = {
   water: 'citizens advice — watersure',
   waste: 'terracycle',
   carbon: 'wwf footprint calculator',
+  lifestyle: 'moneyhelper budget planner',
 }
 
 export function trustedUrlLabelForJourney(j: JourneyId): string {

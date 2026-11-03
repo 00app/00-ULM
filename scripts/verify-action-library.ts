@@ -357,6 +357,10 @@ const ANSWERED: ActionProfile = {
     water_meter_save: 'NOT YET',
     utilities_supplier_switch: 'NOT YET',
     shopping_repair_first: 'NOT YET',
+    // Lifestyle (Z5): a loop answer and two onboarding answers that unlock its actions.
+    lifestyle_visits: 'NONE OR ONCE',
+    takeaway_subscription: 'YES',
+    pet_owner: 'DOG',
   },
 }
 const poolAfter = eligibleActions(ANSWERED, { month: 1 })

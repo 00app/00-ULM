@@ -1,0 +1,323 @@
+{
+  "live_data": {
+    "id": "utilities:fix_ending",
+    "category": "utilities",
+    "statusTag": "live_data",
+    "label": "UTILITIES",
+    "headline": "Your fixed energy deal ends in 20 days",
+    "keyMetric": {
+      "label": "Days until your fix ends",
+      "value": 20,
+      "unit": "count",
+      "source": {
+        "name": "Your bank",
+        "url": null,
+        "asOf": "2026-10-24"
+      }
+    },
+    "metrics": [],
+    "why": [
+      {
+        "factKey": "fix_end_date",
+        "label": "Fix ends",
+        "value": "14 November 2026",
+        "source": {
+          "name": "Your bank",
+          "url": null,
+          "asOf": "2026-10-24"
+        }
+      }
+    ],
+    "confidence": {
+      "level": "high",
+      "reason": "From your bank payments."
+    },
+    "saving": null,
+    "effort": {
+      "minutes": 20,
+      "approvalTier": 2
+    },
+    "options": [],
+    "gaps": [],
+    "context": [
+      {
+        "key": "price_cap_window",
+        "label": "Price cap changes 1 January",
+        "asOf": "2026-08-27"
+      }
+    ],
+    "nextStep": {
+      "label": "Compare fixed tariffs",
+      "optionKey": null,
+      "approvalTier": 2
+    },
+    "related": [],
+    "tier": 3
+  },
+  "ready": {
+    "id": "tech:broadband_out_of_contract",
+    "category": "tech",
+    "statusTag": "ready",
+    "label": "TECH",
+    "headline": "Your broadband deal ended 4 months ago",
+    "keyMetric": {
+      "label": "Out of contract",
+      "value": 4,
+      "unit": "count",
+      "source": {
+        "name": "A bill you added",
+        "url": null,
+        "asOf": "2026-10-12"
+      }
+    },
+    "metrics": [
+      {
+        "key": "comms_month",
+        "label": "Comms a month",
+        "value": 61,
+        "unit": "gbp_month",
+        "source": {
+          "name": "Bills you added",
+          "url": null,
+          "asOf": "2026-10-12"
+        },
+        "gapField": null
+      },
+      {
+        "key": "months_out",
+        "label": "Months out of contract",
+        "value": 4,
+        "unit": "count",
+        "source": {
+          "name": "A bill you added",
+          "url": null,
+          "asOf": "2026-10-12"
+        },
+        "gapField": null
+      },
+      {
+        "key": "next_end",
+        "label": "Next contract end",
+        "value": null,
+        "unit": "date",
+        "source": null,
+        "gapField": "mobile_contract_end"
+      }
+    ],
+    "why": [
+      {
+        "factKey": "broadband_contract_end",
+        "label": "Contract end",
+        "value": "12 June 2026",
+        "source": {
+          "name": "A bill you added",
+          "url": null,
+          "asOf": "2026-10-12"
+        }
+      }
+    ],
+    "confidence": {
+      "level": "medium",
+      "reason": "Medium: your contract end date is from what you told us."
+    },
+    "saving": {
+      "kind": "typical",
+      "gbpRange": {
+        "low": 108,
+        "high": 108
+      },
+      "kgRange": null,
+      "source": {
+        "name": "Ofcom",
+        "url": "https://www.ofcom.org.uk/",
+        "asOf": "2026-09-30"
+      },
+      "method": null,
+      "evidence": null
+    },
+    "effort": {
+      "minutes": 20,
+      "approvalTier": 2
+    },
+    "options": [
+      {
+        "key": "switch",
+        "label": "Switch provider",
+        "actionId": "out-of-contract-broadband",
+        "impact": {
+          "kind": "typical",
+          "gbpRange": {
+            "low": 108,
+            "high": 108
+          },
+          "kgRange": null,
+          "source": {
+            "name": "Ofcom",
+            "url": "https://www.ofcom.org.uk/",
+            "asOf": "2026-09-30"
+          }
+        },
+        "effortMinutes": 20,
+        "approvalTier": 2,
+        "tradeOff": "A new provider may need an engineer visit.",
+        "commission": {
+          "paid": true,
+          "note": "We may be paid if you switch through this link."
+        }
+      },
+      {
+        "key": "haggle",
+        "label": "Haggle with your provider",
+        "actionId": "out-of-contract-broadband",
+        "impact": {
+          "kind": null,
+          "gbpRange": null,
+          "kgRange": null,
+          "source": null
+        },
+        "effortMinutes": 15,
+        "approvalTier": 1,
+        "tradeOff": "Savings depend on what they offer.",
+        "commission": {
+          "paid": false,
+          "note": null
+        }
+      },
+      {
+        "key": "remind",
+        "label": "Stay, remind me in 30 days",
+        "actionId": null,
+        "impact": {
+          "kind": null,
+          "gbpRange": null,
+          "kgRange": null,
+          "source": null
+        },
+        "effortMinutes": 1,
+        "approvalTier": 1,
+        "tradeOff": "You keep paying the out-of-contract price for now.",
+        "commission": {
+          "paid": false,
+          "note": null
+        }
+      }
+    ],
+    "gaps": [
+      {
+        "questionId": "tech_mobile_handset",
+        "field": "mobile_handset_paid_off",
+        "whyWeAsk": "A paid-off phone can move to SIM-only."
+      }
+    ],
+    "context": [
+      {
+        "key": "contract_deadline",
+        "label": "Contract ended",
+        "asOf": "2026-06-12"
+      }
+    ],
+    "nextStep": {
+      "label": "Compare broadband deals",
+      "optionKey": "switch",
+      "approvalTier": 2
+    },
+    "related": [
+      "tech:sim_only"
+    ],
+    "tier": 2
+  },
+  "demo": {
+    "id": "bank-energy-sample",
+    "category": "utilities",
+    "statusTag": "demo",
+    "label": "UTILITIES",
+    "headline": "Save £240 a year",
+    "keyMetric": {
+      "label": "Saving a year",
+      "value": 240,
+      "unit": "gbp_year",
+      "source": {
+        "name": "Sample bank data",
+        "url": null,
+        "asOf": "2026-10-01"
+      }
+    },
+    "metrics": [],
+    "why": [
+      {
+        "factKey": "fix_end_date",
+        "label": "Fix ends",
+        "value": "14 November 2026",
+        "source": {
+          "name": "Your bank",
+          "url": null,
+          "asOf": "2026-10-24"
+        }
+      }
+    ],
+    "confidence": {
+      "level": "low",
+      "reason": "Sample data, not your real payments."
+    },
+    "saving": {
+      "kind": "sample",
+      "gbpRange": {
+        "low": 240,
+        "high": 240
+      },
+      "kgRange": null,
+      "source": {
+        "name": "Sample bank data",
+        "url": null,
+        "asOf": "2026-10-01"
+      },
+      "method": null,
+      "evidence": null
+    },
+    "effort": {
+      "minutes": 20,
+      "approvalTier": 2
+    },
+    "options": [],
+    "gaps": [],
+    "context": [
+      {
+        "key": "price_cap_window",
+        "label": "Price cap changes 1 January",
+        "asOf": "2026-08-27"
+      }
+    ],
+    "nextStep": {
+      "label": "Compare fixed tariffs",
+      "optionKey": null,
+      "approvalTier": 2
+    },
+    "related": [],
+    "tier": 3
+  },
+  "coming_soon": {
+    "id": "lifestyle:low_use_membership",
+    "category": "lifestyle",
+    "statusTag": "coming_soon",
+    "label": "LIFESTYLE",
+    "headline": "Coming soon",
+    "keyMetric": null,
+    "metrics": [],
+    "why": [],
+    "confidence": {
+      "level": "low",
+      "reason": "We do not have enough sourced data for this yet."
+    },
+    "saving": null,
+    "effort": {
+      "minutes": null,
+      "approvalTier": 0
+    },
+    "options": [],
+    "gaps": [],
+    "context": [],
+    "nextStep": null,
+    "related": [],
+    "tier": 1
+  }
+}

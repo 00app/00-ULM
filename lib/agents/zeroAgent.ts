@@ -36,6 +36,7 @@ const CATEGORY_TOOL_HINTS: Partial<Record<JourneyId, string[]>> = {
   water: ['fetch_postcode_geo', 'fetch_flood_risk', 'scrape_url'],
   waste: ['fetch_postcode_geo', 'fetch_deprivation_index', 'scrape_url'],
   carbon: ['fetch_postcode_geo', 'fetch_grid_intensity', 'fetch_epc_data', 'fetch_solar_estimate', 'scrape_url'],
+  lifestyle: ['fetch_postcode_geo', 'fetch_deprivation_index', 'scrape_url'],
 }
 
 // OpenAI-format tool declarations (converted from Gemini FunctionDeclaration)

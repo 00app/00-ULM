@@ -248,6 +248,37 @@ export const LOOP_QUESTION_BANK: LoopQuestionBeat[] = [
       { label: 'OFFSET', value: 'OFFSET ONLY', ariaLabel: 'Offsets only' },
     ],
   },
+  // Lifestyle (PRD v4, Z5). Choice answers only; value per use, never health or body questions.
+  {
+    questionId: 'lifestyle_memberships',
+    question: 'pay for a gym,\nclub or classes?',
+    journeyKeys: ['lifestyle'],
+    options: [
+      { label: 'GYM', value: 'GYM', ariaLabel: 'Yes, a gym' },
+      { label: 'CLUB', value: 'CLUB OR CLASSES', ariaLabel: 'Yes, a club or classes' },
+      { label: 'NONE', value: 'NONE', ariaLabel: 'No memberships' },
+    ],
+  },
+  {
+    questionId: 'lifestyle_visits',
+    question: 'how often do you go\neach month?',
+    journeyKeys: ['lifestyle'],
+    options: [
+      { label: '0–1', value: 'NONE OR ONCE', ariaLabel: 'Once a month or less' },
+      { label: '2–6', value: 'SOME', ariaLabel: 'Two to six times a month' },
+      { label: '7+', value: 'OFTEN', ariaLabel: 'Seven or more times a month' },
+    ],
+  },
+  {
+    questionId: 'lifestyle_eat_out',
+    question: 'eat out or order in\nmost weeks?',
+    journeyKeys: ['lifestyle'],
+    options: [
+      { label: 'RARELY', value: 'RARELY', ariaLabel: 'Rarely' },
+      { label: 'ONCE', value: 'ONCE A WEEK', ariaLabel: 'About once a week' },
+      { label: '2+', value: 'TWICE OR MORE', ariaLabel: 'Twice a week or more' },
+    ],
+  },
 ]
 
 /** Goal lean per beat — used for ranking, not filtering (carbon beats still surface for money-first users). */
@@ -269,6 +300,9 @@ const LOOP_BEAT_GOAL_LEAN: Record<string, LoopGoalLean> = {
   water_meter_save: 'money',
   waste_compost: 'carbon',
   carbon_offset_cut: 'carbon',
+  lifestyle_memberships: 'money',
+  lifestyle_visits: 'money',
+  lifestyle_eat_out: 'money',
 }
 
 function loopBeatGoalLean(beat: LoopQuestionBeat): LoopGoalLean {

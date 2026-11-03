@@ -125,6 +125,7 @@ const DEEP_DIVE_PILLS: Partial<Record<JourneyId, [string, string, string]>> = {
   water: ['Show me the math', 'How was litres/day used?', 'Quick win this week?'],
   waste: ['Show me the math', 'Recycling vs landfill split?', 'One bin habit to change?'],
   carbon: ['Show me the math', 'How does this compare to 1t/yr?', 'Biggest lever left?'],
+  lifestyle: ['Show me the math', 'What does each visit cost me?', 'Pause, downgrade or keep?'],
 }
 
 /** Three category-specific pills — hand off to /zai (read-only chat). */

@@ -226,6 +226,7 @@ const JOURNEY_TITLES: Record<JourneyId, string> = {
   water: 'trim water and hot use',
   waste: 'reduce household waste',
   carbon: 'track and reduce carbon',
+  lifestyle: 'get more from what you pay for',
 }
 
 // General card titles from profile (livingSituation / household, homeType / home_type, transport / transport_baseline)
@@ -585,6 +586,8 @@ function resolveBaselineMarketRate(args: {
     water: 0.04,
     waste: 0.04,
     carbon: 0.07,
+    // Lifestyle spend is not a share of the energy price cap; no published baseline, so none.
+    lifestyle: 0,
   }
   const carbonWeight: Record<JourneyId, number> = {
     home: 2.4,
@@ -599,6 +602,7 @@ function resolveBaselineMarketRate(args: {
     water: 0.7,
     waste: 0.7,
     carbon: 1.0,
+    lifestyle: 0,
   }
   const moneyBaseline = Math.max(0, args.capGbp * (moneyShare[args.journeyKey] ?? 0.07))
   const carbonBaseline = Math.max(0, (args.regionalGridIntensityGPerKwh / 100) * (carbonWeight[args.journeyKey] ?? 1))

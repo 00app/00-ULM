@@ -205,6 +205,7 @@ nextjs-portal > * {
   --color-j-tech: var(--surface-card-visited); /* legacy alias: remove in task 6 */
   --color-j-waste: var(--surface-card-visited); /* legacy alias: remove in task 6 */
   --color-j-holidays: var(--surface-card-visited); /* legacy alias: remove in task 6 */
+  --color-j-lifestyle: var(--surface-card-visited); /* legacy alias: remove in task 6 */
 
   /* ── Non-colour tokens (unchanged) ── */
   /* v2 type-role line-height + letter-spacing (size lives per-element, these are shared).

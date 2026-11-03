@@ -43,4 +43,5 @@ export const UK_2026_MONEY_LEAD: Record<JourneyId, JourneyMoneyLead> = {
   tech: emptyLead('tech'),
   water: emptyLead('water'),
   waste: emptyLead('waste'),
+  lifestyle: emptyLead('lifestyle'),
 }

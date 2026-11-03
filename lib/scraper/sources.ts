@@ -103,6 +103,13 @@ export const SCRAPER_SOURCE_MATRIX: Record<JourneyId, ScraperSourceConfig> = {
     moneyMetric: 'route cost and carbon comparison',
     insightLabel: 'Flight vs rail for popular UK–Europe routes',
   },
+  lifestyle: {
+    journey: 'lifestyle',
+    primaryTarget: 'MoneyHelper & Citizens Advice',
+    carbonMetric: '—',
+    moneyMetric: 'membership and subscription cost per use',
+    insightLabel: 'Memberships, eating out and pet cover, priced per use',
+  },
 }
 
 export interface ScrapedDataPoint {

@@ -126,6 +126,7 @@ export const ASK_XI_TOPIC: Record<string, string> = {
   tech: 'tech',
   waste: 'waste',
   holidays: 'holidays',
+  lifestyle: 'memberships and eating out',
 }
 
 export function getAskXiPlaceholder(category: string): string {

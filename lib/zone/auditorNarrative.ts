@@ -23,6 +23,7 @@ function auditTopicPhrase(journey: JourneyId): string {
     waste: 'waste',
     water: 'water',
     holidays: 'holiday travel',
+    lifestyle: 'memberships and eating out',
   }
   return m[journey] ?? 'household'
 }
@@ -144,6 +145,11 @@ function proofSentenceBase(journey: JourneyId, sourceName: string, postcode: str
         return `${sourceName} book off-peak trains early — leisure fares still punish last-minute car hire too.`
       }
       return `${sourceName} show short-haul rail beating domestic flights on cost and carbon — booking early still matters this year.`
+    case 'lifestyle':
+      if (v === 1) {
+        return `${sourceName} price a membership by what each visit costs — a pause or off-peak plan often beats cancelling outright.`
+      }
+      return `${sourceName} put notice periods and exit fees in the contract — check yours before you pause, downgrade or cancel.`
     default:
       if (v === 1) {
         return `${sourceName} line this row to what you already told us — one small move this week still shifts the bill.`

@@ -121,6 +121,7 @@ const JOURNEY_HEADLINE_TOPIC_CONFLICT: Partial<Record<JourneyId, RegExp>> = {
   tech: /\b(?:shower|bath|rainwater|water\s+meter|flush|april\s*cap\s*signal)\b/i,
   travel: /\b(?:shower|bath|rainwater|water\s+meter|loft\s+insulation|april\s*cap)\b/i,
   carbon: /\b(?:e-bike|ebike|meal\s+planner|food\s+compost)\b/i,
+  lifestyle: /\b(?:electric(?:ity)?|kwh|tariff|boiler|heat\s*pump|loft|insulation|solar\s+panel|april\s*cap|ofgem)\b/i,
 }
 
 export function headlineConflictsWithJourney(journey: JourneyId, headline: string): boolean {
@@ -1396,6 +1397,7 @@ export const ZONE_BENTO_HOOK: Partial<Record<JourneyId, string>> = {
   water: 'fix drips and fit aerators before your water bill climbs',
   waste: 'sort recycling and compost at home to cut bin charges',
   carbon: 'track one big habit each month and cut your waste',
+  lifestyle: 'check each membership still earns its monthly price',
 }
 
 /**
@@ -1415,6 +1417,7 @@ const ZONE_GRID_INJECT_HOOK: Partial<Record<JourneyId, string>> = {
   water: 'fit a tap aerator before your water bill rises',
   waste: 'set up food waste collection before landfill charges rise',
   carbon: 'log your biggest monthly habit before you buy offsets',
+  lifestyle: 'ask about off-peak or paused plans before you renew',
 }
 
 /**

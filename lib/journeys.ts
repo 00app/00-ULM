@@ -1,4 +1,4 @@
-/** Twelve-domain intelligence loop — 3 questions per category (Infrastructure / Behaviour / Readiness). */
+/** Thirteen-domain intelligence loop — 3 questions per category (Infrastructure / Behaviour / Readiness). */
 export const JOURNEY_IDS = [
   'home',
   'utilities',
@@ -12,6 +12,7 @@ export const JOURNEY_IDS = [
   'water',
   'waste',
   'carbon',
+  'lifestyle',
 ] as const
 
 export const JOURNEY_ORDER = JOURNEY_IDS
@@ -328,6 +329,32 @@ export const JOURNEYS: Record<JourneyId, JourneyDefinition> = {
       },
     ],
   },
+  // Memberships, eating out, hobby subscriptions, pets (PRD v4, Z5). Streaming and phone stay in
+  // tech, groceries in food, holidays in holidays. Value per use only: no health or body questions.
+  lifestyle: {
+    id: 'lifestyle',
+    name: 'lifestyle',
+    questions: [
+      {
+        id: 'pet_owner',
+        label: 'Any pets at home?',
+        type: 'options',
+        options: ['DOG', 'CAT', 'OTHER_PET', 'NO_PETS'],
+      },
+      {
+        id: 'takeaway_subscription',
+        label: 'Pay for a takeaway app subscription?',
+        type: 'options',
+        options: ['YES', 'NO', 'NOT_SURE'],
+      },
+      {
+        id: 'memberships_checked',
+        label: 'Last checked what your memberships cost?',
+        type: 'options',
+        options: ['THIS_YEAR', 'LONGER', 'NEVER'],
+      },
+    ],
+  },
 }
 
 export function getNextJourney(currentJourneyId: JourneyId | null, completedJourneys: JourneyId[]): JourneyId | null {
@@ -353,6 +380,7 @@ export const JOURNEY_LABELS: Record<JourneyId, string> = {
   water: 'Water',
   waste: 'Waste',
   carbon: 'Carbon',
+  lifestyle: 'Lifestyle',
 }
 
 export const JOURNEY_COLORS: Record<JourneyId, string> = {
@@ -368,6 +396,7 @@ export const JOURNEY_COLORS: Record<JourneyId, string> = {
   water: 'var(--color-j-water)',
   waste: 'var(--color-j-waste)',
   carbon: 'var(--color-j-carbon)',
+  lifestyle: 'var(--color-j-lifestyle)',
 }
 
 /** First question label per journey — built from `JOURNEY_ORDER` so keys never drift. */
@@ -469,6 +498,9 @@ export const OPTION_FULL_LABELS: Record<string, string> = {
   DOING_OK: 'Doing OK',
   UNDER_5: 'Under 5',
   SCHOOL_AGE: 'School age',
+  OTHER_PET: 'Other pet',
+  NO_PETS: 'No pets',
+  NOT_SURE: 'Not sure',
 }
 
 export function getOptionFullLabel(opt: string): string {

@@ -27,6 +27,7 @@ const SOURCES: Record<JourneyId, JourneySource[]> = {
   water: [{ url: 'https://www.waterwise.org.uk', label: 'waterwise uk' }],
   waste: [{ url: 'https://wrap.org.uk', label: 'wrap uk' }],
   holidays: [{ url: 'https://www.gov.uk/guidance/greenhouse-gas-reporting-conversion-factors', label: 'defra aviation factors' }],
+  lifestyle: [{ url: 'https://www.moneyhelper.org.uk/en/everyday-money/budgeting', label: 'moneyhelper budgeting' }],
 }
 
 export function getJourneySource(journeyKey: JourneyId, index: number): JourneySource {

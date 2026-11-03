@@ -35,6 +35,7 @@ export const EMOTION_GRID_HEX: Record<JourneyId, string> = {
   water: COLOR_BLUE,
   waste: COLOR_BLUE,
   carbon: COLOR_BLUE,
+  lifestyle: COLOR_BLUE,
 }
 
 /** Body copy on card: white ink on the blue surface */
@@ -51,6 +52,7 @@ export const EMOTION_TEXT_HEX: Record<JourneyId, string> = {
   water: COLOR_WHITE,
   waste: COLOR_WHITE,
   carbon: COLOR_WHITE,
+  lifestyle: COLOR_WHITE,
 }
 
 /** CTA fill (contrasts card surface) — white pill on the blue card */
@@ -67,6 +69,7 @@ export const EMOTION_CTA_BG_HEX: Record<JourneyId, string> = {
   water: COLOR_WHITE,
   waste: COLOR_WHITE,
   carbon: COLOR_WHITE,
+  lifestyle: COLOR_WHITE,
 }
 
 /** CTA label on CTA fill — blue on white (white bg needs blue ink, ~8.4:1) */
@@ -83,6 +86,7 @@ export const EMOTION_CTA_TEXT_HEX: Record<JourneyId, string> = {
   water: COLOR_BLUE,
   waste: COLOR_BLUE,
   carbon: COLOR_BLUE,
+  lifestyle: COLOR_BLUE,
 }
 
 /** @deprecated Use EMOTION_CTA_BG_HEX — kept for callers still on “accent” naming */
@@ -99,6 +103,7 @@ export const EMOTION_ACCENT_HEX: Record<JourneyId, string> = {
   water: EMOTION_CTA_BG_HEX.water,
   waste: EMOTION_CTA_BG_HEX.waste,
   carbon: EMOTION_CTA_BG_HEX.carbon,
+  lifestyle: EMOTION_CTA_BG_HEX.lifestyle,
 }
 
 export const HERO_GRID_HEX = COLOR_BLUE
@@ -126,6 +131,7 @@ export const JOURNEY_COLOR_MAP: Record<JourneyId, JourneyColorEntry> = {
   water: { journey: 'water', keyword: 'rainwater', name: 'Water', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
   waste: { journey: 'waste', keyword: 'composting', name: 'Waste', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
   carbon: { journey: 'carbon', keyword: 'forest', name: 'Carbon', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
+  lifestyle: { journey: 'lifestyle', keyword: 'membership', name: 'Lifestyle', hex: COLOR_BLUE, textHex: COLOR_WHITE, usage: '' },
 }
 
 export function getExpandedAccentHex(journeyId: JourneyId): string {

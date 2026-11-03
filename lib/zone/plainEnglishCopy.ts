@@ -346,6 +346,7 @@ export function buildFriendlyDetectionParagraph(params: {
     waste: 'bins and recycling',
     solar: 'solar on your roof',
     carbon: 'home energy use',
+    lifestyle: 'memberships and eating out',
   }
   const topic = topicByJourney[params.journey] ?? 'home bills'
 

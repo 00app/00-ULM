@@ -49,6 +49,7 @@ export function vaultForJourney(journeyId: JourneyId): IntelligenceVaultId {
     case 'food':
     case 'shopping':
     case 'money':
+    case 'lifestyle':
     default:
       return 'C'
   }
