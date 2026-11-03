@@ -53,6 +53,23 @@ assert('tasks come back in group order', (() => {
 })())
 assert('nationFromCountry maps postcodes.io names', nationFromCountry('Northern Ireland') === 'northern-ireland' && nationFromCountry('Wales') === 'wales' && nationFromCountry('') === null)
 
+// --- Northern Ireland coverage -------------------------------------------------------------
+// NI runs its own system for several of these (rates not council tax, DVA not DVLA for driving
+// licences, its own energy market, its own tenancy deposit schemes, its own benefits reporting
+// and calculator), so it gets its own task with its own NI source rather than being added to a
+// GOV.UK/NHS-England task that would not actually apply there.
+const ni = movingTasksFor('northern-ireland').map((t) => t.id)
+assert('NI gets its own rates task, not council tax', ni.includes('rates-ni') && !ni.includes('council-tax'))
+assert('NI gets its own driving licence task (DVA), not the GB one (DVLA)', ni.includes('dvla-licence-ni') && !ni.includes('dvla-licence'))
+assert('NI gets its own tenancy deposit task, not the England & Wales one', ni.includes('deposit-ni') && !ni.includes('deposit'))
+assert('NI gets its own energy task, not the GB one', ni.includes('energy-ni') && !ni.includes('energy'))
+assert('NI gets its own GP task, not the England one', ni.includes('gp-ni') && !ni.includes('gp'))
+assert('NI gets its own benefits-change-of-circumstances task, not the GB one', ni.includes('benefits-ni') && !ni.includes('benefits'))
+assert('NI gets its own benefits calculator task, not the GB one', ni.includes('help-ni') && !ni.includes('help'))
+assert('NI gets V5C (DVLA registers vehicles UK-wide, unlike driving licences)', ni.includes('dvla-v5c'))
+assert('NI still gets the UK-wide tasks', ['tv-licence', 'broadband', 'post', 'vote', 'hmrc', 'home-insurance', 'car-insurance'].every((id) => ni.includes(id)))
+assert('NI does not get the England & Wales-only water task (no domestic water billing in NI)', !ni.includes('water'))
+
 assert('England does not get the Scottish Assessors tip', !tipsFor(MOVING_TASKS.find((t) => t.id === 'council-tax')!, 'england').some((x) => /Scottish/.test(x.text)))
 assert('Scotland gets the Scottish Assessors tip', tipsFor(MOVING_TASKS.find((t) => t.id === 'council-tax')!, 'scotland').some((x) => /Scottish/.test(x.text)))
 

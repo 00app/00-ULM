@@ -3,9 +3,21 @@
  * after moving in, grouped by urgency, each with the official place to do it and a source.
  *
  * Mechanical truth: every fact in `why` and every tip was read on its cited page on the
- * `verified` date (browser-checked, 2026-10-18). No prices or estimates live here; live,
+ * `verified` date (browser-checked, 2026-11-03). No prices or estimates live here; live,
  * postcode-specific figures come from lib/entry/firstResult.ts at request time. If a page moves,
  * fix the URL and re-read the claim; never leave a claim without its source.
+ *
+ * Northern Ireland: most GB-only tasks below are genuinely GB-only, not a coverage gap — NI runs
+ * its own system (rates not council tax, DVA not DVLA for driving licences, HSC not NHS England,
+ * its own energy market and regulator, its own tenancy deposit schemes). Padding `nations` with
+ * `northern-ireland` on a GOV.UK/NHS-England task would show a source that does not apply there,
+ * which breaks mechanical truth. Instead each genuinely different NI process gets its own task
+ * below, with its own NI source, verified 2026-11-03. The one real gap found on review: V5C
+ * vehicle registration is run by DVLA UK-wide (NI's own agency, DVA, only covers driving
+ * licences) — that task's `nations` was wrongly GB-only and is fixed in place. `water` stays
+ * GB/England+Wales-only deliberately: Scotland and Northern Ireland have no separate domestic
+ * water billing to set up (Scottish Water is billed via council tax; NI Water has no domestic
+ * charge at all).
  */
 
 export type Nation = 'england' | 'wales' | 'scotland' | 'northern-ireland'
@@ -34,7 +46,7 @@ export type MovingTask = {
   audience?: MovingAudience
 }
 
-export const MOVING_KNOWLEDGE_VERIFIED = '2026-10-18'
+export const MOVING_KNOWLEDGE_VERIFIED = '2026-11-03'
 
 export const MOVING_GROUPS: Record<MovingTaskGroup, { title: string; blurb: string }> = {
   first: { title: 'Do these first', blurb: 'Legal deadlines and fines.' },
@@ -48,11 +60,13 @@ export const MOVING_GROUP_ORDER: readonly MovingTaskGroup[] = ['first', 'bills',
 const GB: readonly Nation[] = ['england', 'wales', 'scotland']
 const UK: readonly Nation[] = ['england', 'wales', 'scotland', 'northern-ireland']
 const ENGLAND_WALES: readonly Nation[] = ['england', 'wales']
+const NI: readonly Nation[] = ['northern-ireland']
 
 const GOVUK = (path: string, name: string): MovingSource => ({ name: `GOV.UK: ${name}`, url: `https://www.gov.uk/${path}` })
+const NIDIRECT = (url: string, name = 'nidirect'): MovingSource => ({ name, url })
 
 export const MOVING_TASKS: readonly MovingTask[] = [
-  // ── Do these first ─────────────────────────────────────────────────────────────────────
+  // ── Do these first ──────────────────────────────────────────────────────────────────────
   {
     id: 'council-tax',
     group: 'first',
@@ -79,6 +93,19 @@ export const MOVING_TASKS: readonly MovingTask[] = [
     nations: GB,
   },
   {
+    id: 'rates-ni',
+    group: 'first',
+    title: 'Update your rates account with Land & Property Services',
+    why: 'Northern Ireland does not have council tax. Domestic rates are billed by Land & Property Services (LPS), and you need to tell them you have moved in.',
+    action: {
+      label: 'Create or update your rate account',
+      url: 'https://www.nidirect.gov.uk/services/create-or-update-your-rate-account',
+    },
+    source: NIDIRECT('https://www.nidirect.gov.uk/articles/make-changes-your-rate-account'),
+    tips: [],
+    nations: NI,
+  },
+  {
     id: 'dvla-licence',
     group: 'first',
     title: 'Change the address on your driving licence',
@@ -90,14 +117,28 @@ export const MOVING_TASKS: readonly MovingTask[] = [
     audience: 'drivers',
   },
   {
+    id: 'dvla-licence-ni',
+    group: 'first',
+    title: 'Change the address on your driving licence (NI)',
+    why: 'Driving licences in Northern Ireland are issued by the DVA, not DVLA. Change your address with them while you are still resident there.',
+    action: {
+      label: 'Change your address with DVA',
+      url: 'https://www.nidirect.gov.uk/services/change-your-address-your-driving-licence-online',
+    },
+    source: NIDIRECT('https://www.nidirect.gov.uk/services/change-your-address-your-driving-licence-online'),
+    tips: [],
+    nations: NI,
+    audience: 'drivers',
+  },
+  {
     id: 'dvla-v5c',
     group: 'first',
     title: 'Change the address on your vehicle log book (V5C)',
-    why: 'The same rule applies to your log book: up to £1,000 fine if DVLA is not told.',
+    why: 'The same rule applies to your log book: up to £1,000 fine if DVLA is not told. DVLA registers vehicles across the whole UK, including Northern Ireland, even though NI driving licences are handled separately by the DVA.',
     action: { label: 'Update your V5C', url: 'https://www.gov.uk/change-address-v5c' },
     source: GOVUK('change-address-v5c', 'Change your address on your vehicle log book (V5C)'),
     tips: [],
-    nations: GB,
+    nations: UK,
     audience: 'drivers',
   },
   {
@@ -125,6 +166,20 @@ export const MOVING_TASKS: readonly MovingTask[] = [
     source: GOVUK('tenancy-deposit-protection', 'Tenancy deposit protection'),
     tips: [],
     nations: ENGLAND_WALES,
+    audience: 'renters',
+  },
+  {
+    id: 'deposit-ni',
+    group: 'first',
+    title: 'Check your deposit is protected',
+    why: "In Northern Ireland your landlord cannot ask for more than one month's rent as a deposit, and must protect it in an approved NI scheme within 28 days of getting it.",
+    action: {
+      label: 'How protection works',
+      url: 'https://nidirect.gov.uk/articles/tenancy-deposit-scheme-information-tenants',
+    },
+    source: NIDIRECT('https://nidirect.gov.uk/articles/tenancy-deposit-scheme-information-tenants'),
+    tips: [],
+    nations: NI,
     audience: 'renters',
   },
 
@@ -156,6 +211,22 @@ export const MOVING_TASKS: readonly MovingTask[] = [
       },
     ],
     nations: GB,
+  },
+  {
+    id: 'energy-ni',
+    group: 'bills',
+    title: 'Check your energy supplier and tariff',
+    why: 'Northern Ireland has its own energy market, separate from Great Britain, with its own suppliers and regulator. Check which suppliers cover your new home and compare tariffs.',
+    action: {
+      label: 'Switching electricity or gas supplier',
+      url: 'https://www.consumercouncil.org.uk/consumers/help-consumers/electricity-oil-and-gas/switching-electricity-or-gas-supplier',
+    },
+    source: {
+      name: 'Consumer Council for Northern Ireland',
+      url: 'https://www.consumercouncil.org.uk/consumers/help-consumers/electricity-oil-and-gas/switching-electricity-or-gas-supplier',
+    },
+    tips: [],
+    nations: NI,
   },
   {
     id: 'water',
@@ -227,6 +298,16 @@ export const MOVING_TASKS: readonly MovingTask[] = [
     nations: ['england'],
   },
   {
+    id: 'gp-ni',
+    group: 'tell',
+    title: 'Register with a GP near your new home',
+    why: 'Find a GP practice that covers your new address, check it is taking new patients, then register. You no longer need a reason to pick which doctor in the practice you see.',
+    action: { label: 'Find a GP practice', url: 'https://www.nidirect.gov.uk/services/gp-practices' },
+    source: NIDIRECT('https://www.nidirect.gov.uk/articles/your-local-doctor-gp'),
+    tips: [],
+    nations: NI,
+  },
+  {
     id: 'hmrc',
     group: 'tell',
     title: 'Tell HMRC your new address',
@@ -245,6 +326,16 @@ export const MOVING_TASKS: readonly MovingTask[] = [
     source: GOVUK('report-benefits-change-circumstances', 'Benefits: report a change in your circumstances'),
     tips: [],
     nations: GB,
+  },
+  {
+    id: 'benefits-ni',
+    group: 'tell',
+    title: 'If you get benefits, report the move',
+    why: 'Who you tell depends on which benefit you get: Universal Credit through your online account, Housing Benefit through the Housing Executive, State Pension through the NI Pension Centre, and so on.',
+    action: { label: 'Report a change', url: 'https://nidirect.gov.uk/articles/get-in-touch-if-your-circumstances-change' },
+    source: NIDIRECT('https://nidirect.gov.uk/articles/get-in-touch-if-your-circumstances-change'),
+    tips: [],
+    nations: NI,
   },
 
   // ── Protect and save ───────────────────────────────────────────────────────────────────
@@ -298,6 +389,16 @@ export const MOVING_TASKS: readonly MovingTask[] = [
     source: GOVUK('benefits-calculators', 'Benefits calculators'),
     tips: [],
     nations: GB,
+  },
+  {
+    id: 'help-ni',
+    group: 'protect',
+    title: 'Check what help you can get',
+    why: 'A new home is a good moment to check which benefits and discounts you are entitled to.',
+    action: { label: 'Benefits calculator', url: 'https://www.nidirect.gov.uk/benefits-adviser' },
+    source: NIDIRECT('https://www.nidirect.gov.uk/benefits-adviser'),
+    tips: [],
+    nations: NI,
   },
 ]
 
