@@ -595,7 +595,7 @@ export default function ProfilePageClient() {
     if (qParam || returnTo || skipParam === '1') return
     if (submittingRef.current) return
     if (isProfileOnboardingComplete(values)) {
-      router.replace(ROUTES.ZAI)
+      router.replace(ROUTES.ZONE)
       return
     }
     let cancelled = false
@@ -605,14 +605,14 @@ export default function ProfilePageClient() {
         const userJson = await userRes.json().catch(() => null)
         if (cancelled) return
         if (userJson?.user && userRowOnboardingComplete(userJson.user)) {
-          router.replace(ROUTES.ZAI)
+          router.replace(ROUTES.ZONE)
           return
         }
         const sessionRes = await fetch('/api/session-state', { cache: 'no-store' })
         const sessionJson = await sessionRes.json().catch(() => null)
         if (cancelled) return
         if (sessionJson?.profile && guestProfileOnboardingComplete(sessionJson.profile)) {
-          router.replace(ROUTES.ZAI)
+          router.replace(ROUTES.ZONE)
         }
       } catch {
         /* network failure — fall through to onboarding, never block on this check */

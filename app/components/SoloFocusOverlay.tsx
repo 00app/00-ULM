@@ -74,6 +74,7 @@ import {
 } from '@/lib/journeyColors'
 import { SoloFocusProseStack } from '@/app/components/SoloFocusProseStack'
 import { SoloFocusMotherStack } from '@/app/components/SoloFocusMotherStack'
+import { SoloFocusDeepDive } from '@/app/components/SoloFocusDeepDive'
 import { PulseExpandedSync } from '@/app/components/PulseExpandedSync'
 import { SoloFocusViewportUtilityStrip } from '@/app/components/SoloFocusViewportUtilityStrip'
 import { ExpandedCardShell } from '@/app/components/ExpandedCard'
@@ -280,6 +281,8 @@ export function SoloFocusOverlay({
   const [discoveryRebirthTip, setDiscoveryRebirthTip] = useState(false)
   const [rebirthDiscoveryTitle, setRebirthDiscoveryTitle] = useState<string | null>(null)
   const [askZaiDeepDiveOpen, setAskZaiDeepDiveOpen] = useState(false)
+  /** Pills from the deep view (question or best result); null → the category defaults. */
+  const [askZaiPills, setAskZaiPills] = useState<string[] | null>(null)
   const soloFocusEngagementRef = useRef(createSoloFocusEngagementRef())
 
   useEffect(() => {
@@ -613,6 +616,20 @@ export function SoloFocusOverlay({
       habitTitle={isRockHabitTip ? String(title || displayTitle || recommendation).trim() : undefined}
     />
   ) : null
+  const deepDiveEl = !showMotherComputing ? (
+    <SoloFocusDeepDive
+      journeyId={String(displayJourneyId ?? journeyId ?? 'home')}
+      cardActionId={libraryAction?.id ?? null}
+      onAskZai={
+        isZaiChatEnabled()
+          ? (questions) => {
+              setAskZaiPills(questions)
+              setAskZaiDeepDiveOpen(true)
+            }
+          : undefined
+      }
+    />
+  ) : null
   const sourceFooter = libraryAction
     ? librarySourceLine(libraryAction)
     : isDiscoveryMotherCard || partnerHttp
@@ -890,6 +907,7 @@ export function SoloFocusOverlay({
         card_title: ctx?.cardTitle || displayTitle,
       })
     }
+    setAskZaiPills(null)
     setAskZaiDeepDiveOpen(true)
   }, [activeCardId, cardId, loopJourneyKey, displayTitle, snapshotCardContext])
 
@@ -926,7 +944,7 @@ export function SoloFocusOverlay({
     <>
       <motion.div key={activeCardId} className="solo-focus-grow-layer" initial={false}>
       <ExpandedCardShell
-        className="expanded-solo-focus view-expanded solo-focus-mobile-expand zz-shimmer-focus"
+        className="expanded-solo-focus view-expanded solo-focus-mobile-expand zz-shimmer-focus zz-brand"
         data-journey={displayJourneyId ?? 'overlay'}
         data-zone-surface={overlaySurfaceKind}
         style={
@@ -940,7 +958,7 @@ export function SoloFocusOverlay({
       >
       <PulseExpandedSync providerName={handoffAttribution.pulseProviderName} sourceUrl={pulseSourceUrl} />
         <div className="solo-focus-shell-wrap w-full min-w-0">
-      <SoloFocusViewportUtilityStrip onClose={requestClose} hidden={askZaiDeepDiveOpen} />
+      <SoloFocusViewportUtilityStrip onClose={requestClose} hidden={askZaiDeepDiveOpen} brand />
         <motion.div
           className="solo-focus-stack solo-focus-rail flex flex-col justify-start w-full min-w-0"
         >
@@ -962,7 +980,12 @@ export function SoloFocusOverlay({
                   categoryIsNew={isUnreadCard(soloFocusCardId)}
                   headline={recommendationTitle}
                   showComputing={showMotherComputing}
-                  prose={trueTipSectionsEl}
+                  prose={
+                    <>
+                      {trueTipSectionsEl}
+                      {deepDiveEl}
+                    </>
+                  }
                   headlineMotion={
                     reducePagerMotion
                       ? undefined
@@ -975,6 +998,7 @@ export function SoloFocusOverlay({
                   metrics={
                     <>
                       <MotherCardRenderer
+                        brand
                         categoryLabel=""
                         headline={null}
                         narrative={null}
@@ -1002,6 +1026,7 @@ export function SoloFocusOverlay({
                       />
                       {(onNavigateJourney || onNavigateSoloFocus) && journeyId ? (
                         <SoloFocusJourneyNav
+                          brand
                           journeyId={focusCategoryJourneyId}
                           currentCardId={soloFocusCardId}
                           navRing={soloFocusNavRingWithMorph}
@@ -1037,7 +1062,7 @@ export function SoloFocusOverlay({
         scrapedSource={sourceLabel || sourceUrl || ''}
         postcode={profilePostcode ?? state.profile?.postcode}
         localityName={state.locationState?.locationName ?? undefined}
-        suggestedQuestions={buildDeepDiveQuestionPills(loopJourneyKey)}
+        suggestedQuestions={askZaiPills ?? buildDeepDiveQuestionPills(loopJourneyKey)}
       />
       {!isZoneMotherChild && (
       <motion.div className="fixed right-5 top-5 z-50">

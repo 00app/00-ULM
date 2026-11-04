@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     const auth = await resolveAuthenticatedUser(request, {})
     if (auth?.userId) {
       const result = await pool.query(
-        'SELECT card_id FROM likes WHERE user_id = $1',
+        'SELECT card_id FROM likes WHERE user_id = $1 ORDER BY created_at ASC',
         [auth.userId]
       )
       const res = NextResponse.json({

@@ -398,7 +398,7 @@ export default function ZaiPage() {
 
   return (
     <motion.div
-      className="zz-page zai-interface zai-page"
+      className="zz-page zai-interface zai-page zz-brand zz-brand-page"
       style={{ background: 'transparent' }}
       initial={pageEnter.initial}
       animate={pageEnter.animate}
@@ -407,7 +407,7 @@ export default function ZaiPage() {
       <ZoneModalCloseLink onClose={handleZaiClose} />
 
       <div className="zai-page-scroll max-w-zone">
-        <h3 className="zz-page-title">zai chat</h3>
+        <h3 className="zz-page-title">Ask Zai</h3>
         <motion.div className="zai-page-content">
           <motion.div
             className="zai-intro-bubble"
@@ -481,7 +481,7 @@ export default function ZaiPage() {
                             })
                           }}
                         >
-                          source
+                          Source
                         </a>
                       ) : null}
                       {msg.meta?.showLike ? (
@@ -522,14 +522,14 @@ export default function ZaiPage() {
         </motion.div>
       </div>
 
-      <ZaiComposerDock>
+      <ZaiComposerDock className="zz-brand zz-brand-page">
         {loading ? (
           <motion.p
             className="zz-h4 zai-connecting m-0"
             animate={{ opacity: [0.45, 1, 0.45] }}
             transition={pulseLoop()}
           >
-            zai is auditing user metrics from neon...
+            Zai is thinking…
           </motion.p>
         ) : null}
         <motion.div className="zai-input-row">
@@ -538,7 +538,7 @@ export default function ZaiPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="ask about a specific shift..."
+            placeholder="Ask about a specific change…"
             className="zz-zai-composer-input"
           />
           <motion.button

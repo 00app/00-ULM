@@ -44,7 +44,14 @@ function hostLabel(url: string | null | undefined): string | null {
   if (!url) return null
   try {
     const h = new URL(url).hostname.replace(/^www\./, '')
-    return h || null
+    if (!h) return null
+    // Show the site, not the subdomain: benefits-calculator.turn2us.org.uk -> turn2us.org.uk.
+    // GOV.UK and NHS services (x.service.gov.uk) read as the parent service.
+    if (h === 'gov.uk' || h.endsWith('.service.gov.uk')) return 'gov.uk'
+    if (h.endsWith('.nhs.uk')) return 'nhs.uk'
+    const parts = h.split('.')
+    const keep = /^(co|org|ac|me|ltd|plc|net|gov)\.uk$/.test(parts.slice(-2).join('.')) ? 3 : 2
+    return parts.slice(-keep).join('.')
   } catch {
     return null
   }

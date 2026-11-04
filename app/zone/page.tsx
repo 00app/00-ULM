@@ -63,7 +63,7 @@ import {
   mergeCompletions,
   readGuestCompletions,
 } from '@/lib/actions/actionCompletion'
-import { isLibraryActionCardId } from '@/lib/actions/actionLibrary'
+import { isLibraryActionCardId, libraryActionForAnyCardId } from '@/lib/actions/actionLibrary'
 import { StampedMoneyGbp, StampedCarbonKg } from '@/app/components/StampedMetric'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { OpenNEOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
@@ -2859,6 +2859,34 @@ export default function ZonePage({
     },
     [zoneInteractable, openSoloFocus, rememberSoloFocusReturn]
   )
+
+  /**
+   * /zone?open=rock-<slug> (from Likes): open that habit card once the wall is interactive, then
+   * drop the query. Habit cards have no /zone/card URL (that route is journey cards only).
+   */
+  const pendingRockOpenRef = useRef<string | null>(null)
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get('open')
+      // Habit catalogue cards and library actions drawn as habits (Start here) both open via openRockTip.
+      if (id && id.startsWith('rock-') && (ROCK_BY_SLUG.has(id.slice(5)) || libraryActionForAnyCardId(id))) {
+        pendingRockOpenRef.current = id
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
+  useEffect(() => {
+    const id = pendingRockOpenRef.current
+    if (!id || !zoneInteractable) return
+    pendingRockOpenRef.current = null
+    try {
+      window.history.replaceState(window.history.state, '', window.location.pathname)
+    } catch {
+      /* ignore */
+    }
+    openRockTip(id)
+  }, [zoneInteractable, openRockTip])
 
   const openNextJourneyFromExpanded = useCallback(
     (jid: JourneyId) => {

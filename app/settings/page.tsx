@@ -378,9 +378,8 @@ export default function SettingsPage() {
 
   return (
     <motion.div
-      className="settings-page"
+      className="settings-page zz-brand zz-brand-page"
       style={{
-        color: 'var(--color-blue)',
         minHeight: '100vh',
         position: 'relative',
         paddingTop: 20,
@@ -414,13 +413,13 @@ export default function SettingsPage() {
                   <span className="data-label text-display settings-overview-label">{ENGINE_UI_LABELS.profileWasteMoney}</span>
                   <span className="data-label text-display settings-overview-label">{ENGINE_UI_LABELS.profileWasteCarbon}</span>
                   <span
-                    className="data-value text-display font-bold settings-data-value data-stamp-metric"
+                    className="data-value text-display settings-data-value data-stamp-metric"
                     style={{ color: 'var(--color-ink)' }}
                   >
                     <StampedMoneyGbp gbp={animatedMoney} />
                   </span>
                   <span
-                    className="data-value text-display font-bold settings-data-value data-stamp-metric"
+                    className="data-value text-display settings-data-value data-stamp-metric"
                     style={{ color: 'var(--color-ink)' }}
                   >
                     <StampedCarbonKg kg={animatedCarbon} />
@@ -470,7 +469,7 @@ export default function SettingsPage() {
               }}
             >
               <span className="card-top-label">Source of truth</span>
-              <h3 className="card-headline m-0">TRUTH LEDGER</h3>
+              <h3 className="card-headline m-0">Truth ledger</h3>
             </Link>
           </motion.div>
         </section>
@@ -586,18 +585,14 @@ export default function SettingsPage() {
           transition={settingsStaggerTransition}
           aria-label="Save and return to Zone"
         >
-          <span className="settings-circle-cta__label zz-h4">SAVE</span>
+          <span className="settings-circle-cta__label zz-h4">Save</span>
         </motion.button>
         <Link
           href={ROUTES.PROFILE}
           className="settings-circle-cta settings-circle-cta--primary"
           aria-label="Update location in profile"
         >
-          <span className="settings-circle-cta__label zz-h4">
-            UPDATE
-            <br />
-            LOCATION
-          </span>
+          <span className="settings-circle-cta__label zz-h4">Update location</span>
         </Link>
         <ResetDataCircleButton />
       </div>

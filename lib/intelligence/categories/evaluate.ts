@@ -26,6 +26,7 @@ import { JOURNEY_LABELS, JOURNEYS } from '@/lib/journeys'
 import { CATEGORY_SPEC_ORDER, CATEGORY_SPECS } from '@/lib/intelligence/categories/registry'
 import { inHeatingSeason, longDate, pounds } from '@/lib/intelligence/categories/shared'
 import type { CategorySpec, MetricSpec, OptionSpec, RuleSpec, SpecContext } from '@/lib/intelligence/categories/types'
+import { CARD_QUESTION_IDS, getCardQuestion } from '@/lib/zone/cardQuestions'
 import { LOOP_QUESTION_BANK } from '@/lib/zone/loopQuestions'
 import { typicalSavingForLibraryCard } from '@/lib/zone/recCardFromZone'
 import {
@@ -53,7 +54,8 @@ export const NEW_ACTION_IDS: readonly string[] = [
   ),
 ].sort()
 
-const LOOP_IDS = new Set(LOOP_QUESTION_BANK.map((b) => b.questionId))
+// Card questions (lib/zone/cardQuestions.ts) are asked on Solo Focus the same way loop beats are.
+const LOOP_IDS = new Set([...LOOP_QUESTION_BANK.map((b) => b.questionId), ...CARD_QUESTION_IDS])
 const ONBOARDING_IDS = new Set(Object.values(JOURNEYS).flatMap((j) => j.questions.map((q) => q.id)))
 const FACT_LABELS = new Map(Object.values(CATEGORY_FACTS).flat().map((f) => [f.key, f.label]))
 
@@ -196,7 +198,9 @@ function gapsFor(spec: CategorySpec, h: Household): InsightCard['gaps'] {
   return getGaps(h, spec.id)
     .map((g) => {
       const questionId = g.questionId && LOOP_IDS.has(g.questionId) ? g.questionId : g.onboardingKey && ONBOARDING_IDS.has(g.onboardingKey) ? g.onboardingKey : null
-      return questionId ? { questionId, field: g.key, whyWeAsk: `Your ${g.label.toLowerCase()} changes what we suggest here.` } : null
+      if (!questionId) return null
+      const whyWeAsk = getCardQuestion(questionId)?.whyWeAsk ?? `Your ${g.label.toLowerCase()} changes what we suggest here.`
+      return { questionId, field: g.key, whyWeAsk }
     })
     .filter((g): g is NonNullable<typeof g> => g !== null)
     .slice(0, 3)
@@ -232,6 +236,8 @@ export type CategoryEvaluation = {
   category: InsightCategory
   metrics: InsightCard['metrics']
   knowledge: ReturnType<typeof knowledgeOf>
+  /** The questions that would fill this category's most valuable missing facts (up to 3). */
+  gaps: InsightCard['gaps']
   findings: Finding[]
   /** Rules that matched on facts but whose library actions this household cannot take. */
   suppressed: string[]
@@ -296,7 +302,7 @@ export function evaluateCategory(spec: CategorySpec, ctx: SpecContext): Category
   // Nothing to say yet → one Coming soon card, so the category is visibly waiting, not missing.
   if (cards.length === 0) cards.push(comingSoonCard({ id: `${spec.id}:coming_soon`, category: spec.id, label }))
 
-  return { category: spec.id, metrics, knowledge: knowledgeOf(ctx.h, spec.id), findings, suppressed, cards, issues }
+  return { category: spec.id, metrics, knowledge: knowledgeOf(ctx.h, spec.id), gaps, findings, suppressed, cards, issues }
 }
 
 /** Every category's cards for one household, deep categories first, rule order within each. */

@@ -63,19 +63,7 @@ export function ResetDataCircleButton() {
       }
     >
       <span className="settings-circle-cta__label zz-h4">
-        {armed ? (
-          <>
-            TAP TO
-            <br />
-            CONFIRM
-          </>
-        ) : (
-          <>
-            RESET
-            <br />
-            DATA
-          </>
-        )}
+        {armed ? 'Tap to confirm' : 'Reset data'}
       </span>
     </motion.button>
   )

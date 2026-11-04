@@ -191,7 +191,7 @@ export function RockMobileSignupCard({
   return (
     <div className="zone-rock-signup-wrap w-full box-border" aria-label="Mobile signup">
       <div
-        className="rock-mobile-signup-card bento-card-groovy rock-bento-tile w-full flex flex-col border-0 text-left box-border"
+        className="rock-mobile-signup-card bento-card-groovy rock-bento-tile w-full flex flex-col border-0 text-left box-border zz-brand"
         style={{
           backgroundColor: ROCK_CARD_BG,
           color: ROCK_CARD_TEXT,
@@ -242,7 +242,7 @@ export function RockMobileSignupCard({
               aria-label="Send mobile number"
               aria-busy={signupBusy}
             >
-              <span className="zz-h4 rock-mobile-send-label">send</span>
+              <span className="zz-h4 rock-mobile-send-label">Send</span>
             </button>
           ) : (
             <button
@@ -251,7 +251,7 @@ export function RockMobileSignupCard({
               disabled
               aria-label="Enter a valid UK mobile number"
             >
-              <span className="zz-h4 rock-mobile-send-label">send</span>
+              <span className="zz-h4 rock-mobile-send-label">Send</span>
             </button>
           )}
         </div>
@@ -272,7 +272,7 @@ export function RockMobileSignupCard({
         <div className="rock-mobile-privacy-block">
           <h4 className="zz-h4 m-0 mt-2 rock-mobile-privacy-head">
             <Link href={ROUTES.PRIVACY} className="rock-mobile-privacy-link">
-              privacy &amp; data
+              Privacy &amp; data
             </Link>
           </h4>
         </div>

@@ -3,10 +3,24 @@ import { sanitizeText } from '@/lib/sanitize'
 import { stripZaiChatMarkdown } from '@/lib/zai/chatBoundaries'
 import { toZaiBodySentenceCase } from '@/lib/zai/sentenceCase'
 
+/**
+ * sanitizeText strips tags and injection patterns, then HTML-escapes. Zai prose is rendered as
+ * React text (which escapes on its own), so the entities would show literally ("&quot;").
+ * Decode the few it produces after the tags are already gone.
+ */
+function decodeTextEntities(s: string): string {
+  return s
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+}
+
 /** Client display — sanitize, strip markdown, sentence-case Zai body prose. */
 export function polishZaiBodyCopy(text: string): string {
   return toZaiBodySentenceCase(
-    stripZaiChatMarkdown(dedupeLocalityInProse(sanitizeText(text)))
+    stripZaiChatMarkdown(dedupeLocalityInProse(decodeTextEntities(sanitizeText(text))))
   )
 }
 

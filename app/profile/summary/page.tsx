@@ -200,7 +200,7 @@ export default function ProfileSummaryPage() {
       //
     }
     trackFunnelEvent('summary_enter_zone')
-    router.push(ROUTES.ZAI)
+    router.push(ROUTES.ZONE)
   }, [router, setHeroTotals])
 
   useLayoutEffect(() => setMounted(true), [])

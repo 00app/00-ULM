@@ -350,7 +350,7 @@ export function AskZaiDeepDiveSheet({
             }}
           />
           <motion.div
-            className="ask-zai-deep-dive-sheet"
+            className="ask-zai-deep-dive-sheet zz-brand zz-brand-page"
             role="dialog"
             aria-modal
             aria-labelledby="ask-zai-deep-dive-title"
@@ -376,7 +376,7 @@ export function AskZaiDeepDiveSheet({
           >
             <header className="ask-zai-deep-dive-header shrink-0">
               <h2 id="ask-zai-deep-dive-title" className="ask-zai-deep-dive-title zz-h3 m-0 text-display">
-                ask zai
+                Ask Zai
               </h2>
             </header>
 
@@ -390,7 +390,7 @@ export function AskZaiDeepDiveSheet({
                     type="button"
                     disabled={busy}
                     onClick={() => continueInZai(q)}
-                    className="ask-zai-deep-dive-pill rounded-full border-0 cursor-pointer uppercase text-display"
+                    className="ask-zai-deep-dive-pill rounded-full border-0 cursor-pointer"
                   >
                     {q}
                   </button>
@@ -401,7 +401,7 @@ export function AskZaiDeepDiveSheet({
                 <div className="ask-zai-deep-dive-thread" aria-live="polite">
                   {messages.map((msg, i) =>
                     msg.role === 'user' ? (
-                      <p key={`u-${i}`} className="ask-zai-deep-dive-user-turn m-0 uppercase">
+                      <p key={`u-${i}`} className="ask-zai-deep-dive-user-turn m-0">
                         {msg.text}
                       </p>
                     ) : (
@@ -412,7 +412,7 @@ export function AskZaiDeepDiveSheet({
                         {msg.text
                           ? renderZaiChatProse(msg.text, { journey_key: journeyKey, source: 'zai_chat' })
                           : busy && i === messages.length - 1
-                            ? 'Auditing…'
+                            ? 'Thinking…'
                             : null}
                       </div>
                     )
@@ -428,7 +428,7 @@ export function AskZaiDeepDiveSheet({
               made the Go button intermittently miss real tap/click events (confirmed: a native
               .click() worked, a coordinate-based tap did not). One portal boundary is enough. */}
           <motion.div
-            className="zai-composer-dock zai-composer-dock--fixed zai-composer-dock--ask-sheet"
+            className="zai-composer-dock zai-composer-dock--fixed zai-composer-dock--ask-sheet zz-brand zz-brand-page"
             initial={FAMILY_ATOMIC_SURFACE_INITIAL}
             animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
             transition={FAMILY_TRANSITION_ATOMIC}
@@ -441,7 +441,7 @@ export function AskZaiDeepDiveSheet({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void submit(draft)
                 }}
-                placeholder="ask zai about this"
+                placeholder="Ask Zai about this"
                 disabled={busy}
                 className="zz-zai-composer-input"
               />
@@ -450,7 +450,7 @@ export function AskZaiDeepDiveSheet({
                 onClick={() => void submit(draft)}
                 onTap={() => void submit(draft)}
                 disabled={!draft.trim() || busy}
-                className="zai-go-btn ask-zai-sheet-go-btn zz-h4 text-display"
+                className="zai-go-btn ask-zai-sheet-go-btn"
                 style={{ touchAction: 'manipulation' }}
                 transition={INDUSTRIAL_OPACITY_SNAP}
                 aria-busy={busy}

@@ -107,7 +107,7 @@ function FilterSheet({
 
   if (!open || typeof document === 'undefined') return null
   return createPortal(
-    <div className="zone-sheet-backdrop" onClick={onClose} data-testid="zone-filter-sheet-backdrop">
+    <div className="zone-sheet-backdrop zz-brand" onClick={onClose} data-testid="zone-filter-sheet-backdrop">
       <div
         ref={ref}
         className="zone-sheet"
@@ -358,7 +358,7 @@ export const ZoneFilterBar = forwardRef<HTMLDivElement, Props>(function ZoneFilt
   }, [])
 
   return (
-    <div ref={setBarRefs} className="zone-filterbar" role="region" aria-label="Filter ideas" data-testid="zone-filterbar" data-stuck={stuck ? 'true' : 'false'}>
+    <div ref={setBarRefs} className="zone-filterbar zz-brand" role="region" aria-label="Filter ideas" data-testid="zone-filterbar" data-stuck={stuck ? 'true' : 'false'}>
       <div className="zone-filterbar-inner">
         <button
           ref={triggerRef}

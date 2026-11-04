@@ -1,6 +1,7 @@
 'use client'
 
 import type { KeyboardEvent, MouseEvent } from 'react'
+import { BrandArrow } from '@/app/components/brand/BrandArrow'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
 import { zoneCardDomId } from '@/lib/zone/soloFocusReturn'
 import { formatTypicalSaving, type RecCardCta, type RecCardModel } from '@/lib/zone/recCard'
@@ -30,6 +31,12 @@ function renderHeadline(card: RecCardModel) {
   )
 }
 
+/** CTA and badge copy arrives in capitals ("SEE HOW"); brand buttons are sentence case. */
+function sentenceCase(s: string): string {
+  const t = s.trim()
+  return t === t.toUpperCase() ? t.charAt(0) + t.slice(1).toLowerCase() : t
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** "2026-07-31" → "Jul 2026"; anything else is shown as given. */
@@ -39,8 +46,8 @@ function checkedLabel(date: string | null | undefined): string {
 }
 
 /**
- * The one Zone recommendation card. Same blue bento shell as the wall tiles it replaces
- * (`bento-card-groovy` + `data-zone-surface="tip"`), laid out in the fixed slot order:
+ * The one Zone recommendation card, in the brand language (docs/BRAND-LANGUAGE.md: white card,
+ * hairline border, eyebrow, H4 headline, one stat with its source). Fixed slot order:
  * label · headline · typical saving (library cards) · whyYou · primaryCta · secondaryCta · badge.
  */
 export function ZoneRecCard({ card, visited = false, onOpen, onCta, emphasis }: Props) {
@@ -67,70 +74,74 @@ export function ZoneRecCard({ card, visited = false, onOpen, onCta, emphasis }: 
       data-rec-card={card.id}
       data-rec-size={card.size}
       className={[
-        'bento-card-groovy rock-bento-tile zone-rec-card',
+        'bento-card-groovy rock-bento-tile zone-rec-card zz-brand zzb-card',
         `zone-rec-card--${card.size}`,
         emphasis === 'hero' ? 'zone-rec-card--hero' : '',
         visited ? 'zone-card--visited' : '',
       ]
         .filter(Boolean)
         .join(' ')}
-      style={{ borderRadius: 60, boxShadow: 'none' }}
       tabIndex={0}
       aria-label={`${card.label}: ${card.headline}.${typical ? ` ${typical.before}${typical.figure}${typical.after}.` : ''}${card.insight ? ` ${card.insight}` : ''} ${card.whyYou}`}
       onClick={onBodyClick}
       onKeyDown={onBodyKey}
     >
       <ZoneBentoCardHeader journeyId={card.category} label={card.label} />
-      <h3 className="card-headline zone-rec-headline m-0 min-w-0" lang="en">
+      <h3 className="card-headline zone-rec-headline zzb-h4 m-0 min-w-0" lang="en">
         {renderHeadline(card)}
       </h3>
       {card.typicalSaving ? (
         <>
-          <p className="zone-rec-typical m-0" data-testid="rec-card-typical">
-            {typical?.before}
-            <span className="zone-rec-figure">{typical?.figure}</span>
-            {typical?.after}
-          </p>
-          <p className="zone-rec-source m-0" data-testid="rec-card-source">
-            Source: {card.typicalSaving.source.name}
-            {card.typicalSaving.source.date ? `, checked ${checkedLabel(card.typicalSaving.source.date)}` : ''}
-          </p>
+          <div className="zzb-card__metric">
+            <p className="zone-rec-typical m-0" data-testid="rec-card-typical">
+              <span className="zzb-card__value">{typical?.figure}</span>
+              <span className="zzb-meta zone-rec-typical__phrase">
+                {typical?.before.trim()}
+                {typical?.after}
+              </span>
+            </p>
+            <p className="zone-rec-source zzb-meta m-0" data-testid="rec-card-source">
+              Source: {card.typicalSaving.source.name}
+              {card.typicalSaving.source.date ? `, checked ${checkedLabel(card.typicalSaving.source.date)}` : ''}
+            </p>
+          </div>
         </>
       ) : null}
       {card.savingSource ? (
-        <p className="zone-rec-source m-0" data-testid="rec-card-source">
+        <p className="zone-rec-source zzb-meta m-0" data-testid="rec-card-source">
           Source: {card.savingSource.name}
           {card.savingSource.date ? `, ${card.savingSource.date}` : ''}
         </p>
       ) : null}
       {card.insight ? (
-        <p className="zone-rec-insight m-0" data-testid="rec-card-insight">
+        <p className="zone-rec-insight zzb-body m-0" data-testid="rec-card-insight">
           {card.insight}
         </p>
       ) : null}
-      <p className="zone-rec-why m-0">{card.whyYou}</p>
+      <p className="zone-rec-why zzb-meta m-0">{card.whyYou}</p>
       <div className="zone-rec-actions">
         <button
           type="button"
-          className={`zone-rec-cta${card.primaryCta.kind === 'done' ? ' zone-rec-cta--done' : ''}`}
+          className={`zone-rec-cta zzb-btn zzb-btn--sm ${card.primaryCta.kind === 'done' ? 'zzb-btn--outline zone-rec-cta--done' : 'zzb-btn--blue'}`}
           disabled={card.primaryCta.kind === 'done'}
           onClick={() => fire(card.primaryCta)}
         >
-          {card.primaryCta.label}
+          {sentenceCase(card.primaryCta.label)}
+          {card.primaryCta.kind === 'done' ? null : <BrandArrow />}
         </button>
         {card.secondaryCta ? (
           <button
             type="button"
-            className="zone-rec-cta zone-rec-cta--secondary"
+            className="zone-rec-cta zone-rec-cta--secondary zzb-link"
             onClick={() => fire(card.secondaryCta as RecCardCta)}
           >
-            {card.secondaryCta.label}
+            {sentenceCase(card.secondaryCta.label)}
           </button>
         ) : null}
       </div>
       {card.badge ? (
-        <span className="zone-rec-badge" data-testid="rec-card-badge">
-          {card.badge}
+        <span className="zone-rec-badge zzb-chip" data-testid="rec-card-badge">
+          {sentenceCase(card.badge)}
         </span>
       ) : null}
     </article>

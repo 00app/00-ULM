@@ -70,7 +70,7 @@ export default function IntroScreen() {
   useEffect(() => {
     if (isStoredProfileOnboardingComplete()) {
       trackFunnelEvent('intro_complete', { skipped: true, page: ROUTES.ZONE })
-      router.replace(ROUTES.ZAI)
+      router.replace(ROUTES.ZONE)
       return
     }
     if (readStoredProfileGoal() && hasPartialStoredProfile()) {

@@ -124,7 +124,7 @@ export default function SettingsBentoCard({
             {arrowSlot()}
           </div>
           <h3 className="card-headline m-0">
-            {headline}
+            {sentenceCaseAnswer(headline)}
           </h3>
         </>
       )}
@@ -133,11 +133,19 @@ export default function SettingsBentoCard({
   )
 }
 
+/** Answers are often stored as capital tokens (GAS, EMPLOYED); show them in sentence case. */
+export function sentenceCaseAnswer(value: string): string {
+  const v = String(value ?? '')
+  if (!/[A-Z]/.test(v) || v !== v.toUpperCase()) return v
+  const lower = v.replace(/_/g, ' ').toLowerCase()
+  return lower.charAt(0).toUpperCase() + lower.slice(1)
+}
+
 export function SettingsJourneyFactRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="settings-journey-answer-row">
       <h4 className="settings-journey-q zz-h4">{label}</h4>
-      <h3 className="settings-journey-a zz-h3 m-0">{value}</h3>
+      <h3 className="settings-journey-a zz-h3 m-0">{sentenceCaseAnswer(value)}</h3>
     </div>
   )
 }

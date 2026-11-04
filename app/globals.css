@@ -10015,3 +10015,1205 @@ html.zz-zone-document body {
 .zone-agents:not(#v2) { padding-inline: var(--zone-gutter, 0px); }
 .zone-agents-list:not(#v2) { display: flex; flex-direction: column; gap: 12px; }
 .zone-agent-card:not(#v2) { text-decoration: none; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+
+/* Solo Focus deep view (SoloFocusDeepDive, PRD v4 Z9). Lives inside .zz-brand (app/styles/brand.css),
+   which supplies the type roles, buttons, links and answer pills; this is layout only. */
+.sf-deep.sf-deep:not(#zz-brand) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 720px;
+  margin: 32px 0 0 !important;
+  color: var(--fd-ink);
+}
+.sf-deep__block {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px 0;
+  border-top: 1px solid var(--fd-line);
+}
+.sf-deep__progress {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.sf-deep__bar {
+  flex: 1;
+  height: 2px;
+  background: var(--fd-line);
+  overflow: hidden;
+}
+.sf-deep__bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--fd-blue);
+}
+.sf-deep__progress .zzb-meta {
+  flex: none;
+}
+.sf-deep__options,
+.sf-deep__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+}
+.sf-deep__options {
+  gap: 10px;
+}
+.sf-deep__facts > div {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--fd-line);
+}
+.sf-deep__facts > div:first-child {
+  border-top: 1px solid var(--fd-line);
+}
+.sf-deep__facts dt {
+  padding-top: 3px;
+}
+.sf-deep__actions {
+  gap: 12px 16px;
+  padding-top: 8px;
+}
+.sf-deep__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sf-deep__list > li + li {
+  border-top: 1px solid var(--fd-line);
+}
+.sf-deep__list .zzb-link {
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+}
+
+/* Solo Focus shell in the brand language (docs/BRAND-LANGUAGE.md). The shells carry .zz-brand;
+   the doubled class + :not(#zz-brand) outranks the older .expanded-solo-focus …:not(#v2) locks. */
+.zz-brand.expanded-solo-focus .solo-focus-zone-category:not(#zz-brand) {
+  font-size: 13px !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--fd-muted) !important;
+  margin: 0 0 20px !important;
+}
+.zz-brand.expanded-solo-focus .solo-focus-new-badge:not(#zz-brand) {
+  color: var(--fd-blue) !important;
+  margin-left: 6px;
+}
+.zz-brand.expanded-solo-focus .solo-focus-architect-headline:not(#zz-brand) {
+  font-size: var(--zzb-size-statement) !important;
+  letter-spacing: -0.035em !important;
+  line-height: 1.04 !important;
+  color: var(--fd-ink) !important;
+  max-width: 18em;
+}
+.zz-brand.expanded-solo-focus .solo-focus-architect-lead:not(#zz-brand) {
+  font-size: var(--zzb-size-lede) !important;
+  line-height: 1.55 !important;
+  letter-spacing: normal !important;
+  color: var(--fd-muted) !important;
+  margin-top: 20px !important;
+  max-width: 34em;
+}
+.zz-brand.expanded-solo-focus .solo-focus-architect-prose:not(.solo-focus-architect-lead):not(#zz-brand) {
+  font-size: 17px !important;
+  line-height: 1.5 !important;
+  color: var(--fd-muted) !important;
+}
+.zz-brand.expanded-solo-focus .solo-focus-supplied-by:not(#zz-brand),
+.zz-brand.expanded-solo-focus .solo-focus-action-line:not(#zz-brand) {
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  color: var(--fd-muted) !important;
+  margin: 24px 0 0 !important;
+  max-width: 48em;
+}
+/* Key metric: label as eyebrow, value as a Helvetica stat (no Abril), hairline above. */
+.zz-brand.expanded-solo-focus .solo-focus-impact-hero:not(#zz-brand) {
+  margin-top: 28px !important;
+  padding-top: 24px;
+  border-top: 1px solid var(--fd-line);
+}
+.zz-brand.expanded-solo-focus .solo-focus-impact-hero .data-label:not(#zz-brand) {
+  font-size: 13px !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--fd-muted) !important;
+}
+.zz-brand.expanded-solo-focus .solo-focus-impact-hero .data-value:not(#zz-brand),
+.zz-brand.expanded-solo-focus .solo-focus-impact-hero .data-value *:not(#zz-brand) {
+  font-size: var(--zzb-size-stat) !important;
+  letter-spacing: -0.045em !important;
+  line-height: 0.95 !important;
+  color: var(--fd-ink) !important;
+  vertical-align: baseline !important;
+}
+/* Action row and journey nav: pills and sentence-case links, hairline between. */
+.zz-brand.expanded-solo-focus .solo-focus-trinity--brand:not(#zz-brand) {
+  gap: 12px;
+  margin-top: 28px !important;
+}
+.zz-brand.expanded-solo-focus .solo-focus-journey-nav--brand:not(#zz-brand) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 32px !important;
+  padding-top: 16px;
+  border-top: 1px solid var(--fd-line);
+}
+.zz-brand .zzb-new-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--fd-blue);
+}
+.zz-brand .zzb-close-btn.zzb-close-btn:not(#zz-brand) {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  border-radius: 999px !important;
+  background: var(--fd-tint) !important;
+  color: var(--fd-ink) !important;
+  box-shadow: none !important;
+}
+/* Colour roles inside the deep view: the shell paints p/button blue with !important. */
+.zz-brand .sf-deep :not(#zz-brand) { color: var(--fd-ink) !important; }
+.zz-brand .sf-deep :is(.zzb-eyebrow, .zzb-meta):not(#zz-brand),
+.zz-brand .sf-deep .zzb-eyebrow > span:not(#zz-brand) { color: var(--fd-muted) !important; }
+.zz-brand .sf-deep .zzb-eyebrow > .zzb-index:not(#zz-brand) { color: var(--fd-blue) !important; }
+.zz-brand .sf-deep .zzb-btn--blue:not(#zz-brand),
+.zz-brand .sf-deep .zzb-btn--blue *:not(#zz-brand) { color: var(--fd-white) !important; }
+.zz-brand.expanded-solo-focus .solo-focus-journey-nav--brand .zzb-link:not(#zz-brand),
+.zz-brand.expanded-solo-focus .solo-focus-trinity--brand .zzb-btn--outline:not(#zz-brand) { color: var(--fd-ink) !important; }
+.zz-brand.expanded-solo-focus .solo-focus-trinity--brand .zzb-btn--blue:not(#zz-brand) { color: var(--fd-white) !important; }
+
+/* Zone grid card in the brand language (JourneyBentoCard collapsed, .zz-brand.zzb-card).
+   The older surface rules lock background/colour per state with one ID bump; two here. */
+.zz-brand.zzb-card.bento-card-groovy:not(#zzb-a):not(#zzb-b),
+.zz-brand.zzb-card.bento-card-groovy:not(#zzb-a):not(#zzb-b):hover,
+.zz-brand.zzb-card.bento-card-groovy:not(#zzb-a):not(#zzb-b):focus-visible {
+  background: var(--fd-white) !important;
+  background-color: var(--fd-white) !important;
+  color: var(--fd-ink) !important;
+  -webkit-text-fill-color: currentColor !important;
+  --journey-bg: var(--fd-white);
+  --journey-text: var(--fd-ink);
+  --color-ink: var(--fd-ink);
+  border: 1px solid var(--fd-line) !important;
+  border-radius: 24px !important;
+  padding: 28px !important;
+  gap: 14px;
+  box-shadow: none !important;
+  transform: none;
+  transition: transform 0.4s var(--fd-ease), box-shadow 0.4s var(--fd-ease) !important;
+}
+.zz-brand.zzb-card.bento-card-groovy:not(#zzb-a):not(#zzb-b):hover,
+.zz-brand.zzb-card.bento-card-groovy:not(#zzb-a):not(#zzb-b):focus-visible {
+  transform: translateY(-6px) !important;
+  box-shadow: 0 18px 40px -24px rgba(20, 18, 104, 0.35) !important;
+}
+.zz-brand.zzb-card :is(.card-top-label, .zone-bento-card-header__label):not(#zzb-a):not(#zzb-b) {
+  font-size: 13px !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--fd-muted) !important;
+}
+.zz-brand.zzb-card .zone-bento-card-header__plus:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-blue) !important;
+}
+.zz-brand.zzb-card .card-headline:not(#zzb-a):not(#zzb-b) {
+  font-weight: 400 !important;
+  font-size: 22px !important;
+  letter-spacing: -0.015em !important;
+  line-height: 1.15 !important;
+  color: var(--fd-ink) !important;
+}
+.zz-brand.zzb-card .zzb-meta:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-muted) !important;
+}
+.zzb-card__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--fd-line);
+}
+.zz-brand.zzb-card .zzb-card__value:not(#zzb-a):not(#zzb-b),
+.zz-brand.zzb-card .zzb-card__value *:not(#zzb-a):not(#zzb-b) {
+  font-size: 40px !important;
+  letter-spacing: -0.045em !important;
+  line-height: 0.95 !important;
+  color: var(--fd-ink) !important;
+  vertical-align: baseline !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .zz-brand.zzb-card.bento-card-groovy:not(#zzb-a):not(#zzb-b):hover { transform: none !important; }
+}
+
+/* ZoneRecCard in the brand language (shares .zzb-card above). Two ID bumps to clear the tip
+   surface and .zone-rec-cta locks, which paint children white/blue with !important. */
+.zz-brand.zzb-card.zone-rec-card :not(#zzb-a):not(#zzb-b) {
+  font-weight: 400 !important;
+  color: var(--fd-ink) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+.zz-brand.zzb-card.zone-rec-card :is(.zzb-meta, .zone-rec-why, .zone-rec-source, .zone-rec-typical__phrase):not(#zzb-a):not(#zzb-b),
+.zz-brand.zzb-card.zone-rec-card :is(.card-top-label, .zone-bento-card-header__label):not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-muted) !important;
+  opacity: 1 !important;
+}
+.zz-brand.zzb-card.zone-rec-card .zone-bento-card-header__plus:not(#zzb-a):not(#zzb-b) { color: var(--fd-blue) !important; }
+.zz-brand.zzb-card.zone-rec-card .zone-rec-headline:not(#zzb-a):not(#zzb-b) {
+  font-size: 22px !important;
+  letter-spacing: -0.015em !important;
+  line-height: 1.15 !important;
+}
+.zz-brand.zzb-card.zone-rec-card:is(.zone-rec-card--hero, .zone-rec-card--large) .zone-rec-headline:not(#zzb-a):not(#zzb-b) {
+  font-size: 28px !important;
+  letter-spacing: -0.02em !important;
+}
+.zz-brand.zzb-card.zone-rec-card .zone-rec-figure:not(#zzb-a):not(#zzb-b) {
+  font-size: 1em !important;
+  line-height: inherit !important;
+}
+.zz-brand.zzb-card.zone-rec-card .zone-rec-insight:not(#zzb-a):not(#zzb-b) {
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+.zz-brand.zzb-card.zone-rec-card :is(.zone-rec-why, .zone-rec-source):not(#zzb-a):not(#zzb-b) {
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+.zz-brand.zzb-card.zone-rec-card .zone-rec-typical:not(#zzb-a):not(#zzb-b) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+.zz-brand.zzb-card.zone-rec-card .zone-rec-actions {
+  gap: 10px 18px;
+  padding-top: 4px;
+}
+.zz-brand.zzb-card.zone-rec-card .zzb-btn--blue:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-blue) !important;
+  color: var(--fd-white) !important;
+  padding: 0 20px !important;
+}
+.zz-brand.zzb-card.zone-rec-card .zzb-btn--blue:not(#zzb-a):not(#zzb-b):hover { background: var(--fd-navy) !important; }
+.zz-brand.zzb-card.zone-rec-card .zzb-btn--blue *:not(#zzb-a):not(#zzb-b) { color: var(--fd-white) !important; }
+.zz-brand.zzb-card.zone-rec-card .zzb-btn--outline:not(#zzb-a):not(#zzb-b) {
+  background: transparent !important;
+  border: 1px solid var(--fd-line) !important;
+  padding: 0 20px !important;
+  opacity: 1;
+}
+.zz-brand.zzb-card.zone-rec-card .zzb-link:not(#zzb-a):not(#zzb-b) {
+  /* .zone-rec-cta--secondary's `background: transparent !important` would drop the underline. */
+  background: linear-gradient(currentColor, currentColor) left calc(100% - 10px) / 0 1px no-repeat !important;
+  padding: 0 !important;
+  text-decoration: none !important;
+  font-size: 15px !important;
+}
+.zz-brand.zzb-card.zone-rec-card .zzb-link:not(#zzb-a):not(#zzb-b):hover { background-size: 100% 1px !important; }
+.zz-brand.zzb-card.zone-rec-card .zzb-chip:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-tint) !important;
+  color: var(--fd-navy) !important;
+  font-size: 13px !important;
+}
+.zz-brand.zzb-card.zone-rec-card:not(#zzb-a):not(#zzb-b):focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 3px var(--fd-white), 0 0 0 5px var(--fd-blue) !important;
+}
+
+/* Likes wall action row (LikesCardActionTrinity) — brand pills, same as the Solo Focus row. */
+.zz-brand.likes-card-trinity--brand:not(#zzb-a):not(#zzb-b) {
+  gap: 12px;
+  margin: 0;
+}
+.zz-brand.likes-card-trinity--brand .zzb-btn--outline:not(#zzb-a):not(#zzb-b) {
+  background: transparent !important;
+  border: 1px solid var(--fd-line) !important;
+  color: var(--fd-ink) !important;
+}
+.zz-brand.likes-card-trinity--brand .zzb-btn--outline[aria-pressed='true']:not(#zzb-a):not(#zzb-b) {
+  border-color: var(--fd-blue) !important;
+  color: var(--fd-blue) !important;
+}
+.zz-brand.likes-card-trinity--brand .zzb-btn--blue:not(#zzb-a):not(#zzb-b),
+.zz-brand.likes-card-trinity--brand .zzb-btn--blue *:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-blue) !important;
+  color: var(--fd-white) !important;
+}
+.zz-brand.likes-card-trinity--brand .zzb-btn--blue *:not(#zzb-a):not(#zzb-b) { background: none !important; }
+/* Likes cards on the brand surface: SAVE / CARBON as eyebrow + Helvetica stat. */
+.zz-brand.zzb-card.likes-bento-card .data-label:not(#zzb-a):not(#zzb-b) {
+  font-size: 13px !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--fd-muted) !important;
+}
+.zz-brand.zzb-card.likes-bento-card .data-value:not(#zzb-a):not(#zzb-b),
+.zz-brand.zzb-card.likes-bento-card .data-value *:not(#zzb-a):not(#zzb-b) {
+  font-size: 40px !important;
+  letter-spacing: -0.045em !important;
+  line-height: 0.95 !important;
+  color: var(--fd-ink) !important;
+  vertical-align: baseline !important;
+}
+.zz-brand.zzb-card.likes-bento-card .card-impact-grid:not(#zzb-a):not(#zzb-b) {
+  padding-top: 16px;
+  border-top: 1px solid var(--fd-line);
+}
+/* Units beside a brand stat: £ and k stay with the figure; kg CO2 drops to body size with a real subscript.
+   The repeated .zz-brand outranks the per-card `.data-value *` size rules above. */
+.zz-brand.zz-brand.zz-brand :is(.data-value, .zzb-card__value) .data-carbon-units:not(#zzb-a):not(#zzb-b),
+.zz-brand.zz-brand.zz-brand :is(.data-value, .zzb-card__value) .data-carbon-units *:not(#zzb-a):not(#zzb-b) {
+  font-size: 16px !important;
+  letter-spacing: normal !important;
+  line-height: 1 !important;
+}
+.zz-brand.zz-brand.zz-brand :is(.data-value, .zzb-card__value) .data-carbon-units:not(#zzb-a):not(#zzb-b) {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 6px;
+}
+.zz-brand.zz-brand.zz-brand :is(.data-value, .zzb-card__value) .data-co2-sub:not(#zzb-a):not(#zzb-b) {
+  font-size: 11px !important;
+  vertical-align: sub !important;
+}
+/* Likes page title on the brand scale: Helvetica 400, ink, sentence case, no stroke. */
+.likes-page .zz-brand.likes-heading--brand h3.zz-page-title.zzb-h2:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: var(--zzb-size-h2) !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.04em !important;
+  line-height: 0.95 !important;
+  color: var(--fd-ink) !important;
+  -webkit-text-stroke: 0 !important;
+  text-transform: none !important;
+  margin-bottom: 32px !important;
+}
+.likes-page .zz-brand.likes-heading--brand:not(#zzb-a):not(#zzb-b) {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+/* Likes grid: columns collapse to the cards present so two likes fill the row; a lone like stays card-width. */
+@media (min-width: 768px) {
+  .likes-page .likes-answer-grid.settings-answer-grid:not(#zzb-a) {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+  .likes-page .likes-answer-grid.settings-answer-grid:has(> :only-child):not(#zzb-a) {
+    max-width: 560px;
+    margin-left: 0;
+  }
+}
+/* Likes headline uses the full card width: no balance wrap, no ch cap. */
+.zz-brand.zzb-card.likes-bento-card .card-headline:not(#zzb-a):not(#zzb-b) {
+  max-width: none !important;
+  text-wrap: pretty !important;
+}
+/* Likes actions: offer on its own row, Remove + Mark done paired beneath, at every width. */
+.zz-brand.likes-card-trinity--brand:not(#zzb-a):not(#zzb-b) {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+}
+.zz-brand.likes-card-trinity--brand .likes-card-trinity__secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.zz-brand.zzb-card.likes-bento-card .data-value:not(#zzb-a):not(#zzb-b),
+.zz-brand.zzb-card.likes-bento-card .data-value > *:not(#zzb-a):not(#zzb-b) {
+  align-items: baseline !important;
+}
+/* Likes summary under the title, and the source line under a card's figure. */
+.likes-page .zz-brand.likes-heading--brand .likes-total:not(#zzb-a):not(#zzb-b) {
+  margin: -16px 0 32px !important;
+  color: var(--fd-muted) !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+}
+.zz-brand.zzb-card.likes-bento-card .likes-card-source:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-muted) !important;
+  font-size: 13px !important;
+  text-transform: none !important;
+  margin-top: -4px !important;
+}
+.likes-page .zz-brand.likes-heading--brand:not(#zzb-a):not(#zzb-b) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+}
+/* Likes: empty state, tap-to-open card, Undo bar. */
+.likes-page .likes-heading--brand .likes-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: -8px;
+}
+.likes-page .likes-heading--brand .likes-empty .zzb-lede:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-muted) !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+}
+.likes-page .likes-heading--brand .likes-empty__link:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-blue) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+}
+.likes-page .likes-card-cell--openable { cursor: pointer; border-radius: 24px; }
+.likes-page .likes-card-cell--openable:focus-visible {
+  outline: 2px solid var(--fd-blue, #000aff);
+  outline-offset: 4px;
+}
+.likes-page .likes-undo {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: var(--fd-ink);
+  box-shadow: 0 10px 30px rgba(4, 3, 28, 0.18);
+  white-space: nowrap;
+}
+.likes-page .likes-undo .zzb-body:not(#zzb-a):not(#zzb-b) { color: var(--fd-white) !important; font-size: 15px !important; }
+.likes-page .likes-undo .likes-undo__btn:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-white) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  background-image: linear-gradient(currentColor, currentColor) !important;
+}
+/* Likes: category group headings and the Done list. */
+.likes-page .zz-brand .likes-group__title:not(#zzb-a):not(#zzb-b) {
+  display: flex;
+  gap: 0;
+  margin: 0 0 16px !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.06em !important;
+  line-height: 1.2 !important;
+  text-transform: uppercase !important;
+  color: var(--fd-ink) !important;
+  -webkit-text-stroke: 0 !important;
+}
+.likes-page .zz-brand .likes-group__title .likes-group__sum:not(#zzb-a):not(#zzb-b) { color: var(--fd-muted) !important; }
+.likes-page .likes-done {
+  margin: 8px 0 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--fd-line);
+  max-width: min(1240px, 100%);
+}
+.likes-page .likes-done__list { list-style: none; margin: 0; padding: 0; }
+.likes-page .likes-done__row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--fd-line);
+}
+.likes-page .likes-done__check { color: var(--fd-blue); font-size: 14px; }
+.likes-page .zz-brand .likes-done__title:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-muted) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+}
+.likes-page .zz-brand .likes-done__gbp:not(#zzb-a):not(#zzb-b) { color: var(--fd-muted) !important; font-variant-numeric: tabular-nums; }
+.likes-page .zz-brand .likes-done__undo:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-blue) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  white-space: nowrap;
+}
+.likes-page .zz-brand .likes-group__title:not(#zzb-a):not(#zzb-b) {
+  display: block !important;
+  text-align: left !important;
+  white-space: pre-wrap;
+}
+.likes-page .zz-brand .likes-group__title .likes-group__sum:not(#zzb-a):not(#zzb-b) { text-transform: none !important; letter-spacing: 0 !important; }
+.likes-page .likes-group.settings-grid-wrap { padding-bottom: 32px; }
+.likes-page .likes-group .likes-group__title,
+.likes-page .likes-done { margin-left: auto; margin-right: auto; max-width: min(1240px, 100%); }
+.likes-page .zz-brand .likes-group__title:not(#zzb-a):not(#zzb-b) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 0 16px !important;
+}
+/* A lone card in a group keeps the left edge of the other groups. */
+@media (min-width: 768px) {
+  .likes-page .likes-answer-grid.settings-answer-grid:has(> :only-child):not(#zzb-a) {
+    max-width: min(1240px, 100%);
+    margin-left: auto;
+    grid-template-columns: minmax(320px, 560px);
+  }
+}
+.likes-page .zz-brand.likes-group .likes-group__title:not(#zzb-a):not(#zzb-b) {
+  max-width: min(1240px, 100%) !important;
+  margin: 0 auto 16px !important;
+}
+.likes-page .likes-done {
+  align-self: stretch;
+  width: 100%;
+  box-sizing: border-box;
+}
+/* Likes waiting count on the nav heart. */
+.zone-desktop-nav-item,
+.nav-item-circle { position: relative; }
+.nav-count-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--fd-blue, #000aff);
+  color: var(--fd-white, #fcfcff);
+  border: 2px solid var(--fd-white, #fcfcff);
+  font-family: var(--zzb-font, 'Helvetica Neue', Helvetica, Arial, sans-serif) !important;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  line-height: 14px !important;
+  letter-spacing: 0 !important;
+  text-align: center;
+  text-transform: none !important;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+/* Likes: sort switch, Done "Show all", and the "Nice one" line. */
+.likes-page .likes-sort {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: min(1240px, 100%);
+  margin: 0 auto 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.likes-page .likes-sort .zzb-meta:not(#zzb-a):not(#zzb-b) { color: var(--fd-muted) !important; margin-right: 4px; text-transform: none !important; }
+.likes-page .likes-sort .likes-sort__opt:not(#zzb-a):not(#zzb-b) {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  border: 1px solid var(--fd-line) !important;
+  background: var(--fd-white) !important;
+  color: var(--fd-ink) !important;
+  padding: 6px 14px !important;
+  border-radius: 999px !important;
+  cursor: pointer;
+}
+.likes-page .likes-sort .likes-sort__opt[aria-pressed='true']:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-ink) !important;
+  border-color: var(--fd-ink) !important;
+  color: var(--fd-white) !important;
+}
+.likes-page .zz-brand .likes-done__more:not(#zzb-a):not(#zzb-b) {
+  margin-top: 16px;
+  color: var(--fd-blue) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+}
+.zz-brand.zzb-card.likes-bento-card .likes-card-cheer:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-blue) !important;
+  font-size: 14px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+/* Likes progress: done vs waiting. */
+.likes-page .likes-heading--brand .likes-progress {
+  width: 100%;
+  max-width: 420px;
+  margin: -16px 0 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.likes-page .likes-progress__bar {
+  position: relative;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--fd-line);
+  overflow: hidden;
+}
+.likes-page .likes-progress__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--fd-blue);
+  border-radius: inherit;
+}
+.likes-page .zz-brand .likes-progress__text:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-muted) !important;
+  font-size: 13px !important;
+  text-transform: none !important;
+  font-variant-numeric: tabular-nums;
+}
+/* Likes swipe-to-remove (touch only). The wrapper is the grid child; the card fills it. */
+.likes-page .likes-swipe {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+.likes-page .likes-swipe__body {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 0;
+  touch-action: pan-y;
+  position: relative;
+  z-index: 1;
+}
+.likes-page .likes-swipe__body > .likes-card-cell { flex: 1 1 auto; width: 100%; }
+.likes-page .likes-swipe__hint {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 0;
+}
+.likes-page .zz-brand .likes-swipe__hint:not(#zzb-a):not(#zzb-b),
+.likes-page .likes-swipe__hint {
+  color: var(--fd-muted) !important;
+  font-size: 14px !important;
+  text-transform: none !important;
+}
+
+/* =====================================================================================
+   Brand page skin (.zz-brand-page): restyles the legacy page classes (page title, bento
+   cards, labels, stats, circle CTAs) into the brand language — Helvetica 400, ink on white,
+   hairline cards, pill buttons, sentence case. Applied to Settings, Zai and Zone surfaces.
+   Class-only: no markup or behaviour changes. Two ID bumps outrank the global type lock.
+   ===================================================================================== */
+.zz-brand-page { color: var(--fd-ink); }
+.zz-brand-page .zz-page-title:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: var(--zzb-size-h2) !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.04em !important;
+  line-height: 0.95 !important;
+  color: var(--fd-ink) !important;
+  -webkit-text-stroke: 0 !important;
+  text-transform: none !important;
+}
+.zz-brand-page .settings-heading-wrap:not(#zzb-a):not(#zzb-b) { padding-left: 0 !important; padding-right: 0 !important; }
+
+/* Cards */
+.zz-brand-page .bento-card-groovy:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-white) !important;
+  background-color: var(--fd-white) !important;
+  border: 1px solid var(--fd-line) !important;
+  border-radius: 24px !important;
+  box-shadow: none !important;
+  color: var(--fd-ink) !important;
+  transform: none !important;
+}
+.zz-brand-page a.bento-card-groovy:hover:not(#zzb-a):not(#zzb-b),
+.zz-brand-page .cursor-pointer > .bento-card-groovy:hover:not(#zzb-a):not(#zzb-b) {
+  border-color: var(--fd-ink) !important;
+}
+
+/* Eyebrow labels */
+.zz-brand-page :is(.card-top-label, .data-label, .settings-overview-label):not(#zzb-a):not(#zzb-b),
+.zz-brand-page :is(.card-top-label, .data-label, .settings-overview-label) *:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.06em !important;
+  line-height: 1.2 !important;
+  text-transform: uppercase !important;
+  color: var(--fd-muted) !important;
+  -webkit-text-stroke: 0 !important;
+}
+
+/* Headlines and answers */
+.zz-brand-page :is(.card-headline, .settings-journey-a, .zz-h3):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 22px !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.2 !important;
+  color: var(--fd-ink) !important;
+  -webkit-text-stroke: 0 !important;
+  text-transform: none !important;
+}
+.zz-brand-page :is(.zz-h4, .settings-journey-q, .settings-council-blurb):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.4 !important;
+  color: var(--fd-muted) !important;
+  -webkit-text-stroke: 0 !important;
+  text-transform: none !important;
+}
+.zz-brand-page .settings-hero-section .bento-card-groovy .card-headline:not(#zzb-a):not(#zzb-b) {
+  font-size: var(--zzb-size-h3) !important;
+}
+
+/* Stats */
+.zz-brand-page .data-value:not(#zzb-a):not(#zzb-b),
+.zz-brand-page .data-value *:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 48px !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.045em !important;
+  line-height: 0.95 !important;
+  color: var(--fd-ink) !important;
+  vertical-align: baseline !important;
+  -webkit-text-stroke: 0 !important;
+  align-items: baseline !important;
+}
+
+/* Circle CTAs and option discs -> pills */
+.zz-brand-page :is(.settings-circle-cta, .profile-answer-btn):not(#zzb-a):not(#zzb-b) {
+  width: auto !important;
+  min-width: 0 !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  aspect-ratio: auto !important;
+  padding: 0 22px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--fd-line) !important;
+  background: var(--fd-white) !important;
+  color: var(--fd-ink) !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transform: none !important;
+}
+.zz-brand-page :is(.settings-circle-cta, .profile-answer-btn):hover:not(#zzb-a):not(#zzb-b) { border-color: var(--fd-ink) !important; }
+.zz-brand-page .settings-circle-cta--primary:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-blue) !important;
+  border-color: var(--fd-blue) !important;
+  color: var(--fd-white) !important;
+}
+.zz-brand-page :is(.settings-circle-cta, .profile-answer-btn).selected:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-ink) !important;
+  border-color: var(--fd-ink) !important;
+  color: var(--fd-white) !important;
+}
+.zz-brand-page :is(.settings-circle-cta, .profile-answer-btn) :is(span, .zz-h4):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+  color: inherit !important;
+  background: none !important;
+  -webkit-text-stroke: 0 !important;
+  /* Labels are stored in capitals; show them in sentence case. */
+  text-transform: lowercase !important;
+  display: inline-block !important;
+  white-space: nowrap !important;
+}
+.zz-brand-page :is(.settings-circle-cta, .profile-answer-btn) :is(span, .zz-h4)::first-letter { text-transform: uppercase; }
+.zz-brand-page :is(.settings-circle-cta, .profile-answer-btn) br { display: none; }
+.zz-brand-page .settings-cta-circles:not(#zzb-a):not(#zzb-b),
+.zz-brand-page .settings-focus-controls:not(#zzb-a):not(#zzb-b) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+}
+/* Settings on the brand skin: page gutter, muted body copy, bank CTA as pills. */
+.zz-brand-page.settings-page:not(#zzb-a):not(#zzb-b) {
+  padding-left: max(16px, env(safe-area-inset-left)) !important;
+  padding-right: max(16px, env(safe-area-inset-right)) !important;
+}
+@media (min-width: 768px) {
+  .zz-brand-page.settings-page:not(#zzb-a):not(#zzb-b) { padding-left: 40px !important; padding-right: 40px !important; }
+}
+.zz-brand-page .settings-overview-data:not(#zzb-a):not(#zzb-b),
+.zz-brand-page .settings-overview-data p:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-muted) !important;
+  font-family: var(--zzb-font) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+}
+.zz-brand-page .settings-overview-data .data-value:not(#zzb-a):not(#zzb-b) { color: var(--fd-ink) !important; }
+.zz-brand-page .zone-rec-cta:not(.zone-rec-cta--secondary):not(#zzb-a):not(#zzb-b) {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 40px !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  background: var(--fd-blue) !important;
+  color: var(--fd-white) !important;
+  font-family: var(--zzb-font) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  border: 0 !important;
+}
+.zz-brand-page .zone-rec-cta--secondary:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-blue) !important;
+  font-family: var(--zzb-font) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  background: none !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+}
+.zz-brand-page .zone-rec-badge:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--fd-muted) !important;
+  background: var(--fd-tint) !important;
+  border-radius: 999px !important;
+  padding: 4px 10px !important;
+}
+.zz-brand-page .settings-bento-card p:not(.data-value):not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-muted) !important;
+  font-family: var(--zzb-font) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+}
+
+/* Zai chat + Ask Zai sheet on the brand skin. */
+.zz-brand-page :is(.zai-intro-bubble, .zai-bubble-chat--zai, .ask-zai-deep-dive-bubble--zai, .ask-zai-deep-dive-lead):not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-tint) !important;
+  color: var(--fd-ink) !important;
+  border: 0 !important;
+  border-radius: 20px !important;
+  padding: 14px 18px !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+.zz-brand-page :is(.zai-intro-bubble, .zai-bubble-chat--zai, .ask-zai-deep-dive-bubble--zai, .ask-zai-deep-dive-lead, .zai-bubble-chat--user, .ask-zai-deep-dive-user-turn) :is(p, span, li, strong, em, div):not(a):not(#zzb-a):not(#zzb-b),
+.zz-brand-page :is(.zai-intro-bubble, .zai-bubble-chat--zai, .ask-zai-deep-dive-bubble--zai, .ask-zai-deep-dive-lead, .zai-bubble-chat--user, .ask-zai-deep-dive-user-turn):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  -webkit-text-stroke: 0 !important;
+}
+.zz-brand-page :is(.zai-intro-bubble, .zai-bubble-chat--zai, .ask-zai-deep-dive-bubble--zai, .ask-zai-deep-dive-lead) :is(p, span, li, strong, em, div):not(a):not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-ink) !important;
+  background: none !important;
+}
+.zz-brand-page :is(.zai-intro-bubble, .zai-bubble-chat--zai, .ask-zai-deep-dive-bubble--zai) a:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-blue) !important;
+  font-family: var(--zzb-font) !important;
+  font-weight: 400 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+  word-break: break-word;
+}
+.zz-brand-page :is(.zai-bubble-chat--user, .ask-zai-deep-dive-user-turn):not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-ink) !important;
+  color: var(--fd-white) !important;
+  border: 0 !important;
+  border-radius: 20px !important;
+  padding: 12px 18px !important;
+  text-align: left !important;
+}
+.zz-brand-page .ask-zai-deep-dive-user-turn:not(#zzb-a):not(#zzb-b) { align-self: flex-end; max-width: 85%; margin-left: auto !important; }
+
+/* Suggested questions */
+.zz-brand-page :is(.zai-suggest-pill, .ask-zai-deep-dive-pill):not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-white) !important;
+  color: var(--fd-ink) !important;
+  border: 1px solid var(--fd-line) !important;
+  border-radius: 999px !important;
+  padding: 10px 16px !important;
+  font-family: var(--zzb-font) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.2 !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+  -webkit-text-stroke: 0 !important;
+}
+.zz-brand-page :is(.zai-suggest-pill, .ask-zai-deep-dive-pill):hover:not(:disabled):not(#zzb-a):not(#zzb-b) { border-color: var(--fd-ink) !important; }
+
+/* Footer links, like button, status */
+.zz-brand-page :is(.zai-source-link, .zai-profile-answer-link):not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-blue) !important;
+  font-family: var(--zzb-font) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+.zz-brand-page .zai-like-btn:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-white) !important;
+  background-color: var(--fd-white) !important;
+  border: 1px solid var(--fd-line) !important;
+  color: var(--fd-blue) !important;
+  box-shadow: none !important;
+}
+.zz-brand-page .zai-connecting:not(#zzb-a):not(#zzb-b) {
+  color: var(--fd-muted) !important;
+  font-family: var(--zzb-font) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+}
+
+/* Composer */
+.zai-composer-dock.zz-brand-page:not(#zzb-a):not(#zzb-b) {
+  background: color-mix(in srgb, var(--fd-white) 92%, transparent) !important;
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--fd-line) !important;
+  box-shadow: none !important;
+}
+.zz-brand-page .zz-zai-composer-input:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-white) !important;
+  color: var(--fd-ink) !important;
+  border: 1px solid var(--fd-line) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  font-family: var(--zzb-font) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  padding: 0 20px !important;
+  height: 52px !important;
+}
+.zz-brand-page .zz-zai-composer-input::placeholder { color: var(--fd-muted) !important; opacity: 1; text-transform: none !important; }
+.zz-brand-page .zz-zai-composer-input:focus-visible:not(#zzb-a):not(#zzb-b) { outline: 2px solid var(--fd-blue) !important; outline-offset: 2px; border-color: var(--fd-blue) !important; }
+.zz-brand-page .zai-go-btn:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-blue) !important;
+  color: var(--fd-white) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  width: auto !important;
+  min-width: 64px !important;
+  height: 52px !important;
+  padding: 0 20px !important;
+  font-family: var(--zzb-font) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+}
+.zz-brand-page .zai-go-btn:disabled:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-tint) !important;
+  color: var(--fd-muted) !important;
+}
+
+/* Ask Zai sheet surface */
+.ask-zai-deep-dive-sheet.zz-brand-page:not(#zzb-a):not(#zzb-b) {
+  background: var(--fd-white) !important;
+  border-top: 1px solid var(--fd-line) !important;
+  box-shadow: 0 -12px 40px rgba(4, 3, 28, 0.12) !important;
+}
+.zz-brand-page .ask-zai-deep-dive-title:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: var(--zzb-size-h3) !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--fd-ink) !important;
+  text-transform: none !important;
+  -webkit-text-stroke: 0 !important;
+}
+.zz-brand-page .zz-zai-composer-input:not(#zzb-a):not(#zzb-b)::placeholder { color: var(--fd-muted) !important; -webkit-text-fill-color: var(--fd-muted) !important; opacity: 1 !important; }
+.zz-brand-page.zai-page .zz-page-title:not(#zzb-a):not(#zzb-b) { margin-bottom: 24px !important; }
+
+/* Zone on the brand: greeting head, rail titles, profile link, Ask Zai dock. The cards
+   (ZoneRecCard, agent card) already carry .zz-brand.zzb-card. */
+.zone-anchor .zone-summary-line:not(#zzb-a):not(#zzb-b),
+.zone-anchor .zone-summary-line *:not(.data-carbon-units):not(sub):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-weight: 400 !important;
+  color: var(--zzb-ink) !important;
+  -webkit-text-stroke: 0 !important;
+  font-variant-numeric: tabular-nums;
+}
+.zone-anchor .zone-summary-line:not(#zzb-a):not(#zzb-b) { letter-spacing: -0.035em !important; }
+.zone-anchor .zone-summary-greeting:not(#zzb-a):not(#zzb-b),
+.zone-anchor .zone-summary-greeting *:not(#zzb-a):not(#zzb-b) { color: var(--zzb-muted) !important; }
+.zone-rail-title:not(#zzb-a):not(#zzb-b),
+.zone-rail-title *:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 22px !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--zzb-ink) !important;
+  -webkit-text-stroke: 0 !important;
+}
+.zone-rail-profile-link:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  color: var(--zzb-blue) !important;
+  text-transform: none !important;
+  -webkit-text-stroke: 0 !important;
+}
+.zone-agent-card.zz-brand.zzb-card:not(#zzb-a):not(#zzb-b) { border-radius: 24px !important; }
+.zone-agent-card.zz-brand .zone-rec-why:not(#zzb-a):not(#zzb-b) {
+  color: var(--zzb-muted) !important;
+  font-family: var(--zzb-font) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+}
+.zone-agent-card.zz-brand .zone-rec-why *:not(#zzb-a):not(#zzb-b) { font-family: var(--zzb-font) !important; font-weight: 400 !important; color: inherit !important; }
+.zone-ask-zai-dock.zz-brand-page .zz-zai-composer-input:not(#zzb-a):not(#zzb-b) {
+  box-shadow: 0 10px 30px rgba(4, 3, 28, 0.14) !important;
+  cursor: pointer;
+}
+
+/* The agents rail head sat 32px in from the other rails. */
+.zone-agents .zone-rail-head:not(#zzb-a):not(#zzb-b) { padding-left: 2px !important; margin-left: 0 !important; }
+
+/* Zone filter bar, menu and sheet on the brand: outline pills, sentence case, ink selected. */
+.zz-brand :is(.zone-filters-trigger, .zone-menu-button, .zone-chip, .zone-sheet-done, .zone-filterbar-clear):not(#zzb-a):not(#zzb-b),
+.zz-brand :is(.zone-filters-trigger, .zone-menu-button, .zone-chip, .zone-sheet-done, .zone-filterbar-clear) *:not(.zone-chip-count):not(svg):not(path):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  -webkit-text-stroke: 0 !important;
+}
+.zz-brand :is(.zone-filters-trigger, .zone-menu-button, .zone-chip):not(#zzb-a):not(#zzb-b) {
+  background: var(--zzb-white, #fcfcff) !important;
+  color: var(--zzb-ink) !important;
+  border: 1px solid var(--zzb-line) !important;
+  box-shadow: none !important;
+  border-radius: 999px !important;
+}
+.zz-brand :is(.zone-filters-trigger, .zone-menu-button, .zone-chip):hover:not(#zzb-a):not(#zzb-b) { border-color: var(--zzb-ink) !important; }
+.zz-brand :is(.zone-filters-trigger--on, .zone-menu-button--on, .zone-chip--active):not(#zzb-a):not(#zzb-b) {
+  background: var(--zzb-ink) !important;
+  border-color: var(--zzb-ink) !important;
+  color: var(--zzb-white, #fcfcff) !important;
+}
+.zz-brand :is(.zone-filters-trigger--on, .zone-menu-button--on, .zone-chip--active) *:not(#zzb-a):not(#zzb-b) { color: inherit !important; }
+.zz-brand .zone-sheet-done:not(#zzb-a):not(#zzb-b) {
+  background: var(--zzb-blue) !important;
+  color: var(--zzb-white, #fcfcff) !important;
+  border-radius: 999px !important;
+  border: 0 !important;
+}
+.zz-brand .zone-filterbar-clear:not(#zzb-a):not(#zzb-b) { color: var(--zzb-blue) !important; background: none !important; }
+.zz-brand .zone-sheet:not(#zzb-a):not(#zzb-b) { background: var(--zzb-white, #fcfcff) !important; color: var(--zzb-ink) !important; }
+.zz-brand .zone-sheet-head h3:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 22px !important;
+  font-weight: 400 !important;
+  color: var(--zzb-ink) !important;
+  text-transform: none !important;
+  -webkit-text-stroke: 0 !important;
+}
+.zz-brand :is(.zone-menu-list):not(#zzb-a):not(#zzb-b) { background: var(--zzb-white, #fcfcff) !important; border: 1px solid var(--zzb-line) !important; box-shadow: 0 12px 32px rgba(4, 3, 28, 0.12) !important; }
+.zz-brand .zone-menu-option:not(#zzb-a):not(#zzb-b),
+.zz-brand .zone-menu-option *:not(.zone-chip-count):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  color: var(--zzb-ink) !important;
+  -webkit-text-stroke: 0 !important;
+}
+.zz-brand :is(.zone-menu-option--active, .zone-menu-option--selected):not(#zzb-a):not(#zzb-b) { background: var(--zzb-tint, #f4f4fb) !important; }
+
+/* Rail scrollbars: a quiet hairline instead of the purple bar. */
+.zone-rail-scroller:not(#zzb-a):not(#zzb-b) { scrollbar-color: var(--zzb-line) transparent !important; }
+.zone-rail-scroller::-webkit-scrollbar { height: 2px; }
+.zone-rail-scroller::-webkit-scrollbar-thumb { background: var(--zzb-line); border-radius: 2px; }
+.zone-rail-scroller::-webkit-scrollbar-track { background: transparent; }
+
+/* Zone mobile sign-up block: keeps its blue, type and controls move to the brand. */
+.rock-mobile-signup-card.zz-brand:not(#zzb-a):not(#zzb-b) {
+  background: var(--zzb-blue) !important;
+  border-radius: 24px !important;
+  box-shadow: none !important;
+}
+.rock-mobile-signup-card.zz-brand :is(.rock-mobile-signup-title, .rock-mobile-opt-in-label, .rock-mobile-privacy-head, .rock-mobile-privacy-link):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-weight: 400 !important;
+  color: var(--zzb-white) !important;
+  text-transform: none !important;
+  -webkit-text-stroke: 0 !important;
+  letter-spacing: -0.01em !important;
+}
+.rock-mobile-signup-card.zz-brand .rock-mobile-signup-title:not(#zzb-a):not(#zzb-b) { font-size: var(--zzb-size-h3) !important; letter-spacing: -0.03em !important; line-height: 1.05 !important; }
+.rock-mobile-signup-card.zz-brand .rock-mobile-opt-in-label:not(#zzb-a):not(#zzb-b) { font-size: 16px !important; }
+.rock-mobile-signup-card.zz-brand :is(.rock-mobile-privacy-head, .rock-mobile-privacy-link):not(#zzb-a):not(#zzb-b) { font-size: 14px !important; }
+.rock-mobile-signup-card.zz-brand .rock-mobile-zz-input:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  color: var(--zzb-ink) !important;
+  background: var(--zzb-white) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+}
+.rock-mobile-signup-card.zz-brand .rock-mobile-send-btn:not(#zzb-a):not(#zzb-b) {
+  width: auto !important;
+  min-width: 0 !important;
+  aspect-ratio: auto !important;
+  padding: 0 22px !important;
+  border-radius: 999px !important;
+  background: var(--zzb-ink) !important;
+  box-shadow: none !important;
+}
+.rock-mobile-signup-card.zz-brand .rock-mobile-send-label:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  color: var(--zzb-white) !important;
+  -webkit-text-stroke: 0 !important;
+}
+
+/* Footer line */
+.site-footer .site-footer__line:not(#zzb-a):not(#zzb-b),
+.site-footer .site-footer__line *:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: var(--zzb-muted) !important;
+  -webkit-text-stroke: 0 !important;
+}
+.site-footer .site-footer__line a:not(#zzb-a):not(#zzb-b) { color: var(--zzb-blue) !important; }
+
+/* Zone page scrollbar: hairline grey, not the purple/blue thumb. */
+html.zz-zone-document:not(#zzb-a) { scrollbar-color: var(--zzb-muted-light) transparent; }
+html.zz-zone-document::-webkit-scrollbar-thumb { background: var(--zzb-muted-light); }
+.zz-brand-page.zai-page :is(.zai-page-scroll, .zai-chat-thread):not(#zzb-a):not(#zzb-b) { scrollbar-color: var(--zzb-muted-light) transparent !important; scrollbar-width: thin; }
+.zz-brand-page.zai-page :is(.zai-page-scroll, .zai-chat-thread)::-webkit-scrollbar-thumb { background: var(--zzb-muted-light) !important; }

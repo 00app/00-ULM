@@ -179,6 +179,14 @@ export interface IndustrialHandoffButtonProps {
   /** Pink (default) vs yellow block + journey text (Action Vault rebirth). */
   surface?: 'pink' | 'yellow'
   onHandoffClick?: () => void
+  /** 'pill': brand-language blue pill with arrow (needs a .zz-brand ancestor). Same click handling. */
+  variant?: 'circle' | 'pill'
+}
+
+/** "READ" / "ASK ZAI" → "Read" / "Ask Zai" for brand pills. */
+export function sentenceCaseCtaLabel(label: string): string {
+  const t = label.trim().toLowerCase()
+  return t.replace(/\bzai\b/g, 'Zai').replace(/^./, (c) => c.toUpperCase())
 }
 
 /** Solo Focus 80px circle — one Marvin word on the face; full phrase stays on aria-label. */
@@ -206,6 +214,7 @@ export function IndustrialHandoffButton({
   className = '',
   surface = 'pink',
   onHandoffClick,
+  variant = 'circle',
 }: IndustrialHandoffButtonProps) {
   const displayWord = compactCircleCtaDisplay(ctaLabel)
 
@@ -229,6 +238,22 @@ export function IndustrialHandoffButton({
   }
 
   const accessibleLabel = ctaLabel.trim() || 'CLAIM'
+
+  if (variant === 'pill') {
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        data-analytics-tracked="cta"
+        className={`zzb-btn zzb-btn--blue solo-focus-handoff-btn ${className}`.trim()}
+      >
+        {sentenceCaseCtaLabel(accessibleLabel)}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    )
+  }
 
   return (
     <motion.button

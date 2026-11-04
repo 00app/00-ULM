@@ -25,6 +25,8 @@ type Props = {
   onAskZai?: () => void
   onDislike?: () => void
   onCtaClick?: () => void
+  /** Brand-language pill row (docs/BRAND-LANGUAGE.md) instead of the 80px circles. */
+  brand?: boolean
 }
 
 /** Order: like · Ask Zai (secondary circle) · the CTA (claim / switch / buy) · dislike. */
@@ -43,7 +45,54 @@ export function SoloFocusActionTrinity({
   onAskZai,
   onDislike,
   onCtaClick,
+  brand = false,
 }: Props) {
+  if (brand) {
+    // When the card's own link is the Zai fallback, the blue pill already says "Ask Zai".
+    const ctaIsZai = Boolean(ctaUrl) && /^ask\s*zai$/i.test(ctaLabel.trim())
+    return (
+      <div className="solo-focus-trinity solo-focus-trinity--brand flex flex-row flex-wrap items-center justify-start w-full">
+        {showLike && onLike ? (
+          <button
+            type="button"
+            className="zzb-btn zzb-btn--outline solo-focus-trinity-like"
+            onClick={onLike}
+            aria-pressed={isLiked}
+          >
+            <HeartOutlineIcon size={16} style={{ fill: isLiked ? 'currentColor' : 'none' }} />
+            {isLiked ? 'Saved' : 'Save'}
+          </button>
+        ) : null}
+        {showAskZai && onAskZai && !ctaIsZai ? (
+          <button type="button" className="zzb-btn zzb-btn--outline solo-focus-trinity-zai" onClick={onAskZai}>
+            Ask Zai
+          </button>
+        ) : null}
+        {ctaUrl ? (
+          <IndustrialHandoffButton
+            url={ctaUrl}
+            journeyId={journeyId}
+            moneyValue={moneyGbp}
+            ctaLabel={ctaLabel}
+            className="solo-focus-trinity-cta"
+            onHandoffClick={onCtaClick}
+            variant="pill"
+          />
+        ) : null}
+        {showDislike && onDislike ? (
+          <button
+            type="button"
+            className="zzb-btn zzb-btn--outline solo-focus-trinity-dislike"
+            onClick={onDislike}
+            aria-pressed={isDisliked}
+          >
+            Not for me
+          </button>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <motion.div
       className="solo-focus-trinity solo-focus-trinity--80 impact-to-trinity flex flex-row items-center justify-start flex-shrink-0 w-full"

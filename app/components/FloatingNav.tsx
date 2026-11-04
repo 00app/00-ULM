@@ -10,6 +10,7 @@ import {
 } from '@/app/components/ui/MonoStrokeIcons'
 import { ROUTES } from '@/lib/routes'
 import { isZaiChatEnabled } from '@/lib/featureFlags'
+import { useLikesWaitingCount } from '@/lib/hooks/useLikesWaitingCount'
 
 interface FloatingNavProps {
   active: 'likes' | 'zone' | 'summary' | 'chat'
@@ -38,6 +39,7 @@ export default function FloatingNav({
 }: FloatingNavProps) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
+  const likesWaiting = useLikesWaitingCount()
 
   const triggerHaptic = () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5)
@@ -58,7 +60,9 @@ export default function FloatingNav({
     <Link
       href={NAV_HREF[key]}
       className="nav-item-circle"
-      aria-label={navLabels[key]}
+      aria-label={
+        key === 'likes' && likesWaiting ? `${navLabels[key]}, ${likesWaiting} waiting` : navLabels[key]
+      }
       onClick={() => triggerHaptic()}
     >
       <span
@@ -77,6 +81,11 @@ export default function FloatingNav({
           <span className="nav-item-circle-icon">{children}</span>
         )}
       </span>
+      {key === 'likes' && likesWaiting && !isActive ? (
+        <span className="nav-count-badge" aria-hidden>
+          {likesWaiting > 9 ? '9+' : likesWaiting}
+        </span>
+      ) : null}
     </Link>
   )
 

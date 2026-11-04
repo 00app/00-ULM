@@ -1,5 +1,6 @@
 import { JOURNEYS, type JourneyId } from '@/lib/journeys'
 import { formatZoneCategoryLabel } from '@/lib/soloFocusCopy'
+import { parseCarbonKgFromDisplay, parseMoneyGbpFromDisplay } from '@/lib/format'
 
 export type DeepDiveProfileSlice = {
   homeType?: string | null
@@ -88,10 +89,17 @@ export function buildDeepDiveAuditTrail(input: DeepDiveAuditInput): string[] {
 /** One-line plain-English context for the Ask sheet (no audit jargon). */
 export function buildDeepDivePlainSummary(input: DeepDiveAuditInput): string {
   const place = input.localityName?.trim() || 'your area'
-  const spend = String(input.personalSpend ?? '').replace(/[^\d.]/g, '') || '0'
-  const carbon = String(input.regionalAvg ?? '').replace(/[^\d.]/g, '') || '0'
+  // Parse the display strings ("£3.4k", "80 kg") rather than stripping to digits, which turned
+  // £3.4k into "£3.4"; leave out a figure that is zero.
+  const gbp = Math.round(parseMoneyGbpFromDisplay(String(input.personalSpend ?? '')))
+  const kg = Math.round(parseCarbonKgFromDisplay(String(input.regionalAvg ?? '')))
   const category = (input.categoryLabel || formatZoneCategoryLabel(input.journeyKey)).toLowerCase()
-  return `About £${spend} a year and ${carbon} kg CO₂e on this ${category} card — from your profile and live research for ${place}.`
+  const figures = [
+    gbp > 0 ? `£${gbp.toLocaleString('en-GB')} a year` : null,
+    kg > 0 ? `${kg.toLocaleString('en-GB')} kg CO₂e` : null,
+  ].filter(Boolean)
+  const lead = figures.length > 0 ? `About ${figures.join(' and ')} on this ${category} card` : `This ${category} card`
+  return `${lead}, from your profile and live research for ${place}.`
 }
 
 export function buildDeepDiveCalculationSummary(input: DeepDiveAuditInput): string {

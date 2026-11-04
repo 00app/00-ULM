@@ -1,13 +1,14 @@
 'use client'
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { JOURNEY_ORDER, type JourneyId } from '@/lib/journeys'
 import { UNIFIED_PROFILE_MEMORY_EVENT, persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { guardLegacyDemoIdentityOnClient } from '@/lib/zone/garyMode'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
 import { authenticatedGet, authenticatedPost } from '@/lib/client/authenticatedFetch'
-import { removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
+import { readAllLikeCardSnapshots, removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
+import { queueLikeIntent, readLikeOutbox, settleLikeIntent } from '@/lib/client/likeOutbox'
 import { readDislikedCardIds, recordOfferSignal, writeDislikedCardIds, OFFER_PREFERENCE_CHANGED_EVENT } from '@/lib/zone/offerSignals'
 import {
   readIndifferentCardIds,
@@ -82,6 +83,8 @@ export function readLocationStateFromStorage(): { locationName: string; local: L
 export interface AppState {
   profile: AppProfile | null
   likedCards: string[]
+  /** False until /api/likes has answered successfully, so pages don't read [] as "no likes". */
+  likesLoaded: boolean
   dislikedCards: string[]
   indifferentCardIds: string[]
   userId: string | null
@@ -187,6 +190,13 @@ const AppContext = createContext<AppContextValue | null>(null)
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<AppProfile | null>(null)
   const [likedCards, setLikedCards] = useState<string[]>([])
+  const [likesLoaded, setLikesLoaded] = useState(false)
+  // Mirror of likedCards for toggleLike, which must know the current state synchronously to
+  // record the intended state in the outbox before any await.
+  const likedCardsRef = useRef<string[]>([])
+  useEffect(() => {
+    likedCardsRef.current = likedCards
+  }, [likedCards])
   const [dislikedCards, setDislikedCards] = useState<string[]>(() =>
     typeof window !== 'undefined' ? readDislikedCardIds() : []
   )
@@ -364,13 +374,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
+    // Snapshot the outbox before any await: only intents left by an earlier page are replayed,
+    // never a tap made while this load is in flight (that one has its own POST running).
+    const leftover = readLikeOutbox()
     void (async () => {
       await ensureProfileSession()
       const likesRes = await authenticatedGet('/api/likes')
       const likesData = likesRes.ok
         ? ((await likesRes.json().catch(() => null)) as { liked_card_ids?: string[] } | null)
         : null
-      setLikedCards(Array.isArray(likesData?.liked_card_ids) ? likesData.liked_card_ids : [])
+      let serverIds = Array.isArray(likesData?.liked_card_ids) ? likesData.liked_card_ids : []
+      if (likesRes.ok) {
+        // Replay likes/unlikes a previous page never finished sending (see lib/client/likeOutbox).
+        // The POST is a toggle, so only send where the server differs from what was asked for.
+        for (const [cardId, wanted] of Object.entries(leftover)) {
+          if (serverIds.includes(cardId) === wanted) {
+            settleLikeIntent(cardId, wanted)
+            continue
+          }
+          try {
+            const res = await authenticatedPost('/api/likes', { card_id: cardId })
+            const data = res.ok ? ((await res.json().catch(() => ({}))) as { liked?: boolean }) : null
+            if (data && typeof data.liked === 'boolean') {
+              serverIds = data.liked
+                ? [...serverIds.filter((id) => id !== cardId), cardId]
+                : serverIds.filter((id) => id !== cardId)
+              settleLikeIntent(cardId, wanted)
+            }
+          } catch {
+            /* leave it for the next load */
+          }
+        }
+        // Drop this device's card copies for likes the server no longer holds (unliked elsewhere,
+        // or never saved), so they stop flashing up on Likes before the server list arrives.
+        const keep = new Set(serverIds)
+        for (const id of Object.keys(readAllLikeCardSnapshots())) {
+          if (!keep.has(id)) removeLikeCardSnapshot(id)
+        }
+      }
+      setLikedCards(serverIds)
+      // Only a real answer counts as loaded; on 401/offline, pages keep showing the device's cached likes.
+      setLikesLoaded(likesRes.ok)
 
       const signalsRes = await authenticatedGet('/api/offer-signals')
       const data = signalsRes.ok
@@ -412,6 +456,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [userId])
 
   const toggleLike = useCallback((cardId: string, cardTitle?: string, savings?: number) => {
+    // Record the wanted state before anything async, so a tap followed by leaving the page is
+    // replayed on the next load instead of lost.
+    const wantLiked = !likedCardsRef.current.includes(cardId)
+    likedCardsRef.current = wantLiked
+      ? [...likedCardsRef.current, cardId]
+      : likedCardsRef.current.filter((id) => id !== cardId)
+    queueLikeIntent(cardId, wantLiked)
     let wasLiked = false
     setLikedCards((prev) => {
       wasLiked = prev.includes(cardId)
@@ -428,11 +479,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       await ensureProfileSession()
       try {
-        const res = await authenticatedPost('/api/likes', {
-          card_id: cardId,
-          card_title: cardTitle,
-          savings,
-        })
+        // keepalive lets the request finish if the page is left right after the tap.
+        const res = await authenticatedPost(
+          '/api/likes',
+          { card_id: cardId, card_title: cardTitle, savings },
+          { keepalive: true }
+        )
+        // Answered either way: the outbox entry is done (a refused toggle is reverted below).
+        settleLikeIntent(cardId, wantLiked)
         if (!res.ok) {
           setLikedCards((prev) =>
             wasLiked
@@ -547,6 +601,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     () => ({
       profile,
       likedCards,
+      likesLoaded,
       dislikedCards,
       indifferentCardIds,
       userId,
@@ -555,7 +610,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       locationState,
       soloFocus,
     }),
-    [profile, likedCards, dislikedCards, indifferentCardIds, userId, heroTotals, journeyAnswers, locationState, soloFocus]
+    [profile, likedCards, likesLoaded, dislikedCards, indifferentCardIds, userId, heroTotals, journeyAnswers, locationState, soloFocus]
   )
 
   const value: AppContextValue = useMemo(

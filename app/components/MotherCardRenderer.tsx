@@ -34,6 +34,8 @@ interface MotherCardRendererProps {
   onAskZai?: () => void
   onDislike?: () => void
   onCtaClick?: () => void
+  /** Brand-language action row (inside a .zz-brand surface). */
+  brand?: boolean
 }
 
 export function MotherCardRenderer({
@@ -59,6 +61,7 @@ export function MotherCardRenderer({
   onAskZai,
   onDislike,
   onCtaClick,
+  brand = false,
 }: MotherCardRendererProps) {
   return (
     <>
@@ -132,6 +135,7 @@ export function MotherCardRenderer({
           onAskZai={onAskZai}
           onDislike={onDislike}
           onCtaClick={onCtaClick}
+          brand={brand}
         />
       ) : null}
     </>

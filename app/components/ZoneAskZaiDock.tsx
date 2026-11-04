@@ -16,10 +16,10 @@ export default function ZoneAskZaiDock({ onActivate }: { onActivate: () => void 
   }, [mounted])
 
   const dock = (
-    <div className="zone-ask-zai-dock" data-testid="zone-ask-zai-dock">
+    <div className="zone-ask-zai-dock zz-brand zz-brand-page" data-testid="zone-ask-zai-dock">
       <input
         type="text"
-        placeholder="Ask Zai..."
+        placeholder="Ask Zai…"
         className="zz-zai-composer-input"
         onKeyDown={(e) => {
           if (e.key === 'Enter') onActivate()

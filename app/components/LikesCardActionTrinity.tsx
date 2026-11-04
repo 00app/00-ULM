@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion'
 import { IndustrialHandoffButton } from '@/app/components/ui/Buttons'
-import { INDUSTRIAL_OPACITY_SNAP } from '@/lib/animations'
 import {
   FAMILY_ATOMIC_SURFACE_ANIMATE,
   FAMILY_ATOMIC_SURFACE_INITIAL,
@@ -16,25 +15,29 @@ type LikesCardActionTrinityProps = {
   ctaLabel?: string
   ctaSurface?: 'pink' | 'yellow'
   isActioned?: boolean
+  /** True while likes are still loading from the server; Remove is a toggle and must wait for the real list. */
+  removeDisabled?: boolean
   onUnlike: () => void
   onActioned: () => void
 }
 
-/** Likes wall — offer handoff + unlike + mark actioned (Solo Focus trinity geometry). */
+/**
+ * Likes wall — offer handoff + unlike + mark actioned, as a brand pill row (docs/BRAND-LANGUAGE.md),
+ * same treatment as the Solo Focus action row. Carries its own .zz-brand scope.
+ */
 export function LikesCardActionTrinity({
   offerUrl,
   journeyKey,
   moneyGbp = 0,
   ctaLabel = 'VIEW',
-  ctaSurface = 'pink',
   isActioned = false,
+  removeDisabled = false,
   onUnlike,
   onActioned,
 }: LikesCardActionTrinityProps) {
   return (
     <motion.div
-      className="solo-focus-trinity solo-focus-trinity--80 likes-card-trinity flex flex-row items-center justify-start flex-shrink-0 w-full"
-      style={{ gap: 20, marginTop: 0, marginBottom: 0 }}
+      className="zz-brand solo-focus-trinity likes-card-trinity likes-card-trinity--brand flex flex-row flex-wrap items-center justify-start flex-shrink-0 w-full"
       initial={FAMILY_ATOMIC_SURFACE_INITIAL}
       animate={FAMILY_ATOMIC_SURFACE_ANIMATE}
       transition={FAMILY_TRANSITION_ATOMIC}
@@ -45,40 +48,30 @@ export function LikesCardActionTrinity({
           journeyId={journeyKey}
           moneyValue={moneyGbp}
           ctaLabel={ctaLabel}
-          surface={ctaSurface}
           className="solo-focus-trinity-cta"
+          variant="pill"
         />
       ) : null}
-      <motion.button
+      <div className="likes-card-trinity__secondary">
+      <button
         type="button"
-        className="circle-btn solo-focus-action-btn solo-focus-action-80 likes-card-trinity-unlike zz-shimmer-cta"
+        className="zzb-btn zzb-btn--sm zzb-btn--outline likes-card-trinity-unlike"
         onClick={onUnlike}
-        transition={INDUSTRIAL_OPACITY_SNAP}
+        disabled={removeDisabled}
         aria-label="Remove from likes"
-        style={{
-          backgroundColor: 'var(--color-blue)',
-          color: 'var(--color-blue)',
-        }}
       >
-        <span className="circle-btn-label-stack" aria-hidden="true">
-          <span>unlike</span>
-        </span>
-      </motion.button>
-      <motion.button
+        Remove
+      </button>
+      <button
         type="button"
-        className="circle-btn solo-focus-action-btn solo-focus-action-80 likes-card-trinity-done zz-shimmer-cta"
+        className="zzb-btn zzb-btn--sm zzb-btn--outline likes-card-trinity-done"
         onClick={onActioned}
-        transition={INDUSTRIAL_OPACITY_SNAP}
         aria-label={isActioned ? 'Unmark as actioned' : 'Mark as actioned'}
-        style={{
-          backgroundColor: isActioned ? 'var(--color-blue)' : 'var(--color-purple)',
-          color: isActioned ? 'var(--color-purple)' : 'var(--color-blue)',
-        }}
+        aria-pressed={isActioned}
       >
-        <span className="circle-btn-label-stack" aria-hidden="true">
-          <span>done</span>
-        </span>
-      </motion.button>
+        {isActioned ? 'Done' : 'Mark done'}
+      </button>
+      </div>
     </motion.div>
   )
 }

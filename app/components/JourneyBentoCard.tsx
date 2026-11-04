@@ -28,11 +28,11 @@ import type { ZoneAuditState } from '@/lib/zone/zoneAuditUi'
 import { SoloFocusJourneyNav } from '@/app/components/SoloFocusJourneyNav'
 import { SoloFocusProseStack } from '@/app/components/SoloFocusProseStack'
 import { SoloFocusMotherStack } from '@/app/components/SoloFocusMotherStack'
+import { SoloFocusDeepDive } from '@/app/components/SoloFocusDeepDive'
 import { MotherCardRenderer } from '@/app/components/MotherCardRenderer'
 import { AskZaiDeepDiveSheet } from '@/app/components/AskZaiDeepDiveSheet'
 import { isZaiChatEnabled, isDislikeEnabled } from '@/lib/featureFlags'
 import { ZoneBentoCardHeader } from '@/app/components/ui/ZoneBentoCardHeader'
-import { OpenNEOutlineIcon } from '@/app/components/ui/MonoStrokeIcons'
 import { pickPrimaryHttpUrl } from '@/lib/soloFocusDiagnosticMeta'
 import { resolveSoloFocusHandoffAttribution } from '@/lib/soloFocusSuppliedBy'
 import { useHydrationSafeReducedMotion } from '@/lib/hooks/useHydrationSafeReducedMotion'
@@ -387,6 +387,8 @@ export function JourneyBentoCard({
   } | null>(() => readHydrationSnap(soloFocusSnapKey, journeyId)?.researchAttribution ?? null)
   const [impactAnswerPulse, setImpactAnswerPulse] = useState(false)
   const [askZaiDeepDiveOpen, setAskZaiDeepDiveOpen] = useState(false)
+  /** Pills from the deep view (question or best result); null → the category defaults. */
+  const [askZaiPills, setAskZaiPills] = useState<string[] | null>(null)
   const soloFocusEngagementRef = useRef(createSoloFocusEngagementRef())
   const [heroTotalsOverride, setHeroTotalsOverride] = useState<{ money: number; carbon: number } | null>(null)
   const [homeSentinelRecard, setHomeSentinelRecard] = useState<HomeSentinelRecard | null>(null)
@@ -817,6 +819,7 @@ export function JourneyBentoCard({
         card_title: displayTitle,
       })
     }
+    setAskZaiPills(null)
     setAskZaiDeepDiveOpen(true)
   }, [triggerHaptic, activeCardId, cardId, activeJourneyId, displayTitle])
 
@@ -1119,6 +1122,20 @@ export function JourneyBentoCard({
         habitTitle={isRockMorphTip ? String(displayTitle || title || '').trim() : undefined}
       />
     ) : null
+    const deepDiveEl = !showCardComputing ? (
+      <SoloFocusDeepDive
+        journeyId={String(focusCategoryJourneyId)}
+        cardActionId={libraryAction?.id ?? null}
+        onAskZai={
+          isZaiChatEnabled()
+            ? (questions) => {
+                setAskZaiPills(questions)
+                setAskZaiDeepDiveOpen(true)
+              }
+            : undefined
+        }
+      />
+    ) : null
 
     const sourceFooter = libraryAction
       ? librarySourceLine(libraryAction)
@@ -1167,7 +1184,7 @@ export function JourneyBentoCard({
             <ExpandedCardShell
             data-journey={displayJourneyId}
             data-zone-surface={surfaceKind}
-            className="expanded-solo-focus view-expanded solo-focus-mobile-expand"
+            className="expanded-solo-focus view-expanded solo-focus-mobile-expand zz-brand"
             style={
               {
                 ...(surfaceKind === 'journey'
@@ -1191,7 +1208,7 @@ export function JourneyBentoCard({
           sourceUrl={pulseSourceUrl}
         />
         <div className="solo-focus-shell-wrap w-full min-w-0">
-        <SoloFocusViewportUtilityStrip onClose={() => beginCloseWithPatternShift()} />
+        <SoloFocusViewportUtilityStrip onClose={() => beginCloseWithPatternShift()} brand />
 
         <motion.div className="solo-focus-rail w-full min-w-0">
         <motion.div
@@ -1213,10 +1230,16 @@ export function JourneyBentoCard({
               categoryIsNew={isUnreadCard(soloFocusCardId)}
               headline={recommendationTitle}
               showComputing={showCardComputing}
-              prose={trueTipSectionsEl}
+              prose={
+                <>
+                  {trueTipSectionsEl}
+                  {deepDiveEl}
+                </>
+              }
               metrics={
                 <>
                   <MotherCardRenderer
+                    brand
                     categoryLabel=""
                     headline={null}
                     narrative={null}
@@ -1250,6 +1273,7 @@ export function JourneyBentoCard({
                   />
                   {onNavigateJourney || onNavigateSoloFocus ? (
                     <SoloFocusJourneyNav
+                      brand
                       journeyId={focusCategoryJourneyId}
                       currentCardId={soloFocusCardId}
                       navRing={soloFocusNavRingWithMorph}
@@ -1282,7 +1306,7 @@ export function JourneyBentoCard({
         scrapedSource={insightLabel || crawlerTip || localContextBar || ''}
         postcode={state.profile?.postcode}
         localityName={state.locationState?.locationName ?? undefined}
-        suggestedQuestions={buildDeepDiveQuestionPills(String(activeJourneyId))}
+        suggestedQuestions={askZaiPills ?? buildDeepDiveQuestionPills(String(activeJourneyId))}
       />
           </>
       ) : null
@@ -1293,7 +1317,11 @@ export function JourneyBentoCard({
     return null
   }
 
-  // —— COLLAPSED: Zero Zero Card Spec — Label (top-left), Arrow 3× (top-right, hover hint), Headline, Data Stack ——
+  // —— COLLAPSED: brand-language card (docs/BRAND-LANGUAGE.md) — eyebrow, H4 headline, one stat with its source ——
+
+  const collapsedCarbonKg = parseCarbonKgFromDisplay(carbonValue || '0')
+  // The figure's source, short: "Policy in Practice, Missing Out 2025 (…); Turn2us" → its first clause.
+  const collapsedSource = libraryAction?.source ? libraryAction.source.split(/[(;]/)[0]!.trim() : null
 
   return (
       <motion.div
@@ -1304,7 +1332,7 @@ export function JourneyBentoCard({
           onExpand?.()
         }}
         className={[
-          'bento-card-groovy cursor-pointer w-full h-full flex flex-col min-h-0',
+          'bento-card-groovy cursor-pointer w-full h-full flex flex-col min-h-0 zz-brand zzb-card',
           isTall ? 'span-tall-block' : '',
           isVisited ? 'zone-card--visited' : '',
           deepDiveInProgress ? 'zone-card--deep-dive-pending' : '',
@@ -1319,35 +1347,32 @@ export function JourneyBentoCard({
         transition={INDUSTRIAL_OPACITY_SNAP}
       >
       <div className="flex items-center justify-between w-full shrink-0 pointer-events-none">
-        <ZoneBentoCardHeader journeyId={journeyId} textColor="currentColor" />
+        <ZoneBentoCardHeader journeyId={journeyId} />
       </div>
-      <motion.h3
-        className="card-headline m-0 min-w-0"
-        lang="en"
-      >
+      <motion.h3 className="card-headline zzb-h4 m-0 min-w-0" lang="en">
         {headline}
-        <OpenNEOutlineIcon size={16} className="card-headline-arrow" />
       </motion.h3>
       {showEstimatedInsightStrip ? (
-        <p className="zone-estimated-insight-strip m-0 min-w-0" aria-live="polite">
+        <p className="zone-estimated-insight-strip zzb-meta m-0 min-w-0" aria-live="polite">
           {ZONE_ESTIMATED_INSIGHT_STRIP}
         </p>
       ) : null}
-      {/* Only one savings display allowed — shown in the bottom data grid */}
-      <div className="card-impact-grid grid grid-cols-2 gap-x-6 sm:gap-x-8 gap-y-0 mt-auto shrink-0">
-        <div className="data-stack data-stack--tight">
-          <span className="data-label text-data">SAVE</span>
-          <span className="data-value text-data data-stamp-metric">
-            <StampedMoneyGbp gbp={parseMoneyGbpFromDisplay(moneyValue || '0')} />
+      {/* One key metric, with its source under it */}
+      {collapsedMoneyGbp > 0 || collapsedCarbonKg > 0 ? (
+        <div className="zzb-card__metric mt-auto shrink-0">
+          <span className="zzb-card__value">
+            {collapsedMoneyGbp > 0 ? (
+              <StampedMoneyGbp gbp={collapsedMoneyGbp} />
+            ) : (
+              <StampedCarbonKg kg={collapsedCarbonKg} />
+            )}
+          </span>
+          <span className="zzb-meta">
+            {collapsedMoneyGbp > 0 ? 'Typical saving a year' : 'Carbon cut a year'}
+            {collapsedSource ? ` · ${collapsedSource}` : ''}
           </span>
         </div>
-        <div className="data-stack data-stack--tight data-stack--secondary">
-          <span className="data-label">CARBON</span>
-          <span className="data-value data-stamp-metric">
-            <StampedCarbonKg kg={parseCarbonKgFromDisplay(carbonValue || '0')} />
-          </span>
-        </div>
-      </div>
+      ) : null}
     </motion.div>
   )
 }

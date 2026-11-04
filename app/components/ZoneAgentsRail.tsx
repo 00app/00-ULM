@@ -5,6 +5,15 @@ import { useEffect, useState } from 'react'
 import { eligibleAgents, readAgentContext, type ZoneAgent } from '@/lib/zoneAgents/registry'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { ROUTES } from '@/lib/routes'
+import { BrandArrow } from '@/app/components/brand/BrandArrow'
+
+/** Agent CTAs are stored in capitals (OPEN YOUR LIST); buttons read in sentence case. */
+function agentCtaLabel(label: string): string {
+  const v = String(label ?? '').trim()
+  if (v !== v.toUpperCase()) return v
+  const lower = v.toLowerCase()
+  return lower.charAt(0).toUpperCase() + lower.slice(1)
+}
 
 /**
  * Zone agents — one card per agent the user's own data switches on (see lib/zoneAgents/registry).
@@ -30,16 +39,17 @@ export function ZoneAgentsRail() {
           <Link
             key={agent.id}
             href={agent.href}
-            className="bento-card-groovy rock-bento-tile zone-rec-card zone-rec-card--large zone-agent-card"
+            className="bento-card-groovy rock-bento-tile zone-rec-card zone-rec-card--large zone-agent-card zz-brand zzb-card"
             data-agent={agent.id}
             data-zone-surface="tip"
-            style={{ borderRadius: 60, boxShadow: 'none' }}
             onClick={() => trackFunnelEvent('cta_click', { page: ROUTES.ZONE, cta_label: `agent_${agent.id}` })}
           >
             <span className="card-top-label">{agent.label}</span>
-            <h3 className="card-headline zone-rec-headline m-0">{agent.headline}</h3>
+            <h3 className="card-headline zone-rec-headline zzb-h4 m-0">{agent.headline}</h3>
             <p className="zone-rec-why m-0">{agent.why}</p>
-            <span className="zone-rec-cta">{agent.cta}</span>
+            <span className="zone-rec-cta zzb-btn zzb-btn--sm zzb-btn--blue">
+              {agentCtaLabel(agent.cta)} <BrandArrow />
+            </span>
           </Link>
         ))}
       </div>

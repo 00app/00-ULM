@@ -87,3 +87,168 @@
   display: block;
   will-change: transform;
 }
+
+/* ==========================================================================
+   .zz-brand as a reusable in-app scope (Solo Focus, cards, sheets).
+   Same lift as .zzfd in app/front-door/front-door.css: the shell's type lock
+   (weight 800/900, uppercase, Abril numerals via --font-display/--font-text,
+   fixed 16px p/button) is ID-level, so `:not(#zz-brand)` + !important.
+   ========================================================================== */
+
+.zz-brand {
+  /* Front-door names, so components can be copied across unchanged. */
+  --fd-font: var(--zzb-font);
+  --fd-blue: var(--zzb-blue);
+  --fd-navy: var(--zzb-navy);
+  --fd-ink: var(--zzb-ink);
+  --fd-muted: var(--zzb-muted);
+  --fd-muted-light: var(--zzb-muted-light);
+  --fd-line: var(--zzb-line);
+  --fd-line-dark: var(--zzb-line-dark);
+  --fd-tint: var(--zzb-tint);
+  --fd-white: var(--zzb-white);
+  --fd-ease: var(--zzb-ease);
+  /* Anything still reading the shell's font vars gets Helvetica, not Abril numerals. */
+  --font-display: var(--zzb-font);
+  --font-text: var(--zzb-font);
+  --font-cta: var(--zzb-font);
+  font-variant-numeric: tabular-nums;
+}
+.zz-brand :not(#zz-brand) {
+  font-variant-numeric: tabular-nums;
+  text-transform: none !important;
+  letter-spacing: normal;
+}
+.zz-brand :is(h5, h6, strong, b, dt, dd, button, a):not(#zz-brand) {
+  font-family: var(--zzb-font) !important;
+  font-weight: 400 !important;
+}
+.zz-brand :is(h1, h2, h3, h4, h5, h6, p, dl, dd, ol, ul):not(#zz-brand) {
+  margin: 0;
+}
+
+/* Type roles (docs/BRAND-LANGUAGE.md). Sizes are !important to beat the shell's p/button lock. */
+.zz-brand .zzb-display:not(#zz-brand) { font-size: var(--zzb-size-display) !important; letter-spacing: -0.045em !important; line-height: 0.92 !important; }
+.zz-brand .zzb-h2:not(#zz-brand) { font-size: var(--zzb-size-h2) !important; letter-spacing: -0.04em !important; line-height: 0.95 !important; }
+.zz-brand .zzb-statement:not(#zz-brand) { font-size: var(--zzb-size-statement) !important; letter-spacing: -0.035em !important; line-height: 1.04 !important; }
+.zz-brand .zzb-stat:not(#zz-brand) { font-size: var(--zzb-size-stat) !important; letter-spacing: -0.045em !important; line-height: 0.95 !important; }
+.zz-brand .zzb-h3:not(#zz-brand) { font-size: var(--zzb-size-h3) !important; letter-spacing: -0.025em !important; line-height: 1.05 !important; }
+.zz-brand .zzb-h4:not(#zz-brand) { font-size: var(--zzb-size-h4) !important; letter-spacing: -0.015em !important; line-height: 1.15 !important; }
+.zz-brand .zzb-lede:not(#zz-brand) { font-size: var(--zzb-size-lede) !important; line-height: 1.55 !important; }
+.zz-brand .zzb-body:not(#zz-brand) { font-size: 17px !important; line-height: 1.5 !important; }
+.zz-brand .zzb-meta:not(#zz-brand) { font-size: 13px !important; line-height: 1.45 !important; color: var(--fd-muted); }
+.zz-brand .zzb-eyebrow:not(#zz-brand) {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--fd-muted);
+}
+.zz-brand .zzb-eyebrow > .zzb-index { color: var(--fd-blue); }
+.zz-brand .zzb-eyebrow *:not(#zz-brand) { text-transform: uppercase !important; letter-spacing: 0.06em !important; }
+.zz-brand .zzb-ink { color: var(--fd-ink); }
+.zz-brand .zzb-muted { color: var(--fd-muted); }
+
+/* Buttons: blue / outline / dark, 44 / 52 heights, 16px arrow that nudges 3px, press 0.98. */
+.zz-brand .zzb-btn:not(#zz-brand) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 24px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.3s var(--fd-ease), color 0.3s var(--fd-ease), border-color 0.3s var(--fd-ease), transform 0.3s var(--fd-ease);
+}
+.zz-brand .zzb-btn svg { transition: transform 0.3s var(--fd-ease); flex: none; }
+.zz-brand .zzb-btn:hover svg { transform: translateX(3px); }
+.zz-brand .zzb-btn:active { transform: scale(0.98); }
+.zz-brand .zzb-btn--sm:not(#zz-brand) { min-height: 44px; padding: 0 20px; font-size: 15px !important; }
+.zz-brand .zzb-btn--blue:not(#zz-brand) { background: var(--fd-blue); color: var(--fd-white) !important; }
+.zz-brand .zzb-btn--blue:hover { background: var(--fd-navy); }
+.zz-brand .zzb-btn--dark:not(#zz-brand) { background: var(--fd-navy); color: var(--fd-white) !important; }
+.zz-brand .zzb-btn--dark:hover { background: var(--fd-blue); }
+.zz-brand .zzb-btn--outline:not(#zz-brand) { background: transparent; border-color: var(--fd-line); color: var(--fd-ink) !important; }
+.zz-brand .zzb-btn--outline:hover { border-color: var(--fd-ink); }
+.zz-brand .zzb-btn[aria-pressed='true']:not(#zz-brand) { border-color: var(--fd-blue); color: var(--fd-blue) !important; }
+
+/* Text link: underline draws left to right on hover. */
+.zz-brand .zzb-link:not(#zz-brand) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: linear-gradient(currentColor, currentColor) left calc(100% - 10px) / 0 1px no-repeat;
+  color: var(--fd-ink);
+  font-size: 16px !important;
+  line-height: 1.3 !important;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-size 0.35s var(--fd-ease);
+}
+.zz-brand .zzb-link:hover,
+.zz-brand .zzb-link:focus-visible { background-size: 100% 1px; }
+.zz-brand .zzb-link svg { transition: transform 0.3s var(--fd-ease); }
+.zz-brand .zzb-link:hover svg { transform: translateX(3px); }
+.zz-brand .zzb-link:hover .zzb-arrow-back { transform: translateX(-3px); }
+
+/* Chip: tint ground, navy text, 12-13px. For effort, tier, tag. */
+.zz-brand .zzb-chip:not(#zz-brand) {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--fd-tint) !important;
+  color: var(--fd-navy) !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+}
+
+/* Answer pill and round tint icon button. */
+.zz-brand .zzb-choice:not(#zz-brand) {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--fd-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fd-ink) !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  cursor: pointer;
+  transition: border-color 0.3s var(--fd-ease), background-color 0.3s var(--fd-ease);
+}
+.zz-brand .zzb-choice:hover { border-color: var(--fd-ink); }
+.zz-brand .zzb-icon-btn:not(#zz-brand) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fd-tint);
+  color: var(--fd-ink) !important;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zz-brand .zzb-btn,
+  .zz-brand .zzb-btn svg,
+  .zz-brand .zzb-link,
+  .zz-brand .zzb-link svg,
+  .zz-brand .zzb-choice { transition: none; }
+}
