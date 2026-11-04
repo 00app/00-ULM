@@ -10,12 +10,14 @@
 
 import { ZONE_ACTIONS } from '@/lib/actions/actionLibrary'
 import type { ZoneAction } from '@/lib/actions/actionTypes'
-import { buildHousehold } from '@/lib/household/buildHousehold'
+import { buildHousehold, type Household } from '@/lib/household/buildHousehold'
 import { evaluateCategory, specContext, type CategoryEvaluation } from '@/lib/intelligence/categories/evaluate'
 import { CATEGORY_SPECS } from '@/lib/intelligence/categories/registry'
 import { JOURNEY_IDS, type JourneyId } from '@/lib/journeys'
 import type { InsightCard, InsightCategory } from '@/lib/zone/insightCard'
 import { persistLoopAnswerLocal } from '@/lib/zone/loopMemory'
+import { sendKnowledgeAnswer } from '@/lib/knowledge/client'
+import type { KnowledgeSource } from '@/lib/knowledge/questions'
 
 const PROFILE_KEYS: Record<string, string> = {
   homeOwnership: 'profile_home_ownership',
@@ -86,12 +88,12 @@ export function categoryForJourney(journeyId: string | null | undefined): Insigh
   return id in CATEGORY_SPECS ? (id as InsightCategory) : null
 }
 
-/** Evaluate one category for this browser's household. Null on the server or for an unknown id. */
-export function evaluateClientCategory(category: InsightCategory, now: Date = new Date()): CategoryEvaluation | null {
+/** This browser's household (profile, journey answers, loop and card answers). Null on the server. */
+export function clientHousehold(now: Date = new Date()): Household | null {
   if (typeof window === 'undefined') return null
   const postcode = read('profile_postcode')?.trim() || null
   const asOf = now.toISOString()
-  const h = buildHousehold(
+  return buildHousehold(
     {
       identity: { kind: 'guest', guestSessionId: 'browser' },
       postcode,
@@ -108,12 +110,28 @@ export function evaluateClientCategory(category: InsightCategory, now: Date = ne
     },
     now
   )
-  return evaluateCategory(CATEGORY_SPECS[category], specContext(h, now))
 }
 
-/** Store an answer where the household builder reads it (journey map + loop log). */
-export function persistCardAnswer(journeyId: JourneyId, questionId: string, answer: string): void {
+/** Evaluate one category for this browser's household. Null on the server or for an unknown id. */
+export function evaluateClientCategory(category: InsightCategory, now: Date = new Date()): CategoryEvaluation | null {
+  const h = clientHousehold(now)
+  return h ? evaluateCategory(CATEGORY_SPECS[category], specContext(h, now)) : null
+}
+
+/** Questions-and-answers this browser holds: questionId → stored answer (loop log). */
+export function clientAnswers(): Record<string, string> {
+  return clientLoopAnswers()
+}
+
+/** Store an answer where the household builder reads it (journey map + loop log), and server-side. */
+export function persistCardAnswer(
+  journeyId: JourneyId,
+  questionId: string,
+  answer: string,
+  source: KnowledgeSource = 'solo_focus'
+): void {
   persistLoopAnswerLocal({ journeyId, questionId, answer })
+  sendKnowledgeAnswer({ questionId, journeyId, answer, source })
 }
 
 function readSkips(): Record<string, number> {
@@ -126,7 +144,12 @@ export function isQuestionResting(questionId: string, now: number = Date.now()):
   return typeof at === 'number' && now - at < SKIP_DAYS * 86_400_000
 }
 
-export function restQuestion(questionId: string, now: number = Date.now()): void {
+export function restQuestion(
+  questionId: string,
+  now: number = Date.now(),
+  journeyId?: JourneyId,
+  source: KnowledgeSource = 'solo_focus'
+): void {
   const skips = readSkips()
   skips[questionId] = now
   try {
@@ -134,6 +157,7 @@ export function restQuestion(questionId: string, now: number = Date.now()): void
   } catch {
     /* quota */
   }
+  if (journeyId) sendKnowledgeAnswer({ questionId, journeyId, answer: null, source })
 }
 
 /**

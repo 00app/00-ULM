@@ -215,11 +215,17 @@ DIAG_CODE="$(curl -sS --max-time 30 -o "$DIAG_TMP" -w '%{http_code}' \
   "${HOST}/api/health/diagnostics" || printf '000')"
 echo "  HTTP ${DIAG_CODE}"
 if command -v jq >/dev/null 2>&1 && [[ -s "$DIAG_TMP" ]]; then
-  jq '{neon,dbLatencyMs,gemini,firecrawl,error}' "$DIAG_TMP" 2>/dev/null || head -c 400 "$DIAG_TMP"
+  jq '{neon,dbLatencyMs,gemini,firecrawl,knowledge,error}' "$DIAG_TMP" 2>/dev/null || head -c 400 "$DIAG_TMP"
 else
   head -c 400 "$DIAG_TMP" 2>/dev/null || true
 fi
 echo ""
+# Knowledge gathering layer (household_facts + knowledge_questions). Warn, do not fail the pulse.
+if command -v jq >/dev/null 2>&1 && [[ -s "$DIAG_TMP" ]]; then
+  if [[ "$(jq -r '.knowledge.tables // empty' "$DIAG_TMP" 2>/dev/null)" == "false" ]]; then
+    echo "⚠ knowledge tables missing on this database — run db/migrations/20261025_intelligence_layer.sql + 20261104_knowledge_gathering.sql" >&2
+  fi
+fi
 rm -f "$DIAG_TMP"
 
 if [[ "$DIAG_CODE" == "401" ]]; then

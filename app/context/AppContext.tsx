@@ -9,6 +9,7 @@ import { ensureProfileSession } from '@/lib/client/ensureProfileSession'
 import { authenticatedGet, authenticatedPost } from '@/lib/client/authenticatedFetch'
 import { readAllLikeCardSnapshots, removeLikeCardSnapshot } from '@/lib/client/likeCardSnapshots'
 import { queueLikeIntent, readLikeOutbox, settleLikeIntent } from '@/lib/client/likeOutbox'
+import { syncKnowledgeFromServer } from '@/lib/knowledge/client'
 import { readDislikedCardIds, recordOfferSignal, writeDislikedCardIds, OFFER_PREFERENCE_CHANGED_EVENT } from '@/lib/zone/offerSignals'
 import {
   readIndifferentCardIds,
@@ -371,6 +372,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     window.addEventListener(OFFER_PREFERENCE_CHANGED_EVENT, syncPrefs)
     return () => window.removeEventListener(OFFER_PREFERENCE_CHANGED_EVENT, syncPrefs)
+  }, [])
+
+  // Merge answers and snoozes this person gave on other devices (lib/knowledge/client).
+  useEffect(() => {
+    void (async () => {
+      await ensureProfileSession()
+      await syncKnowledgeFromServer()
+    })()
   }, [])
 
   useEffect(() => {

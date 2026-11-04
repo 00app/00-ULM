@@ -133,7 +133,9 @@ const LIBRARY_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 
 export function librarySourceLine(a: { source: string; verifiedOn: string }): string {
   const m = /^(\d{4})-(\d{2})/.exec(a.verifiedOn)
   const when = m ? `${LIBRARY_MONTHS[Number(m[2]) - 1] ?? ''} ${m[1]}`.trim() : a.verifiedOn
-  return `Source: ${a.source}. Checked ${when}.`
+  // Don't double up punctuation when the citation already ends with it ("…contract?").
+  const cite = /[.?!]$/.test(a.source.trim()) ? a.source.trim() : `${a.source.trim()}.`
+  return `Source: ${cite} Checked ${when}.`
 }
 
 /**

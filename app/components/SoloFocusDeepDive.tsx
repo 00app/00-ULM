@@ -14,6 +14,7 @@ import { getOptionFullLabel, type JourneyId } from '@/lib/journeys'
 import { BrandArrow } from '@/app/components/brand/BrandArrow'
 import { markGuestCompleted, postActionedCard } from '@/lib/actions/actionCompletion'
 import { cardOptionAnswer, resolveGapQuestion, type CardQuestionOption } from '@/lib/zone/cardQuestions'
+import { onKnowledgeSynced } from '@/lib/knowledge/client'
 import type { CategoryEvaluation } from '@/lib/intelligence/categories/evaluate'
 import type { InsightCard } from '@/lib/zone/insightCard'
 import {
@@ -65,6 +66,9 @@ export function SoloFocusDeepDive({ journeyId, cardActionId = null, onAskZai }: 
     setEvaluation(category ? evaluateClientCategory(category) : null)
   }, [category, version])
 
+  // Answers given on another device arrive from /api/knowledge after load; re-score when they land.
+  useEffect(() => onKnowledgeSynced(() => setVersion((v) => v + 1)), [])
+
   useEffect(() => {
     setAskedThisVisit(0)
     setPickedId(null)
@@ -95,7 +99,7 @@ export function SoloFocusDeepDive({ journeyId, cardActionId = null, onAskZai }: 
       if (!question) return
       const value = cardOptionAnswer(option)
       if (value) persistCardAnswer(question.journeyId, question.questionId, value)
-      else restQuestion(question.questionId)
+      else restQuestion(question.questionId, Date.now(), question.journeyId)
       setAskedThisVisit((n) => n + 1)
       setVersion((v) => v + 1)
     },
@@ -104,7 +108,7 @@ export function SoloFocusDeepDive({ journeyId, cardActionId = null, onAskZai }: 
 
   const skip = useCallback(() => {
     if (!question) return
-    restQuestion(question.questionId)
+    restQuestion(question.questionId, Date.now(), question.journeyId)
     setAskedThisVisit((n) => n + 1)
     setVersion((v) => v + 1)
   }, [question])

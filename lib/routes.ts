@@ -20,6 +20,9 @@ export const ROUTES = {
   SETTINGS_LIVING: '/settings/living',
   /** Zone agents: results pages, one per agent (lib/zoneAgents/registry.ts). */
   AGENT_MOVING: '/agents/moving',
+  AGENT_CONTRACTS: '/agents/contracts',
+  AGENT_BENEFITS: '/agents/benefits',
+  AGENT_KNOWLEDGE: '/agents/knowledge',
   PRIVACY: '/privacy',
   /** Ops: dependency heartbeat (session or gateway bearer). */
   ADMIN_PULSE: '/admin/pulse',

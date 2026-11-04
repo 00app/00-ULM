@@ -11,6 +11,8 @@ export function buildZaiGenomeContextPrompt(args: {
   userGenome: Record<string, unknown> | null
   journeyAnswers: Record<string, Record<string, string>>
   profile?: ImpactProfile
+  /** household_facts they told us (Solo Focus / Know your home answers), newest first. */
+  toldUs?: { label: string; value: string }[]
 }): string {
   const lines: string[] = []
   const genome = args.userGenome ?? {}
@@ -67,6 +69,14 @@ export function buildZaiGenomeContextPrompt(args: {
     if (grid && typeof grid.intensityG === 'number') {
       lines.push(`live grid intensity: ${Math.round(grid.intensityG)} gCO2/kWh (${String(grid.source ?? 'regional')}).`)
     }
+  }
+
+  if (args.toldUs && args.toldUs.length > 0) {
+    const facts = args.toldUs
+      .slice(0, 12)
+      .map((f) => `${f.label}: ${f.value.slice(0, 40)}`)
+      .join('; ')
+    lines.push(`they told us (treat as known, do not re-ask): ${facts}.`)
   }
 
   return lines.length

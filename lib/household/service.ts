@@ -8,8 +8,9 @@
  * service. Like data.ts it never throws into a route: each source that fails to load is logged and
  * left out, so the household is simply less known, never wrong.
  *
- * `household_facts` comes from db/migrations/20261025_intelligence_layer.sql, which is NOT applied
- * yet. Until it is, the table check returns false and stored facts are skipped.
+ * `household_facts` comes from db/migrations/20261025_intelligence_layer.sql (applied to dev 4 Nov
+ * 2026; production waits for the release gate). Where the table is missing, the check returns false
+ * and stored facts are skipped.
  */
 
 import { promises as fs } from 'fs'

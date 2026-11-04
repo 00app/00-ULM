@@ -122,7 +122,7 @@ export function MovingAgentClient() {
 
   if (postcode === '') {
     return (
-      <div className="agent-page">
+      <div className="agent-page zz-brand zz-brand-page">
         <ZoneBackToZoneLink />
         <h3 className="zz-page-title">Moving in</h3>
         <p className="agent-intro">Add your new postcode and we&apos;ll build your moving-in list.</p>
@@ -137,7 +137,7 @@ export function MovingAgentClient() {
 
   const place = data?.place || postcode
   return (
-    <div className="agent-page" data-testid="agent-moving">
+    <div className="agent-page zz-brand zz-brand-page" data-testid="agent-moving">
       <ZoneBackToZoneLink />
       <h3 className="zz-page-title">Moving in</h3>
       <p className="agent-intro">

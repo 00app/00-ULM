@@ -1,6 +1,7 @@
 -- Zero Zero PRD v4: intelligence layer schema (Z2 proposal, 25 Oct 2026)
 -- Idempotent and additive: safe to run twice, rewrites no existing data.
--- NOT yet applied and NOT in scripts/apply-pending-migrations.ts. Review, then add it there.
+-- Applied to the dev database 4 Nov 2026 and listed in scripts/apply-pending-migrations.ts.
+-- Production waits for the release gate.
 --
 -- Owner pattern (as offer_signals): a row belongs to a signed-in user (user_id) or a guest
 -- (guest_session_id = guest_sessions.session_id). At least one is required. User rows cascade on delete.

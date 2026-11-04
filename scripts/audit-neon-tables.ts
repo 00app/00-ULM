@@ -36,6 +36,13 @@ const TABLE_META: Record<string, { status: TableStatus; note: string }> = {
   analytics_events: { status: 'hot', note: 'Funnel telemetry — /api/analytics writes, /api/admin/funnel reads (migration 20261018)' },
   activity_status: { status: 'optional', note: 'SSO activity visibility (migration 013) — app/api/sso/activity' },
   household_accounts: { status: 'hot', note: 'Bills + contracts per signed-in user — lib/household/data.ts; Settings → Living counts' },
+  household_facts: { status: 'hot', note: 'One row per known household field — /api/knowledge writes, lib/household/service.ts reads (migration 20261025)' },
+  knowledge_questions: { status: 'hot', note: 'Questions asked + answered/skipped, replayed on new devices — /api/knowledge (20261025 + 20261104)' },
+  insight_cards: { status: 'optional', note: 'Card snapshots for ranking/audit (Z4/Z8) — not written yet' },
+  tasks: { status: 'optional', note: 'One row per acted-on card (Z10) — backfilled from user_actioned_cards' },
+  task_events: { status: 'optional', note: 'Append-only task log (Z11) — not written yet' },
+  task_evidence: { status: 'optional', note: 'Evidence that realises a saving (Z11) — not written yet' },
+  outcome_priors: { status: 'optional', note: 'Aggregated learning, n>=5 only (Z12) — not written yet' },
   household_moves: { status: 'hot', note: 'House moves + change-of-address checklist — lib/household/data.ts' },
 }
 

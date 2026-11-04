@@ -17,6 +17,8 @@ const MIGRATION_FILES = [
   '020_users_mobile_sms_opt_in.sql',
   '20260527_offer_signals.sql',
   '20260528_offer_signals_feedback.sql',
+  '20261025_intelligence_layer.sql',
+  '20261104_knowledge_gathering.sql',
 ] as const
 
 async function main() {

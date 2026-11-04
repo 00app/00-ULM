@@ -37,6 +37,7 @@ import {
   ZAI_FORENSIC_CHAT_MATRIX,
 } from "@/lib/brains/zai/prompts";
 import { buildZaiGenomeContextPrompt } from '@/lib/brains/zai/genomeContext'
+import { loadToldUsFacts } from '@/lib/knowledge/server'
 import { finalizeZaiChatLearning } from '@/lib/brains/zai/learning'
 import { dedupeLocalityInProse, textAlreadyHasLocality } from '@/lib/brains/zai/prose'
 import { buildUserImpact } from '@/lib/brains/buildUserImpact'
@@ -598,9 +599,15 @@ export async function POST(req: NextRequest) {
     }
 
     const localityName = council?.trim() || null
+    // Facts gathered by Solo Focus and the Know your home agent (household_facts, told us).
+    const toldUs = await loadToldUsFacts({
+      userId: session?.userId ?? null,
+      guestSessionId: session?.userId ? null : chatSessionKey,
+    })
     const genomePrompt = buildZaiGenomeContextPrompt({
       userGenome: userGenomeForPrompt,
       journeyAnswers: journeyAnswersForContext,
+      toldUs,
       profile: toImpactProfile(
         profileForContext
           ? {

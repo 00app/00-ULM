@@ -93,8 +93,9 @@ assert('garbage date is out', !isWithinJustMovedWindow('soon', now))
 
 // --- Registry ----------------------------------------------------------------------------
 assert('moving agent is registered', ZONE_AGENTS.some((a) => a.id === 'moving'))
-assert('moving agent hidden unless just moved', eligibleAgents({ now, recentlyMoved: false }).length === 0)
-assert('moving agent shown when just moved', eligibleAgents({ now, recentlyMoved: true }).some((a) => a.id === 'moving'))
+const quiet = { now, recentlyMoved: false, contractsDue: 0, benefitsDue: false, knowledgeScore: 1, knowledgeQuestionsLeft: false }
+assert('no agent shows when nothing switches one on', eligibleAgents(quiet).length === 0)
+assert('moving agent shown when just moved', eligibleAgents({ ...quiet, recentlyMoved: true }).some((a) => a.id === 'moving'))
 
 // --- Supplier answer ---------------------------------------------------------------------
 assert('JUST_MOVED is an unknown supplier for every calculation', normaliseEnergySupplier(ENERGY_SUPPLIER_JUST_MOVED) === '')

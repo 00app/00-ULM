@@ -11217,3 +11217,121 @@ html.zz-zone-document:not(#zzb-a) { scrollbar-color: var(--zzb-muted-light) tran
 html.zz-zone-document::-webkit-scrollbar-thumb { background: var(--zzb-muted-light); }
 .zz-brand-page.zai-page :is(.zai-page-scroll, .zai-chat-thread):not(#zzb-a):not(#zzb-b) { scrollbar-color: var(--zzb-muted-light) transparent !important; scrollbar-width: thin; }
 .zz-brand-page.zai-page :is(.zai-page-scroll, .zai-chat-thread)::-webkit-scrollbar-thumb { background: var(--zzb-muted-light) !important; }
+
+/* Zone agent pages on the brand (AgentShell). */
+.agent-brand.zz-brand-page:not(#zzb-a):not(#zzb-b) {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 72px max(16px, env(safe-area-inset-left)) 120px !important;
+  box-sizing: border-box;
+}
+.agent-brand .zzb-eyebrow { margin: 0 0 12px; }
+.agent-brand .zz-page-title:not(#zzb-a):not(#zzb-b) { margin: 0 0 16px !important; }
+.agent-brand .agent-brand__intro:not(#zzb-a):not(#zzb-b) { margin: 0 0 32px !important; max-width: 56ch; }
+.agent-brand .agent-brand__list,
+.agent-brand .agent-brand__questions { list-style: none; margin: 0; padding: 0; }
+.agent-brand .agent-brand__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px 24px;
+  padding: 24px 0;
+  border-top: 1px solid var(--zzb-line);
+}
+.agent-brand .agent-brand__row:last-child { border-bottom: 1px solid var(--zzb-line); }
+.agent-brand .agent-brand__row-body { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.agent-brand .agent-brand__row-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+.agent-brand .agent-brand__progress { margin: 0 0 8px; }
+.agent-brand .agent-brand__question { list-style: none; }
+
+/* Several agents: a sideways rail like the other rows; one agent keeps the full-width card. */
+.zone-agents-list:has(> :nth-child(2)):not(#zzb-a):not(#zzb-b) {
+  flex-direction: row;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  padding: 2px 2px 16px;
+  gap: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--zzb-line) transparent;
+}
+.zone-agents-list:has(> :nth-child(2)) > .zone-agent-card:not(#zzb-a):not(#zzb-b) {
+  flex: 0 0 min(85%, 380px);
+  scroll-snap-align: start;
+}
+.zone-agents-list::-webkit-scrollbar { height: 2px; }
+.zone-agents-list::-webkit-scrollbar-thumb { background: var(--zzb-line); }
+.agent-brand .agent-brand__progress.sf-deep__progress { flex-direction: column; align-items: stretch; gap: 10px; max-width: 420px; }
+.agent-brand .agent-brand__progress .sf-deep__bar { flex: none; width: 100%; }
+
+/* Moving in agent page on the brand: ink and muted text, white task cards, outline check. */
+.agent-page.zz-brand-page:not(.agent-brand):not(#zzb-a):not(#zzb-b) { color: var(--zzb-ink) !important; }
+.agent-page.zz-brand-page :is(.agent-intro, .agent-note, .agent-group__blurb, .agent-progress, .agent-task__why, .agent-task__tips, .agent-task__tips li, .agent-insights__line, .agent-source, .agent-task__audience):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  color: var(--zzb-muted) !important;
+  -webkit-text-stroke: 0 !important;
+}
+.agent-page.zz-brand-page .agent-intro:not(#zzb-a):not(#zzb-b) { font-size: var(--zzb-size-lede) !important; line-height: 1.45 !important; }
+.agent-page.zz-brand-page :is(.agent-source, .agent-task__audience):not(#zzb-a):not(#zzb-b) { font-size: 13px !important; }
+.agent-page.zz-brand-page .agent-task__audience:not(#zzb-a):not(#zzb-b) { letter-spacing: 0.06em !important; text-transform: uppercase !important; }
+.agent-page.zz-brand-page .agent-group__title:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: var(--zzb-size-h3) !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.1 !important;
+  color: var(--zzb-ink) !important;
+  text-transform: none !important;
+  -webkit-text-stroke: 0 !important;
+  margin: 40px 0 8px !important;
+}
+.agent-page.zz-brand-page .agent-task:not(#zzb-a):not(#zzb-b) {
+  background: var(--zzb-white) !important;
+  color: var(--zzb-ink) !important;
+  border: 1px solid var(--zzb-line) !important;
+  border-radius: 24px !important;
+  box-shadow: none !important;
+}
+.agent-page.zz-brand-page .agent-task--done:not(#zzb-a):not(#zzb-b) { background: var(--zzb-tint) !important; }
+.agent-page.zz-brand-page .agent-task__title:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 22px !important;
+  font-weight: 400 !important;
+  line-height: 1.2 !important;
+  color: var(--zzb-ink) !important;
+  text-transform: none !important;
+  -webkit-text-stroke: 0 !important;
+}
+.agent-page.zz-brand-page .agent-task--done .agent-task__title:not(#zzb-a):not(#zzb-b) { color: var(--zzb-muted) !important; }
+.agent-page.zz-brand-page .agent-task__check:not(#zzb-a):not(#zzb-b) {
+  background: var(--zzb-white) !important;
+  border: 1px solid var(--zzb-line) !important;
+  color: var(--zzb-white) !important;
+  box-shadow: none !important;
+}
+.agent-page.zz-brand-page .agent-task__check[aria-pressed='true']:not(#zzb-a):not(#zzb-b) {
+  background: var(--zzb-ink) !important;
+  border-color: var(--zzb-ink) !important;
+}
+.agent-page.zz-brand-page .agent-link:not(#zzb-a):not(#zzb-b) { color: var(--zzb-blue) !important; text-decoration: underline !important; text-underline-offset: 3px; }
+.agent-page.zz-brand-page .agent-progress-bar:not(#zzb-a):not(#zzb-b) { background: var(--zzb-line) !important; height: 2px !important; border-radius: 0 !important; }
+.agent-page.zz-brand-page .agent-progress-bar > *:not(#zzb-a):not(#zzb-b) { background: var(--zzb-blue) !important; border-radius: 0 !important; }
+.agent-page.zz-brand-page .agent-task__action.zone-rec-cta:not(#zzb-a):not(#zzb-b) {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 40px !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  background: var(--zzb-blue) !important;
+  color: var(--zzb-white) !important;
+  font-family: var(--zzb-font) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  border: 0 !important;
+  text-decoration: none !important;
+}

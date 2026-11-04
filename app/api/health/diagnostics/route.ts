@@ -114,11 +114,46 @@ export async function GET(request: NextRequest) {
 
   const rockTipProviderSample = [...new Set(ROCK_HABITS.map((h) => h.provider_name))].slice(0, 14)
 
+  /** Knowledge gathering (Solo Focus + Know your home → /api/knowledge). Hermes pulse reads this. */
+  let knowledge: {
+    tables: boolean
+    facts: number
+    asked7d: number
+    answered7d: number
+    skipped7d: number
+  } = { tables: false, facts: 0, asked7d: 0, answered7d: 0, skipped7d: 0 }
+  try {
+    const t = await pool.query<{ ok: boolean }>(
+      `SELECT to_regclass('public.household_facts') IS NOT NULL
+          AND to_regclass('public.knowledge_questions') IS NOT NULL AS ok`
+    )
+    if (t.rows[0]?.ok) {
+      const k = await pool.query<{ facts: string; asked: string; answered: string; skipped: string }>(
+        `SELECT (SELECT COUNT(*) FROM household_facts) AS facts,
+                COUNT(*) AS asked,
+                COUNT(*) FILTER (WHERE status = 'answered') AS answered,
+                COUNT(*) FILTER (WHERE status = 'skipped') AS skipped
+           FROM knowledge_questions WHERE shown_at > NOW() - INTERVAL '7 days'`
+      )
+      const r = k.rows[0]
+      knowledge = {
+        tables: true,
+        facts: Number(r?.facts ?? 0),
+        asked7d: Number(r?.asked ?? 0),
+        answered7d: Number(r?.answered ?? 0),
+        skipped7d: Number(r?.skipped ?? 0),
+      }
+    }
+  } catch {
+    /* leave tables: false; Hermes reports it */
+  }
+
   return NextResponse.json({
     neon: neonOk,
     dbLatencyMs,
     gemini,
     firecrawl,
+    knowledge,
     bucket_failover: bucket,
     bucket_providers: bucketProviders,
     aiGateway: aiGatewayConfigured,
