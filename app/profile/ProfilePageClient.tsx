@@ -1702,9 +1702,7 @@ export default function ProfilePageClient() {
                   aria-label="Just moved in"
                 >
                   <span className="profile-answer-btn__text zz-h4">
-                    JUST
-                    <br />
-                    MOVED IN
+                    JUST MOVED IN
                   </span>
                 </ProfileAnswerBtn>
                 {[...ENERGY_SUPPLIER_OPTIONS, { label: 'OTHER', value: ENERGY_SUPPLIER_OTHER, ariaLabel: 'Another supplier' }].map(
@@ -1721,7 +1719,10 @@ export default function ProfilePageClient() {
                       }
                       aria-label={opt.ariaLabel}
                     >
-                      <span className="profile-answer-btn__text zz-h4">{opt.label}</span>
+                      {/* Proper supplier name on screen (EDF, E.ON Next); the saved value is unchanged. */}
+                      <span className="profile-answer-btn__text zz-h4 profile-supplier-name">
+                        {opt.value === ENERGY_SUPPLIER_OTHER ? 'Other' : opt.ariaLabel || opt.label}
+                      </span>
                     </ProfileAnswerBtn>
                   )
                 )}

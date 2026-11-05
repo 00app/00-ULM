@@ -87,9 +87,7 @@ function StartResult() {
           We can&apos;t find that postcode.
         </h1>
         <SecondaryCircleCta ariaLabel="Try another postcode" onClick={() => router.replace(ROUTES.START)}>
-          TRY
-          <br />
-          ANOTHER
+          TRY ANOTHER
         </SecondaryCircleCta>
       </EntryShell>
     )

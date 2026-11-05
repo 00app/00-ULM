@@ -11335,3 +11335,181 @@ html.zz-zone-document::-webkit-scrollbar-thumb { background: var(--zzb-muted-lig
   border: 0 !important;
   text-decoration: none !important;
 }
+
+/* =====================================================================================
+   Sign-up and entry on the brand (.zz-profile-page shell: /start, /start/result, /profile,
+   /profile/summary). CSS only: question wording, order and behaviour are untouched.
+   Root tokens (--zzb-*) because these screens sit outside a .zz-brand scope.
+   ===================================================================================== */
+.zz-profile-page:not(#zzb-a):not(#zzb-b) { color: var(--zzb-ink) !important; }
+
+/* Questions and statements */
+.zz-profile-page :is(.zz-h2, .zz-h1, .profile-question-headline, .question-text, .entry-sequence__sentence):not(#zzb-a):not(#zzb-b),
+.zz-profile-page :is(.zz-h2, .zz-h1, .profile-question-headline, .question-text, .entry-sequence__sentence) *:not(sub):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-weight: 400 !important;
+  color: var(--zzb-ink) !important;
+  -webkit-text-stroke: 0 !important;
+  text-transform: none !important;
+  letter-spacing: -0.035em !important;
+}
+.zz-profile-page :is(.zz-h2, .zz-h1, .profile-question-headline, .question-text, .entry-sequence__sentence):not(#zzb-a):not(#zzb-b) {
+  font-size: var(--zzb-size-statement) !important;
+  line-height: 1.05 !important;
+}
+/* Supporting lines */
+.zz-profile-page :is(.zz-h4, .zz-body, .profile-postcode-locality, .profile-phone-opt-in-label):not(.profile-answer-btn__text):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 17px !important;
+  font-weight: 400 !important;
+  line-height: 1.45 !important;
+  letter-spacing: 0 !important;
+  color: var(--zzb-muted) !important;
+  -webkit-text-stroke: 0 !important;
+  text-transform: none !important;
+}
+.zz-profile-page .entry-sequence__source:not(#zzb-a):not(#zzb-b),
+.zz-profile-page .entry-sequence__source *:not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--zzb-muted) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+.zz-profile-page .entry-postcode-error:not(#zzb-a):not(#zzb-b) { font-family: var(--zzb-font) !important; font-weight: 400 !important; text-transform: none !important; }
+
+/* Text inputs: white pill, hairline, ink text */
+.zz-profile-page :is(.zz-input, input[type='text'], input[type='tel'], input[type='email'], input[type='password']):not(#zzb-a):not(#zzb-b) {
+  background: var(--zzb-white) !important;
+  color: var(--zzb-ink) !important;
+  -webkit-text-fill-color: var(--zzb-ink) !important;
+  border: 1px solid var(--zzb-line) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  font-family: var(--zzb-font) !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+.zz-profile-page :is(.zz-input, input[type='text'], input[type='tel'], input[type='email'], input[type='password'])::placeholder {
+  color: var(--zzb-muted) !important;
+  -webkit-text-fill-color: var(--zzb-muted) !important;
+  opacity: 1 !important;
+  text-transform: none !important;
+}
+.zz-profile-page :is(.zz-input, input[type='text'], input[type='tel'], input[type='email'], input[type='password']):focus-visible:not(#zzb-a):not(#zzb-b) {
+  outline: 2px solid var(--zzb-blue) !important;
+  outline-offset: 2px;
+  border-color: var(--zzb-blue) !important;
+  background: var(--zzb-white) !important;
+}
+
+/* Answer discs and Later / Continue / Back / Skip -> pills */
+.zz-profile-page .profile-answer-btn:not(#zzb-a):not(#zzb-b) {
+  width: auto !important;
+  min-width: 0 !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  aspect-ratio: auto !important;
+  padding: 0 24px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--zzb-line) !important;
+  background: var(--zzb-white) !important;
+  color: var(--zzb-ink) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.zz-profile-page .profile-answer-btn:hover:not(#zzb-a):not(#zzb-b) { border-color: var(--zzb-ink) !important; }
+.zz-profile-page .profile-answer-btn.selected:not(#zzb-a):not(#zzb-b) {
+  background: var(--zzb-ink) !important;
+  border-color: var(--zzb-ink) !important;
+  color: var(--zzb-white) !important;
+}
+/* On an input step the one non-skip button is the way forward: blue. */
+.zz-profile-page .profile-step-controls--input .profile-answer-btn:not(.profile-answer-btn--skip):not(#zzb-a):not(#zzb-b) {
+  background: var(--zzb-blue) !important;
+  border-color: var(--zzb-blue) !important;
+  color: var(--zzb-white) !important;
+}
+.zz-profile-page .profile-answer-btn :is(.profile-answer-btn__text, span):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.1 !important;
+  color: inherit !important;
+  background: none !important;
+  -webkit-text-stroke: 0 !important;
+  /* Labels are stored in capitals (CONTINUE, LATER); show them in sentence case. */
+  text-transform: lowercase !important;
+  display: inline-block !important;
+  white-space: nowrap !important;
+  max-width: none !important;
+}
+.zz-profile-page .profile-answer-btn :is(.profile-answer-btn__text, span)::first-letter { text-transform: uppercase; }
+.zz-profile-page .profile-answer-btn br { display: none; }
+.zz-profile-page .profile-step-controls:not(#zzb-a):not(#zzb-b) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+/* Supplier names are proper nouns: show them as written, not sentence-cased. */
+.zz-profile-page .profile-answer-btn .profile-supplier-name:not(#zzb-a):not(#zzb-b) { text-transform: none !important; }
+.zz-profile-page .profile-answer-btn .profile-supplier-name::first-letter { text-transform: none; }
+/* Back / secondary circle on entry screens -> outline pill, sentence case. */
+.zz-profile-page .settings-circle-cta:not(#zzb-a):not(#zzb-b) {
+  width: auto !important;
+  min-width: 0 !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  aspect-ratio: auto !important;
+  padding: 0 24px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--zzb-line) !important;
+  background: var(--zzb-white) !important;
+  color: var(--zzb-ink) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.zz-profile-page .settings-circle-cta--primary:not(#zzb-a):not(#zzb-b) { background: var(--zzb-blue) !important; border-color: var(--zzb-blue) !important; color: var(--zzb-white) !important; }
+.zz-profile-page .settings-circle-cta :is(span, .zz-h4):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.1 !important;
+  color: inherit !important;
+  -webkit-text-stroke: 0 !important;
+  text-transform: lowercase !important;
+  display: inline-block !important;
+  white-space: nowrap !important;
+}
+.zz-profile-page .settings-circle-cta :is(span, .zz-h4)::first-letter { text-transform: uppercase; }
+.zz-profile-page .settings-circle-cta br { display: none; }
+.zz-profile-page :is(.entry-sequence__sentence, .zz-h2, .profile-question-headline, .question-text):not(#zzb-a):not(#zzb-b) { max-width: min(100%, 18ch) !important; margin-left: auto !important; margin-right: auto !important; }
+.zz-profile-page .profile-phone-opt-in-checkbox:not(#zzb-a):not(#zzb-b) {
+  box-shadow: none !important;
+  border: 1px solid var(--zzb-line) !important;
+  background: var(--zzb-white) !important;
+}
+.zz-profile-page .profile-phone-opt-in-checkbox:checked:not(#zzb-a):not(#zzb-b) { background: var(--zzb-ink) !important; border-color: var(--zzb-ink) !important; }
+/* Summary word ticker (/profile/summary): brand statement type, ink. Word order and timing unchanged. */
+.zz-profile-page .intro-text-large:not(#zzb-a):not(#zzb-b),
+.zz-profile-page .intro-text-large *:not(.intro-co2-sub):not(#zzb-a):not(#zzb-b) {
+  font-family: var(--zzb-font) !important;
+  font-weight: 400 !important;
+  color: var(--zzb-ink) !important;
+  -webkit-text-stroke: 0 !important;
+  letter-spacing: -0.035em !important;
+  text-shadow: none !important;
+}
+.zz-profile-page .intro-text-large:not(#zzb-a):not(#zzb-b) { font-size: var(--zzb-size-statement) !important; line-height: 1.05 !important; }
