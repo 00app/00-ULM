@@ -9843,10 +9843,22 @@ html.zz-zone-document body {
 @media (prefers-reduced-motion: reduce) { .zone-anchor .zs-word:not(#v2) { animation: none; } }
 
 /* Counting numbers: width reserved by an invisible copy of the final value, so nothing shifts. */
-.zs-num-wrap:not(#v2) { display: inline-grid; }
-.zs-num-wrap > *:not(#v2) { grid-area: 1 / 1; }
-.zs-num-size:not(#v2) { visibility: hidden; }
-.zs-num-wrap:not(#v2) > .zs-num:not(.zs-num-size) { text-align: left; }
+/* Counting number: in-flow digits, width reserved by an invisible zero-height block holding the
+   final value (a pseudo-element, so it is never selected, copied or read out). Inline-block, not
+   inline-grid: grid items made copy-paste break the line around every number. */
+/* ::before, not ::after: an inline-block's baseline is its LAST line box, so the zero-height
+   holder must come first or the digits sit raised above the text. */
+.zs-num-wrap:not(#v2) { display: inline-block; text-align: left; }
+.zs-num-wrap:not(#v2)::before {
+  content: attr(data-final);
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-family: 'Abril Fatface Numerals', var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
 
 /* Reserve the head's four lines so figures arriving a moment later never move what's below. */
 .zone-anchor .zone-hero-copy:not(#v2) { min-height: calc(var(--zone-head-size) * 1.12 * 4); }
@@ -9856,7 +9868,6 @@ html.zz-zone-document body {
 @media (min-width: 1024px) {
   .zone-anchor .zone-summary-row:not(#v2) { display: block; max-width: min(100%, 60rem); }
   .zone-anchor .zone-summary-row .zone-summary-line:not(#v2) { display: inline; max-width: none; }
-  .zone-anchor .zone-summary-row .zone-summary-line:not(#v2):not(:last-child)::after { content: ' '; }
   .zone-anchor .zone-hero-copy:not(#v2) { min-height: calc(var(--zone-head-size) * 1.12 * 2); }
 }
 

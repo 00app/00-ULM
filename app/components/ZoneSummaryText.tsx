@@ -16,8 +16,8 @@ function format(n: number, decimals: number, grouped: boolean): string {
 
 /**
  * A number that counts up to its real value. It always ends on exactly `value`; the width is
- * reserved by an invisible copy of the final text, so nothing around it shifts while it counts;
- * screen readers get the final value only. Re-counts (from where it is) if the value changes.
+ * reserved by a pseudo-element holding the final text, so nothing around it shifts while it
+ * counts. Re-counts (from where it is) if the value changes.
  */
 function AnimatedNumber({ value, delayMs }: { value: string; delayMs: number }) {
   const [shown, setShown] = useState(value)
@@ -56,15 +56,12 @@ function AnimatedNumber({ value, delayMs }: { value: string; delayMs: number }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
+  // One real number in the DOM. The final value's width is reserved by a CSS pseudo-element
+  // (data-final), which is never copied or read out: the old hidden duplicate and sr-only copies
+  // made copy-paste (and anything reading the text) say "12 12 things found" (2026-11-05).
   return (
-    <span className="zs-num-wrap">
-      <span className="zs-num zs-num-size" aria-hidden="true">
-        {value}
-      </span>
-      <span className="zs-num" aria-hidden="true">
-        {shown}
-      </span>
-      <span className="sr-only">{value}</span>
+    <span className="zs-num-wrap" data-final={value}>
+      <span className="zs-num">{shown}</span>
     </span>
   )
 }
@@ -130,10 +127,14 @@ export function ZoneSummary({ welcome, figuresReady = true }: { welcome: ZoneWel
   }
   if (figuresReady && welcome.savingsMoneyLine) lines.push({ key: 'carbon', text: welcome.savingsMoneyLine })
 
-  let base = 0
+  // Word index each line starts at, so the rise-in stagger runs across all lines in reading order.
+  const bases = new Map<string, number>()
+  lines.reduce((acc, l) => {
+    bases.set(l.key, acc)
+    return acc + countWords(l.text)
+  }, 0)
   const renderLine = (line: (typeof lines)[number], first: boolean) => {
-    const b = base
-    base += countWords(line.text)
+    const b = bases.get(line.key) ?? 0
     return (
       <p
         key={line.key}
@@ -157,12 +158,23 @@ export function ZoneSummary({ welcome, figuresReady = true }: { welcome: ZoneWel
   // display: contents); from 1024px each row flows as one line (2026-11-05).
   const rowA = lines.filter((l) => l.key === 'greeting' || l.key === 'found')
   const rowB = lines.filter((l) => l.key === 'money' || l.key === 'carbon')
+  // A real space between the two sentences of a row, so copied text reads "Evening, Gary. 12
+  // things found." (a CSS ::after space is not copied). Harmless between stacked lines on phones.
+  const renderRow = (row: typeof lines, key: string) =>
+    row.length > 0 ? (
+      <div className="zone-summary-row" key={key}>
+        {row.map((l, i) => (
+          <Fragment key={l.key}>
+            {i > 0 ? ' ' : null}
+            {renderLine(l, l.key === 'greeting')}
+          </Fragment>
+        ))}
+      </div>
+    ) : null
   return (
     <>
-      {rowA.length > 0 ? (
-        <div className="zone-summary-row">{rowA.map((l) => renderLine(l, l.key === 'greeting'))}</div>
-      ) : null}
-      {rowB.length > 0 ? <div className="zone-summary-row">{rowB.map((l) => renderLine(l, false))}</div> : null}
+      {renderRow(rowA, 'a')}
+      {renderRow(rowB, 'b')}
     </>
   )
 }
