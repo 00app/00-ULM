@@ -9862,11 +9862,12 @@ html.zz-zone-document body {
 
 /* Reserve the head's four lines so figures arriving a moment later never move what's below. */
 .zone-anchor .zone-hero-copy:not(#v2) { min-height: calc(var(--zone-head-size) * 1.12 * 4); }
-/* Desktop: two rows ("Evening, Gary. 12 things found." / "£2.6k to save. 12.3t CO₂ to cut.")
-   instead of four stacked lines; phones keep the stack. */
+/* Two rows ("Evening, Gary. 12 things found." / "£2.6k to save. 12.3t CO₂ to cut.") from 600px
+   (any window or tablet), instead of four stacked lines; phones keep the stack. Below 768px the
+   rows keep clear of the fixed Likes / Zai / Profile buttons on the right. */
 .zone-anchor .zone-summary-row:not(#v2) { display: contents; }
-@media (min-width: 1024px) {
-  .zone-anchor .zone-summary-row:not(#v2) { display: block; max-width: min(100%, 60rem); }
+@media (min-width: 600px) {
+  .zone-anchor .zone-summary-row:not(#v2) { display: block; max-width: min(calc(100% - 76px), 60rem); }
   .zone-anchor .zone-summary-row .zone-summary-line:not(#v2) { display: inline; max-width: none; }
   .zone-anchor .zone-hero-copy:not(#v2) { min-height: calc(var(--zone-head-size) * 1.12 * 2); }
 }
