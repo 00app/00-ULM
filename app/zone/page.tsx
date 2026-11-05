@@ -568,6 +568,8 @@ export default function ZonePage({
     category?: string | null
     architectProse?: string
   } | null>(null)
+  /** True once the first /api/scrape-sync payload has been applied (or there is no postcode). */
+  const [researchFirstSettled, setResearchFirstSettled] = useState(false)
   const [researchCategoryCoverage, setResearchCategoryCoverage] = useState<Record<
     string,
     ResearchCategoryCoverageRow
@@ -1249,6 +1251,7 @@ export default function ZonePage({
     if (postcode.length < 4) {
       setVmResolved(true)
       setEngineStatus('idle')
+      setResearchFirstSettled(true)
       return
     }
     setVmResolved(true)
@@ -1260,6 +1263,7 @@ export default function ZonePage({
     let controller: AbortController | null = null
 
     const applyScrapePayload = (data: unknown) => {
+      setResearchFirstSettled(true)
       const parsedMeta = parseResearchMetaFromApi(data)
       const verifiedSaving = parsedMeta?.verifiedSaving
       const savingAmountGbp = parsedMeta?.savingAmountGbp
@@ -2969,7 +2973,18 @@ export default function ZonePage({
     const t = window.setTimeout(() => setFiguresWaited(true), 4000)
     return () => window.clearTimeout(t)
   }, [hydrated])
-  const figuresReady = hasRealHeroTotal || figuresWaited
+  // Also wait for the first research load: the grid totals are recomputed once coverage arrives,
+  // and showing the local-only pass first made the head count up to one £ and then down to
+  // another a second later (live-found 2026-11-05: £3.7k then £2.6k on every Zone load).
+  // The grid is recomputed a render or two after the payload lands, so readiness also waits for
+  // the total to stop changing for a moment (debounced below), not just for the load itself.
+  const [heroTotalsStable, setHeroTotalsStable] = useState(false)
+  useEffect(() => {
+    if (!researchFirstSettled || !hasRealHeroTotal) return
+    const t = window.setTimeout(() => setHeroTotalsStable(true), 350)
+    return () => window.clearTimeout(t)
+  }, [researchFirstSettled, hasRealHeroTotal, heroRealMoney, heroRealCarbon])
+  const figuresReady = (hasRealHeroTotal && researchFirstSettled && heroTotalsStable) || figuresWaited
   const heroMoney = hasRealHeroTotal ? heroRealMoney : heroTipsFallback.money
   const heroCarbon = hasRealHeroTotal ? heroRealCarbon : heroTipsFallback.carbon
   const welcomeJourneyCount = useMemo(() => {

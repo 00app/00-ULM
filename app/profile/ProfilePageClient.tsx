@@ -514,7 +514,7 @@ export default function ProfilePageClient() {
   }, [step])
 
   useEffect(() => {
-    router.prefetch(ROUTES.PROFILE_SUMMARY)
+    router.prefetch(ROUTES.ZONE)
   }, [router])
 
   useEffect(() => {
@@ -862,7 +862,9 @@ export default function ProfilePageClient() {
         ...finalValues,
         goal: resolveProfileGoal(finalValues),
       }
-      let dest = overrideReturnTo || returnTo || ROUTES.PROFILE_SUMMARY
+      // Onboarding ends in Zone. Its head (things found, £ to save, CO₂ to cut) is the summary;
+      // the separate /profile/summary ticker repeated it straight after (2026-11-05).
+      let dest = overrideReturnTo || returnTo || ROUTES.ZONE
       dest = dest.trim()
       if (!dest.startsWith('http') && !dest.startsWith('/')) dest = `/${dest.replace(/^\/+/, '')}`
       if (!isProfileOnboardingComplete(mergedValues)) {
