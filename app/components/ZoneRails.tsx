@@ -7,6 +7,7 @@ import { railDomId, type ZoneRail, type ZoneRailsLayout } from '@/lib/zone/rails
 import type { RecCardCta, RecCardModel } from '@/lib/zone/recCard'
 import { ROUTES } from '@/lib/routes'
 import { SecondaryCircleCta } from '@/app/components/ui/SecondaryCircleCta'
+import { BrandArrow } from '@/app/components/brand/BrandArrow'
 
 type Props = {
   layout: ZoneRailsLayout
@@ -158,13 +159,21 @@ export function ZoneRails({ layout, agents, filterBar, onClearFilters, visitedId
   if (!hasContent) {
     return (
       <div className="zone-rails zone-rails--empty" data-testid="zone-rails-empty">
+        <section className="zone-empty zz-brand zzb-card" aria-labelledby="zone-empty-title">
+          <p className="zzb-eyebrow">
+            <span>Start here</span>
+          </p>
+          <h2 id="zone-empty-title" className="zzb-h3 zzb-ink m-0">
+            Add your postcode to fill your Zone
+          </h2>
+          <p className="zzb-body zzb-muted m-0">
+            We use it to find the bills, claims and grants that apply to your home, each with its source.
+          </p>
+          <Link href={ROUTES.START} className="zzb-btn zzb-btn--blue" aria-label="Add your postcode">
+            Add your postcode <BrandArrow />
+          </Link>
+        </section>
         {agents}
-        <p className="m-0">Tell us your postcode and we&apos;ll show what applies to your home.</p>
-        <SecondaryCircleCta ariaLabel="Add your postcode" href={ROUTES.START}>
-          ADD
-          <br />
-          POSTCODE
-        </SecondaryCircleCta>
       </div>
     )
   }

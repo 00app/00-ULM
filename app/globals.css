@@ -11513,3 +11513,19 @@ html.zz-zone-document::-webkit-scrollbar-thumb { background: var(--zzb-muted-lig
   text-shadow: none !important;
 }
 .zz-profile-page .intro-text-large:not(#zzb-a):not(#zzb-b) { font-size: var(--zzb-size-statement) !important; line-height: 1.05 !important; }
+
+/* Zone with nothing to rank yet (no postcode): one brand card, full width, agents under it. */
+.zone-rails--empty:not(#zzb-a):not(#zzb-b) { align-items: stretch !important; gap: 24px !important; }
+.zone-rails--empty > *:not(#zzb-a):not(#zzb-b) { width: 100%; max-width: 640px; box-sizing: border-box; }
+.zone-empty.zz-brand.zzb-card:not(#zzb-a):not(#zzb-b) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 28px !important;
+  border-radius: 24px !important;
+  background: var(--zzb-white) !important;
+  border: 1px solid var(--zzb-line) !important;
+}
+.zone-empty .zzb-btn { margin-top: 6px; }
+.zone-rails--empty .zone-agents-list > .zone-agent-card:not(#zzb-a):not(#zzb-b) { width: 100%; }
