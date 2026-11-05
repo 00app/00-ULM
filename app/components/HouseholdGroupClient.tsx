@@ -99,7 +99,7 @@ export function HouseholdGroupClient({ group }: { group: HouseholdGroup }) {
 
   return (
     <div className="settings-page" style={{ color: 'var(--color-blue)', minHeight: '100vh', paddingTop: 20 }}>
-      <ZoneBackToZoneLink />
+      <ZoneBackToZoneLink fallbackHref="/settings" />
       <div className="settings-heading-wrap">
         <h3 className="zz-page-title">{HOUSEHOLD_GROUP_LABELS[group]}</h3>
       </div>

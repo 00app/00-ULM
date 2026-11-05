@@ -180,7 +180,7 @@ export default function TruthLedgerClient() {
       animate={pageEnter.animate}
       transition={pageEnter.transition}
     >
-      <ZoneBackToZoneLink />
+      <ZoneBackToZoneLink fallbackHref="/settings" />
 
       <div className="settings-heading-wrap">
         <h3 className="zz-page-title">Truth ledger</h3>

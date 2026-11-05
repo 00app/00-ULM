@@ -18,7 +18,7 @@ export default function PrivacyPage() {
   return (
     <main className="privacy-page">
       <div className="privacy-page__inner">
-        <ZoneBackToZoneLink className="privacy-page__back" />
+        <ZoneBackToZoneLink className="privacy-page__back" fallbackHref="/" />
         <h2 className="privacy-page__title zz-page-title">Transparency Manifesto</h2>
         <p className="privacy-page__lead">
           Privacy &amp; Data — what we collect, why, and how you stay in control.

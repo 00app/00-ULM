@@ -13,10 +13,13 @@ import { persistUnifiedUserProfileMemory } from '@/lib/unifiedProfileMemory'
 import { trackFunnelEvent } from '@/lib/analytics/trackFunnelEvent'
 import { ROUTES } from '@/lib/routes'
 import { SecondaryCircleCta } from '@/app/components/ui/SecondaryCircleCta'
+import { useSmartBack } from '@/lib/nav/useSmartBack'
 
 /** Entry step 2: one postcode field, UK format validated, nothing else asked. */
 export default function StartPostcodePage() {
   const router = useRouter()
+  // Back to the page you came from; opened straight from search or a link, to the homepage.
+  const goBack = useSmartBack(ROUTES.HOME)
   const reduceMotion = useHydrationSafeReducedMotion()
   const [value, setValue] = useState('')
   const [touched, setTouched] = useState(false)
@@ -84,7 +87,7 @@ export default function StartPostcodePage() {
           </ProfileAnswerBtn>
         </div>
       </div>
-      <SecondaryCircleCta ariaLabel="Back" onClick={() => router.back()}>
+      <SecondaryCircleCta ariaLabel="Back" onClick={goBack}>
         BACK
       </SecondaryCircleCta>
     </EntryShell>

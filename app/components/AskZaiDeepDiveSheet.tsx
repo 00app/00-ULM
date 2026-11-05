@@ -25,6 +25,7 @@ import {
   type DeepDiveProfileSlice,
 } from '@/lib/zai/deepDiveAudit'
 import { scrapeAreaHintFromLocality } from '@/lib/zai/scrapeAreaHint'
+import { readUsedPrompts, remainingPrompts } from '@/lib/zai/usedPrompts'
 
 const ZAI_FALLBACK = ZAI_FALLBACK_CONNECTING
 
@@ -135,9 +136,14 @@ export function AskZaiDeepDiveSheet({
   )
 
   const plainSummary = useMemo(() => buildDeepDivePlainSummary(auditInput), [auditInput])
+  // Questions already asked (anywhere in Zai, this device) drop out of the card's pills.
+  const [usedPrompts, setUsedPrompts] = useState<ReadonlySet<string>>(() => new Set())
+  useEffect(() => {
+    if (open) setUsedPrompts(readUsedPrompts())
+  }, [open])
   const transitionPills = useMemo(
-    () => suggestedQuestions ?? buildDeepDiveQuestionPills(journeyKey),
-    [suggestedQuestions, journeyKey]
+    () => remainingPrompts(suggestedQuestions ?? buildDeepDiveQuestionPills(journeyKey), usedPrompts),
+    [suggestedQuestions, journeyKey, usedPrompts]
   )
 
   useEffect(() => {

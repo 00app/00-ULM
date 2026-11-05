@@ -91,7 +91,7 @@ export function HouseholdMoveClient() {
 
   return (
     <div className="settings-page" style={{ color: 'var(--color-blue)', minHeight: '100vh', paddingTop: 20 }}>
-      <ZoneBackToZoneLink />
+      <ZoneBackToZoneLink fallbackHref="/settings" />
       <div className="settings-heading-wrap">
         <h3 className="zz-page-title">Moving</h3>
       </div>

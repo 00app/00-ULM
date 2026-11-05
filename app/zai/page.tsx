@@ -26,7 +26,8 @@ import type { ZaiChatMeta } from '@/lib/zai/zaiChatUi'
 import { metaFromAskZaiContext, metaFromZaiReply, mergeZaiChatMeta } from '@/lib/zai/zaiChatUi'
 import { resolveZaiPickHandoff } from '@/lib/zai/resolveZaiLikeHandoff'
 import { readZaiLikes, removeZaiLike, upsertZaiLike } from '@/lib/zai/zaiLikesStorage'
-import { ZAI_INTRO_LINES } from '@/lib/zai/chatPrompts'
+import { ZAI_CHAT_SUGGESTED_PROMPTS, ZAI_INTRO_LINES } from '@/lib/zai/chatPrompts'
+import { markPromptUsed, readUsedPrompts, remainingPrompts } from '@/lib/zai/usedPrompts'
 import {
   lastZaiMessageIndex,
   shouldShowZaiSuggestedPills,
@@ -141,6 +142,16 @@ function syncZaiLikeStorage(meta: ZaiChatMeta, liked: boolean, postcode?: string
   }
 }
 
+/**
+ * Swap the trailing empty Zai placeholder for the fallback, or append it if there is none, so a
+ * failed reply never leaves an empty bubble above the fallback text.
+ */
+function withFallbackReply(m: ChatMessage[]): ChatMessage[] {
+  const last = m[m.length - 1]
+  if (last?.role === 'zai' && !last.text.trim()) return [...m.slice(0, -1), { role: 'zai', text: ZAI_FALLBACK }]
+  return [...m, { role: 'zai', text: ZAI_FALLBACK }]
+}
+
 export default function ZaiPage() {
   const router = useRouter()
   const reduceMotion = useHydrationSafeReducedMotion()
@@ -160,6 +171,9 @@ export default function ZaiPage() {
   const coldStartDone = useRef(false)
   const pendingCtxMeta = useRef<ZaiChatMeta | undefined>(undefined)
   const [historyChecked, setHistoryChecked] = useState(false)
+  // Read after mount (localStorage), so server and first client render agree.
+  const [usedPrompts, setUsedPrompts] = useState<ReadonlySet<string>>(() => new Set())
+  useEffect(() => setUsedPrompts(readUsedPrompts()), [])
 
   // Restore the persisted transcript (zai_messages) before deciding whether to show the
   // cold-start hook — otherwise every reload looked like a fresh conversation even though
@@ -170,7 +184,10 @@ export default function ZaiPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { messages?: { role: 'user' | 'zai'; content: string }[] } | null) => {
         if (cancelled || !data?.messages?.length) return
-        setMessages(data.messages.map((m) => ({ role: m.role, text: m.content })))
+        const restored = data.messages.map((m) => ({ role: m.role, text: m.content }))
+        // Prepend, never replace: an Ask Zai hand-off from a card may already have put a question
+        // (and a streaming answer) on screen before this request returned; replacing wiped it.
+        setMessages((current) => [...restored, ...current])
       })
       .catch(() => {})
       .finally(() => {
@@ -222,6 +239,7 @@ export default function ZaiPage() {
     hasConsumedContextRef.current = true
     clearAskZaiContext()
     const q = ctx.question.trim() || 'How can I close the saving gap for this category?'
+    markPromptUsed(q)
     const journeyAnswers = getJourneyAnswersFromClient()
     pendingCtxMeta.current = metaFromAskZaiContext(ctx, journeyAnswers)
     setMessages((m) => [...m, { role: 'user', text: q }])
@@ -297,7 +315,7 @@ export default function ZaiPage() {
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
       })
       .catch(() => {
-        setMessages((m) => [...m, { role: 'zai', text: ZAI_FALLBACK }])
+        setMessages((m) => withFallbackReply(m))
       })
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount when context exists
@@ -307,6 +325,8 @@ export default function ZaiPage() {
     const q = rawQ.trim()
     if (!q || loading) return
     triggerHaptic('medium')
+    markPromptUsed(q)
+    setUsedPrompts(readUsedPrompts())
     setInput('')
     const transcript = [...messages, { role: 'user' as const, text: q }]
     setMessages(transcript)
@@ -356,7 +376,7 @@ export default function ZaiPage() {
       })
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     } catch {
-      setMessages((m) => [...m, { role: 'zai', text: ZAI_FALLBACK }])
+      setMessages((m) => withFallbackReply(m))
     } finally {
       setLoading(false)
     }
@@ -371,7 +391,12 @@ export default function ZaiPage() {
   }, [])
 
   const lastZaiIdx = useMemo(() => lastZaiMessageIndex(messages), [messages])
-  const showSuggestedPills = shouldShowZaiSuggestedPills(messages, loading)
+  const askedInThread = useMemo(() => messages.filter((m) => m.role === 'user').map((m) => m.text), [messages])
+  const pillPrompts = useMemo(
+    () => remainingPrompts(ZAI_CHAT_SUGGESTED_PROMPTS, usedPrompts, askedInThread),
+    [usedPrompts, askedInThread]
+  )
+  const showSuggestedPills = shouldShowZaiSuggestedPills(messages, loading) && pillPrompts.length > 0
   const pillsAfterIntro = showSuggestedPills && zaiPillsBelongAfterIntro(messages)
 
   useEffect(() => {
@@ -423,7 +448,7 @@ export default function ZaiPage() {
           </motion.div>
 
           {pillsAfterIntro ? (
-            <ZaiSuggestPills disabled={loading} onPick={(p) => void sendQuestion(p)} />
+            <ZaiSuggestPills prompts={pillPrompts} disabled={loading} onPick={(p) => void sendQuestion(p)} />
           ) : null}
 
           <div className="zai-chat-thread">
@@ -513,7 +538,7 @@ export default function ZaiPage() {
                   ) : null}
                 </motion.div>
                 {showSuggestedPills && i === lastZaiIdx ? (
-                  <ZaiSuggestPills disabled={loading} onPick={(p) => void sendQuestion(p)} />
+                  <ZaiSuggestPills prompts={pillPrompts} disabled={loading} onPick={(p) => void sendQuestion(p)} />
                 ) : null}
               </Fragment>
             ))}

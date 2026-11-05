@@ -13,6 +13,7 @@ import AnalyticsListeners from '@/app/components/AnalyticsListeners'
 import { Footer } from '@/app/components/Footer'
 import { ROUTES } from '@/lib/routes'
 import { usePathname } from 'next/navigation'
+import { readScrollFor, recordInAppPath, restoreScrollWhenReady, saveScrollFor } from '@/lib/nav/inAppHistory'
 
 function normalizeAppPath(p: string | null): string {
   const raw = (p ?? '').trim()
@@ -22,6 +23,31 @@ function normalizeAppPath(p: string | null): string {
 
 export function GlobalAppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  // Trail of in-app pages for the back / close buttons, and scroll memory so going back (by
+  // button or the browser) lands where you were, not at the top (lib/nav/inAppHistory.ts).
+  useEffect(() => {
+    if (!pathname) return
+    const kind = recordInAppPath(pathname)
+    let cancelRestore: (() => void) | undefined
+    if (kind === 'back') {
+      const y = readScrollFor(pathname)
+      if (y != null) cancelRestore = restoreScrollWhenReady(y)
+    }
+    let raf = 0
+    const onScroll = () => {
+      if (raf) return
+      raf = window.requestAnimationFrame(() => {
+        raf = 0
+        saveScrollFor(pathname, window.scrollY)
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (raf) window.cancelAnimationFrame(raf)
+      cancelRestore?.()
+    }
+  }, [pathname])
   const path = normalizeAppPath(pathname)
 
   /** Intro, onboarding, summary — single viewport, no page scroll (same shell lock as intro). */
