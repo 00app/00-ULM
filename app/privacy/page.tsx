@@ -1,15 +1,16 @@
+import { pageMetadata } from '@/lib/seo/siteMetadata'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import ZoneBackToZoneLink from '@/app/components/ZoneBackToZoneLink'
 import { Footer } from '@/app/components/Footer'
 import { ROUTES } from '@/lib/routes'
 
-export const metadata: Metadata = {
-  title: 'Privacy & Data',
+export const metadata: Metadata = pageMetadata({
+  title: 'Privacy and your data',
   description:
-    'How Zero Zero handles your data: no selling personal information, AI-assisted public research, and your right to request a full wipe.',
-  alternates: { canonical: ROUTES.PRIVACY },
-}
+    'How Zero Zero handles your data: we never sell personal information, you approve every step, and you can ask for a full wipe at any time.',
+  path: ROUTES.PRIVACY,
+})
 
 const PRIVACY_EMAIL = 'privacy@00-00.online'
 

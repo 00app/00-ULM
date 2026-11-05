@@ -1,3 +1,4 @@
+import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, pageMetadata } from '@/lib/seo/siteMetadata'
 import type { Metadata } from 'next'
 import FrontDoor from '@/app/front-door/FrontDoor'
 import '@/app/front-door/front-door.css'
@@ -7,11 +8,12 @@ import '@/app/front-door/front-door.css'
  * old kinetic-intro splash. `/intro` keeps the old flow for existing bookmarks/links.
  * Server boundary only; all motion lives in the client component.
  */
-export const metadata: Metadata = {
-  title: 'Zero Zero: stop overpaying for your home',
-  description:
-    'Your bills, subscriptions and contracts in one workspace. Zero Zero finds what you are overpaying for, shows you why and prepares the fix. Every figure sourced.',
-}
+export const metadata: Metadata = pageMetadata({
+  title: DEFAULT_TITLE,
+  absoluteTitle: true,
+  description: DEFAULT_DESCRIPTION,
+  path: '/',
+})
 
 export default function HomePage() {
   return <FrontDoor />

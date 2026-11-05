@@ -1,69 +1,69 @@
 import type { Metadata } from 'next'
 import { CANONICAL_SITE_URL, getSiteUrl } from '@/lib/site'
 
-const siteName = 'Zero Zero'
-const defaultTitle = 'Zero Zero: save money and cut carbon at home'
-const defaultDescription =
-  'UK postcode-driven energy and lifestyle audit. Practical tips, verified offers, and Solo Focus actions to cut bills and household CO₂, built for current Ofgem tariffs and local grants.'
+export const SITE_NAME = 'Zero Zero'
 
-const ogImagePath = '/assets/00%20brand%20mark%20yellow.svg'
+/** Same promise as the front door's hero and lede, so search results and link previews match it. */
+export const DEFAULT_TITLE = 'Zero Zero: stop overpaying for your home'
+export const DEFAULT_DESCRIPTION =
+  'Your bills, subscriptions and contracts in one workspace. Zero Zero finds what you are overpaying for, shows you why and prepares the fix. Free for UK households, every figure sourced.'
 
+/*
+ * Social preview image: app/opengraph-image.tsx and app/twitter-image.tsx generate a 1200x630
+ * PNG (the old SVG brand mark did not render in WhatsApp, iMessage, Facebook, LinkedIn or X).
+ * Next attaches it automatically only where a page does not set its own openGraph object, so
+ * pageMetadata names it explicitly.
+ */
+const OG_IMAGE = { url: '/opengraph-image', width: 1200, height: 630, alt: DEFAULT_TITLE }
+const TWITTER_IMAGE = '/twitter-image'
+
+/**
+ * Site-wide defaults. Deliberately no `alternates.canonical` here: a canonical set in the root
+ * layout is inherited by every page, which told search engines that every page was a duplicate
+ * of the homepage. Each indexable page sets its own via `pageMetadata`.
+ */
 export function buildSiteMetadata(): Metadata {
   const siteUrl = getSiteUrl()
-  const ogImageUrl = `${CANONICAL_SITE_URL}${ogImagePath}`
 
   return {
     metadataBase: new URL(siteUrl),
     title: {
-      default: defaultTitle,
-      template: `%s · ${siteName}`,
+      default: DEFAULT_TITLE,
+      template: `%s · ${SITE_NAME}`,
     },
-    description: defaultDescription,
-    applicationName: siteName,
+    description: DEFAULT_DESCRIPTION,
+    applicationName: SITE_NAME,
     keywords: [
+      'stop overpaying bills UK',
+      'household bills UK',
+      'energy price cap October 2026',
+      'cheaper energy tariff UK',
+      'Warm Home Discount',
+      'benefits check UK',
+      'social tariff broadband',
+      'council tax reduction',
+      'cancel unused subscriptions',
+      'out of contract broadband',
+      'moving house checklist UK',
+      'electricity price per kWh by postcode',
       'Zero Zero',
-      '00-00',
-      'UK energy savings',
-      'lower electricity bill UK',
-      'gas bill UK',
-      'Ofgem price cap 2026',
-      'postcode carbon footprint',
-      'household emissions UK',
-      'energy audit UK',
-      'heat pump grant UK',
-      'solar panels UK',
-      'save money energy UK',
-      'sustainability app UK',
-      'cycle to work scheme',
-      'smart tariff UK',
     ],
-    authors: [{ name: siteName, url: CANONICAL_SITE_URL }],
-    creator: siteName,
-    publisher: siteName,
-    formatDetection: {
-      email: false,
-      address: false,
-      telephone: false,
-    },
+    authors: [{ name: SITE_NAME, url: CANONICAL_SITE_URL }],
+    creator: SITE_NAME,
+    publisher: SITE_NAME,
+    formatDetection: { email: false, address: false, telephone: false },
     openGraph: {
-      title: defaultTitle,
-      description: defaultDescription,
+      title: DEFAULT_TITLE,
+      description: DEFAULT_DESCRIPTION,
       type: 'website',
-      siteName,
+      siteName: SITE_NAME,
       locale: 'en_GB',
-      url: CANONICAL_SITE_URL,
-      images: [
-        {
-          url: ogImageUrl,
-          alt: 'Zero Zero: save money and cut carbon',
-        },
-      ],
+      url: '/',
     },
     twitter: {
       card: 'summary_large_image',
-      title: defaultTitle,
-      description: defaultDescription,
-      images: [ogImageUrl],
+      title: DEFAULT_TITLE,
+      description: DEFAULT_DESCRIPTION,
     },
     robots: {
       index: true,
@@ -76,10 +76,7 @@ export function buildSiteMetadata(): Metadata {
         'max-snippet': -1,
       },
     },
-    alternates: {
-      canonical: CANONICAL_SITE_URL,
-    },
-    category: 'technology',
+    category: 'finance',
     other: {
       'geo.region': 'GB',
       'geo.placename': 'United Kingdom',
@@ -87,44 +84,91 @@ export function buildSiteMetadata(): Metadata {
   }
 }
 
+/**
+ * Per-page metadata with matching share card and canonical. `index: false` keeps personal,
+ * signed-in or answer-dependent pages out of search results (they are thin or empty to a crawler)
+ * while still giving shared links a proper preview.
+ */
+export function pageMetadata(opts: {
+  title: string
+  description: string
+  path: string
+  index?: boolean
+  /** Use the title as given, without the "· Zero Zero" template. */
+  absoluteTitle?: boolean
+}): Metadata {
+  const index = opts.index !== false
+  const fullTitle = opts.absoluteTitle ? opts.title : `${opts.title} · ${SITE_NAME}`
+  return {
+    title: opts.absoluteTitle ? { absolute: opts.title } : opts.title,
+    description: opts.description,
+    alternates: { canonical: opts.path },
+    openGraph: {
+      title: fullTitle,
+      description: opts.description,
+      url: opts.path,
+      type: 'website',
+      siteName: SITE_NAME,
+      locale: 'en_GB',
+      images: [OG_IMAGE],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: fullTitle,
+      description: opts.description,
+      images: [TWITTER_IMAGE],
+    },
+    robots: index ? { index: true, follow: true } : { index: false, follow: true },
+  }
+}
+
+/** Personal / signed-in surfaces: never in search results, links still followed. */
+export const NOINDEX: Metadata = { robots: { index: false, follow: true } }
+
 export function buildSiteJsonLd(siteUrl: string): Record<string, unknown>[] {
+  const logo = `${CANONICAL_SITE_URL}/icon.svg`
   return [
     {
       '@context': 'https://schema.org',
       '@type': 'WebSite',
-      name: siteName,
+      name: SITE_NAME,
+      alternateName: '00-00',
       url: siteUrl,
-      description: defaultDescription,
+      description: DEFAULT_DESCRIPTION,
       inLanguage: 'en-GB',
-      publisher: {
-        '@type': 'Organization',
-        name: siteName,
-        url: siteUrl,
-      },
+      publisher: { '@type': 'Organization', name: SITE_NAME, url: siteUrl },
     },
     {
       '@context': 'https://schema.org',
       '@type': 'Organization',
-      name: siteName,
+      name: SITE_NAME,
+      alternateName: '00-00',
       url: siteUrl,
-      logo: `${CANONICAL_SITE_URL}/assets/00%20brand%20mark%20yellow.svg`,
+      logo,
+      email: 'privacy@00-00.online',
+      areaServed: { '@type': 'Country', name: 'United Kingdom' },
     },
     {
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
-      name: siteName,
-      description: defaultDescription,
+      name: SITE_NAME,
+      description: DEFAULT_DESCRIPTION,
       url: siteUrl,
-      applicationCategory: 'LifestyleApplication',
+      applicationCategory: 'FinanceApplication',
       operatingSystem: 'Any',
+      browserRequirements: 'Requires a modern web browser',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'GBP' },
       inLanguage: 'en-GB',
+      featureList: [
+        'Live electricity and gas unit rates for your postcode',
+        'Bills, subscriptions and contracts in one place',
+        'Benefits, discounts and social tariffs you may be missing',
+        'Moving house checklist from council tax to insurance',
+        'Every figure linked to its source',
+      ],
       audience: {
         '@type': 'Audience',
-        geographicArea: {
-          '@type': 'Country',
-          name: 'United Kingdom',
-        },
+        geographicArea: { '@type': 'Country', name: 'United Kingdom' },
       },
     },
   ]

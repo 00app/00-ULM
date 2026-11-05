@@ -8,9 +8,12 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/'],
+        // Personal pages are not blocked here on purpose: they carry `noindex`, and a crawler has
+        // to be allowed to fetch a page to see that. Only machine endpoints are disallowed.
+        disallow: ['/api/', '/admin/'],
       },
     ],
     sitemap: `${base}/sitemap.xml`,
+    host: base,
   }
 }

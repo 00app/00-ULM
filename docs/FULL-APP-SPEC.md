@@ -138,7 +138,7 @@ flowchart LR
 |------|--------|----------------|
 | Intro | `/`, `/intro` | Logo glitch (Style A) → kinetic words → lockup **CREATE A / PROFILE TO / START.** at **profile H2 scale** → CREATE → profile. Geolocation may seed `profile_postcode`. `?skip=1` skips logo. |
 | Profile | `/profile` | Stepped onboarding: name (**given-name**, first token only), **postcode** (+ optional house number), household, home type, **power type**, transport, age, employment. **Goal** from intro (`profile_goal`). Full-sentence fade per step. **`POST /api/user`** on submit → session + capped JIT scrapes. |
-| Summary | `/profile/summary` | Kinetic **HELLO → name → locality** (`IntroWordCycle`, opacity ticker only). Impact totals. Handshake scrape. |
+| Summary | `/profile/summary` | **Retired from onboarding 2026-11-05**: onboarding now ends in Zone, whose head is the summary. The page remains for direct links (noindex): kinetic **HELLO → name → locality** (`IntroWordCycle`, opacity ticker only), impact totals, handshake scrape. |
 | Zone | `/zone` | 13 journey cards + Saving Tips; hydrates from Neon via scrape-sync. |
 | Solo Focus | Overlay on Zone | Questions → answer → zip-shut → result / morph card. |
 | Zai | `/zai` | Free-form chat (Gemini), separate from MC answer birth path. |

@@ -114,8 +114,8 @@ function Words({ text, base }: { text: string; base: number }) {
 /**
  * The Zone head: greeting, count, £ line, CO₂ line. Every line is the same size and weight
  * (see .zone-summary-line); only digits switch to the numerals face. A line with nothing to say
- * (a zero figure, or the empty SSR placeholder) is not rendered. Space for four lines is reserved
- * in CSS, so figures arriving later never push the page down.
+ * (a zero figure, or the empty SSR placeholder) is not rendered. Four stacked lines on phones, two
+ * rows on desktop; the space is reserved in CSS, so figures arriving later never push the page down.
  */
 export function ZoneSummary({ welcome, figuresReady = true }: { welcome: ZoneWelcomeCopy; figuresReady?: boolean }) {
   const greeting = `${welcome.timeOfDayLine.replace(/\.$/, ',')} ${welcome.nameLine}`.trim()
@@ -131,30 +131,38 @@ export function ZoneSummary({ welcome, figuresReady = true }: { welcome: ZoneWel
   if (figuresReady && welcome.savingsMoneyLine) lines.push({ key: 'carbon', text: welcome.savingsMoneyLine })
 
   let base = 0
+  const renderLine = (line: (typeof lines)[number], first: boolean) => {
+    const b = base
+    base += countWords(line.text)
+    return (
+      <p
+        key={line.key}
+        className={`zone-summary-line m-0${first ? ' zone-summary-greeting' : ''}`}
+        style={{ '--zs-base': b } as CSSProperties}
+      >
+        {line.figure ? (
+          <>
+            <span className="zone-summary-figure">
+              <Words text={line.figure} base={b} />
+            </span>{' '}
+            <Words text={line.rest ?? ''} base={b + 1} />
+          </>
+        ) : (
+          <Words text={line.text} base={b} />
+        )}
+      </p>
+    )
+  }
+  // Two rows: greeting + count, then £ + CO₂. On phones each line stacks (the row wrapper is
+  // display: contents); from 1024px each row flows as one line (2026-11-05).
+  const rowA = lines.filter((l) => l.key === 'greeting' || l.key === 'found')
+  const rowB = lines.filter((l) => l.key === 'money' || l.key === 'carbon')
   return (
     <>
-      {lines.map((line, i) => {
-        const b = base
-        base += countWords(line.text)
-        return (
-          <p
-            key={line.key}
-            className={`zone-summary-line m-0${i === 0 ? ' zone-summary-greeting' : ''}`}
-            style={{ '--zs-base': b } as CSSProperties}
-          >
-            {line.figure ? (
-              <>
-                <span className="zone-summary-figure">
-                  <Words text={line.figure} base={b} />
-                </span>{' '}
-                <Words text={line.rest ?? ''} base={b + 1} />
-              </>
-            ) : (
-              <Words text={line.text} base={b} />
-            )}
-          </p>
-        )
-      })}
+      {rowA.length > 0 ? (
+        <div className="zone-summary-row">{rowA.map((l) => renderLine(l, l.key === 'greeting'))}</div>
+      ) : null}
+      {rowB.length > 0 ? <div className="zone-summary-row">{rowB.map((l) => renderLine(l, false))}</div> : null}
     </>
   )
 }

@@ -82,6 +82,17 @@ Gary: "update everything, fix all problems" (scoped via AskUserQuestion to: veri
 | 3 | DB host drift (#6 below) | Confirmed this sandbox has no path to fix the live drift (no network to neon.tech, no Vercel auth). Added a build-time guard instead so it can never ship silently again. | **Guarded, not fixed** — needs a Vercel-authenticated session |
 | 4 | Unstarted big features | Roadmap said "not started" for the projects model, bill OCR, grants, multi-region. See below for what actually moved. | In progress |
 
+## Release 2026-11-05: onboarding, Zone head, findability
+
+| # | Area | Change | Status |
+|---|------|--------|--------|
+| 1 | Onboarding end | The summary showed twice: the `/profile/summary` word ticker, then Zone's head repeating the same totals straight after. Onboarding now ends in **Zone**; its head is the summary (≈10 s faster). Zone already loads its own research and tips, so nothing is lost. `/profile/summary` still exists for direct links, noindex. | **Shipped** |
+| 2 | Zone head figures | The head counted up to a local-only total, then down to the real one a second later (£3.7k → £2.6k on every load). It now waits for the first research payload and for the total to stop changing (350 ms debounce, 4 s cap). | **Shipped** |
+| 3 | Zone head layout | Four stacked lines read oddly in the new UI on desktop. From 1024px it is two rows ("Evening, Gary. 12 things found." / "£2.6k to save. 12.3t CO₂ to cut."); phones keep the stack. | **Shipped** |
+| 4 | SEO and findability | Every page inherited the homepage as its canonical (search engines saw all pages as duplicates of `/`). Link previews still carried the old pitch, and the share image was an SVG that WhatsApp, iMessage, Facebook, LinkedIn and X do not render. Now: per-page canonical, title, description and share card (`pageMetadata` in `lib/seo/siteMetadata.ts`); a generated 1200×630 PNG share image (`app/opengraph-image.tsx`, `app/twitter-image.tsx`); web app manifest; JSON-LD updated (FinanceApplication, feature list); sitemap limited to pages a stranger can use (`/`, `/start`, `/privacy`); personal surfaces (Zone, profile, settings, saved, Zai, agents, `/start/result`) noindex, follow. `/start` is the indexable postcode landing page ("What your postcode costs you"). | **Shipped** |
+
+**Next for findability:** server-rendered, indexable content pages that answer real searches with the sourced figures we already have (e.g. "electricity price per kWh in {region}", "moving house checklist UK", "Warm Home Discount 2026: who qualifies"), each linking into `/start`; submit the sitemap in Google Search Console and Bing Webmaster Tools.
+
 ## Mechanical truth invariants (non-negotiable)
 
 1. `UK_2026_MONEY_LEAD` — all `money_value: 0` until stream (`lib/scraper/uk2026Defaults.ts`).
