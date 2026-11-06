@@ -68,12 +68,11 @@ fi
 
 if [[ -n "$DEPLOY_URL" ]]; then
   echo "→ Waiting for ${DEPLOY_URL} to be Ready…"
-  for _ in $(seq 1 36); do
-    if vercel inspect "$DEPLOY_URL" 2>/dev/null | grep -qiE 'status\s+●\s+Ready|status\s+Ready'; then
-      break
-    fi
-    sleep 5
-  done
+  # `vercel inspect` prints to stderr and, without --wait, can hang for a long time, so the old
+  # grep loop never saw "Ready". --wait exits as soon as the deployment is Ready (or errors).
+  if ! vercel inspect "$DEPLOY_URL" --wait --timeout 5m >/dev/null 2>&1; then
+    echo "⚠️  Deployment not Ready after 5m (or failed) — check: vercel inspect ${DEPLOY_URL}" >&2
+  fi
 fi
 
 bash "${ROOT}/scripts/vercel-promote-latest.sh" "${DEPLOY_URL:-}"
