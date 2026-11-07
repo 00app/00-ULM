@@ -26,8 +26,8 @@ export function AgentShell({
       <p className="zzb-eyebrow">
         <span>{eyebrow}</span>
       </p>
-      <h1 className="zz-page-title zzb-h2 zzb-ink">{title}</h1>
-      <p className="zzb-lede zzb-muted agent-brand__intro">{intro}</p>
+      <h1 className="zz-page-title zzb-h2 zzb-ink" data-field-quiet>{title}</h1>
+      <p className="zzb-lede zzb-muted agent-brand__intro" data-field-quiet>{intro}</p>
       {children}
     </div>
   )
@@ -47,7 +47,7 @@ export function AgentRow({
 }) {
   return (
     <li className="agent-brand__row">
-      <div className="agent-brand__row-body">
+      <div className="agent-brand__row-body" data-field-quiet>
         <p className="zzb-h4 zzb-ink m-0">{title}</p>
         {meta ? <p className="zzb-body zzb-muted m-0">{meta}</p> : null}
         {source ? <p className="zzb-meta m-0">{source}</p> : null}

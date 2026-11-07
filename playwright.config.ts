@@ -21,6 +21,12 @@ export default defineConfig({
         channel: 'chrome',
       },
     },
+    {
+      // Safari's engine, for the Gravity Grid canvas only (needs `npx playwright install webkit`).
+      name: 'webkit',
+      testMatch: /gravity-grid\.spec\.ts/,
+      use: { ...devices['Desktop Safari'] },
+    },
   ],
   webServer: {
     command: 'npm run dev:3000',

@@ -83,7 +83,7 @@ function StartResult() {
   if (phase === 'not_found') {
     return (
       <EntryShell>
-        <h1 className="zz-h2 text-display m-0 text-center" style={{ color: 'var(--color-blue)' }}>
+        <h1 className="zz-h2 text-display m-0 text-center" data-field-quiet style={{ color: 'var(--color-blue)' }}>
           We can&apos;t find that postcode.
         </h1>
         <SecondaryCircleCta ariaLabel="Try another postcode" onClick={() => router.replace(ROUTES.START)}>
@@ -96,7 +96,7 @@ function StartResult() {
   return (
     <EntryShell>
       {phase === 'loading' ? (
-        <p className="zz-body m-0" aria-live="polite">
+        <p className="zz-body m-0" data-field-quiet aria-live="polite">
           Checking {postcode}…
         </p>
       ) : (
@@ -189,8 +189,8 @@ function FirstResultSequence({
           {...motionProps}
           transition={{ duration: reduceMotion ? 0.15 : 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
-          <h2 className="zz-h2 text-display m-0 text-center entry-sequence__sentence">{line.sentence}</h2>
-          {line.source ? <p className="entry-sequence__source">Source: {line.source}</p> : null}
+          <h2 className="zz-h2 text-display m-0 text-center entry-sequence__sentence" data-field-quiet>{line.sentence}</h2>
+          {line.source ? <p className="entry-sequence__source" data-field-quiet>Source: {line.source}</p> : null}
         </motion.div>
       </AnimatePresence>
     </section>

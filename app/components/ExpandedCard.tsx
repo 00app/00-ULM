@@ -5,7 +5,7 @@
  * Used by {@link JourneyBentoCard} and {@link SoloFocusOverlay} for `.expanded-solo-focus`.
  */
 import { T_COLOUR, T_EXIT } from '@/lib/motion'
-import { forwardRef } from 'react'
+import { forwardRef, useEffect } from 'react'
 import { motion, type HTMLMotionProps } from 'framer-motion'
 import { EXPANDED_CARD_CLOSE_TRANSITION } from '@/lib/animations'
 import {
@@ -15,6 +15,10 @@ import {
   FAMILY_TRANSITION_ATOMIC,
   familyAtomicProps,
 } from '@/lib/motion-family'
+import { holdField } from '@/lib/brand/fieldHold'
+
+/** Card ↔ Solo Focus morph (spring) or atomic open/close: hold the Gravity Grid meanwhile. */
+const FIELD_HOLD_MS = 600
 
 export type ExpandedCardShellProps = Omit<HTMLMotionProps<'div'>, 'initial' | 'animate' | 'transition' | 'exit'> & {
   reduceMotion: boolean
@@ -30,6 +34,11 @@ export const ExpandedCardShell = forwardRef<HTMLDivElement, ExpandedCardShellPro
   ref
 ) {
   const useLayoutMorph = Boolean(layoutId) && !reduceMotion
+
+  // Open (mount) and close both play a Liquid transition; the field sits still for it.
+  useEffect(() => {
+    if (!reduceMotion) holdField(FIELD_HOLD_MS)
+  }, [reduceMotion, isExiting])
 
   if (reduceMotion) {
     return (

@@ -17,6 +17,11 @@
   --zzb-tint: #f4f4fb;
   --zzb-white: #fcfcff;
 
+  /* Gravity Grid field (lib/brand/field.ts FIELD.colours; change both together) */
+  --field-ground: #fcfcff;
+  --field-rest: #d9dcf2;
+  --field-blue: #000aff;
+
   /* Type */
   --zzb-font: 'helvetica-neue-lt-pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --zzb-size-display: clamp(52px, 8.6vw, 136px);

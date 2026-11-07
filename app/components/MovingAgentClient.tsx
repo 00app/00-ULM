@@ -125,7 +125,7 @@ export function MovingAgentClient() {
       <div className="agent-page zz-brand zz-brand-page">
         <ZoneBackToZoneLink />
         <h3 className="zz-page-title">Moving in</h3>
-        <p className="agent-intro">Add your new postcode and we&apos;ll build your moving-in list.</p>
+        <p className="agent-intro" data-field-quiet>Add your new postcode and we&apos;ll build your moving-in list.</p>
         <SecondaryCircleCta ariaLabel="Add your postcode" href={ROUTES.START}>
           ADD
           <br />
@@ -140,7 +140,7 @@ export function MovingAgentClient() {
     <div className="agent-page zz-brand zz-brand-page" data-testid="agent-moving">
       <ZoneBackToZoneLink />
       <h3 className="zz-page-title">Moving in</h3>
-      <p className="agent-intro">
+      <p className="agent-intro" data-field-quiet>
         {place ? `Welcome to ${place}. ` : ''}Here&apos;s everything to sort after a move, in order.
       </p>
       <p className="agent-progress" aria-live="polite">
@@ -189,7 +189,7 @@ export function MovingAgentClient() {
               {MOVING_GROUPS[g].title}
             </h4>
             <p className="agent-group__blurb">{MOVING_GROUPS[g].blurb}</p>
-            <ul className="agent-tasks">
+            <ul className="agent-tasks" data-field-quiet>
               {groupTasks.map((task) => {
                 const done = Boolean(progress[task.id])
                 return (

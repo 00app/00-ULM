@@ -1327,6 +1327,7 @@ export function JourneyBentoCard({
       <motion.div
         data-journey={journeyId}
         data-zone-surface={surfaceKind}
+        data-field-quiet
         onClick={() => {
           triggerHaptic('medium')
           onExpand?.()

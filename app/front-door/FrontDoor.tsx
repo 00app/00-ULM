@@ -278,7 +278,7 @@ function Hero() {
             <span className="zzfd-pill__dot" />
             Price cap figures for October to December 2026
           </motion.p>
-          <h1 className="zzfd-display">
+          <h1 className="zzfd-display" data-field-quiet>
             <RevealLines
               delay={0.15}
               lines={['Stop overpaying', <span key="b" className="zzfd-blue">for your home.</span>]}
@@ -286,6 +286,7 @@ function Hero() {
           </h1>
           <motion.p
             className="zzfd-lede"
+            data-field-quiet
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 0.45, ease: EASE }}
@@ -299,7 +300,7 @@ function Hero() {
             transition={{ duration: 0.9, delay: 0.6, ease: EASE }}
           >
             <PostcodeForm />
-            <ul className="zzfd-trust">
+            <ul className="zzfd-trust" data-field-quiet>
               <li>Free to use</li>
               <li>No bank login to start</li>
               <li>Every figure sourced</li>
@@ -331,7 +332,7 @@ function Statement() {
     <section className="zzfd-section">
       <div className="zzfd-container">
         <Eyebrow index="01">The problem</Eyebrow>
-        <p ref={ref} className="zzfd-statement" data-keep-case>
+        <p ref={ref} className="zzfd-statement" data-keep-case data-field-quiet>
           {words.map((w, i) => (
             <InkWord
               key={i}
@@ -356,15 +357,15 @@ function Facts() {
             <Eyebrow index="02" light>
               This quarter
             </Eyebrow>
-            <h2 className="zzfd-h2">
+            <h2 className="zzfd-h2" data-field-quiet>
               <RevealOnView>The numbers, straight.</RevealOnView>
             </h2>
           </div>
-          <p className="zzfd-section__note">
+          <p className="zzfd-section__note" data-field-quiet>
             Regulator and published figures. Each one links to its source and shows its date.
           </p>
         </div>
-        <div className="zzfd-stats">
+        <div className="zzfd-stats" data-field-quiet>
           {FACTS.map((f, i) => (
             <Rise key={f.id} delay={i * 0.08} className="zzfd-stat">
               <span className="zzfd-stat__index">00{i + 1}</span>
@@ -388,11 +389,11 @@ function Wins() {
         <div className="zzfd-section__head">
           <div>
             <Eyebrow index="03">Start today</Eyebrow>
-            <h2 className="zzfd-h2">
+            <h2 className="zzfd-h2" data-field-quiet>
               <RevealOnView>Three wins, no sign-up.</RevealOnView>
             </h2>
           </div>
-          <p className="zzfd-section__note">Savings are for an average household in Great Britain.</p>
+          <p className="zzfd-section__note" data-field-quiet>Savings are for an average household in Great Britain.</p>
         </div>
         <ol className="zzfd-cards">
           {WINS.map((w, i) => (
@@ -429,17 +430,17 @@ function How() {
       <div className="zzfd-container zzfd-how">
         <div className="zzfd-how__aside">
           <Eyebrow index="04">The workspace</Eyebrow>
-          <h2 className="zzfd-h2">
+          <h2 className="zzfd-h2" data-field-quiet>
             <RevealOnView>Find. Explain.</RevealOnView>
             <RevealOnView>
               <span className="zzfd-blue">Act.</span>
             </RevealOnView>
           </h2>
-          <p className="zzfd-section__note zzfd-section__note--dark">
+          <p className="zzfd-section__note zzfd-section__note--dark" data-field-quiet>
             The workspace opens on the one thing that needs you first. Everything else waits in order.
           </p>
         </div>
-        <div ref={ref} className="zzfd-how__steps">
+        <div ref={ref} className="zzfd-how__steps" data-field-quiet>
           <div className="zzfd-how__rail" aria-hidden="true">
             <motion.div className="zzfd-how__rail-fill" style={{ scaleY: fill }} />
           </div>
@@ -467,13 +468,13 @@ function Rules() {
         <div className="zzfd-section__head">
           <div>
             <Eyebrow index="05">Our rules</Eyebrow>
-            <h2 className="zzfd-h2">
+            <h2 className="zzfd-h2" data-field-quiet>
               <RevealOnView>Built on trust,</RevealOnView>
               <RevealOnView>not commission.</RevealOnView>
             </h2>
           </div>
         </div>
-        <div className="zzfd-rules">
+        <div className="zzfd-rules" data-field-quiet>
           {RULES.map((r, i) => (
             <Rise key={r.n} delay={i * 0.08} className="zzfd-rule">
               <span className="zzfd-rule__n">{r.n}</span>
@@ -494,11 +495,11 @@ function Faq() {
       <div className="zzfd-container zzfd-faq">
         <div>
           <Eyebrow index="06">Questions</Eyebrow>
-          <h2 className="zzfd-h2">
+          <h2 className="zzfd-h2" data-field-quiet>
             <RevealOnView>Fair questions.</RevealOnView>
           </h2>
         </div>
-        <ul className="zzfd-faq__list">
+        <ul className="zzfd-faq__list" data-field-quiet>
           {FAQS.map((f, i) => {
             const isOpen = open === i
             return (
@@ -560,7 +561,7 @@ function Closing() {
         <Eyebrow index="07" light>
           Zero Zero Workspace
         </Eyebrow>
-        <h2 className="zzfd-display zzfd-display--light">
+        <h2 className="zzfd-display zzfd-display--light" data-field-quiet>
           <RevealOnView>Find your</RevealOnView>
           <RevealOnView>first win.</RevealOnView>
         </h2>

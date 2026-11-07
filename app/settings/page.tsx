@@ -393,11 +393,11 @@ export default function SettingsPage() {
 
       {/* Page title — H3, left-aligned (matches Ask Zai / Likes) */}
       <div className="settings-heading-wrap">
-        <h3 className="zz-page-title">Settings</h3>
+        <h3 className="zz-page-title" data-field-quiet>Settings</h3>
       </div>
 
       <div className="settings-grid-wrap">
-        <section className="settings-hero-section" aria-label="Overview">
+        <section data-field-quiet className="settings-hero-section" aria-label="Overview">
           <motion.div
             className="settings-hero-inner"
             initial={settingsCellMotion.initial}
@@ -435,7 +435,7 @@ export default function SettingsPage() {
           </motion.div>
         </section>
 
-        <section className="settings-cards-section settings-cards-section--focus" aria-label="Your focus">
+        <section data-field-quiet className="settings-cards-section settings-cards-section--focus" aria-label="Your focus">
           <motion.div
             className="settings-answer-grid"
             initial={settingsCellMotion.initial}
@@ -452,7 +452,7 @@ export default function SettingsPage() {
 
         <SettingsLivingSection />
 
-        <section className="settings-hero-section settings-truth-section" aria-label="Truth ledger">
+        <section data-field-quiet className="settings-hero-section settings-truth-section" aria-label="Truth ledger">
           <motion.div
             className="settings-hero-inner"
             initial={settingsCellMotion.initial}
@@ -474,7 +474,7 @@ export default function SettingsPage() {
           </motion.div>
         </section>
 
-        <section className="settings-cards-section settings-cards-section--profile" aria-label="Profile and journeys">
+        <section data-field-quiet className="settings-cards-section settings-cards-section--profile" aria-label="Profile and journeys">
           <motion.div className="settings-answer-grid" transition={settingsStaggerTransition}>
             {profileRows.map((row, i) => (
               <motion.div

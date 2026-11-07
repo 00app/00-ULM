@@ -432,7 +432,7 @@ export default function ZaiPage() {
       <ZoneModalCloseLink onClose={handleZaiClose} />
 
       <div className="zai-page-scroll max-w-zone">
-        <h3 className="zz-page-title">Ask Zai</h3>
+        <h3 className="zz-page-title" data-field-quiet>Ask Zai</h3>
         <motion.div className="zai-page-content">
           <motion.div
             className="zai-intro-bubble"
@@ -451,7 +451,7 @@ export default function ZaiPage() {
             <ZaiSuggestPills prompts={pillPrompts} disabled={loading} onPick={(p) => void sendQuestion(p)} />
           ) : null}
 
-          <div className="zai-chat-thread">
+          <div className="zai-chat-thread" data-field-quiet>
             {messages.map((msg, i) => (
               <Fragment key={`${msg.role}-${i}-${msg.text.slice(0, 24)}`}>
                 <motion.div

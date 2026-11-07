@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { AppProvider } from '@/app/context/AppContext'
 import { GlobalAppShell } from '@/app/global-layout'
 import InteractiveBackground from '@/app/components/ui/InteractiveBackground'
+import BrandField from '@/app/components/brand/BrandField'
 import CtaClickBurst from '@/app/components/ui/CtaClickBurst'
 import SentenceCase from '@/app/components/ui/SentenceCase'
 import { buildSiteJsonLd, buildSiteMetadata } from '@/lib/seo/siteMetadata'
@@ -65,6 +66,8 @@ export default function RootLayout({
       >
         {/* Liquid mesh + grain — always mounted (no ClientOnly gate); see .zz-background-env in globals.css */}
         <InteractiveBackground />
+        {/* Gravity Grid brand field (docs/BRAND-LANGUAGE.md): canvas above the flat ground, under the shell */}
+        <BrandField />
         <CtaClickBurst />
         <SentenceCase />
         <AppProvider>

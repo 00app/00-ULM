@@ -16,6 +16,12 @@ body:has(.zzfd) {
 body:has(.zzfd) {
   padding: 0 !important;
 }
+/* The page ground lives on the root now that .zzfd is transparent (Gravity Grid). Covers
+   overscroll and anywhere the fixed .zz-background-env does not reach; the field canvas still
+   paints above it. Beats the global `html, body { background: transparent !important }`. */
+html:has(.zzfd) {
+  background-color: var(--zzb-white) !important;
+}
 .zz-main-perspective-shell:has(.zzfd) {
   perspective: none !important;
 }
@@ -42,7 +48,10 @@ body:has(.zzfd) {
 
   position: relative;
   z-index: 1;
-  background: var(--fd-white);
+  /* Transparent so the Gravity Grid shows through. The flat ground (#FCFCFF) is painted by the
+     fixed `.zz-background-env` layer underneath (app/globals.css); sections with their own fill
+     (navy, tint, blue, cards) keep it and hide the field. */
+  background: transparent;
   color: var(--fd-ink);
   font-family: var(--fd-font);
   font-size: 17px !important;

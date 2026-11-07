@@ -364,6 +364,7 @@ export default function LikesPage() {
               <article
                 key={pick.id}
                 className="settings-card-cell likes-card-cell"
+                data-field-quiet
               >
               <div
                 className="bento-card-groovy likes-bento-card zz-family-bloom flex flex-col justify-between w-full h-full zz-brand zzb-card"
@@ -565,9 +566,9 @@ export default function LikesPage() {
       <ZoneModalCloseLink />
 
       <div className="settings-heading-wrap zz-brand likes-heading--brand">
-        <h3 className="zz-page-title zzb-h2 zzb-ink">{showWall || doneItems.length > 0 || !state.likesLoaded ? 'Likes' : 'No likes yet'}</h3>
+        <h3 className="zz-page-title zzb-h2 zzb-ink" data-field-quiet>{showWall || doneItems.length > 0 || !state.likesLoaded ? 'Likes' : 'No likes yet'}</h3>
         {showWall ? (
-          <p className="zzb-lede zzb-muted likes-total m-0" data-testid="likes-total">
+          <p className="zzb-lede zzb-muted likes-total m-0" data-field-quiet data-testid="likes-total">
             {shownItems.length} saved
             {totalGbp > 0 ? ` · worth up to ${formatZoneCardMoney(totalGbp)}` : ''}
             {totalKg > 0 ? ` · ${Math.round(totalKg).toLocaleString('en-GB')}\u00a0kg\u00a0CO₂ less` : ''}
@@ -598,7 +599,7 @@ export default function LikesPage() {
         ) : null}
         {!showWall && doneItems.length === 0 && state.likesLoaded ? (
           <div className="likes-empty" data-testid="likes-empty">
-            <p className="zzb-lede zzb-muted m-0">Tap Save on any card to keep it here.</p>
+            <p className="zzb-lede zzb-muted m-0" data-field-quiet>Tap Save on any card to keep it here.</p>
             <Link href={ROUTES.ZONE} className="zzb-link likes-empty__link">
               Back to your Zone →
             </Link>
@@ -626,7 +627,7 @@ export default function LikesPage() {
               aria-label={sortMode === 'newest' ? 'Newest first' : categoryLabel(g.category)}
             >
               {showGroupHeadings && sortMode === 'saving' ? (
-                <h2 className="zzb-eyebrow likes-group__title">
+                <h2 className="zzb-eyebrow likes-group__title" data-field-quiet>
                   <span>{categoryLabel(g.category)}</span>
                   {g.gbp > 0 ? <span className="likes-group__sum">{` · ${formatZoneCardMoney(g.gbp)}`}</span> : null}
                 </h2>
@@ -649,14 +650,14 @@ export default function LikesPage() {
 
       {doneItems.length > 0 ? (
         <section className="zz-brand likes-done" aria-label="Done">
-          <h2 className="zzb-eyebrow likes-group__title">
+          <h2 className="zzb-eyebrow likes-group__title" data-field-quiet>
             <span>Done</span>
             <span className="likes-group__sum">
               {` · ${doneItems.length}`}
               {doneGbp > 0 ? ` · worth up to ${formatZoneCardMoney(doneGbp)}` : ''}
             </span>
           </h2>
-          <ul className="likes-done__list">
+          <ul className="likes-done__list" data-field-quiet>
             {(showAllDone ? doneItems : doneItems.slice(0, DONE_PREVIEW)).map((d) => (
               <li key={d.id} className="likes-done__row">
                 <span className="likes-done__check" aria-hidden>✓</span>

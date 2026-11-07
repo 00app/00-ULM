@@ -69,6 +69,7 @@ export function ZoneRecCard({ card, visited = false, onOpen, onCta, emphasis }: 
   }
   return (
     <article
+      data-field-quiet
       id={zoneCardDomId(card.id)}
       data-zone-surface="tip"
       data-rec-card={card.id}

@@ -3708,7 +3708,7 @@ export default function ZonePage({
           animate="visible"
         >
           <div className="zone-hero-section w-full" aria-live="polite">
-            <div className="zone-hero-copy" data-testid="zone-section-welcome">
+            <div className="zone-hero-copy" data-testid="zone-section-welcome" data-field-quiet>
               {/* The head: four lines, one size and weight, animated word by word. */}
               <ZoneSummary welcome={zoneWelcome} figuresReady={figuresReady} />
             </div>

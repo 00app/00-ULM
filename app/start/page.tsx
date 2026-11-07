@@ -54,6 +54,7 @@ export default function StartPostcodePage() {
     <EntryShell>
       <h1
         className="zz-h2 text-display m-0 text-center"
+        data-field-quiet
         style={{ maxWidth: 'min(92vw, 48rem)', color: 'var(--color-blue)' }}
       >
         Where do you live?

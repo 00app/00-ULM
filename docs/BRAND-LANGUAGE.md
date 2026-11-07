@@ -78,6 +78,19 @@ Inside the app shell, the global type lock must be lifted the way `front-door.cs
 - `MotionConfig reducedMotion="user"`; counters show the final value when motion is reduced.
 - Not allowed: tickers and marquees, looping pulses, tilt, bounce, confetti.
 
+## Gravity Grid (background field)
+
+The one ambient layer, beside the glitch logo as the brand's only decorative motion. A grid of pale dots sits behind the UI on the page ground, bends toward the finger or cursor like gravity, leaves a faint blue trace and settles back.
+
+- Tokens: `FIELD` in `lib/brand/field.ts`; colours also as `--field-ground` (#FCFCFF), `--field-rest` (#D9DCF2) and `--field-blue` (#000AFF) in `app/styles/brand.css`.
+- Grid: 12px pitch (never smaller), 1px dots. The ground is the page; the field never paints it.
+- It only answers input: drag, tap, hover and scroll. It never loops or moves on its own, and sleeps when settled.
+- No bounce: dots settle critically damped (`spring.bounce` is `false`).
+- It sits behind every surface. Cards, navy and blue sections, sheets and buttons keep their fill and hide it.
+- Text containers marked `data-field-quiet` (plus a 14px margin) cap the trace tint at 0.12, so even muted body copy keeps 4.5:1 against every dot.
+- Reduced motion: no dot moves; tap and drag show tint only.
+- Never blocks input: `pointer-events: none`, passive listeners, no `preventDefault`, no `touch-action`.
+
 ## Voice
 
 Short sentences. Plain words. Numbers with units and sources. "You approve every step." Never "AI-powered", never exclamation marks, never fear.
