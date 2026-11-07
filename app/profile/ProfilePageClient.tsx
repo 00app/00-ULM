@@ -514,7 +514,7 @@ export default function ProfilePageClient() {
   }, [step])
 
   useEffect(() => {
-    router.prefetch(ROUTES.ZONE)
+    router.prefetch(ROUTES.PROFILE_SUMMARY)
   }, [router])
 
   useEffect(() => {
@@ -590,27 +590,43 @@ export default function ProfilePageClient() {
    * onboarding instead of forcing all 8 steps again. Never fires on the Settings single-field
    * edit deep link (`q`/`returnTo` present) — that visit to `/profile` is intentional.
    */
+  // Once per visit, on arrival. Without this the check re-ran on every answer, saw the profile
+  // complete on the last one and sent the user to Zone before submitProfile could hand over to
+  // the /profile/summary ticker (it lands there a few seconds later, after saving).
+  const returningCheckDoneRef = useRef(false)
+  /** The network fallback below outlives later renders; it stops only when the page goes away. */
+  const profilePageGoneRef = useRef(false)
+  useEffect(() => {
+    profilePageGoneRef.current = false
+    return () => {
+      profilePageGoneRef.current = true
+    }
+  }, [])
   useEffect(() => {
     if (!profileHydrated) return
     if (qParam || returnTo || skipParam === '1') return
     if (submittingRef.current) return
+    if (returningCheckDoneRef.current) return
+    returningCheckDoneRef.current = true
     if (isProfileOnboardingComplete(values)) {
       router.replace(ROUTES.ZONE)
       return
     }
-    let cancelled = false
+    // Stop if the page is gone, or the user has finished onboarding meanwhile (submitProfile
+    // owns the hand-over then).
+    const stale = () => profilePageGoneRef.current || submittingRef.current
     ;(async () => {
       try {
         const userRes = await fetch('/api/user', { cache: 'no-store' })
         const userJson = await userRes.json().catch(() => null)
-        if (cancelled) return
+        if (stale()) return
         if (userJson?.user && userRowOnboardingComplete(userJson.user)) {
           router.replace(ROUTES.ZONE)
           return
         }
         const sessionRes = await fetch('/api/session-state', { cache: 'no-store' })
         const sessionJson = await sessionRes.json().catch(() => null)
-        if (cancelled) return
+        if (stale()) return
         if (sessionJson?.profile && guestProfileOnboardingComplete(sessionJson.profile)) {
           router.replace(ROUTES.ZONE)
         }
@@ -618,9 +634,6 @@ export default function ProfilePageClient() {
         /* network failure — fall through to onboarding, never block on this check */
       }
     })()
-    return () => {
-      cancelled = true
-    }
   }, [profileHydrated, qParam, returnTo, skipParam, values, router])
 
   const needsEntry =
@@ -862,9 +875,8 @@ export default function ProfilePageClient() {
         ...finalValues,
         goal: resolveProfileGoal(finalValues),
       }
-      // Onboarding ends in Zone. Its head (things found, £ to save, CO₂ to cut) is the summary;
-      // the separate /profile/summary ticker repeated it straight after (2026-11-05).
-      let dest = overrideReturnTo || returnTo || ROUTES.ZONE
+      // Onboarding plays the /profile/summary ticker, which then hands over to Zone.
+      let dest = overrideReturnTo || returnTo || ROUTES.PROFILE_SUMMARY
       dest = dest.trim()
       if (!dest.startsWith('http') && !dest.startsWith('/')) dest = `/${dest.replace(/^\/+/, '')}`
       if (!isProfileOnboardingComplete(mergedValues)) {

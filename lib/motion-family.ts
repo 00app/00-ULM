@@ -2,7 +2,8 @@
  * Framer presets for page, card and step motion — a thin layer over lib/motion.ts (the token
  * source). Every entrance is opacity + an 8px rise; every exit is opacity + a 4px drop, faster
  * and on ease-in. No blur, scale or letter-spacing tweens: they cost layout/filter work per
- * frame and read as decoration. The brand glitch logo is the only decorative animation.
+ * frame and read as decoration. The brand glitch logo and the Gravity Grid background field
+ * (docs/BRAND-LANGUAGE.md) are the only decorative motion.
  */
 
 import type { Target, TargetAndTransition, Transition, Variant } from 'framer-motion'
@@ -132,10 +133,16 @@ const FULL: FamilyMotionTargets = {
 export function familyPageEnterProps(
   reduceMotion: boolean
 ): FamilyMotionTargets & { transition: Transition } {
-  return {
-    ...(reduceMotion ? REDUCED : FULL),
-    transition: reduceMotion ? { duration: REDUCED_CROSSFADE_SEC } : T_ENTER,
+  if (reduceMotion) {
+    return {
+      ...REDUCED,
+      // The preference is read after mount (useHydrationSafeReducedMotion), so the full rise may
+      // already have started. Snap y home, or the page stays a few px low for the whole visit.
+      animate: { ...REDUCED.animate, y: 0 },
+      transition: { duration: REDUCED_CROSSFADE_SEC, y: { duration: 0 } },
+    }
   }
+  return { ...FULL, transition: T_ENTER }
 }
 
 /** @deprecated Prefer `familyPageEnterProps`. */
